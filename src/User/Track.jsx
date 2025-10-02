@@ -81,7 +81,7 @@ const Track = ({ darkMode }) => {
             <button
               type="button"
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="py-3 w-full px-4 inline-flex items-center justify-between gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow hover:bg-gray-50 focus:outline-hidden focus:bg-gray-50"
+              className="py-3 w-full px-4 dark:bg-gray-950 dark:border-gray-700 dark:text-white inline-flex items-center justify-between gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow hover:bg-gray-50 focus:outline-hidden focus:bg-gray-50"
             >
               {selectedOrder ? `Order #${selectedOrder.id} - ${selectedOrder.status}` : "Select Order"}
               <FiChevronDown
@@ -91,7 +91,7 @@ const Track = ({ darkMode }) => {
 
            
             {isDropdownOpen && (
-              <div className="absolute z-10 mt-2 w-60 bg-white overflow-y-auto shadow-md rounded-lg border border-gray-200">
+              <div className="absolute z-10 mt-2 w-60 dark:bg-gray-950 bg-white overflow-y-auto shadow-md rounded-lg border border-gray-200">
                 <div className="p-1 space-y-0.5">
                   {orders.map((order) => (
                     <button
@@ -100,7 +100,7 @@ const Track = ({ darkMode }) => {
                         setSelectedOrder(order);
                         setIsDropdownOpen(false);
                       }}
-                      className="w-full text-left flex items-center gap-x-3.5 py-2 px-3 rounded-lg text-sm text-gray-800 hover:bg-gray-100 focus:outline-hidden focus:bg-gray-100"
+                      className="w-full dark:bg-gray-900 dark:border-gray-700 dark:text-white text-left flex items-center gap-x-3.5 py-2 px-3 rounded-sm text-sm text-gray-800 hover:bg-gray-100 focus:outline-hidden focus:bg-gray-100"
                     >
                       #{order.id} 
                     </button>
@@ -143,7 +143,7 @@ const Track = ({ darkMode }) => {
                             isCancelled
                               ? "bg-red-500 text-white"
                               : isCompleted
-                              ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white"
+                              ? "bg-gradient-to-r from-blue-500 to-indigo-500 dark:bg-gray-950 text-white"
                               : "bg-gray-200 text-gray-500"
                           }`}
                         >

@@ -20,7 +20,7 @@ const Products = () => {
 
 const fetchProducts = async () => {
   try {
-    const token = localStorage.getItem("authToken");
+    
     const res = await fetch("http://localhost:8080/api/shops/products", {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -75,6 +75,7 @@ useEffect(() => {
         },
         body: JSON.stringify(newProduct),
       });
+      console.log(newProduct)
 
       if (!res.ok) throw new Error("Failed to add product");
 
@@ -199,7 +200,7 @@ useEffect(() => {
 
   return (
     <ShopLayout>
-    <div style={{marginTop:"-500px"}} className=" min-h-[calc(100vh-4rem)] bg-[#f1f5f9] p-6 font-cairo text-right">
+    <div style={{marginTop:"-1200px"}} className=" bg-[#f1f5f9] p-6 font-cairo text-right">
      
       <div className="bg-white border p-4 rounded-2xl text-right mb-4">
                     <h1 className="text-3xl font-bold text-blue-500 flex items-center justify-end gap-2"><FiBox/>المنتجات </h1>
@@ -395,8 +396,9 @@ useEffect(() => {
               >
                 <td className="px-4 py-2">{p.name}</td>
                 <td className="px-4 py-2">{p.condition}</td>
+
                 <td className="px-4 py-2">{p.price} EGP</td>
-               
+
                 <td className="px-4 py-2">{p.stock}</td>
                 <td className="px-4 py-2 flex justify-center gap-2">
                   <button

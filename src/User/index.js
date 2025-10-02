@@ -8,6 +8,8 @@ export { default as Explore } from './Explore';
 export { default as Homepage } from './Homepage';
 export { default as New } from './New';
 export { default as Repair } from './Repair';
+export { default as Offers } from './Offers';
+
 export { default as Service } from './Service';
 export { default as Track } from './Track';
 export { default as Tracking } from './Tracking';

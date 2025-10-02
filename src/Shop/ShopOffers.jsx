@@ -65,13 +65,13 @@ const ShopOffers = () => {
         title:` تفاصيل العرض #${offer.id}`,
         html: `
           <div class="text-right font-cairo">
-            <p><strong>اسم العرض:</strong> ${offer.name}</p>
-            <p><strong>الوصف:</strong> ${offer.description}</p>
-            <p><strong>قيمة الخصم:</strong> ${offer.discountValue}</p>
-            <p><strong>نوع الخصم:</strong> ${offer.discountType}</p>
-            <p><strong>الحالة:</strong> ${offer.status}</p>
-            <p><strong>تاريخ البداية:</strong> ${offer.startDate}</p>
-            <p><strong>تاريخ النهاية:</strong> ${offer.endDate}</p>
+            <p class="flex justify-between items-center flex-row-reverse"><strong>اسم العرض</strong> ${offer.name}</p>
+            <p class="flex justify-between items-center flex-row-reverse"><strong>الوصف</strong> ${offer.description}</p>
+            <p class="flex justify-between items-center flex-row-reverse"><strong>قيمة الخصم</strong> ${offer.discountValue}</p>
+            <p class="flex justify-between items-center flex-row-reverse"><strong>نوع الخصم</strong> ${offer.discountType}</p>
+            <p class="flex justify-between items-center flex-row-reverse"><strong>الحالة</strong> ${offer.status}</p>
+            <p class="flex justify-between items-center flex-row-reverse"><strong>تاريخ البداية</strong> ${offer.startDate}</p>
+            <p class="flex justify-between items-center flex-row-reverse"><strong>تاريخ النهاية</strong> ${offer.endDate}</p>
           </div>
         `,
         icon: "info",
@@ -86,6 +86,8 @@ const ShopOffers = () => {
  
   const addOffer = async () => {
     try {
+  const token = localStorage.getItem("authToken");
+
       const res = await fetch("http://localhost:8080/api/shop/offers", {
         method: "POST",
         headers: {
@@ -95,6 +97,7 @@ const ShopOffers = () => {
         body: JSON.stringify(newOffer),
       });
       if (!res.ok) throw new Error("Failed to add offer");
+
 
       Swal.fire("Success!", "تمت إضافة العرض بنجاح", "success");
       setNewOffer({
@@ -259,7 +262,7 @@ const ShopOffers = () => {
                 className="w-full px-3 py-3 rounded-xl bg-[#ECF0F3] focus:ring-2 focus:ring-blue-500"
               >
                 <option value="PERCENTAGE">نسبة مئوية</option>
-                <option value="FIXED">مبلغ ثابت</option>
+                <option value="FIXED_AMOUNT">مبلغ ثابت</option>
               </select>
               <select
                 value={offer.status}
@@ -274,7 +277,9 @@ const ShopOffers = () => {
                 className="w-full px-3 py-3 rounded-xl bg-[#ECF0F3] focus:ring-2 focus:ring-blue-500"
               >
                 <option value="ACTIVE">نشط</option>
-                <option value="INACTIVE">غير نشط</option>
+                <option value="SCHEDULED">قادم</option>
+                <option value="EXPIRED">غير نشط</option>
+
               </select>
               <input
                 type="datetime-local"

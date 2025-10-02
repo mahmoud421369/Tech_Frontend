@@ -11,7 +11,7 @@ import {
   FiEdit3,
 } from "react-icons/fi";
 
-const Shops = () => {
+const Shops = ({darkMode}) => {
   const token = localStorage.getItem("authToken");
 
   const [shops, setShops] = useState([]);
@@ -25,7 +25,7 @@ const Shops = () => {
     try {
       const res = await fetch("http://localhost:8080/api/admin/shops");
       const data = await res.json();
-      setShops(data.content || data);
+      setShops(data.content || []);
     } catch (err) {
       console.error("Error fetching shops:", err);
     }
@@ -35,7 +35,7 @@ const Shops = () => {
     try {
       const res = await fetch("http://localhost:8080/api/admin/shops/approved");
       const data = await res.json();
-      setShops(data.content || data);
+      setShops(data.content || []);
     } catch (err) {
       console.error("Error fetching approved shops:", err);
     }
@@ -108,10 +108,18 @@ const Shops = () => {
       confirmButtonText: "Yes, delete it!",
     }).then(async (result) => {
       if (result.isConfirmed) {
+   
+    const token = localStorage.getItem("authToken");
+
+
+
         try {
           const res = await fetch(
             `http://localhost:8080/api/admin/shops/${id}`,
-            { method: "DELETE" }
+            { method: "DELETE",  headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type":"application/json"
+      }, }
           );
           if (res.ok) {
             setShops((prev) => prev.filter((shop) => shop.id !== id));
@@ -178,14 +186,14 @@ const Shops = () => {
   try {
     const token = localStorage.getItem("authToken");
 
-    // 1. Fetch categories
+
     const catRes = await fetch("http://localhost:8080/api/admin/categories", {
       headers: { Authorization: `Bearer ${token}` },
     });
     const catData = await catRes.json();
     const categories = catData.content || [];
 
-    // 2. Build dropdown options for categories
+ 
     const categoryOptions = categories
       .map(
         (cat) =>
@@ -195,7 +203,7 @@ const Shops = () => {
       )
       .join("");
 
-    // 3. Conditions dropdown
+   
     const conditionOptions = ["NEW", "USED", "REFURBISHED"]
       .map(
         (c) =>
@@ -205,7 +213,7 @@ const Shops = () => {
       )
       .join("");
 
-    // 4. SweetAlert form
+
     const { value: formValues } = await Swal.fire({
       title: "Update Product",
       html: `
@@ -227,7 +235,7 @@ const Shops = () => {
         return {
           name: document.getElementById("name").value,
           description: document.getElementById("description").value,
-          ImageUrl: document.getElementById("imageUrl").value,
+          imageUrl: document.getElementById("imageUrl").value,
           category: document.getElementById("category").value, // store selected categoryId
           stockQuantity: Number(document.getElementById("stockQuantity").value),
           condition: document.getElementById("condition").value,
@@ -238,7 +246,7 @@ const Shops = () => {
 
     if (!formValues) return;
 
-    // 5. Update product request
+
     const res = await fetch(
       `http://localhost:8080/api/admin/products/${product.id}`,
       {
@@ -247,7 +255,15 @@ const Shops = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(formValues),
+        body: JSON.stringify({
+            name: document.getElementById("name").value,
+          description: document.getElementById("description").value,
+          imageUrl: document.getElementById("imageUrl").value,
+          categoryName: document.getElementById("category").value, 
+          stockQuantity: Number(document.getElementById("stockQuantity").value),
+          condition: document.getElementById("condition").value,
+          price: parseFloat(document.getElementById("price").value),
+        }),
       }
     );
 
@@ -311,6 +327,18 @@ const deleteProduct = async (id) => {
 
  
 
+  const [shopPage, setShopPage] = useState(1);
+  const [repairPage, setRepairPage] = useState(1);
+  const [productPage, setProductPage] = useState(1);
+
+  const pageSize = 5;
+
+
+  const paginate = (data, page) => {
+    const start = (page - 1) * pageSize;
+    return data.slice(start, start + pageSize);
+  };
+
 
 const filteredShops = shops.filter(
   (shop) =>
@@ -326,204 +354,251 @@ const filteredShops = shops.filter(
   }, [filter]);
 
   return (
-    <div style={{ marginLeft: "300px", marginTop: "-575px" }} className="p-6 bg-[#f1f5f9] space-y-10">
+  <div style={{marginTop:"60px"}} className="p-6 space-y-10 bg-gray-50 transition-colors duration-300 dark:bg-gray-900">
 
-    
-         <div className="bg-white border p-4 rounded-2xl text-left">
-              <h1 className="text-3xl font-bold text-blue-500 flex items-center gap-2"><FiHome/>Shops Managament </h1>
-              <p className="text-blue-500">Monitor and manage all the shops,approve or suspend shops,and view details of each</p>
-            </div>
-      <section className="bg-white p-5 rounded-lg">
-    
-
-      
-        <div className="flex justify-between flex-row-reverse items-center mb-4">
-          <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder="Search shops..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 px-3 py-2"
-          />
-    
-          </div>
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="border rounded-lg px-3 py-2"
-          >
-            <option value="all">All</option>
-            <option value="approved">Approved</option>
-            <option value="suspended">Suspended</option>
-          </select>
-        </div>
-
-        
-        <table className="min-w-full divide-y divide-gray-200 text-sm">
-          <thead className="bg-[#f1f5f9] text-blue-500">
-            <tr>
-              <th className="px-6 py-3 text-left font-medium uppercase">ID</th>
-              <th className="px-6 py-3 text-left font-medium uppercase">Name</th>
-              <th className="px-6 py-3 text-left font-medium uppercase">Status</th>
-              <th className="px-6 py-3 text-left font-medium uppercase">Shop type</th>
-
-              <th className="px-6 py-3 text-center font-medium uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-gray-50 text-blue-500">
-            {filteredShops.map((shop) => (
-              <tr key={shop.id} className="text-left border-b">
-                <td className="px-3 py-2">{shop.id}</td>
-                <td className="px-3 py-2">{shop.name}</td>
-                <td className="px-3 py-2">
-                  {!shop.verified ? <p className="bg-indigo-50 text-indigo-500 font-bold text-xs px-3 py-2 rounded-3xl inline-block">Suspended</p> : <p className="bg-emerald-50 text-emerald-500 font-bold text-xs px-3 py-2 rounded-3xl inline-block">Active</p>}
-                </td>
-                <td className="px-3 py-2">{shop.shopType}</td>
-
-                <td className="px-3 py-2 flex gap-2 justify-center">
-                  <button
-                    onClick={() => viewShop(shop.id)}
-                    className="border text-blue-600 px-3 py-1 rounded-3xl flex items-center gap-1"
-                  >
-                    <FiEye /> 
-                  </button>
-                  { !shop.verified ?
-                  <button
-                    onClick={() => approveShop(shop.id)}
-                    className="border text-green-600 px-3 py-1 rounded-3xl"
-                  >
-                    <FiCheckCircle/>
-                  </button>
- :
-                  <><button
-                      onClick={() => suspendShop(shop.id)}
-                      className="border text-yellow-600 px-3 py-1 rounded-3xl"
-                    >
-                      <FiXCircle />
-                    </button><button
-                      onClick={() => deleteShop(shop.id)}
-                      className=" text-red-600 px-3 border py-1 rounded-3xl flex items-center gap-1"
-                    >
-                        <FiTrash2 />
-                      </button></>
-}
-               
-
-                </td>
-              </tr>
-            ))}
-            {shops.length === 0 && (
-              <tr>
-                <td colSpan="12" className="py-4 text-center italic">
-                  No shops found
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </section>
-
-    
-
-         <div className="bg-white border p-4 rounded-2xl text-left mb-4">
-              <h1 className="text-3xl font-bold text-indigo-500 flex items-center gap-2"><FiTool/>Repair Requests </h1>
-              <p className="text-indigo-500">Monitor and view all repair requests of shops</p>
-            </div>
-      <section className="bg-white rounded-lg p-5">
-     
-        <table className="min-w-full divide-y divide-gray-200 text-sm">
-          <thead className="bg-gray-100 text-blue-500">
-            <tr>
-              <th className="px-6 py-3 text-left font-medium uppercase">ID</th>
-              <th className="px-6 py-3 text-left font-medium uppercase">Shop ID</th>
-              <th className="px-6 py-3 text-left font-medium uppercase">Issue</th>
-              <th className="px-6 py-3 text-left font-medium uppercase">Delivery Method</th>
-              <th className="px-6 py-3 text-left font-medium uppercase">Status</th>
-              <th className="px-6 py-3 text-left font-medium uppercase">Payment Method</th>
-
-            </tr>
-          </thead>
-          <tbody className="bg-gray-50 text-blue-500" >
-            {repairRequests.map((req) => (
-              <tr key={req.id} className="text-left border-b">
-                <td className="px-3 py-2">{req.id}</td>
-                <td className="px-3 py-2">{req.shopId}</td>
-                <td className="px-3 py-2">{req.description}</td>
-                <td className="px-3 py-2">{req.deliveryMethod}</td>
-                <td className="px-3 py-2">{req.status}</td>
-                
-                <td className="px-3 py-2 text-center">{req.paymentMethod}</td>
-
-              </tr>
-            ))}
-            {repairRequests.length === 0 && (
-              <tr>
-                <td colSpan="12" className="py-4 text-center  italic">
-                  No repair requests found
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </section>
-
-      
-               <div className="bg-white border p-4 rounded-2xl text-left mb-4">
-              <h1 className="text-3xl font-bold text-red-500 flex items-center gap-2"><FiBox/>Products </h1>
-              <p className="text-red-500">Monitor and manage customer reviews</p>
-            </div>
-      <section className="bg-white rounded-lg p-5">
-     
-        <table className="min-w-full divide-y divide-gray-200 text-sm">
-          <thead className="bg-[#f1f5f9] text-blue-500">
-            <tr>
-              <th className="px-6 py-3 text-center font-medium uppercase">ID</th>
-              <th className="px-6 py-3 text-center font-medium uppercase">Name</th>
-              <th className="px-6 py-3 text-center font-medium uppercase">Price</th>
-              <th className="px-6 py-3 text-center font-medium uppercase">Condition</th>
-  
-              <th className="px-6 py-3 text-center font-medium uppercase">Stock</th>
-
-              <th className="px-6 py-3 text-center font-medium uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-gray-50 text-blue-500" >
-            {products.map((p) => (
-              <tr key={p.id} className="text-center border-b">
-                <td className="px-3 py-2">{p.id}</td>
-                <td className="px-3 py-2">{p.name}</td>
-                <td className="px-3 py-2">{p.price} EGP</td>
-                <td className="px-3 py-2">{p.condition} </td>
-                <td className="px-3 py-2">{p.stock} items </td>
-
-                <td className="px-3 py-2 flex gap-2 justify-center">
-                  <button
-                    onClick={() => updateProduct(p)}
-                    className="border text-green-600 px-3 py-1 rounded-3xl"
-                  >
-                    <FiEdit3/>
-                  </button>
-                  <button
-                    onClick={() => deleteProduct(p.id)}
-                    className="border text-red-600 px-3 py-1 rounded-3xl flex items-center gap-1"
-                  >
-                    <FiTrash2 /> 
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {products.length === 0 && (
-              <tr>
-                <td colSpan="12" className="py-4 text-center italic">
-                  No products found
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </section>
+ 
+  <div className= "bg-white dark:bg-gray-800 dark:border-gray-700 border p-4 rounded-2xl text-left">
+    <h1 className="text-3xl font-bold text-blue-500 flex items-center gap-2">
+      <FiHome /> Shops Managament
+    </h1>
+    <p className="text-blue-500">
+      Monitor and manage all the shops, approve or suspend shops, and view details of each
+    </p>
+  </div>
+  <section className=" bg-white  dark:bg-gray-800 dark:border-gray-700 border p-5 rounded-lg">
+    <div className="flex justify-between flex-row-reverse items-center mb-4">
+      <div className="flex gap-2">
+        <input
+          type="text"
+          placeholder="Search shops..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="border dark:bg-gray-950 dark:text-white dark:border-gray-700 cursor-pointer rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 px-3 py-2"
+        />
+      </div>
+      <select
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+        className="border dark:bg-gray-950 dark:text-white dark:border-gray-700 appearance-none rounded-lg px-3 py-2"
+      >
+        <option value="all">All</option>
+        <option value="approved">Approved</option>
+        <option value="suspended">Suspended</option>
+      </select>
     </div>
+
+   
+    <table className="min-w-full divide-y dark:divide-gray-700 divide-gray-200 text-sm">
+      <thead className="bg-[#f1f5f9] dark:bg-gray-700 dark:text-white text-blue-500">
+        <tr>
+          <th className="px-6 py-3 text-center font-medium uppercase">ID</th>
+          <th className="px-6 py-3 text-center font-medium uppercase">Name</th>
+          <th className="px-6 py-3 text-center font-medium uppercase">Status</th>
+          <th className="px-6 py-3 text-center font-medium uppercase">Shop type</th>
+          <th className="px-6 py-3 text-center font-medium uppercase">Actions</th>
+        </tr>
+      </thead>
+      <tbody className="bg-gray-50 text-blue-500 dark:bg-gray-900 dark:text-gray-200">
+        {paginate(filteredShops, shopPage).map((shop) => (
+          <tr key={shop.id} className="text-center border-b dark:border-gray-700">
+            <td className="px-3 py-2">{shop.id}</td>
+            <td className="px-3 py-2">{shop.name}</td>
+            <td className="px-3 py-2">
+              {!shop.verified ? (
+                <p className="bg-indigo-50 text-indigo-500 font-bold text-xs px-3 py-2 rounded-3xl inline-block">
+                  Suspended
+                </p>
+              ) : (
+                <p className="bg-emerald-50 text-emerald-500 dark:bg-gray-950 font-bold text-xs px-3 py-2 rounded-3xl inline-block">
+                  Active
+                </p>
+              )}
+            </td>
+            <td className="px-3 py-2">{shop.shopType}</td>
+            <td className="px-3 py-2 flex gap-2 justify-center">
+              <button
+                onClick={() => viewShop(shop.id)}
+                className="border  dark:bg-gray-950 dark:border-none text-blue-600 px-3 py-1 rounded-3xl flex items-center gap-1"
+              >
+                <FiEye />
+              </button>
+              {!shop.verified ? (
+                <button
+                  onClick={() => approveShop(shop.id)}
+                  className="border dark:bg-gray-950 dark:border-none text-green-600 px-3 py-1 rounded-3xl"
+                >
+                  <FiCheckCircle />
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => suspendShop(shop.id)}
+                    className="border dark:bg-gray-950 dark:border-none text-yellow-600 px-3 py-1 rounded-3xl"
+                  >
+                    <FiXCircle />
+                  </button>
+                  <button
+                    onClick={() => deleteShop(shop.id)}
+                    className=" text-red-600 dark:bg-gray-950 dark:border-none px-3 border py-1 rounded-3xl flex items-center gap-1"
+                  >
+                    <FiTrash2 />
+                  </button>
+                </>
+              )}
+            </td>
+          </tr>
+        ))}
+        {shops.length === 0 && (
+          <tr>
+            <td colSpan="12" className="py-4 text-center italic">
+              No shops found
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+
+    <div className="flex justify-center mt-4 gap-2">
+      {Array.from({ length: Math.ceil(filteredShops.length / pageSize) }, (_, i) => (
+        <button
+          key={i}
+          onClick={() => setShopPage(i + 1)}
+          className={`px-3 py-1 rounded-lg ${
+            shopPage === i + 1 ? "bg-blue-600 text-white" : "bg-blue-100 text-blue-600"
+          }`}
+        >
+          {i + 1}
+        </button>
+      ))}
+    </div>
+  </section>
+
+ 
+  <div className= "bg-white dark:bg-gray-800 dark:border-gray-700 border p-4 rounded-2xl text-left">
+    <h1 className="text-3xl font-bold text-indigo-500 flex items-center gap-2">
+      <FiTool /> Repair Requests
+    </h1>
+    <p className="text-indigo-500">Monitor and view all repair requests of shops</p>
+  </div>
+  <section className=" bg-white  dark:bg-gray-800 dark:border-gray-700 border p-5 rounded-lg">
+    <table className="min-w-full divide-y dark:divide-gray-700 divide-gray-200 text-sm">
+      <thead className="bg-[#f1f5f9] dark:bg-gray-700 dark:text-white text-blue-500">
+        <tr className="text-center border-b dark:border-gray-700">
+          <th className="px-6 py-3 text-center font-medium uppercase">ID</th>
+          <th className="px-6 py-3 text-center font-medium uppercase">Shop Name</th>
+          <th className="px-6 py-3 text-center font-medium uppercase">Issue</th>
+          <th className="px-6 py-3 text-center font-medium uppercase">Delivery Method</th>
+          <th className="px-6 py-3 text-center font-medium uppercase">Status</th>
+          <th className="px-6 py-3 text-center font-medium uppercase">Payment Method</th>
+        </tr>
+      </thead>
+      <tbody className="bg-gray-50 text-blue-500 dark:bg-gray-900 dark:text-gray-200">
+        {paginate(repairRequests, repairPage).map((req) => (
+          <tr key={req.id} className="text-center border-b dark:border-gray-700">
+            <td className="px-3 py-2">{req.id}</td>
+            <td className="px-3 py-2">{req.shopName}</td>
+
+            <td className="px-3 py-2">{req.description}</td>
+            <td className="px-3 py-2">{req.deliveryMethod}</td>
+            <td className="px-3 py-2">{req.status}</td>
+            <td className="px-3 py-2 text-center">{req.paymentMethod}</td>
+          </tr>
+        ))}
+        {repairRequests.length === 0 && (
+          <tr>
+            <td colSpan="12" className="py-4 text-center italic">
+              No repair requests found
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+
+    <div className="flex justify-center mt-4 gap-2">
+      {Array.from({ length: Math.ceil(repairRequests.length / pageSize) }, (_, i) => (
+        <button
+          key={i}
+          onClick={() => setRepairPage(i + 1)}
+          className={`px-3 py-1 rounded-lg ${
+            repairPage === i + 1 ? "bg-blue-600 text-white" : "bg-blue-100 text-blue-600"
+          }`}
+        >
+          {i + 1}
+        </button>
+      ))}
+    </div>
+  </section>
+
+
+  <div className= "bg-white dark:bg-gray-800 dark:border-gray-700 border p-4 rounded-2xl text-left">
+    <h1 className="text-3xl font-bold text-red-500 flex items-center gap-2">
+      <FiBox /> Products
+    </h1>
+    <p className="text-red-500">Monitor and manage customer reviews</p>
+  </div>
+  <section className=" bg-white dark:bg-gray-800 dark:border-gray-700 border p-5 rounded-lg">
+    <table className="min-w-full divide-y dark:divide-gray-700 divide-gray-200 text-sm">
+      <thead className="bg-[#f1f5f9] dark:bg-gray-700 dark:text-white text-blue-500">
+        <tr>
+          <th className="px-6 py-3 text-center font-medium uppercase">ID</th>
+          <th className="px-6 py-3 text-center font-medium uppercase">Name</th>
+          <th className="px-6 py-3 text-center font-medium uppercase">Price</th>
+          <th className="px-6 py-3 text-center font-medium uppercase">Condition</th>
+          <th className="px-6 py-3 text-center font-medium uppercase">Stock</th>
+          <th className="px-6 py-3 text-center font-medium uppercase">Actions</th>
+        </tr>
+      </thead>
+      <tbody className="bg-gray-50 text-blue-500 dark:bg-gray-900 dark:text-gray-200">
+        {paginate(products, productPage).map((p) => (
+          <tr key={p.id} className="text-center border-b dark:border-gray-700">
+            <td className="px-3 py-2">{p.id}</td>
+            <td className="px-3 py-2">{p.name}</td>
+            <td className="px-3 py-2">{p.price} EGP</td>
+            <td className="px-3 py-2">{p.condition}</td>
+            <td className="px-3 py-2">{p.stock} items</td>
+            <td className="px-3 py-2 flex gap-2 justify-center">
+              <button
+                onClick={() => updateProduct(p)}
+                className="border dark:bg-gray-950 dark:border-none text-green-600 px-3 py-1 rounded-3xl"
+              >
+                <FiEdit3 />
+              </button>
+              <button
+                onClick={() => deleteProduct(p.id)}
+                className="border text-red-600 dark:bg-gray-950 dark:border-none px-3 py-1 rounded-3xl flex items-center gap-1"
+              >
+                <FiTrash2 />
+              </button>
+            </td>
+          </tr>
+        ))}
+        {products.length === 0 && (
+          <tr>
+            <td colSpan="12" className="py-4 text-center italic">
+              No products found
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+
+   
+    <div className="flex justify-center mt-4 gap-2">
+      {Array.from({ length: Math.ceil(products.length / pageSize) }, (_, i) => (
+        <button
+          key={i}
+          onClick={() => setProductPage(i + 1)}
+          className={`px-3 py-1 rounded-lg ${
+            productPage === i + 1 ? "bg-blue-600 text-white" : "bg-blue-100 text-blue-600"
+          }`}
+        >
+          {i + 1}
+        </button>
+      ))}
+    </div>
+  </section>
+</div>
+
   );
 };
 

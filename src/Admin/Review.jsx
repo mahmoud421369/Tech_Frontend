@@ -124,15 +124,16 @@ const Reviews = () => {
   };
 
   return (
-    <div style={{marginTop:"-575px",marginLeft:"275px"}} className="space-y-6 p-6 max-w-7xl mx-auto bg-[#f1f5f9] min-h-screen">
-      <div className="bg-white border p-4 rounded-2xl text-left">
+    <div    style={{marginTop:"60px"}}
+      className="space-y-6 p-6 max-w-8xl min-h-screen w-full mx-auto dark:bg-gray-900 bg-gray-50">
+      <div className= "bg-white dark:bg-gray-800 dark:border-gray-700 border p-4 rounded-2xl text-left">
         <h1 className="text-3xl font-bold text-blue-500 flex items-center gap-2"><FiMessageCircle/>Review Management</h1>
         <p className="text-blue-500">Monitor and manage customer reviews</p>
       </div>
 
-      <div className="bg-white rounded-lg shadow-lg">
-        <div className="p-5 border-b flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-blue-700">Customer Reviews</h2>
+      <div className=" bg-white  dark:bg-gray-800 dark:border-gray-700 border p-5 rounded-lg">
+        <div className="p-5 border-b dark:border-gray-700 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-blue-700 dark:text-white">Customer Reviews</h2>
           <div className="relative w-64">
             <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
@@ -140,7 +141,7 @@ const Reviews = () => {
               placeholder="Search reviews..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 block w-full rounded-md border border-gray-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="pl-10 block dark:border-none dark:text-white dark:bg-gray-950 w-full rounded-md border border-gray-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
         </div>
@@ -150,21 +151,20 @@ const Reviews = () => {
           {loading ? (
             <p className="text-center text-blue-600">Loading reviews...</p>
           ) : (
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-100 text-blue-500">
+            <table className="min-w-full divide-y dark:divide-gray-700 divide-gray-200 text-sm">
+              <thead className="bg-[#f1f5f9] dark:bg-gray-700 dark:text-white text-blue-500">
                 <tr>
-                  <th className="px-6 py-3 text-left font-medium uppercase">Customer</th>
-                  <th className="px-6 py-3 text-left font-medium uppercase">Repair Shop</th>
-                  <th className="px-6 py-3 text-left font-medium uppercase">Rating</th>
-                  <th className="px-6 py-3 text-left font-medium uppercase">Comment</th>
-                  <th className="px-6 py-3 text-left font-medium uppercase">Date</th>
-                 
-                  <th className="px-6 py-3 text-left font-medium uppercase">Actions</th>
+                  <th className="px-6 py-3 text-center font-medium uppercase">Customer</th>
+                  <th className="px-6 py-3 text-center font-medium uppercase">Repair Shop</th>
+                  <th className="px-6 py-3 text-center font-medium uppercase">Rating</th>
+                  <th className="px-6 py-3 text-center font-medium uppercase">Comment</th>
+                  <th className="px-6 py-3 text-center font-medium uppercase">Date</th>
+                  <th className="px-6 py-3 text-center font-medium uppercase">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 text-blue-600">
+              <tbody className="bg-gray-50 text-blue-500 dark:bg-gray-900 dark:text-gray-200">
                 {filteredReviews.map((review) => (
-                  <tr key={review.id} className="hover:bg-blue-50">
+                  <tr key={review.id} className="text-center border-b dark:border-gray-700">
                     <td className="px-6 py-4">{review.userId}</td>
                     <td className="px-6 py-4">{review.shopId}</td>
                     <td className="px-6 py-4">{renderStars(review.rating)}</td>

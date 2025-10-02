@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from "react";
+import { FaFirstOrder } from "react-icons/fa";
 import {
   FiXCircle,
   FiChevronDown,
   FiRefreshCw,
   FiSearch,
-
   FiShoppingBag,
   FiInfo,
   FiCheckSquare,
+  FiGift,
 } from "react-icons/fi";
 import Swal from "sweetalert2";
 
 const Orders = () => {
+  const [darkMode, setDarkMode] = useState(false);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -20,7 +22,9 @@ const Orders = () => {
     const [selectedOrder, setSelectedOrder] = useState(null);
 
   const [statusFilter, setStatusFilter] = useState("all");
-  const ordersPerPage = 5;
+
+  const ordersPerPage = 10;
+
 
   const token = localStorage.getItem("authToken");
 
@@ -33,7 +37,7 @@ const Orders = () => {
     "DELIVERED",
     "CANCELLED",
   ];
-
+    // PENDING, CONFIRMED, PROCESSING, FINISHPROCESSING, SHIPPED, DELIVERED, CANCELLED
   const getStatusColor = (status) => {
     switch (status) {
       case "PENDING":
@@ -53,6 +57,11 @@ const Orders = () => {
       default:
         return "bg-gray-100 text-gray-800";
     }
+  };
+
+  const changePage = (page) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
   };
 
 
@@ -124,7 +133,7 @@ const Orders = () => {
           <p class="flex justify-between flex-row-reverse text-blue-500"><strong class="text-gray-900">: حالة الطلب</strong> ${order.status}</p><hr class="border-gray-100 p-1">
           <p class="flex justify-between flex-row-reverse text-blue-500"><strong class="text-gray-900">: طريقة الدفع</strong> ${order.paymentMethod || 'N/A'}</p><hr class="border-gray-100 p-1">
           <p class="flex justify-between flex-row-reverse text-blue-500"><strong class="text-gray-900">: تأريخ الطلب</strong> ${formattedDate}</p><hr class="border-gray-100 p-1">
-          <p class="flex justify-between flex-row-reverse text-blue-500"><strong class="text-gray-900">: كود الدفع</strong> ${order.paymentId || 'N/A'}</p>
+
           <hr class="my-4"/>
           <h3 class="font-bold text-lg">محتوي الطلب</h3><br>
           <div class="max-h-60 overflow-y-auto border rounded p-2 bg-gray-50">
@@ -225,35 +234,72 @@ const Orders = () => {
   const totalPages = Math.ceil(filteredOrders.length / ordersPerPage);
 
   return (
-    <div style={{ marginLeft: "275px", marginTop: "-500px" }} className="min-h-screen bg-[#f1f5f9] p-6 font-cairo text-right">
-  
-      <div className="bg-white border p-4 rounded-2xl mb-4">
-        <h1 className="text-3xl font-bold text-blue-500 flex justify-end items-center gap-2">طلبات المتجر  <FiShoppingBag/> </h1>
+     <div style={{marginTop:"-575px"}} className="min-h-screen w-full font-cairo bg-gray-50 dark:bg-gray-900">
+
+      <div className="grid md:grid-cols-3 gap-4 mb-8 max-w-8xl mx-auto mt-6">
+        <div
+          className={"p-6 rounded-2xl shadow-md flex flex-col bg-white dark:bg-gray-800"}
+        >
+          <h3 className="text-lg font-semibold flex items-center gap-4">إجمالي الطلبات <FiGift/></h3>
+          <p className="text-3xl font-bold mt-2">{orders.length}</p>
+        </div>
+        <div
+          className={`p-6 rounded-2xl shadow-md flex flex-col ${
+            darkMode ? "bg-gray-800" : "bg-white"
+          }`}
+        >
+          <h3 className="text-lg font-semibold">طلبات معلقة</h3>
+          <p className="text-3xl font-bold mt-2">
+            {orders.filter((o) => o.status === "PENDING").length}
+          </p>
+        </div>
+        <div
+          className={`p-6 rounded-2xl shadow-md flex flex-col ${
+            darkMode ? "bg-gray-800" : "bg-white"
+          }`}
+        >
+          <h3 className="text-lg font-semibold">طلبات مكتملة</h3>
+          <p className="text-3xl font-bold mt-2">
+            {orders.filter((o) => o.status === "DELIVERED").length}
+          </p>
+        </div>
       </div>
 
-      <div className="bg-white p-6 rounded-2xl max-w-5xl mx-auto mb-8 shadow-md flex justify-between flex-row-reverse items-center">
-     
-        <div className="relative w-1/3">
-          <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+
+
+      <div className="flex items-center justify-between p-4 border-b bg-white">
+
+
+
+        
+        <h2 className="text-xl font-semibold text-right">الطلبات</h2>
+
+      </div>
+
+   
+      <div className="flex flex-wrap items-center gap-4 p-4 bg-white border-b">
+        <div className="relative w-72">
+          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
-            placeholder="...ابحث"
-            className="block w-full pl-10 pr-3 py-2 rounded-lg placeholder:text-right bg-[#ECF0F3] focus:ring-2 focus:ring-blue-500"
+            placeholder="Search orders..."
+            className="w-full pl-10 pr-3 py-2 rounded-lg border bg-gray-50 focus:ring-2 focus:ring-blue-500"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
-        <div className="relative w-64">
+     
+        <div className="relative w-56">
           <button
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="w-full px-4 py-2 rounded-lg bg-[#ECF0F3] border flex justify-between items-center"
+            className="w-full px-4 py-2 rounded-lg border bg-gray-50 flex justify-between items-center"
           >
-            {statusFilter === "all" ? "حالة الطلب" : statusFilter.replace("_", " ")}
+            {statusFilter === "all" ? "Order Status" : statusFilter}
             <FiChevronDown />
           </button>
           {isDropdownOpen && (
-            <div className="absolute z-10 mt-1 w-full bg-white shadow-md rounded-lg border">
+            <div className="absolute z-10 mt-1 w-full bg-white border rounded-lg shadow-md">
               {["all", ...statuses].map((s) => (
                 <button
                   key={s}
@@ -261,11 +307,9 @@ const Orders = () => {
                     setStatusFilter(s);
                     setIsDropdownOpen(false);
                   }}
-                  className={`w-full px-3 py-2 text-right hover:bg-indigo-100 ${
-                    s !== "all" ? getStatusColor(s) : ""
-                  }`}
+                  className="w-full px-3 py-2 text-left hover:bg-blue-50"
                 >
-                  {s === "all" ? "الكل" : s.replace("_", " ")}
+                  {s === "all" ? "All" : s}
                 </button>
               ))}
             </div>
@@ -273,85 +317,116 @@ const Orders = () => {
         </div>
       </div>
 
-      
-      <div className="bg-white p-6 rounded-2xl max-w-6xl mx-auto shadow-md">
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <FiRefreshCw className="animate-spin text-blue-500 text-2xl" />
-          </div>
-        ) : (
-          <table className="min-w-full table-auto text-center border border-gray-200 rounded-lg overflow-hidden">
-            <thead className="bg-[#f1f5f9] text-blue-500">
+ 
+      <div className="p-4">
+        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+          <table className="min-w-full table-auto text-center">
+            <thead className="bg-gray-50 text-gray-600 text-sm">
               <tr>
-                <th className="px-4 py-2">#</th>
+                      <th className="px-4 py-2">#</th>
                 <th className="px-4 py-2">العميل</th>
                 <th className="px-4 py-2">المجموع</th>
                 <th className="px-4 py-2">الحالة</th>
                 <th className="px-4 py-2">إجراءات</th>
+
               </tr>
             </thead>
-            <tbody className="bg-gray-50">
-              {currentOrders.map((order) => (
-                <tr key={order.id} className="border-b hover:bg-gray-50 transition text-blue-950">
-                  <td className="px-4 py-2">{order.id}</td>
-                  <td className="px-4 py-2">{order.userId}</td>
-                  <td className="px-4 py-2">{order.totalPrice} EGP</td>
-
-               
-                  <td className="px-4 py-2">
+            <tbody className="text-sm text-gray-700">
+              {currentOrders.map((order, i) => (
+                <tr
+                  key={order.id}
+                  className="border-t hover:bg-gray-50 transition"
+                >
+                  <td className="px-4 py-3">{i + 1}</td>
+                  <td className="px-4 py-3">{order.userId}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900">
+                    {order.totalPrice} EGP
+                  </td>
+                  <td className="px-4 py-3">
                     <select
                       value={order.status}
-                      onChange={(e) => updateOrderStatus(order.id, e.target.value)}
-                      className={`px-3 py-1 rounded-lg text-sm font-semibold  ${getStatusColor(
-                        order.status
-                      )}`}
+                      onChange={(e) =>
+                        updateOrderStatus(order.id, e.target.value)
+                      }
+                      className="px-3 py-1 rounded-lg text-sm border focus:ring-2 focus:ring-blue-500"
                     >
                       {statuses.map((s) => (
                         <option key={s} value={s}>
-                          {s.replace("_", " ")}
+                          {s}
                         </option>
                       ))}
                     </select>
                   </td>
-
-                 
-                  <td className="px-4 py-2 flex justify-center gap-2">
+                          <td className="px-4 py-2 flex justify-center gap-2">
                     <button
                       onClick={() => viewOrderDetails(order.id)}
-                      className="bg-transparent text-amber-600 px-3 py-1 border rounded-md  transition"
+                      className="bg-transparent text-amber-600 px-3 py-1 border rounded-md transition"
                     >
                       <FiInfo />
                     </button>
-                    {order.status === "PENDING" ? 
-                    <button
-                      onClick={() => acceptOrder(order.id)}
-                      className="flex items-center bg-transparent text-blue-600 border px-3 py-1 rounded  transition"
-                    >
-                      <FiCheckSquare className="mr-1" /> 
-                    </button>
-:
-                    <button
-                      onClick={() => rejectOrder(order.id)}
-                      className="flex items-center bg-transparent text-red-600 border px-3 py-1 rounded  transition"
-                    >
-                      <FiXCircle className="mr-1" /> 
-                    </button>
-}
+                    {order.status === "PENDING" ? (
+                      <><button
+                        onClick={() => acceptOrder(order.id)}
+                        className="flex items-center bg-transparent text-blue-600 border px-3 py-1 rounded transition"
+                      >
+                        <FiCheckSquare className="mr-1" />
+                      </button><button
+                        onClick={() => rejectOrder(order.id)}
+                        className="flex items-center bg-transparent text-red-600 border px-3 py-1 rounded transition"
+                      >
+                          <FiXCircle className="mr-1" />
+                        </button></>
+
+                    ) : (
+                     <p></p>
+                    )}
                   </td>
+
                 </tr>
               ))}
               {currentOrders.length === 0 && (
                 <tr>
-                  <td colSpan="5" className="py-6 text-gray-500 text-center">
-                    لا توجد طلبات
+                  <td colSpan="5" className="py-6 text-gray-400 text-center">
+                    No orders found
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
-        )}
+        </div>
+
+       
+        <div className="flex justify-center gap-2 mt-4">
+          <button
+            onClick={() => changePage(currentPage - 1)}
+            className="px-3 py-1 border rounded disabled:opacity-50"
+            disabled={currentPage === 1}
+          >
+            Prev
+          </button>
+          {[...Array(totalPages)].map((_, i) => (
+            <button
+              key={i}
+              onClick={() => changePage(i + 1)}
+              className={`px-3 py-1 border rounded ${
+                currentPage === i + 1 ? "bg-blue-500 text-white" : ""
+              }`}
+            >
+              {i + 1}
+            </button>
+          ))}
+          <button
+            onClick={() => changePage(currentPage + 1)}
+            className="px-3 py-1 border rounded disabled:opacity-50"
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+        </div>
       </div>
     </div>
+
+
   );
 };
 

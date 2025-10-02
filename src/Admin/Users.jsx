@@ -44,11 +44,11 @@ const Users = () => {
         Swal.fire({
           title: `User Details - ${user.firstName} ${user.lastName}`,
           html: `
-            <p><strong>ID:</strong> ${user.id}</p>
-            <p><strong>Email:</strong> ${user.email}</p>
-            <p><strong>Role:</strong> ${user.role}</p>
-            <p><strong>Status:</strong> ${
-              user.active ? "Active " : "Inactive "
+            <p class="text-left"><strong>ID:</strong> ${user.id}</p>
+            <p class="text-left"><strong>Email:</strong> ${user.email}</p>
+            <p class="text-left"><strong>Role:</strong> ${user.role}</p>
+            <p class="text-left"><strong>Status:</strong> ${
+              user.activate === true ? "Active " : "Inactive "
             }</p>
           `,
           icon: "info",
@@ -158,159 +158,160 @@ const Users = () => {
   }, []);
 
   return (
-    <div style={{ marginLeft: "300px", marginTop: "-575px" }} className="p-6 bg-[#f1f5f9]">
-   <div className="bg-white border p-4 rounded-2xl text-left mb-4">
-              <h1 className="text-3xl font-bold text-blue-500 flex items-center gap-2"><FiUsers/>Users Managament </h1>
-              <p className="text-blue-500">Monitor and manage your users,activate,deactivate,and change user role</p>
-            </div>
+        <div style={{ marginTop:"60px"}}  className="flex-1  p-6 bg-[#f1f5f9] dark:bg-gray-900 min-h-screen transition-colors duration-300">
+
+      <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 p-4 rounded-2xl text-left mb-4 shadow">
+        <h1 className="text-2xl md:text-3xl font-bold text-blue-500 flex items-center gap-2">
+          <FiUsers /> Users Management
+        </h1>
+        <p className="text-blue-500 text-sm md:text-base">
+          Monitor and manage your users, activate, deactivate, and change user role
+        </p>
+      </div>
+
+
+      <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow">
+        <div className="flex flex-col md:flex-row items-center gap-4 mb-4">
+          <input
+            type="text"
+            placeholder="Search by name or email"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="block w-full md:w-1/2 pl-4 pr-3 py-3 rounded-xl 
+              bg-[#ECF0F3] dark:bg-gray-700 border border-gray-300 dark:border-gray-600 
+              focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          />
+        </div>
+
+        {loading ? (
+          <p className="text-center text-gray-500 dark:text-gray-400">Loading...</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+              <thead className="bg-gray-100 dark:bg-gray-700 text-blue-500">
+                <tr>
+                  <th className="px-6 py-3 text-center font-medium uppercase">Name</th>
+                  <th className="px-6 py-3 text-center font-medium uppercase">Email</th>
+                  <th className="px-6 py-3 text-center font-medium uppercase">Role</th>
+                  <th className="px-6 py-3 text-center font-medium uppercase">Status</th>
+                  <th className="px-6 py-3 text-center font-medium uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-gray-50 dark:bg-gray-900 text-center">
+                {filteredUsers.length > 0 ? (
+                  filteredUsers.map((user) => (
+                    <tr key={user.id}>
+                      <td className="border-b border-blue-100 dark:border-gray-700 text-sm text-blue-500 px-3 py-2">
+                        {user.firstName} {user.lastName}
+                      </td>
+                      <td className="border-b border-blue-100 dark:border-gray-700 text-sm text-blue-500 px-3 py-2">
+                        {user.email}
+                      </td>
+                      <td className="border-b border-blue-100 dark:border-gray-700 flex gap-2 text-sm text-blue-500 px-3 py-4">
+                        <select
+                          value={roleUpdates[user.id] || user.role}
+                          onChange={(e) =>
+                            setRoleUpdates((prev) => ({
+                              ...prev,
+                              [user.id]: e.target.value,
+                            }))
+                          }
+                          className="border rounded-lg px-2 py-1 text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                        >
+                          <option value="GUEST">USER</option>
+                          <option value="ADMIN">ADMIN</option>
+                          <option value="SHOP_OWNER">SHOP_OWNER</option>
+                        </select>
+                        <button
+                          onClick={() =>
+                            updateRole(user.id, roleUpdates[user.id] || user.role)
+                          }
+                          className="ml-2 bg-indigo-50 dark:bg-indigo-900 dark:text-white text-indigo-500 border font-semibold text-sm border-indigo-200 dark:border-indigo-700 px-3 py-1 rounded-2xl"
+                        >
+                          Save
+                        </button>
+                      </td>
+                      <td className="border-b border-gray-100 dark:border-gray-800 text-sm text-center text-blue-500 px-3 py-2">
+                        {user.activate ? (
+                          <div className="flex justify-center items-center ">
+                          <FiCheckCircle
+                            size={30}
+                            className="bg-green-400 text-white p-2 rounded-full"
+                          />
+                          </div>
+                        ) : (
+                          <div className="flex justify-center items-center ">
+                          <FiXCircle
+                            size={30}
+                            className="bg-red-400 text-white p-2 rounded-full"
+                          />
+                          </div>
+                        )}
+                      </td>
+                      <td className="border-b border-blue-100 dark:border-gray-700 text-sm text-blue-500 px-3 py-2 flex justify-center gap-2 mt-2">
+                        {!user.activate ? (
+                          <button
+                            onClick={() => activateUser(user.id)}
+                            className="bg-emerald-50 dark:bg-emerald-900 text-emerald-500 border font-semibold text-sm border-emerald-200 dark:border-emerald-700 px-3 py-2 rounded-3xl"
+                          >
+                            Activate
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => deactivateUser(user.id)}
+                            className="bg-amber-50 dark:bg-amber-900 text-amber-500 border font-semibold text-sm border-amber-200 dark:border-amber-700 px-3 py-2 rounded-3xl"
+                          >
+                            Deactivate
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => getUserById(user.id)}
+                          className="bg-gray-50 dark:bg-gray-700 text-gray-500 border font-semibold text-sm border-gray-200 dark:border-gray-600 px-3 py-2 rounded-3xl"
+                        >
+                          <FiEye size={15} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan="6"
+                      className="text-center py-4 text-gray-500 dark:text-gray-400 italic"
+                    >
+                      No users found
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
    
-      <div className="bg-white p-5 rounded-lg">
-      <div className="flex items-center gap-4 mb-4">
-        <input
-          type="text"
-          placeholder="Search by name or email"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="block w-full pl-4 pr-3 py-3 rounded-xl bg-[#ECF0F3] border focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
-        />
-      </div>
-
-      
-      {loading ? (
-        <p>Loading...</p>
-      ) : (
-        <table className="min-w-full divide-y divide-gray-200 text-sm ">
-          <thead className="bg-gray-100 text-blue-500">
-            <tr>
-              {/* <th className="px-6 py-3 text-left font-medium uppercase">ID</th> */}
-              <th className="px-6 py-3 text-left font-medium uppercase">Name</th>
-              <th className="px-6 py-3 text-left font-medium uppercase">Email</th>
-              <th className="px-6 py-3 text-left font-medium uppercase">Role</th>
-              <th className="px-6 py-3 text-left font-medium uppercase">Status</th>
-              <th className="px-6 py-3 text-left font-medium uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-gray-50 text-center">
-            {filteredUsers.length > 0 ? (
-              filteredUsers.map((user) => (
-                <tr key={user.id}>
-                  {/* <td className="border-b border-blue-100 text-sm text-blue-500 px-3 py-2">
-                    {user.id}
-                  </td> */}
-                  <td className="border-b border-blue-100 text-sm text-blue-500 px-3 py-2">
-                    {user.firstName} {user.lastName}
-                  </td>
-                  <td className="border-b border-blue-100 text-sm text-blue-500 px-3 py-2">
-                    {user.email}
-                  </td>
-                  <td className="border-b border-blue-100 flex gap-2 text-sm text-blue-500 px-3 py-4">
-                    <select
-                      value={roleUpdates[user.id] || user.role}
-                      onChange={(e) =>
-                        setRoleUpdates((prev) => ({
-                          ...prev,
-                          [user.id]: e.target.value,
-                        }))
-                      }
-                      className="border rounded-lg px-2 py-1 text-sm"
-                    >
-                      <option value="GUEST">USER</option>
-                      <option value="ADMIN">ADMIN</option>
-                      <option value="SHOP_OWNER">SHOP_OWNER</option>
-                     
-                    </select>
-                    <button
-                      onClick={() =>
-                        updateRole(user.id, roleUpdates[user.id] || user.role)
-                      }
-                      className="ml-2 bg-indigo-50 text-indigo-500 border font-semibold text-sm border-indigo-200 px-3 py-1 rounded-2xl"
-                    >
-                      Save
-                    </button>
-                  </td>
-                  <td className="border-b border-blue-100 text-sm text-center text-blue-500 px-3 py-2">
-                    {user.activate  ? (
-                      <FiCheckCircle
-                        size={30}
-                        className="bg-green-400 text-white p-2 rounded-full"
-                      />
-                    ) : (
-                      <FiXCircle
-                        size={30}
-                        className="bg-red-400 text-white p-2 rounded-full"
-                      />
-                    )}
-                  </td>
-                  <td className="border-b border-blue-100 text-sm text-blue-500 px-3 py-2 flex justify-center  text-center gap-2">
-                    {!user.activate ? (
-                      <button
-                        onClick={() => activateUser(user.id)}
-                        className="bg-emerald-50 text-emerald-500 border font-semibold text-sm border-emerald-200 px-3 py-2 rounded-3xl"
-                      >
-                        Activate
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => deactivateUser(user.id)}
-                        className="bg-amber-50 text-amber-500 border font-semibold text-sm border-amber-200 px-3 py-2 rounded-3xl"
-                      >
-                        Deactivate
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => getUserById(user.id)}
-                      className="bg-gray-50 text-gray-500 border font-semibold text-sm border-gray-200 px-3 py-2 rounded-3xl"
-                    >
-                      <FiEye size={15} />
-                    </button>
-
-                    {/* <button
-                      onClick={() => deleteUser(user.id)}
-                      className="bg-red-50 text-red-500 border font-semibold text-sm border-red-200 px-3 py-2 rounded-3xl"
-                    >
-                      <FiTrash2 size={15} />
-                    </button> */}
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td
-                  colSpan="6"
-                  className="text-center py-4 text-gray-500 italic"
-                >
-                  No users found
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      )}
-      </div>
-
-    
       <div className="flex justify-center items-center gap-3 mt-6">
         <button
           onClick={() => fetchUsers(currentPage - 1)}
           disabled={currentPage === 0}
-          className="px-4 py-2 rounded-lg bg-white text-blue-600 disabled:opacity-50"
+          className="px-4 py-2 rounded-lg bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 disabled:opacity-50"
         >
-          <FiChevronLeft/>
+          <FiChevronLeft />
         </button>
-        <span>
+        <span className="text-gray-700 dark:text-gray-300">
           Page {currentPage + 1} of {totalPages}
         </span>
         <button
           onClick={() => fetchUsers(currentPage + 1)}
           disabled={currentPage + 1 >= totalPages}
-          className="px-4 py-2 rounded-lg bg-white text-blue-600 disabled:opacity-50"
+          className="px-4 py-2 rounded-lg bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 disabled:opacity-50"
         >
-          <FiChevronRight/>
+          <FiChevronRight />
         </button>
       </div>
     </div>
+
   );
 };
 

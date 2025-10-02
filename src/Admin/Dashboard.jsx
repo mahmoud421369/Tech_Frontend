@@ -1,125 +1,141 @@
-import React from 'react';
-import { Pie, Line } from 'react-chartjs-2';
-import { Chart, registerables } from 'chart.js';
-import { 
- FiShoppingBag, FiUsers,FiDollarSign,
- FiTool,
- FiMessageSquare,
- FiAlertTriangle,
-
-} from 'react-icons/fi';
-
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  FiUsers,
+  FiTool,
+  FiLayers,
+  FiTag,
+  FiMessageSquare,
+  FiTruck,
+  FiUserCheck,
+} from "react-icons/fi";
+import { RiUser3Line } from "react-icons/ri";
+import { RiOrderPlayLine, RiShoppingBag4Line, RiStore2Line, RiToolsLine } from "@remixicon/react";
 
 const Dashboard = ({ darkMode }) => {
+  const token = localStorage.getItem("authToken");
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [hoveredCard, setHoveredCard] = useState(null);
+  const navigate = useNavigate();
 
-  const revenueData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-    datasets: [{
-      label: 'Revenue (EGP)',
-      data: [6500, 5900, 8000, 8100, 5600, 12840],
-      backgroundColor: '#3B82F6',
-      borderColor: '#2563EB',
-      tension: 0.4
-    }]
-  };
+  useEffect(() => {
+    fetch("http://localhost:8080/api/admin/stats", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        console.log("Fetched stats:", data);
+        setStats(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error fetching stats:", err);
+        setLoading(false);
+      });
+  }, [token]);
 
-  const deviceCategoriesData = {
-    labels: ['Smartphones', 'Tablets', 'Laptops', 'Accessories'],
-    datasets: [{
-      data: [120, 30, 25, 12],
-      backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#6366F1']
-    }]
-  };
-
-
-   const recentActivity = [
-    { type: "approval", message: "New repair shop 'TechFix Pro' pending approval", time: "2 hours ago" },
-    { type: "review", message: "Abusive review reported for 'Mobile Masters'", time: "4 hours ago" },
-    { type: "transaction", message: "High-value transaction flagged for review", time: "6 hours ago" },
-    { type: "support", message: "Customer complaint about delayed delivery", time: "8 hours ago" },
-  ]
+  const cards = [
+    { title: "Users",  icon: <FiUsers size={24} />, path: "/users", quick: "Manage all registered users" },
+    { title: "Repair Shops",  icon: <FiTool size={24} />, path: "/repair-shops", quick: "Track active and pending shops" },
+    { title: "Categories",  icon: <FiLayers size={24} />, path: "/category", quick: "Organize repair categories" },
+    { title: "Offers",  icon: <FiTag size={24} />, path: "/admin/offers", quick: "View active offers and discounts" },
+    { title: "Reviews",  icon: <FiMessageSquare size={24} />, path: "/reviews", quick: "Moderate customer reviews" },
+    { title: "Delivery",  icon: <FiTruck size={24} />, path: "/deliveries", quick: "Manage delivery persons" },
+    { title: "Assigners", icon: <FiUserCheck size={24} />, path: "/assigners", quick: "Control assigner accounts" },
+  ];
 
   return (
-    <div style={{marginTop:"-550px",marginLeft:"300px"}} className={`p-6  ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-800'}`}>
-      <h1 className="text-2xl font-bold mb-6">Dashboard Overview</h1>
-      
-    
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        {[
-          { title: 'Total Users', value: "10,864", icon: <FiUsers size={24}/>, change: '+12%' },
-          { title: 'Active Repair Shops', value: 187, icon: <FiTool size={24}/>, change: '+8%' },
-          { title: 'Monthly Revenue', value: "12,000 EGP", icon: <FiDollarSign size={24}/>, change: '+5%' },
-          { title: 'Pending Reviews', value: '23', icon: <FiMessageSquare size={24}/>, change: '+24%' }
-        ].map((stat, index) => (
-          <div key={index} className={`rounded-xl p-6 shadow-md ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-            <div className="flex justify-between items-start">
-              <div>
-                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{stat.title}</p>
-                <p className="text-2xl font-bold mt-2">{stat.value}</p>
+    <div
+      style={{ marginTop: "60px" }}
+      className="flex-1 mt-20 p-6 bg-[#f1f5f9] dark:bg-gray-900 min-h-screen transition-colors duration-300"
+    >
+
+
+
+{/* Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div className={`p-6 shadow-lg flex items-center justify-between dark:bg-gray-950 border-l-4 border-indigo-600 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+          <div>
+            <h3 className="font-semibold dark:text-white"> Total Users</h3>
+            <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{stats.users ? stats.users : 0}</p>
+          </div>
+          <RiUser3Line className="text-4xl text-indigo-600 dark:text-indigo-400" />
+        </div>
+
+
+        <div className={`p-6 shadow-lg  flex items-center justify-between dark:bg-gray-950 border-l-4 border-indigo-500 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+          <div>
+            <h3 className="font-semibold dark:text-white">Total Shops</h3>
+            <p className="text-2xl font-bold text-indigo-600 dark:text-blue-400">{stats.shops}</p>
+          </div>
+          <RiStore2Line className="text-4xl text-indigo-600 dark:text-blue-400" />
+        </div>
+
+
+        <div className=" dark:bg-gray-950 p-6 shadow-lg  flex items-center justify-between border-l-4 border-indigo-500  bg-white">
+          <div>
+            <h3 className="font-semibold dark:text-white">Total Repair Requests</h3>
+            <p className="text-2xl font-bold text-indigo-600 dark:text-pink-400">{stats.repairs}</p>
+          </div>
+          <RiToolsLine className="text-4xl text-indigo-600 dark:text-pink-400" />
+        </div>
+
+          <div className="dark:bg-gray-950 p-6 shadow-lg  flex items-center justify-between border-l-4 border-indigo-500 bg-white">
+          <div>
+            <h3 className="font-semibold dark:text-white">Total Orders</h3>
+            <p className="text-2xl font-bold text-indigo-600 dark:text-pink-400">{stats.orders}</p>
+          </div>
+          <RiShoppingBag4Line className="text-4xl text-indigo-600 dark:text-pink-400" />
+        </div>
+      </div>
+
+
+      {loading ? (
+        <p className="text-center text-blue-500 dark:text-blue-300 animate-pulse">
+          Loading stats...
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 relative">
+          {cards.map((card, index) => (
+            <div
+              key={index}
+              onClick={() => navigate(card.path)}
+              onMouseEnter={() => setHoveredCard(index)}
+              onMouseLeave={() => setHoveredCard(null)}
+              className="relative bg-white dark:bg-gray-800 cursor-pointer rounded-xl p-6 shadow-md flex flex-col items-center justify-center transition transform hover:scale-105 ${
+               
+              "
+            >
+              <div className="text-3xl bg-blue-100 dark:bg-blue-900 text-blue-500 dark:text-blue-300 p-4 rounded-full mb-4">
+                {card.icon}
               </div>
-              <div className="text-3xl bg-gray-100 text-blue-500 p-3 rounded-3xl">{stat.icon}</div>
+              <p
+                className="text-sm mb-1 text-gray-500 dark:text-white
+           
+                "
+              >
+                {card.title}
+              </p>
+              {/* <p className="text-2xl font-bold">{card.value}</p> */}
+
+              {/* Hover Quick Stats Popup */}
+              {/* {hoveredCard === index && (
+                <div
+                  className={`absolute top-full mt-2 w-52 p-4 rounded-lg shadow-lg z-10 ${
+                    darkMode ? "bg-gray-700 text-white" : "bg-white text-gray-800"
+                  }`}
+                >
+                  <p className="text-sm font-semibold text-blue-500 dark:text-blue-300">
+                    {card.title} Quick Stats
+                  </p>
+                  <p className="text-xs mt-1">{card.quick}</p>
+                </div>
+              )} */}
             </div>
-            <p className={`text-sm mt-4 ${stat.change.startsWith('+') ? 'text-green-500' : 'text-red-500'}`}>
-              {stat.change} from last month
-            </p>
-          </div>
-        ))}
-      </div>
-
-<div className="bg-white">
-  <div className="space-y-4">
-            {recentActivity.map((activity, index) => (
-              <div key={index} className="flex items-center gap-4 p-3 m-4 rounded-lg bg-white">
-                <div className="flex-shrink-0">
-                  {activity.type === "approval" && <FiShoppingBag className="h-5 w-5 text-blue-600" />}
-                  {activity.type === "review" && <FiMessageSquare className="h-5 w-5 text-red-600" />}
-                  {activity.type === "transaction" && <FiDollarSign className="h-5 w-5 text-green-600" />}
-                  {activity.type === "support" && <FiAlertTriangle className="h-5 w-5 text-orange-600" />}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">{activity.message}</p>
-                  <p className="text-xs text-gray-500">{activity.time}</p>
-                </div>
-    
-              </div>
-            ))}
-               <hr />
-          </div>
-         
-
-          </div><br /><br />
-          
-
-
-      
-      
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6  mb-8">
-        <div className={`rounded-xl p-6 shadow-md   ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-          <h2 className="text-lg font-semibold mb-4">Revenue Overview</h2>
-          <div className="h-80">
-            <Line 
-              data={revenueData} 
-              options={{ 
-                responsive: true,
-                plugins: { legend: { position: 'bottom' } },
-                scales: { y: { beginAtZero: true } }
-              }} 
-            />
-          </div>
+          ))}
         </div>
-        
-        <div className={`rounded-xl p-6 shadow-md ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-          <h2 className="text-lg font-semibold mb-4">Device Categories</h2>
-          <div className="h-80">
-            <Pie 
-              data={deviceCategoriesData} 
-              options={{ responsive: true, plugins: { legend: { position: 'bottom' } } }} 
-            />
-          </div>
-        </div>
-      </div>
-      
-      
+      )}
     </div>
   );
 };

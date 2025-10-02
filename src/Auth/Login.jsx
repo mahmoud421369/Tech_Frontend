@@ -1,38 +1,35 @@
-import React, { useState,useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { jwtDecode } from "jwt-decode";
 import Swal from "sweetalert2";
 import { RiComputerLine, RiSmartphoneLine, RiToolsLine } from "react-icons/ri";
+import { RiEyeLine, RiEyeOffLine } from "@remixicon/react";
 
-const Login = ({ onLogin,setAuthToken }) => {
+const Login = ({ onLogin, setAuthToken }) => {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState("user");
+ 
   const navigate = useNavigate();
   const { login } = useAuth();
-
-
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const handleChange = (e) =>{
+    const {name,value} = e.target;
+  setFormData((prev)=>({
+    ...prev,
+    [name]:value
+  }));
 
-
-
-  const handleChange = (e) =>
-    setFormData({ ...formData, [e.target.name]: e.target.value });
   const togglePasswordVisibility = () => setShowPassword(!showPassword);
+  }
 
 
-useEffect(() => {
-localStorage.setItem("authToken","eyJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJUZWNoIFJlc3RvcmUiLCJzdWIiOiJKV1QgVG9rZW4iLCJ1c2VybmFtZSI6ImZmZHlmdGozNEBnbWFpbC5jb20iLCJyb2xlcyI6WyJST0xFX0dVRVNUIl0sInRva2VuVHlwZSI6ImFjY2VzcyIsImV4cCI6MTc1ODE4MjA0MiwiaWF0IjoxNzU4MTc4NDQyfQ.zPvX_tWCh8XUdJKsVh8VbN_HFmzMKHGVV64_5fMt4kPoMWq-A-XNqEDhTwBTgdyK0oFQO_1rusJ83edfM8bOmw")
-}, []);
-
-
-const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
@@ -41,29 +38,75 @@ const handleSubmit = async (e) => {
       const res = await fetch("http://localhost:8080/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+         body: JSON.stringify({ 
+          email: formData.email, 
+          password: formData.password 
+        }),
+
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Login failed");
 
-   
       localStorage.setItem("authToken", data.access_token);
+      localStorage.setItem("role",Array(data.role));
+
       if (setAuthToken) setAuthToken(data.access_token);
 
       console.log("Login success:", data);
 
+ 
+      const decodedToken = jwtDecode(data.access_token);
+      const roles = data.role || [];
+
     
-      navigate("/dashboard");
+      if (roles[0] === "ROLE_ADMIN") {
+        navigate("/dashboard");
+           Swal.fire({
+        icon: "success",
+        title: "Login success",
+      });
+      } else if (roles[0] === "ROLE_REPAIRER" || roles[0] === "ROLE_SELLER" && roles[1] === "ROLE_SHOP_OWNER") {
+        navigate("/shop-dashboard");
+           Swal.fire({
+        icon: "success",
+        title: "Login success",
+      });
+      }
+      else if (roles[0] === "ROLE_ASSIGNER") {
+        navigate("/assigner-dashboard");
+   Swal.fire({
+        icon: "success",
+        title: "Login success",
+      });
+      } 
+      else if (roles[0] === "ROLE_DELIVERY") {
+        navigate("/delivery-dashboard");
+   Swal.fire({
+        icon: "success",
+        title: "Login success",
+      });
+      } else if (roles[0] === "ROLE_GUEST") {
+        navigate("/");
+         Swal.fire({
+        icon: "success",
+        title: "Login success",
+      });
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err) {
       console.error("Login error:", err);
       setError(err.message);
+      Swal.fire({
+        icon: "error",
+        title: "Login Failed",
+        text: err.message,
+      });
     } finally {
       setLoading(false);
     }
   };
-
-
 
   const verifyEmail = async () => {
     const { value: form } = await Swal.fire({
@@ -87,7 +130,18 @@ const handleSubmit = async (e) => {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ email }),
             });
-            if (!res.ok) throw new Error("Failed to resend OTP");
+            
+            if (!res.ok) {
+              let errorMessage = "Failed to resend OTP";
+              try {
+                const errorData = await res.json();
+                errorMessage = errorData.message || errorMessage;
+              } catch {
+                // If JSON parsing fails, use default message
+              }
+              throw new Error(errorMessage);
+            }
+            
             Swal.fire("Success", "OTP resent successfully!", "success");
           } catch (err) {
             Swal.fire("Error", err.message, "error");
@@ -102,7 +156,7 @@ const handleSubmit = async (e) => {
           Swal.showValidationMessage("Email and OTP are required!");
           return false;
         }
-        return { email, otpCode };
+        return { email, optCode: otpCode };
       },
       showCancelButton: true,
       confirmButtonText: "Verify",
@@ -117,9 +171,20 @@ const handleSubmit = async (e) => {
         body: JSON.stringify(form),
       });
 
-      if (!res.ok) throw new Error("Verification failed");
+      if (!res.ok) {
+        let errorMessage = "Verification failed";
+        try {
+          const errorData = await res.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch {
+          
+        }
+        throw new Error(errorMessage);
+      }
+      
       Swal.fire("Verified", "Your email has been verified!", "success");
     } catch (err) {
+      console.error("Verification error:", err);
       Swal.fire("Error", err.message, "error");
     }
   };
@@ -149,7 +214,18 @@ const handleSubmit = async (e) => {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ email }),
             });
-            if (!res.ok) throw new Error("Failed to send OTP to email");
+            
+            if (!res.ok) {
+              let errorMessage = "Failed to send OTP to email";
+              try {
+                const errorData = await res.json();
+                errorMessage = errorData.message || errorMessage;
+              } catch {
+               
+              }
+              throw new Error(errorMessage);
+            }
+            
             Swal.fire("Success", "OTP sent to your email!", "success");
           } catch (err) {
             Swal.fire("Error", err.message, "error");
@@ -187,7 +263,17 @@ const handleSubmit = async (e) => {
         body: JSON.stringify(form),
       });
 
-      if (!res.ok) throw new Error("Password reset failed");
+      if (!res.ok) {
+        let errorMessage = "Password reset failed";
+        try {
+          const errorData = await res.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch {
+     
+        }
+        throw new Error(errorMessage);
+      }
+      
       Swal.fire("Success", "Password has been reset!", "success");
     } catch (err) {
       Swal.fire("Error", err.message, "error");
@@ -196,21 +282,46 @@ const handleSubmit = async (e) => {
 
 
 
+  const handleGoogleLogin = async () => {
+    try {
+      setLoading(true);
 
-const googleLogin = async () => {
-  const res = window.open(
-    "http://localhost:8080/oauth2/authorization/google",
-    "_blank",
-    "width=500,height=600"
-  );
+      // Call your backend to trigger Google login
+      const res = await fetch("http://localhost:8080/oauth2/authorization/google", {
+        method: "GET",
+       headers:{"Content-Type":"application/json"}
+      });
+
+      if (!res.ok) {
+        throw new Error("Login failed");
+      }
+
+      const data = await res.json();
+      console.log("Login response:", data);
+
+      if (data.access_token) {
+    
+        localStorage.setItem("authToken", data.access_token);
+
+      
+
+        alert("✅ Logged in successfully!");
+        navigate("/"); 
+      }
+    } catch (err) {
+      console.error(err);
+      alert("❌ Error during login");
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
-       
-    localStorage.setItem("authToken","eyJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJUZWNoIFJlc3RvcmUiLCJzdWIiOiJKV1QgVG9rZW4iLCJ1c2VybmFtZSI6ImZmZHlmdGozNEBnbWFpbC5jb20iLCJyb2xlcyI6WyJST0xFX0dVRVNUIl0sInRva2VuVHlwZSI6ImFjY2VzcyIsImV4cCI6MTc1ODAwMzM0MCwiaWF0IjoxNzU3OTk5NzQwfQ.OOcUF0pg6BpbzFjwhCIYkXlVVS0JxlsgOaup4yFQEYGZ1z-ACGaVGejG0SNoXR1ztLermyrmn1jYk8ZOPGtnTg");
+
 
 
   
-    } 
+
 
 
   return (
@@ -220,7 +331,7 @@ const googleLogin = async () => {
       <RiToolsLine className="absolute top-1/2 left-1/4 text-white opacity-20 text-7xl animate-spin-slow" />
 
       <div className="w-full max-w-xl mt-6 relative z-10">
-        <div className="bg-gradient-to-br from-blue-100/50 to-blue-300/30 backdrop-blur-md border border-white/20 rounded-2xl shadow-xl p-6 sm:p-8">
+        <div className="bg-gradient-to-br from-blue-100/50 to-blue-300/30 border-4 backdrop-blur-md border border-white/20 rounded-2xl shadow-xl p-6 sm:p-8">
           <h1 className="text-3xl font-bold text-white text-center mb-2">
             Welcome back
           </h1>
@@ -228,31 +339,9 @@ const googleLogin = async () => {
             Sign in to continue to your account
           </p>
 
-          {/* Tabs */}
-          <div className="flex justify-center mb-6">
-            <button
-              onClick={() => setActiveTab("user")}
-              className={`px-4 py-2 rounded-l-lg font-bold ${
-                activeTab === "user"
-                  ? "bg-white text-blue-500"
-                  : "bg-gray-100 text-gray-700"
-              }`}
-            >
-              User
-            </button>
-            <button
-              onClick={() => setActiveTab("shop")}
-              className={`px-4 py-2 rounded-r-lg font-bold ${
-                activeTab === "shop"
-                  ? "bg-white text-blue-500"
-                  : "bg-gray-100 text-gray-700"
-              }`}
-            >
-              Shop Owner
-            </button>
-          </div>
-
-          {/* Form */}
+       
+        
+ 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-white mb-1">
@@ -283,13 +372,18 @@ const googleLogin = async () => {
                   className="block w-full pl-3 pr-10 py-3 rounded-xl bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   placeholder="Password"
                 />
-                <button
+                  <button
                   type="button"
-                  onClick={togglePasswordVisibility}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-blue-500"
                 >
-                  {showPassword ? "🙈" : "👁"}
+                  {showPassword ? (
+                    <RiEyeOffLine className="text-lg" />
+                  ) : (
+                    <RiEyeLine className="text-lg" />
+                  )}
                 </button>
+
               </div>
             </div>
 
@@ -299,13 +393,14 @@ const googleLogin = async () => {
 
             <button
               type="submit"
-              className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:shadow-lg transition"
+              disabled={loading}
+              className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:shadow-lg transition disabled:opacity-50"
             >
-              {activeTab === "user" ? "Log in as User" : "Log in as Shop"}
+         Log In
             </button>
           </form>
 
-          {/* Actions */}
+    
           <div className="mt-6 space-y-2 text-center text-sm text-white">
             <button onClick={verifyEmail} className="underline">
               Verify Email
@@ -316,11 +411,11 @@ const googleLogin = async () => {
             </button>
           </div>
 
-          {/* Google login */}
+          
           <br />
           <button
             type="button"
-            onClick={googleLogin}
+            onClick={handleGoogleLogin}
             className="w-full flex items-center justify-center gap-3 bg-white text-gray-700 font-bold py-3 rounded-xl shadow-md hover:bg-gray-100 transition"
           >
             <img

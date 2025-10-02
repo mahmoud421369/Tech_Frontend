@@ -1,174 +1,224 @@
+import React, { useState, useEffect, useRef } from "react";
+import { FiChevronLeft, FiChevronRight, FiDollarSign } from "react-icons/fi";
 
-import React, { useState, useEffect } from 'react';
-import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
-
-const Transactions = ({darkMode}) => {
+const Transactions = ({ darkMode }) => {
   const [transactions, setTransactions] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [timeRange, setTimeRange] = useState('month');
+  const [timeRange, setTimeRange] = useState("month");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [financialReport, setFinancialReport] = useState(null);
   const transactionsPerPage = 4;
-  const [searchTerm, setSearchTerm] = useState('');
+
+
+  const timeSelectRef = useRef(null);
 
   const handlePageChange = (page) => {
+    if (page < 1) return;
     setCurrentPage(page);
   };
-  
+
+ 
   useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const reportRes = await fetch(
+          "http://localhost:8080/api/shops/payments/financial-report"
+        );
+        const reportData = await reportRes.json();
+        setFinancialReport(reportData.content);
 
-    const transactions = [
-       {
-      id: 1,
-      date: '2023-05-15',
-      type: 'sale',
-      item: 'iPhone 13 Pro',
-      shop: 'Tech Haven',
-      paymentMethod:'VISA',
-      amount: 999.00,
-      status: 'Completed'
-    },
-    {
-      id: 2,
-      date: '2023-04-22',
-      type: 'repair',
-      item: 'MacBook Pro Screen Replacement',
-      shop: 'Device Medic',
-      paymentMethod:'Instapay',
+        const repairRes = await fetch(
+          "http://localhost:8080/api/shops/payments/repairs"
+        );
+        const repairData = await repairRes.json();
 
-      amount: 299.00,
-      status: 'Completed'
-    },
-    {
-      id: 3,
-      date: '2023-03-10',
-      type: 'sale',
-      item: 'AirPods Pro',
-      shop: 'Audio World',
-      paymentMethod:'COD',
+        const orderRes = await fetch(
+          "http://localhost:8080/api/shops/payments/orders"
+        );
+        const orderData = await orderRes.json();
 
-      amount: 249.00,
-      status: 'Out for delivery'
-    },
-     {
-      id: 4,
-      date: '2023-03-10',
-      type: 'sale',
-      item: 'AirPods Pro',
-      shop: 'Audio World',
-      paymentMethod:'Fawry',
+        const allTransactions = [...repairData, ...orderData].map((t, idx) => ({
+          id: t.id ?? idx,
+          date: t.date,
+          type: (t.type || "").toLowerCase().includes("repair") ? "repair" : "sale",
+          item: (t.item || (t.type && t.type.includes("REPAIR") ? "إصلاح جهاز" : "طلب شراء")),
+          shop: t.shop || "متجرك",
+          paymentMethod: t.paymentMethod || "غير محدد",
+          amount: Number(t.amount) || 0,
+          status: (t.status || "Completed").toLowerCase(),
+        }));
 
-      amount: 249.00,
-      status: 'Completed'
-    },
-     {
-      id: 5,
-      date: '2023-03-10',
-      type: 'repair',
-      item: 'AirPods Pro',
-      shop: 'Audio World',
-      paymentMethod:'Fawry',
+        setTransactions(allTransactions);
+      } catch (err) {
+        console.error("Error fetching transactions:", err);
+      }
+    };
 
-      amount: 249.00,
-      status: 'In Repair',
-  
-    }
-    ];
-    setTransactions(transactions);
+    fetchData();
   }, [timeRange]);
 
+  useEffect(() => {
+   
+    const $ = window.jQuery || window.$;
+    if (!$ || !$.fn || !$.fn.select2) {
+      console.warn(
+        "jQuery or Select2 not found. Make sure you added the CDN scripts in public/index.html"
+      );
+      return;
+    }
 
-  const totalEarnings = transactions.reduce((sum, t) => sum + t.amount, 0);
-  const repairEarnings = transactions.filter(t => t.type === 'repair').reduce((sum, t) => sum + t.amount, 0);
-  const salesEarnings = transactions.filter(t => t.type === 'sale').reduce((sum, t) => sum + t.amount, 0);
-  const repairPercentage = totalEarnings > 0 ? Math.round((repairEarnings / totalEarnings) * 100) : 0;
-  const salesPercentage = totalEarnings > 0 ? Math.round((salesEarnings / totalEarnings) * 100) : 0;
+    const $select = $(timeSelectRef.current);
 
+ 
+    $select.select2({
+      width: "resolve",
+      dir: "rtl", 
+      theme: "bootstrap4",
+      minimumResultsForSearch: Infinity, 
+    });
+
+  
+    $select.on("change.select2", (e) => {
+      const val = $select.val();
+      setTimeRange(val);
+      setCurrentPage(1);
+    });
+
+
+    $select.val(timeRange).trigger("change.select2");
+
+    return () => {
+     
+      $select.off("change.select2");
+      try {
+        $select.select2("destroy");
+      } catch (e) {
+        
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); 
+
+
+  useEffect(() => {
+    const $ = window.jQuery || window.$;
+    if ($ && $.fn && $.fn.select2 && timeSelectRef.current) {
+      const $select = $(timeSelectRef.current);
+      if ($select.val() !== timeRange) {
+        $select.val(timeRange).trigger("change.select2");
+      }
+    }
+  }, [timeRange]);
+
+  
+  const totalEarnings =
+    financialReport?.totalEarnings ??
+    transactions.reduce((sum, t) => sum + t.amount, 0);
+
+  const repairEarnings =
+    financialReport?.repairEarnings ??
+    transactions
+      .filter((t) => t.type === "repair")
+      .reduce((sum, t) => sum + t.amount, 0);
+
+  const salesEarnings =
+    financialReport?.salesEarnings ??
+    transactions
+      .filter((t) => t.type === "sale")
+      .reduce((sum, t) => sum + t.amount, 0);
+
+  const repairPercentage =
+    totalEarnings > 0 ? Math.round((repairEarnings / totalEarnings) * 100) : 0;
+  const salesPercentage =
+    totalEarnings > 0 ? Math.round((salesEarnings / totalEarnings) * 100) : 0;
+
+
+  const filteredTransactions = transactions.filter((transaction) =>
+    [transaction.date, transaction.type, transaction.shop]
+      .join(" ")
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase())
+  );
 
   const indexOfLastTransaction = currentPage * transactionsPerPage;
   const indexOfFirstTransaction = indexOfLastTransaction - transactionsPerPage;
-  const currentTransactions = transactions.slice(indexOfFirstTransaction, indexOfLastTransaction);
-  const totalPages = Math.ceil(transactions.length / transactionsPerPage);
-
-
-  const filteredTransactions = transactions.filter(transaction => 
-    transaction.date.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    transaction.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    transaction.shop.toLowerCase().includes(searchTerm.toLowerCase())
+  const currentTransactions = filteredTransactions.slice(
+    indexOfFirstTransaction,
+    indexOfLastTransaction
   );
-  
-
-  
-
+  const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / transactionsPerPage));
 
   return (
-    <div style={{marginTop:"-550px",marginLeft:"300px"}} className="p-6 font-cairo bg-gray-50">
-      
-          <div className="bg-[#f1f5f9] p-4 m-2 border-l-4 border-blue-600 text-blue-500 text-right">
-        <h1 className="text-3xl font-bold text-blue-600">الدخل والايرادات</h1><br />
-        <p className="text-gray-400 text-sm font-bold">يمكنك رؤية الدخل الشهري او السنوي لطلبات التصليح والشراء من هنا</p>
-      </div><br /><br />
-
-      <div className='flex justify-between gap-6 flex-row-reverse'>
-
-              
-              <input
-                type="text"
-                placeholder="Search repair shops..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 block w-full rounded-md border border-gray-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+    <div
+      style={{ marginTop: "-550px", marginLeft: "300px" }}
+      className={`p-6 font-cairo ${darkMode ? "bg-gray-900" : "bg-[#f1f5f9]"}`}
+    >
           
-         
+           <div className="bg-white border p-4 rounded-2xl text-right mb-4">
+                         <h1 className="text-3xl font-bold text-blue-500 flex items-center flex-row-reverse justify-start gap-2"><FiDollarSign/>الايرادات </h1>
+                     
+                       </div>
+     
 
-<select
-          className="block font-bold w-full  border text-[#6079F6] pl-4 pr-3 py-3 bg-[#ECF0F3] cursor-pointer rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-          value={timeRange}
-          onChange={(e) => setTimeRange(e.target.value)}
+      <div className="flex justify-between gap-6 flex-row-reverse mt-6">
+        <input
+          type="text"
+          placeholder="ابحث عن الطلبات"
+          value={searchTerm}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setCurrentPage(1);
+          }}
+          className="pl-10 block w-full rounded-xl cursor-pointer placeholder:text-right border border-gray-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        />
+
+        <select
+          ref={timeSelectRef}
+          defaultValue={timeRange}
+        
+          onChange={() => {}}
+          dir="rtl"
+          className="block font-bold w-full border-4 border-gray-400 text-blue-600 pl-4 pr-3 py-3 bg-white cursor-pointer rounded-xl outline-none transition"
+          style={{ minWidth: 160 }}
         >
           <option value="day">اليوم</option>
-          <option value="week"> الاسبوع</option>
-          <option value="month"> الشهر</option>
+          <option value="week">الاسبوع</option>
+          <option value="month">الشهر</option>
           <option value="year">السنة</option>
-        </select><br />
+        </select>
+      </div>
 
-      </div><br /><br />
-        
-      
-
-  
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 my-8">
         <div className="bg-white p-6 rounded-lg shadow text-right">
-          <h3 className="text-lg text-gray-400 font-semibold mb-2">اجمالي الارباح </h3>
+          <h3 className="text-lg text-gray-500 font-semibold mb-2">اجمالي الارباح</h3>
           <p className="text-3xl font-bold text-blue-600">{totalEarnings.toFixed(2)} EGP</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow text-right">
-          <h3 className="text-lg text-gray-400 font-semibold mb-2">تصليح ({repairPercentage}%)</h3>
+          <h3 className="text-lg text-gray-500 font-semibold mb-2">تصليح ({repairPercentage}%)</h3>
           <p className="text-3xl font-bold text-green-600">{repairEarnings.toFixed(2)} EGP</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow text-right">
-          <h3 className="text-lg text-gray-400 font-semibold mb-2">مبيعات ({salesPercentage}%)</h3>
+          <h3 className="text-lg text-gray-500 font-semibold mb-2">مبيعات ({salesPercentage}%)</h3>
           <p className="text-3xl font-bold text-yellow-600">{salesEarnings.toFixed(2)} EGP</p>
         </div>
       </div>
 
-    
-
-      <div className="overflow-x-auto bg-white p-5 mx-auto">
+      <div className="overflow-x-auto bg-white p-5 mx-auto rounded-lg shadow">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-[#f1f5f9] text-center text-xs font-bold text-blue-600 uppercase tracking-wider">
             <tr>
-              <th scope='col' className="px-6 py-3">التأريخ</th>
-              <th scope='col' className="px-6 py-3">نوع الخدمة</th>
-              <th scope='col' className="px-6 py-3">الجهاز</th>
-              <th scope='col' className="px-6 py-3">المكان</th>
-              <th scope='col' className="px-6 py-3">طريقة الدفع</th>
-              <th scope='col' className="px-6 py-3">الحساب</th>
-              <th scope='col' className="px-6 py-3">حالة العملية</th>
+              <th className="px-6 py-3">التأريخ</th>
+              <th className="px-6 py-3">نوع الخدمة</th>
+              <th className="px-6 py-3">الجهاز</th>
+              <th className="px-6 py-3">المكان</th>
+              <th className="px-6 py-3">طريقة الدفع</th>
+              <th className="px-6 py-3">الحساب</th>
+              <th className="px-6 py-3">حالة العملية</th>
             </tr>
           </thead>
           <tbody className="bg-gray-50 text-center divide-y divide-gray-200">
             {currentTransactions.map((txn, index) => (
-              <tr key={index} className="hover:bg-gray-50">
+              <tr key={txn.id ?? index} className="hover:bg-[#f1f5f9]">
                 <td className="p-2 font-medium">{txn.date}</td>
                 <td className="p-2 font-medium whitespace-nowrap capitalize">{txn.type}</td>
                 <td className="p-2 font-medium whitespace-nowrap">{txn.item}</td>
@@ -177,9 +227,9 @@ const Transactions = ({darkMode}) => {
                 <td className="p-2 font-medium whitespace-nowrap">{txn.amount.toFixed(2)} EGP</td>
                 <td className="p-2 font-medium whitespace-nowrap">
                   <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                    txn.status === 'completed' ? 'bg-green-100 text-green-800' :
-                    txn.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-red-100 text-red-800'
+                    txn.status === "completed" ? "bg-green-100 text-green-800" :
+                    txn.status === "pending" ? "bg-yellow-100 text-yellow-800" :
+                    "bg-red-100 text-red-800"
                   }`}>
                     {txn.status}
                   </span>
@@ -189,66 +239,38 @@ const Transactions = ({darkMode}) => {
           </tbody>
         </table>
 
+        <div className={`flex items-center justify-between w-auto p-4 ${darkMode ? "bg-gray-700 text-white" : "bg-[#f1f5f9]"}`}>
+          <div>
+            عرض {indexOfFirstTransaction + 1} إلى {Math.min(indexOfLastTransaction, filteredTransactions.length)} من {filteredTransactions.length} عملية
+          </div>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className={`p-2 rounded-lg ${currentPage === 1 ? "opacity-50 cursor-not-allowed" : darkMode ? "bg-gray-600 hover:bg-gray-500" : "bg-gray-200 hover:bg-gray-300"}`}
+            >
+              <FiChevronLeft />
+            </button>
 
+            {[...Array(totalPages)].map((_, i) => (
+              <button
+                key={i}
+                onClick={() => handlePageChange(i + 1)}
+                className={`w-10 h-10 rounded-lg ${currentPage === i + 1 ? "bg-blue-600 text-white" : darkMode ? "bg-gray-600 hover:bg-gray-500" : "bg-gray-200 hover:bg-gray-300"}`}
+              >
+                {i + 1}
+              </button>
+            ))}
 
-   
-      
-            <div className={`flex items-center justify-between w-auto p-4 ${
-              darkMode ? 'bg-gray-700' : 'bg-gray-100'
-            }`}>
-              <div>
-                Showing {indexOfFirstTransaction + 1} to {Math.min(indexOfLastTransaction, filteredTransactions.length)} of {filteredTransactions.length} transactions
-              </div>
-              <div className="flex space-x-2">
-                <button 
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className={`p-2 rounded-lg ${
-                    currentPage === 1 
-                      ? 'opacity-50 cursor-not-allowed' 
-                      : darkMode 
-                        ? 'bg-gray-600 hover:bg-gray-500' 
-                        : 'bg-gray-200 hover:bg-gray-300'
-                  }`}
-                >
-                  <FiChevronLeft />
-                </button>
-                
-                {[...Array(totalPages)].map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handlePageChange(i + 1)}
-                    className={`w-10 h-10 rounded-lg ${
-                      currentPage === i + 1
-                        ? darkMode 
-                          ? 'bg-blue-600 text-white' 
-                          : 'bg-blue-600 text-white'
-                        : darkMode 
-                          ? 'bg-gray-600 hover:bg-gray-500' 
-                          : 'bg-gray-200 hover:bg-gray-300'
-                    }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-                
-                <button 
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className={`p-2 rounded-lg ${
-                    currentPage === totalPages 
-                      ? 'opacity-50 cursor-not-allowed' 
-                      : darkMode 
-                        ? 'bg-gray-600 hover:bg-gray-500' 
-                        : 'bg-gray-200 hover:bg-gray-300'
-                  }`}
-                >
-                  <FiChevronRight />
-                </button>
-              </div>
-            </div>
-    
-
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className={`p-2 rounded-lg ${currentPage === totalPages ? "opacity-50 cursor-not-allowed" : darkMode ? "bg-gray-600 hover:bg-gray-500" : "bg-gray-200 hover:bg-gray-300"}`}
+            >
+              <FiChevronRight />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

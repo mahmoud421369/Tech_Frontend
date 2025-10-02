@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from "react";
 import { FiX, FiShoppingCart, FiCreditCard, FiTruck, FiTrash2 } from "react-icons/fi";
 import {jwtDecode} from "jwt-decode";
-
+import { useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
 const Cart = ({ show, onClose, darkMode }) => {
   const [checkoutStep, setCheckoutStep] = useState("cart");
    const [addresses, setAddresses] = useState([]);
@@ -132,14 +133,27 @@ const [showDropdown, setShowDropdown] = useState(false);
     fetchAddresses();
   }, [token]);
 
+    const navigate = useNavigate();
   
   const createOrder = async () => {
   if (!token) {
-    alert("User not logged in!");
+    Swal.fire({
+      icon: "info",
+      title: "Not Logged In",
+      text: "Create account or login if already have one",
+      confirmButtonText: "Go to Login",
+    }).then(() => {
+      navigate("/login");
+    });
     return;
   }
+
   if (!selectedAddress) {
-    alert("Please select a delivery address");
+    Swal.fire({
+      icon: "info",
+      title: "Missing field",
+      text: "Please select an address to continue",
+    });
     return;
   }
 
@@ -161,11 +175,12 @@ const [showDropdown, setShowDropdown] = useState(false);
     });
 
     const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Unknown error");
+    if (!res.ok) {
+      throw new Error(data.message || "Unknown error creating order");
+    }
 
-    console.log("Order created:", data);
+    console.log("✅ Order created:", data);
 
-  
     if (paymentMethod === "visa") {
       const orderId = data.id;
       try {
@@ -174,23 +189,29 @@ const [showDropdown, setShowDropdown] = useState(false);
           {
             method: "POST",
             headers: {
-              "Authorization": `Bearer ${token}`,
+              Authorization: `Bearer ${token}`,
               "Content-Type": "application/json",
             },
           }
         );
-        const response =  await paymentRes.json();
-        window.location.href = response.paymentURL;
 
-        const paymentData = await paymentRes.json();
-        if (!paymentRes.ok) throw new Error(paymentData.message || "Payment failed");
+        const response = await paymentRes.json();
+        if (!paymentRes.ok) {
+          throw new Error(response.message || "Payment initialization failed");
+        }
 
-        console.log("Payment success:", paymentData);
-        alert("Payment processed successfully!");
+        console.log("💳 Payment Response:", response);
+
+       
+        if (response.paymentURL) {
+          window.open(response.paymentURL, "_blank");
+        } else {
+          throw new Error("Payment URL not found in response");
+        }
       } catch (paymentErr) {
         console.error("Payment failed:", paymentErr);
-        alert("Payment failed: " + paymentErr.message);
-        return; 
+        Swal.fire("Payment Failed", paymentErr.message, "error");
+        return;
       }
     }
 
@@ -198,9 +219,20 @@ const [showDropdown, setShowDropdown] = useState(false);
     setCart([]);
     setCheckoutStep("complete");
 
+    // Swal.fire({
+    //   icon: "success",
+    //   title: "Order Created",
+    //   text: "Your order has been submitted successfully!",
+    // }).then(() => {
+    //   navigate("/");
+    // });
   } catch (err) {
-    console.error("Create order failed:", err);
-    alert("Failed to create order: " + err.message);
+    console.error("❌ Create order failed:", err);
+    Swal.fire({
+      icon: "error",
+      title: "Order Failed",
+      text: err.message,
+    });
   }
 };
 

@@ -54,7 +54,7 @@ const Categories = () => {
       if (!res.ok) throw new Error("Failed to save category");
 
       Swal.fire(
-        "تم الحفظ",
+        "Saved",
         editingCategory ? "Category updated successfully" : "Category added successfully",
         "success"
       );
@@ -104,11 +104,11 @@ const Categories = () => {
 
   return (
     <div
-      style={{ marginLeft: "300px", marginTop: "-575px" }}
-      className="space-y-6 p-6 max-w-7xl mx-auto bg-[#f1f5f9]"
+    style={{marginTop:"60px"}}
+      className="space-y-6 p-6 max-w-8xl min-h-screen w-full mx-auto dark:bg-gray-900 bg-gray-50"
     >
-      <div className="flex justify-between items-center bg-white border p-4 rounded-2xl text-left">
-        <div >
+      <div className= "flex justify-between items-center bg-white dark:bg-gray-800 dark:border-gray-700 border p-4 rounded-2xl text-left" >
+        <div  >
           <h1 className="text-3xl font-bold text-blue-500 flex items-center gap-2"><FiList/> Categories</h1>
           <p className="text-gray-500">Add , Edit ,and Delete Categories</p>
         </div>
@@ -118,33 +118,33 @@ const Categories = () => {
             setEditingCategory(null);
             setCategoryName("");
           }}
-          className="flex items-center gap-2 px-4 py-2 bg-[#f1f5f9] text-blue-500   rounded-3xl  "
+          className="flex items-center gap-2 dark:bg-gray-950 dark:text-white dark:border-none px-4 py-2 bg-[#f1f5f9] text-blue-500   rounded-3xl  "
         >
           <FiPlus />  add category
         </button>
       </div>
 
  
-      <div className="bg-white rounded-lg shadow-lg p-5">
+      <div className=" bg-white  dark:bg-gray-800 dark:border-gray-700 border p-5 rounded-lg">
       <div className="relative flex-1 max-w-sm mb-4 text-right">
         <input
           type="text"
           placeholder="Search for category..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10 block w-full rounded-3xl bg-gray-50 border cursor-pointer border-gray-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="pl-10 block w-full dark:bg-gray-950 dark:text-white dark:border-none rounded-3xl bg-gray-50 border cursor-pointer border-gray-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
       </div>
 
       
       <div className="bg-white  shadow overflow-hidden">
-        <table className="min-w-full divide-y  divide-gray-200">
-          <thead className="bg-gray-100 text-blue-500">
+        <table className="min-w-full divide-y dark:divide-gray-700  divide-gray-200">
+          <thead className="bg-[#f1f5f9] dark:bg-gray-700 dark:text-white text-blue-500">
             <tr>
-              <th className="px-6 py-3 text-left font-medium uppercase">
+              <th className="px-6 py-3 text-center font-medium uppercase">
                 #
               </th>
-              <th className="px-6 py-3 text-left font-medium uppercase">
+              <th className="px-6 py-3 text-center font-medium uppercase">
                 Name
               </th>
               <th className="px-6 py-3 text-center font-medium uppercase">
@@ -152,25 +152,25 @@ const Categories = () => {
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 text-blue-600">
+          <tbody className="bg-gray-50 text-blue-500 dark:bg-gray-900 dark:text-gray-200">
             {filteredCategories.map((c, idx) => (
-              <tr key={c.id} className="hover:bg-gray-50">
+              <tr key={c.id} className="text-center border-b dark:border-gray-700">
                 <td className="px-3 py-2 text-sm ">{c.id}</td>
                 <td className="px-3 py-2 font-medium">{c.name}</td>
-                <td className="px-3 py-2 text-center">
+                <td className="px-3 py-2 flex gap-4 justify-center items-center text-center">
                   <button
                     onClick={() => {
                       setEditingCategory(c);
                       setCategoryName(c.name);
                       setIsModalOpen(true);
                     }}
-                    className="p-2 m-2 bg-transparent border text-amber-600 rounded "
+                    className="border dark:bg-gray-950 dark:border-none text-amber-600 px-3 py-1 rounded-3xl"
                   >
                     <FiEdit3 /> 
                   </button>
                   <button
                     onClick={() => deleteCategory(c.id)}
-                    className="p-2 m-2 bg-transparent border text-red-600 rounded "
+                    className="border dark:bg-gray-950 dark:border-none text-red-600 px-3 py-1 rounded-3xl"
                   >
                     <FiTrash2 /> 
                   </button>

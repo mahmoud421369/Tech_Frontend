@@ -15,7 +15,7 @@ const RepairRequests = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const token = localStorage.getItem("authToken");
 
-  // Statuses
+
   const statuses = [
     "SUBMITTED",
     "QUOTE_PENDING",
@@ -138,7 +138,7 @@ const RepairRequests = () => {
   return (
      <ShopLayout>
 
-    <div style={{marginTop:"-1100px"}}  className=" min-h-[calc(100vh-4rem)] bg-[#f1f5f9] p-6 font-cairo text-right">
+    <div style={{marginTop:"-1200px"}}  className=" bg-[#f1f5f9] p-6 font-cairo text-right">
       
 
       <div className="bg-white border p-4 rounded-2xl mb-4 text-right">

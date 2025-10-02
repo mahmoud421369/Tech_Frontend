@@ -10,9 +10,13 @@ export { default as Chats } from './Chats';
 export { default as Dashboard } from './Dashboard';
 export { default as Notifications } from './Notifications';
 export { default as SupportRequests } from './SupportRequests';
+export { default as Deliveries } from './Deliveries';
+export { default as Assigners } from './Assigners';
 
 
 
-export { default as Offers } from './Offers';
+
+
+export { default as AdminOffers } from './AdminOffers';
 export { default as AdminTransactions } from './AdminTransactions';
 export { default as Reviews } from './Review';
