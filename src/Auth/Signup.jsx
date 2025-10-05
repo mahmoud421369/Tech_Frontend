@@ -24,7 +24,8 @@ const Signup = () => {
   const [errors, setErrors] = useState({
     user: {},
     shop: {},
- 
+    delivery:{},
+    assigner:{},
   });
 
   const [userData, setUserData] = useState({
@@ -51,21 +52,21 @@ const Signup = () => {
     shopType: "",
   });
 
-  // const [deliveryData, setDeliveryData] = useState({
-  //   name: "",
-  //   email: "",
-  //   phone: "",
-  //   password: "",
-  //   address: "",
-  // });
+  const [deliveryData, setDeliveryData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    password: "",
+    address: "",
+  });
 
-  // const [assignerData, setAssignerData] = useState({
-  //   name: "",
-  //   email: "",
-  //   phone: "",
-  //   password: "",
-  //   department: "",
-  // });
+  const [assignerData, setAssignerData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    password: "",
+    department: "",
+  });
 
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -98,23 +99,23 @@ const Signup = () => {
     }
   };
 
-  // const handleDeliveryChange = (e) => {
-  //   const { name, value } = e.target;
-  //   setDeliveryData({ ...deliveryData, [name]: value });
-  //   setErrors((prev) => ({
-  //     ...prev,
-  //     delivery: { ...prev.delivery, [name]: "" },
-  //   }));
-  // };
+  const handleDeliveryChange = (e) => {
+    const { name, value } = e.target;
+    setDeliveryData({ ...deliveryData, [name]: value });
+    setErrors((prev) => ({
+      ...prev,
+      delivery: { ...prev.delivery, [name]: "" },
+    }));
+  };
 
-  // const handleAssignerChange = (e) => {
-  //   const { name, value } = e.target;
-  //   setAssignerData({ ...assignerData, [name]: value });
-  //   setErrors((prev) => ({
-  //     ...prev,
-  //     assigner: { ...prev.assigner, [name]: "" },
-  //   }));
-  // };
+  const handleAssignerChange = (e) => {
+    const { name, value } = e.target;
+    setAssignerData({ ...assignerData, [name]: value });
+    setErrors((prev) => ({
+      ...prev,
+      assigner: { ...prev.assigner, [name]: "" },
+    }));
+  };
 const verifyEmail = async (email) => {
   const { value: form } = await Swal.fire({
     title: "Verify Email",
@@ -401,143 +402,143 @@ const verifyEmail = async (email) => {
     }
   };
 
-  // const handleDeliverySignup = async (e) => {
-  //   e.preventDefault();
-  //   setLoading(true);
-  //   setErrors((prev) => ({ ...prev, delivery: {} }));
+  const handleDeliverySignup = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrors((prev) => ({ ...prev, delivery: {} }));
 
 
-  //   const newErrors = {};
-  //   if (!deliveryData.name) newErrors.name = "Name is required";
-  //   if (!deliveryData.email) newErrors.email = "Email is required";
-  //   else if (!validateEmail(deliveryData.email)) newErrors.email = "Invalid email format";
-  //   if (!deliveryData.phone) newErrors.phone = "Phone is required";
-  //   if (!deliveryData.password) newErrors.password = "Password is required";
-  //   if (!deliveryData.address) newErrors.address = "Address is required";
+    const newErrors = {};
+    if (!deliveryData.name) newErrors.name = "Name is required";
+    if (!deliveryData.email) newErrors.email = "Email is required";
+    else if (!validateEmail(deliveryData.email)) newErrors.email = "Invalid email format";
+    if (!deliveryData.phone) newErrors.phone = "Phone is required";
+    if (!deliveryData.password) newErrors.password = "Password is required";
+    if (!deliveryData.address) newErrors.address = "Address is required";
 
-  //   if (Object.keys(newErrors).length > 0) {
-  //     setErrors((prev) => ({ ...prev, delivery: newErrors }));
-  //     setLoading(false);
-  //     return;
-  //   }
+    if (Object.keys(newErrors).length > 0) {
+      setErrors((prev) => ({ ...prev, delivery: newErrors }));
+      setLoading(false);
+      return;
+    }
 
-  //   try {
-  //     const res = await fetch("http://localhost:8080/api/auth/register/delivery", {
-  //       method: "POST",
-  //       headers: { "Content-Type": "application/json" },
-  //       body: JSON.stringify(deliveryData),
-  //     });
+    try {
+      const res = await fetch("http://localhost:8080/api/auth/register/delivery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(deliveryData),
+      });
 
-  //     if (!res.ok) {
-  //       let errorMessage = await res.text();
-  //       try {
-  //         const errorData = JSON.parse(errorMessage);
-  //         errorMessage = errorData.message || errorMessage;
-  //         const newErrors = {};
-  //         if (errorMessage.includes("email")) newErrors.email = errorMessage;
-  //         else if (errorMessage.includes("password")) newErrors.password = errorMessage;
-  //         else if (errorMessage.includes("phone")) newErrors.phone = errorMessage;
-  //         else if (errorMessage.includes("name")) newErrors.name = errorMessage;
-  //         else if (errorMessage.includes("address")) newErrors.address = errorMessage;
-  //         else newErrors.general = errorMessage;
-  //         setErrors((prev) => ({ ...prev, delivery: newErrors }));
-  //       } catch {
-  //         setErrors((prev) => ({ ...prev, delivery: { general: errorMessage } }));
-  //       }
-  //       throw new Error(errorMessage);
-  //     }
+      if (!res.ok) {
+        let errorMessage = await res.text();
+        try {
+          const errorData = JSON.parse(errorMessage);
+          errorMessage = errorData.message || errorMessage;
+          const newErrors = {};
+          if (errorMessage.includes("email")) newErrors.email = errorMessage;
+          else if (errorMessage.includes("password")) newErrors.password = errorMessage;
+          else if (errorMessage.includes("phone")) newErrors.phone = errorMessage;
+          else if (errorMessage.includes("name")) newErrors.name = errorMessage;
+          else if (errorMessage.includes("address")) newErrors.address = errorMessage;
+          else newErrors.general = errorMessage;
+          setErrors((prev) => ({ ...prev, delivery: newErrors }));
+        } catch {
+          setErrors((prev) => ({ ...prev, delivery: { general: errorMessage } }));
+        }
+        throw new Error(errorMessage);
+      }
 
-  //     Swal.fire({
-  //       icon: "success",
-  //       title: "Success",
-  //       text: "Delivery registered successfully! Please verify your email.",
-  //       position: "top",
-  //       timer: 2000,
-  //       showConfirmButton: false,
-  //     }).then(() => {
-  //       verifyEmail(deliveryData.email);
-  //       navigate("/login");
-  //     });
-  //   } catch (err) {
-  //     Swal.fire({
-  //       icon: "error",
-  //       title: "Error",
-  //       text: err.message,
-  //       position: "top",
-  //     });
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
+      Swal.fire({
+        icon: "success",
+        title: "Success",
+        text: "Delivery registered successfully! Please verify your email.",
+        position: "top",
+        timer: 2000,
+        showConfirmButton: false,
+      }).then(() => {
+        verifyEmail(deliveryData.email);
+        navigate("/login");
+      });
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: err.message,
+        position: "top",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // const handleAssignerSignup = async (e) => {
-  //   e.preventDefault();
-  //   setLoading(true);
-  //   setErrors((prev) => ({ ...prev, assigner: {} }));
+  const handleAssignerSignup = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrors((prev) => ({ ...prev, assigner: {} }));
 
 
-  //   const newErrors = {};
-  //   if (!assignerData.name) newErrors.name = "Name is required";
-  //   if (!assignerData.email) newErrors.email = "Email is required";
-  //   else if (!validateEmail(assignerData.email)) newErrors.email = "Invalid email format";
-  //   if (!assignerData.phone) newErrors.phone = "Phone is required";
-  //   if (!assignerData.password) newErrors.password = "Password is required";
-  //   if (!assignerData.department) newErrors.department = "Department is required";
+    const newErrors = {};
+    if (!assignerData.name) newErrors.name = "Name is required";
+    if (!assignerData.email) newErrors.email = "Email is required";
+    else if (!validateEmail(assignerData.email)) newErrors.email = "Invalid email format";
+    if (!assignerData.phone) newErrors.phone = "Phone is required";
+    if (!assignerData.password) newErrors.password = "Password is required";
+    if (!assignerData.department) newErrors.department = "Department is required";
 
-  //   if (Object.keys(newErrors).length > 0) {
-  //     setErrors((prev) => ({ ...prev, assigner: newErrors }));
-  //     setLoading(false);
-  //     return;
-  //   }
+    if (Object.keys(newErrors).length > 0) {
+      setErrors((prev) => ({ ...prev, assigner: newErrors }));
+      setLoading(false);
+      return;
+    }
 
-  //   try {
-  //     const res = await fetch("http://localhost:8080/api/auth/register/assigner", {
-  //       method: "POST",
-  //       headers: { "Content-Type": "application/json" },
-  //       body: JSON.stringify(assignerData),
-  //     });
+    try {
+      const res = await fetch("http://localhost:8080/api/auth/register/assigner", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(assignerData),
+      });
 
-  //     if (!res.ok) {
-  //       let errorMessage = await res.text();
-  //       try {
-  //         const errorData = JSON.parse(errorMessage);
-  //         errorMessage = errorData.message || errorMessage;
-  //         const newErrors = {};
-  //         if (errorMessage.includes("email")) newErrors.email = errorMessage;
-  //         else if (errorMessage.includes("password")) newErrors.password = errorMessage;
-  //         else if (errorMessage.includes("phone")) newErrors.phone = errorMessage;
-  //         else if (errorMessage.includes("name")) newErrors.name = errorMessage;
-  //         else if (errorMessage.includes("department")) newErrors.department = errorMessage;
-  //         else newErrors.general = errorMessage;
-  //         setErrors((prev) => ({ ...prev, assigner: newErrors }));
-  //       } catch {
-  //         setErrors((prev) => ({ ...prev, assigner: { general: errorMessage } }));
-  //       }
-  //       throw new Error(errorMessage);
-  //     }
+      if (!res.ok) {
+        let errorMessage = await res.text();
+        try {
+          const errorData = JSON.parse(errorMessage);
+          errorMessage = errorData.message || errorMessage;
+          const newErrors = {};
+          if (errorMessage.includes("email")) newErrors.email = errorMessage;
+          else if (errorMessage.includes("password")) newErrors.password = errorMessage;
+          else if (errorMessage.includes("phone")) newErrors.phone = errorMessage;
+          else if (errorMessage.includes("name")) newErrors.name = errorMessage;
+          else if (errorMessage.includes("department")) newErrors.department = errorMessage;
+          else newErrors.general = errorMessage;
+          setErrors((prev) => ({ ...prev, assigner: newErrors }));
+        } catch {
+          setErrors((prev) => ({ ...prev, assigner: { general: errorMessage } }));
+        }
+        throw new Error(errorMessage);
+      }
 
-  //     Swal.fire({
-  //       icon: "success",
-  //       title: "Success",
-  //       text: "Assigner registered successfully! Please verify your email.",
-  //       position: "top",
-  //       timer: 2000,
-  //       showConfirmButton: false,
-  //     }).then(() => {
-  //       verifyEmail(assignerData.email);
-  //       navigate("/login");
-  //     });
-  //   } catch (err) {
-  //     Swal.fire({
-  //       icon: "error",
-  //       title: "Error",
-  //       text: err.message,
-  //       position: "top",
-  //     });
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
+      Swal.fire({
+        icon: "success",
+        title: "Success",
+        text: "Assigner registered successfully! Please verify your email.",
+        position: "top",
+        timer: 2000,
+        showConfirmButton: false,
+      }).then(() => {
+        verifyEmail(assignerData.email);
+        navigate("/login");
+      });
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: err.message,
+        position: "top",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-600 via-blue-600 to-purple-600 p-4 overflow-hidden">
@@ -555,7 +556,7 @@ const verifyEmail = async (email) => {
           </p>
 
           <div className="flex justify-center mb-6 space-x-2">
-            {["user", "shop"].map((tab) => (
+            {["user", "shop","delivery","assigner"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -889,7 +890,7 @@ const verifyEmail = async (email) => {
             </form>
           )}
 
-          {/* {activeTab === "delivery" && (
+          {activeTab === "delivery" && (
             <form onSubmit={handleDeliverySignup} className="space-y-4">
               {errors.delivery.general && (
                 <div className="text-red-400 text-sm text-center">{errors.delivery.general}</div>
@@ -1014,7 +1015,7 @@ const verifyEmail = async (email) => {
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="relative">
-                  <RiUserLine className="absolute top-3 left-3 text-white text-xl" />
+                  <RiUserLine className="absolute top-3 left-3 text-blue-600 text-xl" />
                   <input
                     type="text"
                     name="name"
@@ -1026,11 +1027,11 @@ const verifyEmail = async (email) => {
                     }`}
                   />
                   {errors.assigner.name && (
-                    <p className="text-red-400 text-xs mt-1">{errors.assigner.name}</p>
+                    <p className="text-white text-xs mt-1">{errors.assigner.name}</p>
                   )}
                 </div>
                 <div className="relative">
-                  <RiStore2Line className="absolute top-3 left-3 text-white text-xl" />
+                  <RiStore2Line className="absolute top-3 left-3 text-blue-600 text-xl" />
                   <input
                     type="text"
                     name="department"
@@ -1042,11 +1043,11 @@ const verifyEmail = async (email) => {
                     }`}
                   />
                   {errors.assigner.department && (
-                    <p className="text-red-400 text-xs mt-1">{errors.assigner.department}</p>
+                    <p className="text-white text-xs mt-1">{errors.assigner.department}</p>
                   )}
                 </div>
                 <div className="relative">
-                  <RiMailLine className="absolute top-3 left-3 text-white text-xl" />
+                  <RiMailLine className="absolute top-3 left-3 text-blue-600 text-xl" />
                   <input
                     type="email"
                     name="email"
@@ -1058,11 +1059,11 @@ const verifyEmail = async (email) => {
                     }`}
                   />
                   {errors.assigner.email && (
-                    <p className="text-red-400 text-xs mt-1">{errors.assigner.email}</p>
+                    <p className="text-white text-xs mt-1">{errors.assigner.email}</p>
                   )}
                 </div>
                 <div className="relative">
-                  <RiPhoneLine className="absolute top-3 left-3 text-white text-xl" />
+                  <RiPhoneLine className="absolute top-3 left-3 text-blue-600 text-xl" />
                   <input
                     type="text"
                     name="phone"
@@ -1074,11 +1075,11 @@ const verifyEmail = async (email) => {
                     }`}
                   />
                   {errors.assigner.phone && (
-                    <p className="text-red-400 text-xs mt-1">{errors.assigner.phone}</p>
+                    <p className="text-white text-xs mt-1">{errors.assigner.phone}</p>
                   )}
                 </div>
                 <div className="relative sm:col-span-2">
-                  <RiLockPasswordLine className="absolute top-3 left-3 text-white text-xl" />
+                  <RiLockPasswordLine className="absolute top-3 left-3 text-blue-600 text-xl" />
                   <input
                     type="password"
                     name="password"
@@ -1090,7 +1091,7 @@ const verifyEmail = async (email) => {
                     }`}
                   />
                   {errors.assigner.password && (
-                    <p className="text-red-400 text-xs mt-1">{errors.assigner.password}</p>
+                    <p className="text-white text-xs mt-1">{errors.assigner.password}</p>
                   )}
                 </div>
               </div>
@@ -1123,7 +1124,7 @@ const verifyEmail = async (email) => {
                 )}
               </button>
             </form>
-          )} */}
+          )}
 
           <div className="mt-6 text-center text-sm text-white/80">
             Already have an account?{" "}

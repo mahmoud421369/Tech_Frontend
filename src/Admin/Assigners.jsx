@@ -13,14 +13,7 @@ const Assigners = () => {
   const [filter, setFilter] = useState("all");
   const [error, setError] = useState("");
   const [selectedAssigner, setSelectedAssigner] = useState(null);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newAssigner, setNewAssigner] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    password: "",
-    department: ""
-  });
+
   const [stats, setStats] = useState({
     totalAssignmentsHandled: 0,
     pendingAssignments: 0,
@@ -85,33 +78,12 @@ const Assigners = () => {
     }
   };
 
-  const handleAddAssigner = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await fetch("http://localhost:8080/api/auth/register/assigner", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newAssigner),
-      });
-      if (!res.ok) throw new Error("Failed to register assigner");
-      setNewAssigner({
-        name: "",
-        email: "",
-        phone: "",
-        password: "",
-        department: ""
-      });
-      setShowAddForm(false);
-      fetchAssigners();
-    } catch (err) {
-      alert(err.message);
-    }
-  };
+ 
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewAssigner(prev => ({ ...prev, [name]: value }));
-  };
+  // const handleInputChange = (e) => {
+  //   const { name, value } = e.target;
+  //   setNewAssigner(prev => ({ ...prev, [name]: value }));
+  // };
 
   return (
     <div style={{marginTop:"60px"}}
@@ -151,12 +123,7 @@ const Assigners = () => {
               {f.charAt(0).toUpperCase() + f.slice(1)}
             </button>
           ))}
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="px-4 py-2 rounded-lg font-medium bg-blue-600 text-white"
-          >
-            Add Assigner
-          </button>
+       
         </div>
 
         {loading && <p className="text-blue-600">Loading...</p>}
@@ -274,94 +241,7 @@ const Assigners = () => {
           </div>
         )}
 
-        {showAddForm && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40">
-            <div className="bg-white w-full max-w-md p-6 rounded-lg shadow-lg relative">
-              <h2 className="text-xl font-bold text-blue-700 mb-4">
-                Add New Assigner
-              </h2>
-              <div className="space-y-4">
-                <form onSubmit={handleAddAssigner} method="POST">
-                <div>
-           
-                  <label className="block text-sm font-medium text-gray-700">Name</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={newAssigner.name}
-                    onChange={handleInputChange}
-                    className="block w-full px-4 py-3 bg-gray-50 border cursor-pointer dark:bg-gray-950 dark:border-gray-700 rounded-lg text-gray-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition-all"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Email</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={newAssigner.email}
-                    onChange={handleInputChange}
-                    className="block w-full px-4 py-3 bg-gray-50 border cursor-pointer dark:bg-gray-950 dark:border-gray-700 rounded-lg  text-gray-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition-all"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Phone</label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={newAssigner.phone}
-                    onChange={handleInputChange}
-                    className="block w-full px-4 py-3 bg-gray-50 border cursor-pointer dark:bg-gray-950 dark:border-gray-700 rounded-lg text-gray-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition-all"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Password</label>
-                  <input
-                    type="password"
-                    name="password"
-                    value={newAssigner.password}
-                    onChange={handleInputChange}
-                    className="block w-full px-4 py-3 bg-gray-50 border cursor-pointer dark:bg-gray-950 dark:border-gray-700 rounded-lg  text-gray-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition-all"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Department</label>
-                  <input
-                    type="text"
-                    name="department"
-                    value={newAssigner.department}
-                    onChange={handleInputChange}
-                    className="block w-full bg-gray-50 border cursor-pointer dark:bg-gray-950 dark:border-gray-700 px-4 py-3 rounded-lg  text-gray-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition-all"
-                    required
-                  />
-                </div>
-                <div className="flex space-x-4">
-                  <button
-                    
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg"
-                  >
-                    Submit
-                  </button>
-                  <button
-                    onClick={() => setShowAddForm(false)}
-                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg"
-                  >
-                    Cancel
-                  </button>
-                  
-                </div>
-                
-                </form>
-              </div>
-              
-            </div>
-            
-          </div>
-          
-        )}
+       
     </div>
   );
 };

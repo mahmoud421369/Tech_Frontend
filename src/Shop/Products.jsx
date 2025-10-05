@@ -10,14 +10,13 @@ const Products = () => {
 const [newProduct, setNewProduct] = useState({
   name: "",
   description: "",
-  price: "",
+  price: 0,
   imageUrl: "",
   category: {
     id: "",
-    name: "",
-    createdAt: ""
+    name:"",
   },
-  stockQuantity: "",
+  stockQuantity: 0,
   condition: "NEW",
 });
   const [editingProduct, setEditingProduct] = useState(null);
@@ -81,16 +80,16 @@ const addProduct = async () => {
       stockQuantity: newProduct.stockQuantity ? Number(newProduct.stockQuantity) : 0,
       category: {
         id: newProduct.category.id,
-        name: newProduct.category.name,
-        createdAt: newProduct.category.createdAt
+      name: newProduct.category.name,
       }
     };
+    console.log(productToSubmit)
 
     const res = await fetch("http://localhost:8080/api/shops/products", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(productToSubmit),
     });
@@ -270,7 +269,7 @@ const addProduct = async () => {
                             })
                           : setNewProduct({ ...newProduct, name: e.target.value })
                       }
-                      className="w-full pl-4 pr-10 py-3 bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
+                      className="w-full pl-4 pr-10 py-3 placeholder:text-right bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
                     />
                   </div>
                   <div className="relative">
@@ -289,7 +288,7 @@ const addProduct = async () => {
                               description: e.target.value,
                             })
                       }
-                      className="w-full pl-4 pr-10 py-3 bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
+                      className="w-full pl-4 pr-10 py-3 bg-gray-50 placeholder:text-right dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
                     />
                   </div>
                   <div className="relative">
@@ -308,7 +307,7 @@ const addProduct = async () => {
                               price: e.target.value,
                             })
                       }
-                      className="w-full pl-4 pr-10 py-3 bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
+                      className="w-full pl-4 pr-10 py-3 bg-gray-50 placeholder:text-right dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
                     />
                   </div>
                   <div className="relative">
@@ -327,7 +326,7 @@ const addProduct = async () => {
                               imageUrl: e.target.value,
                             })
                       }
-                      className="w-full pl-4 pr-10 py-3 bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
+                      className="w-full pl-4 pr-10 py-3 bg-gray-50 placeholder:text-right dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
                     />
                   </div>
                   <div className="relative">
@@ -344,7 +343,7 @@ const addProduct = async () => {
                               condition: e.target.value,
                             })
                       }
-                      className="w-full pl-4 pr-10 py-3 bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300 appearance-none"
+                      className="w-full pl-4 pr-10 py-3 bg-gray-50 text-right dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300 appearance-none"
                     >
                       <option value="NEW">جديد</option>
                       <option value="USED">مستعمل</option>
@@ -367,7 +366,7 @@ const addProduct = async () => {
                               stockQuantity: e.target.value,
                             })
                       }
-                      className="w-full pl-4 pr-10 py-3 bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
+                      className="w-full pl-4 pr-10 py-3 bg-gray-50 placeholder:text-right dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
                     />
                   </div>
                   <div className="relative">
@@ -389,7 +388,7 @@ const addProduct = async () => {
                           });
                         }
                       }}
-                      className="w-full pl-4 pr-10 py-3 bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300 appearance-none"
+                      className="w-full pl-4 pr-10 py-3 text-right bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300 appearance-none"
                     >
                       <option value="">اختر الفئة</option>
                       {categories.map((cat) => (
@@ -406,7 +405,7 @@ const addProduct = async () => {
           <div className="mt-6 flex flex-col sm:flex-row gap-4 justify-end">
             <button
               onClick={editingProduct ? updateProduct : addProduct}
-              className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition-all duration-300 shadow-md"
+              className="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition-all duration-300 shadow-md"
             >
               {editingProduct ? "تعديل المنتج" : "إضافة المنتج"}
             </button>
@@ -446,6 +445,7 @@ const addProduct = async () => {
                   <th className="px-4 py-3 font-semibold">اسم المنتج</th>
                   <th className="px-4 py-3 font-semibold">الحالة</th>
                   <th className="px-4 py-3 font-semibold">السعر</th>
+                  {/* <th className="px-4 py-3 font-semibold">التصنيف</th> */}
                   <th className="px-4 py-3 font-semibold">المخزون</th>
                   <th className="px-4 py-3 font-semibold">إجراءات</th>
                 </tr>
@@ -459,6 +459,8 @@ const addProduct = async () => {
                     <td className="px-4 py-3">{p.name}</td>
                     <td className="px-4 py-3">{p.condition}</td>
                     <td className="px-4 py-3">{p.price} EGP</td>
+                    {/* <td className="px-4 py-3">{p.categoryId } </td> */}
+
                     <td className="px-4 py-3">{p.stock}</td>
                     <td className="px-4 py-3 flex justify-center gap-2">
                       <button
