@@ -1,4 +1,4 @@
-// src/pages/delivery/DeliveryDashboard.jsx
+
 import React, { useEffect, useState } from "react";
 import { FiPackage, FiClock, FiCheckCircle, FiAlertTriangle, FiTool } from "react-icons/fi";
 import { getAvailableOrders, getAvailableRepairs, getMyDeliveries, getMyRepairs } from "../api/deliveryApi";
@@ -85,7 +85,7 @@ const DeliveryDashboard = () => {
         ))}
       </div>
 
-      {/* Optional: add a section for notifications or recent activity */}
+
       <div className="mt-8 bg-white dark:bg-gray-800 rounded-2xl shadow p-6">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
           Recent Activity

@@ -1,133 +1,160 @@
 import React, { useEffect, useState } from "react";
 import Swal from "sweetalert2";
-import { FiBox, FiEdit2, FiInbox, FiSmartphone, FiTrash2 } from "react-icons/fi";
+import { FiBox, FiEdit3, FiInbox, FiSmartphone, FiTrash2, FiChevronRight, FiChevronLeft, FiSearch } from "react-icons/fi";
 import ShopLayout from "../components/ShopLayout";
 
 const Products = () => {
   const token = localStorage.getItem("authToken");
   const [products, setProducts] = useState([]);
-  const [newProduct, setNewProduct] = useState({
+   const [searchTerm, setSearchTerm] = useState('');
+const [newProduct, setNewProduct] = useState({
+  name: "",
+  description: "",
+  price: "",
+  imageUrl: "",
+  category: {
+    id: "",
     name: "",
-    description: "",
-    price: 0,
-    imageUrl: "",
-    category: null,
-    stockQuantity: 0,
-    condition: "NEW",
-  });
+    createdAt: ""
+  },
+  stockQuantity: "",
+  condition: "NEW",
+});
   const [editingProduct, setEditingProduct] = useState(null);
   const [categories, setCategories] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const productsPerPage = 10;
 
-const fetchProducts = async () => {
-  try {
-    
-    const res = await fetch("http://localhost:8080/api/shops/products", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    if (!res.ok) throw new Error("Failed to fetch products");
-
-    const data = await res.json();
-
-    const products = Array.isArray(data) ? data : data.content || [];
-    console.log(products);
-    setProducts(products);
-  } catch (err) {
-    console.error("Error fetching products:", err);
-    Swal.fire("Error", "Failed to fetch products", "error");
-  }
-};
-
-const fetchCategories = async () => {
-  try {
-    const token = localStorage.getItem("authToken");
-    const res = await fetch("http://localhost:8080/api/shops/categories", {
-      headers: { 
-        "Content-Type":"application/json",
-        Authorization: `Bearer ${token}` 
-      },
-    });
-
-    if (!res.ok) throw new Error("Failed to fetch categories");
-
-    const data = await res.json();
-    
-    const categories = Array.isArray(data) ? data : data.content || [];
-    setCategories(categories);
-  } catch (err) {
-    console.error("Error fetching categories:", err);
-    Swal.fire("Error", "Failed to fetch categories", "error");
-  }
-};
-
-useEffect(() => {
-  fetchProducts();
-  fetchCategories();
-}, []);
-  
-  const addProduct = async () => {
+  const fetchProducts = async () => {
     try {
       const res = await fetch("http://localhost:8080/api/shops/products", {
-        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) throw new Error("Failed to fetch products");
+
+      const data = await res.json();
+      const products = Array.isArray(data) ? data : data.content || [];
+      console.log(products);
+      setProducts(products);
+    } catch (err) {
+      console.error("Error fetching products:", err);
+      Swal.fire("Error", "Failed to fetch products", "error");
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch("http://localhost:8080/api/categories", {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(newProduct),
       });
-      console.log(newProduct)
 
-      if (!res.ok) throw new Error("Failed to add product");
+      if (!res.ok) throw new Error("Failed to fetch categories");
 
-      Swal.fire("Success!", "Product added successfully", "success");
-      setNewProduct({
-        name: "",
-        description: "",
-        price: 0,
-        imageUrl: "",
-        category: null,
-        stockQuantity: 0,
-        condition: "NEW",
-      });
-      fetchProducts();
+      const data = await res.json();
+      const categories = Array.isArray(data) ? data : data.content || [];
+      setCategories(categories);
     } catch (err) {
-      console.error("Error adding product:", err);
-      Swal.fire("Error", "Failed to add product", "error");
+      console.error("Error fetching categories:", err);
+      Swal.fire("Error", "Failed to fetch categories", "error");
     }
   };
 
+  useEffect(() => {
+    fetchProducts();
+    fetchCategories();
+  }, []);
 
-  const updateProduct = async () => {
-    try {
-      const updateData = {
-        ...editingProduct,
-        category: editingProduct.category,
-      };
-
-      const res = await fetch(
-        `http://localhost:8080/api/shops/products/${editingProduct.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(updateData),
-        }
-      );
-
-      if (!res.ok) throw new Error("Failed to update product");
-
-      Swal.fire("Success!", "Product updated successfully", "success");
-      setEditingProduct(null);
-      fetchProducts();
-    } catch (err) {
-      console.error("Error updating product:", err);
-      Swal.fire("Error", "Failed to update product", "error");
+const addProduct = async () => {
+  try {
+    if (!newProduct.category || !newProduct.category.id) {
+      Swal.fire("Error", "Please select a category", "error");
+      return;
     }
-  };
 
-  
+    const productToSubmit = {
+      ...newProduct,
+      price: newProduct.price ? Number(newProduct.price) : 0,
+      stockQuantity: newProduct.stockQuantity ? Number(newProduct.stockQuantity) : 0,
+      category: {
+        id: newProduct.category.id,
+        name: newProduct.category.name,
+        createdAt: newProduct.category.createdAt
+      }
+    };
+
+    const res = await fetch("http://localhost:8080/api/shops/products", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(productToSubmit),
+    });
+
+    if (!res.ok) throw new Error("Failed to add product");
+
+    Swal.fire("Success!", "Product added successfully", "success");
+    setNewProduct({
+      name: "",
+      description: "",
+      price: "",
+      imageUrl: "",
+      category: null,
+      stockQuantity: "",
+      condition: "NEW",
+    });
+    fetchProducts();
+  } catch (err) {
+    console.error("Error adding product:", err);
+    Swal.fire("Error", "Failed to add product", "error");
+  }
+};
+
+ const updateProduct = async () => {
+  try {
+    if (!editingProduct.category || !editingProduct.category.id) {
+      Swal.fire("Error", "Please select a category", "error");
+      return;
+    }
+
+    const updateData = {
+      ...editingProduct,
+      price: editingProduct.price ? Number(editingProduct.price) : 0,
+      stockQuantity: editingProduct.stockQuantity ? Number(editingProduct.stockQuantity) : 0,
+      category: {
+        id: editingProduct.category.id,
+        name: editingProduct.category.name,
+        createdAt: editingProduct.category.createdAt
+      }
+    };
+
+    const res = await fetch(
+      `http://localhost:8080/api/shops/products/${editingProduct.id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(updateData),
+      }
+    );
+
+    if (!res.ok) throw new Error("Failed to update product");
+
+    Swal.fire("Success!", "Product updated successfully", "success");
+    setEditingProduct(null);
+    fetchProducts();
+  } catch (err) {
+    console.error("Error updating product:", err);
+    Swal.fire("Error", "Failed to update product", "error");
+  }
+};
+
   const updateStock = async (productId, currentStock) => {
     const { value: newStock } = await Swal.fire({
       title: "تحديث المخزون",
@@ -165,7 +192,6 @@ useEffect(() => {
     }
   };
 
-  
   const deleteProduct = async (productId) => {
     const result = await Swal.fire({
       title: "Are you sure?",
@@ -197,235 +223,322 @@ useEffect(() => {
       Swal.fire("Error", "Failed to delete product", "error");
     }
   };
+  const filteredProducts = products.filter((p) =>
+    p.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const indexOfLastProduct = currentPage * productsPerPage;
+  const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
+  const currentProducts = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct);
+  const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
+
+  const changePage = (page) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
 
   return (
     <ShopLayout>
-    <div style={{marginTop:"-1200px"}} className=" bg-[#f1f5f9] p-6 font-cairo text-right">
-     
-      <div className="bg-white border p-4 rounded-2xl text-right mb-4">
-                    <h1 className="text-3xl font-bold text-blue-500 flex items-center justify-end gap-2"><FiBox/>المنتجات </h1>
-                
-                  </div>
-
-    
-      <div className="bg-white p-6 rounded-2xl max-w-5xl mx-auto mb-8 shadow-md">
-        <h2 className="text-2xl font-bold text-gray-700 mb-4 flex items-center justify-center gap-3">
-          <FiSmartphone size={28} className="text-indigo-500" />
-          {editingProduct ? "تعديل المنتج" : "إضافة منتج جديد"}
-        </h2>
-
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {(editingProduct ? [editingProduct] : [newProduct]).map(
-            (product, idx) => (
-              <React.Fragment key={idx}>
-                <input
-                  type="text"
-                  placeholder="اسم المنتج"
-                  value={product.name}
-                  onChange={(e) =>
-                    editingProduct
-                      ? setEditingProduct({
-                          ...editingProduct,
-                          name: e.target.value,
-                        })
-                      : setNewProduct({ ...newProduct, name: e.target.value })
-                  }
-                  className="w-full pl-10 pr-3 py-3 rounded-xl cursor-pointer bg-[#ECF0F3] focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-                <input
-                  type="text"
-                  placeholder="وصف المنتج"
-                  value={product.description}
-                  onChange={(e) =>
-                    editingProduct
-                      ? setEditingProduct({
-                          ...editingProduct,
-                          description: e.target.value,
-                        })
-                      : setNewProduct({
-                          ...newProduct,
-                          description: e.target.value,
-                        })
-                  }
-                  className="w-full pl-10 pr-3 py-3 rounded-xl cursor-pointer bg-[#ECF0F3] focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-                <input
-                  type="number"
-                  placeholder="السعر"
-                  value={product.price}
-                  onChange={(e) =>
-                    editingProduct
-                      ? setEditingProduct({
-                          ...editingProduct,
-                          price: Number(e.target.value),
-                        })
-                      : setNewProduct({
-                          ...newProduct,
-                          price: Number(e.target.value),
-                        })
-                  }
-                  className="w-full pl-10 pr-3 py-3 rounded-xl cursor-pointer bg-[#ECF0F3] focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-                <input
-                  type="text"
-                  placeholder="رابط الصورة"
-                  value={product.imageUrl}
-                  onChange={(e) =>
-                    editingProduct
-                      ? setEditingProduct({
-                          ...editingProduct,
-                          imageUrl: e.target.value,
-                        })
-                      : setNewProduct({
-                          ...newProduct,
-                          imageUrl: e.target.value,
-                        })
-                  }
-                  className="w-full pl-10 pr-3 py-3 rounded-xl cursor-pointer bg-[#ECF0F3] focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-                <select
-                  value={product.condition}
-                  onChange={(e) =>
-                    editingProduct
-                      ? setEditingProduct({
-                          ...editingProduct,
-                          condition: e.target.value,
-                        })
-                      : setNewProduct({
-                          ...newProduct,
-                          condition: e.target.value,
-                        })
-                  }
-                  className="w-full pl-10 pr-3 py-3 rounded-xl cursor-pointer bg-[#ECF0F3] focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none"
-                >
-                  <option value="NEW">جديد</option>
-                  <option value="USED">مستعمل</option>
-                  <option value="REFURBISHED">مجدّد</option>
-                </select>
-                <input
-                  type="number"
-                  placeholder="الكمية المتاحة"
-                  value={product.stockQuantity}
-                  onChange={(e) =>
-                    editingProduct
-                      ? setEditingProduct({
-                          ...editingProduct,
-                          stockQuantity: Number(e.target.value),
-                        })
-                      : setNewProduct({
-                          ...newProduct,
-                          stockQuantity: Number(e.target.value),
-                        })
-                  }
-                  className="w-full pl-10 pr-3 py-3 rounded-xl cursor-pointer bg-[#ECF0F3] focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-                <select
-                  value={product.category?.id || ""}
-                  onChange={(e) => {
-                    const selectedCategory = categories.find(
-                      (c) => c.id === e.target.value
-                    );
-                    if (editingProduct) {
-                      setEditingProduct({
-                        ...editingProduct,
-                        category: selectedCategory,
-                      });
-                    } else {
-                      setNewProduct({
-                        ...newProduct,
-                        category: selectedCategory,
-                      });
-                    }
-                  }}
-                  className="w-full pl-10 pr-3 py-3 rounded-xl cursor-pointer bg-[#ECF0F3] focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none"
-                >
-                  <option value="">اختر الفئة</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
-              </React.Fragment>
-            )
-          )}
+      <div style={{marginTop:"-1230px"}} className="min-h-screen font-cairo bg-gray-100 dark:bg-gray-900 p-4 sm:p-6 md:p-8">
+      
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 mb-8 max-w-6xl mx-auto">
+          <h1 className="text-2xl sm:text-3xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center justify-end gap-3">
+            <FiBox className="text-xl sm:text-2xl" /> المنتجات
+          </h1>
         </div>
-
-        
-        <div className="mt-6 flex gap-3">
-          <button
-            onClick={editingProduct ? updateProduct : addProduct}
-            className="bg-indigo-50 text-indigo-600 font-bold px-4 py-2 rounded-3xl  transition"
-          >
-            {editingProduct ? "تعديل المنتج" : "إضافة المنتج"}
-          </button>
-          {editingProduct && (
-            <button
-              onClick={() => setEditingProduct(null)}
-              className="bg-gray-300 text-black px-4 py-2 rounded-lg hover:bg-gray-400 transition"
-            >
-              إلغاء
-            </button>
-          )}
-        </div>
-      </div>
 
       
-      <div className="bg-white p-6 rounded-2xl max-w-6xl mx-auto shadow-md">
-        <h2 className="text-2xl font-bold mb-4 text-gray-700 text-center">
-          قائمة المنتجات
-        </h2>
-        <table className="min-w-full table-auto text-center border border-gray-200 rounded-lg overflow-hidden">
-          <thead className="bg-[#f1f5f9] text-blue-500">
-            <tr>
-              <th className="px-4 py-2">اسم المنتج</th>
-              <th className="px-4 py-2">الحالة</th>
-              <th className="px-4 py-2">السعر</th>
-         
-
-              <th className="px-4 py-2">المخزون</th>
-              <th className="px-4 py-2">إجراءات</th>
-            </tr>
-          </thead>
-          <tbody className="bg-gray-50 ">
-            {products.map((p) => (
-              <tr
-                key={p.id}
-                className="border-b hover:bg-gray-50 transition text-blue-950"
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 mb-8 max-w-6xl mx-auto">
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center justify-center gap-3">
+            <FiSmartphone className="text-indigo-600 dark:text-indigo-400" />
+            {editingProduct ? "تعديل المنتج" : "إضافة منتج جديد"}
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {(editingProduct ? [editingProduct] : [newProduct]).map(
+              (product, idx) => (
+                <React.Fragment key={idx}>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="اسم المنتج"
+                      value={product.name}
+                      onChange={(e) =>
+                        editingProduct
+                          ? setEditingProduct({
+                              ...editingProduct,
+                              name: e.target.value,
+                            })
+                          : setNewProduct({ ...newProduct, name: e.target.value })
+                      }
+                      className="w-full pl-4 pr-10 py-3 bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
+                    />
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="وصف المنتج"
+                      value={product.description}
+                      onChange={(e) =>
+                        editingProduct
+                          ? setEditingProduct({
+                              ...editingProduct,
+                              description: e.target.value,
+                            })
+                          : setNewProduct({
+                              ...newProduct,
+                              description: e.target.value,
+                            })
+                      }
+                      className="w-full pl-4 pr-10 py-3 bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
+                    />
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder=" السعر"
+                      value={product.price}
+                      onChange={(e) =>
+                        editingProduct
+                          ? setEditingProduct({
+                              ...editingProduct,
+                              price: e.target.value,
+                            })
+                          : setNewProduct({
+                              ...newProduct,
+                              price: e.target.value,
+                            })
+                      }
+                      className="w-full pl-4 pr-10 py-3 bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
+                    />
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="رابط الصورة"
+                      value={product.imageUrl}
+                      onChange={(e) =>
+                        editingProduct
+                          ? setEditingProduct({
+                              ...editingProduct,
+                              imageUrl: e.target.value,
+                            })
+                          : setNewProduct({
+                              ...newProduct,
+                              imageUrl: e.target.value,
+                            })
+                      }
+                      className="w-full pl-4 pr-10 py-3 bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
+                    />
+                  </div>
+                  <div className="relative">
+                    <select
+                      value={product.condition}
+                      onChange={(e) =>
+                        editingProduct
+                          ? setEditingProduct({
+                              ...editingProduct,
+                              condition: e.target.value,
+                            })
+                          : setNewProduct({
+                              ...newProduct,
+                              condition: e.target.value,
+                            })
+                      }
+                      className="w-full pl-4 pr-10 py-3 bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300 appearance-none"
+                    >
+                      <option value="NEW">جديد</option>
+                      <option value="USED">مستعمل</option>
+                      <option value="REFURBISHED">مجدّد</option>
+                    </select>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder=" الكمية"
+                      value={product.stockQuantity}
+                      onChange={(e) =>
+                        editingProduct
+                          ? setEditingProduct({
+                              ...editingProduct,
+                              stockQuantity: e.target.value,
+                            })
+                          : setNewProduct({
+                              ...newProduct,
+                              stockQuantity: e.target.value,
+                            })
+                      }
+                      className="w-full pl-4 pr-10 py-3 bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
+                    />
+                  </div>
+                  <div className="relative">
+                    <select
+                      value={product.category?.id || ""}
+                      onChange={(e) => {
+                        const selectedCategory = categories.find(
+                          (c) => c.id === e.target.value
+                        );
+                        if (editingProduct) {
+                          setEditingProduct({
+                            ...editingProduct,
+                            category: selectedCategory,
+                          });
+                        } else {
+                          setNewProduct({
+                            ...newProduct,
+                            category: selectedCategory,
+                          });
+                        }
+                      }}
+                      className="w-full pl-4 pr-10 py-3 bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300 appearance-none"
+                    >
+                      <option value="">اختر الفئة</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </React.Fragment>
+              )
+            )}
+          </div>
+          <div className="mt-6 flex flex-col sm:flex-row gap-4 justify-end">
+            <button
+              onClick={editingProduct ? updateProduct : addProduct}
+              className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition-all duration-300 shadow-md"
+            >
+              {editingProduct ? "تعديل المنتج" : "إضافة المنتج"}
+            </button>
+            {editingProduct && (
+              <button
+                onClick={() => setEditingProduct(null)}
+                className="px-6 py-2.5 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-all duration-300 shadow-md"
               >
-                <td className="px-4 py-2">{p.name}</td>
-                <td className="px-4 py-2">{p.condition}</td>
+                إلغاء
+              </button>
+            )}
+          </div>
+        </div>
 
-                <td className="px-4 py-2">{p.price} EGP</td>
-
-                <td className="px-4 py-2">{p.stock}</td>
-                <td className="px-4 py-2 flex justify-center gap-2">
-                  <button
-                    onClick={() => setEditingProduct(p)}
-                    className="bg-transparent border text-amber-600 px-2 py-1 rounded-md hover:bg-amber-200 transition"
+       
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 max-w-6xl mx-auto">
+          <div className="flex justify-between items-center mb-4">
+           <div className="relative w-full sm:w-64">
+                      <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-300" />
+                      <input
+                        type="text"
+                        placeholder="... ابحث في المنتجات "
+                        className="w-full pl-10 pr-4 py-2.5 placeholder:text-right bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onKeyUp={fetchProducts}
+                      />
+                    </div>
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-3 text-center">
+            قائمة المنتجات
+          </h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full table-auto text-center text-sm">
+              <thead className="bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">اسم المنتج</th>
+                  <th className="px-4 py-3 font-semibold">الحالة</th>
+                  <th className="px-4 py-3 font-semibold">السعر</th>
+                  <th className="px-4 py-3 font-semibold">المخزون</th>
+                  <th className="px-4 py-3 font-semibold">إجراءات</th>
+                </tr>
+              </thead>
+              <tbody className="text-gray-700 dark:text-gray-200">
+                {currentProducts.map((p) => (
+                  <tr
+                    key={p.id}
+                    className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
                   >
-                    <FiEdit2 />
-                  </button>
-                  <button
-                    onClick={() => updateStock(p.id, p.stock)}
-                    className="bg-transparent border text-green-600 px-2 py-1 rounded-md hover:bg-green-200 transition"
-                  >
-                    <FiInbox />
-                  </button>
-                  <button
-                    onClick={() => deleteProduct(p.id)}
-                    className="bg-transparent border  text-red-600 px-2 py-1 rounded-md hover:bg-red-200 transition"
-                  >
-                    <FiTrash2 />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    <td className="px-4 py-3">{p.name}</td>
+                    <td className="px-4 py-3">{p.condition}</td>
+                    <td className="px-4 py-3">{p.price} EGP</td>
+                    <td className="px-4 py-3">{p.stock}</td>
+                    <td className="px-4 py-3 flex justify-center gap-2">
+                      <button
+                        onClick={() =>
+                          setEditingProduct({
+                            ...p,
+                            price: p.price || "",
+                            stockQuantity: p.stock || "",
+                          })
+                        }
+                        className="p-2 bg-amber-100 dark:bg-amber-900 text-amber-600 dark:text-amber-300 rounded-md hover:bg-amber-200 dark:hover:bg-amber-800 transition-all duration-200"
+                      >
+                        <FiEdit3 />
+                      </button>
+                      <button
+                        onClick={() => updateStock(p.id, p.stock)}
+                        className="p-2 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300 rounded-md hover:bg-green-200 dark:hover:bg-green-800 transition-all duration-200"
+                      >
+                        <FiInbox />
+                      </button>
+                      <button
+                        onClick={() => deleteProduct(p.id)}
+                        className="p-2 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 rounded-md hover:bg-red-200 dark:hover:bg-red-800 transition-all duration-200"
+                      >
+                        <FiTrash2 />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {currentProducts.length === 0 && (
+            <div className="p-8 text-center bg-white dark:bg-gray-800">
+              <div className="text-indigo-600 dark:text-indigo-400 mb-4">
+                <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
+                لا توجد منتجات
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                أضف منتجًا جديدًا لبدء إدارة قائمة المنتجات الخاصة بك
+              </p>
+            </div>
+          )}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2 mt-6">
+              <button
+                onClick={() => changePage(currentPage - 1)}
+                className="px-4 py-2 bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={currentPage === 1}
+              >
+                <FiChevronRight />
+              </button>
+              {[...Array(totalPages)].map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => changePage(i + 1)}
+                  className={`px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg transition-all duration-300 ${
+                    currentPage === i + 1
+                      ? "bg-indigo-600 text-white dark:bg-indigo-500"
+                      : "bg-gray-50 dark:bg-gray-700 dark:text-white hover:bg-indigo-100 dark:hover:bg-indigo-900"
+                  }`}
+                >
+                  {i + 1}
+              </button>
+              ))}
+              <button
+                onClick={() => changePage(currentPage + 1)}
+                className="px-4 py-2 bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={currentPage === totalPages}
+              >
+                <FiChevronLeft />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
     </ShopLayout>
   );
 };

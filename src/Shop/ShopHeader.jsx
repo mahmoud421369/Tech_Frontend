@@ -1,7 +1,9 @@
 
 import React, { useState, useRef, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { FiUser, FiSettings, FiBell, FiLogOut } from "react-icons/fi";
+
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
+import { FiUser, FiSettings, FiBell, FiLogOut, FiMoon, FiSun } from "react-icons/fi";
 import {
   RiBox2Line,
   RiInbox2Line,
@@ -12,13 +14,69 @@ import {
   RiStore2Line,
   RiToolsFill,
 } from "react-icons/ri";
-
+import { jwtDecode } from "jwt-decode";
 const ShopHeader = ({ children }) => {
   const [darkMode, setDarkMode] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const profileRef = useRef(null);
   const notifRef = useRef(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [token, setToken] = useState(localStorage.getItem("authToken"));
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+
+  const isTokenExpired = (token) => {
+    try {
+      const decoded = jwtDecode(token);
+      if (!decoded.exp) return true;
+      const now = Date.now() / 1000;
+      return decoded.exp < now;
+    } catch (e) {
+      return true;
+    }
+  };
+
+  
+  useEffect(() => {
+    if (token && !isTokenExpired(token)) {
+      setIsAuthenticated(true);
+    } else {
+      setIsAuthenticated(false);
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("refreshToken");
+    }
+  }, [token]);
+
+  const handleLogout = async () => {
+    const refreshToken = localStorage.getItem("refreshToken");
+
+    try {
+      if (token && refreshToken) {
+        await fetch("http://localhost:8080/api/auth/logout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ refreshToken }),
+        });
+      }
+
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("userId");
+      setToken(null);
+      setIsAuthenticated(false);
+
+      Swal.fire("Logged out", "You have been logged out successfully", "success");
+      navigate("/login");
+    } catch (err) {
+      console.error("Logout error:", err);
+      navigate("/login");
+    }
+  };
 
   const menuItems = [
     { name: "dashboard", icon: <RiStore2Line />, label: "لوحة التحكم", path: "/shop-dashboard" },
@@ -40,6 +98,24 @@ const ShopHeader = ({ children }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+
+    useEffect(() => {
+      const savedMode = localStorage.getItem("darkMode");
+      if (savedMode === "true") {
+        setDarkMode(true);
+        document.documentElement.classList.add("dark");
+      }
+    }, []);
+  
+    const toggleDarkMode = () => {
+      setDarkMode((prev) => {
+        const newMode = !prev;
+        localStorage.setItem("darkMode", newMode);
+        if (newMode) document.documentElement.classList.add("dark");
+        else document.documentElement.classList.remove("dark");
+        return newMode;
+      });
+    };
   return (
     <div className={`${darkMode ? "bg-gray-900 text-white" : "bg-[#f1f5f9] text-gray-800"} font-cairo min-h-screen`}>
   
@@ -51,34 +127,16 @@ const ShopHeader = ({ children }) => {
 
         <div className="flex items-center gap-4">
          
-          <div className="relative" ref={notifRef}>
-            <button
-              onClick={() => setNotificationsOpen(!notificationsOpen)}
-              className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-            >
-              <FiBell />
-            </button>
-            {notificationsOpen && (
-              <div
-                className={`absolute right-0 mt-2 w-64 rounded-lg shadow-lg p-3 transition-colors
-                  ${darkMode ? "bg-gray-700 text-white" : "bg-white text-gray-800"}`}
-              >
-                <p className="font-bold mb-2">الإشعارات</p>
-                <ul className="space-y-2 text-sm">
-                  <li className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600">طلب جديد #123</li>
-                  <li className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600">عميل جديد مسجل</li>
-                </ul>
-              </div>
-            )}
-          </div>
+     
 
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-          >
-            {darkMode ? "🌙" : "☀"}
-          </button>
-
+           <button
+             onClick={toggleDarkMode}
+             className={`p-2 rounded-full ${
+               darkMode ? "bg-gray-700 text-yellow-400" : "bg-gray-100 text-gray-600"
+             }`}
+           >
+             {darkMode ? <FiMoon/>: <FiSun/>}
+           </button>
     
           <div className="relative" ref={profileRef}>
             <button
@@ -108,7 +166,7 @@ const ShopHeader = ({ children }) => {
                   ))}
                 </ul>
                 <hr className="my-2 border-gray-400" />
-                <button className="flex items-center gap-2 p-2 w-full text-left rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                <button onClick={handleLogout} className="flex items-center gap-2 p-2 w-full text-left rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
                   <FiLogOut /> تسجيل الخروج
                 </button>
               </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { jwtDecode } from "jwt-decode";
 import Swal from "sweetalert2";
@@ -9,100 +9,105 @@ import { RiEyeLine, RiEyeOffLine } from "@remixicon/react";
 const Login = ({ onLogin, setAuthToken }) => {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
- 
+  const [errors, setErrors] = useState({ email: "", password: "", general: "" });
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
+  const location = useLocation();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) =>{
-    const {name,value} = e.target;
-  setFormData((prev)=>({
-    ...prev,
-    [name]:value
-  }));
+
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    setErrors((prev) => ({ ...prev, [name]: "" })); 
+  };
 
   const togglePasswordVisibility = () => setShowPassword(!showPassword);
-  }
-
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError("");
+    setErrors({ email: "", password: "", general: "" });
+
+ 
+    if (!formData.email) {
+      setErrors((prev) => ({ ...prev, email: "Email is required" }));
+      setLoading(false);
+      return;
+    }
+    if (!formData.password) {
+      setErrors((prev) => ({ ...prev, password: "Password is required" }));
+      setLoading(false);
+      return;
+    }
 
     try {
       const res = await fetch("http://localhost:8080/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-         body: JSON.stringify({ 
-          email: formData.email, 
-          password: formData.password 
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
         }),
-
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Login failed");
+      if (!res.ok) {
+        if (data.message.includes("email")) {
+          setErrors((prev) => ({ ...prev, email: data.message }));
+        } else if (data.message.includes("password")) {
+          setErrors((prev) => ({ ...prev, password: data.message }));
+        } else {
+          setErrors((prev) => ({ ...prev, general: data.message || "Login failed" }));
+        }
+        throw new Error(data.message || "Login failed");
+      }
 
       localStorage.setItem("authToken", data.access_token);
-      localStorage.setItem("role",Array(data.role));
+      localStorage.setItem("role", JSON.stringify(data.role));
 
       if (setAuthToken) setAuthToken(data.access_token);
 
       console.log("Login success:", data);
 
- 
       const decodedToken = jwtDecode(data.access_token);
       const roles = data.role || [];
 
-    
-      if (roles[0] === "ROLE_ADMIN") {
-        navigate("/dashboard");
-           Swal.fire({
-        icon: "success",
-        title: "Login success",
-      });
-      } else if (roles[0] === "ROLE_REPAIRER" || roles[0] === "ROLE_SELLER" && roles[1] === "ROLE_SHOP_OWNER") {
-        navigate("/shop-dashboard");
-           Swal.fire({
-        icon: "success",
-        title: "Login success",
-      });
+      let redirectPath = "/dashboard";
+      if (roles.includes("ROLE_ADMIN")) {
+        redirectPath = "/dashboard";
+      } else if (
+        roles.includes("ROLE_REPAIRER") ||
+        (roles.includes("ROLE_SELLER") && roles.includes("ROLE_SHOP_OWNER"))
+      ) {
+        redirectPath = "/shop-dashboard";
+      } else if (roles.includes("ROLE_ASSIGNER")) {
+        redirectPath = "/assigner-dashboard";
+      } else if (roles.includes("ROLE_DELIVERY")) {
+        redirectPath = "/delivery-dashboard";
+      } else if (roles.includes("ROLE_GUEST")) {
+        redirectPath = "/";
       }
-      else if (roles[0] === "ROLE_ASSIGNER") {
-        navigate("/assigner-dashboard");
-   Swal.fire({
+
+      Swal.fire({
         icon: "success",
-        title: "Login success",
+        title: "Login Success",
+        position: "top",
+        timer: 1500,
+        showConfirmButton: false,
+      }).then(() => {
+        navigate(redirectPath);
       });
-      } 
-      else if (roles[0] === "ROLE_DELIVERY") {
-        navigate("/delivery-dashboard");
-   Swal.fire({
-        icon: "success",
-        title: "Login success",
-      });
-      } else if (roles[0] === "ROLE_GUEST") {
-        navigate("/");
-         Swal.fire({
-        icon: "success",
-        title: "Login success",
-      });
-      } else {
-        navigate("/dashboard");
-      }
     } catch (err) {
       console.error("Login error:", err);
-      setError(err.message);
-      Swal.fire({
-        icon: "error",
-        title: "Login Failed",
-        text: err.message,
-      });
+      // Swal.fire({
+      //   icon: "error",
+      //   title: "Login Failed",
+      //   text: err.message,
+      //   position: "top",
+      // });
     } finally {
       setLoading(false);
     }
@@ -111,6 +116,7 @@ const Login = ({ onLogin, setAuthToken }) => {
   const verifyEmail = async () => {
     const { value: form } = await Swal.fire({
       title: "Verify Email",
+      position: "top",
       html: `
         <input id="swal-input1" class="swal2-input" placeholder="Email">
         <input id="swal-input2" class="swal2-input" placeholder="OTP Code">
@@ -130,21 +136,33 @@ const Login = ({ onLogin, setAuthToken }) => {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ email }),
             });
-            
+
             if (!res.ok) {
               let errorMessage = "Failed to resend OTP";
               try {
                 const errorData = await res.json();
                 errorMessage = errorData.message || errorMessage;
               } catch {
-                // If JSON parsing fails, use default message
+           
               }
               throw new Error(errorMessage);
             }
-            
-            Swal.fire("Success", "OTP resent successfully!", "success");
+
+            Swal.fire({
+              icon: "success",
+              title: "OTP Resent",
+              text: "OTP sent successfully!",
+              position: "top",
+              timer: 2000,
+              showConfirmButton: false,
+            });
           } catch (err) {
-            Swal.fire("Error", err.message, "error");
+            Swal.fire({
+              icon: "error",
+              title: "Error",
+              text: err.message,
+              position: "top",
+            });
           }
         });
       },
@@ -177,22 +195,34 @@ const Login = ({ onLogin, setAuthToken }) => {
           const errorData = await res.json();
           errorMessage = errorData.message || errorMessage;
         } catch {
-          
+         
         }
         throw new Error(errorMessage);
       }
-      
-      Swal.fire("Verified", "Your email has been verified!", "success");
+
+      Swal.fire({
+        icon: "success",
+        title: "Verified",
+        text: "Your email has been verified!",
+        position: "top",
+        timer: 1500,
+        showConfirmButton: false,
+      });
     } catch (err) {
       console.error("Verification error:", err);
-      Swal.fire("Error", err.message, "error");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: err.message,
+        position: "top",
+      });
     }
   };
-
 
   const forgotPassword = async () => {
     const { value: form } = await Swal.fire({
       title: "Forgot Password",
+      position: "top",
       html: `
         <input id="swal-email" class="swal2-input" placeholder="Email">
         <input id="swal-otp" class="swal2-input" placeholder="OTP Code (after email)">
@@ -214,21 +244,33 @@ const Login = ({ onLogin, setAuthToken }) => {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ email }),
             });
-            
+
             if (!res.ok) {
               let errorMessage = "Failed to send OTP to email";
               try {
                 const errorData = await res.json();
                 errorMessage = errorData.message || errorMessage;
               } catch {
-               
+    
               }
               throw new Error(errorMessage);
             }
-            
-            Swal.fire("Success", "OTP sent to your email!", "success");
+
+            Swal.fire({
+              icon: "success",
+              title: "OTP Sent",
+              text: "OTP sent to your email!",
+              position: "top",
+              timer: 2000,
+              showConfirmButton: false,
+            });
           } catch (err) {
-            Swal.fire("Error", err.message, "error");
+            Swal.fire({
+              icon: "error",
+              title: "Error",
+              text: err.message,
+              position: "top",
+            });
           }
         });
       },
@@ -269,80 +311,49 @@ const Login = ({ onLogin, setAuthToken }) => {
           const errorData = await res.json();
           errorMessage = errorData.message || errorMessage;
         } catch {
-     
+         
         }
         throw new Error(errorMessage);
       }
-      
-      Swal.fire("Success", "Password has been reset!", "success");
-    } catch (err) {
-      Swal.fire("Error", err.message, "error");
-    }
-  };
 
-
-
-  const handleGoogleLogin = async () => {
-    try {
-      setLoading(true);
-
-      // Call your backend to trigger Google login
-      const res = await fetch("http://localhost:8080/oauth2/authorization/google", {
-        method: "GET",
-       headers:{"Content-Type":"application/json"}
+      Swal.fire({
+        icon: "success",
+        title: "Success",
+        text: "Password has been reset!",
+        position: "top",
+        timer: 2000,
+        showConfirmButton: false,
       });
-
-      if (!res.ok) {
-        throw new Error("Login failed");
-      }
-
-      const data = await res.json();
-      console.log("Login response:", data);
-
-      if (data.access_token) {
-    
-        localStorage.setItem("authToken", data.access_token);
-
-      
-
-        alert("✅ Logged in successfully!");
-        navigate("/"); 
-      }
     } catch (err) {
-      console.error(err);
-      alert("❌ Error during login");
-    } finally {
-      setLoading(false);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: err.message,
+        position: "top",
+      });
     }
   };
 
-
-
-
-
-  
-
-
+  const handleGoogleLogin = () => {
+    window.location.href = "http://localhost:8080/oauth2/authorization/google";
+  };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-indigo-600 to-indigo-400 p-4 overflow-hidden">
-      <RiComputerLine className="absolute top-10 left-10 text-white opacity-20 text-6xl animate-bounce" />
-      <RiSmartphoneLine className="absolute bottom-16 right-12 text-white opacity-20 text-5xl animate-pulse" />
-      <RiToolsLine className="absolute top-1/2 left-1/4 text-white opacity-20 text-7xl animate-spin-slow" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-600 via-blue-600 to-purple-600 p-4 overflow-hidden">
+      <RiComputerLine className="absolute top-10 left-10 text-white opacity-10 text-7xl animate-bounce" />
+      <RiSmartphoneLine className="absolute bottom-16 right-12 text-white opacity-10 text-6xl animate-pulse" />
+      <RiToolsLine className="absolute top-1/2 left-1/3 text-white opacity-10 text-8xl animate-spin-slow" />
 
-      <div className="w-full max-w-xl mt-6 relative z-10">
-        <div className="bg-gradient-to-br from-blue-100/50 to-blue-300/30 border-4 backdrop-blur-md border border-white/20 rounded-2xl shadow-xl p-6 sm:p-8">
+      <div className="w-full max-w-md relative z-10">
+        <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl shadow-2xl p-8">
           <h1 className="text-3xl font-bold text-white text-center mb-2">
-            Welcome back
+            Welcome Back
           </h1>
-          <p className="text-white text-center mb-6">
-            Sign in to continue to your account
+          <p className="text-white/80 text-center mb-6">
+            Sign in to access your account
           </p>
 
-       
-        
- 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-white mb-1">
                 Email Address
@@ -353,9 +364,14 @@ const Login = ({ onLogin, setAuthToken }) => {
                 required
                 value={formData.email}
                 onChange={handleChange}
-                className="block w-full pl-3 pr-3 py-3 rounded-xl bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                className={`block w-full px-4 py-3 rounded-lg bg-white/90 text-gray-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition-all ${
+                  errors.email ? "border-2 border-red-500" : "border border-gray-300"
+                }`}
                 placeholder="you@example.com"
               />
+              {errors.email && (
+                <p className="text-red-400 text-xs mt-1">{errors.email}</p>
+              )}
             </div>
 
             <div>
@@ -369,13 +385,15 @@ const Login = ({ onLogin, setAuthToken }) => {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="block w-full pl-3 pr-10 py-3 rounded-xl bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  className={`block w-full px-4 py-3 rounded-lg bg-white/90 text-gray-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition-all ${
+                    errors.password ? "border-2 border-red-500" : "border border-gray-300"
+                  }`}
                   placeholder="Password"
                 />
-                  <button
+                <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-blue-500"
+                  onClick={togglePasswordVisibility}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-indigo-500"
                 >
                   {showPassword ? (
                     <RiEyeOffLine className="text-lg" />
@@ -383,40 +401,60 @@ const Login = ({ onLogin, setAuthToken }) => {
                     <RiEyeLine className="text-lg" />
                   )}
                 </button>
-
               </div>
+              {errors.password && (
+                <p className="text-red-400 text-xs mt-1">{errors.password}</p>
+              )}
             </div>
 
-            {error && (
-              <div className="text-red-500 text-sm text-center">{error}</div>
+            {errors.general && (
+              <div className="text-red-400 text-sm text-center">{errors.general}</div>
             )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:shadow-lg transition disabled:opacity-50"
+              className="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >
-         Log In
+              {loading ? (
+                <svg
+                  className="animate-spin h-5 w-5 mr-2 text-white"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+              ) : (
+                "Log In"
+              )}
             </button>
           </form>
 
-    
-          <div className="mt-6 space-y-2 text-center text-sm text-white">
-            <button onClick={verifyEmail} className="underline">
+          <div className="mt-6 space-y-2 text-center text-sm text-white/80">
+            <button onClick={verifyEmail} className="underline hover:text-white">
               Verify Email
             </button>{" "}
             |{" "}
-            <button onClick={forgotPassword} className="underline">
+            <button onClick={forgotPassword} className="underline hover:text-white">
               Forgot / Reset Password
             </button>
           </div>
 
-          
-          <br />
           <button
             type="button"
-            onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-3 bg-white text-gray-700 font-bold py-3 rounded-xl shadow-md hover:bg-gray-100 transition"
+           onClick={handleGoogleLogin}
+            className="w-full flex items-center justify-center gap-3 bg-white text-gray-800 font-bold py-3 rounded-lg shadow-md hover:bg-gray-100 transition-all mt-4"
           >
             <img
               src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
@@ -426,9 +464,9 @@ const Login = ({ onLogin, setAuthToken }) => {
             Sign in with Google
           </button>
 
-          <div className="mt-6 text-center text-sm text-white">
+          <div className="mt-6 text-center text-sm text-white/80">
             New user?{" "}
-            <Link to="/signup" className="font-medium text-gray-200 underline">
+            <Link to="/signup" className="font-medium text-white underline hover:text-indigo-200">
               Sign up
             </Link>
           </div>

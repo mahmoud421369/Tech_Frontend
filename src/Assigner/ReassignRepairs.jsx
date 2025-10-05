@@ -14,7 +14,8 @@ const ReassignRepairs = () => {
 const [searchTerm, setSearchTerm] = useState("");
 const [currentPage, setCurrentPage] = useState(1);
 const [itemsPerPage] = useState(6);
-  // ✅ Fetch repairs for assignment
+
+
   const fetchRepairs = async () => {
     try {
       setLoading(true);
@@ -31,7 +32,7 @@ const [itemsPerPage] = useState(6);
     }
   };
 
-  // ✅ Fetch delivery persons
+
   const fetchDeliveryPersons = async () => {
     try {
       const res = await fetch("http://localhost:8080/api/assigner/delivery-persons", {
@@ -45,7 +46,7 @@ const [itemsPerPage] = useState(6);
     }
   };
 
-  // ✅ Reassign repair
+ 
   const reassignRepair = async (deliveryId) => {
     try {
       await fetch(`http://localhost:8080/api/assigner/reassign-order/${selectedRepair.id}`, {
@@ -55,7 +56,7 @@ const [itemsPerPage] = useState(6);
       });
       Swal.fire("نجاح", "تم إعادة تعيين الطلب بنجاح", "success");
       setSelectedRepair(null);
-      fetchRepairs(); // refresh list after reassign
+      fetchRepairs(); 
     } catch (err) {
       Swal.fire("خطأ", "فشل إعادة التعيين", "error");
     }

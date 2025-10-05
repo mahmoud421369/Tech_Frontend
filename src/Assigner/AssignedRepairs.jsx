@@ -41,7 +41,7 @@ const AssignedRepairs = () => {
         <FiTool /> Assigned Repairs by Delivery
       </h2>
 
-      {/* Input */}
+
       <div className="flex gap-2 mb-6">
         <input
           type="text"
@@ -58,7 +58,7 @@ const AssignedRepairs = () => {
         </button>
       </div>
 
-      {/* Repairs Cards */}
+   
       {loading ? (
         <div className="text-center text-blue-500">Loading...</div>
       ) : repairs.length > 0 ? (
@@ -85,7 +85,7 @@ const AssignedRepairs = () => {
                 <div className="flex items-center gap-2">
                   <FiDollarSign className="text-green-500" /> Price: ${r.price}
                 </div>
-                {/* Optional User Address */}
+            
                 {/* {r.userAddress && (
                   <div className="flex items-center gap-2">
                     <FiHome className="text-gray-400" /> 

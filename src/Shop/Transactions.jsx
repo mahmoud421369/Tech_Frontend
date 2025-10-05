@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { FiChevronLeft, FiChevronRight, FiDollarSign } from "react-icons/fi";
+import { FiChevronLeft, FiChevronRight, FiDollarSign, FiSearch } from "react-icons/fi";
 
 const Transactions = ({ darkMode }) => {
   const [transactions, setTransactions] = useState([]);
@@ -8,38 +8,38 @@ const Transactions = ({ darkMode }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [financialReport, setFinancialReport] = useState(null);
   const transactionsPerPage = 4;
+  const token = localStorage.getItem("authToken");
 
 
   const timeSelectRef = useRef(null);
 
   const handlePageChange = (page) => {
-    if (page < 1) return;
+    if (page < 1 || page > totalPages) return;
     setCurrentPage(page);
   };
 
- 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const reportRes = await fetch(
           "http://localhost:8080/api/shops/payments/financial-report"
-        );
+        ,{headers:{Authorization:`Bearer ${token}`}});
         const reportData = await reportRes.json();
-        setFinancialReport(reportData.content);
+        setFinancialReport(reportData);
 
         const repairRes = await fetch(
           "http://localhost:8080/api/shops/payments/repairs"
-        );
+        ,{headers:{Authorization:`Bearer ${token}`}});
         const repairData = await repairRes.json();
 
         const orderRes = await fetch(
           "http://localhost:8080/api/shops/payments/orders"
-        );
+        ,{headers:{Authorization:`Bearer ${token}`}});
         const orderData = await orderRes.json();
 
         const allTransactions = [...repairData, ...orderData].map((t, idx) => ({
           id: t.id ?? idx,
-          date: t.date,
+          date: t?.date,
           type: (t.type || "").toLowerCase().includes("repair") ? "repair" : "sale",
           item: (t.item || (t.type && t.type.includes("REPAIR") ? "إصلاح جهاز" : "طلب شراء")),
           shop: t.shop || "متجرك",
@@ -58,7 +58,6 @@ const Transactions = ({ darkMode }) => {
   }, [timeRange]);
 
   useEffect(() => {
-   
     const $ = window.jQuery || window.$;
     if (!$ || !$.fn || !$.fn.select2) {
       console.warn(
@@ -68,37 +67,28 @@ const Transactions = ({ darkMode }) => {
     }
 
     const $select = $(timeSelectRef.current);
-
- 
     $select.select2({
       width: "resolve",
-      dir: "rtl", 
-      theme: "bootstrap4",
-      minimumResultsForSearch: Infinity, 
+      dir: "rtl",
+      theme: darkMode ? "bootstrap4-dark" : "bootstrap4",
+      minimumResultsForSearch: Infinity,
     });
 
-  
     $select.on("change.select2", (e) => {
       const val = $select.val();
       setTimeRange(val);
       setCurrentPage(1);
     });
 
-
     $select.val(timeRange).trigger("change.select2");
 
     return () => {
-     
       $select.off("change.select2");
       try {
         $select.select2("destroy");
-      } catch (e) {
-        
-      }
+      } catch (e) {}
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
-
+  }, [darkMode]);
 
   useEffect(() => {
     const $ = window.jQuery || window.$;
@@ -110,7 +100,6 @@ const Transactions = ({ darkMode }) => {
     }
   }, [timeRange]);
 
-  
   const totalEarnings =
     financialReport?.totalEarnings ??
     transactions.reduce((sum, t) => sum + t.amount, 0);
@@ -132,7 +121,6 @@ const Transactions = ({ darkMode }) => {
   const salesPercentage =
     totalEarnings > 0 ? Math.round((salesEarnings / totalEarnings) * 100) : 0;
 
-
   const filteredTransactions = transactions.filter((transaction) =>
     [transaction.date, transaction.type, transaction.shop]
       .join(" ")
@@ -149,123 +137,156 @@ const Transactions = ({ darkMode }) => {
   const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / transactionsPerPage));
 
   return (
-    <div
-      style={{ marginTop: "-550px", marginLeft: "300px" }}
-      className={`p-6 font-cairo ${darkMode ? "bg-gray-900" : "bg-[#f1f5f9]"}`}
-    >
-          
-           <div className="bg-white border p-4 rounded-2xl text-right mb-4">
-                         <h1 className="text-3xl font-bold text-blue-500 flex items-center flex-row-reverse justify-start gap-2"><FiDollarSign/>الايرادات </h1>
-                     
-                       </div>
-     
+    <div style={{marginTop:"-600px"}} className="min-h-screen font-cairo bg-gray-100 dark:bg-gray-900 p-4 sm:p-6 md:p-8">
+ 
 
-      <div className="flex justify-between gap-6 flex-row-reverse mt-6">
-        <input
-          type="text"
-          placeholder="ابحث عن الطلبات"
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setCurrentPage(1);
-          }}
-          className="pl-10 block w-full rounded-xl cursor-pointer placeholder:text-right border border-gray-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        />
-
-        <select
-          ref={timeSelectRef}
-          defaultValue={timeRange}
-        
-          onChange={() => {}}
-          dir="rtl"
-          className="block font-bold w-full border-4 border-gray-400 text-blue-600 pl-4 pr-3 py-3 bg-white cursor-pointer rounded-xl outline-none transition"
-          style={{ minWidth: 160 }}
-        >
-          <option value="day">اليوم</option>
-          <option value="week">الاسبوع</option>
-          <option value="month">الشهر</option>
-          <option value="year">السنة</option>
-        </select>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 my-8">
-        <div className="bg-white p-6 rounded-lg shadow text-right">
-          <h3 className="text-lg text-gray-500 font-semibold mb-2">اجمالي الارباح</h3>
-          <p className="text-3xl font-bold text-blue-600">{totalEarnings.toFixed(2)} EGP</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow text-right">
-          <h3 className="text-lg text-gray-500 font-semibold mb-2">تصليح ({repairPercentage}%)</h3>
-          <p className="text-3xl font-bold text-green-600">{repairEarnings.toFixed(2)} EGP</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow text-right">
-          <h3 className="text-lg text-gray-500 font-semibold mb-2">مبيعات ({salesPercentage}%)</h3>
-          <p className="text-3xl font-bold text-yellow-600">{salesEarnings.toFixed(2)} EGP</p>
-        </div>
-      </div>
-
-      <div className="overflow-x-auto bg-white p-5 mx-auto rounded-lg shadow">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-[#f1f5f9] text-center text-xs font-bold text-blue-600 uppercase tracking-wider">
-            <tr>
-              <th className="px-6 py-3">التأريخ</th>
-              <th className="px-6 py-3">نوع الخدمة</th>
-              <th className="px-6 py-3">الجهاز</th>
-              <th className="px-6 py-3">المكان</th>
-              <th className="px-6 py-3">طريقة الدفع</th>
-              <th className="px-6 py-3">الحساب</th>
-              <th className="px-6 py-3">حالة العملية</th>
-            </tr>
-          </thead>
-          <tbody className="bg-gray-50 text-center divide-y divide-gray-200">
-            {currentTransactions.map((txn, index) => (
-              <tr key={txn.id ?? index} className="hover:bg-[#f1f5f9]">
-                <td className="p-2 font-medium">{txn.date}</td>
-                <td className="p-2 font-medium whitespace-nowrap capitalize">{txn.type}</td>
-                <td className="p-2 font-medium whitespace-nowrap">{txn.item}</td>
-                <td className="p-2 font-medium whitespace-nowrap">{txn.shop}</td>
-                <td className="p-2 font-medium whitespace-nowrap">{txn.paymentMethod}</td>
-                <td className="p-2 font-medium whitespace-nowrap">{txn.amount.toFixed(2)} EGP</td>
-                <td className="p-2 font-medium whitespace-nowrap">
-                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                    txn.status === "completed" ? "bg-green-100 text-green-800" :
-                    txn.status === "pending" ? "bg-yellow-100 text-yellow-800" :
-                    "bg-red-100 text-red-800"
-                  }`}>
-                    {txn.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        <div className={`flex items-center justify-between w-auto p-4 ${darkMode ? "bg-gray-700 text-white" : "bg-[#f1f5f9]"}`}>
-          <div>
-            عرض {indexOfFirstTransaction + 1} إلى {Math.min(indexOfLastTransaction, filteredTransactions.length)} من {filteredTransactions.length} عملية
+  
+      <div className="max-w-6xl mx-auto mb-6">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+          <div className="relative w-full sm:w-64">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-300" />
+            <input
+              type="text"
+              placeholder="... ابحث في العمليات"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full pl-10 pr-4 py-2.5 placeholder:text-right bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
+            />
           </div>
-          <div className="flex space-x-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center justify-end gap-3">
+          <FiDollarSign className="text-xl sm:text-2xl" /> الإيرادات
+        </h1>
+          {/* <div className="relative w-full sm:w-56">
+            <select
+              ref={timeSelectRef}
+              defaultValue={timeRange}
+              onChange={() => {}}
+              dir="rtl"
+              className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
+            >
+              <option value="day">اليوم</option>
+              <option value="week">الأسبوع</option>
+              <option value="month">الشهر</option>
+              <option value="year">السنة</option>
+            </select>
+          </div> */}
+        </div>
+      </div>
+
+  
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 max-w-6xl mx-auto">
+        <div className="p-6 bg-white dark:bg-gray-800 shadow-lg border-l-4 border-indigo-600 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2 text-right">إجمالي الأرباح</h3>
+          <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 text-right">{totalEarnings.toFixed(2)} EGP</p>
+        </div>
+        <div className="p-6 bg-white dark:bg-gray-800  shadow-lg border-l-4 border-green-500 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2 text-right">تصليح ({repairPercentage}%)</h3>
+          <p className="text-3xl font-bold text-green-600 dark:text-green-400 text-right">{repairEarnings.toFixed(2)} EGP</p>
+        </div>
+        <div className="p-6 bg-white dark:bg-gray-800  shadow-lg border-l-4 border-yellow-500 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2 text-right">مبيعات ({salesPercentage}%)</h3>
+          <p className="text-3xl font-bold text-yellow-600 dark:text-yellow-400 text-right">{salesEarnings.toFixed(2)} EGP</p>
+        </div>
+      </div>
+
+
+      <div className="max-w-6xl mx-auto">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full table-auto text-right text-sm">
+              <thead className="bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">التاريخ</th>
+                  <th className="px-4 py-3 font-semibold">نوع الخدمة</th>
+                  <th className="px-4 py-3 font-semibold">الجهاز</th>
+                  <th className="px-4 py-3 font-semibold">المكان</th>
+                  <th className="px-4 py-3 font-semibold">طريقة الدفع</th>
+                  <th className="px-4 py-3 font-semibold">الحساب</th>
+                  <th className="px-4 py-3 font-semibold">حالة العملية</th>
+                </tr>
+              </thead>
+              <tbody className="text-gray-700 dark:text-gray-200">
+                {currentTransactions.map((txn, index) => (
+                  <tr
+                    key={txn.id ?? index}
+                    className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
+                  >
+                    <td className="px-4 py-3">{txn.date}</td>
+                    <td className="px-4 py-3 capitalize">{txn.type}</td>
+                    <td className="px-4 py-3">{txn.item}</td>
+                    <td className="px-4 py-3">{txn.shop}</td>
+                    <td className="px-4 py-3">{txn.paymentMethod}</td>
+                    <td className="px-4 py-3">{txn.amount.toFixed(2)} EGP</td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          txn.status === "completed"
+                            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                            : txn.status === "pending"
+                            ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
+                            : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
+                        }`}
+                      >
+                        {txn.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {currentTransactions.length === 0 && (
+            <div className="p-8 text-center bg-white dark:bg-gray-800">
+              <div className="text-indigo-600 dark:text-indigo-400 mb-4">
+                <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
+                لا توجد عمليات
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                {searchTerm ? "حاول تعديل مصطلحات البحث" : "لا توجد عمليات مالية متاحة"}
+              </p>
+            </div>
+          )}
+        </div><br />
+
+        
+        <div className="flex items-center justify-between max-w-6xl mx-auto p-4 bg-white dark:bg-gray-800">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            عرض {indexOfFirstTransaction + 1} إلى{" "}
+            {Math.min(indexOfLastTransaction, filteredTransactions.length)} من{" "}
+            {filteredTransactions.length} عملية
+          </div>
+          <div className="flex justify-center items-center gap-2">
             <button
               onClick={() => handlePageChange(currentPage - 1)}
+              className="px-4 py-2 bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={currentPage === 1}
-              className={`p-2 rounded-lg ${currentPage === 1 ? "opacity-50 cursor-not-allowed" : darkMode ? "bg-gray-600 hover:bg-gray-500" : "bg-gray-200 hover:bg-gray-300"}`}
             >
               <FiChevronLeft />
             </button>
-
             {[...Array(totalPages)].map((_, i) => (
               <button
                 key={i}
                 onClick={() => handlePageChange(i + 1)}
-                className={`w-10 h-10 rounded-lg ${currentPage === i + 1 ? "bg-blue-600 text-white" : darkMode ? "bg-gray-600 hover:bg-gray-500" : "bg-gray-200 hover:bg-gray-300"}`}
+                className={`px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg transition-all duration-300 ${
+                  currentPage === i + 1
+                    ? "bg-indigo-600 text-white dark:bg-indigo-500"
+                    : "bg-gray-50 dark:bg-gray-700 dark:text-white hover:bg-indigo-100 dark:hover:bg-indigo-900"
+                }`}
               >
                 {i + 1}
               </button>
             ))}
-
             <button
               onClick={() => handlePageChange(currentPage + 1)}
+              className="px-4 py-2 bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={currentPage === totalPages}
-              className={`p-2 rounded-lg ${currentPage === totalPages ? "opacity-50 cursor-not-allowed" : darkMode ? "bg-gray-600 hover:bg-gray-500" : "bg-gray-200 hover:bg-gray-300"}`}
             >
               <FiChevronRight />
             </button>

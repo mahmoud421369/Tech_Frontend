@@ -23,9 +23,9 @@ const Footer = ({ darkMode }) => {
       }`}
     >
       <div className="max-w-6xl mx-auto px-4">
-        {/* Grid Layout */}
+    
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
-          {/* Logo & About */}
+          
           <div>
             <div className="mb-6">
               <img src={logo} className="h-24 w-24 object-cover" alt="Logo" />
@@ -56,7 +56,7 @@ const Footer = ({ darkMode }) => {
             </div>
           </div>
 
-          {/* Quick Links */}
+        
           <div>
             <h3 className="text-lg font-bold mb-5 dark:text-white">
               Quick Links
@@ -97,7 +97,7 @@ const Footer = ({ darkMode }) => {
             </ul>
           </div>
 
-          {/* Services */}
+      
           <div>
             <h3 className="text-lg font-bold mb-5 dark:text-white">
               Our Services
@@ -122,7 +122,7 @@ const Footer = ({ darkMode }) => {
             </ul>
           </div>
 
-          {/* Contact */}
+       
           <div>
             <h3 className="text-lg font-bold mb-5 dark:text-white">
               Contact Us
@@ -148,7 +148,7 @@ const Footer = ({ darkMode }) => {
           </div>
         </div>
 
-        {/* Bottom Bar */}
+      
         <div className="pt-6 border-t border-gray-200 dark:border-gray-700 text-center">
           <p className="text-sm text-gray-500 dark:text-gray-400">
             &copy; {new Date().getFullYear()}{" "}

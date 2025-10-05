@@ -22,7 +22,7 @@ const ShopLayout = ({ children }) => {
     <div className={`${darkMode ? "dark" : ""}`}>
       <ShopHeader darkMode={darkMode} setDarkMode={toggleDarkMode} />
       <main
-        className={`transition-all duration-300 md:ml-64 min-h-screen ${
+        className={`transition-all w-full duration-300 min-h-screen ${
           darkMode ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-900"
         }`}
       >

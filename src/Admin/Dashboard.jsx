@@ -53,12 +53,12 @@ const Dashboard = ({ darkMode }) => {
 
 
 
-{/* Quick Stats */}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
         <div className={`p-6 shadow-lg flex items-center justify-between dark:bg-gray-950 border-l-4 border-indigo-600 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
           <div>
             <h3 className="font-semibold dark:text-white"> Total Users</h3>
-            <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{stats.users ? stats.users : 0}</p>
+            <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{stats && stats.users}</p>
           </div>
           <RiUser3Line className="text-4xl text-indigo-600 dark:text-indigo-400" />
         </div>
@@ -67,7 +67,7 @@ const Dashboard = ({ darkMode }) => {
         <div className={`p-6 shadow-lg  flex items-center justify-between dark:bg-gray-950 border-l-4 border-indigo-500 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
           <div>
             <h3 className="font-semibold dark:text-white">Total Shops</h3>
-            <p className="text-2xl font-bold text-indigo-600 dark:text-blue-400">{stats.shops}</p>
+            <p className="text-2xl font-bold text-indigo-600 dark:text-blue-400">{stats && stats.shops}</p>
           </div>
           <RiStore2Line className="text-4xl text-indigo-600 dark:text-blue-400" />
         </div>
@@ -76,7 +76,7 @@ const Dashboard = ({ darkMode }) => {
         <div className=" dark:bg-gray-950 p-6 shadow-lg  flex items-center justify-between border-l-4 border-indigo-500  bg-white">
           <div>
             <h3 className="font-semibold dark:text-white">Total Repair Requests</h3>
-            <p className="text-2xl font-bold text-indigo-600 dark:text-pink-400">{stats.repairs}</p>
+            <p className="text-2xl font-bold text-indigo-600 dark:text-pink-400">{stats && stats.repairs}</p>
           </div>
           <RiToolsLine className="text-4xl text-indigo-600 dark:text-pink-400" />
         </div>
@@ -84,7 +84,7 @@ const Dashboard = ({ darkMode }) => {
           <div className="dark:bg-gray-950 p-6 shadow-lg  flex items-center justify-between border-l-4 border-indigo-500 bg-white">
           <div>
             <h3 className="font-semibold dark:text-white">Total Orders</h3>
-            <p className="text-2xl font-bold text-indigo-600 dark:text-pink-400">{stats.orders}</p>
+            <p className="text-2xl font-bold text-indigo-600 dark:text-pink-400">{stats && stats.orders}</p>
           </div>
           <RiShoppingBag4Line className="text-4xl text-indigo-600 dark:text-pink-400" />
         </div>
@@ -96,7 +96,7 @@ const Dashboard = ({ darkMode }) => {
           Loading stats...
         </p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 relative">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 relative">
           {cards.map((card, index) => (
             <div
               key={index}

@@ -56,7 +56,7 @@ const totalPages = Math.ceil(logsArray.length / itemsPerPage);
         <div className="text-center text-blue-500">Loading...</div>
       ) : currentLogs.length > 0 ? (
         <>
-          {/* ✅ Cards */}
+    
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {currentLogs.map((log, i) => (
               <div
@@ -78,7 +78,7 @@ const totalPages = Math.ceil(logsArray.length / itemsPerPage);
             ))}
           </div>
 
-          {/* ✅ Pagination */}
+
           {totalPages > 1 && (
             <div className="flex justify-center items-center mt-6 gap-2">
               <button

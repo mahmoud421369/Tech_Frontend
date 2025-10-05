@@ -7,14 +7,14 @@ import {jwtDecode} from "jwt-decode";
 const DeliveryDashboard = () => {
   const navigate = useNavigate();
   const [darkMode, setDarkMode] = useState(() => {
-    // Initialize from localStorage
+
     return localStorage.getItem("darkMode") === "true";
   });
   const [open, setOpen] = useState(false);
   const [token, setToken] = useState(localStorage.getItem("authToken"));
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // ✅ Dark mode effect
+
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add("dark");
@@ -24,7 +24,7 @@ const DeliveryDashboard = () => {
     localStorage.setItem("darkMode", darkMode);
   }, [darkMode]);
 
-  // ✅ Check token expiration
+
   const isTokenExpired = (token) => {
     try {
       const decoded = jwtDecode(token);
@@ -89,11 +89,11 @@ const DeliveryDashboard = () => {
 
   return (
     <header className="flex justify-between items-center px-6 py-4 bg-indigo-600 dark:bg-gray-950 text-white shadow-md">
-      {/* Brand */}
+   
       <h1 className="font-bold text-xl tracking-wide">Delivery Dashboard</h1>
 
       <div className="flex items-center gap-4">
-        {/* Dark Mode Toggle */}
+        
         <button
           onClick={() => setDarkMode(!darkMode)}
           className="p-2 rounded-full bg-indigo-500 dark:bg-gray-900 hover:bg-indigo-700 transition"
@@ -102,7 +102,7 @@ const DeliveryDashboard = () => {
           {darkMode ? <FiSun size={18} /> : <FiMoon size={18} />}
         </button>
 
-        {/* Profile Dropdown */}
+        
         <div className="relative">
           <button
             onClick={() => setOpen(!open)}

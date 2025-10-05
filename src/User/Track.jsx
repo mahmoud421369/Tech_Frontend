@@ -5,7 +5,7 @@ import {
   FiTruck,
   FiXCircle,
   FiClock,
-  FiChevronDown
+  FiChevronDown,
 } from "react-icons/fi";
 import { RiCarLine, RiMotorbikeLine, RiTaxiLine } from "react-icons/ri";
 
@@ -26,7 +26,6 @@ const Track = ({ darkMode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-
   useEffect(() => {
     const fetchOrders = async () => {
       try {
@@ -38,7 +37,7 @@ const Track = ({ darkMode }) => {
         if (!res.ok) throw new Error("Failed to fetch orders");
         const data = await res.json();
         setOrders(data.content || []);
-        if (data.length > 0) setSelectedOrder(data[0]); 
+        if (data.length > 0) setSelectedOrder(data[0]);
       } catch (err) {
         console.error("Error fetching orders:", err);
       } finally {
@@ -50,10 +49,10 @@ const Track = ({ darkMode }) => {
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 bg-white flex items-center justify-center z-50">
+      <div className="flex justify-center items-center h-screen">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-blue-200 rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-blue-600 text-xl font-semibold">
+          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="mt-4 text-indigo-600 text-lg font-semibold">
             Loading Tracking...
           </p>
         </div>
@@ -63,126 +62,120 @@ const Track = ({ darkMode }) => {
 
   return (
     <div
-      className={`min-h-screen mt-20 ${
-        darkMode ? "bg-gray-900" : "bg-gray-50"
-      } mt-6 p-6`}
+      className={`min-h-screen mt-16 transition-all duration-300 ${
+        darkMode ? "bg-gray-900" : "bg-gray-100"
+      }`}
     >
-      <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden p-6 mt-20">
-       
-        <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold flex items-center justify-center gap-2 text-blue-500 dark:text-white">
-          <FiTruck/>  Track Your Order
+    
+      <div className="bg-gradient-to-r from-indigo-600 to-blue-600 mt-16 dark:from-indigo-900 dark:to-gray-800 text-white py-12 px-6 mt-16">
+        <div className="max-w-7xl mx-auto text-center">
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-2 flex items-center justify-center gap-2 animate-fade-in">
+            <FiTruck /> Track Your Order
           </h1>
+          <p className="text-lg md:text-xl max-w-2xl mx-auto">
+            Follow the journey of your order in real-time with our tracking system.
+          </p>
         </div>
+      </div>
 
-        
-        {orders.length > 0 ? (
-             <div className="relative w-full inline-flex mb-8">
-            <button
-              type="button"
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="py-3 w-full px-4 dark:bg-gray-950 dark:border-gray-700 dark:text-white inline-flex items-center justify-between gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow hover:bg-gray-50 focus:outline-hidden focus:bg-gray-50"
-            >
-              {selectedOrder ? `Order #${selectedOrder.id} - ${selectedOrder.status}` : "Select Order"}
-              <FiChevronDown
-                className={`transition-transform ${isDropdownOpen ? "rotate-180" : ""}`}
-              />
-            </button>
+      <div className="max-w-4xl mx-auto px-6 py-8">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+          {orders.length > 0 ? (
+            <div className="relative mb-8">
+              <button
+                type="button"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="w-full px-4 py-3 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-xl flex items-center justify-between text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              >
+                {selectedOrder ? `Order #${selectedOrder.id} - ${selectedOrder.status}` : "Select Order"}
+                <FiChevronDown
+                  className={`transition-transform duration-200 ${isDropdownOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+              {isDropdownOpen && (
+                <div className="absolute z-10 mt-2 w-full max-h-60 overflow-y-auto bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl shadow-md">
+                  <div className="p-2 space-y-1">
+                    {orders.map((order) => (
+                      <button
+                        key={order.id}
+                        onClick={() => {
+                          setSelectedOrder(order);
+                          setIsDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-800 dark:text-gray-100 hover:bg-indigo-50 dark:hover:bg-gray-600 rounded-lg transition"
+                      >
+                        Order #{order.id} - {order.status}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-center text-gray-500 dark:text-gray-400 text-lg">
+              No orders found
+            </p>
+          )}
 
-           
-            {isDropdownOpen && (
-              <div className="absolute z-10 mt-2 w-60 dark:bg-gray-950 bg-white overflow-y-auto shadow-md rounded-lg border border-gray-200">
-                <div className="p-1 space-y-0.5">
-                  {orders.map((order) => (
-                    <button
-                      key={order.id}
-                      onClick={() => {
-                        setSelectedOrder(order);
-                        setIsDropdownOpen(false);
-                      }}
-                      className="w-full dark:bg-gray-900 dark:border-gray-700 dark:text-white text-left flex items-center gap-x-3.5 py-2 px-3 rounded-sm text-sm text-gray-800 hover:bg-gray-100 focus:outline-hidden focus:bg-gray-100"
-                    >
-                      #{order.id} 
-                    </button>
-                  ))}
+          {selectedOrder && (
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+                Live Status for Order #{selectedOrder.id}
+              </h2>
+              <div className="relative">
+                <div className="absolute left-5 top-0 h-full w-1 bg-gray-200 dark:bg-gray-700"></div>
+                <div className="space-y-6">
+                  {statusSteps.map((step, index) => {
+                    const currentIndex = statusSteps.findIndex(
+                      (s) => s.key === selectedOrder.status
+                    );
+                    const isCompleted = index <= currentIndex && selectedOrder.status !== "CANCELLED";
+                    const isCancelled = step.key === "CANCELLED" && selectedOrder.status === "CANCELLED";
+
+                    return (
+                      <div key={step.key} className="flex items-center relative">
+                        <div className="relative">
+                          <div
+                            className={`w-10 h-10 rounded-full flex items-center justify-center z-10 transition-all duration-300 ${
+                              isCancelled
+                                ? "bg-red-500 text-white"
+                                : isCompleted
+                                ? "bg-indigo-600 text-white"
+                                : "bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400"
+                            }`}
+                          >
+                            {step.icon}
+                          </div>
+                        </div>
+                        <div className="ml-6">
+                          <p
+                            className={`font-semibold text-lg ${
+                              isCancelled
+                                ? "text-red-600 dark:text-red-400"
+                                : isCompleted
+                                ? "text-indigo-600 dark:text-indigo-400"
+                                : "text-gray-600 dark:text-gray-400"
+                            }`}
+                          >
+                            {step.label}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            )}
-          </div>
-
-        ) : (
-          <p className="text-center text-gray-500">No orders found</p>
-        )}
-
-        
-        {selectedOrder && (
-          <div>
-            <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-6">
-              Live Status for Order #{selectedOrder.id}
-            </h2>
-
-            <div className="relative">
-              
-              <div className="absolute left-4 top-0 h-full w-0.5 bg-gray-200"></div>
-
-              <div className="space-y-8">
-                {statusSteps.map((step, index) => {
-                  const currentIndex = statusSteps.findIndex(
-                    (s) => s.key === selectedOrder.status
-                  );
-                  const isCompleted = index <= currentIndex && selectedOrder.status !== "CANCELLED";
-                  const isCancelled = step.key === "CANCELLED" && selectedOrder.status === "CANCELLED";
-
-                  return (
-                    <div key={step.key} className="flex items-start relative">
-                      
-                      <div className="relative">
-                        <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center z-10 
-                          ${
-                            isCancelled
-                              ? "bg-red-500 text-white"
-                              : isCompleted
-                              ? "bg-gradient-to-r from-blue-500 to-indigo-500 dark:bg-gray-950 text-white"
-                              : "bg-gray-200 text-gray-500"
-                          }`}
-                        >
-                          {step.icon}
-                        </div>
-
-                        
-                        {index !== statusSteps.length - 1 && (
-                          <div className="absolute left-4 top-8 h-8 w-0.5 bg-gray-200"></div>
-                        )}
-                      </div>
-
-                      
-                      <div className="ml-4">
-                        <p
-                          className={`font-medium ${
-                            isCancelled
-                              ? "text-red-600"
-                              : isCompleted
-                              ? "text-indigo-600"
-                              : "text-gray-600 dark:text-gray-300"
-                          }`}
-                        >
-                          {step.label}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        
-        <div className="flex justify-center mt-8">
-          <button className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-lg hover:opacity-90 transition-colors">
-            Home Page
-          </button>
+          <div className="flex justify-center mt-8">
+            <a
+              href="/"
+              className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition"
+            >
+              Home Page
+            </a>
+          </div>
         </div>
       </div>
     </div>

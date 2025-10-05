@@ -86,7 +86,7 @@ const DeliveryProfile = () => {
         <FiUser /> Welcome ,{profile.name || "Delivery Person"}
       </h2>
 
-      {/* Quick Stats */}
+    
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-white dark:bg-gray-800 p-4  shadow border-l-4 border-blue-500 flex flex-col items-start">
           <span className="text-sm text-gray-500 dark:text-gray-400">Active Orders</span>
@@ -117,9 +117,9 @@ const DeliveryProfile = () => {
         </div>
       </div>
 
-      {/* Profile Details */}
+    
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow p-6 space-y-4">
-        {/* Static info */}
+    
         <div>
           <strong className="flex items-center gap-2 text-blue-500 dark:text-blue-400">
             <FiMail /> Email
@@ -153,7 +153,7 @@ const DeliveryProfile = () => {
 
         <hr className="border-gray-200 dark:border-gray-700 my-4" />
 
-        {/* Editable fields */}
+      
         <div>
           <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">Name</label>
           <input
@@ -182,7 +182,7 @@ const DeliveryProfile = () => {
           />
         </div>
 
-        {/* Edit actions */}
+      
         <div className="mt-4 flex justify-end gap-3">
           {!isEditing && (
             <button

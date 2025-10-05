@@ -26,6 +26,7 @@ const AssignedOrders = () => {
 
       if (!res.ok) throw new Error("Failed to fetch orders");
       const data = await res.json();
+      console.log(data.content || data || [])
       setOrders(data.content || data || []);
     } catch (err) {
       Swal.fire("Error", "Failed to fetch orders", "error");
@@ -44,7 +45,7 @@ const AssignedOrders = () => {
        
       </div>
 
-      {/* Input */}
+
       <div className="flex gap-2 mb-6">
         <input
           type="text"
@@ -61,7 +62,6 @@ const AssignedOrders = () => {
         </button>
       </div>
 
-      {/* Orders Cards */}
       {loading ? (
         <div className="text-center text-blue-500 py-10">Loading...</div>
       ) : orders.length > 0 ? (
@@ -76,17 +76,18 @@ const AssignedOrders = () => {
               </div>
 
               <div className="text-gray-700 dark:text-gray-200 space-y-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <FiUser className="text-blue-400" /> User: {o.userId}
-                </div>
-                <div className="flex items-center gap-2">
-                  <FiHome className="text-blue-400" /> Shop: {o.shopId}
-                </div>
+
+                          {o.userAddress && (
+                            <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded mt-2">
+                              <strong>User Address:</strong> {o.userAddress.street}, {o.userAddress.city}, {o.userAddress.state}
+                            </div>
+                          )}
+          
                 <div className="flex items-center gap-2">
                   <FiTool className="text-blue-400" /> Status: {o.status}
                 </div>
                 <div className="flex items-center gap-2">
-                  <FiDollarSign className="text-green-500" /> Price: {o.price} EGP
+                  <FiDollarSign className="text-green-500" /> Price: {o.totalPrice} EGP
                 </div>
               </div>
             </div>

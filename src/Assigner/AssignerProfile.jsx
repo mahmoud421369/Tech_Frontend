@@ -12,7 +12,6 @@ const AssignerProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch profile data
   const fetchProfile = async () => {
     try {
       setIsLoading(true);
@@ -67,7 +66,7 @@ const AssignerProfile = () => {
 
     if (!response.ok) throw new Error("Failed to update profile");
 
-    // Only parse JSON if Content-Type is application/json
+
     const contentType = response.headers.get("content-type");
     let updatedProfile = profile; // fallback
     if (contentType && contentType.includes("application/json")) {
@@ -95,7 +94,7 @@ const AssignerProfile = () => {
     setIsLoading(false);
   }
 };
-  // Format date for display
+
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -107,7 +106,7 @@ const AssignerProfile = () => {
     });
   };
 
-  // Get status badge color
+
   const getStatusBadge = (status) => {
     const statusColors = {
       APPROVED: "bg-green-100 text-green-800",
@@ -145,7 +144,7 @@ const AssignerProfile = () => {
     <div className="p-6 max-w-8xl bg-gray-50  dark:bg-gray-900  w-full space-y-6">
       <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Profile</h2>
 
-      {/* Quick Stats Section */}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-white dark:bg-gray-800 p-4  shadow border-l-4 border-blue-500">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Assignments</h3>
@@ -170,13 +169,13 @@ const AssignerProfile = () => {
         
         <div className="bg-white dark:bg-gray-800 p-4  shadow border-l-4 border-purple-500">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Last Activity</h3>
-          <p className="text-sm text-gray-900 dark:text-white">
+          {/* <p className="text-sm text-gray-900 dark:text-white">
             {formatDate(profile.lastActivity)}
-          </p>
+          </p> */}
         </div>
       </div>
 
-      {/* Profile Information Section */}
+    
       <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex justify-between items-center">
@@ -193,7 +192,7 @@ const AssignerProfile = () => {
         </div>
 
         <div className="p-6 space-y-6">
-          {/* Read-only fields */}
+       
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
@@ -203,14 +202,14 @@ const AssignerProfile = () => {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">User ID</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Assigner ID</label>
               <p className="mt-1 text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 p-2 rounded">
                 {profile.id || "N/A"}
               </p>
             </div>
           </div>
 
-          {/* Editable fields */}
+   
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
@@ -255,13 +254,13 @@ const AssignerProfile = () => {
                 />
               ) : (
                 <p className="mt-1 text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 p-2 rounded">
-                  {profile.phone || "N/A"}
+                  0{profile.phone || "N/A"}
                 </p>
               )}
             </div>
           </div>
 
-          {/* Additional read-only information */}
+       
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Member Since</label>
@@ -270,22 +269,22 @@ const AssignerProfile = () => {
               </p>
             </div>
             
-            <div>
+            {/* <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Last Updated</label>
               <p className="mt-1 text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 p-2 rounded">
                 {formatDate(profile.updatedAt)}
               </p>
-            </div>
+            </div> */}
           </div>
 
-          {/* Account Status Information */}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Account Status</label>
               <div className="mt-1 flex items-center space-x-2">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(profile.status)}`}>
+                {/* <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(profile.status)}`}>
                   {profile.status || "UNKNOWN"}
-                </span>
+                </span> */}
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${profile.verified ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                   {profile.verified ? 'Verified' : 'Not Verified'}
                 </span>
@@ -296,7 +295,7 @@ const AssignerProfile = () => {
             </div>
           </div>
 
-          {/* Edit Actions */}
+          
           {isEditing && (
             <div className="flex space-x-3 pt-4">
               <button

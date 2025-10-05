@@ -4,9 +4,7 @@ import { Client } from "@stomp/stompjs";
 import { FiX, FiSend, FiXCircle } from "react-icons/fi";
 
 const ShopChatModal = ({ open, onClose }) => {
-  const token = localStorage.getItem("authToken") ;
-  const role = localStorage.getItem("role") ;
-  
+  const token = localStorage.getItem("authToken");
   const shopProfile = {
     email: localStorage.getItem("email") || "shop@example.com",
     id: localStorage.getItem("shopId") || "shop-123",
@@ -17,8 +15,9 @@ const ShopChatModal = ({ open, onClose }) => {
   const [activeSession, setActiveSession] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
+  const [isConnected, setIsConnected] = useState(false); 
 
-  // Fetch sessions for this shop
+
   useEffect(() => {
     if (open) {
       fetch("http://localhost:8080/api/chats/sessions", {
@@ -26,14 +25,14 @@ const ShopChatModal = ({ open, onClose }) => {
       })
         .then((res) => res.json())
         .then((data) => {
-          console.log("📂 Shop sessions:", data);
+          console.log(" Shop sessions:", data);
           setSessions(data.content || data || []);
         })
-        .catch((err) => console.error("❌ Error fetching sessions:", err));
+        .catch((err) => console.error(" Error fetching sessions:", err));
     }
-  }, [open]);
+  }, [open, token]);
 
-  // Connect WebSocket when a session is selected
+
   useEffect(() => {
     if (!activeSession) return;
 
@@ -43,176 +42,256 @@ const ShopChatModal = ({ open, onClose }) => {
       connectHeaders: { Authorization: `Bearer ${token}` },
       reconnectDelay: 5000,
       onConnect: () => {
-        console.log("✅ Shop connected. Subscribing to:", chatId);
+        console.log("Shop connected. Subscribing to:", chatId);
+        setIsConnected(true); 
 
-     client.subscribe(
-  `/user/${shopProfile.email}/queue/chat/messages/${activeSession.id}`,
-  (msg) => {
-    const body = JSON.parse(msg.body);
-    console.log("📩 Received (shop):", body);
-
-    // backend sends one object, not wrapped in content
-    setMessages((prev) => [...prev, body]);
-  },
-  { Authorization: `Bearer ${token}` }
-);
+        client.subscribe(
+          `/user/${shopProfile.email}/queue/chat/messages/${activeSession.id}`,
+          (msg) => {
+            const body = JSON.parse(msg.body);
+            console.log("📩 Received (shop):", body);
+            setMessages((prev) => [...prev, body]);
+          },
+          { Authorization: `Bearer ${token}` }
+        );
+      },
+      onDisconnect: () => {
+        console.log(" WebSocket disconnected");
+        setIsConnected(false); 
+      },
+      onStompError: (frame) => {
+        console.error(" WebSocket error:", frame);
+        setIsConnected(false);
       },
     });
 
     client.activate();
     setStompClient(client);
 
-    // Load previous messages
-   fetch(`http://localhost:8080/api/chats/${chatId}/messages`, {
-  headers: { Authorization: `Bearer ${token}` },
-})
-  .then((res) => res.json())
-  .then((data) => {
-    console.log("📩 Messages API response:", data);
-    setMessages(data.content || data || []); // ✅ pick array from content
-  })
-  .catch((err) => console.error("❌ Error loading messages:", err));
+
+    fetch(`http://localhost:8080/api/chats/${chatId}/messages`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        console.log(" Messages API response:", data);
+        setMessages(data.content || data || []);
+      })
+      .catch((err) => console.error(" Error loading messages:", err));
 
     return () => {
       client.deactivate();
+      setIsConnected(false);
     };
-  }, [activeSession]);
+  }, [activeSession, token, shopProfile.email]);
 
   const sendMessage = () => {
-    if (!input.trim() || !activeSession || !stompClient) return;
+    if (!input.trim()) return;
+    if (!activeSession) {
+      console.warn(" No active session selected");
+      return;
+    }
+    if (!stompClient || !isConnected) {
+      console.warn(" WebSocket not connected");
+      alert("Cannot send message: WebSocket is not connected. Please try again.");
+      return;
+    }
 
     stompClient.publish({
       destination: "/app/chat/send",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({
-        sessionId: activeSession.id, // 👈 backend expects this field
+        sessionId: activeSession.id,
         content: input,
       }),
     });
 
-    console.log("📤 Sent (shop):", input);
-    setInput("");
+    console.log(" Sent (shop):", input);
+    setInput(""); 
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
   };
 
   const endChat = async (sessionId) => {
-  try {
-    const res = await fetch(
-      `http://localhost:8080/api/chats/${sessionId}/end`,
-      {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
+    try {
+      const res = await fetch(
+        `http://localhost:8080/api/chats/${sessionId}/end`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
-    if (res.ok) {
-      console.log("✅ Chat ended:", sessionId);
-      setMessages([]); 
-      setActiveSession(null); 
-    } else {
-      const err = await res.json();
-      console.error("❌ Failed to end chat:", err);
+      if (res.ok) {
+        console.log(" Chat ended:", sessionId);
+        setMessages([]);
+        setActiveSession(null);
+      } else {
+        const err = await res.json();
+        console.error(" Failed to end chat:", err);
+      }
+    } catch (err) {
+      console.error(" Error ending chat:", err);
     }
-  } catch (err) {
-    console.error("❌ Error ending chat:", err);
-  }
-};
+  };
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-      <div className="bg-white w-[900px] h-[550px] rounded-xl shadow-lg flex overflow-hidden">
-        {/* Sidebar with sessions */}
-        <div className="w-72 bg-indigo-700 text-white flex flex-col">
-          <div className="flex items-center justify-between p-3 border-b border-indigo-600">
-            <h2 className="font-bold">User Chats</h2>
-            <button onClick={onClose} className="hover:text-red-400">
-              <FiX />
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 w-full max-w-4xl h-[600px] rounded-2xl shadow-xl flex flex-col sm:flex-row overflow-hidden transform transition-all duration-300">
+        
+        <div className="w-full sm:w-80 bg-indigo-600 dark:bg-indigo-900 text-white flex flex-col">
+          <div className="flex items-center justify-between p-4 border-b border-indigo-500 dark:border-indigo-700">
+            <h2 className="text-lg font-semibold">محادثات العملاء</h2>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-full hover:bg-indigo-700 dark:hover:bg-indigo-800 transition-all duration-200"
+              aria-label="Close chat modal"
+            >
+              <FiX className="text-xl" />
             </button>
           </div>
           <div className="flex-1 overflow-y-auto">
-  {sessions.map((s) => (
-    <div
-      key={s.id}
-      onClick={() => setActiveSession(s)}
-      className={`p-3 cursor-pointer ${
-        activeSession?.id === s.id
-          ? "bg-blue-500"
-          : "hover:bg-indigo-600"
-      }`}
-    >
-      <div className="font-semibold flex justify-between text-md">{s.userName}
-        <p className="text-sm">• {new Date(s.createdAt).toLocaleTimeString()}</p>
-      </div>
-      <div className="text-sm opacity-80 truncate">
-        {s.lastMessage?.content || "No messages yet"}
-      </div>
-    </div>
-  ))}
-</div>
-  <button
-    onClick={() => endChat(activeSession.id)}
-    className="bg-white/20  text-white px-3 text-center py-1 rounded flex items-center gap-2"
-  >
-    <FiXCircle className="text-lg" /> End Chat
-  </button>
-
+            {sessions.length === 0 ? (
+              <div className="text-center py-6 text-gray-300">
+                <svg
+                  className="w-16 h-16 mx-auto mb-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <p>لا توجد محادثات</p>
+              </div>
+            ) : (
+              sessions.map((s) => (
+                <div
+                  key={s.id}
+                  onClick={() => setActiveSession(s)}
+                  className={`p-4 cursor-pointer transition-all duration-200 ${
+                    activeSession?.id === s.id
+                      ? "bg-indigo-700 dark:bg-indigo-800"
+                      : "hover:bg-indigo-500 dark:hover:bg-indigo-700"
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">{s.userName}</span>
+                    <span className="text-xs text-gray-300">
+                      {new Date(s.createdAt).toLocaleTimeString("ar-EG", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-200 truncate">
+                    {s.lastMessage?.content || "لا توجد رسائل بعد"}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          {activeSession && (
+            <button
+              onClick={() => endChat(activeSession.id)}
+              className="m-4 px-4 py-2 bg-red-500 dark:bg-red-600 text-white rounded-lg hover:bg-red-600 dark:hover:bg-red-700 transition-all duration-200 flex items-center justify-center gap-2"
+            >
+              <FiXCircle /> إنهاء المحادثة
+            </button>
+          )}
         </div>
 
-        {/* Chat window */}
-        <div className="flex-1 flex flex-col">
+        
+        <div className="flex-1 flex flex-col bg-white dark:bg-gray-800">
           {activeSession ? (
             <>
-<div className="flex-1 p-3 overflow-y-auto">
-  {messages.map((m) => (
-    <div
-      key={m.id}
-      className={`mb-3
-         ${m.senderType === "SHOP"
-          ? "text-left text-indigo-600"
-          : "text-right text-gray-700"
-        // m.senderId === shopProfile.id
-        //   ? "text-right text-indigo-600"
-        //   : "text-gray-700"
-      }`}
-    >
-      <div className="text-xs text-gray-400 mb-1">
-        {m.senderName} • {new Date(m.createdAt).toLocaleTimeString()}
-      </div>
-      <div className={`inline-block px-3 py-2 rounded-lg max-w-xs ${
-        m.senderType === "SHOP"
-          ? "bg-gray-200 text-blue-500"
-          : "bg-blue-500 text-white"
-      }`}
->
-        {m.content}
-      </div>
-    </div>
-  ))}
-</div>
-              <div className="p-2 border-t flex">
+              <div className="flex-1 p-4 overflow-y-auto">
+                {messages.map((m) => (
+                  <div
+                    key={m.id}
+                    className={`mb-4 flex ${
+                      m.senderType === "SHOP"
+                        ? "justify-end"
+                        : "justify-start"
+                    }`}
+                  >
+                    <div
+                      className={`max-w-xs sm:max-w-sm px-4 py-2 rounded-lg ${
+                        m.senderType === "SHOP"
+                          ? "bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300"
+                          : "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                      }`}
+                    >
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                        {m.senderName} •{" "}
+                        {new Date(m.createdAt).toLocaleTimeString("ar-EG", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
+                      <div>{m.content}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center gap-2">
                 <input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  className="flex-1 border rounded-3xl  cursor-pointer text-blue-500 bg-gray-50 px-2 py-2 focus:outline-none focus:ring focus:ring-blue-500 "
-                  placeholder="Type a message..."
+                  onKeyDown={handleKeyDown} 
+                  className="flex-1 px-4 py-2.5 bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
+                  placeholder="اكتب رسالة..."
+                  dir="rtl"
                 />
                 <button
                   onClick={sendMessage}
-                  className="ml-2 bg-blue-600 text-white px-4 py-2 rounded flex items-center"
+                  disabled={!isConnected}
+                  className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-all duration-200 ${
+                    isConnected
+                      ? "bg-indigo-600 dark:bg-indigo-500 text-white hover:bg-indigo-700 dark:hover:bg-indigo-600"
+                      : "bg-gray-400 dark:bg-gray-600 text-gray-200 cursor-not-allowed"
+                  }`}
                 >
                   <FiSend />
+                  <span className="hidden sm:inline">إرسال</span>
                 </button>
               </div>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-gray-500">
-              Select a user to view messages
+            <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
+              <div className="text-center">
+                <svg
+                  className="w-16 h-16 mx-auto mb-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                  />
+                </svg>
+                <p className="text-lg">اختر محادثة لعرض الرسائل</p>
+              </div>
             </div>
           )}
         </div>
       </div>
     </div>
   );
-}
+};
+
 export default ShopChatModal;

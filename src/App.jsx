@@ -2,17 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 
-
-
-
-
 import {
-Footer,Navbar,RepairDetailsModal,ServiceModal,AssignerHeader,Modal,DeliveryHeader,NotificationsDelivery
+Footer,Navbar,RepairDetailsModal,ServiceModal,AssignerHeader,Modal,DeliveryHeader
 }
 from './components';
 
 import{
-  Login,Signup,LoginSuccess
+  Login,Signup,LoginSuccess,
+  SuccessGoogle
 }
 from './Auth';
 
@@ -46,17 +43,14 @@ import {
 import {
   ShopHeader, ShopDashboard, RepairRequests, Products,
   Transactions, Support, ShopOffers, ShopProfile,
-  ShopSettings, Inventory,Chat, Orders
+  ShopSettings, Inventory,Chat, Orders,
+  ShopNotifications
 } from './Shop';
 
 import { useAuth } from './context/AuthContext';
 import { SupportRequests } from './Admin';
 import Shop from './User/Shop';
 
-import OrdersPage from './Delivery/OrdersPage';
-import UpdateOrderPage from './Delivery/UpdateOrderPage';
-import PastOrdersPage from './Delivery/PastOrdersPage';
-import OAuth2RedirectHandler from './Auth/OAuth2RedirectHandler';
 
 
 
@@ -178,13 +172,11 @@ function App() {
         <Route path="/account" element={withNavbarLayout(Account)} />
         <Route path="/repair" element={withNavbarLayout(Repair)} />
         <Route path="/offers" element={withNavbarLayout(Offers)} />
-
-        <Route path="/purchase/new" element={withNavbarLayout(New)} />
-        <Route path="/purchase/used" element={withNavbarLayout(Used)} />
         <Route path="/edit-profile" element={withNavbarLayout(EditProfile)} />
         <Route path="/device/:id" element={withNavbarLayout(DeviceDetail, { addToCart })} />
         <Route path="/shops/:shopId" element={withNavbarLayout(Shop)}/>
-<Route path="/oauth2/redirect" element={<OAuth2RedirectHandler />} />
+        <Route path="/oauth2/success" element={<SuccessGoogle />} />
+
 
         {/* Admin Routes */}
         <Route path="/dashboard" element={withAdminLayout(Dashboard)} />
@@ -194,14 +186,12 @@ function App() {
         <Route path="/category" element={withAdminLayout(Category)} />
         <Route path="/deliveries" element={withAdminLayout(Deliveries)} />
         <Route path="/assigners" element={withAdminLayout(Assigners)} />
-        <Route path="/support-requests" element={withAdminLayout(SupportRequests)} />
         <Route path="/transactions" element={withAdminLayout(AdminTransactions)} />
         <Route path="/reviews" element={withAdminLayout(Reviews)} />
-        <Route path="/settings" element={withAdminLayout(Settings)} />
         <Route path="/notifications" element={withAdminLayout(Notifications)} />
 
         {/* Assigner Routes */}
-       <Route path="/assigner-dashboard" element={withAssignerLayout(AssignerDashboard)} />
+        <Route path="/assigner-dashboard" element={withAssignerLayout(AssignerDashboard)} />
         <Route path="/assigner/profile" element={withAssignerLayout(AssignerProfile)} />
         <Route path="/assigner/delivery-persons" element={withAssignerLayout(DeliveryPersons)} />
         <Route path="/assigner/orders" element={withAssignerLayout(OrdersForAssignment)} />
@@ -213,12 +203,7 @@ function App() {
         <Route path="/assigner/reassign-orders" element={withAssignerLayout(ReassignOrders)} />
 
 
-
-        {/* <Route path="/deliveries" element={withAdminLayout(Deliveries)} />
-        <Route path="/assigners" element={withAdminLayout(Assigners)} /> */}
-
-
-       {/* Delivery Routes */}
+        {/* Delivery Routes */}
         <Route path="/delivery-dashboard" element={withDeliveryLayout(DeliveryDashboard)} />
         <Route path="/delivery/profile" element={withDeliveryLayout(DeliveryProfile)} />
         <Route path="/delivery/available-orders" element={withDeliveryLayout(AvailableOrders)} />
@@ -236,16 +221,10 @@ function App() {
         <Route path="/shop/offers" element={withShopLayout(ShopOffers)} />
         <Route path="/shop/orders" element={withShopLayout(Orders)} />
         <Route path="/shop/profile" element={withShopLayout(ShopProfile)} />
-        <Route path="/shop/settings" element={withShopLayout(ShopSettings)} />
         <Route path="/shop/inventory" element={withShopLayout(Inventory)} />
-
+        <Route path="/shop/notifications" element={withShopLayout(ShopNotifications)} />
         <Route path="/dashboard" element={<ProtectedRoute><Homepage /></ProtectedRoute>} />
 
- {/* Delivery Routes */}
- <Route path="/orders" element={<OrdersPage />} />
-              <Route path="/update" element={<UpdateOrderPage />} />
-              <Route path="/past-orders" element={<PastOrdersPage />} />
-              <Route path="" element={<OrdersPage />} />
 
       </Routes>
 

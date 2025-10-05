@@ -9,14 +9,14 @@ const RepairsForAssignment = () => {
   const [selectedRepair, setSelectedRepair] = useState(null);
   const [notes, setNotes] = useState("");
   
-  // Search and Pagination states
+
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(6);
   const [isLoading, setIsLoading] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
 
-  // Fetch repairs for assignment
+
   const fetchRepairs = async () => {
     try {
       setIsLoading(true);
@@ -40,7 +40,7 @@ const RepairsForAssignment = () => {
     }
   };
 
-  // Fetch delivery persons
+
   const fetchDeliveryPersons = async () => {
     try {
       const response = await fetch("http://localhost:8080/api/assigner/delivery-persons", {
@@ -61,9 +61,9 @@ const RepairsForAssignment = () => {
     }
   };
 
-  // Assign repair to delivery person
+
   const assignRepair = async (deliveryId) => {
-    // Validate IDs before sending
+  
     if (!selectedRepair?.id) {
       Swal.fire({
         icon: "error",
@@ -112,7 +112,6 @@ const RepairsForAssignment = () => {
         throw new Error(errorText || `Assignment failed with status: ${response.status}`);
       }
 
-      // Handle successful response
       const responseText = await response.text();
       let responseData;
       
@@ -132,13 +131,13 @@ const RepairsForAssignment = () => {
 
       setSelectedRepair(null);
       setNotes("");
-      // Refresh the repairs list after assignment
+
       await fetchRepairs();
       
     } catch (error) {
       console.error("Error assigning repair:", error);
       
-      // Parse the error message to show user-friendly message
+
       let errorMessage = "Failed to assign repair";
       try {
         const errorData = JSON.parse(error.message);
@@ -160,7 +159,7 @@ const RepairsForAssignment = () => {
     }
   };
 
-  // Filter repairs based on search term
+  
   const filteredRepairs = repairs.filter(repair => 
     repair.userId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     repair.shopId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -172,13 +171,12 @@ const RepairsForAssignment = () => {
     repair.shopAddress?.city?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Pagination logic
+
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentRepairs = filteredRepairs.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredRepairs.length / itemsPerPage);
 
-  // Change page
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   useEffect(() => {
@@ -197,7 +195,7 @@ const RepairsForAssignment = () => {
     }
     
     setSelectedRepair(repair);
-    setNotes(""); // Reset notes when opening modal
+    setNotes(""); 
   };
 
   const handleCloseModal = () => {
@@ -205,7 +203,7 @@ const RepairsForAssignment = () => {
     setNotes("");
   };
 
-  // Get status badge color
+
   const getStatusBadge = (status) => {
     const statusColors = {
       'PENDING_PICKUP': 'bg-yellow-100 text-yellow-800',
@@ -219,7 +217,7 @@ const RepairsForAssignment = () => {
     return statusColors[status] || statusColors.default;
   };
 
-  // Format date
+
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -231,7 +229,6 @@ const RepairsForAssignment = () => {
     });
   };
 
-  // Generate page numbers for pagination
   const getPageNumbers = () => {
     const pages = [];
     const maxVisiblePages = 5;
@@ -255,13 +252,13 @@ const RepairsForAssignment = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
-        {/* Header Section */}
+    
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-blue-900 mb-2">Repairs for Assignment</h2>
           <p className="text-blue-700">Manage and assign repair requests to delivery personnel</p>
         </div>
 
-        {/* Search and Stats Bar */}
+   
         <div className="bg-white rounded-lg shadow-md p-4 mb-6">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             <div className="relative w-full md:w-64">
@@ -296,14 +293,14 @@ const RepairsForAssignment = () => {
           </div>
         </div>
 
-        {/* Loading State */}
+   
         {isLoading && (
           <div className="flex justify-center items-center py-8">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           </div>
         )}
 
-        {/* Repairs Grid */}
+
         {!isLoading && currentRepairs.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-8 text-center">
             <div className="text-blue-400 mb-4">
@@ -328,7 +325,7 @@ const RepairsForAssignment = () => {
                     className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-blue-100"
                   >
                     <div className="p-6">
-                      {/* Header with Status */}
+                  
                       <div className="flex justify-between items-start mb-4">
                         <div>
                           <h3 className="text-lg font-semibold text-blue-900">
@@ -344,7 +341,7 @@ const RepairsForAssignment = () => {
                         </div>
                       </div>
 
-                      {/* Repair Details */}
+                      
                       <div className="space-y-3 mb-4">
                         <div className="text-sm">
                           <div className="flex items-center text-blue-800 mb-1">
@@ -361,7 +358,7 @@ const RepairsForAssignment = () => {
                             <strong>Shop ID:</strong> {repair.shopId || 'N/A'}
                           </div>
 
-                          {/* Address Information */}
+                 
                           {repair.userAddress && (
                             <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded mt-2">
                               <strong>User Address:</strong> {repair.userAddress.street}, {repair.userAddress.city}, {repair.userAddress.state}
@@ -380,7 +377,7 @@ const RepairsForAssignment = () => {
                         </div>
                       </div>
 
-                      {/* Action Button */}
+                    
                       <button
                         onClick={() => handleAssignClick(repair)}
                         disabled={isLoading || !repair.id}
@@ -396,7 +393,7 @@ const RepairsForAssignment = () => {
                 ))}
               </div>
 
-              {/* Pagination */}
+              
               {totalPages > 1 && (
                 <div className="flex justify-center items-center space-x-2">
                   <button
@@ -434,7 +431,7 @@ const RepairsForAssignment = () => {
           )
         )}
 
-        {/* Assignment Modal */}
+       
         {selectedRepair && (
           <Modal onClose={handleCloseModal} title="Assign Repair">
             <div className="space-y-4">

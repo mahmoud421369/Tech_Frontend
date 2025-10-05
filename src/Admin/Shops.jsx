@@ -236,7 +236,7 @@ const Shops = ({darkMode}) => {
           name: document.getElementById("name").value,
           description: document.getElementById("description").value,
           imageUrl: document.getElementById("imageUrl").value,
-          category: document.getElementById("category").value, // store selected categoryId
+          category: document.getElementById("category").value,
           stockQuantity: Number(document.getElementById("stockQuantity").value),
           condition: document.getElementById("condition").value,
           price: parseFloat(document.getElementById("price").value),

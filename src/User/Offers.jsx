@@ -45,7 +45,7 @@ const Offers = ({ darkMode }) => {
       } min-h-screen`}
     >
 
-      <div className="relative bg-gradient-to-r from-blue-500 to-indigo-600 py-20 px-6 text-center overflow-hidden">
+      <div className="relative bg-gradient-to-r from-blue-500 to-indigo-600 dark:from-indigo-900 dark:to-gray-800 py-20 px-6 text-center overflow-hidden">
         <h1 className="text-4xl md:text-5xl font-bold text-white z-10 relative">
           🎉 Exclusive Offers
         </h1>
@@ -74,7 +74,7 @@ const Offers = ({ darkMode }) => {
                 darkMode ? "bg-gray-800" : "bg-white"
               }`}
             >
-              {/* Header */}
+             
               <div className="flex justify-between items-center mb-3">
                 <h2 className="text-lg font-bold flex items-center gap-2">
                   <FaTag className="text-indigo-500" /> {offer.name}
@@ -94,7 +94,8 @@ const Offers = ({ darkMode }) => {
               <p className="text-sm mb-3">{offer.description}</p>
 
               <div className="flex items-center gap-2 font-semibold text-indigo-600 dark:text-indigo-400">
-                <FaPercent /> {offer.discountValue} {offer.discountType}
+                {offer.discountType === "PERCENTAGE" ? <FaPercent /> + (offer.discountValue) : offer.discountValue  + "" + "EGP" }
+          
               </div>
 
               <div className="mt-3 space-y-1 text-sm text-gray-600 dark:text-gray-300">
@@ -109,10 +110,7 @@ const Offers = ({ darkMode }) => {
               </div>
 
    
-              <div className="mt-3 flex items-center gap-2 text-sm">
-                <FaStore className="text-yellow-500" /> Shop ID:{" "}
-                <span className="font-medium">{offer.shopId}</span>
-              </div>
+             
             </div>
           ))
         ) : (

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FaChevronLeft, FaShoppingCart, FaStar, FaRegStar } from 'react-icons/fa';
@@ -6,9 +5,8 @@ import { FaStar as FilledStar, FaRegStar as EmptyStar } from 'react-icons/fa';
 import Swal from "sweetalert2";
 import { FiTag } from 'react-icons/fi';
 
-
 const DeviceDetail = ({ addToCart, darkMode, currentUser }) => {
-         const token = localStorage.getItem("authToken");
+  const token = localStorage.getItem("authToken");
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -20,30 +18,25 @@ const DeviceDetail = ({ addToCart, darkMode, currentUser }) => {
   const [quantity, setQuantity] = useState(1);
   const [swalProps, setSwalProps] = useState({});
 
-
   const [userRating, setUserRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [userComment, setUserComment] = useState("");
   const [editingReviewId, setEditingReviewId] = useState(null);
 
-
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const response = await fetch(`http://localhost:8080/api/products/${id}`);
+        const response = await fetch(`http://localhost:8080/api/products/${id}`,{headers:{Authorization:`Bearer ${token}`}});
         if (!response.ok) {
           throw new Error("Product not found");
         }
         const data = await response.json();
         setProduct(data);
-        
-   
-        await fetchReviews(data.shopId);
+       
       } catch (err) {
         console.error("Error fetching product:", err);
         setProduct(null);
-             Swal.fire("Success!", "Product added successfully", "success");
-       
+        Swal.fire("Success!", "Product added successfully", "success");
       } finally {
         setLoading(false);
       }
@@ -52,29 +45,27 @@ const DeviceDetail = ({ addToCart, darkMode, currentUser }) => {
     fetchProduct();
   }, [id]);
 
-  
-  const fetchReviews = async (shopId) => {
-    try {
-      setReviewsLoading(true);
-      const response = await fetch(`http://localhost:8080/api/reviews/shops/${shopId}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch reviews");
-      }
-      const reviewsData = await response.json();
-      setReviews(reviewsData);
-    } catch (err) {
-      console.error("Error fetching reviews:", err);
-      setSwalProps({
-        show: true,
-        title: 'Error',
-        text: 'Failed to load reviews',
-        icon: 'error'
-      });
-    } finally {
-      setReviewsLoading(false);
-    }
-  };
-
+  // const fetchReviews = async (shopId) => {
+  //   try {
+  //     setReviewsLoading(true);
+  //     const response = await fetch(`http://localhost:8080/api/reviews/shops/${shopId}`);
+  //     if (!response.ok) {
+  //       throw new Error("Failed to fetch reviews");
+  //     }
+  //     const reviewsData = await response.json();
+  //     setReviews(reviewsData);
+  //   } catch (err) {
+  //     console.error("Error fetching reviews:", err);
+  //     setSwalProps({
+  //       show: true,
+  //       title: 'Error',
+  //       text: 'Failed to load reviews',
+  //       icon: 'error'
+  //     });
+  //   } finally {
+  //     setReviewsLoading(false);
+  //   }
+  // };
 
   const handleAddToCart = async (product) => {
     try {
@@ -84,7 +75,6 @@ const DeviceDetail = ({ addToCart, darkMode, currentUser }) => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-
         body: JSON.stringify({
           productId: product.id,
           quantity: 1,
@@ -167,7 +157,6 @@ const DeviceDetail = ({ addToCart, darkMode, currentUser }) => {
 
       let response;
       if (editingReviewId) {
-       
         response = await fetch(`http://localhost:8080/api/reviews/${editingReviewId}`, {
           method: 'PUT',
           headers: {
@@ -176,7 +165,6 @@ const DeviceDetail = ({ addToCart, darkMode, currentUser }) => {
           body: JSON.stringify(reviewData)
         });
       } else {
-        
         response = await fetch(`http://localhost:8080/api/reviews/${product.shopId}`, {
           method: 'POST',
           headers: {
@@ -207,11 +195,9 @@ const DeviceDetail = ({ addToCart, darkMode, currentUser }) => {
         icon: 'success'
       });
 
-      
       setUserRating(0);
       setUserComment("");
       setEditingReviewId(null);
-
     } catch (err) {
       console.error("Error submitting review:", err);
       setSwalProps({
@@ -228,8 +214,6 @@ const DeviceDetail = ({ addToCart, darkMode, currentUser }) => {
       setUserRating(review.rating);
       setUserComment(review.comment);
       setEditingReviewId(review.id);
-      
-      
       document.getElementById('review-form').scrollIntoView({ behavior: 'smooth' });
     }
   };
@@ -245,7 +229,6 @@ const DeviceDetail = ({ addToCart, darkMode, currentUser }) => {
       cancelButtonColor: '#d33',
       confirmButtonText: 'Yes, delete it!'
     });
-    
     
     setSwalProps(prev => ({
       ...prev,
@@ -282,10 +265,10 @@ const DeviceDetail = ({ addToCart, darkMode, currentUser }) => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-white to-indigo-50 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-lg font-semibold text-blue-600">Loading product details...</p>
+      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-gray-50 to-indigo-100 dark:bg-gradient-to-br dark:from-gray-900 dark:to-gray-800">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600 mx-auto"></div>
+          <p className="text-lg font-semibold text-indigo-600 dark:text-indigo-400">Loading product details...</p>
         </div>
       </div>
     );
@@ -293,13 +276,13 @@ const DeviceDetail = ({ addToCart, darkMode, currentUser }) => {
 
   if (!product) {
     return (
-      <div className={`w-full p-6 min-h-screen flex items-center justify-center ${darkMode ? 'bg-gray-900' : 'bg-gradient-to-br from-white to-indigo-50'}`}>
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-700 dark:text-white mt-6">Device Not Found</h2>
-          <p className="text-gray-600 dark:text-blue-500 mt-2 mb-8">Sorry, we couldn't find the product you're looking for.</p>
+      <div className={`w-full p-6 min-h-screen flex items-center justify-center ${darkMode ? 'bg-gradient-to-br from-gray-900 to-gray-800' : 'bg-gradient-to-br from-gray-50 to-indigo-100'}`}>
+        <div className="text-center space-y-6 bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl max-w-md">
+          <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Device Not Found</h2>
+          <p className="text-gray-500 dark:text-gray-400">Sorry, we couldn't find the product you're looking for.</p>
           <button
             onClick={() => navigate('/')}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center justify-center mx-auto"
+            className="inline-flex items-center px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-300 shadow-md hover:shadow-lg"
           >
             <FaChevronLeft className="mr-2" /> Back to Home
           </button>
@@ -309,75 +292,76 @@ const DeviceDetail = ({ addToCart, darkMode, currentUser }) => {
   }
 
   return (
-    <div className={`${darkMode ? 'dark:bg-gray-900' : 'bg-gradient-to-br from-white to-indigo-50'} mt-6 min-h-screen`}>
-      <div className="container mx-auto px-4 py-8">
-      
-        
+    <div className={`min-h-screen py-12 ${darkMode ? 'bg-gradient-to-br from-gray-900 to-gray-800' : 'bg-gradient-to-br from-gray-50 to-indigo-100'}`}>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center text-blue-600 font-medium mb-6 hover:text-blue-800 transition"
+          className="inline-flex items-center text-indigo-600 dark:text-indigo-400 font-semibold mb-8 hover:text-indigo-800 dark:hover:text-indigo-300 transition-all duration-200 group"
         >
-          <FaChevronLeft className="mr-2" /> Back to Explore
+          <FaChevronLeft className="mr-2 transform group-hover:-translate-x-1 transition-transform duration-200" /> Back to Explore
         </button>
 
-        <div className="bg-white dark:bg-gray-950 rounded-xl shadow-lg overflow-hidden">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-6">
-        
-            <div className="flex items-center justify-center h-96 bg-white dark:bg-gray-900 rounded-lg p-4">
-              <img src={product.imageUrl} alt={product.name} className="max-h-full max-w-full object-contain" />
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden transform transition-all duration-300">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-6 lg:p-10">
+            <div className="flex items-center justify-center bg-gray-50 dark:bg-gray-900 rounded-xl p-6 h-[400px] lg:h-[500px] overflow-hidden">
+              <img
+                src={product.imageUrl}
+                alt={product.name}
+                className="max-h-full max-w-full object-contain transform transition-transform duration-300 hover:scale-105"
+              />
             </div>
 
-           
-            <div>
-              <div className="flex justify-between items-center">
-              <h1 className="text-3xl font-bold text-gray-900 mb-3 dark:text-white">{product.name}</h1>
-              <span className='text-red-500 bg-red-50 font-bold text-sm px-3 py-2  rounded-3xl mb-3'>{product.stock} left in stock</span>
-</div>
-              <div className="flex items-center mb-4">
-             
-                <span className=" text-indigo-600 font-bold text-sm flex items-center gap-2"><FiTag/>{product.condition}</span>
+            <div className="space-y-6">
+              <div className="flex justify-between items-start">
+                <h1 className="text-3xl lg:text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight">{product.name}</h1>
+                <span className="inline-flex items-center px-4 py-2 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 font-semibold text-sm rounded-full">
+                  {product.stock} left in stock
+                </span>
               </div>
 
-              <div className="mb-6">
-                <p className="text-3xl font-bold text-blue-600 mb-2">{product.price?.toLocaleString()} EGP</p>
-                <p className="text-gray-600 mb-4">Including VAT and shipping</p>
+              <div className="flex items-center gap-3">
+                <span className="inline-flex items-center px-3 py-1 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 font-medium text-sm rounded-full">
+                  <FiTag className="mr-1" /> {product.condition}
+                </span>
               </div>
 
-              <p className="text-gray-400 mb-8">{product.description}</p>
-
-              <div className="flex flex-wrap items-center">
-             
-                <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleAddToCart(product);
-            }}
-                  className="flex-1 mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition flex items-center justify-center"
-                >
-                  <FaShoppingCart className="mr-2" /> Add to Cart
-                </button>
+              <div className="space-y-2">
+                <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">{product.price?.toLocaleString()} EGP</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">Including VAT and shipping</p>
               </div>
+
+              <p className="text-gray-600 dark:text-gray-300 leading-relaxed">{product.description}</p>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAddToCart(product);
+                }}
+                className="w-full lg:w-auto inline-flex items-center justify-center px-8 py-4 bg-indigo-600 dark:bg-indigo-500 text-white font-semibold rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-all duration-300 shadow-md hover:shadow-lg"
+              >
+                <FaShoppingCart className="mr-2" /> Add to Cart
+              </button>
             </div>
           </div>
         </div>
 
-       
-        {/* <div className="mt-10 bg-white dark:bg-gray-950 rounded-xl shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 dark:text-white">Customer Reviews</h2>
+     
+        {/* <div className="mt-12 bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 lg:p-10">
+          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white mb-8">Customer Reviews</h2>
 
           {reviewsLoading ? (
             <div className="flex justify-center items-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-              <p className="ml-4 text-gray-600">Loading reviews...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600"></div>
+              <p className="ml-4 text-gray-600 dark:text-gray-400">Loading reviews...</p>
             </div>
           ) : reviews.length === 0 ? (
-            <p className="text-gray-600 py-4 text-center">No reviews yet. Be the first to review this product!</p>
+            <p className="text-gray-600 dark:text-gray-400 py-4 text-center text-lg">No reviews yet. Be the first to review this product!</p>
           ) : (
             <div className="space-y-6">
               {reviews.map((review) => (
-                <div key={review.id} className="border-b border-gray-200 pb-4">
+                <div key={review.id} className="border-b border-gray-200 dark:border-gray-700 pb-6">
                   <div className="flex justify-between items-start">
-                    <div className="flex items-center mb-1">
+                    <div className="flex items-center mb-2 space-x-1">
                       {Array.from({ length: 5 }).map((_, i) => (
                         i < review.rating ? 
                           <FilledStar key={i} className="text-yellow-400" /> : 
@@ -385,49 +369,52 @@ const DeviceDetail = ({ addToCart, darkMode, currentUser }) => {
                       ))}
                     </div>
                     {currentUser && review.author === currentUser.username && (
-                      <div className="flex space-x-2">
+                      <div className="flex space-x-3">
                         <button 
                           onClick={() => handleEditReview(review)}
-                          className="text-blue-500 hover:text-blue-700"
+                          className="text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors duration-200"
                         >
-                          <FaEdit />
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
                         </button>
                         <button 
                           onClick={() => handleDeleteReview(review.id)}
-                          className="text-red-500 hover:text-red-700"
+                          className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors duration-200"
                         >
-                          <FaTrash />
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5-4h4m-4 0a2 2 0 00-2 2v1m8 0a2 2 0 01-2-2V3m-4 4h.01M12 7h.01" />
+                          </svg>
                         </button>
                       </div>
                     )}
                   </div>
-                  <p className="text-gray-600 dark:text-white">{review.comment}</p>
-                  <p className="text-sm text-gray-500">By {review.author} on {new Date(review.createdAt).toLocaleDateString()}</p>
+                  <p className="text-gray-600 dark:text-gray-300 leading-relaxed">{review.comment}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">By {review.author} on {new Date(review.createdAt).toLocaleDateString()}</p>
                 </div>
               ))}
             </div>
           )}
 
-  
-          <div id="review-form" className="mt-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3 dark:text-white">
+          <div id="review-form" className="mt-10">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
               {editingReviewId ? 'Edit Your Review' : 'Leave a Review'}
             </h3>
-            <div className="flex items-center mb-4 space-x-1">
+            <div className="flex items-center mb-4 space-x-2">
               {renderInteractiveStars()}
-              <span className="ml-2 text-gray-600">({userRating}/5)</span>
+              <span className="ml-2 text-gray-600 dark:text-gray-400">({userRating}/5)</span>
             </div>
             <textarea
               value={userComment}
               onChange={(e) => setUserComment(e.target.value)}
               placeholder="Write your review here..."
-              className="w-full p-3 border bg-gray-50 border-gray-300 rounded-lg dark:bg-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              rows="4"
+              className="w-full p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200"
+              rows="5"
             />
             <div className="flex space-x-4 mt-4">
               <button
                 onClick={handleSubmitReview}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg"
+                className="px-6 py-3 bg-indigo-600 dark:bg-indigo-500 text-white font-semibold rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-all duration-300 shadow-md hover:shadow-lg"
               >
                 {editingReviewId ? 'Update Review' : 'Submit Review'}
               </button>
@@ -438,7 +425,7 @@ const DeviceDetail = ({ addToCart, darkMode, currentUser }) => {
                     setUserComment("");
                     setEditingReviewId(null);
                   }}
-                  className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg"
+                  className="px-6 py-3 bg-gray-500 dark:bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-600 dark:hover:bg-gray-700 transition-all duration-300"
                 >
                   Cancel Edit
                 </button>

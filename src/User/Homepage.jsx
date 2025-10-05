@@ -273,7 +273,7 @@ const heroHandleSearch = (e) => {
       : "bg-white text-gray-900"
   }`}
 >
-  {/* Floating Icons Layer */}
+
   <div className="absolute inset-0 opacity-5 pointer-events-none">
     <FiTool className="absolute w-20 h-20 bottom-1/3 right-1/5 animate-float-medium dark:text-blue-500" />
     <FiShoppingBag className="absolute w-24 h-24 top-1/3 right-1/4 animate-float-slow dark:text-blue-500" />
@@ -283,7 +283,7 @@ const heroHandleSearch = (e) => {
     <FiMonitor className="absolute w-18 h-18 top-1/2 left-1/4 animate-float-fast dark:text-blue-500" />
   </div>
 
-  {/* Hero Content */}
+
   <div className="container mx-auto px-4 py-16 md:py-32 min-h-screen relative z-10">
     <div className="max-w-6xl mx-auto">
       <h1 className="text-4xl md:text-5xl font-bold mb-6">
@@ -293,22 +293,22 @@ const heroHandleSearch = (e) => {
         Find trusted repair shops and purchase refurbished devices at great prices
       </p>
 
-      {/* Search Bar */}
-      <div className="relative">
+      
+      <div className="relative ">
         <form
           onSubmit={heroHandleSearch}
-          className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-2 flex flex-wrap justify-center items-center mb-10"
+          className="bg-white border dark:border-gray-700 rounded-lg dark:bg-gray-800 rounded-lg shadow-lg p-2 flex flex-wrap justify-center items-center mb-10"
         >
           <input
             type="text"
             placeholder="Search for devices, shops, or services..."
-            className="flex-grow px-4 py-3 text-gray-800 dark:text-white cursor-pointer dark:bg-gray-800 focus:outline-none focus:border-blue-800"
+            className="flex-grow px-4 py-3 text-gray-800  dark:text-white cursor-pointer dark:bg-gray-800 focus:outline-none focus:border-blue-800"
             value={heroSearchQuery}
             onChange={(e) => heroSetSearchQuery(e.target.value)}
           />
         </form>
 
-        {/* Search Results */}
+        
         {heroSearchQuery && (
           <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-xl max-h-96 overflow-y-auto">
             {isLoading ? (
@@ -323,7 +323,7 @@ const heroHandleSearch = (e) => {
                     className="hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                   >
                     <a
-                      href={`#${item.id}`}
+                      href={`/device/${item.id}`}
                       className="p-4 flex justify-between items-center"
                     >
                       <div>
@@ -350,7 +350,7 @@ const heroHandleSearch = (e) => {
         )}
       </div>
 
-      {/* Cards */}
+    
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white dark:bg-white/10 bg-opacity-10 p-4 rounded-lg flex items-center backdrop-blur-sm">
           <FiTool className="text-3xl mr-3 text-blue-600 dark:text-white" />
@@ -381,7 +381,7 @@ const heroHandleSearch = (e) => {
     </div>
   </div>
 
-  {/* Floating Animations */}
+
   <style jsx global>{`
     @keyframes float {
       0%,
@@ -407,7 +407,7 @@ const heroHandleSearch = (e) => {
 </section>
 
     <div className="p-6 bg-gray-50 dark:bg-gray-900">
-      {/* Section Title */}
+      
       <motion.div
         initial={{ opacity: 0, y: 50 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -467,12 +467,12 @@ const heroHandleSearch = (e) => {
               </p>
 
             
-              <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
+              <div className="mt-6 grid grid-cols-2 gap-4 text-center text-sm">
                 {["Screen Replacement", "Battery Replacement", "Water Damage Fix", "Software Issues"].map(
                   (service, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center flex-wrap justify-center dark:text-white gap-2"
+                      className="flex items-center flex-wrap text-center justify-center dark:text-white gap-2"
                     >
                       <span className="bg-green-100 text-green-600 dark:bg-blue-500 dark:text-white p-2 rounded-full">
                         <svg
@@ -556,7 +556,7 @@ const heroHandleSearch = (e) => {
 
         <Service darkMode={darkMode}/>
 
-<section className="py-16 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100 dark:from-gray-900 dark:via-gray-950 dark:to-black">
+{/* <section className="py-16 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100 dark:from-gray-900 dark:via-gray-950 dark:to-black">
   <div className="max-w-6xl mx-auto text-center">
     <h2 className="text-3xl font-bold text-indigo-600 dark:text-white mb-12">
       Why Choose Us?
@@ -603,7 +603,7 @@ const heroHandleSearch = (e) => {
       </div>
     </div>
   </div>
-</section>
+</section> */}
 
 
       
@@ -613,13 +613,11 @@ const heroHandleSearch = (e) => {
 
 
 
-
 <section
   id="latest-devices"
-  className="py-16 bg-gradient-to-br from-gray-50 to-indigo-50 dark:from-gray-950 dark:to-indigo-900"
+  className="py-16 bg-gray-100 dark:bg-gray-900"
 >
-  <div className="max-w-6xl mx-auto px-4">
-
+  <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
     <motion.div
       initial={{ opacity: 0, y: 50 }}
       whileInView={{ opacity: 1, y: 0 }}
@@ -627,34 +625,31 @@ const heroHandleSearch = (e) => {
       viewport={{ once: true, amount: 0.3 }}
       className="text-center mb-12"
     >
-      <h2 className="text-3xl font-bold text-indigo-600 dark:text-white">
+      <h2 className="text-3xl md:text-4xl font-extrabold text-indigo-600 dark:text-indigo-400">
         Latest Devices
       </h2>
-      <p className="text-gray-600 dark:text-gray-400 mt-2">
+      <p className="text-gray-600 dark:text-gray-300 mt-3 max-w-2xl mx-auto">
         Browse the newest arrivals in refurbished and pre-owned devices
       </p>
     </motion.div>
 
-
-    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
       {products.map((device) => (
         <motion.div
           key={device.id}
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
           viewport={{ once: true }}
           onClick={() => navigate(`/device/${device.id}`)}
-          className="rounded-2xl overflow-hidden cursor-pointer shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all"
+          className="group rounded-xl overflow-hidden cursor-pointer shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
         >
-    
-          <div className="bg-gradient-to-br from-white to-indigo-100 dark:from-gray-800 dark:to-indigo-900 p-6 h-full flex flex-col">
-       
-            <div className="h-52 bg-white dark:bg-gray-800 rounded-xl flex items-center justify-center relative">
+          <div className="bg-white dark:bg-gray-800 p-6 h-full flex flex-col">
+            <div className="relative h-56 bg-gray-50 dark:bg-gray-700 rounded-xl flex items-center justify-center overflow-hidden">
               {!imageLoadStatus[device.id] && (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <svg
-                    className="animate-spin h-10 w-10 text-indigo-600"
+                    className="animate-spin h-8 w-8 text-indigo-600 dark:text-indigo-400"
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
                     viewBox="0 0 24 24"
@@ -675,40 +670,38 @@ const heroHandleSearch = (e) => {
                   </svg>
                 </div>
               )}
-
               <img
                 src={device.image}
                 alt={device.name}
-                className={`max-h-full max-w-full object-contain ${
-                  imageLoadStatus[device.id] ? "block" : "invisible"
+                className={`max-h-full max-w-full object-contain transition-opacity duration-300 ${
+                  imageLoadStatus[device.id] ? "opacity-100" : "opacity-0"
                 }`}
                 onLoad={() => handleImageLoad(device.id)}
               />
             </div>
 
-         
-            <h3 className="text-xl font-bold text-gray-800 dark:text-white mt-4 mb-2 flex items-center gap-2">
-              <FiSmartphone className="text-indigo-600 dark:text-indigo-300" />{" "}
-              {device.name}
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400 flex-grow">
-              {device.description?.substring(0, 60)}...
-            </p>
-
-
-            <div className="mt-4 flex items-center flex-wrap justify-between">
-              <span className="text-indigo-600 dark:text-indigo-300 font-bold text-lg">
-                {device.price.toFixed(2)} EGP
-              </span>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation(); 
-                  handleAddToCart(device);
-                }}
-                className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700 dark:hover:bg-indigo-500 transition"
-              >
-                Add to Cart
-              </button>
+            <div className="flex flex-col flex-grow mt-4">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <FiSmartphone className="text-indigo-600 dark:text-indigo-400" size={20} />
+                {device.name}
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 text-sm mt-1 line-clamp-2">
+                {device.description?.substring(0, 60)}...
+              </p>
+              <div className="mt-4 flex items-center justify-between flex-wrap gap-3">
+                <span className="text-indigo-600 dark:text-indigo-400 font-semibold text-lg">
+                  {device.price.toFixed(2)} EGP
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAddToCart(device);
+                  }}
+                  className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-indigo-700 dark:hover:bg-indigo-500 transition-all duration-200"
+                >
+                  Add to Cart
+                </button>
+              </div>
             </div>
           </div>
         </motion.div>
@@ -716,200 +709,6 @@ const heroHandleSearch = (e) => {
     </div>
   </div>
 </section>
-{/* <section
-      style={{ borderTopRightRadius: "50px", borderTopLeftRadius: "50px" }}
-      id="shops"
-      className="py-16 bg-gray-50 dark:bg-gray-900"
-    >
-      <div className="container-fluid mx-auto px-4">
-       
-        <motion.div
-          initial={{ opacity: 0, y: 50 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, ease: "easeOut" }}
-          viewport={{ once: true, amount: 0.3 }}
-          className="text-center mb-12"
-        >
-          <h2 className="text-3xl font-bold text-indigo-600 mb-4 dark:text-white flex items-center justify-center gap-2">
-            <FiSmartphone className="w-7 h-7 text-blue-500" /> Featured Shops & Devices
-          </h2>
-          <p className="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
-            Browse our trusted repair shops and high-quality refurbished devices
-          </p>
-        </motion.div>
-
-        <div className="mb-8 max-w-2xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
-            viewport={{ once: true, amount: 0.3 }}
-            className="relative"
-          >
-            <input
-              type="text"
-              placeholder="Search shops or devices..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full dark:bg-gray-800 dark:border-gray-700 dark:text-white p-4 pl-12 cursor-pointer hover:shadow-md transition-shadow rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-          </motion.div>
-        </div>
-
-      
-        <motion.div className="relative mb-12">
-          <div
-            ref={shopScrollRef}
-            className="flex overflow-x-auto snap-x snap-mandatory py-4 scrollbar-hide custom-scroll space-x-6"
-            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-          >
-            {filteredShops.map((shop) => (
-              <div
-                key={shop.id}
-                className="snap-start flex-shrink-0 w-full sm:w-4/5 md:w-2/3 lg:w-1/2 xl:w-2/5 bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border border-indigo-100 dark:border-gray-700"
-              >
-                <div className="p-6 border-b dark:border-gray-700">
-                  <div className="flex flex-col flex-wrap justify-between">
-                    <div>
-                      <div className="flex justify-between items-center">
-                        <h3 className="text-xl font-bold text-gray-800 dark:text-white">{shop.name}</h3>
-                        <span className="flex items-center gap-2 text-indigo-600 font-semibold">
-                          <FiMapPin /> {shop.shop_address}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between mt-2">
-                        <div className="flex text-yellow-400">
-                          {[...Array(5)].map((_, i) => (
-                            <FiStar
-                              key={i}
-                              className={i < Math.floor(shop.rating) ? "fill-current" : ""}
-                            />
-                          ))}
-                        </div>
-                        <span className="ml-2 text-gray-500">
-                          {shop.rating} ({shop.reviews} reviews)
-                        </span>
-                      </div>
-                    </div>
-                    <br />
-                    <div className=" flex flex-wrap items-center text-sm text-blue-500 gap-2">
-                    <FiPhone/> {shop.phone}
-                    </div>
-                  </div>
-                </div>
-
-                
-                <div className="p-6">
-                  <h4 className="font-bold text-gray-700 mb-4 dark:text-white flex items-center gap-2">
-                    <FiSmartphone className="text-indigo-600" /> Available Devices
-                  </h4>
-                  <div className="relative">
-                    <div className="flex overflow-x-auto pb-4 space-x-4">
-                      {shop.devices.map((device) => (
-                        <div
-                          key={device.id}
-                          className="cursor-pointer min-w-[280px] bg-[#f1f5f9] dark:bg-gray-900 dark:border-gray-700  rounded-2xl p-4 flex flex-col"
-                        >
-                          <div className="h-52 bg-white rounded-xl dark:bg-gray-800 border-b p-0 flex items-center justify-center relative">
-                            {!imageLoadStatus[device.id] && (
-                              <div className="absolute inset-0 flex items-center justify-center">
-                                <svg
-                                  className="animate-spin h-10 w-10 text-indigo-600"
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <circle
-                                    className="opacity-25"
-                                    cx="12"
-                                    cy="12"
-                                    r="10"
-                                    stroke="currentColor"
-                                    strokeWidth="4"
-                                  ></circle>
-                                  <path
-                                    className="opacity-75"
-                                    fill="currentColor"
-                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                  ></path>
-                                </svg>
-                              </div>
-                            )}
-
-                            <img
-                              src={device.image}
-                              alt={device.name}
-                              className={`max-h-full max-w-full object-contain ${imageLoadStatus[device.id] ? "block" : "invisible"}`}
-                              onLoad={() => handleImageLoad(device.id)}
-                            />
-                          </div>
-                          <br />
-                          <div className="flex-grow">
-                            <div className="flex justify-between items-center">
-<h5 className="font-bold text-blue-500 mb-2 dark:text-white flex items-center  gap-2"><FiSmartphone/>{device.name}</h5>
-
-<span className='bg-slate-50 text-emerald-500 flex items-center text-xs gap-2 px-3 py-2 rounded-3xl mb-2'><FiTag/>{device.condition}</span>
-                            </div>
-                            <p className='text-sm text-gray-500'>{device.description?.substring(0, 60)}...</p>
-                            
-                            <div className="mt-3  ">
-                              <span className="font-bold  bg-indigo-100 px-3 py-2 text-sm rounded-3xl inline-block text-indigo-600 dark:text-indigo-400">
-                              {device.price.toFixed(2)} EGP
-                              </span>
-                                <hr className="border-gray-200 dark:border-gray-700 my-2" />
-                               <button
-                                  onClick={(e) => {
-              e.stopPropagation();
-              handleAddToCart(device);
-            }}
-                                className="bg-blue-500  text-white font-bold rounded-lg p-2 mt-2 flex justify-center items-center w-full "
-                              >
-                                <FiShoppingCart className="mr-2" /> Add to Cart
-                              </button>
-                            
-                           
-                            </div>
-                           
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-       
-          <button
-            onClick={() => scrollShops("left")}
-            className="absolute left-0 top-1/2 transform -translate-y-1/2 bg-indigo-500 text-white rounded-full p-2 shadow-md -ml-4"
-          >
-            <FiChevronLeft className="w-6 h-6 text-white" />
-          </button>
-
-          <button
-            onClick={() => scrollShops("right")}
-            className="absolute right-0 top-1/2 transform -translate-y-1/2 bg-indigo-500 text-white rounded-full p-2 shadow-md -mr-4"
-          >
-            <FiChevronRight className="w-6 h-6 text-white" />
-          </button>
-        </motion.div>
-      </div>
-    </section> */}
-
-
 
 
      </>

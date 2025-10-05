@@ -15,7 +15,8 @@ const ReassignOrders = () => {
 const [searchTerm, setSearchTerm] = useState("");
 const [currentPage, setCurrentPage] = useState(1);
 const [itemsPerPage] = useState(6);
-  // ✅ Fetch repairs for assignment
+
+
   const fetchOrders = async () => {
     try {
       setLoading(true);
@@ -32,7 +33,7 @@ const [itemsPerPage] = useState(6);
     }
   };
 
-  // ✅ Fetch delivery persons
+ 
   const fetchDeliveryPersons = async () => {
     try {
       const res = await fetch("http://localhost:8080/api/assigner/delivery-persons", {
@@ -46,7 +47,7 @@ const [itemsPerPage] = useState(6);
     }
   };
 
-  // ✅ Reassign repair
+  
   const reassignOrder= async (deliveryId) => {
     try {
       await fetch(`http://localhost:8080/api/assigner/reassign-order/${selectedOrder.id}`, {
