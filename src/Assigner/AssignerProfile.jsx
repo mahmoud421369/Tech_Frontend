@@ -1,215 +1,266 @@
-import React, { useEffect, useState } from "react";
-import Swal from "sweetalert2";
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Swal from 'sweetalert2';
+import api from '../api';
 
-const AssignerProfile = () => {
-  const token = localStorage.getItem("authToken");
+
+const LoadingSpinner = () => (
+  <div className="flex justify-center items-center min-h-screen">
+    <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+  </div>
+);
+
+
+const ProfileSkeleton = ({ darkMode }) => (
+  <div className="p-6 max-w-8xl bg-gray-50 dark:bg-gray-900 w-full space-y-6 animate-pulse">
+    <div className="h-8 w-1/4 bg-gray-300 dark:bg-gray-700 rounded"></div>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      {[...Array(4)].map((_, idx) => (
+        <div
+          key={idx}
+          className="bg-white dark:bg-gray-950 p-4 rounded-xl shadow-md border-l-4 border-gray-300 dark:border-gray-700"
+        >
+          <div className="h-4 w-1/2 bg-gray-300 dark:bg-gray-700 rounded mb-2"></div>
+          <div className="h-6 w-1/3 bg-gray-300 dark:bg-gray-700 rounded"></div>
+        </div>
+      ))}
+    </div>
+    <div className="bg-white dark:bg-gray-950 shadow rounded-xl overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+        <div className="h-6 w-1/4 bg-gray-300 dark:bg-gray-700 rounded"></div>
+        <div className="h-10 w-32 bg-gray-300 dark:bg-gray-700 rounded-xl"></div>
+      </div>
+      <div className="p-6 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <div className="h-4 w-1/4 bg-gray-300 dark:bg-gray-700 rounded mb-2"></div>
+            <div className="h-10 w-full bg-gray-300 dark:bg-gray-700 rounded"></div>
+          </div>
+          <div>
+            <div className="h-4 w-1/4 bg-gray-300 dark:bg-gray-700 rounded mb-2"></div>
+            <div className="h-10 w-full bg-gray-300 dark:bg-gray-700 rounded"></div>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <div className="h-4 w-1/4 bg-gray-300 dark:bg-gray-700 rounded mb-2"></div>
+            <div className="h-10 w-full bg-gray-300 dark:bg-gray-700 rounded"></div>
+          </div>
+          <div>
+            <div className="h-4 w-1/4 bg-gray-300 dark:bg-gray-700 rounded mb-2"></div>
+            <div className="h-10 w-full bg-gray-300 dark:bg-gray-700 rounded"></div>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <div className="h-4 w-1/4 bg-gray-300 dark:bg-gray-700 rounded mb-2"></div>
+            <div className="h-10 w-full bg-gray-300 dark:bg-gray-700 rounded"></div>
+          </div>
+        </div>
+        <div className="flex space-x-3 pt-4">
+          <div className="h-10 w-32 bg-gray-300 dark:bg-gray-700 rounded-xl"></div>
+          <div className="h-10 w-32 bg-gray-300 dark:bg-gray-700 rounded-xl"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const AssignerProfile = ({ darkMode }) => {
+  const navigate = useNavigate();
+  const token = localStorage.getItem('authToken');
   const [profile, setProfile] = useState({});
-  const [form, setForm] = useState({ 
-    name: "", 
-    department: "", 
-    phone: "" 
-  });
+  const [form, setForm] = useState({ name: '', department: '', phone: '' });
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
+    if (!token) {
+      Swal.fire({
+        title: 'Error',
+        text: 'No authentication token found. Please log in.',
+        icon: 'error',
+        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+      });
+      navigate('/login');
+      return;
+    }
+
+    const controller = new AbortController();
     try {
       setIsLoading(true);
-      const response = await fetch("http://localhost:8080/api/assigner/profile", {
-        headers: { Authorization: `Bearer ${token}` },
+      const response = await api.get('/api/assigner/profile', {
+        signal: controller.signal,
       });
-
-      if (!response.ok) throw new Error("Failed to fetch profile");
-
-      const data = await response.json();
+      const data = response.data;
       setProfile(data);
-      setForm({ 
-        name: data.name || "", 
-        department: data.department || "", 
-        phone: data.phone || "" 
+      setForm({
+        name: data.name || '',
+        department: data.department || '',
+        phone: data.phone || '',
       });
-    } catch (error) {
-      console.error("Error fetching profile:", error);
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('Error fetching profile:', err.response?.data || err.message);
+        Swal.fire({
+          title: 'Error',
+          text: err.response?.data?.message || 'Failed to load profile data',
+          icon: 'error',
+          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+        });
+        if (err.response?.status === 401) {
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('userId');
+          navigate('/login');
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+    return () => controller.abort();
+  }, [darkMode, navigate, token]);
+
+  const handleUpdate = useCallback(async () => {
+    const confirm = await Swal.fire({
+      title: 'Are you sure?',
+      text: 'Do you want to update your profile?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, update it',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#4f46e5',
+      customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    try {
+      setIsLoading(true);
+      await api.put('/api/assigner/profile', form);
+      await fetchProfile();
+      setIsEditing(false);
       Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Failed to load profile data",
+        title: 'Success',
+        text: 'Profile updated successfully',
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false,
+        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+      });
+    } catch (err) {
+      console.error('Error updating profile:', err.response?.data || err.message);
+      Swal.fire({
+        title: 'Error',
+        text: err.response?.data?.message || 'Failed to update profile',
+        icon: 'error',
+        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
       });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [darkMode, form, fetchProfile]);
 
- const handleUpdate = async () => {
-  const confirm = await Swal.fire({
-    title: "Are you sure?",
-    text: "Do you want to update your profile?",
-    icon: "question",
-    showCancelButton: true,
-    confirmButtonText: "Yes, update it",
-    cancelButtonText: "Cancel",
-    confirmButtonColor: "#2563eb",
-  });
-
-  if (!confirm.isConfirmed) return;
-
-  try {
-    setIsLoading(true);
-    const response = await fetch("http://localhost:8080/api/assigner/profile", {
-      method: "PUT",
-      headers: { 
-        "Content-Type": "application/json", 
-        Authorization: `Bearer ${token}` 
-      },
-      body: JSON.stringify(form),
+  const handleCancel = useCallback(() => {
+    setForm({
+      name: profile.name || '',
+      department: profile.department || '',
+      phone: profile.phone || '',
     });
-
-    if (!response.ok) throw new Error("Failed to update profile");
-
-
-    const contentType = response.headers.get("content-type");
-    let updatedProfile = profile; // fallback
-    if (contentType && contentType.includes("application/json")) {
-      updatedProfile = await response.json();
-      setProfile(updatedProfile);
-    }
-
-    await Swal.fire({
-      icon: "success",
-      title: "Success!",
-      text: "Profile updated successfully",
-      timer: 2000,
-      showConfirmButton: false,
-    });
-
     setIsEditing(false);
-  } catch (error) {
-    console.error("Error updating profile:", error);
-    Swal.fire({
-      icon: "error",
-      title: "Error",
-      text: "Failed to update profile",
-    });
-  } finally {
-    setIsLoading(false);
-  }
-};
+  }, [profile]);
 
   const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString('en-US', {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
-
   const getStatusBadge = (status) => {
     const statusColors = {
-      APPROVED: "bg-green-100 text-green-800",
-      PENDING: "bg-yellow-100 text-yellow-800",
-      REJECTED: "bg-red-100 text-red-800",
-      default: "bg-gray-100 text-gray-800"
+      APPROVED: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-400',
+      PENDING: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-400',
+      REJECTED: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-400',
+      default: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
     };
     return statusColors[status] || statusColors.default;
   };
 
   useEffect(() => {
     fetchProfile();
-  }, [token]);
-
-  const handleCancel = () => {
-    setForm({ 
-      name: profile.name || "", 
-      department: profile.department || "", 
-      phone: profile.phone || "" 
-    });
-    setIsEditing(false);
-  };
+  }, [fetchProfile]);
 
   if (isLoading && !profile.id) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-      </div>
-    );
+    return <ProfileSkeleton darkMode={darkMode} />;
   }
 
-   
-
   return (
-    <div className="p-6 max-w-8xl bg-gray-50  dark:bg-gray-900  w-full space-y-6">
-      <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Profile</h2>
+    <div className="p-6 max-w-8xl bg-gray-50 dark:bg-gray-900 w-full space-y-6 transition-colors duration-300 animate-fade-in">
+      <h2 className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">Profile</h2>
 
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white dark:bg-gray-800 p-4  shadow border-l-4 border-blue-500">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white dark:bg-gray-950 p-4 rounded-xl shadow-md border-l-4 border-indigo-500 transition-all duration-300 transform hover:-translate-y-1">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Assignments</h3>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+          <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
             {profile.totalAssignmentsHandled || 0}
           </p>
         </div>
-        
-        <div className="bg-white dark:bg-gray-800 p-4  shadow border-l-4 border-yellow-500">
+        <div className="bg-white dark:bg-gray-950 p-4 rounded-xl shadow-md border-l-4 border-yellow-500 transition-all duration-300 transform hover:-translate-y-1">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Pending Assignments</h3>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+          <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
             {profile.pendingAssignments || 0}
           </p>
         </div>
-        
-        <div className="bg-white dark:bg-gray-800 p-4  shadow border-l-4 border-green-500">
+        <div className="bg-white dark:bg-gray-950 p-4 rounded-xl shadow-md border-l-4 border-green-500 transition-all duration-300 transform hover:-translate-y-1">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Account Status</h3>
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(profile.status)}`}>
-            {profile.status || "UNKNOWN"}
+          <span
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(
+              profile.status
+            )}`}
+          >
+            {profile.status || 'UNKNOWN'}
           </span>
         </div>
-        
-        <div className="bg-white dark:bg-gray-800 p-4  shadow border-l-4 border-purple-500">
+        <div className="bg-white dark:bg-gray-950 p-4 rounded-xl shadow-md border-l-4 border-purple-500 transition-all duration-300 transform hover:-translate-y-1">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Last Activity</h3>
-          {/* <p className="text-sm text-gray-900 dark:text-white">
-            {formatDate(profile.lastActivity)}
-          </p> */}
+          <p className="text-sm text-gray-900 dark:text-gray-100">{formatDate(profile.lastActivity)}</p>
         </div>
       </div>
 
-    
-      <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Profile Information</h3>
-            {!isEditing && (
-              <button
-                onClick={() => setIsEditing(true)}
-                className="bg-indigo-50 border-indigo-100 text-indigo-600 border-2  px-4 py-2 rounded-md dark:bg-black/70 dark:border-gray-700 dark:text-gray-300 hover:bg-indigo-100 hover:text-indigo-700 transition"
-              >
-                Edit Profile
-              </button>
-            )}
-          </div>
+      <div className="bg-white dark:bg-gray-950 shadow rounded-xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Profile Information</h3>
+          {!isEditing && (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all duration-300 transform hover:-translate-y-1 shadow-md"
+            >
+              Edit Profile
+            </button>
+          )}
         </div>
 
         <div className="p-6 space-y-6">
-       
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
-              <p className="mt-1 text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 p-2 rounded">
-                {profile.email || "N/A"}
+              <p className="mt-1 text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700 p-2 rounded-xl">
+                {profile.email || 'N/A'}
               </p>
             </div>
-            
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Assigner ID</label>
-              <p className="mt-1 text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 p-2 rounded">
-                {profile.id || "N/A"}
+              <p className="mt-1 text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700 p-2 rounded-xl">
+                {profile.id || 'N/A'}
               </p>
             </div>
           </div>
 
-   
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
@@ -218,15 +269,14 @@ const AssignerProfile = () => {
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="mt-1 block w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all duration-300"
                 />
               ) : (
-                <p className="mt-1 text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 p-2 rounded">
-                  {profile.name || "N/A"}
+                <p className="mt-1 text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700 p-2 rounded-xl">
+                  {profile.name || 'N/A'}
                 </p>
               )}
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Department</label>
               {isEditing ? (
@@ -234,15 +284,14 @@ const AssignerProfile = () => {
                   type="text"
                   value={form.department}
                   onChange={(e) => setForm({ ...form, department: e.target.value })}
-                  className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="mt-1 block w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all duration-300"
                 />
               ) : (
-                <p className="mt-1 text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 p-2 rounded">
-                  {profile.department || "N/A"}
+                <p className="mt-1 text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700 p-2 rounded-xl">
+                  {profile.department || 'N/A'}
                 </p>
               )}
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Phone</label>
               {isEditing ? (
@@ -250,65 +299,62 @@ const AssignerProfile = () => {
                   type="tel"
                   value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="mt-1 block w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all duration-300"
                 />
               ) : (
-                <p className="mt-1 text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 p-2 rounded">
-                  0{profile.phone || "N/A"}
+                <p className="mt-1 text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700 p-2 rounded-xl">
+                  {profile.phone ? `0${profile.phone}` : 'N/A'}
                 </p>
               )}
             </div>
           </div>
 
-       
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Member Since</label>
-              <p className="mt-1 text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 p-2 rounded">
+              <p className="mt-1 text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700 p-2 rounded-xl">
                 {formatDate(profile.createdAt)}
               </p>
             </div>
-            
-            {/* <div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Last Updated</label>
-              <p className="mt-1 text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 p-2 rounded">
+              <p className="mt-1 text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700 p-2 rounded-xl">
                 {formatDate(profile.updatedAt)}
               </p>
-            </div> */}
+            </div>
           </div>
-
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Account Status</label>
               <div className="mt-1 flex items-center space-x-2">
-                {/* <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(profile.status)}`}>
-                  {profile.status || "UNKNOWN"}
-                </span> */}
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${profile.verified ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                <span
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${profile.verified ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-400'}`}
+                >
                   {profile.verified ? 'Verified' : 'Not Verified'}
                 </span>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${profile.activate ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                <span
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${profile.activate ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-400'}`}
+                >
                   {profile.activate ? 'Active' : 'Inactive'}
                 </span>
               </div>
             </div>
           </div>
 
-          
           {isEditing && (
             <div className="flex space-x-3 pt-4">
               <button
                 onClick={handleUpdate}
                 disabled={isLoading}
-                className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all duration-300 transform hover:-translate-y-1 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isLoading ? "Updating..." : "Save Changes"}
+                {isLoading ? 'Updating...' : 'Save Changes'}
               </button>
               <button
                 onClick={handleCancel}
                 disabled={isLoading}
-                className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition-all duration-300 transform hover:-translate-y-1 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>

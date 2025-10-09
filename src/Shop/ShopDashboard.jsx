@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   FaMoneyBillWave,
   FaChartLine,
   FaBox,
   FaTools,
   FaWrench,
-} from "react-icons/fa";
+} from 'react-icons/fa';
 import {
   RiStore2Line,
   RiToolsFill,
@@ -18,137 +19,139 @@ import {
   RiMessage2Line,
   RiToolsLine,
   RiNotification2Line,
-} from "react-icons/ri";
+} from 'react-icons/ri';
+import api from '../api'; 
+import debounce from 'lodash/debounce';
 
 const ShopDashboard = () => {
-  const token = localStorage.getItem("authToken");
   const navigate = useNavigate();
-
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [totalSales, setTotalSales] = useState(0);
   const [salesStats, setSalesStats] = useState(null);
   const [totalOrders, setTotalOrders] = useState(0);
   const [repairsStats, setRepairsStats] = useState(null);
   const [totalRepairs, setTotalRepairs] = useState(0);
-const headers = {
-  "Content-Type": "application/json",
-  Authorization: `Bearer ${token}`,
-};
-const fetchSales = async () => {
-  try {
-    const res = await fetch(
-      `http://localhost:8080/api/shops/dashboard/sales/total`,
-      {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ startDate, endDate }),
-      }
-    );
-    const data = await res.json();
-    setTotalSales(data || 0);
-  } catch (err) {
-    console.error("❌ Error fetching sales:", err);
-  }
-};
 
-
-  const fetchSalesStats = async () => {
+ 
+  const fetchSales = useCallback(async () => {
+    const controller = new AbortController();
     try {
-      const res = await fetch(
-        `http://localhost:8080/api/shops/dashboard/sales/stats`,
-        { headers }
+      const res = await api.post(
+        '/api/shops/dashboard/sales/total',
+        { startDate, endDate },
+        { signal: controller.signal }
       );
-      const data = await res.json();
-      setSalesStats(data);
+      setTotalSales(res.data || 0);
     } catch (err) {
-      console.error("❌ Error fetching sales stats:", err);
+      if (err.name !== 'AbortError') {
+        console.error('Error fetching sales:', err.response?.data || err.message);
+      }
     }
-  };
-
-  
-
-
-const fetchOrders = async () => {
-  try {
-    const res = await fetch(
-      `http://localhost:8080/api/shops/dashboard/orders/total`,
-      {
-        method: "POST",  
-        headers,
-        body: JSON.stringify({ startDate, endDate }),
-      }
-    );
-    const data = await res.json();
-    setTotalOrders(data || 0);
-  } catch (err) {
-    console.error("❌ Error fetching orders:", err);
-  }
-};
-
-const fetchRepairsStats = async () => {
-  try {
-    const res = await fetch(
-      `http://localhost:8080/api/shops/dashboard/repairs/stats`,
-      {
-        headers,
-   
-      }
-    );
-    const data = await res.json();
-    setRepairsStats(data);
-  } catch (err) {
-    console.error("❌ Error fetching repairs stats:", err);
-  }
-};
-
-const fetchRepairsTotal = async () => {
-  try {
-    const res = await fetch(
-      `http://localhost:8080/api/shops/dashboard/repairs/total`,
-      {
-        headers,
-   
-      }
-    );
-    const data = await res.json();
-    setTotalRepairs(data || 0);
-  } catch (err) {
-    console.error("❌ Error fetching repairs total:", err);
-  }
-};
-
-  useEffect(() => {
-    if (!token) return;
-    fetchSales();
-    fetchSalesStats();
-    fetchOrders();
-    fetchRepairsStats();
-    fetchRepairsTotal();
+    return () => controller.abort();
   }, [startDate, endDate]);
 
+
+  const fetchSalesStats = useCallback(async () => {
+    const controller = new AbortController();
+    try {
+      const res = await api.get('/api/shops/dashboard/sales/stats', {
+        signal: controller.signal,
+      });
+      setSalesStats(res.data);
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('Error fetching sales stats:', err.response?.data || err.message);
+      }
+    }
+    return () => controller.abort();
+  }, []);
+
+
+  const fetchOrders = useCallback(async () => {
+    const controller = new AbortController();
+    try {
+      const res = await api.post(
+        '/api/shops/dashboard/orders/total',
+        { startDate, endDate },
+        { signal: controller.signal }
+      );
+      setTotalOrders(res.data || 0);
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('Error fetching orders:', err.response?.data || err.message);
+      }
+    }
+    return () => controller.abort();
+  }, [startDate, endDate]);
+
+ 
+  const fetchRepairsStats = useCallback(async () => {
+    const controller = new AbortController();
+    try {
+      const res = await api.get('/api/shops/dashboard/repairs/stats', {
+        signal: controller.signal,
+      });
+      setRepairsStats(res.data);
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('❌ Error fetching repairs stats:', err.response?.data || err.message);
+      }
+    }
+    return () => controller.abort();
+  }, []);
+
+
+  const fetchRepairsTotal = useCallback(async () => {
+    const controller = new AbortController();
+    try {
+      const res = await api.get('/api/shops/dashboard/repairs/total', {
+        signal: controller.signal,
+      });
+      setTotalRepairs(res.data || 0);
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('❌ Error fetching repairs total:', err.response?.data || err.message);
+      }
+    }
+    return () => controller.abort();
+  }, []);
+
+  
+  const debouncedFetchSales = useMemo(() => debounce(fetchSales, 300), [fetchSales]);
+  const debouncedFetchOrders = useMemo(() => debounce(fetchOrders, 300), [fetchOrders]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    if (!token) return;
+
+    debouncedFetchSales();
+    fetchSalesStats();
+    debouncedFetchOrders();
+    fetchRepairsStats();
+    fetchRepairsTotal();
+
+    return () => {
+      debouncedFetchSales.cancel();
+      debouncedFetchOrders.cancel();
+    };
+  }, [debouncedFetchSales, fetchSalesStats, debouncedFetchOrders, fetchRepairsStats, fetchRepairsTotal]);
+
   const menuItems = [
-    { name: "repairs", icon: <RiToolsFill />, label: "طلبات التصليح", path: "/repair/requests" },
-    { name: "devices", icon: <RiBox2Line />, label: "المنتجات", path: "/shop/devices" },
-    { name: "orders", icon: <RiShoppingBag2Line />, label: "الطلبات", path: "/shop/orders" },
-    { name: "transactions", icon: <RiMoneyDollarCircleLine />, label: "الفواتير", path: "/shop/transactions" },
-    { name: "inventory", icon: <RiInbox2Line />, label: "جرد", path: "/shop/inventory" },
-    { name: "offers", icon: <RiPriceTag2Line />, label: "العروض", path: "/shop/offers" },
-    { name: "support", icon: <RiMessage2Line />, label: "الدعم", path: "/support" },
-    { name: "notifications", icon: <RiNotification2Line />, label: "الاشعارات", path: "/shop/notifications" },
-    
+    { name: 'repairs', icon: <RiToolsFill />, label: 'طلبات التصليح', path: '/repair/requests' },
+    { name: 'devices', icon: <RiBox2Line />, label: 'المنتجات', path: '/shop/devices' },
+    { name: 'orders', icon: <RiShoppingBag2Line />, label: 'الطلبات', path: '/shop/orders' },
+    { name: 'transactions', icon: <RiMoneyDollarCircleLine />, label: 'الفواتير', path: '/shop/transactions' },
+    { name: 'inventory', icon: <RiInbox2Line />, label: 'جرد', path: '/shop/inventory' },
+    { name: 'offers', icon: <RiPriceTag2Line />, label: 'العروض', path: '/shop/offers' },
+    { name: 'support', icon: <RiMessage2Line />, label: 'الدعم', path: '/support' },
+    { name: 'notifications', icon: <RiNotification2Line />, label: 'الاشعارات', path: '/shop/notifications' },
   ];
 
   return (
     <div style={{marginTop:"-600px"}} className="min-h-screen font-cairo bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:p-8">
-      
-      <header className="bg-gradient-to-r from-indigo-600 to-blue-500 dark:from-black dark:to-gray-900 text-white mb-10 p-6 rounded-2xl shadow-xl flex justify-between items-center flex-row-reverse">
-        <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold tracking-tight animate-slide-in-right">
-          لوحة التحكم و الإحصائيات
-        </h1>
-      </header>
 
-     
+
       <div className="flex flex-col sm:flex-row gap-4 mb-10 justify-center">
         <input
           type="datetime-local"
@@ -164,9 +167,8 @@ const fetchRepairsTotal = async () => {
         />
       </div>
 
-     
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-        <div className="p-6 bg-white dark:bg-gray-800  shadow-lg border-l-4 border-indigo-600 dark:border-indigo-500 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+        <div className="p-6 bg-white dark:bg-gray-800 shadow-lg border-l-4 border-indigo-600 dark:border-indigo-500 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">إجمالي المبيعات</h3>
@@ -177,13 +179,13 @@ const fetchRepairsTotal = async () => {
         </div>
 
         {salesStats && (
-          <div className="p-6 bg-white dark:bg-gray-800  shadow-lg border-l-4 border-green-500 dark:border-green-400 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+          <div className="p-6 bg-white dark:bg-gray-800 shadow-lg border-l-4 border-green-500 dark:border-green-400 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">المبيعات اليوم مقابل الأمس</h3>
                 <p className="text-2xl font-bold text-green-600 dark:text-green-400">{salesStats.todaySales} EGP</p>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                   {salesStats.yesterdaySales} EGP : الامس (
+                  الأمس: {salesStats.yesterdaySales} EGP (
                   {salesStats.increased ? <span className="text-green-500">⬆</span> : <span className="text-red-500">⬇</span>} {salesStats.difference} EGP)
                 </p>
               </div>
@@ -192,7 +194,7 @@ const fetchRepairsTotal = async () => {
           </div>
         )}
 
-        <div className="p-6 bg-white dark:bg-gray-800  shadow-lg border-l-4 border-blue-500 dark:border-blue-400 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+        <div className="p-6 bg-white dark:bg-gray-800 shadow-lg border-l-4 border-blue-500 dark:border-blue-400 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">إجمالي الطلبات</h3>
@@ -203,7 +205,7 @@ const fetchRepairsTotal = async () => {
         </div>
 
         {repairsStats && (
-          <div className="p-6 bg-white dark:bg-gray-800  shadow-lg border-l-4 border-purple-500 dark:border-purple-400 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+          <div className="p-6 bg-white dark:bg-gray-800 shadow-lg border-l-4 border-purple-500 dark:border-purple-400 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">التصليحات اليوم مقابل الأمس</h3>
@@ -218,7 +220,7 @@ const fetchRepairsTotal = async () => {
           </div>
         )}
 
-        <div className="p-6 bg-white dark:bg-gray-800  shadow-lg border-l-4 border-pink-500 dark:border-pink-400 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+        <div className="p-6 bg-white dark:bg-gray-800 shadow-lg border-l-4 border-pink-500 dark:border-pink-400 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">إجمالي طلبات التصليح</h3>
@@ -229,7 +231,6 @@ const fetchRepairsTotal = async () => {
         </div>
       </div>
 
-   
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {menuItems.map((item) => (
           <div

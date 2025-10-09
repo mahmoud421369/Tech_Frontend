@@ -1,151 +1,192 @@
-import React, { useEffect, useState } from "react";
-import * as SockJS from "sockjs-client";
-import { Client } from "@stomp/stompjs";
-import { FiX, FiSend, FiXCircle } from "react-icons/fi";
+import React, { useEffect, useState, useCallback, memo } from 'react';
+import * as SockJS from 'sockjs-client';
+import { Client } from '@stomp/stompjs';
+import { FiX, FiSend, FiXCircle } from 'react-icons/fi';
+import Swal from 'sweetalert2';
+import api from '../api'; // Import the Axios instance from api.js
 
-const ShopChatModal = ({ open, onClose }) => {
-  const token = localStorage.getItem("authToken");
+const ShopChatModal = memo(({ open, onClose }) => {
   const shopProfile = {
-    email: localStorage.getItem("email") || "shop@example.com",
-    id: localStorage.getItem("shopId") || "shop-123",
+    email: localStorage.getItem('email') || 'shop@example.com',
+    id: localStorage.getItem('shopId') || 'shop-123',
   };
 
   const [stompClient, setStompClient] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [activeSession, setActiveSession] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const [isConnected, setIsConnected] = useState(false); 
+  const [input, setInput] = useState('');
+  const [isConnected, setIsConnected] = useState(false);
 
-
-  useEffect(() => {
-    if (open) {
-      fetch("http://localhost:8080/api/chats/sessions", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          console.log(" Shop sessions:", data);
-          setSessions(data.content || data || []);
-        })
-        .catch((err) => console.error(" Error fetching sessions:", err));
+  // Fetch sessions
+  const fetchSessions = useCallback(async () => {
+    const controller = new AbortController();
+    try {
+      const res = await api.get('/api/chats/sessions', {
+        signal: controller.signal,
+      });
+      const data = res.data;
+      console.log('Shop sessions:', data);
+      setSessions((data.content || data || []).map((session) => ({ ...session, unreadCount: 0 })));
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('❌ Error fetching sessions:', err.response?.data || err.message);
+        Swal.fire('Error', 'Could not load chat sessions', 'error');
+      }
     }
-  }, [open, token]);
+    return () => controller.abort();
+  }, []);
 
-
-  useEffect(() => {
+  // Fetch messages for active session
+  const fetchMessages = useCallback(async () => {
     if (!activeSession) return;
 
-    const chatId = activeSession.id;
+    const controller = new AbortController();
+    try {
+      const res = await api.get(`/api/chats/${activeSession.id}/messages`, {
+        signal: controller.signal,
+      });
+      const data = res.data;
+      console.log('Messages API response:', data);
+      setMessages(data.content || data || []);
+      // Reset unread count for active session
+      setSessions((prev) =>
+        prev.map((s) => (s.id === activeSession.id ? { ...s, unreadCount: 0 } : s))
+      );
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('❌ Error loading messages:', err.response?.data || err.message);
+        Swal.fire('Error', 'Could not load messages', 'error');
+      }
+    }
+    return () => controller.abort();
+  }, [activeSession]);
+
+  // Initialize WebSocket
+  useEffect(() => {
+    if (!open) return;
+
+    fetchSessions();
+
     const client = new Client({
-      webSocketFactory: () => new SockJS("http://localhost:8080/ws"),
-      connectHeaders: { Authorization: `Bearer ${token}` },
+      webSocketFactory: () => new SockJS('http://localhost:8080/ws'),
+      connectHeaders: { Authorization: `Bearer ${localStorage.getItem('authToken')}` },
       reconnectDelay: 5000,
       onConnect: () => {
-        console.log("Shop connected. Subscribing to:", chatId);
-        setIsConnected(true); 
-
-        client.subscribe(
-          `/user/${shopProfile.email}/queue/chat/messages/${activeSession.id}`,
-          (msg) => {
-            const body = JSON.parse(msg.body);
-            console.log("📩 Received (shop):", body);
-            setMessages((prev) => [...prev, body]);
-          },
-          { Authorization: `Bearer ${token}` }
-        );
+        console.log('WebSocket connected');
+        setIsConnected(true);
       },
       onDisconnect: () => {
-        console.log(" WebSocket disconnected");
-        setIsConnected(false); 
+        console.log('WebSocket disconnected');
+        setIsConnected(false);
       },
       onStompError: (frame) => {
-        console.error(" WebSocket error:", frame);
+        console.error('WebSocket error:', frame);
         setIsConnected(false);
+        Swal.fire('Error', 'WebSocket connection failed', 'error');
       },
     });
 
     client.activate();
     setStompClient(client);
 
-
-    fetch(`http://localhost:8080/api/chats/${chatId}/messages`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        console.log(" Messages API response:", data);
-        setMessages(data.content || data || []);
-      })
-      .catch((err) => console.error(" Error loading messages:", err));
-
     return () => {
       client.deactivate();
       setIsConnected(false);
     };
-  }, [activeSession, token, shopProfile.email]);
+  }, [open, fetchSessions]);
 
-  const sendMessage = () => {
+  // Subscribe to WebSocket messages for active session
+  useEffect(() => {
+    if (!stompClient || !isConnected || !activeSession) return;
+
+    const subscription = stompClient.subscribe(
+      `/user/${shopProfile.email}/queue/chat/messages/${activeSession.id}`,
+      (msg) => {
+        const body = JSON.parse(msg.body);
+        console.log('📩 Received (shop):', body);
+        setMessages((prev) => [...prev, body]);
+        // Update unread count for non-active sessions
+        if (activeSession?.id !== body.sessionId) {
+          setSessions((prev) =>
+            prev.map((s) =>
+              s.id === body.sessionId ? { ...s, unreadCount: (s.unreadCount || 0) + 1 } : s
+            )
+          );
+        }
+      },
+      { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+    );
+
+    fetchMessages();
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, [stompClient, isConnected, activeSession, shopProfile.email, fetchMessages]);
+
+  // Send message
+  const sendMessage = useCallback(() => {
     if (!input.trim()) return;
     if (!activeSession) {
-      console.warn(" No active session selected");
+      Swal.fire('Warning', 'No active session selected', 'warning');
       return;
     }
     if (!stompClient || !isConnected) {
-      console.warn(" WebSocket not connected");
-      alert("Cannot send message: WebSocket is not connected. Please try again.");
+      Swal.fire('Error', 'Cannot send message: WebSocket is not connected', 'error');
       return;
     }
 
+    const message = {
+      sessionId: activeSession.id,
+      content: input,
+      senderType: 'SHOP',
+      senderName: shopProfile.email,
+      createdAt: new Date().toISOString(),
+    };
+
     stompClient.publish({
-      destination: "/app/chat/send",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({
-        sessionId: activeSession.id,
-        content: input,
-      }),
+      destination: '/app/chat/send',
+      headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` },
+      body: JSON.stringify(message),
     });
 
-    console.log(" Sent (shop):", input);
-    setInput(""); 
-  };
+    console.log('Sent (shop):', message);
+    setMessages((prev) => [...prev, message]); // Add message locally for instant feedback
+    setInput('');
+  }, [input, activeSession, stompClient, isConnected, shopProfile.email]);
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
-
-  const endChat = async (sessionId) => {
-    try {
-      const res = await fetch(
-        `http://localhost:8080/api/chats/${sessionId}/end`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (res.ok) {
-        console.log(" Chat ended:", sessionId);
-        setMessages([]);
-        setActiveSession(null);
-      } else {
-        const err = await res.json();
-        console.error(" Failed to end chat:", err);
+  // Handle Enter key for sending
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
       }
+    },
+    [sendMessage]
+  );
+
+  // End chat session
+  const endChat = useCallback(async (sessionId) => {
+    try {
+      await api.post(`/api/chats/${sessionId}/end`);
+      console.log('Chat ended:', sessionId);
+      setMessages([]);
+      setActiveSession(null);
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      Swal.fire('Success', 'Chat session ended', 'success');
     } catch (err) {
-      console.error(" Error ending chat:", err);
+      console.error('❌ Error ending chat:', err.response?.data || err.message);
+      Swal.fire('Error', 'Failed to end chat session', 'error');
     }
-  };
+  }, []);
 
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-gray-800 w-full max-w-4xl h-[600px] rounded-2xl shadow-xl flex flex-col sm:flex-row overflow-hidden transform transition-all duration-300">
-        
         <div className="w-full sm:w-80 bg-indigo-600 dark:bg-indigo-900 text-white flex flex-col">
           <div className="flex items-center justify-between p-4 border-b border-indigo-500 dark:border-indigo-700">
             <h2 className="text-lg font-semibold">محادثات العملاء</h2>
@@ -182,21 +223,28 @@ const ShopChatModal = ({ open, onClose }) => {
                   onClick={() => setActiveSession(s)}
                   className={`p-4 cursor-pointer transition-all duration-200 ${
                     activeSession?.id === s.id
-                      ? "bg-indigo-700 dark:bg-indigo-800"
-                      : "hover:bg-indigo-500 dark:hover:bg-indigo-700"
+                      ? 'bg-indigo-700 dark:bg-indigo-800'
+                      : 'hover:bg-indigo-500 dark:hover:bg-indigo-700'
                   }`}
                 >
                   <div className="flex justify-between items-center">
                     <span className="font-medium">{s.userName}</span>
-                    <span className="text-xs text-gray-300">
-                      {new Date(s.createdAt).toLocaleTimeString("ar-EG", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-300">
+                        {new Date(s.createdAt).toLocaleTimeString('ar-EG', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                      {s.unreadCount > 0 && (
+                        <span className="bg-red-500 text-white text-xs font-bold rounded-full px-2 py-1">
+                          {s.unreadCount}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="text-sm text-gray-200 truncate">
-                    {s.lastMessage?.content || "لا توجد رسائل بعد"}
+                    {s.lastMessage?.content || 'لا توجد رسائل بعد'}
                   </div>
                 </div>
               ))
@@ -211,8 +259,6 @@ const ShopChatModal = ({ open, onClose }) => {
             </button>
           )}
         </div>
-
-        
         <div className="flex-1 flex flex-col bg-white dark:bg-gray-800">
           {activeSession ? (
             <>
@@ -221,23 +267,21 @@ const ShopChatModal = ({ open, onClose }) => {
                   <div
                     key={m.id}
                     className={`mb-4 flex ${
-                      m.senderType === "SHOP"
-                        ? "justify-end"
-                        : "justify-start"
+                      m.senderType === 'SHOP' ? 'justify-end' : 'justify-start'
                     }`}
                   >
                     <div
-                      className={`max-w-xs sm:max-w-sm px-4 py-2 rounded-lg ${
-                        m.senderType === "SHOP"
-                          ? "bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300"
-                          : "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                      className={`max-w-xs sm:max-w-sm px-4 py-2 rounded-3xl ${
+                        m.senderType === 'SHOP'
+                          ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
                       }`}
                     >
                       <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                        {m.senderName} •{" "}
-                        {new Date(m.createdAt).toLocaleTimeString("ar-EG", {
-                          hour: "2-digit",
-                          minute: "2-digit",
+                        {m.senderName} •{' '}
+                        {new Date(m.createdAt).toLocaleTimeString('ar-EG', {
+                          hour: '2-digit',
+                          minute: '2-digit',
                         })}
                       </div>
                       <div>{m.content}</div>
@@ -249,7 +293,7 @@ const ShopChatModal = ({ open, onClose }) => {
                 <input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown} 
+                  onKeyDown={handleKeyDown}
                   className="flex-1 px-4 py-2.5 bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
                   placeholder="اكتب رسالة..."
                   dir="rtl"
@@ -259,8 +303,8 @@ const ShopChatModal = ({ open, onClose }) => {
                   disabled={!isConnected}
                   className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-all duration-200 ${
                     isConnected
-                      ? "bg-indigo-600 dark:bg-indigo-500 text-white hover:bg-indigo-700 dark:hover:bg-indigo-600"
-                      : "bg-gray-400 dark:bg-gray-600 text-gray-200 cursor-not-allowed"
+                      ? 'bg-indigo-600 dark:bg-indigo-500 text-white hover:bg-indigo-700 dark:hover:bg-indigo-600'
+                      : 'bg-gray-400 dark:bg-gray-600 text-gray-200 cursor-not-allowed'
                   }`}
                 >
                   <FiSend />
@@ -292,6 +336,6 @@ const ShopChatModal = ({ open, onClose }) => {
       </div>
     </div>
   );
-};
+});
 
 export default ShopChatModal;

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   FiPackage,
@@ -8,6 +9,8 @@ import {
   FiChevronDown,
 } from "react-icons/fi";
 import { RiCarLine, RiMotorbikeLine, RiTaxiLine } from "react-icons/ri";
+import Swal from "sweetalert2";
+import api from "../api";
 
 const statusSteps = [
   { key: "PENDING", label: "Pending", icon: <FiClock /> },
@@ -25,52 +28,88 @@ const Track = ({ darkMode }) => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchOrders = async () => {
-      try {
-        const res = await fetch("http://localhost:8080/api/users/orders", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+      if (!token) {
+        setError("No auth token found. Please log in.");
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "Please log in to view your orders",
+          customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
         });
-        if (!res.ok) throw new Error("Failed to fetch orders");
-        const data = await res.json();
-        setOrders(data.content || []);
+        setIsLoading(false);
+        return;
+      }
+      setIsLoading(true);
+      try {
+        const response = await api.get("/api/users/orders");
+        const data = response.data.content || response.data || [];
+        setOrders(data);
         if (data.length > 0) setSelectedOrder(data[0]);
+        setError("");
       } catch (err) {
-        console.error("Error fetching orders:", err);
+        console.error("Error fetching orders:", err.response?.data || err.message);
+        setError(err.response?.data?.message || "Failed to fetch orders");
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: err.response?.data?.message || "Failed to fetch orders",
+          customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+        });
       } finally {
         setIsLoading(false);
       }
     };
     fetchOrders();
-  }, [token]);
+  }, [token, darkMode]);
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-indigo-600 text-lg font-semibold">
-            Loading Tracking...
-          </p>
+      <div className={`min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-100"} pt-16`}>
+        <div className="bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-900 dark:to-gray-800 text-white py-12 px-6">
+          <div className="max-w-7xl mx-auto text-center animate-pulse">
+            <div className="h-10 bg-gray-300 dark:bg-gray-700 rounded w-1/2 mx-auto mb-2"></div>
+            <div className="h-6 bg-gray-300 dark:bg-gray-700 rounded w-3/4 mx-auto"></div>
+          </div>
+        </div>
+        <div className="max-w-4xl mx-auto px-6 py-8">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 animate-pulse">
+            <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded w-full mb-8"></div>
+            <div className="space-y-6">
+              {[...Array(6)].map((_, index) => (
+                <div key={index} className="flex items-center">
+                  <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+                  <div className="ml-6">
+                    <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={`min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-100"} flex items-center justify-center pt-16`}>
+        <div className="text-red-500 dark:text-red-400 text-center text-lg font-semibold">
+          {error}
         </div>
       </div>
     );
   }
 
   return (
-    <div
-      className={`min-h-screen mt-16 transition-all duration-300 ${
-        darkMode ? "bg-gray-900" : "bg-gray-100"
-      }`}
-    >
-    
-      <div className="bg-gradient-to-r from-indigo-600 to-blue-600 mt-16 dark:from-indigo-900 dark:to-gray-800 text-white py-12 px-6 mt-16">
+    <div className={`min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-100"} pt-16 transition-all duration-300`}>
+      <div className="bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-900 dark:to-gray-800 text-white py-12 px-6">
         <div className="max-w-7xl mx-auto text-center">
           <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-2 flex items-center justify-center gap-2 animate-fade-in">
-            <FiTruck /> Track Your Order
+            <FiTruck className="text-4xl" /> Track Your Order
           </h1>
           <p className="text-lg md:text-xl max-w-2xl mx-auto">
             Follow the journey of your order in real-time with our tracking system.
@@ -85,7 +124,9 @@ const Track = ({ darkMode }) => {
               <button
                 type="button"
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="w-full px-4 py-3 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-xl flex items-center justify-between text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                className={`w-full px-4 py-3 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-xl flex items-center justify-between text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-300 transform hover:-translate-y-1 ${
+                  isDropdownOpen ? "ring-2 ring-indigo-500" : ""
+                }`}
               >
                 {selectedOrder ? `Order #${selectedOrder.id} - ${selectedOrder.status}` : "Select Order"}
                 <FiChevronDown
@@ -93,7 +134,7 @@ const Track = ({ darkMode }) => {
                 />
               </button>
               {isDropdownOpen && (
-                <div className="absolute z-10 mt-2 w-full max-h-60 overflow-y-auto bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl shadow-md">
+                <div className="absolute z-10 mt-2 w-full max-h-60 overflow-y-auto bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl shadow-md animate-fade-in">
                   <div className="p-2 space-y-1">
                     {orders.map((order) => (
                       <button
@@ -102,7 +143,7 @@ const Track = ({ darkMode }) => {
                           setSelectedOrder(order);
                           setIsDropdownOpen(false);
                         }}
-                        className="w-full text-left px-3 py-2 text-sm text-gray-800 dark:text-gray-100 hover:bg-indigo-50 dark:hover:bg-gray-600 rounded-lg transition"
+                        className="w-full text-left px-3 py-2 text-sm text-gray-800 dark:text-gray-100 hover:bg-indigo-50 dark:hover:bg-gray-600 rounded-lg transition-all duration-300 transform hover:-translate-y-1"
                       >
                         Order #{order.id} - {order.status}
                       </button>
@@ -112,14 +153,14 @@ const Track = ({ darkMode }) => {
               )}
             </div>
           ) : (
-            <p className="text-center text-gray-500 dark:text-gray-400 text-lg">
+            <p className="text-center text-gray-500 dark:text-gray-400 text-lg animate-fade-in">
               No orders found
             </p>
           )}
 
           {selectedOrder && (
             <div>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6 animate-fade-in">
                 Live Status for Order #{selectedOrder.id}
               </h2>
               <div className="relative">
@@ -133,14 +174,14 @@ const Track = ({ darkMode }) => {
                     const isCancelled = step.key === "CANCELLED" && selectedOrder.status === "CANCELLED";
 
                     return (
-                      <div key={step.key} className="flex items-center relative">
+                      <div key={step.key} className="flex items-center relative animate-fade-in">
                         <div className="relative">
                           <div
-                            className={`w-10 h-10 rounded-full flex items-center justify-center z-10 transition-all duration-300 ${
+                            className={`w-12 h-12 rounded-full flex items-center justify-center z-10 transition-all duration-300 transform hover:scale-110 ${
                               isCancelled
                                 ? "bg-red-500 text-white"
                                 : isCompleted
-                                ? "bg-indigo-600 text-white"
+                                ? "bg-indigo-600 dark:bg-indigo-500 text-white"
                                 : "bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400"
                             }`}
                           >
@@ -171,7 +212,7 @@ const Track = ({ darkMode }) => {
           <div className="flex justify-center mt-8">
             <a
               href="/"
-              className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition"
+              className="px-6 py-3 bg-indigo-600 dark:bg-indigo-500 text-white font-medium rounded-xl hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-all duration-300 transform hover:-translate-y-1"
             >
               Home Page
             </a>

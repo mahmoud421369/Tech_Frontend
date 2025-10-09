@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from "react";
+
+import React, { useState, useEffect, useCallback } from "react";
 import { FiX, FiShoppingCart, FiCreditCard, FiTruck, FiTrash2 } from "react-icons/fi";
-import {jwtDecode} from "jwt-decode";
+import { jwtDecode } from "jwt-decode";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
+import api from "../api";
 
 const Cart = ({ show, onClose, darkMode }) => {
   const [checkoutStep, setCheckoutStep] = useState("cart");
@@ -18,120 +20,162 @@ const Cart = ({ show, onClose, darkMode }) => {
   const userId = token ? jwtDecode(token).userId : null;
   const navigate = useNavigate();
 
-  const fetchCart = async () => {
+  const fetchCart = useCallback(async () => {
     if (!token) return;
+    const controller = new AbortController();
     try {
       setIsLoading(true);
-      const res = await fetch("http://localhost:8080/api/cart", {
-        headers: { "Authorization": `Bearer ${token}` },
+      const res = await api.get("/api/cart", {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
       });
-      if (!res.ok) throw new Error("Failed to fetch cart");
-      const data = await res.json();
-      setCartItems(data.items || []);
-      calculateTotal(data.items || []);
+      setCartItems(res.data.items || []);
+      calculateTotal(res.data.items || []);
     } catch (err) {
-      console.error(err);
-      setCartItems([]);
+      if (err.name !== "AbortError") {
+        console.error("Error fetching cart:", err.response?.data || err.message);
+        setCartItems([]);
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: err.response?.data?.message || "Failed to fetch cart",
+          customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+        });
+      }
     } finally {
       setIsLoading(false);
     }
-  };
+    return () => controller.abort();
+  }, [token, darkMode]);
 
-  const calculateTotal = (items) => {
+  const calculateTotal = useCallback((items) => {
     const total = items.reduce((sum, item) => sum + item.productPrice * item.quantity, 0);
     setCartTotal(total);
-  };
+  }, []);
 
-  const addToCart = async (productId, quantity = 1) => {
+  const addToCart = useCallback(async (productId, quantity = 1) => {
     try {
-      const res = await fetch("http://localhost:8080/api/cart/items", {
-        method: "POST",
+      await api.post("/api/cart/items", { productId, quantity }, {
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId, quantity }),
       });
-      if (!res.ok) throw new Error("Failed to add item");
       await fetchCart();
     } catch (err) {
-      console.error(err);
+      console.error("Error adding to cart:", err.response?.data || err.message);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: err.response?.data?.message || "Failed to add item",
+        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+      });
     }
-  };
+  }, [darkMode, fetchCart]);
 
-  const updateQuantity = async (itemId, newQuantity) => {
+  const updateQuantity = useCallback(async (itemId, newQuantity) => {
     if (newQuantity < 1) return removeFromCart(itemId);
     try {
-      const res = await fetch(`http://localhost:8080/api/cart/items/${itemId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ quantity: newQuantity }),
+      await api.put(`/api/cart/items/${itemId}`, { quantity: newQuantity }, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       });
-      if (!res.ok) throw new Error("Failed to update quantity");
       await fetchCart();
     } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const removeFromCart = async (itemId) => {
-    try {
-      const res = await fetch(`http://localhost:8080/api/cart/items/${itemId}`, {
-        method: "DELETE",
-        headers: { "Authorization": `Bearer ${token}` },
+      console.error("Error updating quantity:", err.response?.data || err.message);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: err.response?.data?.message || "Failed to update quantity",
+        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
       });
-      if (!res.ok) throw new Error("Failed to remove item");
+    }
+  }, [token, darkMode, fetchCart]);
+
+  const removeFromCart = useCallback(async (itemId) => {
+    try {
+      await api.delete(`/api/cart/items/${itemId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       await fetchCart();
+     Swal.fire({
+                 title: 'Success',
+                 text: 'Item removed!',
+                 icon: 'success',
+                 toast: true,
+                 position: 'top-start',
+                 showConfirmButton: false,
+                 timer: 1500,
+               })
     } catch (err) {
-      console.error(err);
+      console.error("Error removing item:", err.response?.data || err.message);
+      Swal.fire({
+                  title: 'error',
+                  text: 'Item is not removed!',
+                  icon: 'error',
+                  toast: true,
+                  position: 'top-end',
+                  showConfirmButton: false,
+                  timer: 1500,
+                })
     }
-  };
+  }, [token, darkMode, fetchCart]);
 
-  const clearCart = async () => {
+  const clearCart = useCallback(async () => {
     try {
-      const res = await fetch("http://localhost:8080/api/cart", {
-        method: "DELETE",
-        headers: { "Authorization": `Bearer ${token}`},
+      await api.delete("/api/cart", {
+        headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error("Failed to clear cart");
       setCartItems([]);
       setCartTotal(0);
+      Swal.fire({
+        icon: "success",
+        title: "Success",
+        text: "Cart cleared successfully",
+        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+      });
     } catch (err) {
-      console.error(err);
+      console.error("Error clearing cart:", err.response?.data || err.message);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: err.response?.data?.message || "Failed to clear cart",
+        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+      });
     }
-  };
+  }, [token, darkMode]);
 
-  useEffect(() => {
+  const fetchAddresses = useCallback(async () => {
     if (!token) return;
-
-    const fetchAddresses = async () => {
-      try {
-        const res = await fetch("http://localhost:8080/api/users/addresses", {
-          headers: {
-            "Authorization":`Bearer ${token}`,
-          },
-        });
-
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || "Failed to fetch addresses");
-
-        console.log("Fetched addresses:", data.content);
-        setAddresses(data.content || []);
-        if (data.length > 0) {
-          setSelectedAddress(data[0].id);
-        }
-      } catch (err) {
-        console.error("Error fetching addresses:", err);
+    const controller = new AbortController();
+    try {
+      const res = await api.get("/api/users/addresses", {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
+      });
+      console.log("Fetched addresses:", res.data.content);
+      setAddresses(res.data.content || []);
+      if (res.data.content?.length > 0) {
+        setSelectedAddress(res.data.content[0].id);
       }
-    };
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        console.error("Error fetching addresses:", err.response?.data || err.message);
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: err.response?.data?.message || "Failed to fetch addresses",
+          customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+        });
+      }
+    }
+    return () => controller.abort();
+  }, [token, darkMode]);
 
-    fetchAddresses();
-  }, [token]);
-
-  const createOrder = async () => {
+  const createOrder = useCallback(async () => {
     if (!token) {
       Swal.fire({
         icon: "info",
         title: "Not Logged In",
         text: "Create account or login if already have one",
         confirmButtonText: "Go to Login",
+        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
       }).then(() => {
         navigate("/login");
       });
@@ -141,8 +185,9 @@ const Cart = ({ show, onClose, darkMode }) => {
     if (!selectedAddress) {
       Swal.fire({
         icon: "info",
-        title: "Missing field",
+        title: "Missing Field",
         text: "Please select an address to continue",
+        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
       });
       return;
     }
@@ -155,70 +200,64 @@ const Cart = ({ show, onClose, darkMode }) => {
 
       console.log("Sending order payload:", orderPayload);
 
-      const res = await fetch("http://localhost:8080/api/users/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(orderPayload),
+      const res = await api.post("/api/users/orders", orderPayload, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || "Unknown error creating order");
-      }
-
-      console.log("Order created:", data);
+      console.log("Order created:", res.data);
 
       if (paymentMethod === "visa") {
-        const orderId = data.id;
+        const orderId = res.data.id;
         try {
-          const paymentRes = await fetch(
-            `http://localhost:8080/api/payments/order/card/${orderId}`,
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
-            }
-          );
+          const paymentRes = await api.post(`/api/payments/order/card/${orderId}`,{}, {
+            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          });
 
-          const response = await paymentRes.json();
-          if (!paymentRes.ok) {
-            throw new Error(response.message || "Payment initialization failed");
-          }
+          console.log("Payment Response:", paymentRes.data);
 
-          console.log(" Payment Response:", response);
-
-          if (response.paymentURL) {
-            window.open(response.paymentURL, "_blank");
+          if (paymentRes.data.paymentURL) {
+            window.open(paymentRes.data.paymentURL, "_blank");
           } else {
             throw new Error("Payment URL not found in response");
           }
         } catch (paymentErr) {
-          console.error("Payment failed:", paymentErr);
-          Swal.fire("Payment Failed", paymentErr.message, "error");
+          console.error("Payment failed:", paymentErr.response?.data || paymentErr.message);
+          Swal.fire({
+            icon: "error",
+            title: "Payment Failed",
+            text: paymentErr.response?.data?.message || "Payment initialization failed",
+            customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+          });
           return;
         }
       }
 
       setCartItems([]);
       setCheckoutStep("complete");
+      Swal.fire({
+        icon: "success",
+        title: "Success",
+        text: "Order placed successfully",
+        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+      });
     } catch (err) {
-      console.error(" Create order failed:", err);
+      console.error("Create order failed:", err.response?.data || err.message);
       Swal.fire({
         icon: "error",
         title: "Order Failed",
-        text: err.message,
+        text: err.response?.data?.message || "Failed to create order",
+        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
       });
     }
-  };
+  }, [token, selectedAddress, paymentMethod, darkMode, navigate]);
 
   useEffect(() => {
-    if (show) fetchCart();
-  }, [show]);
+    if (show) {
+      Promise.all([fetchCart(), fetchAddresses()]).catch((err) =>
+        console.error("Error in initial fetch:", err)
+      );
+    }
+  }, [show, fetchCart, fetchAddresses]);
 
   if (!show) return null;
 

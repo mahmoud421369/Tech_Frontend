@@ -1,25 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { FiUpload, FiDownload, FiPlus, FiTrash2, FiEdit, FiSearch, FiInbox, FiX, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import Swal from 'sweetalert2';
-const API_BASE = "http://localhost:8080/api/shop/inventory";
+import api from '../api'; 
+import debounce from 'lodash/debounce'; 
+
+const API_BASE = '/api/shop/inventory'; 
 
 const Inventory = ({ darkMode }) => {
   const [inventory, setInventory] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [products, setProducts] = useState([]);
-  const token = localStorage.getItem("authToken");
-
-  const devicesPerPage = 5;
   const [searchTerm, setSearchTerm] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [stats, setStats] = useState({
     lowStock: 0,
+    outOfStock: 0,
     totalValue: 0,
-    totalItems: 0
+    totalItems: 0,
   });
-
   const [formData, setFormData] = useState({
     id: '',
     name: '',
@@ -30,132 +30,151 @@ const Inventory = ({ darkMode }) => {
     sku: '',
     barcode: '',
     location: '',
-    threshold: ''
+    threshold: '',
   });
   const [showForm, setShowForm] = useState(false);
 
+  const devicesPerPage = 5;
+
+  // Debounced fetchInventory to limit API calls during search
+  const debouncedFetchInventory = useMemo(
+    () =>
+      debounce(async (query) => {
+        try {
+          const res = await api.get(`${API_BASE}/search?query=${query}`);
+          setInventory(res.data.content || []);
+        } catch (err) {
+          console.error('Error fetching inventory:', err.response?.data || err.message);
+          Swal.fire('Error', 'Failed to fetch inventory', 'error');
+        }
+      }, 300),
+    []
+  );
+
+  // Fetch products
+  const fetchProducts = useCallback(async () => {
+    try {
+      const res = await api.get('/api/shops/products');
+      const products = Array.isArray(res.data) ? res.data : res.data.content || [];
+      console.log('Products:', products);
+      setProducts(products);
+    } catch (err) {
+      console.error('Error fetching products:', err.response?.data || err.message);
+      Swal.fire('Error', 'Failed to fetch products', 'error');
+    }
+  }, []);
+
+  // Fetch inventory
+  const fetchInventory = useCallback(async () => {
+    debouncedFetchInventory(searchTerm);
+  }, [searchTerm, debouncedFetchInventory]);
+
+  // Fetch stats
+  const fetchStats = useCallback(async () => {
+    try {
+      const [lowStockRes, outOfStockRes, totalValueRes, totalItemsRes] = await Promise.all([
+        api.get(`${API_BASE}/low-stock`),
+        api.get(`${API_BASE}/out-of-stock`),
+        api.get(`${API_BASE}/total-value`),
+        api.get(`${API_BASE}/total-items`),
+      ]);
+
+      setStats({
+        lowStock: Array.isArray(lowStockRes.data.content) ? lowStockRes.data.content.length : lowStockRes.data.content || 0,
+        outOfStock: Array.isArray(outOfStockRes.data.content) ? outOfStockRes.data.content.length : outOfStockRes.data.content || 0,
+        totalValue: Number(totalValueRes.data) || 0,
+        totalItems: Number(totalItemsRes.data) || 0,
+      });
+    } catch (err) {
+      console.error('Error fetching stats:', err.response?.data || err.message);
+      Swal.fire('Error', 'Failed to fetch stats', 'error');
+    }
+  }, []);
+
+  // Initial data fetch
   useEffect(() => {
     fetchInventory();
     fetchStats();
-    fetchProducts()
-  }, []);
+    fetchProducts();
+  }, [fetchInventory, fetchStats, fetchProducts]);
 
-  const fetchProducts = async () => {
-    try {
-      const res = await fetch("http://localhost:8080/api/shops/products", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+  // Clean up debounce on unmount
+  useEffect(() => {
+    return () => {
+      debouncedFetchInventory.cancel();
+    };
+  }, [debouncedFetchInventory]);
 
-      if (!res.ok) throw new Error("Failed to fetch products");
-
-      const data = await res.json();
-      const products = Array.isArray(data) ? data : data.content || [];
-      console.log(products);
-      setProducts(products);
-    } catch (err) {
-      console.error("Error fetching products:", err);
-      Swal.fire("Error", "Failed to fetch products", "error");
-    }
-  };
-
-  const fetchInventory = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/search?query=${searchTerm}`,{headers:{Authorization:`Bearer ${token}`}});
-      const data = await res.json();
-      setInventory(data.content || []);
-    } catch (err) {
-      console.error("Error fetching inventory:", err);
-    }
-  };
-
-  const fetchStats = async () => {
-    try {
-      const [lowStockRes,outOfStockRes, totalValueRes, totalItemsRes] = await Promise.all([
-        fetch(`${API_BASE}/low-stock`,{headers:{Authorization:`Bearer ${token}`}}),
-        fetch(`${API_BASE}/out-of-stock`,{headers:{Authorization:`Bearer ${token}`}}),
-
-        fetch(`${API_BASE}/total-value`,{headers:{Authorization:`Bearer ${token}`}}),
-        fetch(`${API_BASE}/total-items`,{headers:{Authorization:`Bearer ${token}`}})
-      ]);
-
-      const lowStock = await lowStockRes.json();
-      const outOfStock = await outOfStockRes.json();
-
-      const totalValue = await totalValueRes.json();
-      const totalItems = await totalItemsRes.json();
-
-      setStats({
-        lowStock: Array.isArray(lowStock.content) ? lowStock.content.length : lowStock.content || 0,
-        outOfStock: Array.isArray(outOfStock.content) ? outOfStock.content.length : outOfStock.content || 0,
-
-        totalValue: Number(totalValue) || 0,
-        totalItems: Number(totalItems) || 0
-      });
-    } catch (err) {
-      console.error("Error fetching stats:", err);
-    }
-  };
-    const filteredProducts = products.filter((p) =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase())
+  // Filter products (memoized for performance)
+  const filteredProducts = useMemo(
+    () => products.filter((p) => p.name.toLowerCase().includes(searchTerm.toLowerCase())),
+    [products, searchTerm]
   );
 
-
-
+  // Pagination logic
   const indexOfLastDevice = currentPage * devicesPerPage;
   const indexOfFirstDevice = indexOfLastDevice - devicesPerPage;
   const currentDevices = filteredProducts.slice(indexOfFirstDevice, indexOfLastDevice);
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / devicesPerPage));
 
-  const handlePageChange = (page) => {
+  const handlePageChange = useCallback((page) => {
     if (page < 1 || page > totalPages) return;
     setCurrentPage(page);
-  };
+  }, [totalPages]);
 
-  const handleInputChange = (e) => {
+  const handleInputChange = useCallback((e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  }, []);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const method = editingId ? "PUT" : "POST";
-      const url = editingId ? `${API_BASE}/${editingId}` : `${API_BASE}`;
-      await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      fetchInventory();
-      fetchStats();
-      resetForm();
-    } catch (err) {
-      console.error("Error saving item:", err);
-    }
-  };
+  const handleSubmit = useCallback(
+    async (e) => {
+      e.preventDefault();
+      try {
+        const url = editingId ? `${API_BASE}/${editingId}` : API_BASE;
+        await api({
+          method: editingId ? 'PUT' : 'POST',
+          url,
+          data: formData,
+          headers: { 'Content-Type': 'application/json' },
+        });
+        await Promise.all([fetchInventory(), fetchStats()]);
+        resetForm();
+        Swal.fire('Success', editingId ? 'Product updated' : 'Product added', 'success');
+      } catch (err) {
+        console.error('Error saving item:', err.response?.data || err.message);
+        Swal.fire('Error', 'Failed to save item', 'error');
+      }
+    },
+    [editingId, formData, fetchInventory, fetchStats]
+  );
 
-  const handleEdit = (item) => {
+  const handleEdit = useCallback((item) => {
     setFormData({
       ...item,
       price: item.price || '',
       quantity: item.quantity || '',
-      threshold: item.threshold || ''
+      threshold: item.threshold || '',
     });
     setEditingId(item.id);
     setShowForm(true);
-  };
+  }, []);
 
-  const handleDelete = async (id) => {
-    try {
-      await fetch(`${API_BASE}/${id}`, { method: "DELETE" });
-      fetchInventory();
-      fetchStats();
-    } catch (err) {
-      console.error("Error deleting item:", err);
-    }
-  };
+  const handleDelete = useCallback(
+    async (id) => {
+      try {
+        await api.delete(`${API_BASE}/${id}`);
+        await Promise.all([fetchInventory(), fetchStats()]);
+        Swal.fire('Success', 'Product deleted', 'success');
+      } catch (err) {
+        console.error('Error deleting item:', err.response?.data || err.message);
+        Swal.fire('Error', 'Failed to delete item', 'error');
+      }
+    },
+    [fetchInventory, fetchStats]
+  );
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setFormData({
       id: '',
       name: '',
@@ -166,82 +185,105 @@ const Inventory = ({ darkMode }) => {
       sku: '',
       barcode: '',
       location: '',
-      threshold: ''
+      threshold: '',
     });
     setEditingId(null);
     setShowForm(false);
-  };
+  }, []);
 
-  const exportToExcel = async () => {
+  const exportToExcel = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/export`,{headers:{Authorization:`Bearer ${token}`}});
-      const blob = await res.blob();
-      saveAs(blob, 'inventory.csv');
+      const res = await api.get(`${API_BASE}/export`, { responseType: 'blob' });
+      saveAs(res.data, 'inventory.csv');
+      Swal.fire('Success', 'File exported successfully', 'success');
     } catch (err) {
-      console.error("Error exporting file:", err);
+      console.error('Error exporting file:', err.response?.data || err.message);
+      Swal.fire('Error', 'Failed to export file', 'error');
     }
-  };
+  }, []);
 
-  // const importFromExcel = async (e) => {
-  //   const file = e.target.files[0];
-  //   const formDataUpload = new FormData();
-  //   formDataUpload.append("file", file);
+  const importFromExcel = useCallback(async (e) => {
+    const file = e.target.files[0];
+    const formDataUpload = new FormData();
+    formDataUpload.append('file', file);
 
-  //   try {
-  //     await fetch(${API_BASE}/import, {
-  //       method: "POST",
-  //       body: formDataUpload
-  //     });
-  //     fetchInventory();
-  //     fetchStats();
-  //   } catch (err) {
-  //     console.error("Error importing file:", err);
-  //   }
-  // };
-
+    try {
+      await api.post(`${API_BASE}/import`, formDataUpload);
+      await Promise.all([fetchInventory(), fetchStats()]);
+      Swal.fire('Success', 'File imported successfully', 'success');
+    } catch (err) {
+      console.error('Error importing file:', err.response?.data || err.message);
+      Swal.fire('Error', 'Failed to import file', 'error');
+    }
+  }, [fetchInventory, fetchStats]);
 
   return (
     <div style={{marginTop:"-600px"}} className="min-h-screen font-cairo bg-gray-100 dark:bg-gray-900 p-4 sm:p-6 md:p-8">
-  
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 mb-8 max-w-6xl mx-auto">
         <h1 className="text-2xl sm:text-3xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center justify-end gap-3">
           <FiInbox className="text-xl sm:text-2xl" /> الجرد
         </h1>
       </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-8 max-w-6xl mx-auto">
+        <div className="p-6 bg-white dark:bg-gray-800 shadow-lg border-l-4 border-indigo-600 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2 text-right">عدد المنتجات</h3>
+          <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 text-right">{products.length}</p>
+        </div>
+        <div className="p-6 bg-white dark:bg-gray-800 shadow-lg border-l-4 border-red-500 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2 text-right">منتجات المخزون المنخفض</h3>
+          <p className="text-3xl font-bold text-red-600 dark:text-red-400 text-right">{stats.lowStock}</p>
+        </div>
+        <div className="p-6 bg-white dark:bg-gray-800 shadow-lg border-l-4 border-amber-500 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2 text-right">منتجات لايوجد مخزون لها</h3>
+          <p className="text-3xl font-bold text-red-600 dark:text-red-400 text-right">{stats.outOfStock}</p>
+        </div>
+        <div className="p-6 bg-white dark:bg-gray-800 shadow-lg border-l-4 border-green-500 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2 text-right">إجمالي قيمة المخزون</h3>
+          <p className="text-3xl font-bold text-green-600 dark:text-green-400 text-right">{Number(stats.totalValue).toLocaleString()} EGP</p>
+        </div>
+      </div>
+      <br />
+      <br />
 
-    
       <div className="max-w-6xl mx-auto mb-6">
-        <div className="flex flex-col sm:flex-row-reverse items-center justify-between  gap-4 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+        <div className="flex flex-col sm:flex-row-reverse items-center justify-between gap-4 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
           <div className="relative w-full sm:w-64">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-300" />
             <input
               type="text"
-              placeholder="ابحث في الجرد..."
+              placeholder="...ابحث في الجرد"
               className="w-full pl-10 pr-4 py-2.5 placeholder:text-right bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyUp={fetchInventory}
             />
           </div>
           <div className="flex flex-wrap gap-4">
-    
+            <label className="flex items-center gap-2 px-4 py-2 font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition-all duration-300 shadow-md cursor-pointer">
+              <FiUpload /> استيراد CSV
+              <input type="file" accept=".csv" onChange={importFromExcel} className="hidden" />
+            </label>
             <button
               onClick={exportToExcel}
               className="flex items-center gap-2 px-4 py-2 font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 transition-all duration-300 shadow-md"
             >
               <FiDownload /> تصدير CSV
             </button>
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex items-center gap-2 px-4 py-2 font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition-all duration-300 shadow-md"
+            >
+              <FiPlus /> إضافة منتج
+            </button>
           </div>
         </div>
       </div>
 
-   
       {showForm && (
         <div className="max-w-6xl mx-auto mb-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-800 dark:text-white flex items-center gap-3">
               <FiInbox className="text-indigo-600 dark:text-indigo-400" />
-              {editingId ? "تعديل المنتج" : "إضافة منتج جديد"}
+              {editingId ? 'تعديل المنتج' : 'إضافة منتج جديد'}
             </h2>
             <button
               onClick={resetForm}
@@ -328,7 +370,7 @@ const Inventory = ({ darkMode }) => {
                 type="submit"
                 className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition-all duration-300 shadow-md"
               >
-                {editingId ? "تعديل المنتج" : "إضافة المنتج"}
+                {editingId ? 'تعديل المنتج' : 'إضافة المنتج'}
               </button>
               <button
                 type="button"
@@ -342,7 +384,6 @@ const Inventory = ({ darkMode }) => {
         </div>
       )}
 
-    
       <div className="max-w-6xl mx-auto">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
           <div className="overflow-x-auto">
@@ -354,7 +395,7 @@ const Inventory = ({ darkMode }) => {
                   <th className="px-4 py-3 font-semibold">السعر</th>
                   <th className="px-4 py-3 font-semibold">الكمية</th>
                   <th className="px-4 py-3 font-semibold">حالة المنتج</th>
-   
+                  <th className="px-4 py-3 font-semibold">الإجراءات</th>
                 </tr>
               </thead>
               <tbody className="text-gray-700 dark:text-gray-200">
@@ -364,22 +405,22 @@ const Inventory = ({ darkMode }) => {
                       key={item.id}
                       className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
                     >
-                      <td className="px-4 py-3">{item.name || "-"}</td>
-                      <td className="px-4 py-3">{item.categoryName && typeof item.category === "object" ? item.categoryName || "-" : String(item.category || "-")}</td>
+                      <td className="px-4 py-3">{item.name || '-'}</td>
+                      <td className="px-4 py-3">{item.categoryName || item.category || '-'}</td>
                       <td className="px-4 py-3">{Number(item.price || 0).toLocaleString()} EGP</td>
                       <td className="px-4 py-3">{item.stock}</td>
                       <td className="px-4 py-3">
                         <span
                           className={`px-3 py-1 rounded-full text-xs font-semibold ${
                             item.stock <= (item.threshold || 0)
-                              ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
-                              : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                              ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+                              : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
                           }`}
                         >
-                          {item.stock <= (item.threshold || 0) ? "مخزون منخفض" : "متوفر"}
+                          {item.stock <= (item.threshold || 0) ? 'مخزون منخفض' : 'متوفر'}
                         </span>
                       </td>
-                      {/* <td className="px-4 py-3 flex justify-center gap-2">
+                      <td className="px-4 py-3 flex justify-center gap-2">
                         <button
                           onClick={() => handleEdit(item)}
                           className="p-2 bg-amber-100 dark:bg-amber-900 text-amber-600 dark:text-amber-300 rounded-md hover:bg-amber-200 dark:hover:bg-amber-800 transition-all duration-200"
@@ -392,7 +433,7 @@ const Inventory = ({ darkMode }) => {
                         >
                           <FiTrash2 />
                         </button>
-                      </td> */}
+                      </td>
                     </tr>
                   ))
                 ) : (
@@ -407,7 +448,7 @@ const Inventory = ({ darkMode }) => {
                         لا توجد منتجات
                       </h3>
                       <p className="text-gray-600 dark:text-gray-400">
-                        {searchTerm ? "حاول تعديل مصطلحات البحث" : "أضف منتجًا جديدًا لبدء إدارة المخزون"}
+                        {searchTerm ? 'حاول تعديل مصطلحات البحث' : 'أضف منتجًا جديدًا لبدء إدارة المخزون'}
                       </p>
                     </td>
                   </tr>
@@ -417,7 +458,6 @@ const Inventory = ({ darkMode }) => {
           </div>
         </div>
 
- 
         {totalPages > 1 && (
           <div className="flex justify-center items-center gap-2 mt-6 max-w-6xl mx-auto">
             <button
@@ -433,8 +473,8 @@ const Inventory = ({ darkMode }) => {
                 onClick={() => handlePageChange(i + 1)}
                 className={`px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg transition-all duration-300 ${
                   currentPage === i + 1
-                    ? "bg-indigo-600 text-white dark:bg-indigo-500"
-                    : "bg-gray-50 dark:bg-gray-700 dark:text-white hover:bg-indigo-100 dark:hover:bg-indigo-900"
+                    ? 'bg-indigo-600 text-white dark:bg-indigo-500'
+                    : 'bg-gray-50 dark:bg-gray-700 dark:text-white hover:bg-indigo-100 dark:hover:bg-indigo-900'
                 }`}
               >
                 {i + 1}
@@ -449,26 +489,6 @@ const Inventory = ({ darkMode }) => {
             </button>
           </div>
         )}
-      </div>
-
-   
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-8 max-w-6xl mx-auto">
-        <div className="p-6 bg-white dark:bg-gray-800  shadow-lg border-l-4 border-indigo-600 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2 text-right">عدد المنتجات</h3>
-          <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 text-right">{products.length}</p>
-        </div>
-        <div className="p-6 bg-white dark:bg-gray-800  shadow-lg border-l-4 border-red-500 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2 text-right">منتجات المخزون المنخفض</h3>
-          <p className="text-3xl font-bold text-red-600 dark:text-red-400 text-right">{stats.lowStock}</p>
-        </div>
-         <div className="p-6 bg-white dark:bg-gray-800  shadow-lg border-l-4 border-amber-500 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2 text-right">منتجات  لايوجد مخزون لها</h3>
-          <p className="text-3xl font-bold text-red-600 dark:text-red-400 text-right">{stats.outOfStock}</p>
-        </div>
-        <div className="p-6 bg-white dark:bg-gray-800  shadow-lg border-l-4 border-green-500 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2 text-right">إجمالي قيمة المخزون</h3>
-          <p className="text-3xl font-bold text-green-600 dark:text-green-400 text-right">{Number(stats.totalValue).toLocaleString()} EGP</p>
-        </div>
       </div>
     </div>
   );

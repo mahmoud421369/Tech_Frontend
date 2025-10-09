@@ -1,60 +1,82 @@
-import React, { useEffect, useState } from "react";
-import { FiBell, FiCheckCircle, FiTrash } from "react-icons/fi";
+
+import React, { useEffect, useState, useCallback } from 'react';
+import Swal from 'sweetalert2';
+import { FiBell, FiCheckCircle, FiTrash } from 'react-icons/fi';
+import api from '../api'; // Import the Axios instance from api.js
 
 const ShopNotifications = () => {
-  const token = localStorage.getItem("authToken");
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchNotifications = async () => {
+  // Fetch notifications
+  const fetchNotifications = useCallback(async () => {
+    const controller = new AbortController();
     try {
       setLoading(true);
-      const res = await fetch("http://localhost:8080/api/notifications/shops", {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await api.get('/api/notifications/shops', {
+        signal: controller.signal,
       });
-      if (!res.ok) throw new Error("Failed to fetch notifications");
-      const data = await res.json();
-      setNotifications(data);
+      setNotifications(res.data || []);
     } catch (err) {
-      console.error("Error fetching notifications:", err);
+      if (err.name !== 'AbortError') {
+        console.error('Error fetching notifications:', err.response?.data || err.message);
+        Swal.fire('Error', 'Failed to fetch notifications', 'error');
+      }
     } finally {
       setLoading(false);
     }
-  };
+    return () => controller.abort();
+  }, []);
 
-  const markAsRead = async (id) => {
+  // Mark notification as read
+  const markAsRead = useCallback(async (id) => {
     try {
-      const res = await fetch(
-        `http://localhost:8080/api/notifications/shops/${id}`,
-        {
-          method: "PUT",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      if (!res.ok) throw new Error("Failed to mark as read");
-
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-      );
+      await api.put(`/api/notifications/shops/${id}`);
+      Swal.fire('Success', 'Notification marked as read', 'success');
+      await fetchNotifications(); // Refresh notifications
     } catch (err) {
-      console.error("Error marking notification as read:", err);
+      console.error('Error marking notification as read:', err.response?.data || err.message);
+      Swal.fire('Error', 'Failed to mark notification as read', 'error');
     }
-  };
+  }, [fetchNotifications]);
 
-  const removeNotification = (id) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-  };
+  // Remove notification
+  const removeNotification = useCallback(async (id) => {
+    try {
+      const result = await Swal.fire({
+        title: 'Are you sure?',
+        text: 'This notification will be deleted permanently.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, delete it!',
+        cancelButtonText: 'Cancel',
+      });
+
+      if (!result.isConfirmed) return;
+
+      await api.delete(`/api/notifications/shops/${id}`);
+      Swal.fire('Deleted', 'Notification has been removed', 'success');
+      await fetchNotifications(); // Refresh notifications
+    } catch (err) {
+      console.error('Error removing notification:', err.response?.data || err.message);
+      Swal.fire('Error', 'Failed to remove notification', 'error');
+    }
+  }, [fetchNotifications]);
 
   useEffect(() => {
     fetchNotifications();
-  }, []);
+    return () => {
+      // Cleanup is handled by AbortController in fetchNotifications
+    };
+  }, [fetchNotifications]);
 
-  if (loading) return <div className="p-4 text-gray-500 dark:text-gray-400">Loading...</div>;
+  if (loading) {
+    return <div className="p-4 text-gray-500 dark:text-gray-400">Loading...</div>;
+  }
 
   return (
-    <div style={{marginTop:"-570px"}} className="p-6 max-w-4xl mx-auto">
+    <div style={{marginTop:"-600px"}} className="p-6 max-w-4xl mx-auto">
       <div className="bg-white dark:bg-gray-900 shadow-md rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
-       
         <div className="flex items-center justify-between bg-gray-100 dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="flex items-center gap-2 text-xl font-bold text-gray-800 dark:text-gray-200">
             <FiBell className="text-blue-500" /> Shop Notifications
@@ -66,7 +88,6 @@ const ShopNotifications = () => {
           )}
         </div>
 
-      
         <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-[600px] overflow-y-auto">
           {notifications.length === 0 ? (
             <div className="p-6 text-center text-gray-500 dark:text-gray-400">
@@ -78,8 +99,8 @@ const ShopNotifications = () => {
                 key={notif.id}
                 className={`flex items-start justify-between gap-4 p-4 transition-colors ${
                   !notif.read
-                    ? "bg-blue-50 dark:bg-blue-900/20"
-                    : "bg-white dark:bg-gray-900"
+                    ? 'bg-blue-50 dark:bg-blue-900/20'
+                    : 'bg-white dark:bg-gray-900'
                 }`}
               >
                 <div>

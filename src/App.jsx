@@ -15,17 +15,20 @@ from './Auth';
 
 import {
  Repair, Explore, Track, Account,
-  Homepage, EditProfile, Cart, New, Used, DeviceDetail,
-  Offers
+  Homepage, Cart, DeviceDetail,
+  Offers,
+  RepairRequest
 } from './User'; 
 
 import {
-  Dashboard,Notifications, Header, Shops, Devices, Users, Settings, Categories,
-  Chats, AdminTransactions, Reviews,
+  Dashboard,Notifications, Header, Shops, Users,
+  Reviews,
   Category,
   Deliveries,
   Assigners,
-  AdminOffers
+  AdminOffers,
+  AdminRepairRequests,
+  AdminProducts
 } from './Admin';
 
 
@@ -71,7 +74,7 @@ function App() {
   const [showCart, setShowCart] = useState(false);
   const [activePage, setActivePage] = useState('admin-dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-
+const [cartCount, setCartCount] = useState(0);
   const { currentUser } = useAuth();
 
   useEffect(() => {
@@ -85,6 +88,8 @@ function App() {
   }, [darkMode]);
 
   const toggleDarkMode = () => setDarkMode(!darkMode);
+
+
 
   
   const addToCart = (item) => {
@@ -149,8 +154,8 @@ function App() {
 
   const withNavbarLayout = (Component, extraProps = {}) => (
     <>
-      <Navbar cartCount={cartItems.length} onCartClick={() => setShowCart(true)} darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
-      <Component darkMode={darkMode} {...extraProps} />
+      <Navbar cartCount={cartCount} setCartCount={setCartCount} onCartClick={() => setShowCart(true)} darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+      <Component  darkMode={darkMode} {...extraProps} />
       <Footer darkMode={darkMode}/>
     </>
   );
@@ -172,9 +177,10 @@ function App() {
         <Route path="/account" element={withNavbarLayout(Account)} />
         <Route path="/repair" element={withNavbarLayout(Repair)} />
         <Route path="/offers" element={withNavbarLayout(Offers)} />
-        <Route path="/edit-profile" element={withNavbarLayout(EditProfile)} />
         <Route path="/device/:id" element={withNavbarLayout(DeviceDetail, { addToCart })} />
         <Route path="/shops/:shopId" element={withNavbarLayout(Shop)}/>
+        <Route path="/repair-request/:requestId/update" element={withNavbarLayout(RepairRequest)}/>
+
         <Route path="/oauth2/success" element={<SuccessGoogle />} />
 
 
@@ -186,8 +192,10 @@ function App() {
         <Route path="/category" element={withAdminLayout(Category)} />
         <Route path="/deliveries" element={withAdminLayout(Deliveries)} />
         <Route path="/assigners" element={withAdminLayout(Assigners)} />
-        <Route path="/transactions" element={withAdminLayout(AdminTransactions)} />
         <Route path="/reviews" element={withAdminLayout(Reviews)} />
+        <Route path="/admin/repair-requests" element={withAdminLayout(AdminRepairRequests)} />
+        <Route path="/admin/products" element={withAdminLayout(AdminProducts)} />
+
         <Route path="/notifications" element={withAdminLayout(Notifications)} />
 
         {/* Assigner Routes */}
@@ -230,15 +238,15 @@ function App() {
 
 
 
-      <Cart
-        show={showCart}
-        onClose={() => setShowCart(false)}
-        cartItems={cartItems}
-        updateQuantity={updateQuantity}
-        removeFromCart={removeFromCart}
-        cartTotal={cartTotal}
-        darkMode={darkMode}
-      />
+<Cart
+      show={showCart}
+      onClose={() => setShowCart(false)}
+      cartItems={cartItems}
+      updateQuantity={updateQuantity}
+      removeFromCart={removeFromCart}
+      cartTotal={cartTotal}
+      darkMode={darkMode}
+    />
     </Router>
   );
 }

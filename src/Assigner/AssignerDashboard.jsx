@@ -1,38 +1,36 @@
-import { RiRefreshLine, RiToolsLine } from "@remixicon/react";
-import React from "react";
-import { FiUsers, FiClipboard, FiTool, FiList, FiBox } from "react-icons/fi";
-import { Link } from "react-router-dom";
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { FiUsers, FiClipboard, FiTool, FiList, FiBox, FiTable, FiRefreshCcw } from 'react-icons/fi';
+import { RiToolsLine, RiRefreshLine } from '@remixicon/react';
 
-const AssignerDashboard = () => {
+const AssignerDashboard = ({ darkMode }) => {
   const cards = [
-    { title: "Delivery Persons", icon: <FiUsers />, color: "bg-white",path:"/assigner/delivery-persons" },
-    { title: "Orders for Assignment", icon: <FiClipboard />, color: "bg-white",path:"/assigner/orders" },
-    { title: "Repair Requests",  icon: <FiTool />, color: "bg-white",path:"/assigner/repair-requests" },
-    { title: "Logs", icon: <FiList />, color: "bg-white" ,path:"/assigner/assignment-logs" },
-    { title: "Assigned Orders", icon: <FiBox />, color: "bg-white" ,path:"/assigner/assigned-orders" },
-    { title: "Assigned Repairs", icon: <RiToolsLine />, color: "bg-white" ,path:"/assigner/assigned-repairs" },
-    { title: "Reassign Repairs", icon: <RiRefreshLine />, color: "bg-white" ,path:"/assigner/reassign-repairs" },
-    { title: "Reassign Orders", icon: <RiRefreshLine />, color: "bg-white" ,path:"/assigner/reassign-orders" },
-
+    { title: 'Delivery Persons', icon: <FiUsers />, path: '/assigner/delivery-persons' },
+    { title: 'Orders for Assignment', icon: <FiClipboard />, path: '/assigner/orders' },
+    { title: 'Repair Requests', icon: <FiTool />, path: '/assigner/repair-requests' },
+    { title: 'Logs', icon: <FiList />, path: '/assigner/assignment-logs' },
+    { title: 'Assigned Orders', icon: <FiBox />, path: '/assigner/assigned-orders' },
+    { title: 'Assigned Repairs', icon: <FiTool />, path: '/assigner/assigned-repairs' },
+    { title: 'Reassign Repairs', icon: <FiRefreshCcw />, path: '/assigner/reassign-repairs' },
+    { title: 'Reassign Orders', icon: <FiRefreshCcw />, path: '/assigner/reassign-orders' },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 mb-6    dark:bg-gray-900">
-    <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3 p-6 bg-gray-50 dark:bg-gray-900 ">
-      {cards.map((c, i) => (
-        <Link
-        to = {c.path}
-          key={i}
-          className={`bg-white dark:bg-gray-950 rounded-2xl shadow hover:shadow-2xl transition transform hover:scale-105 p-6 flex flex-col justify-between gap-4 items-center ${c.color}`}
-        >
-          <div className="text-3xl text-blue-500 ">{c.icon}</div>
-          <div>
-            <p className="text-xl text-indigo-400 dark:text-white">{c.title}</p>
-        
-          </div>
-        </Link>
-      ))}
-    </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 transition-colors duration-300 animate-fade-in">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+        {cards.map((card, index) => (
+          <Link
+            to={card.path}
+            key={index}
+            className="bg-white dark:bg-gray-950 rounded-xl shadow-md p-6 flex flex-col items-center justify-between gap-4 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg border border-gray-200 dark:border-gray-700"
+          >
+            <div className="text-4xl text-indigo-500 dark:text-indigo-400">{card.icon}</div>
+            <p className="text-lg font-semibold text-gray-900 dark:text-gray-100 text-center">
+              {card.title}
+            </p>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 };

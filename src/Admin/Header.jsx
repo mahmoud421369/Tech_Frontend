@@ -13,6 +13,8 @@ import {
   FiList,
   FiMoon,
   FiSun,
+  FiBox,
+  FiTool,
 } from "react-icons/fi";
 import { RiGift2Line, RiTruckLine } from "react-icons/ri";
 import { RiStore2Line } from "@remixicon/react";
@@ -57,7 +59,9 @@ const Header = () => {
   const menuItems = [
     { name: "dashboard", icon: <FiHome />, label: "Dashboard", path: "/dashboard" },
     { name: "users", icon: <FiUsers />, label: "Users", path: "/users" },
-    { name: "repair shops", icon: <FiHome />, label: "Repair Shops", path: "/repair-shops" },
+    { name: "shops", icon: <FiHome />, label: "Shops", path: "/repair-shops" },
+    { name: "repair requests", icon: <FiTool />, label: "Repair Shops", path: "/admin/repair-requests" },
+    { name: "products ", icon: <FiBox />, label: "Products", path: "/admin/products" },
     { name: "categories", icon: <FiList />, label: "Categories", path: "/category" },
     { name: "offers", icon: <FiTag />, label: "Offers", path: "/admin/offers" },
     { name: "reviews", icon: <FiStar />, label: "Reviews", path: "/reviews" },

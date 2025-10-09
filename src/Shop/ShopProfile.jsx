@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
-import Swal from "sweetalert2";
+
+import React, { useState, useEffect, useCallback } from 'react';
+import Swal from 'sweetalert2';
 import {
   FiUser,
   FiInfo,
@@ -9,226 +10,240 @@ import {
   FiEdit3,
   FiCheckSquare,
   FiX,
-} from "react-icons/fi";
+  FiMail,
+  FiPhone,
+  FiStar,
+  FiCalendar,
+  FiTag,
+} from 'react-icons/fi';
+import api from '../api';
 
 const ShopProfile = () => {
-  const token = localStorage.getItem("authToken");
   const [shop, setShop] = useState({
-    name: "",
-    description: "",
-    password: "",
+    id: '',
+    email: '',
+    name: '',
+    description: '',
+    password: '',
+    verified: false,
+    phone: '',
+    rating: 0,
+    createdAt: '',
+    updatedAt: '',
+    shopType: '',
+    activate: false,
   });
   const [addresses, setAddresses] = useState([]);
   const [newAddress, setNewAddress] = useState({
-    state: "",
-    city: "",
-    street: "",
-    building: "",
+    state: '',
+    city: '',
+    street: '',
+    building: '',
     isDefault: false,
   });
   const [editingAddressId, setEditingAddressId] = useState(null);
   const [editingAddress, setEditingAddress] = useState({});
   const [loading, setLoading] = useState(false);
 
-  const fetchAddresses = async () => {
+ 
+  const fetchShop = useCallback(async () => {
+    const controller = new AbortController();
     try {
-      const res = await fetch("http://localhost:8080/api/shops/address", {
-        headers: { Authorization: `Bearer ${token}` },
+      setLoading(true);
+      const res = await api.get('/api/shops', {
+        signal: controller.signal,
       });
-      const data = await res.json();
-      setAddresses(data.content);
-    } catch (err) {
-      Swal.fire({
-        title: "خطأ",
-        text: "فشل في تحميل الفروع",
-        icon: "error",
-        customClass: {
-          popup: "dark:bg-gray-800 dark:text-white",
-        },
+      const data = res.data || {};
+      setShop({
+        id: data.id || '',
+        email: data.email || '',
+        name: data.name || '',
+        description: data.description || '',
+        password: '',
+        verified: data.verified || false,
+        phone: data.phone || '',
+        rating: data.rating || 0,
+        createdAt: data.createdAt || '',
+        updatedAt: data.updatedAt || '',
+        shopType: data.shopType || '',
+        activate: data.activate || false,
       });
-      setAddresses([]);
-    }
-  };
 
-  const updateShop = async () => {
+      if (data.shopAddress) {
+        setAddresses((prev) => {
+          const hasShopAddress = prev.some((addr) => addr.id === data.shopAddress.id);
+          return hasShopAddress ? prev : [data.shopAddress, ...prev];
+        });
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('Error fetching shop details:', err.response?.data || err.message);
+        Swal.fire({
+          title: 'خطأ',
+          text: 'فشل في تحميل بيانات المتجر',
+          icon: 'error',
+          customClass: { popup: 'dark:bg-gray-800 dark:text-white' },
+        });
+      }
+    } finally {
+      setLoading(false);
+    }
+    return () => controller.abort();
+  }, []);
+
+
+  const fetchAddresses = useCallback(async () => {
+    const controller = new AbortController();
+    try {
+      const res = await api.get('/api/shops/address', {
+        signal: controller.signal,
+      });
+      setAddresses(res.data.content || []);
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('Error fetching addresses:', err.response?.data || err.message);
+        Swal.fire({
+          title: 'خطأ',
+          text: 'فشل في تحميل الفروع',
+          icon: 'error',
+          customClass: { popup: 'dark:bg-gray-800 dark:text-white' },
+        });
+        setAddresses([]);
+      }
+    }
+  }, []);
+
+ 
+  const updateShop = useCallback(async () => {
     setLoading(true);
     try {
       const updateData = {
         name: shop.name,
         description: shop.description,
       };
-
-      if (shop.password && shop.password.trim() !== "") {
+      if (shop.password && shop.password.trim() !== '') {
         updateData.password = shop.password;
       }
-
-      const res = await fetch(`http://localhost:8080/api/shops`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(updateData),
-      });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || "Failed to update shop");
-      }
-
+      await api.put('/api/shops', updateData);
       Swal.fire({
-        title: "تم",
-        text: "تم تحديث معلومات المتجر بنجاح",
-        icon: "success",
-        customClass: {
-          popup: "dark:bg-gray-800 dark:text-white",
-        },
+        title: 'تم',
+        text: 'تم تحديث معلومات المتجر بنجاح',
+        icon: 'success',
+        customClass: { popup: 'dark:bg-gray-800 dark:text-white' },
       });
-      setShop((prev) => ({ ...prev, password: "" }));
+      setShop((prev) => ({ ...prev, password: '' }));
     } catch (err) {
-      console.error(err);
+      console.error('Error updating shop:', err.response?.data || err.message);
       Swal.fire({
-        title: "خطأ",
-        text: err.message || "فشل في تحديث بيانات المتجر",
-        icon: "error",
-        customClass: {
-          popup: "dark:bg-gray-800 dark:text-white",
-        },
+        title: 'خطأ',
+        text: err.response?.data?.message || 'فشل في تحديث بيانات المتجر',
+        icon: 'error',
+        customClass: { popup: 'dark:bg-gray-800 dark:text-white' },
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [shop]);
 
-  const addAddress = async () => {
+  
+  const addAddress = useCallback(async () => {
     try {
-      const res = await fetch("http://localhost:8080/api/shops/address", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(newAddress),
-      });
-      if (!res.ok) throw new Error();
+      await api.post('/api/shops/address', newAddress);
       Swal.fire({
-        title: "تم",
-        text: "تمت إضافة العنوان بنجاح",
-        icon: "success",
-        customClass: {
-          popup: "dark:bg-gray-800 dark:text-white",
-        },
+        title: 'تم',
+        text: 'تمت إضافة العنوان بنجاح',
+        icon: 'success',
+        customClass: { popup: 'dark:bg-gray-800 dark:text-white' },
       });
       setNewAddress({
-        state: "",
-        city: "",
-        street: "",
-        building: "",
+        state: '',
+        city: '',
+        street: '',
+        building: '',
         isDefault: false,
       });
       fetchAddresses();
     } catch (err) {
+      console.error('Error adding address:', err.response?.data || err.message);
       Swal.fire({
-        title: "خطأ",
-        text: "فشل في إضافة العنوان",
-        icon: "error",
-        customClass: {
-          popup: "dark:bg-gray-800 dark:text-white",
-        },
+        title: 'خطأ',
+        text: 'فشل في إضافة العنوان',
+        icon: 'error',
+        customClass: { popup: 'dark:bg-gray-800 dark:text-white' },
       });
     }
-  };
+  }, [newAddress, fetchAddresses]);
 
-  const updateAddress = async () => {
+
+  const updateAddress = useCallback(async () => {
     try {
-      const res = await fetch(
-        `http://localhost:8080/api/shops/address/${editingAddressId}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(editingAddress),
-        }
-      );
-      if (!res.ok) throw new Error();
+      await api.put(`/api/shops/address/${editingAddressId}`, editingAddress);
       Swal.fire({
-        title: "تم",
-        text: "تم تحديث العنوان بنجاح",
-        icon: "success",
-        customClass: {
-          popup: "dark:bg-gray-800 dark:text-white",
-        },
+        title: 'تم',
+        text: 'تم تحديث العنوان بنجاح',
+        icon: 'success',
+        customClass: { popup: 'dark:bg-gray-800 dark:text-white' },
       });
       setEditingAddressId(null);
       setEditingAddress({});
       fetchAddresses();
     } catch (err) {
+      console.error('Error updating address:', err.response?.data || err.message);
       Swal.fire({
-        title: "خطأ",
-        text: "فشل في تحديث العنوان",
-        icon: "error",
-        customClass: {
-          popup: "dark:bg-gray-800 dark:text-white",
-        },
+        title: 'خطأ',
+        text: 'فشل في تحديث العنوان',
+        icon: 'error',
+        customClass: { popup: 'dark:bg-gray-800 dark:text-white' },
       });
     }
-  };
+  }, [editingAddressId, editingAddress, fetchAddresses]);
 
-  const deleteAddress = async (id) => {
-    Swal.fire({
-      title: "هل أنت متأكد؟",
-      text: "لن تتمكن من استعادة هذا العنوان بعد الحذف!",
-      icon: "warning",
+
+  const deleteAddress = useCallback(async (id) => {
+    const result = await Swal.fire({
+      title: 'هل أنت متأكد؟',
+      text: 'لن تتمكن من استعادة هذا العنوان بعد الحذف!',
+      icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: "نعم، احذف",
-      cancelButtonText: "إلغاء",
-      customClass: {
-        popup: "dark:bg-gray-800 dark:text-white",
-      },
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          const res = await fetch(
-            `http://localhost:8080/api/shops/address/${id}`,
-            {
-              method: "DELETE",
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
-          if (!res.ok) throw new Error();
-          Swal.fire({
-            title: "تم",
-            text: "تم حذف العنوان بنجاح",
-            icon: "success",
-            customClass: {
-              popup: "dark:bg-gray-800 dark:text-white",
-            },
-          });
-          fetchAddresses();
-        } catch (err) {
-          Swal.fire({
-            title: "خطأ",
-            text: "فشل في حذف العنوان",
-            icon: "error",
-            customClass: {
-              popup: "dark:bg-gray-800 dark:text-white",
-            },
-          });
-        }
-      }
+      confirmButtonText: 'نعم، احذف',
+      cancelButtonText: 'إلغاء',
+      customClass: { popup: 'dark:bg-gray-800 dark:text-white' },
     });
-  };
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await api.delete(`/api/shops/address/${id}`);
+      Swal.fire({
+        title: 'تم',
+        text: 'تم حذف العنوان بنجاح',
+        icon: 'success',
+        customClass: { popup: 'dark:bg-gray-800 dark:text-white' },
+      });
+      fetchAddresses();
+    } catch (err) {
+      console.error('Error deleting address:', err.response?.data || err.message);
+      Swal.fire({
+        title: 'خطأ',
+        text: 'فشل في حذف العنوان',
+        icon: 'error',
+        customClass: { popup: 'dark:bg-gray-800 dark:text-white' },
+      });
+    }
+  }, [fetchAddresses]);
 
   useEffect(() => {
+    fetchShop();
     fetchAddresses();
-  }, []);
+    return () => {
+
+    };
+  }, [fetchShop, fetchAddresses]);
 
   return (
     <div style={{marginTop:"-600px"}} className="min-h-screen font-cairo bg-gray-100 dark:bg-gray-900 p-4 sm:p-6 md:p-8">
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
-      
+        {/* Shop Details */}
         <div className="lg:col-span-2 h-auto bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 text-right">
           <h1 className="text-2xl font-semibold text-indigo-600 dark:text-indigo-400 mb-6 flex items-center gap-2">
             <FiUser className="text-xl" /> حسابك
@@ -272,13 +287,106 @@ const ShopProfile = () => {
               disabled={loading}
               className="w-full px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-md"
             >
-              {loading ? "جارٍ التحديث..." : "تحديث بياناتك"}
+              {loading ? 'جارٍ التحديث...' : 'تحديث بياناتك'}
             </button>
           </div>
         </div>
 
-       
+        {/* Additional Shop Details */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 text-right">
+          <h2 className="text-xl font-semibold text-indigo-600 dark:text-indigo-400 mb-6 flex items-center gap-2">
+            <FiInfo className="text-xl" /> تفاصيل المتجر
+          </h2>
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <FiTag className="text-gray-400 dark:text-gray-300" />
+              <p className="text-gray-700 dark:text-gray-200">
+                <strong>المعرف:</strong> {shop.id || 'غير متوفر'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <FiMail className="text-gray-400 dark:text-gray-300" />
+              <p className="text-gray-700 dark:text-gray-200">
+                <strong>البريد الإلكتروني:</strong> {shop.email || 'غير متوفر'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <FiPhone className="text-gray-400 dark:text-gray-300" />
+              <p className="text-gray-700 dark:text-gray-200">
+                <strong>رقم الهاتف:</strong> {shop.phone || 'غير متوفر'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <FiCheckSquare className="text-gray-400 dark:text-gray-300" />
+              <p className="text-gray-700 dark:text-gray-200">
+                <strong>الحالة:</strong>{' '}
+                <span
+                  className={`px-2 py-1 rounded-full text-xs ${
+                    shop.activate
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+                      : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+                  }`}
+                >
+                  {shop.activate ? 'نشط' : 'غير نشط'}
+                </span>
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <FiCheckSquare className="text-gray-400 dark:text-gray-300" />
+              <p className="text-gray-700 dark:text-gray-200">
+                <strong>التحقق:</strong>{' '}
+                <span
+                  className={`px-2 py-1 rounded-full text-xs ${
+                    shop.verified
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+                      : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+                  }`}
+                >
+                  {shop.verified ? 'تم التحقق' : 'غير متحقق'}
+                </span>
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <FiStar className="text-gray-400 dark:text-gray-300" />
+              <p className="text-gray-700 dark:text-gray-200">
+                <strong>التقييم:</strong> {shop.rating ? shop.rating.toFixed(1) : 'غير متوفر'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <FiCalendar className="text-gray-400 dark:text-gray-300" />
+              <p className="text-gray-700 dark:text-gray-200">
+                <strong>تاريخ الإنشاء:</strong>{' '}
+                {shop.createdAt
+                  ? new Date(shop.createdAt).toLocaleString('ar-EG', {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    })
+                  : 'غير متوفر'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <FiCalendar className="text-gray-400 dark:text-gray-300" />
+              <p className="text-gray-700 dark:text-gray-200">
+                <strong>آخر تحديث:</strong>{' '}
+                {shop.updatedAt
+                  ? new Date(shop.updatedAt).toLocaleString('ar-EG', {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    })
+                  : 'غير متوفر'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <FiTag className="text-gray-400 dark:text-gray-300" />
+              <p className="text-gray-700 dark:text-gray-200">
+                <strong>نوع المتجر:</strong> {shop.shopType || 'غير متوفر'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Addresses */}
+        <div className="bg-white max-w-6xl dark:bg-gray-800 rounded-2xl shadow-lg p-6 text-right">
           <h2 className="text-xl font-semibold text-indigo-600 dark:text-indigo-400 mb-6 flex items-center gap-2">
             <FiMapPin className="text-xl" /> فروع المتجر
           </h2>
@@ -379,7 +487,12 @@ const ShopProfile = () => {
               <div className="text-center py-6">
                 <div className="text-indigo-600 dark:text-indigo-400 mb-4">
                   <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                 </div>
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
@@ -392,7 +505,7 @@ const ShopProfile = () => {
             )}
           </div>
 
-         
+          {/* Add New Address */}
           <div className="mt-6 bg-gray-50 dark:bg-gray-700 rounded-lg p-6 border border-gray-200 dark:border-gray-600">
             <h3 className="text-lg font-semibold text-indigo-600 dark:text-indigo-400 mb-4 flex items-center gap-2">
               <FiMapPin /> إضافة عنوان جديد
@@ -401,9 +514,7 @@ const ShopProfile = () => {
               <input
                 type="text"
                 value={newAddress.state}
-                onChange={(e) =>
-                  setNewAddress({ ...newAddress, state: e.target.value })
-                }
+                onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value })}
                 placeholder="الولاية"
                 className="w-full px-4 py-2.5 bg-white dark:bg-gray-600 dark:text-white border border-gray-300 dark:border-gray-500 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
                 dir="rtl"
@@ -411,9 +522,7 @@ const ShopProfile = () => {
               <input
                 type="text"
                 value={newAddress.city}
-                onChange={(e) =>
-                  setNewAddress({ ...newAddress, city: e.target.value })
-                }
+                onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
                 placeholder="المدينة"
                 className="w-full px-4 py-2.5 bg-white dark:bg-gray-600 dark:text-white border border-gray-300 dark:border-gray-500 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
                 dir="rtl"
@@ -421,9 +530,7 @@ const ShopProfile = () => {
               <input
                 type="text"
                 value={newAddress.street}
-                onChange={(e) =>
-                  setNewAddress({ ...newAddress, street: e.target.value })
-                }
+                onChange={(e) => setNewAddress({ ...newAddress, street: e.target.value })}
                 placeholder="الشارع"
                 className="w-full px-4 py-2.5 bg-white dark:bg-gray-600 dark:text-white border border-gray-300 dark:border-gray-500 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
                 dir="rtl"
@@ -431,9 +538,7 @@ const ShopProfile = () => {
               <input
                 type="text"
                 value={newAddress.building}
-                onChange={(e) =>
-                  setNewAddress({ ...newAddress, building: e.target.value })
-                }
+                onChange={(e) => setNewAddress({ ...newAddress, building: e.target.value })}
                 placeholder="المبنى"
                 className="w-full px-4 py-2.5 bg-white dark:bg-gray-600 dark:text-white border border-gray-300 dark:border-gray-500 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
                 dir="rtl"
@@ -443,9 +548,7 @@ const ShopProfile = () => {
               <input
                 type="checkbox"
                 checked={newAddress.isDefault}
-                onChange={(e) =>
-                  setNewAddress({ ...newAddress, isDefault: e.target.checked })
-                }
+                onChange={(e) => setNewAddress({ ...newAddress, isDefault: e.target.checked })}
                 className="form-checkbox h-5 w-5 text-indigo-600 dark:text-indigo-400"
               />
               اجعل هذا العنوان أساسي
@@ -455,7 +558,7 @@ const ShopProfile = () => {
               disabled={loading}
               className="w-full px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-md"
             >
-              {loading ? "جارٍ الإضافة..." : "إضافة عنوان جديد"}
+              {loading ? 'جارٍ الإضافة...' : 'إضافة عنوان جديد'}
             </button>
           </div>
         </div>

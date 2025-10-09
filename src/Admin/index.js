@@ -9,5 +9,6 @@ export { default as Notifications } from './Notifications';
 export { default as Deliveries } from './Deliveries';
 export { default as Assigners } from './Assigners';
 export { default as AdminOffers } from './AdminOffers';
-export { default as AdminTransactions } from './AdminTransactions';
+export { default as AdminRepairRequests } from './AdminRepairRequests';
+export { default as AdminProducts } from './AdminProducts';
 export { default as Reviews } from './Review';
