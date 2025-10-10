@@ -6,6 +6,9 @@ import Swal from "sweetalert2";
 import { RiComputerLine, RiSmartphoneLine, RiToolsLine } from "react-icons/ri";
 import { RiEyeLine, RiEyeOffLine } from "@remixicon/react";
 import api from "../api";
+import { GoogleLogin } from "@react-oauth/google";
+
+
 import { debounce } from "lodash";
 
 const Login = () => {
@@ -134,14 +137,15 @@ const Login = () => {
           }
           try {
             await api.post("/api/auth/resend-otp", { email });
-            Swal.fire({
-              icon: "success",
-              title: "OTP Resent",
-              text: "OTP sent successfully!",
-              position: "top",
-              timer: 2000,
-              showConfirmButton: false,
-            });
+          Swal.fire({
+             title: 'Success',
+             text: 'OTP Resent !',
+             icon: 'OTP resent successfully',
+             toast: true,
+             position: 'top-end',
+             showConfirmButton: false,
+             timer: 1500,
+           })
           } catch (error) {
             console.error("Error resending OTP:", error);
             Swal.fire({
@@ -179,14 +183,15 @@ const Login = () => {
 
     try {
       await api.post("/api/auth/verify-email", form);
-      Swal.fire({
-        icon: "success",
-        title: "Verified",
-        text: "Your email has been verified!",
-        position: "top",
-        timer: 1500,
-        showConfirmButton: false,
-      });
+    Swal.fire({
+             title: 'Success',
+             text: 'Verified!',
+             icon: 'email has been verified',
+             toast: true,
+             position: 'top-end',
+             showConfirmButton: false,
+             timer: 1500,
+           })
     } catch (error) {
       console.error("Verification error:", error);
       Swal.fire({
@@ -304,9 +309,15 @@ const Login = () => {
   }, []);
 
 
-  const handleGoogleLogin = useCallback(() => {
-    window.location.href = `http://localhost:8080/api/auth/oauth2/authorization/google`;
-  }, []);
+   const handleGoogleLogin = () => {
+    window.location.href = "http://localhost:8080/oauth2/authorization/google";
+  };
+
+
+
+
+
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-600 via-blue-600 to-purple-600 p-4 overflow-hidden dark:bg-gray-900">

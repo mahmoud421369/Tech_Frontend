@@ -1,35 +1,33 @@
-import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+// src/pages/SuccessGoogle.jsx
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import api from "../api";
 
 const SuccessGoogle = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if the access_token cookie is present (indirectly via backend validation)
-    // Since the cookie is HttpOnly, we can't access it directly in JavaScript
-    fetch('http://localhost:8080/api/auth/test-cookie', {
-      method: 'GET',
-      credentials: 'include', // Include cookies in the request
-    })
-      .then((response) => {
-        if (response.ok) {
-          navigate('/');
-        } else {
-          // Handle authentication failure
-          console.error('Authentication failed');
-          navigate('/login');
-        }
-      })
-      .catch((error) => {
-        console.error('Error verifying authentication:', error);
-        navigate('/login');
-      });
+    const verifyLogin = async () => {
+      try {
+        const res = await api.get("/api/auth/user"); // this should read cookie automatically
+        console.log("Authenticated user:", res.data);
+
+        // Store minimal info in localStorage (not token)
+        localStorage.setItem("authToken", JSON.stringify(res.data));
+
+        navigate("/"); // go to home/dashboard
+      } catch (error) {
+        console.error("User not authenticated:", error);
+        navigate("/login");
+      }
+    };
+
+    verifyLogin();
   }, [navigate]);
 
   return (
-    <div>
-      <h2>Authentication Successful</h2>
-      <p>Redirecting to your dashboard...</p>
+    <div className="flex flex-col items-center justify-center h-screen">
+      <h2 className="text-xl font-semibold">Signing you in...</h2>
     </div>
   );
 };

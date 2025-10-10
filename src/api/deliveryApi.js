@@ -1,130 +1,129 @@
+import api from '../api';
 
-const API_BASE = "http://localhost:8080";
-
-function authHeader(token) {
-  return { Authorization: `Bearer ${token}` };
+export async function getDeliveryProfile() {
+  try {
+    const response = await api.get('/api/delivery/profile');
+    return response.data;
+  } catch (error) {
+    throw new Error("Failed to load profile");
+  }
 }
 
-export async function getDeliveryProfile(token) {
-  const res = await fetch(`${API_BASE}/api/delivery/profile`, {
-    headers: authHeader(token),
-  });
-  if (!res.ok) throw new Error("Failed to load profile");
-  return res.json();
+export async function updateDeliveryProfile(data) {
+  try {
+    const response = await api.put('/api/delivery/profile', data);
+    return response.data;
+  } catch (error) {
+    throw new Error("Failed to update profile");
+  }
 }
 
-export async function updateDeliveryProfile(token, { name, address, phone }) {
-  const res = await fetch(`${API_BASE}/api/delivery/profile`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json", ...authHeader(token) },
-    body: JSON.stringify({ name, address, phone }),
-  });
-  if (!res.ok) throw new Error("Failed to update profile");
-  return res.json();
+export async function getAvailableOrders() {
+  try {
+    const response = await api.get('/api/delivery/orders/available');
+    return response.data;
+  } catch (error) {
+    throw new Error("Failed to fetch available orders");
+  }
 }
 
-
-export async function getAvailableOrders(token) {
-  const res = await fetch(`${API_BASE}/api/delivery/orders/available`, {
-    headers: authHeader(token),
-  });
-  if (!res.ok) throw new Error("Failed to fetch available orders");
-  return res.json();
+export async function getMyDeliveries() {
+  try {
+    const response = await api.get('/api/delivery/orders/my-deliveries');
+    return response.data;
+  } catch (error) {
+    throw new Error("Failed to fetch my deliveries");
+  }
 }
 
-export async function getMyDeliveries(token) {
-  const res = await fetch(`${API_BASE}/api/delivery/orders/my-deliveries`, {
-    headers: authHeader(token),
-  });
-  if (!res.ok) throw new Error("Failed to fetch my deliveries");
-  return res.json();
+export async function acceptOrder(orderId) {
+  try {
+    const response = await api.post(`/api/delivery/orders/${orderId}/accept`);
+    return response.data;
+  } catch (error) {
+    throw new Error("Failed to accept order");
+  }
 }
 
-export async function acceptOrder(token, orderId) {
-  const res = await fetch(`${API_BASE}/api/delivery/orders/${orderId}/accept`, {
-    method: "POST",
-    headers: authHeader(token),
-  });
-  if (!res.ok) throw new Error("Failed to accept order");
-  return res.json();
+export async function rejectOrder(orderId) {
+  try {
+    const response = await api.post(`/api/delivery/orders/${orderId}/reject`);
+    return response.data;
+  } catch (error) {
+    throw new Error("Failed to reject order");
+  }
 }
 
-export async function rejectOrder(token, orderId) {
-  const res = await fetch(`${API_BASE}/api/delivery/orders/${orderId}/reject`, {
-    method: "POST",
-    headers: authHeader(token),
-  });
-  if (!res.ok) throw new Error("Failed to reject order");
-  return res.json();
+export async function updateOrderStatus(orderId, data) {
+  try {
+    const response = await api.put(`/api/delivery/orders/${orderId}/status`, data);
+    return response.data;
+  } catch (error) {
+    throw new Error("Failed to update order status");
+  }
 }
 
-export async function updateOrderStatus(token, orderId, { status, notes }) {
-  const res = await fetch(`${API_BASE}/api/delivery/orders/${orderId}/status`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json", ...authHeader(token) },
-    body: JSON.stringify({ status, notes }),
-  });
-  if (!res.ok) throw new Error("Failed to update order status");
-  return res.json();
+export async function getAvailableRepairs() {
+  try {
+    const response = await api.get('/api/delivery/repair/available');
+    return response.data;
+  } catch (error) {
+    throw new Error("Failed to fetch available repairs");
+  }
 }
 
-export async function getAvailableRepairs(token) {
-  const res = await fetch(`${API_BASE}/api/delivery/repair/available`, {
-    headers: authHeader(token),
-  });
-  if (!res.ok) throw new Error("Failed to fetch available repairs");
-  return res.json();
+export async function getMyRepairs() {
+  try {
+    const response = await api.get('/api/delivery/repair/my-deliveries');
+    return response.data;
+  } catch (error) {
+    throw new Error("Failed to fetch my repairs");
+  }
 }
 
-export async function getMyRepairs(token) {
-  const res = await fetch(`${API_BASE}/api/delivery/repair/my-deliveries`, {
-    headers: authHeader(token),
-  });
-  if (!res.ok) throw new Error("Failed to fetch my repairs");
-  return res.json();
+export async function acceptRepair(repairId) {
+  try {
+    const response = await api.post(`/api/delivery/repair/${repairId}/accept`);
+    return response.data;
+  } catch (error) {
+    throw new Error("Failed to accept repair");
+  }
 }
 
-export async function acceptRepair(token, repairId) {
-  const res = await fetch(`${API_BASE}/api/delivery/repair/${repairId}/accept`, {
-    method: "POST",
-    headers: authHeader(token),
-  });
-  if (!res.ok) throw new Error("Failed to accept repair");
-  return res.json();
-}
-
-export async function rejectRepair(token, repairId) {
-  const res = await fetch(`${API_BASE}/api/delivery/repair/${repairId}/reject`, {
-    method: "POST",
-    headers: authHeader(token),
-  });
-  if (!res.ok) throw new Error("Failed to reject repair");
-  return res.json();
-}
-
-export async function updateRepairStatus(token, repairId, payload) {
-  const res = await fetch(`${API_BASE}/api/delivery/repair/${repairId}/status`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json", ...authHeader(token) },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) throw new Error("Failed to update repair status");
-  return res.json();
+export async function rejectRepair(repairId) {
+  try {
+    const response = await api.post(`/api/delivery/repair/${repairId}/reject`);
+    return response.data;
+  } catch (error) {
+    throw new Error("Failed to reject repair");
+  }
 }
 
 
-export async function getAssignedOrdersNotifications(token) {
-  const res = await fetch(`${API_BASE}/api/delivery/orders/my-deliveries`, {
-    headers: authHeader(token),
-  });
-  if (!res.ok) throw new Error("Failed to get assigned orders");
-  return res.json();
+
+export async function updateRepairStatus(repairRequestId, payload) {
+  try {
+    const response = await api.put(`/api/delivery/repair/${repairRequestId}/status`, payload);
+    return response.data;
+  } catch (error) {
+    throw new Error("Failed to update repair status");
+  }
 }
 
-export async function getAssignedRepairsNotifications(token) {
-  const res = await fetch(`${API_BASE}/api/delivery/repair/my-deliveries`, {
-    headers: authHeader(token),
-  });
-  if (!res.ok) throw new Error("Failed to get assigned repairs");
-  return res.json();
+export async function getAssignedOrdersNotifications() {
+  try {
+    const response = await api.get('/api/delivery/orders/my-deliveries');
+    return response.data;
+  } catch (error) {
+    throw new Error("Failed to get assigned orders");
+  }
+}
+
+export async function getAssignedRepairsNotifications() {
+  try {
+    const response = await api.get('/api/delivery/repair/my-deliveries');
+    return response.data;
+  } catch (error) {
+    throw new Error("Failed to get assigned repairs");
+  }
 }

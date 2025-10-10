@@ -702,172 +702,172 @@ const RepairsSection = ({ repairRequests, repairsPage, setRepairsPage, handleVie
 };
 
 
-// Notifications Section Component
-const NotificationsSection = ({ notifications, setNotifications, fetchNotifications, currentPage, setCurrentPage, searchTerm, setSearchTerm, darkMode }) => {
-  const notificationsPerPage = 5;
-  const debouncedSetSearchTerm = useMemo(() => debounce((value) => setSearchTerm(value), 300), []);
 
-  const filteredNotifications = useMemo(
-    () => notifications.filter((n) => n.message.toLowerCase().includes(searchTerm.toLowerCase())),
-    [notifications, searchTerm]
-  );
+// const NotificationsSection = ({ notifications, setNotifications, fetchNotifications, currentPage, setCurrentPage, searchTerm, setSearchTerm, darkMode }) => {
+//   const notificationsPerPage = 5;
+//   const debouncedSetSearchTerm = useMemo(() => debounce((value) => setSearchTerm(value), 300), []);
 
-  const totalPages = Math.ceil(filteredNotifications.length / notificationsPerPage);
-  const startIndex = (currentPage - 1) * notificationsPerPage;
-  const currentNotifications = useMemo(
-    () => filteredNotifications.slice(startIndex, startIndex + notificationsPerPage),
-    [filteredNotifications, currentPage]
-  );
+//   const filteredNotifications = useMemo(
+//     () => notifications.filter((n) => n.message.toLowerCase().includes(searchTerm.toLowerCase())),
+//     [notifications, searchTerm]
+//   );
 
-  const handlePageChange = useCallback((page) => {
-    setCurrentPage(page);
-  }, []);
+//   const totalPages = Math.ceil(filteredNotifications.length / notificationsPerPage);
+//   const startIndex = (currentPage - 1) * notificationsPerPage;
+//   const currentNotifications = useMemo(
+//     () => filteredNotifications.slice(startIndex, startIndex + notificationsPerPage),
+//     [filteredNotifications, currentPage]
+//   );
 
-  const markAsReadAndRemove = useCallback(async (notificationId) => {
-    try {
-      setNotifications((prev) => prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n)));
-      await api.delete(`/api/notifications/users/${notificationId}`);
-      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
-      Swal.fire({
-        title: 'Success',
-        text: 'Notification removed successfully',
-        icon: 'success',
-        position: 'top',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
-    } catch (err) {
-      console.error('Error removing notification:', err.response?.data || err.message);
-      Swal.fire({
-        title: 'Error',
-        text: err.response?.data?.message || 'Failed to remove notification',
-        icon: 'error',
-        position: 'top',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
-    }
-  }, [darkMode, setNotifications]);
+//   const handlePageChange = useCallback((page) => {
+//     setCurrentPage(page);
+//   }, []);
 
-  const clearAll = useCallback(async () => {
-    try {
-      await api.delete('/api/notifications/users/clear');
-      setNotifications([]);
-      Swal.fire({
-        title: 'Success',
-        text: 'All notifications cleared successfully',
-        icon: 'success',
-        position: 'top',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
-    } catch (err) {
-      console.error('Error clearing notifications:', err.response?.data || err.message);
-      Swal.fire({
-        title: 'Error',
-        text: err.response?.data?.message || 'Failed to clear notifications',
-        icon: 'error',
-        position: 'top',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
-    }
-  }, [darkMode]);
+//   const markAsReadAndRemove = useCallback(async (notificationId) => {
+//     try {
+//       setNotifications((prev) => prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n)));
+//       await api.delete(`/api/notifications/users/${notificationId}`);
+//       setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+//       Swal.fire({
+//         title: 'Success',
+//         text: 'Notification removed successfully',
+//         icon: 'success',
+//         position: 'top',
+//         customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+//       });
+//     } catch (err) {
+//       console.error('Error removing notification:', err.response?.data || err.message);
+//       Swal.fire({
+//         title: 'Error',
+//         text: err.response?.data?.message || 'Failed to remove notification',
+//         icon: 'error',
+//         position: 'top',
+//         customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+//       });
+//     }
+//   }, [darkMode, setNotifications]);
 
-  return (
-    <div className="max-w-3xl mx-auto p-3">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
-          <FiBell /> Notifications
-        </h2>
-      </div>
-      <div className="mb-4">
-        <input
-          type="text"
-          placeholder="Search notifications..."
-          onChange={(e) => debouncedSetSearchTerm(e.target.value)}
-          className="w-full p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-        />
-      </div>
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
-        <ul className="space-y-4">
-          {currentNotifications.length === 0 ? (
-            <li className="text-center text-gray-500 dark:text-gray-400 py-4">No notifications found</li>
-          ) : (
-            currentNotifications.map((n) => (
-              <li
-                key={n.id}
-                className="flex justify-between items-center bg-gray-50 dark:bg-gray-700 p-4 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 transform hover:-translate-y-1"
-                style={{ fontWeight: n.read ? 'normal' : 'bold' }}
-              >
-                <div className="flex-1">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    [{new Date(n.timestamp).toLocaleString('en-US', {
-                      dateStyle: 'medium',
-                      timeStyle: 'short',
-                    })}]
-                  </span>{' '}
-                  <span className="text-gray-800 dark:text-gray-200">{n.message}</span>
-                </div>
-              </li>
-            ))
-          )}
-        </ul>
-      </div>
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center space-x-2">
-          <button
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
-            aria-label="Previous notifications page"
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ' && currentPage !== 1) {
-                handlePageChange(currentPage - 1);
-              }
-            }}
-          >
-            <FiChevronLeft />
-          </button>
-          {[...Array(totalPages)].map((_, i) => (
-            <button
-              key={i + 1}
-              onClick={() => handlePageChange(i + 1)}
-              className={`px-3 py-1 rounded-lg ${
-                currentPage === i + 1
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-              } transition-colors duration-150`}
-              aria-label={`Go to notifications page ${i + 1}`}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  handlePageChange(i + 1);
-                }
-              }}
-            >
-              {i + 1}
-            </button>
-          ))}
-          <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
-            aria-label="Next notifications page"
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ' && currentPage !== totalPages) {
-                handlePageChange(currentPage + 1);
-              }
-            }}
-          >
-            <FiChevronRight />
-          </button>
-        </div>
-      )}
-    </div>
-  );
-};
+//   const clearAll = useCallback(async () => {
+//     try {
+//       await api.delete('/api/notifications/users/clear');
+//       setNotifications([]);
+//       Swal.fire({
+//         title: 'Success',
+//         text: 'All notifications cleared successfully',
+//         icon: 'success',
+//         position: 'top',
+//         customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+//       });
+//     } catch (err) {
+//       console.error('Error clearing notifications:', err.response?.data || err.message);
+//       Swal.fire({
+//         title: 'Error',
+//         text: err.response?.data?.message || 'Failed to clear notifications',
+//         icon: 'error',
+//         position: 'top',
+//         customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+//       });
+//     }
+//   }, [darkMode]);
+
+//   return (
+//     <div className="max-w-3xl mx-auto p-3">
+//       <div className="flex justify-between items-center mb-6">
+//         <h2 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
+//           <FiBell /> Notifications
+//         </h2>
+//       </div>
+//       <div className="mb-4">
+//         <input
+//           type="text"
+//           placeholder="Search notifications..."
+//           onChange={(e) => debouncedSetSearchTerm(e.target.value)}
+//           className="w-full p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+//         />
+//       </div>
+//       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
+//         <ul className="space-y-4">
+//           {currentNotifications.length === 0 ? (
+//             <li className="text-center text-gray-500 dark:text-gray-400 py-4">No notifications found</li>
+//           ) : (
+//             currentNotifications.map((n) => (
+//               <li
+//                 key={n.id}
+//                 className="flex justify-between items-center bg-gray-50 dark:bg-gray-700 p-4 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 transform hover:-translate-y-1"
+//                 style={{ fontWeight: n.read ? 'normal' : 'bold' }}
+//               >
+//                 <div className="flex-1">
+//                   <span className="text-xs text-gray-500 dark:text-gray-400">
+//                     [{new Date(n.timestamp).toLocaleString('en-US', {
+//                       dateStyle: 'medium',
+//                       timeStyle: 'short',
+//                     })}]
+//                   </span>{' '}
+//                   <span className="text-gray-800 dark:text-gray-200">{n.message}</span>
+//                 </div>
+//               </li>
+//             ))
+//           )}
+//         </ul>
+//       </div>
+//       {totalPages > 1 && (
+//         <div className="flex justify-center items-center space-x-2">
+//           <button
+//             onClick={() => handlePageChange(currentPage - 1)}
+//             disabled={currentPage === 1}
+//             className="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+//             aria-label="Previous notifications page"
+//             role="button"
+//             tabIndex={0}
+//             onKeyDown={(e) => {
+//               if (e.key === 'Enter' || e.key === ' ' && currentPage !== 1) {
+//                 handlePageChange(currentPage - 1);
+//               }
+//             }}
+//           >
+//             <FiChevronLeft />
+//           </button>
+//           {[...Array(totalPages)].map((_, i) => (
+//             <button
+//               key={i + 1}
+//               onClick={() => handlePageChange(i + 1)}
+//               className={`px-3 py-1 rounded-lg ${
+//                 currentPage === i + 1
+//                   ? 'bg-blue-500 text-white'
+//                   : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+//               } transition-colors duration-150`}
+//               aria-label={`Go to notifications page ${i + 1}`}
+//               role="button"
+//               tabIndex={0}
+//               onKeyDown={(e) => {
+//                 if (e.key === 'Enter' || e.key === ' ') {
+//                   handlePageChange(i + 1);
+//                 }
+//               }}
+//             >
+//               {i + 1}
+//             </button>
+//           ))}
+//           <button
+//             onClick={() => handlePageChange(currentPage + 1)}
+//             disabled={currentPage === totalPages}
+//             className="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+//             aria-label="Next notifications page"
+//             role="button"
+//             tabIndex={0}
+//             onKeyDown={(e) => {
+//               if (e.key === 'Enter' || e.key === ' ' && currentPage !== totalPages) {
+//                 handlePageChange(currentPage + 1);
+//               }
+//             }}
+//           >
+//             <FiChevronRight />
+//           </button>
+//         </div>
+//       )}
+//     </div>
+//   );
+// };
 
 const Account = ({ userId, darkMode }) => {
   const navigate = useNavigate();
@@ -991,7 +991,7 @@ const Account = ({ userId, darkMode }) => {
         headers: { Authorization: `Bearer ${token}` },
         signal: controller.signal 
       });
-      // Fetch price for QUOTE_SENT requests
+    
       const requests = await Promise.all(
         res.data.content.map(async (req) => {
           if (req.status === 'QUOTE_SENT') {
@@ -1490,6 +1490,7 @@ const handleEditRepairRequest = useCallback(
         <p class="flex justify-between items-center bg-white px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Product Price</strong> ${item.price} EGP</p>
         <p class="flex justify-between items-center bg-white px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Shop</strong> ${item.shopName}</p>
         <p class="flex justify-between items-center bg-white px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Total</strong> ${item.priceAtCheckout} EGP</p>
+        
       </div>
     `
     ).join('') || '<p>No items found</p>';
@@ -1779,11 +1780,11 @@ const handleEditRepairRequest = useCallback(
     { id: 'addresses', label: 'Addresses', icon: <FiMapPin /> },
     { id: 'orders', label: 'Orders', icon: <FiBox /> },
     { id: 'repairs', label: 'Repair Requests', icon: <FiTool /> },
-    { id: 'notifications', label: 'Notifications', icon: <FiBell /> },
+
   ];
 
   return (
-    <div className={`min-h-screen transition-all duration-300 ${darkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
+    <div className={`min-h-screen transition-all duration-300 mt-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
       <div className="bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-900 dark:to-gray-800 text-white py-12 px-6 shadow-xl">
         <div className="max-w-7xl mx-auto text-center">
           <h1 className="text-3xl flex justify-center items-center gap-2 md:text-4xl font-extrabold tracking-tight mb-2 animate-fade-in">
@@ -1829,7 +1830,7 @@ const handleEditRepairRequest = useCallback(
             {activeSection === 'addresses' && (isLoadingAddresses ? <LoadingSpinner /> : <AddressesSection {...{ addresses, isAddingAddress, setIsAddingAddress, editingAddressId, setEditingAddressId, addressForm, setAddressForm, handleAddAddress, handleUpdateAddress, handleDeleteAddress, initEditAddress, cancelAddressForm, darkMode }} />)}
             {activeSection === 'orders' && (isLoadingOrders ? <LoadingSpinner /> : <OrdersSection {...{ orders, ordersPage, setOrdersPage, showOrderDetails, handleCancelOrder, handleTrackOrder, darkMode }} />)}
             {activeSection === 'repairs' && (isLoadingRepairs ? <LoadingSpinner /> : <RepairsSection {...{ repairRequests, repairsPage, setRepairsPage, handleViewRepairRequest, handleCancelRepairRequest, handleEditRepairRequest, darkMode }} />)}
-            {activeSection === 'notifications' && (isLoadingNotifications ? <LoadingSpinner /> : <NotificationsSection {...{ notifications, setNotifications, fetchNotifications, currentPage, setCurrentPage, searchTerm, setSearchTerm, darkMode }} />)}
+           
           </div>
         </div>
       </div>

@@ -154,19 +154,7 @@ const DeviceDetail = ({ addToCart, darkMode }) => {
                   className="max-h-full max-w-full object-contain transform transition-transform duration-300 hover:scale-105"
                 />
               </div>
-              {(product.imageUrls?.length > 1 || product.imageUrl) && (
-                <div className="flex gap-2 justify-center flex-wrap">
-                  {(product.imageUrls || [product.imageUrl]).map((img, index) => (
-                    <img
-                      key={index}
-                      src={img}
-                      alt={`${product.name} thumbnail ${index + 1}`}
-                      className={`w-16 h-16 object-cover rounded-lg cursor-pointer border-2 ${selectedImage === index ? 'border-indigo-600' : 'border-gray-200 dark:border-gray-700'} hover:border-indigo-500 transition-all duration-200`}
-                      onClick={() => setSelectedImage(index)}
-                    />
-                  ))}
-                </div>
-              )}
+       
             </div>
 
             <div className="flex flex-col justify-center items-start space-y-6">

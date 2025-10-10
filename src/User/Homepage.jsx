@@ -555,7 +555,7 @@ const Homepage = memo(({ darkMode }) => {
                     transition={{ duration: 0.5, ease: 'easeOut' }}
                     viewport={{ once: true }}
                     onClick={() => navigate(`/device/${product.id}`)}
-                    className="group rounded-xl overflow-hidden cursor-pointer shadow-md hover:shadow-xl transition-all duration-300 hover:scale-105"
+                    className="group rounded-xl bg-white dark:bg-gray-950 overflow-hidden cursor-pointer shadow-md hover:shadow-xl transition-all duration-300 hover:scale-105"
                   >
                       <div className="relative w-full h-48">
                                       {!imageLoading[product.id] ? null : (

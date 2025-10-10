@@ -258,22 +258,17 @@ const Inventory = ({ darkMode }) => {
             />
           </div>
           <div className="flex flex-wrap gap-4">
-            <label className="flex items-center gap-2 px-4 py-2 font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition-all duration-300 shadow-md cursor-pointer">
+            {/* <label className="flex items-center gap-2 px-4 py-2 font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition-all duration-300 shadow-md cursor-pointer">
               <FiUpload /> استيراد CSV
               <input type="file" accept=".csv" onChange={importFromExcel} className="hidden" />
-            </label>
+            </label> */}
             <button
               onClick={exportToExcel}
               className="flex items-center gap-2 px-4 py-2 font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 transition-all duration-300 shadow-md"
             >
               <FiDownload /> تصدير CSV
             </button>
-            <button
-              onClick={() => setShowForm(true)}
-              className="flex items-center gap-2 px-4 py-2 font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition-all duration-300 shadow-md"
-            >
-              <FiPlus /> إضافة منتج
-            </button>
+        
           </div>
         </div>
       </div>

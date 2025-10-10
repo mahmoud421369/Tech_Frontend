@@ -1,11 +1,12 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
-import logo from "../images/logo.png";
-import { FaSearch, FaUser } from "react-icons/fa";
+import { FaSearch, FaUser, FaBell } from "react-icons/fa";
 import { FiSun, FiMoon, FiShoppingCart, FiLogOut, FiHome, FiTruck } from "react-icons/fi";
-import Swal from "sweetalert2";
-import {jwtDecode} from "jwt-decode"; // Fixed import
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { jwtDecode } from "jwt-decode";
 import api from "../api";
+import logo from "../images/logo.png";
 
 const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode }) => {
   const location = useLocation();
@@ -14,19 +15,41 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const dropdownRef = useRef(null);
 
-  // Fetch cart count from the API
   const fetchCartCount = useCallback(async () => {
     if (!token || isTokenExpired(token)) return;
     try {
-      const response = await api.get("/api/cart/items/count", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await api.get("/api/cart/items/count");
       setCartCount(response.data.count || 0);
     } catch (error) {
       console.error("Error fetching cart count:", error.response?.data || error.message);
     }
   }, [token, setCartCount]);
+
+  const fetchNotifications = useCallback(async () => {
+    if (!token || isTokenExpired(token)) return;
+    try {
+      const response = await api.get("/api/notifications/users");
+      setNotifications(response.data || []);
+    } catch (error) {
+      console.error("Error fetching notifications:", error.response?.data || error.message);
+      toast.error("Failed to load notifications");
+    }
+  }, [token]);
+
+  const isTokenExpired = useCallback((token) => {
+    try {
+      const decoded = jwtDecode(token);
+      if (!decoded.exp) return true;
+      const now = Date.now() / 1000;
+      return decoded.exp < now;
+    } catch {
+      return true;
+    }
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -41,143 +64,106 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
     return () => clearTimeout(timer);
   }, []);
 
-  const isTokenExpired = useCallback((token) => {
-    try {
-      const decoded = jwtDecode(token); // Use default import
-      if (!decoded.exp) return true;
-      const now = Date.now() / 1000;
-      return decoded.exp < now;
-    } catch {
-      return true;
-    }
-  }, []);
-
   useEffect(() => {
     if (token && !isTokenExpired(token)) {
       setIsAuthenticated(true);
-      fetchCartCount(); // Fetch cart count when user is authenticated
+      fetchCartCount();
+      fetchNotifications();
     } else {
       setIsAuthenticated(false);
       localStorage.removeItem("authToken");
       localStorage.removeItem("refreshToken");
       localStorage.removeItem("userId");
       setToken(null);
-      setCartCount(0); // Reset cart count on logout
+      setCartCount(0);
+      setNotifications([]);
       if (location.pathname !== "/login" && location.pathname !== "/signup") {
-        Swal.fire({
-          icon: "warning",
-          title: "Session Expired",
-          text: "Please log in to continue",
-          position: "top",
-          customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+        toast.warn("Session Expired. Please log in to continue.", {
+          position: "top-right",
         });
         navigate("/login");
       }
     }
-  }, [token, location.pathname, navigate, darkMode, isTokenExpired, fetchCartCount, setCartCount]);
+  }, [token, location.pathname, navigate, fetchCartCount, setCartCount, isTokenExpired]);
 
- const handleLogout = useCallback(async () => {
+  const handleLogout = useCallback(async () => {
     const refreshToken = localStorage.getItem("refreshToken");
-    const result = await Swal.fire({
-      title: "Confirm Logout",
-      text: "Are you sure you want to log out?",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#2563eb",
-      cancelButtonColor: "#d33",
-      confirmButtonText: "Yes, log out",
-      position: "top",
-      customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-    });
-
-    if (!result.isConfirmed) return;
-
     try {
       if (token && refreshToken) {
-        await api.post(
-          "/api/auth/logout",
-          { refreshToken },
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        await api.post("/api/auth/logout", { refreshToken });
       }
       localStorage.removeItem("authToken");
       localStorage.removeItem("refreshToken");
       localStorage.removeItem("userId");
       setToken(null);
       setIsAuthenticated(false);
-      Swal.fire({
-        icon: "success",
-        title: "Logged Out",
-        text: "You have been logged out successfully",
-        position: "top",
-        timer: 2000,
-        showConfirmButton: false,
-        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+      setNotifications([]);
+      toast.success("Logged out successfully!", {
+        position: "top-right",
+        autoClose: 2000,
       });
       navigate("/login");
     } catch (err) {
       console.error("Logout error:", err.response?.data || err.message);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: err.response?.data?.message || "Failed to log out",
-        position: "top",
-        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+      toast.error(err.response?.data?.message || "Failed to log out", {
+        position: "top-right",
       });
       localStorage.removeItem("authToken");
       localStorage.removeItem("refreshToken");
       localStorage.removeItem("userId");
       setToken(null);
       setIsAuthenticated(false);
+      setNotifications([]);
       navigate("/login");
     }
-  }, [token, navigate, darkMode]);
+  }, [token, navigate]);
 
-  // Modified handleAddToCart to update cart count
   const handleAddToCart = useCallback(
     async (product) => {
       try {
-        await api.post(
-          "/api/cart/items",
-          {
-            productId: product.id,
-            quantity: 1,
-            price: product.price,
-            name: product.name,
-            imageUrl: product.imageUrl || (product.imageUrls && product.imageUrls[0]),
-          },
-          {
-            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          }
-        );
-
-        
+        await api.post("/api/cart/items", {
+          productId: product.id,
+          quantity: 1,
+          price: product.price,
+          name: product.name,
+          imageUrl: product.imageUrl || (product.imageUrls && product.imageUrls[0]),
+        });
         await fetchCartCount();
-
-        Swal.fire({
-          title: "Success",
-          text: `${product.name} added to cart!`,
-          icon: "success",
-          toast: true,
+        toast.success(`${product.name} added to cart!`, {
           position: "top-end",
-          showConfirmButton: false,
-          timer: 1500,
-          customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+          autoClose: 1500,
         });
       } catch (error) {
         console.error("Error adding to cart:", error.response?.data || error.message);
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: error.response?.data?.message || "Failed to add item to cart",
-          customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+        toast.error(error.response?.data?.message || "Failed to add item to cart", {
+          position: "top-right",
         });
       }
     },
-    [token, darkMode, fetchCartCount]
+    [fetchCartCount]
   );
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const formatDate = (date) => {
+    if (!date || isNaN(new Date(date))) return "N/A";
+    return new Date(date).toLocaleDateString("en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
 
   const navItems = useMemo(
     () =>
@@ -217,6 +203,7 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
           {isAuthenticated && (
             <>
               <div className="h-10 w-10 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
+              <div className="h-10 w-10 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
               <div className="h-8 w-24 bg-gray-300 dark:bg-gray-700 rounded-xl"></div>
             </>
           )}
@@ -228,6 +215,7 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
 
   return (
     <>
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
       {isInitialLoading ? (
         SkeletonLoader
       ) : (
@@ -284,6 +272,49 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
 
             {isAuthenticated && (
               <>
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    onClick={() => setShowNotifications(!showNotifications)}
+                    className="relative p-2 text-white hover:bg-indigo-700/50 dark:hover:bg-gray-800 rounded-full transition-all duration-200 transform hover:-translate-y-1"
+                    aria-label="View notifications"
+                  >
+                    <FaBell className="w-6 h-6" />
+                    {notifications.length > 0 && (
+                      <span className="absolute top-0 right-0 bg-red-500 text-white text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+                        {notifications.length}
+                      </span>
+                    )}
+                  </button>
+                  {showNotifications && (
+                    <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 max-h-96 overflow-y-auto z-50">
+                      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+                          Notifications
+                        </h3>
+                      </div>
+                      {notifications.length === 0 ? (
+                        <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                          No notifications available
+                        </div>
+                      ) : (
+                        notifications.map((notification, index) => (
+                          <div
+                            key={index}
+                            className="p-4 border-b border-gray-200 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                          >
+                            <p className="text-sm text-gray-700 dark:text-gray-200">
+                              {notification.message || "No message"}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              {formatDate(notification.timestamp)}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 <button
                   onClick={onCartClick}
                   className="relative p-2 text-white hover:bg-indigo-700/50 dark:hover:bg-gray-800 rounded-full transition-all duration-200 transform hover:-translate-y-1"
@@ -323,6 +354,12 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
           </div>
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
+            {isAuthenticated && (
+              <>
+                <div className="h-8 w-8 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
+                <div className="h-8 w-8 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
+              </>
+            )}
           </div>
         </div>
       ) : (
@@ -352,18 +389,62 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
               {darkMode ? <FiSun className="w-5 h-5" /> : <FiMoon className="w-5 h-5" />}
             </button>
             {isAuthenticated && (
-              <button
-                onClick={onCartClick}
-                className="relative p-2 text-white hover:bg-indigo-700/50 dark:hover:bg-gray-800 rounded-full transition-all duration-200 transform hover:-translate-y-1"
-                aria-label="View cart"
-              >
-                <FiShoppingCart className="w-5 h-5" />
-                {cartCount > 0 && (
-                  <span className="absolute top-0 right-0 bg-red-500 text-white text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
-                    {cartCount}
-                  </span>
-                )}
-              </button>
+              <>
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    onClick={() => setShowNotifications(!showNotifications)}
+                    className="relative p-2 text-white hover:bg-indigo-700/50 dark:hover:bg-gray-800 rounded-full transition-all duration-200 transform hover:-translate-y-1"
+                    aria-label="View notifications"
+                  >
+                    <FaBell className="w-5 h-5" />
+                    {notifications.length > 0 && (
+                      <span className="absolute top-0 right-0 bg-red-500 text-white text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+                        {notifications.length}
+                      </span>
+                    )}
+                  </button>
+                  {showNotifications && (
+                    <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 max-h-80 overflow-y-auto z-50">
+                      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+                          Notifications
+                        </h3>
+                      </div>
+                      {notifications.length === 0 ? (
+                        <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                          No notifications available
+                        </div>
+                      ) : (
+                        notifications.map((notification, index) => (
+                          <div
+                            key={index}
+                            className="p-4 border-b border-gray-200 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                          >
+                            <p className="text-sm text-gray-700 dark:text-gray-200">
+                              {notification.message || "No message"}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              {formatDate(notification.createdAt)}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={onCartClick}
+                  className="relative p-2 text-white hover:bg-indigo-700/50 dark:hover:bg-gray-800 rounded-full transition-all duration-200 transform hover:-translate-y-1"
+                  aria-label="View cart"
+                >
+                  <FiShoppingCart className="w-5 h-5" />
+                  {cartCount > 0 && (
+                    <span className="absolute top-0 right-0 bg-red-500 text-white text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+                      {cartCount}
+                    </span>
+                  )}
+                </button>
+              </>
             )}
           </div>
         </nav>

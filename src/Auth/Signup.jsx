@@ -534,7 +534,7 @@ const Signup = () => {
             Register as a User, Shop Owner, Delivery, or Assigner
           </p>
 
-          <div className="flex justify-center mb-6 space-x-2">
+          <div className="flex flex-wrap justify-center mb-6 space-x-2">
             {["user", "shop", "delivery", "assigner"].map((tab) => (
               <button
                 key={tab}

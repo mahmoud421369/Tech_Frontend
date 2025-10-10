@@ -17,6 +17,7 @@ import {
   FiTool,
   FiSmartphone,
   FiMonitor,
+  FiList,
 } from "react-icons/fi";
 import Swal from "sweetalert2";
 import { Link, useNavigate } from "react-router-dom";
@@ -41,7 +42,7 @@ const Explore = memo(({ darkMode, addToCart }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [productPage, setProductPage] = useState(1);
   const [shopPage, setShopPage] = useState(1);
-  const itemsPerPage = 6;
+  const itemsPerPage = 8;
   const token = localStorage.getItem("authToken");
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
@@ -67,6 +68,7 @@ const Explore = memo(({ darkMode, addToCart }) => {
         headers: { Authorization: `Bearer ${token}` },
         signal: controller.signal,
       });
+      console.log( res.data.content)
       setProducts(res.data.content || []);
     } catch (err) {
       if (err.name !== 'AbortError') {
@@ -453,14 +455,20 @@ const Explore = memo(({ darkMode, addToCart }) => {
                     </span>
                   </div>
                   <div className="p-4 flex flex-col flex-1 justify-between">
-                    <h2 className="text-lg font-bold text-indigo-600 dark:text-indigo-400 mb-2 line-clamp-1">
+                    <div className="flex justify-between flex-wrap items-center">
+  <h2 className="text-lg font-bold text-indigo-600 dark:text-indigo-400 mb-2 line-clamp-1">
                       {product.name}
                     </h2>
+
+
+                    </div>
+                   <p className="  dark:text-white text-gray-700 mb-4 font-semibold  text-xs flex items-center gap-2"><FiList/>{product.categoryName}</p>
+               
                     <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mb-3">
                       {product.description || "No description available"}
                     </p>
                     <div className="flex justify-between items-center mb-3">
-                      <span className="text-lg font-bold text-white bg-indigo-600 px-4 py-1 rounded-full">
+                      <span className="text-sm font-bold text-indigo-600 border-2 dark:border-gray-700 bg-gray-50 dark:bg-black/30 px-4 py-1 rounded-full">
                         {product.price.toFixed(2)} EGP
                       </span>
                       <span
@@ -518,7 +526,7 @@ const Explore = memo(({ darkMode, addToCart }) => {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 dark:border-grat-700 dark:bg-black/30 text-white rounded-2xl p-8 shadow-lg flex flex-col md:flex-row items-center justify-between">
+        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 dark:border-gray-700 dark:from-black text-white rounded-2xl p-8 shadow-lg flex flex-col md:flex-row items-center justify-between">
           <div className="mb-4 md:mb-0">
             <h3 className="text-2xl font-bold mb-2">Find Your Perfect Shop</h3>
             <p className="text-base">Browse verified shops and discover exclusive deals tailored for you!</p>

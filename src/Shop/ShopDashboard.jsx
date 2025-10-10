@@ -58,6 +58,7 @@ const ShopDashboard = () => {
       const res = await api.get('/api/shops/dashboard/sales/stats', {
         signal: controller.signal,
       });
+      console.log(res.data)
       setSalesStats(res.data);
     } catch (err) {
       if (err.name !== 'AbortError') {
@@ -183,9 +184,9 @@ const ShopDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">المبيعات اليوم مقابل الأمس</h3>
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{salesStats.todaySales} EGP</p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{salesStats.todaySales || 0} EGP</p>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  الأمس: {salesStats.yesterdaySales} EGP (
+                  الأمس: {salesStats.previousDaySales} EGP (
                   {salesStats.increased ? <span className="text-green-500">⬆</span> : <span className="text-red-500">⬇</span>} {salesStats.difference} EGP)
                 </p>
               </div>
