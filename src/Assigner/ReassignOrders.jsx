@@ -379,14 +379,7 @@ const ReassignOrders = ({ darkMode }) => {
                       </span>
                     </div>
                     <div className="space-y-2 text-sm text-gray-700 dark:text-gray-200">
-                      <div className="flex items-center gap-2">
-                        <FiUser className="text-indigo-500" />
-                        <span>User ID: {o.userId || 'N/A'}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <FiHome className="text-indigo-500" />
-                        <span>Shop ID: {o.shopId || 'N/A'}</span>
-                      </div>
+                    
                       {o.userAddress && (
                         <div className="text-xs bg-indigo-50 dark:bg-indigo-900/20 p-2 rounded-lg text-indigo-600 dark:text-indigo-400">
                           <strong className="flex items-center gap-2">
@@ -479,12 +472,12 @@ const ReassignOrders = ({ darkMode }) => {
                 <p className="text-sm text-gray-700 dark:text-gray-200">
                   <strong>Order ID:</strong> {selectedOrder.id || 'N/A'}
                 </p>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
+                {/* <p className="text-sm text-gray-700 dark:text-gray-200">
                   <strong>User ID:</strong> {selectedOrder.userId || 'N/A'}
                 </p>
                 <p className="text-sm text-gray-700 dark:text-gray-200">
                   <strong>Shop ID:</strong> {selectedOrder.shopId || 'N/A'}
-                </p>
+                </p> */}
                 <p className="text-sm text-gray-700 dark:text-gray-200">
                   <strong>Status:</strong> {selectedOrder.status?.replace(/_/g, ' ') || 'N/A'}
                 </p>

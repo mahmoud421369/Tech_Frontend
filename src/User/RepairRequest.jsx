@@ -40,13 +40,15 @@ const RepairRequest = ({ darkMode }) => {
       setAddresses(res.data.content || []);
     } catch (err) {
       console.error('Error fetching addresses:', err.response?.data || err.message);
-      Swal.fire({
-        title: 'Error',
-        text: err.response?.data?.message || 'Failed to load addresses',
-        icon: 'error',
-        position: 'top',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
+     Swal.fire({
+                       title: 'Error',
+                       text: 'failed to load addresses!',
+                       icon: 'error',
+                       toast: true,
+                       position: 'top-end',
+                       showConfirmButton: false,
+                       timer: 1500,
+                     })
     }
   }, [darkMode, token]);
 
@@ -111,15 +113,15 @@ const RepairRequest = ({ darkMode }) => {
       await api.post(`/api/users/repair-request/repairs/${requestId}/confirm`, formData, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      Swal.fire({
-        title: 'Confirmed',
-        text: 'Repair request confirmed successfully.',
-        icon: 'success',
-        position: 'top',
-        timer: 2000,
-        showConfirmButton: false,
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
+     Swal.fire({
+                       title: 'Confirmed',
+                       text: 'repair request confirmed!',
+                       icon: 'success',
+                       toast: true,
+                       position: 'top-end',
+                       showConfirmButton: false,
+                       timer: 1500,
+                     })
       navigate('/account');
     } catch (err) {
       console.error('Error confirming repair request:', err.response?.data || err.message);

@@ -174,14 +174,15 @@ const Signup = () => {
             }
             try {
               await api.post("/api/auth/resend-otp", { email });
-              Swal.fire({
-                icon: "success",
-                title: "OTP Resent",
-                text: "OTP sent successfully!",
-                position: "top",
-                timer: 2000,
-                showConfirmButton: false,
-              });
+               Swal.fire({
+          icon: "success",
+          title: "OTP Resent",
+          toast:true,
+          text: "otp code resent",
+          position: "top-end",
+          timer: 1500,
+          showConfirmButton: false,
+        })
             } catch (err) {
               Swal.fire({
                 icon: "error",
@@ -215,14 +216,15 @@ const Signup = () => {
 
       try {
         await api.post("/api/auth/verify-email", form);
-        Swal.fire({
+         Swal.fire({
           icon: "success",
-          title: "Verified",
-          text: "Your email has been verified!",
-          position: "top",
-          timer: 2000,
+          title: "Success",
+          toast:true,
+          text: "your email is verified.",
+          position: "top-end",
+          timer: 1500,
           showConfirmButton: false,
-        });
+        })
       } catch (err) {
         console.error("Verification error:", err);
         Swal.fire({
@@ -264,9 +266,10 @@ const Signup = () => {
         Swal.fire({
           icon: "success",
           title: "Success",
+          toast:true,
           text: "User registered successfully! Please verify your email.",
-          position: "top",
-          timer: 2000,
+          position: "top-end",
+          timer: 1500,
           showConfirmButton: false,
         }).then(() => {
           verifyEmail(userData.email);

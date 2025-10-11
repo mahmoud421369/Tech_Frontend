@@ -103,12 +103,15 @@ const Homepage = memo(({ darkMode }) => {
           });
           return;
         }
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: err.response?.data?.message || 'Could not load shops or products',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
+          Swal.fire({
+                         title: 'Error',
+                         text: 'could not load shops or products!',
+                         icon: 'error',
+                         toast: true,
+                         position: 'top-end',
+                         showConfirmButton: false,
+                         timer: 1500,
+                       })
       }
     } finally {
       setProductsLoading(false);
@@ -146,12 +149,15 @@ const Homepage = memo(({ darkMode }) => {
       });
     } catch (error) {
       console.error('Error adding to cart:', error.response?.data || error.message);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: error.response?.data?.message || 'Failed to add item to cart',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
+        Swal.fire({
+                         title: 'Error',
+                         text: 'failed to add item to product!',
+                         icon: 'error',
+                         toast: true,
+                         position: 'top-end',
+                         showConfirmButton: false,
+                         timer: 1500,
+                       })
     }
   }, [darkMode]);
 

@@ -141,14 +141,15 @@ const RepairRequest = ({ onApproved, onRejected, darkMode }) => {
     } catch (err) {
       if (err.name !== 'AbortError') {
         setCategories(staticCategories);
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: err.response?.data?.message || 'Could not load categories',
-          position: 'top',
-          confirmButtonColor: '#2563eb',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
+       Swal.fire({
+                         title: 'Error',
+                         text: 'could not load categories!',
+                         icon: 'error',
+                         toast: true,
+                         position: 'top-end',
+                         showConfirmButton: false,
+                         timer: 1500,
+                       })
       }
     } finally {
       setIsLoading(false);
@@ -167,14 +168,15 @@ const RepairRequest = ({ onApproved, onRejected, darkMode }) => {
       setShops(res.data.content || []);
     } catch (err) {
       if (err.name !== 'AbortError') {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: err.response?.data?.message || 'Could not load shops',
-          position: 'top',
-          confirmButtonColor: '#2563eb',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
+      Swal.fire({
+                        title: 'Error',
+                        text: 'could not load shops!',
+                        icon: 'error',
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 1500,
+                      })
       }
     } finally {
       setIsLoading(false);
@@ -224,14 +226,15 @@ const RepairRequest = ({ onApproved, onRejected, darkMode }) => {
       }
     } catch (err) {
       console.error('Error fetching repair request status:', err.response?.data || err.message);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: err.response?.data?.message || 'Failed to fetch repair request status',
-        position: 'top',
-        confirmButtonColor: '#2563eb',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
+   Swal.fire({
+                     title: 'Error',
+                     text: 'failed to load repair request status!',
+                     icon: 'error',
+                     toast: true,
+                     position: 'top-end',
+                     showConfirmButton: false,
+                     timer: 1500,
+                   })
     }
   }, [repairRequestId, token, darkMode]);
 
@@ -314,14 +317,15 @@ const RepairRequest = ({ onApproved, onRejected, darkMode }) => {
         return true;
       } catch (err) {
         console.error('Error creating repair request:', err.response?.data || err.message);
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: err.response?.data?.message || 'Failed to create repair request.',
-          position: 'top',
-          confirmButtonColor: '#2563eb',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
+       Swal.fire({
+                         title: 'Error',
+                         text: 'failed to send repair request!',
+                         icon: 'error',
+                         toast: true,
+                         position: 'top-end',
+                         showConfirmButton: false,
+                         timer: 1500,
+                       })
         return false;
       } finally {
         setIsLoading(false);
@@ -384,14 +388,15 @@ const RepairRequest = ({ onApproved, onRejected, darkMode }) => {
         return true;
       } catch (err) {
         console.error('Error updating repair request:', err.response?.data || err.message);
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: err.response?.data?.message || 'Failed to update repair request.',
-          position: 'top',
-          confirmButtonColor: '#2563eb',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
+       Swal.fire({
+                         title: 'Error',
+                         text: 'failed to update repair request!',
+                         icon: 'error',
+                         toast: true,
+                         position: 'top-end',
+                         showConfirmButton: false,
+                         timer: 1500,
+                       })
         return false;
       } finally {
         setIsLoading(false);
@@ -434,29 +439,29 @@ const RepairRequest = ({ onApproved, onRejected, darkMode }) => {
       await api.post(`/api/users/repair-request/repairs/${repairRequestId}/confirm`, {}, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       });
-      Swal.fire({
-        icon: 'success',
-        title: 'Success',
-        text: 'Repair request approved successfully!',
-        position: 'top',
-        confirmButtonColor: '#2563eb',
-        timer: 2000,
-        showConfirmButton: false,
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      }).then(() => {
+     Swal.fire({
+                       title: 'Approved',
+                       text: 'repair request approved!',
+                       icon: 'success',
+                       toast: true,
+                       position: 'top-end',
+                       showConfirmButton: false,
+                       timer: 1500,
+                     }).then(() => {
         onApproved?.();
         navigate('/');
       });
     } catch (err) {
       console.error('Error approving price:', err.response?.data || err.message);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: err.response?.data?.message || 'Failed to approve repair request.',
-        position: 'top',
-        confirmButtonColor: '#2563eb',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
+    Swal.fire({
+                      title: 'Error',
+                      text: 'failed to approve repair request!',
+                      icon: 'error',
+                      toast: true,
+                      position: 'top-end',
+                      showConfirmButton: false,
+                      timer: 1500,
+                    })
     }
   }, [repairRequestId, token, onApproved, navigate, updateRepairRequest, darkMode]);
 
@@ -729,7 +734,7 @@ const RepairRequest = ({ onApproved, onRejected, darkMode }) => {
 
             case 1:
               return (
-                <div className="mb-12 min-h-screen animate__animated animate__fadeIn">
+                <div className=" min-h-screen animate__animated animate__fadeIn">
                   <h2 className="text-3xl font-bold text-center mb-8 text-indigo-600 dark:text-indigo-400">
                     Step 1: Select Device Type
                   </h2>
@@ -737,7 +742,7 @@ const RepairRequest = ({ onApproved, onRejected, darkMode }) => {
                     Problem Description
                   </label>
                   <textarea
-                    className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition duration-200 mb-6 resize-none"
+                    className="w-full px-4 py-3 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition duration-200 mb-6 resize-none"
                     rows="5"
                     placeholder="Describe the issue with your device..."
                     value={description}
@@ -780,7 +785,7 @@ const RepairRequest = ({ onApproved, onRejected, darkMode }) => {
 
             case 2:
               return (
-                <div className="mb-12 animate__animated animate__fadeIn">
+                <div className="animate__animated animate__fadeIn">
                   <h2 className="text-3xl font-bold text-center mb-8 text-indigo-600 dark:text-indigo-400">
                     Step 2: Select Shop
                   </h2>
@@ -895,7 +900,7 @@ const RepairRequest = ({ onApproved, onRejected, darkMode }) => {
 
             case 3:
               return (
-                <div className="mb-12 animate__animated animate__fadeIn">
+                <div className=" animate__animated animate__fadeIn">
                   <h2 className="text-3xl font-bold text-center mb-8 text-indigo-600 dark:text-indigo-400">
                     Step 3: Delivery & Address
                   </h2>
@@ -996,7 +1001,7 @@ const RepairRequest = ({ onApproved, onRejected, darkMode }) => {
 
             case 4:
               return (
-                <div className="mb-12 animate__animated animate__fadeIn">
+                <div className=" animate__animated animate__fadeIn">
                   <h2 className="text-3xl font-bold text-center mb-8 text-indigo-600 dark:text-indigo-400">
                     Step 4: Payment Method
                   </h2>

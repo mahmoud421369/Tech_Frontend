@@ -35,12 +35,15 @@ const Cart = ({ show, onClose, darkMode }) => {
       if (err.name !== "AbortError") {
         console.error("Error fetching cart:", err.response?.data || err.message);
         setCartItems([]);
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: err.response?.data?.message || "Failed to fetch cart",
-          customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-        });
+           Swal.fire({
+                          title: 'Error',
+                          text: 'failed to load cart!',
+                          icon: 'error',
+                          toast: true,
+                          position: 'top-end',
+                          showConfirmButton: false,
+                          timer: 1500,
+                        })
       }
     } finally {
       setIsLoading(false);
@@ -132,12 +135,15 @@ const Cart = ({ show, onClose, darkMode }) => {
       });
     } catch (err) {
       console.error("Error clearing cart:", err.response?.data || err.message);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: err.response?.data?.message || "Failed to clear cart",
-        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-      });
+          Swal.fire({
+                         title: 'Error',
+                         text: 'failed to clear cart!',
+                         icon: 'error',
+                         toast: true,
+                         position: 'top-end',
+                         showConfirmButton: false,
+                         timer: 1500,
+                       })
     }
   }, [token, darkMode]);
 
@@ -157,12 +163,15 @@ const Cart = ({ show, onClose, darkMode }) => {
     } catch (err) {
       if (err.name !== "AbortError") {
         console.error("Error fetching addresses:", err.response?.data || err.message);
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: err.response?.data?.message || "Failed to fetch addresses",
-          customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-        });
+         Swal.fire({
+                        title: 'Error',
+                        text: 'failed to load addresses details!',
+                        icon: 'error',
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 1500,
+                      })
       }
     }
     return () => controller.abort();
@@ -222,32 +231,41 @@ const Cart = ({ show, onClose, darkMode }) => {
           }
         } catch (paymentErr) {
           console.error("Payment failed:", paymentErr.response?.data || paymentErr.message);
-          Swal.fire({
-            icon: "error",
-            title: "Payment Failed",
-            text: paymentErr.response?.data?.message || "Payment initialization failed",
-            customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-          });
+           Swal.fire({
+                          title: 'Error',
+                          text: 'payment failed!',
+                          icon: 'error',
+                          toast: true,
+                          position: 'top-end',
+                          showConfirmButton: false,
+                          timer: 1500,
+                        })
           return;
         }
       }
 
       setCartItems([]);
       setCheckoutStep("complete");
-      Swal.fire({
-        icon: "success",
-        title: "Success",
-        text: "Order placed successfully",
-        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-      });
+          Swal.fire({
+                         title: 'Placed',
+                         text: 'order placed!',
+                         icon: 'success',
+                         toast: true,
+                         position: 'top-end',
+                         showConfirmButton: false,
+                         timer: 1500,
+                       })
     } catch (err) {
       console.error("Create order failed:", err.response?.data || err.message);
-      Swal.fire({
-        icon: "error",
-        title: "Order Failed",
-        text: err.response?.data?.message || "Failed to create order",
-        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-      });
+         Swal.fire({
+                        title: 'Error',
+                        text: 'failed to place the order!',
+                        icon: 'error',
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 1500,
+                      })
     }
   }, [token, selectedAddress, paymentMethod, darkMode, navigate]);
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { Link, useParams } from "react-router-dom";
-import { FiSearch, FiStar, FiTrash2, FiEdit3, FiXCircle, FiSend, FiX, FiMessageCircle } from "react-icons/fi";
+import { FiSearch, FiStar, FiTrash2, FiEdit3, FiXCircle, FiSend, FiX, FiMessageCircle, FiTag, FiCheckCircle, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { RiChat1Fill } from "@remixicon/react";
 import { RiStore2Line } from "react-icons/ri";
 import Swal from "sweetalert2";
@@ -38,6 +38,7 @@ const Shop = ({ darkMode, addToCart }) => {
   const [userProfile, setUserProfile] = useState(null);
   const [unreadCounts, setUnreadCounts] = useState({});
   const [isLoading, setIsLoading] = useState({ shop: false, products: false, reviews: false, messages: false });
+  const [currentIndex, setCurrentIndex] = useState(0); // For custom pagination
   const subscriptionRef = useRef(null);
   const messagesEndRef = useRef(null);
 
@@ -46,14 +47,48 @@ const Shop = ({ darkMode, addToCart }) => {
     []
   );
 
+  // Calculate number of reviews per page based on screen size
+  const getSlidesPerView = () => {
+    if (window.innerWidth >= 1024) return 3; // Desktop
+    if (window.innerWidth >= 768) return 2; // Tablet
+    return 1; // Mobile
+  };
+
+  const [slidesPerView, setSlidesPerView] = useState(getSlidesPerView());
+
+  useEffect(() => {
+    const handleResize = () => setSlidesPerView(getSlidesPerView());
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Calculate total pages for pagination
+  const totalPages = Math.ceil(reviews.length / slidesPerView);
+
+  // Handle navigation
+  const handlePrev = () => {
+    setCurrentIndex((prev) => (prev === 0 ? totalPages - 1 : prev - 1));
+  };
+
+  const handleNext = () => {
+    setCurrentIndex((prev) => (prev === totalPages - 1 ? 0 : prev + 1));
+  };
+
+  const handleDotClick = (index) => {
+    setCurrentIndex(index);
+  };
+
   const fetchShopProfile = useCallback(async () => {
     if (!token) {
       setError("No auth token found. Please log in.");
       Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Please log in",
-        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+        title: 'Authentication Required',
+        text: 'Please login to your account or create one!',
+        icon: 'warning',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1500,
       });
       return;
     }
@@ -76,10 +111,13 @@ const Shop = ({ darkMode, addToCart }) => {
       console.error("Error fetching shop profile:", error.response?.data || error.message);
       setError("Failed to load shop profile");
       Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: error.response?.data?.message || "Failed to load shop profile",
-        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+        title: 'Error',
+        text: 'Could not load shop details!',
+        icon: 'error',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1500,
       });
     } finally {
       setIsLoading((prev) => ({ ...prev, shop: false }));
@@ -94,10 +132,13 @@ const Shop = ({ darkMode, addToCart }) => {
       console.error("Error fetching categories:", error.response?.data || error.message);
       setCategories([]);
       Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: error.response?.data?.message || "Failed to load categories",
-        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+        title: 'Error',
+        text: 'Could not load categories!',
+        icon: 'error',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1500,
       });
     }
   }, [darkMode]);
@@ -106,17 +147,19 @@ const Shop = ({ darkMode, addToCart }) => {
     setIsLoading((prev) => ({ ...prev, products: true }));
     try {
       const response = await api.get(`/api/products/shop/${shopId}`);
-      console.log(response.data.content)
       setProducts(response.data.content || response.data);
     } catch (error) {
       console.error("Error fetching products:", error.response?.data || error.message);
-      setError("Failed to load products");
       Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: error.response?.data?.message || "Failed to load products",
-        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-      });
+        title: 'Error',
+        text: 'Could not load products!',
+        icon: 'error',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1500,
+      
+});
     } finally {
       setIsLoading((prev) => ({ ...prev, products: false }));
     }
@@ -131,10 +174,13 @@ const Shop = ({ darkMode, addToCart }) => {
       console.error("Error fetching products by category:", error.response?.data || error.message);
       setError("Failed to load products");
       Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: error.response?.data?.message || "Failed to load products",
-        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+        title: 'Error',
+        text: 'Could not load products!',
+        icon: 'error',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1500,
       });
     } finally {
       setIsLoading((prev) => ({ ...prev, products: false }));
@@ -158,13 +204,17 @@ const Shop = ({ darkMode, addToCart }) => {
     try {
       const response = await api.get(`/api/reviews/${shopId}/reviews`);
       setReviews(response.data.content || response.data);
+      setCurrentIndex(0); // Reset pagination on new reviews
     } catch (error) {
       console.error("Error fetching reviews:", error.response?.data || error.message);
       Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: error.response?.data?.message || "Failed to load reviews",
-        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+        title: 'Error',
+        text: 'Could not load reviews!',
+        icon: 'error',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1500,
       });
     } finally {
       setIsLoading((prev) => ({ ...prev, reviews: false }));
@@ -199,10 +249,13 @@ const Shop = ({ darkMode, addToCart }) => {
     } catch (error) {
       console.error("Error adding to cart:", error.response?.data || error.message);
       Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: error.response?.data?.message || "Failed to add item to cart",
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+        title: 'Error',
+        text: 'Failed to add item to cart!',
+        icon: 'error',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1500,
       });
     }
   }, [addToCart, token, darkMode]);
@@ -222,10 +275,13 @@ const Shop = ({ darkMode, addToCart }) => {
         headers: { "Content-Type": "application/json" },
       });
       Swal.fire({
-        icon: "success",
-        title: "Success",
-        text: "Review added!",
-        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+        title: 'Added',
+        text: 'Review added',
+        icon: 'success',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1500,
       });
       setNewReview({ rating: 0, comment: "" });
       setUserRating(0);
@@ -233,10 +289,13 @@ const Shop = ({ darkMode, addToCart }) => {
     } catch (error) {
       console.error("Error adding review:", error.response?.data || error.message);
       Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: error.response?.data?.message || "Failed to add review",
-        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+        title: 'Error',
+        text: 'Failed to add review!',
+        icon: 'error',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1500,
       });
     }
   }, [newReview, shopId, fetchShopReviews, darkMode]);
@@ -257,19 +316,25 @@ const Shop = ({ darkMode, addToCart }) => {
           headers: { "Content-Type": "application/json" },
         });
         Swal.fire({
-          icon: "success",
-          title: "Success",
-          text: "Review updated!",
-          customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+          title: 'Updated',
+          text: 'Review updated!',
+          icon: 'success',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 1500,
         });
         fetchShopReviews();
       } catch (error) {
         console.error("Update review error:", error.response?.data || error.message);
         Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: error.response?.data?.message || "Failed to update review",
-          customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+          title: 'Error',
+          text: 'Failed to update review!',
+          icon: 'error',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 1500,
         });
       }
     },
@@ -325,19 +390,25 @@ const Shop = ({ darkMode, addToCart }) => {
         try {
           await api.delete(`/api/reviews/reviews/${reviewId}`);
           Swal.fire({
-            icon: "success",
-            title: "Deleted!",
-            text: "Review has been deleted.",
-            customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+            title: 'Deleted',
+            text: 'Review deleted!',
+            icon: 'success',
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 1500,
           });
           fetchShopReviews();
-        } catch (error) {
+        } catch(error) {
           console.error("Delete review error:", error.response?.data || error.message);
           Swal.fire({
-            icon: "error",
-            title: "Error",
-            text: error.response?.data?.message || "Failed to delete review",
-            customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+            title: 'Error',
+            text: 'Failed to delete review!',
+            icon: 'error',
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 1500,
           });
         }
       }
@@ -371,7 +442,7 @@ const Shop = ({ darkMode, addToCart }) => {
         icon: "error",
         title: "Error",
         text: error.response?.data?.message || "Failed to fetch user profile",
-        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
       });
     }
   }, [token, darkMode]);
@@ -393,10 +464,13 @@ const Shop = ({ darkMode, addToCart }) => {
     } catch (error) {
       console.error("Error fetching sessions:", error.response?.data || error.message);
       Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: error.response?.data?.message || "Failed to load chat sessions",
-        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+        title: 'Error',
+        text: 'Failed to load chats!',
+        icon: 'error',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1500,
       });
     }
   }, [open, darkMode]);
@@ -505,10 +579,13 @@ const Shop = ({ darkMode, addToCart }) => {
     } catch (error) {
       console.error("Error starting chat:", error.response?.data || error.message);
       Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: error.response?.data?.message || "Failed to start chat",
-        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+        title: 'Error',
+        text: 'Failed to start chat!',
+        icon: 'error',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1500,
       });
     }
   }, [shopId, token, shop, connectWebSocket, darkMode]);
@@ -630,9 +707,13 @@ const Shop = ({ darkMode, addToCart }) => {
 
   return (
     <div className={`min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"} text-gray-900 dark:text-gray-100 pt-16 transition-all duration-300`}>
-
+      {/* Hero Section */}
       <div className="relative bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-800 dark:to-blue-800 text-white py-20 px-6 md:px-12 shadow-2xl overflow-hidden">
         <div className="absolute inset-0 opacity-10 bg-black"></div>
+        <div className="absolute top-[-50px] left-[-50px] w-96 h-96 bg-indigo-300 rounded-full opacity-20 blur-3xl animate-float"></div>
+        <div className="absolute bottom-[-80px] right-[-80px] w-80 h-80 bg-blue-300 rounded-full opacity-20 blur-3xl animate-float-slow"></div>
+        <div className="absolute top-1/2 left-1/4 w-48 h-48 bg-indigo-400 rounded-full opacity-15 blur-2xl animate-float delay-1000"></div>
+        <div className="absolute bottom-1/4 right-1/3 w-64 h-64 bg-blue-400 rounded-full opacity-15 blur-2xl animate-float-slow delay-500"></div>
         <div className="relative max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8 z-10 animate-fade-in">
           <div className="space-y-4 text-center md:text-left">
             <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight drop-shadow-md">{shop.name}</h1>
@@ -651,10 +732,10 @@ const Shop = ({ darkMode, addToCart }) => {
         </div>
       </div>
 
-      
-      <div className=" bg-white dark:bg-gray-900 border-b dark:border-gray-800">
+      {/* Search and Categories */}
+      <div className="bg-white dark:bg-gray-900 border-b dark:border-gray-800">
         <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex flex-col  justify-between items-center gap-6">
+          <div className="flex flex-col justify-between items-center gap-6">
             <div className="relative w-full md:w-1/2">
               <div className="flex items-center bg-white dark:bg-gray-800 rounded-xl border border-indigo-200 dark:border-indigo-700 px-4 py-3 shadow-inner transition-all hover:shadow-md focus-within:ring-2 focus-within:ring-indigo-500">
                 <FiSearch className="text-indigo-500 dark:text-indigo-400 mr-3 text-xl" />
@@ -706,7 +787,7 @@ const Shop = ({ darkMode, addToCart }) => {
         </div>
       </div>
 
-      
+      {/* Products Section */}
       <div className="max-w-7xl mx-auto px-6 py-12">
         <h2 className="text-3xl md:text-4xl font-bold text-indigo-600 dark:text-indigo-400 mb-10 text-center animate-fade-in">
           Available Products
@@ -741,12 +822,13 @@ const Shop = ({ darkMode, addToCart }) => {
                       </div>
                     )}
                     <img
-                      src={p.imageUrl}
+                      src={p.imageUrl || "https://images.pexels.com/photos/163097/black-smartphone-163097.jpeg"}
                       alt={p.name}
                       className={`w-full h-full object-cover transition-opacity duration-500 group-hover:scale-110 ${
                         imageLoadStatus[p.id] ? "opacity-100" : "opacity-0"
                       }`}
                       onLoad={() => handleImageLoad(p.id)}
+                      onError={() => handleImageLoad(p.id)}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                   </div>
@@ -754,6 +836,14 @@ const Shop = ({ darkMode, addToCart }) => {
                     <h3 className="font-bold text-xl text-indigo-600 dark:text-indigo-400 mb-2 group-hover:text-indigo-700 dark:group-hover:text-indigo-300 transition-colors">
                       {p.name}
                     </h3>
+                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-2">
+                      <FiTag className="text-indigo-500 dark:text-indigo-400" />
+                      {p.categoryName || "Uncategorized"}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-4">
+                      <FiCheckCircle className="text-green-500 dark:text-green-400" />
+                      {p.condition || "New"}
+                    </div>
                     <p className="text-gray-600 dark:text-gray-300 text-sm mb-4 line-clamp-2">{p.description || "No description available"}</p>
                     <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-4">{p.price} EGP</p>
                     <button
@@ -777,7 +867,7 @@ const Shop = ({ darkMode, addToCart }) => {
         )}
       </div>
 
-      
+      {/* Reviews Section */}
       <div className="max-w-7xl mx-auto px-6 py-12 bg-gray-50 dark:bg-gray-900 rounded-t-3xl shadow-inner">
         <h2 className="text-3xl md:text-4xl font-bold text-indigo-600 dark:text-indigo-400 mb-10 text-center animate-fade-in">
           Customer Reviews
@@ -824,54 +914,85 @@ const Shop = ({ darkMode, addToCart }) => {
               </div>
             ))}
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {reviews.length > 0 ? (
-              reviews.map((r) => (
-                <div
-                  key={r.id}
-                  className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg hover:shadow-2xl transition-all duration-300 border border-indigo-100 dark:border-indigo-700 transform hover:-translate-y-1"
-                >
-                  <div className="flex items-center mb-4">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <FiStar
-                        key={star}
-                        className={`text-xl ${r.rating >= star ? "text-yellow-400 fill-yellow-400" : "text-gray-300 dark:text-gray-600"}`}
-                      />
-                    ))}
-                    <span className="ml-auto text-sm text-gray-500 dark:text-gray-400">
-                      {new Date(r.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <p className="text-gray-700 dark:text-gray-200 leading-relaxed mb-4">{r.comment}</p>
-                 
-                    <div className="flex items-center gap-3 mt-4">
-                      <button
-                        onClick={() => handleEditReview(r)}
-                        className="p-2 rounded-full bg-indigo-100 dark:bg-indigo-900 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300"
-                      >
-                        <FiEdit3 className="text-indigo-600 dark:text-indigo-400 text-lg" />
-                      </button>
-                      <button
-                        onClick={() => deleteReview(r.id)}
-                        className="p-2 rounded-full bg-red-100 dark:bg-red-900 hover:bg-red-200 dark:hover:bg-red-800 transition-all duration-300"
-                      >
-                        <FiTrash2 className="text-red-600 dark:text-red-400 text-lg" />
-                      </button>
+        ) : reviews.length > 0 ? (
+          <div className="relative">
+            <div className="overflow-hidden">
+              <div
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 transition-transform duration-500 ease-in-out"
+                style={{ transform: `translateX(-${currentIndex * 100 / slidesPerView}%)` }}
+              >
+                {reviews.map((r) => (
+                  <div key={r.id} className="min-w-[100%] md:min-w-[50%] lg:min-w-[33.333%]">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg hover:shadow-2xl transition-all duration-300 border border-indigo-100 dark:border-indigo-700 transform hover:-translate-y-1">
+                      <div className="flex items-center mb-4">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <FiStar
+                            key={star}
+                            className={`text-xl ${r.rating >= star ? "text-yellow-400 fill-yellow-400" : "text-gray-300 dark:text-gray-600"}`}
+                          />
+                        ))}
+                        <span className="ml-auto text-sm text-gray-500 dark:text-gray-400">
+                          {new Date(r.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-gray-700 dark:text-gray-200 leading-relaxed mb-4">{r.comment}</p>
+                      <div className="flex items-center gap-3 mt-4">
+                        <button
+                          onClick={() => handleEditReview(r)}
+                          className="p-2 rounded-full bg-indigo-100 dark:bg-indigo-900 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300"
+                        >
+                          <FiEdit3 className="text-indigo-600 dark:text-indigo-400 text-lg" />
+                        </button>
+                        <button
+                          onClick={() => deleteReview(r.id)}
+                          className="p-2 rounded-full bg-red-100 dark:bg-red-900 hover:bg-red-200 dark:hover:bg-red-800 transition-all duration-300"
+                        >
+                          <FiTrash2 className="text-red-600 dark:text-red-400 text-lg" />
+                        </button>
+                      </div>
                     </div>
-               
+                  </div>
+                ))}
+              </div>
+            </div>
+            {totalPages > 1 && (
+              <>
+                <button
+                  onClick={handlePrev}
+                  className="absolute left-0 top-1/2 transform -translate-y-1/2 bg-indigo-600 dark:bg-indigo-800 text-white p-3 rounded-full shadow-lg hover:bg-indigo-700 dark:hover:bg-indigo-700 transition-all duration-300"
+                >
+                  <FiChevronLeft className="text-2xl" />
+                </button>
+                <button
+                  onClick={handleNext}
+                  className="absolute right-0 top-1/2 transform -translate-y-1/2 bg-indigo-600 dark:bg-indigo-800 text-white p-3 rounded-full shadow-lg hover:bg-indigo-700 dark:hover:bg-indigo-700 transition-all duration-300"
+                >
+                  <FiChevronRight className="text-2xl" />
+                </button>
+                <div className="flex justify-center mt-6 gap-2">
+                  {Array.from({ length: totalPages }).map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleDotClick(index)}
+                      className={`h-3 w-3 rounded-full transition-all duration-300 ${
+                        currentIndex === index
+                          ? "bg-indigo-600 dark:bg-indigo-400 scale-125"
+                          : "bg-gray-300 dark:bg-gray-600 hover:bg-indigo-400 dark:hover:bg-indigo-500"
+                      }`}
+                    />
+                  ))}
                 </div>
-              ))
-            ) : (
-              <p className="col-span-full text-center text-gray-500 dark:text-gray-400 text-lg font-medium">
-                No reviews yet. Be the first to review this shop!
-              </p>
+              </>
             )}
           </div>
+        ) : (
+          <p className="col-span-full text-center text-gray-500 dark:text-gray-400 text-lg font-medium">
+            No reviews yet. Be the first to review this shop!
+          </p>
         )}
       </div>
 
-
+      {/* Chat Button */}
       <button
         onClick={() => setOpen(true)}
         className="fixed bottom-8 right-8 bg-gradient-to-r from-indigo-600 to-blue-600 text-white p-4 rounded-full shadow-2xl hover:from-indigo-700 hover:to-blue-700 transition-all duration-300 transform hover:scale-110 z-50 flex items-center justify-center"
@@ -879,13 +1000,12 @@ const Shop = ({ darkMode, addToCart }) => {
         <FiMessageCircle className="text-3xl" />
       </button>
 
-      
+      {/* Chat Modal */}
       {open && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 animate-fade-in backdrop-blur-sm">
           <div className="bg-white dark:bg-gray-900 w-full max-w-5xl h-[80vh] rounded-2xl shadow-2xl flex overflow-hidden border border-indigo-200 dark:border-indigo-700">
-        
-            <div className="w-80 bg-white dark:from-indigo-900 dark:to-blue-900 flex flex-col border-r border-indigo-200 dark:border-indigo-700">
-              <div className="flex items-center justify-between p-5 border-b border-indigo-200 dark:border-indigo-700 bg-indigo-100 dark:bg-indigo-800">
+            <div className="w-80 bg-gradient-to-b from-indigo-100 to-blue-100 dark:from-indigo-900 dark:to-blue-900 flex flex-col border-r border-indigo-200 dark:border-indigo-700">
+              <div className="flex items-center justify-between p-5 border-b border-indigo-200 dark:border-indigo-700 bg-indigo-200 dark:bg-indigo-800">
                 <h2 className="font-bold text-xl text-indigo-700 dark:text-indigo-300">Chats</h2>
                 <button
                   onClick={onClose}
@@ -900,13 +1020,16 @@ const Shop = ({ darkMode, addToCart }) => {
                     <div
                       key={s.id}
                       onClick={() => setActiveSession(s)}
-                      className={`p-4 rounded-xl cursor-pointer transition-all duration-300 relative border-2   dark:border-gray-700 ${
+                      className={`p-4 rounded-xl cursor-pointer transition-all duration-300 relative border-2 border-indigo-300 dark:border-indigo-700 ${
                         activeSession?.id === s.id
                           ? "bg-indigo-200 dark:bg-indigo-800 shadow-md"
-                          : "bg-gray-50 dark:bg-gray-800 hover:bg-indigo-100 dark:hover:bg-indigo-900"
+                          : "bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-800 dark:to-blue-800 hover:bg-indigo-100 dark:hover:bg-indigo-900"
                       }`}
                     >
-                      <div className="font-semibold text-indigo-700 dark:text-indigo-300">{s.shopName}</div>
+                      <div className="flex items-center gap-2 font-semibold text-indigo-700 dark:text-indigo-300">
+                        <RiChat1Fill className="text-indigo-500 dark:text-indigo-400" />
+                        {s.shopName}
+                      </div>
                       {s.lastMessage ? (
                         <>
                           <div className="text-sm text-gray-600 dark:text-gray-400 truncate">{s.lastMessage.content}</div>
@@ -928,7 +1051,7 @@ const Shop = ({ darkMode, addToCart }) => {
                   <div className="text-center text-gray-500 dark:text-gray-400 py-8">No active chats. Start a new one!</div>
                 )}
               </div>
-              <div className="p-4 border-t border-indigo-200 dark:border-indigo-700">
+              <div className="p-4 border-t border-indigo-200 dark:border-indigo-700 bg-indigo-100 dark:bg-indigo-900">
                 <button
                   onClick={startChat}
                   className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white py-3 rounded-xl font-semibold shadow-lg transition-all duration-300 transform hover:scale-105"
@@ -937,7 +1060,6 @@ const Shop = ({ darkMode, addToCart }) => {
                 </button>
               </div>
             </div>
-           
             <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-800">
               {activeSession ? (
                 <>

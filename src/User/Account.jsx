@@ -139,7 +139,7 @@ const ProfileSection = ({ userProfile, isEditingProfile, setIsEditingProfile, pr
                 <FiPhone className="text-indigo-500" /> Phone Number
               </p>
               <p className="font-medium text-indigo-600 dark:text-indigo-400">
-                {userProfile?.phone || 'Not available'}
+                0{userProfile?.phone || 'Not available'}
               </p>
             </div>
             <div>
@@ -917,13 +917,15 @@ const Account = ({ userId, darkMode }) => {
     } catch (err) {
       if (err.name !== 'AbortError') {
         console.error('Error fetching profile:', err.response?.data || err.message);
-        Swal.fire({
-          title: 'Error',
-          text: err.response?.data?.message || 'Failed to load profile data',
-          icon: 'error',
-          position: 'top',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
+     Swal.fire({
+                   title: 'Error',
+                   text: 'failed to load profile details!',
+                   icon: 'error',
+                   toast: true,
+                   position: 'top-end',
+                   showConfirmButton: false,
+                   timer: 1500,
+                 })
       }
     } finally {
       setIsLoadingProfile(false);
@@ -943,13 +945,15 @@ const Account = ({ userId, darkMode }) => {
     } catch (err) {
       if (err.name !== 'AbortError') {
         console.error('Error fetching addresses:', err.response?.data || err.message);
-        Swal.fire({
-          title: 'Error',
-          text: err.response?.data?.message || 'Failed to load addresses',
-          icon: 'error',
-          position: 'top',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
+      Swal.fire({
+                   title: 'Error',
+                   text: 'failed to load addresses!',
+                   icon: 'error',
+                   toast: true,
+                   position: 'top-end',
+                   showConfirmButton: false,
+                   timer: 1500,
+                 })
       }
     } finally {
       setIsLoadingAddresses(false);
@@ -969,13 +973,15 @@ const Account = ({ userId, darkMode }) => {
     } catch (err) {
       if (err.name !== 'AbortError') {
         console.error('Error fetching orders:', err.response?.data || err.message);
-        Swal.fire({
-          title: 'Error',
-          text: err.response?.data?.message || 'Failed to load orders',
-          icon: 'error',
-          position: 'top',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
+       Swal.fire({
+                   title: 'Error',
+                   text: 'failed to load orders!',
+                   icon: 'error',
+                   toast: true,
+                   position: 'top-end',
+                   showConfirmButton: false,
+                   timer: 1500,
+                 })
       }
     } finally {
       setIsLoadingOrders(false);
@@ -1012,13 +1018,15 @@ const Account = ({ userId, darkMode }) => {
     } catch (err) {
       if (err.name !== 'AbortError') {
         console.error('Error fetching repair requests:', err.response?.data || err.message);
-        Swal.fire({
-          title: 'Error',
-          text: err.response?.data?.message || 'Failed to load repair requests',
-          icon: 'error',
-          position: 'top',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
+       Swal.fire({
+                   title: 'Error',
+                   text: 'failed to load repair requests!',
+                   icon: 'error',
+                   toast: true,
+                   position: 'top-end',
+                   showConfirmButton: false,
+                   timer: 1500,
+                 })
       }
     } finally {
       setIsLoadingRepairs(false);
@@ -1123,13 +1131,15 @@ const Account = ({ userId, darkMode }) => {
       });
     } catch (err) {
       console.error('Error fetching repair details:', err.response?.data || err.message);
-      Swal.fire({
-        title: 'Error',
-        text: err.response?.data?.message || 'Failed to load repair request details',
-        icon: 'error',
-        position: 'top',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
+     Swal.fire({
+                   title: 'Error',
+                   text: 'failed to load repair request details!',
+                   icon: 'error',
+                   toast: true,
+                   position: 'top-end',
+                   showConfirmButton: false,
+                   timer: 1500,
+                 })
     }
   }, [darkMode, token]);
 
@@ -1155,24 +1165,26 @@ const Account = ({ userId, darkMode }) => {
         headers: { Authorization: `Bearer ${token}` },
       });
       fetchRepairRequests();
-      Swal.fire({
-        title: 'Cancelled',
-        text: 'Repair request cancelled successfully',
-        icon: 'success',
-        position: 'top',
-        timer: 2000,
-        showConfirmButton: false,
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
+  Swal.fire({
+              title: 'Cancelled',
+              text: 'repair request cancelled!',
+              icon: 'success',
+              toast: true,
+              position: 'top-end',
+              showConfirmButton: false,
+              timer: 1500,
+            })
     } catch (err) {
       console.error('Error cancelling repair request:', err.response?.data || err.message);
-      Swal.fire({
-        title: 'Error',
-        text: err.response?.data?.message || 'Failed to cancel repair request',
-        icon: 'error',
-        position: 'top',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
+    Swal.fire({
+                   title: 'Error',
+                   text: 'failed to cancel repair request!',
+                   icon: 'error',
+                   toast: true,
+                   position: 'top-end',
+                   showConfirmButton: false,
+                   timer: 1500,
+                 })
     }
   }, [darkMode, fetchRepairRequests, token]);
 
@@ -1197,13 +1209,15 @@ const Account = ({ userId, darkMode }) => {
         fetchRepairRequests();
       } catch (err) {
         console.error('Error updating repair request:', err.response?.data || err.message);
-        Swal.fire({
-          title: 'Error',
-          text: err.response?.data?.message || 'Failed to update repair request',
-          icon: 'error',
-          position: 'top',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
+      Swal.fire({
+                   title: 'Error',
+                   text: 'failed to update repair request!',
+                   icon: 'error',
+                   toast: true,
+                   position: 'top-end',
+                   showConfirmButton: false,
+                   timer: 1500,
+                 })
       }
     },
     [darkMode, fetchRepairRequests, token]
@@ -1248,14 +1262,15 @@ const fetchCategories = useCallback(async () => {
     } catch (err) {
       if (err.name !== 'AbortError') {
         setCategories(staticCategories);
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: err.response?.data?.message || 'Could not load categories',
-          position: 'top',
-          confirmButtonColor: '#2563eb',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
+    Swal.fire({
+                   title: 'Error',
+                   text: 'could not load categories!',
+                   icon: 'error',
+                   toast: true,
+                   position: 'top-end',
+                   showConfirmButton: false,
+                   timer: 1500,
+                 })
       }
     } finally {
       setIsLoading(false);
@@ -1392,7 +1407,15 @@ const handleEditRepairRequest = useCallback(
 
     if (formValues) {
       await updateRepairRequest(request.shopId, request.id, formValues);
-      Swal.fire("Updated!", "Repair request updated successfully.", "success");
+     Swal.fire({
+                 title: 'Updated',
+                 text: 'repair request updated!',
+                 icon: 'success',
+                 toast: true,
+                 position: 'top-end',
+                 showConfirmButton: false,
+                 timer: 1500,
+               })
     }
   },
   [darkMode, userProfile, addresses, categories, updateRepairRequest]
@@ -1410,13 +1433,15 @@ const handleEditRepairRequest = useCallback(
       );
     } catch (err) {
       console.error('Error updating status:', err.response?.data || err.message);
-      Swal.fire({
-        title: 'Error',
-        text: err.response?.data?.message || 'Failed to update status',
-        icon: 'error',
-        position: 'top',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
+     Swal.fire({
+                   title: 'Error',
+                   text: 'failed to update status!',
+                   icon: 'error',
+                   toast: true,
+                   position: 'top-end',
+                   showConfirmButton: false,
+                   timer: 1500,
+                 })
     }
   }, [darkMode, token]);
 
@@ -1429,24 +1454,26 @@ const handleEditRepairRequest = useCallback(
         });
         await fetchUserProfile();
         setIsEditingProfile(false);
-        Swal.fire({
-          title: 'Success',
-          text: 'Profile updated successfully',
-          icon: 'success',
-          position: 'top',
-          timer: 2000,
-          showConfirmButton: false,
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
+       Swal.fire({
+                   title: 'Updated',
+                   text: 'profile updated!',
+                   icon: 'success',
+                   toast: true,
+                   position: 'top-end',
+                   showConfirmButton: false,
+                   timer: 1500,
+                 })
       } catch (err) {
         console.error('Error updating profile:', err.response?.data || err.message);
-        Swal.fire({
-          title: 'Error',
-          text: err.response?.data?.message || 'Failed to update profile',
-          icon: 'error',
-          position: 'top',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
+       Swal.fire({
+                   title: 'Error',
+                   text: 'failed to update profile!',
+                   icon: 'error',
+                   toast: true,
+                   position: 'top-end',
+                   showConfirmButton: false,
+                   timer: 1500,
+                 })
       }
     },
     [darkMode, profileForm, fetchUserProfile, token]
@@ -1535,13 +1562,15 @@ const handleEditRepairRequest = useCallback(
       });
     } catch (err) {
       console.error('Error tracking order:', err.response?.data || err.message);
-      Swal.fire({
-        title: 'Error',
-        text: err.response?.data?.message || 'Failed to track order',
-        icon: 'error',
-        position: 'top',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
+     Swal.fire({
+                   title: 'Error',
+                   text: 'failed to track order!',
+                   icon: 'error',
+                   toast: true,
+                   position: 'top-end',
+                   showConfirmButton: false,
+                   timer: 1500,
+                 })
     }
   }, [darkMode, token]);
 
@@ -1565,24 +1594,26 @@ const handleEditRepairRequest = useCallback(
         headers: { Authorization: `Bearer ${token}` },
       });
       fetchOrders();
-      Swal.fire({
-        title: 'Cancelled',
-        text: 'Order cancelled successfully',
-        icon: 'success',
-        position: 'top',
-        timer: 2000,
-        showConfirmButton: false,
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
+       Swal.fire({
+                   title: 'Cancelled',
+                   text: 'order cancelled!',
+                   icon: 'success',
+                   toast: true,
+                   position: 'top-end',
+                   showConfirmButton: false,
+                   timer: 1500,
+                 })
     } catch (err) {
       console.error('Error cancelling order:', err.response?.data || err.message);
-      Swal.fire({
-        title: 'Error',
-        text: err.response?.data?.message || 'Failed to cancel order',
-        icon: 'error',
-        position: 'top',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
+     Swal.fire({
+                   title: 'Error',
+                   text: 'failed to cancel order!',
+                   icon: 'error',
+                   toast: true,
+                   position: 'top-end',
+                   showConfirmButton: false,
+                   timer: 1500,
+                 })
     }
   }, [darkMode, fetchOrders, token]);
 
@@ -1596,24 +1627,26 @@ const handleEditRepairRequest = useCallback(
         await fetchAddresses();
         setAddressForm({ state: '', city: '', street: '', building: '', notes: '', isDefault: false });
         setIsAddingAddress(false);
-        Swal.fire({
-          title: 'Success',
-          text: 'Address added successfully',
-          icon: 'success',
-          position: 'top',
-          timer: 2000,
-          showConfirmButton: false,
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
+         Swal.fire({
+                   title: 'Added',
+                   text: 'address added!',
+                   icon: 'success',
+                   toast: true,
+                   position: 'top-end',
+                   showConfirmButton: false,
+                   timer: 1500,
+                 })
       } catch (err) {
         console.error('Error adding address:', err.response?.data || err.message);
-        Swal.fire({
-          title: 'Error',
-          text: err.response?.data?.message || 'Failed to add address',
-          icon: 'error',
-          position: 'top',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
+       Swal.fire({
+                   title: 'Error',
+                   text: 'failed to add address!',
+                   icon: 'error',
+                   toast: true,
+                   position: 'top-end',
+                   showConfirmButton: false,
+                   timer: 1500,
+                 })
       }
     },
     [darkMode, addressForm, fetchAddresses, token]
@@ -1629,24 +1662,26 @@ const handleEditRepairRequest = useCallback(
         await fetchAddresses();
         setEditingAddressId(null);
         setAddressForm({ state: '', city: '', street: '', building: '', notes: '', isDefault: false });
-        Swal.fire({
-          title: 'Success',
-          text: 'Address updated successfully',
-          icon: 'success',
-          position: 'top',
-          timer: 2000,
-          showConfirmButton: false,
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
+       Swal.fire({
+                   title: 'Updated',
+                   text: 'address updated!',
+                   icon: 'success',
+                   toast: true,
+                   position: 'top-end',
+                   showConfirmButton: false,
+                   timer: 1500,
+                 })
       } catch (err) {
         console.error('Error updating address:', err.response?.data || err.message);
-        Swal.fire({
-          title: 'Error',
-          text: err.response?.data?.message || 'Failed to update address',
-          icon: 'error',
-          position: 'top',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
+      Swal.fire({
+                   title: 'Error',
+                   text: 'failed to update address!',
+                   icon: 'error',
+                   toast: true,
+                   position: 'top-end',
+                   showConfirmButton: false,
+                   timer: 1500,
+                 })
       }
     },
     [darkMode, editingAddressId, addressForm, fetchAddresses, token]
@@ -1673,24 +1708,26 @@ const handleEditRepairRequest = useCallback(
           headers: { Authorization: `Bearer ${token}` },
         });
         await fetchAddresses();
-        Swal.fire({
-          title: 'Success',
-          text: 'Address deleted successfully',
-          icon: 'success',
-          position: 'top',
-          timer: 2000,
-          showConfirmButton: false,
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
+       Swal.fire({
+                   title: 'Deleted',
+                   text: 'address deleted!',
+                   icon: 'success',
+                   toast: true,
+                   position: 'top-end',
+                   showConfirmButton: false,
+                   timer: 1500,
+                 })
       } catch (err) {
         console.error('Error deleting address:', err.response?.data || err.message);
-        Swal.fire({
-          title: 'Error',
-          text: err.response?.data?.message || 'Failed to delete address',
-          icon: 'error',
-          position: 'top',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
+       Swal.fire({
+                   title: 'Error',
+                   text: 'failed to delete address!',
+                   icon: 'error',
+                   toast: true,
+                   position: 'top-end',
+                   showConfirmButton: false,
+                   timer: 1500,
+                 })
       }
     },
     [darkMode, fetchAddresses, token]
@@ -1715,25 +1752,27 @@ const handleEditRepairRequest = useCallback(
       await api.delete('/api/users/profile', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      Swal.fire({
-        title: 'Success',
-        text: 'Account deleted successfully',
-        icon: 'success',
-        position: 'top',
-        timer: 2000,
-        showConfirmButton: false,
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
+    Swal.fire({
+                   title: 'Deleted',
+                   text: 'account deleted!',
+                   icon: 'success',
+                   toast: true,
+                   position: 'top-end',
+                   showConfirmButton: false,
+                   timer: 1500,
+                 })
       navigate('/');
     } catch (err) {
       console.error('Error deleting account:', err.response?.data || err.message);
       Swal.fire({
-        title: 'Error',
-        text: err.response?.data?.message || 'Failed to delete account',
-        icon: 'error',
-        position: 'top',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
+                   title: 'Error',
+                   text: 'failed to delete account!',
+                   icon: 'error',
+                   toast: true,
+                   position: 'top-end',
+                   showConfirmButton: false,
+                   timer: 1500,
+                 })
     }
   }, [darkMode, navigate, token]);
 
@@ -1757,13 +1796,15 @@ const handleEditRepairRequest = useCallback(
 
   useEffect(() => {
     if (!token) {
-      Swal.fire({
-        title: 'Authentication Required',
-        text: 'Please log in to access your account.',
-        icon: 'warning',
-        position: 'top',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      }).then(() => navigate('/login'));
+    Swal.fire({
+                   title: 'Authentication Required',
+                   text: 'please login in your account or create one!',
+                   icon: 'success',
+                   toast: true,
+                   position: 'top-end',
+                   showConfirmButton: false,
+                   timer: 1500,
+                 }).then(() => navigate('/login'));
       return;
     }
     Promise.all([

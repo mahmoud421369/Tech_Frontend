@@ -34,12 +34,15 @@ const Track = ({ darkMode }) => {
     const fetchOrders = async () => {
       if (!token) {
         setError("No auth token found. Please log in.");
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: "Please log in to view your orders",
-          customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-        });
+       Swal.fire({
+                          title: 'Authentication Required',
+                          text: 'please login in your account or create one!',
+                          icon: 'warning',
+                          toast: true,
+                          position: 'top-end',
+                          showConfirmButton: false,
+                          timer: 1500,
+                        })
         setIsLoading(false);
         return;
       }
@@ -50,15 +53,21 @@ const Track = ({ darkMode }) => {
         setOrders(data);
         if (data.length > 0) setSelectedOrder(data[0]);
         setError("");
+        if(data.length === 0 ){
+          setOrders([])
+        }
       } catch (err) {
         console.error("Error fetching orders:", err.response?.data || err.message);
-        setError(err.response?.data?.message || "Failed to fetch orders");
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: err.response?.data?.message || "Failed to fetch orders",
-          customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-        });
+    
+       Swal.fire({
+                          title: 'Error',
+                          text: 'failed to load orders!',
+                          icon: 'error',
+                          toast: true,
+                          position: 'top-end',
+                          showConfirmButton: false,
+                          timer: 1500,
+                        })
       } finally {
         setIsLoading(false);
       }

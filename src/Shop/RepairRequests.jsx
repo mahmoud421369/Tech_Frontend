@@ -324,7 +324,7 @@ const RepairRequests = () => {
                 className="px-4 py-2 bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={currentPage === 1}
               >
-                <FiChevronRight />
+                <FiChevronLeft />
               </button>
               {[...Array(totalPages)].map((_, i) => (
                 <button
@@ -344,7 +344,7 @@ const RepairRequests = () => {
                 className="px-4 py-2 bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={currentPage === totalPages}
               >
-                <FiChevronLeft />
+                <FiChevronRight />
               </button>
             </div>
           )}

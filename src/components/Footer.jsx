@@ -137,7 +137,7 @@ const Footer = ({ darkMode }) => {
             . All rights reserved.
           </p>
         </div>
-      </div>
+      </div><br /><br />
     </footer>
   );
 };

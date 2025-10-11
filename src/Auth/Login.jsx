@@ -421,10 +421,10 @@ const Login = () => {
           </form>
 
           <div className="mt-6 space-y-2 text-center text-sm text-white/80 dark:text-gray-300">
-            <button onClick={verifyEmail} className="underline hover:text-white dark:hover:text-gray-100">
+            {/* <button onClick={verifyEmail} className="underline hover:text-white dark:hover:text-gray-100">
               Verify Email
             </button>{" "}
-            |{" "}
+            |{" "} */}
             <button onClick={forgotPassword} className="underline hover:text-white dark:hover:text-gray-100">
               Forgot / Reset Password
             </button>

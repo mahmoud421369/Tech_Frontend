@@ -73,12 +73,15 @@ const Explore = memo(({ darkMode, addToCart }) => {
     } catch (err) {
       if (err.name !== 'AbortError') {
         console.error("Error fetching products:", err.response?.data || err.message);
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: err.response?.data?.message || "Could not load products",
-          customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-        });
+       Swal.fire({
+                          title: 'Error',
+                          text: 'could not load products!',
+                          icon: 'error',
+                          toast: true,
+                          position: 'top-end',
+                          showConfirmButton: false,
+                          timer: 1500,
+                        })
       }
     } finally {
       setProductsLoading(false);
@@ -102,12 +105,15 @@ const Explore = memo(({ darkMode, addToCart }) => {
     } catch (err) {
       if (err.name !== 'AbortError') {
         console.error("Error fetching products by category:", err.response?.data || err.message);
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: err.response?.data?.message || "Could not load products",
-          customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-        });
+      Swal.fire({
+                         title: 'Error',
+                         text: 'could not load products!',
+                         icon: 'error',
+                         toast: true,
+                         position: 'top-end',
+                         showConfirmButton: false,
+                         timer: 1500,
+                       })
       }
     } finally {
       setProductsLoading(false);
@@ -132,11 +138,14 @@ const Explore = memo(({ darkMode, addToCart }) => {
       if (err.name !== 'AbortError') {
         console.error("Error fetching shops:", err.response?.data || err.message);
         Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: err.response?.data?.message || "Could not load shops",
-          customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-        });
+                           title: 'Error',
+                           text: 'could not load shops!',
+                           icon: 'error',
+                           toast: true,
+                           position: 'top-end',
+                           showConfirmButton: false,
+                           timer: 1500,
+                         })
       }
     } finally {
       setShopsLoading(false);
@@ -157,12 +166,15 @@ const Explore = memo(({ darkMode, addToCart }) => {
     } catch (err) {
       if (err.name !== 'AbortError') {
         console.error(" Error fetching categories:", err.response?.data || err.message);
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: err.response?.data?.message || "Could not load categories",
-          customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-        });
+    Swal.fire({
+                       title: 'Error',
+                       text: 'could not load categories!',
+                       icon: 'error',
+                       toast: true,
+                       position: 'top-end',
+                       showConfirmButton: false,
+                       timer: 1500,
+                     })
       }
     }
     return () => controller.abort();
@@ -199,12 +211,15 @@ const Explore = memo(({ darkMode, addToCart }) => {
     
     } catch (error) {
       console.error("Error adding to cart:", error.response?.data || error.message);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: error.response?.data?.message || "Failed to add item to cart",
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
+    Swal.fire({
+                       title: 'Error',
+                       text: 'failed to add item to cart!',
+                       icon: 'error',
+                       toast: true,
+                       position: 'top-end',
+                       showConfirmButton: false,
+                       timer: 1500,
+                     })
     }
   }, [addToCart, token, darkMode]);
 

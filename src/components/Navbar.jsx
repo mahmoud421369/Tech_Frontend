@@ -35,8 +35,8 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
       const response = await api.get("/api/notifications/users");
       setNotifications(response.data || []);
     } catch (error) {
-      console.error("Error fetching notifications:", error.response?.data || error.message);
-      toast.error("Failed to load notifications");
+      // console.error("Error fetching notifications:", error.response?.data || error.message);
+      // toast.error("Failed to load notifications");
     }
   }, [token]);
 

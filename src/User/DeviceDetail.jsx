@@ -29,12 +29,15 @@ const DeviceDetail = ({ addToCart, darkMode }) => {
       if (err.name !== "AbortError") {
         console.error("Error fetching product:", err.response?.data || err.message);
         setProduct(null);
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: err.response?.data?.message || "Product not found",
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
+          Swal.fire({
+                         title: 'Error',
+                         text: 'product not found',
+                         icon: 'error',
+                         toast: true,
+                         position: 'top-end',
+                         showConfirmButton: false,
+                         timer: 1500,
+                       })
       }
     } finally {
       setLoading(false);
