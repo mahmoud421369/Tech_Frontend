@@ -574,7 +574,7 @@ const Signup = () => {
                     }`}
                   />
                   {errors.user.first_name && (
-                    <p className="text-red-400 text-xs mt-1">{errors.user.first_name}</p>
+                    <p className="text-white  text-xs mt-1">{errors.user.first_name}</p>
                   )}
                 </div>
                 <div className="relative">
@@ -592,7 +592,7 @@ const Signup = () => {
                     }`}
                   />
                   {errors.user.last_name && (
-                    <p className="text-red-400 text-xs mt-1">{errors.user.last_name}</p>
+                    <p className="text-white  text-xs mt-1">{errors.user.last_name}</p>
                   )}
                 </div>
                 <div className="relative">
@@ -610,7 +610,7 @@ const Signup = () => {
                     }`}
                   />
                   {errors.user.email && (
-                    <p className="text-red-400 text-xs mt-1">{errors.user.email}</p>
+                    <p className="text-white  text-xs mt-1">{errors.user.email}</p>
                   )}
                 </div>
                 <div className="relative">
@@ -628,7 +628,7 @@ const Signup = () => {
                     }`}
                   />
                   {errors.user.phone && (
-                    <p className="text-red-400 text-xs mt-1">{errors.user.phone}</p>
+                    <p className="text-white  text-xs mt-1">{errors.user.phone}</p>
                   )}
                 </div>
                 <div className="relative sm:col-span-2">
@@ -646,7 +646,7 @@ const Signup = () => {
                     }`}
                   />
                   {errors.user.password && (
-                    <p className="text-red-400 text-xs mt-1">{errors.user.password}</p>
+                    <p className="text-white text-xs mt-1">{errors.user.password}</p>
                   )}
                 </div>
               </div>
@@ -702,7 +702,7 @@ const Signup = () => {
                     }`}
                   />
                   {errors.shop.name && (
-                    <p className="text-red-400 text-xs mt-1">{errors.shop.name}</p>
+                    <p className="text-text-white  text-xs mt-1">{errors.shop.name}</p>
                   )}
                 </div>
                 <div className="relative">
@@ -720,7 +720,7 @@ const Signup = () => {
                     }`}
                   />
                   {errors.shop.email && (
-                    <p className="text-red-400 text-xs mt-1">{errors.shop.email}</p>
+                    <p className="text-text-white  text-xs mt-1">{errors.shop.email}</p>
                   )}
                 </div>
                 <div className="relative">
@@ -738,7 +738,7 @@ const Signup = () => {
                     }`}
                   />
                   {errors.shop.password && (
-                    <p className="text-red-400 text-xs mt-1">{errors.shop.password}</p>
+                    <p className="text-text-white  text-xs mt-1">{errors.shop.password}</p>
                   )}
                 </div>
                 <div className="relative">
@@ -756,7 +756,7 @@ const Signup = () => {
                     }`}
                   />
                   {errors.shop.description && (
-                    <p className="text-red-400 text-xs mt-1">{errors.shop.description}</p>
+                    <p className="text-white  text-xs mt-1">{errors.shop.description}</p>
                   )}
                 </div>
                 <div className="relative">
@@ -774,7 +774,7 @@ const Signup = () => {
                     }`}
                   />
                   {errors.shop.phone && (
-                    <p className="text-red-400 text-xs mt-1">{errors.shop.phone}</p>
+                    <p className="text-white  text-xs mt-1">{errors.shop.phone}</p>
                   )}
                 </div>
                 <div className="relative">
@@ -795,7 +795,7 @@ const Signup = () => {
                     <option value="BOTH">Both</option>
                   </select>
                   {errors.shop.shopType && (
-                    <p className="text-red-400 text-xs mt-1">{errors.shop.shopType}</p>
+                    <p className="text-white  text-xs mt-1">{errors.shop.shopType}</p>
                   )}
                 </div>
                 <div className="relative">
@@ -813,7 +813,7 @@ const Signup = () => {
                     }`}
                   />
                   {errors.shop.state && (
-                    <p className="text-red-400 text-xs mt-1">{errors.shop.state}</p>
+                    <p className="text-white  text-xs mt-1">{errors.shop.state}</p>
                   )}
                 </div>
                 <div className="relative">
@@ -831,7 +831,7 @@ const Signup = () => {
                     }`}
                   />
                   {errors.shop.city && (
-                    <p className="text-red-400 text-xs mt-1">{errors.shop.city}</p>
+                    <p className="text-white  text-xs mt-1">{errors.shop.city}</p>
                   )}
                 </div>
                 <div className="relative">
@@ -849,7 +849,7 @@ const Signup = () => {
                     }`}
                   />
                   {errors.shop.street && (
-                    <p className="text-red-400 text-xs mt-1">{errors.shop.street}</p>
+                    <p className="text-white  text-xs mt-1">{errors.shop.street}</p>
                   )}
                 </div>
                 <div className="relative">
@@ -867,7 +867,7 @@ const Signup = () => {
                     }`}
                   />
                   {errors.shop.building && (
-                    <p className="text-red-400 text-xs mt-1">{errors.shop.building}</p>
+                    <p className="text-white  text-xs mt-1">{errors.shop.building}</p>
                   )}
                 </div>
               </div>
@@ -923,7 +923,7 @@ const Signup = () => {
                     }`}
                   />
                   {errors.delivery.name && (
-                    <p className="text-red-400 text-xs mt-1">{errors.delivery.name}</p>
+                    <p className="text-white  text-xs mt-1">{errors.delivery.name}</p>
                   )}
                 </div>
                 <div className="relative">
@@ -941,7 +941,7 @@ const Signup = () => {
                     }`}
                   />
                   {errors.delivery.address && (
-                    <p className="text-red-400 text-xs mt-1">{errors.delivery.address}</p>
+                    <p className="text-white  text-xs mt-1">{errors.delivery.address}</p>
                   )}
                 </div>
                 <div className="relative">
@@ -959,7 +959,7 @@ const Signup = () => {
                     }`}
                   />
                   {errors.delivery.email && (
-                    <p className="text-red-400 text-xs mt-1">{errors.delivery.email}</p>
+                    <p className="text-white  text-xs mt-1">{errors.delivery.email}</p>
                   )}
                 </div>
                 <div className="relative">
@@ -977,7 +977,7 @@ const Signup = () => {
                     }`}
                   />
                   {errors.delivery.phone && (
-                    <p className="text-red-400 text-xs mt-1">{errors.delivery.phone}</p>
+                    <p className="text-white  text-xs mt-1">{errors.delivery.phone}</p>
                   )}
                 </div>
                 <div className="relative sm:col-span-2">
@@ -995,7 +995,7 @@ const Signup = () => {
                     }`}
                   />
                   {errors.delivery.password && (
-                    <p className="text-red-400 text-xs mt-1">{errors.delivery.password}</p>
+                    <p className="text-white  text-xs mt-1">{errors.delivery.password}</p>
                   )}
                 </div>
               </div>
@@ -1051,7 +1051,7 @@ const Signup = () => {
                     }`}
                   />
                   {errors.assigner.name && (
-                    <p className="text-red-400 text-xs mt-1">{errors.assigner.name}</p>
+                    <p className="text-white  text-xs mt-1">{errors.assigner.name}</p>
                   )}
                 </div>
                 <div className="relative">
@@ -1069,7 +1069,7 @@ const Signup = () => {
                     }`}
                   />
                   {errors.assigner.department && (
-                    <p className="text-red-400 text-xs mt-1">{errors.assigner.department}</p>
+                    <p className="text-white  text-xs mt-1">{errors.assigner.department}</p>
                   )}
                 </div>
                 <div className="relative">
@@ -1087,7 +1087,7 @@ const Signup = () => {
                     }`}
                   />
                   {errors.assigner.email && (
-                    <p className="text-red-400 text-xs mt-1">{errors.assigner.email}</p>
+                    <p className="text-white  text-xs mt-1">{errors.assigner.email}</p>
                   )}
                 </div>
                 <div className="relative">
@@ -1105,7 +1105,7 @@ const Signup = () => {
                     }`}
                   />
                   {errors.assigner.phone && (
-                    <p className="text-red-400 text-xs mt-1">{errors.assigner.phone}</p>
+                    <p className="text-white  text-xs mt-1">{errors.assigner.phone}</p>
                   )}
                 </div>
                 <div className="relative sm:col-span-2">
@@ -1123,7 +1123,7 @@ const Signup = () => {
                     }`}
                   />
                   {errors.assigner.password && (
-                    <p className="text-red-400 text-xs mt-1">{errors.assigner.password}</p>
+                    <p className="text-white  text-xs mt-1">{errors.assigner.password}</p>
                   )}
                 </div>
               </div>
