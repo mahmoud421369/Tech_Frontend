@@ -7,14 +7,13 @@ import "react-toastify/dist/ReactToastify.css";
 import { jwtDecode } from "jwt-decode";
 import api from "../api";
 import logo from "../images/logo.png";
-
+import Swal from "sweetalert2";
 const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [token, setToken] = useState(localStorage.getItem("authToken"));
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [isScrolled, setIsScrolled] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const dropdownRef = useRef(null);
@@ -52,14 +51,6 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
   }, []);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  useEffect(() => {
     const timer = setTimeout(() => setIsInitialLoading(false), 1000);
     return () => clearTimeout(timer);
   }, []);
@@ -78,9 +69,15 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
       setCartCount(0);
       setNotifications([]);
       if (location.pathname !== "/login" && location.pathname !== "/signup") {
-        toast.warn("Session Expired. Please log in to continue.", {
-          position: "top-right",
-        });
+         Swal.fire({
+                    title: 'Session Expired',
+                    text: 'please login to continue!',
+                    icon: 'warning',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 1500,
+                  })
         navigate("/login");
       }
     }
@@ -98,10 +95,15 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
       setToken(null);
       setIsAuthenticated(false);
       setNotifications([]);
-      toast.success("Logged out successfully!", {
-        position: "top-right",
-        autoClose: 2000,
-      });
+       Swal.fire({
+                  title: 'Success',
+                  text: 'logout successfully!',
+                  icon: 'success',
+                  toast: true,
+                  position: 'top-end',
+                  showConfirmButton: false,
+                  timer: 1500,
+                })
       navigate("/login");
     } catch (err) {
       console.error("Logout error:", err.response?.data || err.message);
@@ -185,32 +187,30 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
   const SkeletonLoader = useMemo(
     () => (
       <div
-        className={`flex justify-between items-center px-6 py-4 w-full fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          darkMode ? "bg-gray-900" : "bg-gradient-to-r from-indigo-600 to-blue-600"
-        } animate-pulse`}
+        className={`flex justify-between items-center px-6 py-4 w-full fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-blue-600 to-indigo-600 animate-pulse`}
       >
         <div className="flex items-center gap-2">
-          <div className="h-12 w-12 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
-          <div className="h-8 w-40 bg-gray-300 dark:bg-gray-700 rounded"></div>
+          <div className="h-12 w-12 bg-gray-300 rounded-full"></div>
+          <div className="h-8 w-40 bg-gray-300 rounded"></div>
         </div>
         <div className="hidden md:flex space-x-6">
           {Array.from({ length: isAuthenticated ? 4 : 3 }).map((_, i) => (
-            <div key={i} className="h-8 w-24 bg-gray-300 dark:bg-gray-700 rounded-xl"></div>
+            <div key={i} className="h-8 w-24 bg-gray-300 rounded-xl"></div>
           ))}
         </div>
         <div className="flex items-center gap-4">
-          <div className="h-10 w-10 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
+          <div className="h-10 w-10 bg-gray-300 rounded-full"></div>
           {isAuthenticated && (
             <>
-              <div className="h-10 w-10 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
-              <div className="h-10 w-10 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
-              <div className="h-8 w-24 bg-gray-300 dark:bg-gray-700 rounded-xl"></div>
+              <div className="h-10 w-10 bg-gray-300 rounded-full"></div>
+              <div className="h-10 w-10 bg-gray-300 rounded-full"></div>
+              <div className="h-8 w-24 bg-gray-300 rounded-xl"></div>
             </>
           )}
         </div>
       </div>
     ),
-    [darkMode, isAuthenticated]
+    [isAuthenticated]
   );
 
   return (
@@ -220,11 +220,7 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
         SkeletonLoader
       ) : (
         <nav
-          className={`flex items-center justify-between py-4 px-6 fixed top-0 left-0 right-0 w-full z-50 transition-all duration-300 ${
-            darkMode
-              ? "bg-gray-900 shadow-lg"
-              : "bg-gradient-to-r from-indigo-600 to-blue-600 shadow-md"
-          } ${isScrolled ? "rounded-b-2xl max-w-7xl mx-auto" : ""} animate-fade-in hidden md:flex`}
+          className={`flex items-center justify-between py-4 px-6 fixed top-0 left-0 right-0 w-full z-50 bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-black dark:to-gray-950 shadow-md hidden md:flex`}
         >
           <Link
             to="/"
@@ -245,8 +241,8 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
                 className={({ isActive }) =>
                   `flex items-center px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 transform hover:-translate-y-1 ${
                     isActive
-                      ? "bg-white text-indigo-600 shadow-sm dark:bg-gray-800 dark:text-indigo-400"
-                      : "text-white hover:bg-indigo-700/50 dark:hover:bg-gray-700"
+                      ? "bg-indigo-700 text-white shadow-sm"
+                      : "text-white hover:bg-indigo-500"
                   }`
                 }
                 aria-label={item.name}
@@ -260,11 +256,7 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
           <div className="flex items-center space-x-4">
             <button
               onClick={toggleDarkMode}
-              className={`p-2 rounded-full transition-all duration-200 transform hover:-translate-y-1 ${
-                darkMode
-                  ? "text-yellow-300 hover:bg-gray-800"
-                  : "text-white hover:bg-indigo-700/50"
-              }`}
+              className="p-2 rounded-full transition-all duration-200 transform hover:-translate-y-1 text-white hover:bg-indigo-500"
               aria-label={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
               {darkMode ? <FiSun className="w-6 h-6" /> : <FiMoon className="w-6 h-6" />}
@@ -275,7 +267,7 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setShowNotifications(!showNotifications)}
-                    className="relative p-2 text-white hover:bg-indigo-700/50 dark:hover:bg-gray-800 rounded-full transition-all duration-200 transform hover:-translate-y-1"
+                    className="relative p-2 text-white hover:bg-indigo-500 rounded-full transition-all duration-200 transform hover:-translate-y-1"
                     aria-label="View notifications"
                   >
                     <FaBell className="w-6 h-6" />
@@ -286,26 +278,26 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
                     )}
                   </button>
                   {showNotifications && (
-                    <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 max-h-96 overflow-y-auto z-50">
-                      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+                    <div className="absolute right-0 mt-2 w-80 bg-indigo-600 rounded-xl shadow-lg border border-indigo-700 max-h-96 overflow-y-auto z-50">
+                      <div className="p-4 border-b border-indigo-700">
+                        <h3 className="text-lg font-semibold text-white">
                           Notifications
                         </h3>
                       </div>
                       {notifications.length === 0 ? (
-                        <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                        <div className="p-4 text-center text-white">
                           No notifications available
                         </div>
                       ) : (
                         notifications.map((notification, index) => (
                           <div
                             key={index}
-                            className="p-4 border-b border-gray-200 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                            className="p-4 border-b border-indigo-700 last:border-b-0 hover:bg-indigo-500 transition-colors"
                           >
-                            <p className="text-sm text-gray-700 dark:text-gray-200">
+                            <p className="text-sm text-white">
                               {notification.message || "No message"}
                             </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            <p className="text-xs text-white/80 mt-1">
                               {formatDate(notification.timestamp)}
                             </p>
                           </div>
@@ -317,7 +309,7 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
 
                 <button
                   onClick={onCartClick}
-                  className="relative p-2 text-white hover:bg-indigo-700/50 dark:hover:bg-gray-800 rounded-full transition-all duration-200 transform hover:-translate-y-1"
+                  className="relative p-2 text-white hover:bg-indigo-500 rounded-full transition-all duration-200 transform hover:-translate-y-1"
                   aria-label="View cart"
                 >
                   <FiShoppingCart className="w-6 h-6" />
@@ -330,7 +322,7 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
 
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-2 px-4 py-2 bg-white/30 dark:bg-black/30 text-white text-sm font-semibold rounded-xl hover:bg-red-700 dark:hover:bg-red-600 transition-all duration-200 transform hover:-translate-y-1"
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-700 text-white text-sm font-semibold rounded-xl hover:bg-red-600 transition-all duration-200 transform hover:-translate-y-1"
                   aria-label="Log out"
                 >
                   <FiLogOut className="w-5 h-5" />
@@ -344,29 +336,25 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
 
       {isInitialLoading ? (
         <div
-          className={`md:hidden flex justify-between items-center px-4 py-3 w-full fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-            darkMode ? "bg-gray-900 border-b border-gray-700" : "bg-gradient-to-r from-indigo-600 to-blue-600"
-          } animate-pulse`}
+          className={`md:hidden flex justify-between items-center px-4 py-3 w-full fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-blue-600 to-indigo-600 animate-pulse`}
         >
           <div className="flex items-center gap-2">
-            <div className="h-10 w-10 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
-            <div className="h-6 w-32 bg-gray-300 dark:bg-gray-700 rounded"></div>
+            <div className="h-10 w-10 bg-gray-300 rounded-full"></div>
+            <div className="h-6 w-32 bg-gray-300 rounded"></div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="h-8 w-8 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
+            <div className="h-8 w-8 bg-gray-300 rounded-full"></div>
             {isAuthenticated && (
               <>
-                <div className="h-8 w-8 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
-                <div className="h-8 w-8 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
+                <div className="h-8 w-8 bg-gray-300 rounded-full"></div>
+                <div className="h-8 w-8 bg-gray-300 rounded-full"></div>
               </>
             )}
           </div>
         </div>
       ) : (
         <nav
-          className={`md:hidden flex justify-between items-center px-4 py-3 w-full fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-            darkMode ? "bg-gray-900 border-b border-gray-700" : "bg-gradient-to-r from-indigo-600 to-blue-600"
-          } ${isScrolled ? "rounded-b-2xl max-w-7xl mx-auto" : ""} animate-fade-in`}
+          className={`md:hidden flex justify-between items-center px-4 py-3 w-full fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-black dark:to-gray-950 border-b border-indigo-700`}
         >
           <Link
             to="/"
@@ -379,11 +367,7 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
           <div className="flex items-center space-x-3">
             <button
               onClick={toggleDarkMode}
-              className={`p-2 rounded-full transition-all duration-200 transform hover:-translate-y-1 ${
-                darkMode
-                  ? "text-yellow-300 hover:bg-gray-800"
-                  : "text-white hover:bg-indigo-700/50"
-              }`}
+              className="p-2 rounded-full transition-all duration-200 transform hover:-translate-y-1 text-white hover:bg-indigo-500"
               aria-label={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
               {darkMode ? <FiSun className="w-5 h-5" /> : <FiMoon className="w-5 h-5" />}
@@ -393,7 +377,7 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setShowNotifications(!showNotifications)}
-                    className="relative p-2 text-white hover:bg-indigo-700/50 dark:hover:bg-gray-800 rounded-full transition-all duration-200 transform hover:-translate-y-1"
+                    className="relative p-2 text-white hover:bg-indigo-500 rounded-full transition-all duration-200 transform hover:-translate-y-1"
                     aria-label="View notifications"
                   >
                     <FaBell className="w-5 h-5" />
@@ -404,26 +388,26 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
                     )}
                   </button>
                   {showNotifications && (
-                    <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 max-h-80 overflow-y-auto z-50">
-                      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+                    <div className="absolute right-0 mt-2 w-64 bg-indigo-600 rounded-xl shadow-lg border border-indigo-700 max-h-80 overflow-y-auto z-50">
+                      <div className="p-4 border-b border-indigo-700">
+                        <h3 className="text-lg font-semibold text-white">
                           Notifications
                         </h3>
                       </div>
                       {notifications.length === 0 ? (
-                        <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                        <div className="p-4 text-center text-white">
                           No notifications available
                         </div>
                       ) : (
                         notifications.map((notification, index) => (
                           <div
                             key={index}
-                            className="p-4 border-b border-gray-200 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                            className="p-4 border-b border-indigo-700 last:border-b-0 hover:bg-indigo-500 transition-colors"
                           >
-                            <p className="text-sm text-gray-700 dark:text-gray-200">
+                            <p className="text-sm text-white">
                               {notification.message || "No message"}
                             </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            <p className="text-xs text-white/80 mt-1">
                               {formatDate(notification.createdAt)}
                             </p>
                           </div>
@@ -434,7 +418,7 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
                 </div>
                 <button
                   onClick={onCartClick}
-                  className="relative p-2 text-white hover:bg-indigo-700/50 dark:hover:bg-gray-800 rounded-full transition-all duration-200 transform hover:-translate-y-1"
+                  className="relative p-2 text-white hover:bg-indigo-500 rounded-full transition-all duration-200 transform hover:-translate-y-1"
                   aria-label="View cart"
                 >
                   <FiShoppingCart className="w-5 h-5" />
@@ -452,9 +436,7 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
 
       {!isInitialLoading && (
         <div
-          className={`md:hidden fixed bottom-0 left-0 right-0 w-full z-50 flex justify-around py-3 shadow-lg transition-all duration-300 ${
-            darkMode ? "bg-gray-900 border-t border-gray-700" : "bg-white border-t border-gray-200"
-          } animate-fade-in`}
+          className={`md:hidden fixed bottom-0 left-0 right-0 w-full z-50 flex justify-around py-3 shadow-lg bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-black dark:to-gray-950 border-t border-indigo-700`}
         >
           {navItems.map((item) => (
             <NavLink
@@ -463,10 +445,8 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
               className={({ isActive }) =>
                 `flex flex-col items-center text-sm font-semibold transition-all duration-200 transform hover:-translate-y-1 ${
                   isActive
-                    ? "text-indigo-600 dark:text-indigo-400"
-                    : darkMode
-                    ? "text-gray-300 hover:text-gray-100"
-                    : "text-gray-700 hover:text-gray-900"
+                    ? "text-white"
+                    : "text-white/80 hover:text-white"
                 }`
               }
               aria-label={item.name}

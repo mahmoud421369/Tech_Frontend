@@ -123,6 +123,7 @@ const ShopOffers = () => {
   const addOffer = useCallback(async () => {
     try {
       await api.post('/api/shop/offers', { ...newOffer, discountValue: Number(newOffer.discountValue) });
+      console.log(newOffer)
       Swal.fire('Success!', 'تمت إضافة العرض بنجاح', 'success');
       setNewOffer({
         name: '',

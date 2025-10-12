@@ -147,6 +147,7 @@ const Shop = ({ darkMode, addToCart }) => {
     setIsLoading((prev) => ({ ...prev, products: true }));
     try {
       const response = await api.get(`/api/products/shop/${shopId}`);
+      console.log(response.data.content || response.data)
       setProducts(response.data.content || response.data);
     } catch (error) {
       console.error("Error fetching products:", error.response?.data || error.message);

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import {
   FaTag,
@@ -29,6 +28,7 @@ const Offers = ({ darkMode }) => {
           headers: { Authorization: `Bearer ${token}` },
           signal: controller.signal,
         });
+        console.log(res.data.content || res.data)
         setOffers(res.data.content || res.data || []);
       } catch (err) {
         // if (err.name !== "AbortError") {
@@ -65,12 +65,13 @@ const Offers = ({ darkMode }) => {
     currentPage * pageSize
   );
 
-
   const formatDiscount = (offer) => {
     if (offer.discountType === "PERCENTAGE") {
-      return `${offer.discountValue}% Off`;
+      return `${offer.discountValue}%`;
+    } else if (offer.discountType === "FIXED_VALUE") {
+      return `${offer.discountValue} EGP`;
     }
-    return `${offer.discountValue} EGP Off`;
+    return "No discount specified";
   };
 
   return (
