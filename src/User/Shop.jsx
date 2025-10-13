@@ -873,7 +873,7 @@ const Shop = ({ darkMode, addToCart }) => {
         <h2 className="text-3xl md:text-4xl font-bold text-indigo-600 dark:text-indigo-400 mb-10 text-center animate-fade-in">
           Customer Reviews
         </h2>
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-xl mb-10 border border-indigo-100 dark:border-indigo-700">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-xl mb-10 border border-indigo-100 dark:border-gray-700">
           <h3 className="font-bold text-xl text-indigo-600 dark:text-indigo-400 mb-6">Share Your Experience</h3>
           <div className="flex items-center mb-6">
             {[1, 2, 3, 4, 5].map((star) => (
@@ -890,7 +890,7 @@ const Shop = ({ darkMode, addToCart }) => {
             value={newReview.comment}
             onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })}
             placeholder="Write your detailed review here..."
-            className="w-full rounded-xl border border-indigo-200 dark:border-indigo-600 bg-gray-50 dark:bg-gray-700 p-4 text-gray-700 dark:text-gray-200 shadow-inner focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 resize-none"
+            className="w-full rounded-xl border border-indigo-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 p-4 text-gray-700 dark:text-gray-200 shadow-inner focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 resize-none"
             rows="5"
           />
           <div className="mt-6 flex justify-end">
@@ -924,7 +924,7 @@ const Shop = ({ darkMode, addToCart }) => {
               >
                 {reviews.map((r) => (
                   <div key={r.id} className="min-w-[100%] md:min-w-[50%] lg:min-w-[33.333%]">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg hover:shadow-2xl transition-all duration-300 border border-indigo-100 dark:border-indigo-700 transform hover:-translate-y-1">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg hover:shadow-2xl transition-all duration-300 border border-indigo-100 dark:border-gray-700 transform hover:-translate-y-1">
                       <div className="flex items-center mb-4">
                         {[1, 2, 3, 4, 5].map((star) => (
                           <FiStar

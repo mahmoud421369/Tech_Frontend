@@ -28,7 +28,7 @@ import {
   FaCreditCard,
   FaDollarSign,
 } from 'react-icons/fa';
-import { FiChevronLeft, FiChevronRight, FiList, FiTool } from 'react-icons/fi';
+import { FiChevronLeft, FiChevronRight, FiList, FiMonitor, FiShoppingBag, FiSmartphone, FiTool } from 'react-icons/fi';
 import api from '../api';
 
 const LoadingSpinner = () => (
@@ -734,7 +734,7 @@ const RepairRequest = ({ onApproved, onRejected, darkMode }) => {
 
             case 1:
               return (
-                <div className=" min-h-screen animate__animated animate__fadeIn">
+                <div className=" min-h-screen  animate__animated animate__fadeIn">
                   <h2 className="text-3xl font-bold text-center mb-8 text-indigo-600 dark:text-indigo-400">
                     Step 1: Select Device Type
                   </h2>
@@ -1072,11 +1072,19 @@ const RepairRequest = ({ onApproved, onRejected, darkMode }) => {
 
   return (
     <div
-      className={`min-h-screen transition-all duration-300 mt-16 ${
+      className={`relative mb-0 min-h-screen transition-all duration-300 mt-20 ${
         darkMode ? 'bg-gray-900' : 'bg-gray-50'
       }`}
     >
-      <div className="bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-900 dark:to-gray-800 text-white py-12 px-6 shadow-2xl">
+      <div className="relative bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-900 dark:to-gray-800 text-white py-12 px-6 shadow-2xl">
+             <div className="absolute inset-0 opacity-5 pointer-events-none">
+                          <FiTool className="absolute w-20 h-20 bottom-1/3 right-1/5 animate-float-medium dark:text-blue-500" />
+                          <FiShoppingBag className="absolute w-24 h-24 top-1/3 right-1/4 animate-float-slow dark:text-blue-500" />
+                          <FiShoppingBag className="absolute w-16 h-16 bottom-1/4 left-1/3 animate-float-fast dark:text-blue-500" />
+                          <FiSmartphone className="absolute w-20 h-20 top-10 left-10 animate-float-medium dark:text-blue-500" />
+                          <FiSmartphone className="absolute w-28 h-28 bottom-20 right-20 animate-float-slow dark:text-blue-500" />
+                          <FiMonitor className="absolute w-18 h-18 top-1/2 left-1/4 animate-float-fast dark:text-blue-500" />
+                        </div>
         <div className="max-w-7xl mx-auto text-center">
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-3 animate__animated animate__fadeInDown flex justify-center items-center gap-3">
             <FiTool className="text-4xl" /> Create a Repair Request

@@ -36,6 +36,7 @@ const Products = () => {
         params: { query: searchTerm }, // Support server-side search
       });
       const data = res.data;
+      console.log(Array.isArray(data) ? data : data.content || [])
       setProducts(Array.isArray(data) ? data : data.content || []);
     } catch (err) {
       if (err.name !== 'AbortError') {
@@ -381,6 +382,8 @@ const Products = () => {
                   <th className="px-4 py-3 font-semibold">اسم المنتج</th>
                   <th className="px-4 py-3 font-semibold">الحالة</th>
                   <th className="px-4 py-3 font-semibold">السعر</th>
+                  <th className="px-4 py-3 font-semibold">التصنيف</th>
+
                   <th className="px-4 py-3 font-semibold">المخزون</th>
                   <th className="px-4 py-3 font-semibold">إجراءات</th>
                 </tr>
@@ -394,6 +397,8 @@ const Products = () => {
                     <td className="px-4 py-3">{p.name}</td>
                     <td className="px-4 py-3">{p.condition}</td>
                     <td className="px-4 py-3">{p.price} EGP</td>
+                    <td className="px-4 py-3">{p.categoryName}</td>
+
                     <td className="px-4 py-3">{p.stock}</td>
                     <td className="px-4 py-3 flex justify-center gap-2">
                       <button

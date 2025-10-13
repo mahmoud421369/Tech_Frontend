@@ -30,6 +30,9 @@ import {
   FiSend,
   FiClock,
   FiHelpCircle,
+  FiShoppingBag,
+  FiMonitor,
+  FiDollarSign,
 } from 'react-icons/fi';
 import api from '../api';
 import { FaArrowCircleRight, FaDesktop, FaGamepad, FaLaptop, FaMobileAlt, FaTable, FaTv } from 'react-icons/fa';
@@ -139,7 +142,7 @@ const ProfileSection = ({ userProfile, isEditingProfile, setIsEditingProfile, pr
                 <FiPhone className="text-indigo-500" /> Phone Number
               </p>
               <p className="font-medium text-indigo-600 dark:text-indigo-400">
-                0{userProfile?.phone || 'Not available'}
+                {userProfile?.phone || 'Not available'}
               </p>
             </div>
             <div>
@@ -158,7 +161,7 @@ const ProfileSection = ({ userProfile, isEditingProfile, setIsEditingProfile, pr
             <div className="flex gap-4 flex-wrap">
               <button
                 onClick={() => setIsEditingProfile(true)}
-                className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition shadow-md"
+                className="flex items-center gap-2 bg-indigo-600 dark:bg-gray-950 dark:border-gray-700 font-semibold text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition shadow-md"
               >
                 <FiEdit2 /> Edit Profile
               </button>
@@ -391,7 +394,7 @@ const OrdersSection = ({ orders, ordersPage, setOrdersPage, showOrderDetails, ha
                     Order #{order.id.slice(0, 8)}
                   </h3>
                   <span
-                    className={`px-3 py-1 rounded-full text-sm border dark:border-gray-700 font-semibold shadow ${
+                    className={`px-3 py-1 rounded-full text-xs border dark:border-gray-700 font-semibold shadow ${
                       order.status === 'COMPLETED'
                         ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400'
                         : order.status === 'PENDING'
@@ -410,11 +413,11 @@ const OrdersSection = ({ orders, ordersPage, setOrdersPage, showOrderDetails, ha
                     timeStyle: 'short',
                   })}
                 </p>
-                <p className="text-gray-600 dark:text-gray-400 flex items-center gap-2">
-                  <FiFileText className="text-indigo-500" /> Payment Method: {order.paymentMethod}
+                <p className="text-gray-600 dark:text-gray-400 flex  items-center gap-2">
+                  <FiFileText className="text-indigo-500" />   {order.paymentMethod}
                 </p>
                 <p className="text-gray-600 dark:text-gray-400 flex items-center gap-2 font-bold">
-                  <FiTruck className="text-indigo-500" /> Total: {order.totalPrice} EGP
+                  <FiDollarSign className="text-indigo-500" />  {order.totalPrice} EGP
                 </p>
                 {/* {order.orderItems && order.orderItems.length > 0 && (
                   <div className="mt-2">
@@ -969,6 +972,7 @@ const Account = ({ userId, darkMode }) => {
         headers: { Authorization: `Bearer ${token}` },
         signal: controller.signal 
       });
+      console.log(res.data.content || [])
       setOrders(res.data.content || []);
     } catch (err) {
       if (err.name !== 'AbortError') {
@@ -1105,19 +1109,19 @@ const Account = ({ userId, darkMode }) => {
         html: `
           <div style="text-align:left; line-height:1.8;">
 
-            <p class="flex justify-between items-center bg-white px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Shop</strong> ${repair.shopName || repair.shopId}</p>
-            <p class="flex justify-between items-center bg-white px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Address</strong> ${repair.deliveryAddressDetails || 'Not set'}</p>
-            <p class="flex justify-between items-center bg-white px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Device issue</strong> ${repair.description || 'None'}</p>
+            <p class="flex justify-between items-center bg-white dark:bg-gray-800 dark:text-white px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Shop</strong> ${repair.shopName || repair.shopId}</p>
+            <p class="flex justify-between items-center bg-white dark:bg-gray-800 dark:text-white px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Address</strong> ${repair.deliveryAddressDetails || 'Not set'}</p>
+            <p class="flex justify-between items-center bg-white dark:bg-gray-800 dark:text-white px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Device issue</strong> ${repair.description || 'None'}</p>
 
-            <p class="flex justify-between items-center bg-white px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Delivery Method</strong> ${
+            <p class="flex justify-between items-center bg-white dark:bg-gray-800 dark:text-white px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Delivery Method</strong> ${
               deliveryMethodLabels[repair.deliveryMethod] || repair.deliveryMethod || 'Not set'
             }</p>
-            <p class="flex justify-between items-center bg-white px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Payment Method</strong> ${
+            <p class="flex justify-between items-center bg-white dark:bg-gray-800 dark:text-white px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Payment Method</strong> ${
               paymentMethodLabels[repair.paymentMethod] || repair.paymentMethod || 'Not set'
             }</p>
-            <p class="flex justify-between items-center bg-white px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Price</strong> ${repair.price ? repair.price + ' EGP' : 'Not set'}</p>
-            <p class="flex justify-between items-center bg-white px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Confirmed</strong> ${repair.confirmed ? 'Yes' : 'No'}</p>
-            <p class="flex justify-between items-center bg-white px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Status</strong> ${
+            <p class="flex justify-between items-center bg-white dark:bg-gray-800  dark:text-white px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Price</strong> ${repair.price ? repair.price + ' EGP' : 'Not set'}</p>
+            <p class="flex justify-between items-center bg-white dark:bg-gray-800 dark:text-white px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Confirmed</strong> ${repair.confirmed ? 'Yes' : 'No'}</p>
+            <p class="flex justify-between items-center bg-white dark:bg-gray-800 dark:text-white px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Status</strong> ${
               statusLabels[repair.status] || repair.status
             }</p>
           </div>
@@ -1511,12 +1515,12 @@ const handleEditRepairRequest = useCallback(
     const itemsHtml = order.orderItems?.map(
       (item) => `
       <div class="p-2 border-b">
-        <p class="flex justify-between items-center bg-white px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Product ID</strong> ${item.productId}</p>
-        <p class="flex justify-between items-center bg-white px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Product</strong> ${item.productNAme}</p>
-        <p class="flex justify-between items-center bg-white px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Quantity</strong> ${item.quantity}</p>
-        <p class="flex justify-between items-center bg-white px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Product Price</strong> ${item.price} EGP</p>
-        <p class="flex justify-between items-center bg-white px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Shop</strong> ${item.shopName}</p>
-        <p class="flex justify-between items-center bg-white px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Total</strong> ${item.priceAtCheckout} EGP</p>
+        <p class="flex justify-between items-center bg-white dark:bg-gray-800 px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Product ID</strong> ${item.productId}</p>
+        <p class="flex justify-between items-center bg-white dark:bg-gray-800  px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Product</strong> ${item.productNAme}</p>
+        <p class="flex justify-between items-center bg-white dark:bg-gray-800  px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Quantity</strong> ${item.quantity}</p>
+        <p class="flex justify-between items-center bg-white dark:bg-gray-800  px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Product Price</strong> ${item.price} EGP</p>
+        <p class="flex justify-between items-center bg-white dark:bg-gray-800  px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Shop</strong> ${item.shopName}</p>
+        <p class="flex justify-between items-center bg-white dark:bg-gray-800  px-3 py-2 rounded-3xl text-sm text-indigo-600 m-2"><strong>Total</strong> ${item.priceAtCheckout} EGP</p>
         
       </div>
     `
@@ -1526,14 +1530,14 @@ const handleEditRepairRequest = useCallback(
       title: `#${order.id} - Order Details`,
       html: `
         <div style="text-align:left;">
-          <p class="flex justify-between items-center bg-white px-3 py-2 rounded-3xl text-sm text-blue-600"><strong>Delivery Address ID</strong> ${order.deliveryAddressId || 'Not available'}</p><hr class="border-gray-100 p-1">
-          <p class="flex justify-between items-center bg-white px-3 py-2 rounded-3xl text-sm text-blue-600""><strong>Total</strong> ${order.totalPrice} EGP</p><hr class="border-gray-100 p-1">
-          <p class="flex justify-between items-center bg-white px-3 py-2 rounded-3xl text-sm text-blue-600""><strong>Order Status</strong> ${statusLabel}</p><hr class="border-gray-100 p-1">
-          <p class="flex justify-between items-center bg-white px-3 py-2 rounded-3xl text-sm text-blue-600""><strong>Payment Method</strong> ${order.paymentMethod || 'Not available'}</p><hr class="border-gray-100 p-1">
-          <p class="flex justify-between items-center bg-white px-3 py-2 rounded-3xl text-sm text-blue-600""><strong>Date</strong> ${formattedDate}</p>
-          <hr class="my-4"/>
+          <p class="flex justify-between items-center bg-white dark:bg-gray-800 dark:text-white  px-3 py-2 rounded-3xl text-sm text-blue-600"><strong>Delivery Address ID</strong> ${order.deliveryAddressId || 'Not available'}</p><hr class="border-gray-100 dark:border-gray-700 p-1">
+          <p class="flex justify-between items-center bg-white dark:bg-gray-800 dark:text-white   px-3 py-2 rounded-3xl text-sm text-blue-600""><strong>Total</strong> ${order.totalPrice} EGP</p><hr class="border-gray-100 dark:border-gray-700 p-1">
+          <p class="flex justify-between items-center bg-white dark:bg-gray-800 dark:text-white   px-3 py-2 rounded-3xl text-sm text-blue-600""><strong>Order Status</strong> ${statusLabel}</p><hr class="border-gray-100 dark:border-gray-700 p-1">
+          <p class="flex justify-between items-center bg-white dark:bg-gray-800 dark:text-white   px-3 py-2 rounded-3xl text-sm text-blue-600""><strong>Payment Method</strong> ${order.paymentMethod || 'Not available'}</p><hr class="border-gray-100 dark:border-gray-700 p-1">
+          <p class="flex justify-between items-center bg-white dark:bg-gray-800 dark:text-white   px-3 py-2 rounded-3xl text-sm text-blue-600""><strong>Date</strong> ${formattedDate}</p>
+          <hr class="my-4 dark:border-gray-700 border"/>
           <h3 class="font-bold text-lg">Order Items</h3><br>
-          <div class="max-h-60 overflow-y-auto border rounded p-2  bg-gray-50">
+          <div class="max-h-60 overflow-y-auto border rounded p-4  bg-gray-50 dark:bg-gray-900 dark:border-gray-700 rounded-xl">
             ${itemsHtml}
           </div>
         </div>
@@ -1826,7 +1830,15 @@ const handleEditRepairRequest = useCallback(
 
   return (
     <div className={`min-h-screen transition-all duration-300 mt-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
-      <div className="bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-900 dark:to-gray-800 text-white py-12 px-6 shadow-xl">
+      <div className="relative bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-900 dark:to-gray-800 text-white py-12 px-6 shadow-xl">
+          <div className="absolute inset-0 opacity-5 pointer-events-none">
+                                  <FiTool className="absolute w-20 h-20 bottom-1/3 right-1/5 animate-float-medium dark:text-blue-500" />
+                                  <FiShoppingBag className="absolute w-24 h-24 top-1/3 right-1/4 animate-float-slow dark:text-blue-500" />
+                                  <FiShoppingBag className="absolute w-16 h-16 bottom-1/4 left-1/3 animate-float-fast dark:text-blue-500" />
+                                  <FiSmartphone className="absolute w-20 h-20 top-10 left-10 animate-float-medium dark:text-blue-500" />
+                                  <FiSmartphone className="absolute w-28 h-28 bottom-20 right-20 animate-float-slow dark:text-blue-500" />
+                                  <FiMonitor className="absolute w-18 h-18 top-1/2 left-1/4 animate-float-fast dark:text-blue-500" />
+                                </div>
         <div className="max-w-7xl mx-auto text-center">
           <h1 className="text-3xl flex justify-center items-center gap-2 md:text-4xl font-extrabold tracking-tight mb-2 animate-fade-in">
             <FiUser /> Account
