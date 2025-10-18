@@ -3,7 +3,9 @@ import * as SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
 import { FiX, FiSend, FiXCircle } from 'react-icons/fi';
 import Swal from 'sweetalert2';
+import { v4 as uuidv4 } from 'uuid';
 import api from '../api';
+import DOMPurify from 'dompurify';
 
 const ShopChatModal = memo(({ open, onClose, darkMode }) => {
   const shopProfile = {
@@ -18,7 +20,10 @@ const ShopChatModal = memo(({ open, onClose, darkMode }) => {
   const [input, setInput] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [pendingMessages, setPendingMessages] = useState([]);
+  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
   // Fetch sessions
   const fetchSessions = useCallback(async () => {
@@ -127,16 +132,44 @@ const ShopChatModal = memo(({ open, onClose, darkMode }) => {
     };
   }, [open, fetchSessions, darkMode]);
 
-  // Subscribe to WebSocket messages for active session
+  // Handle pending messages on reconnect
+  useEffect(() => {
+    if (isConnected && pendingMessages.length > 0 && stompClient && activeSession) {
+      pendingMessages.forEach(({ input, sessionId }) => {
+        const message = {
+          id: uuidv4(),
+          sessionId,
+          content: DOMPurify.sanitize(input),
+          senderType: 'SHOP',
+          senderName: shopProfile.email,
+          createdAt: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, message]);
+        stompClient.publish({
+          destination: '/app/chat/send',
+          headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` },
+          body: JSON.stringify(message),
+        });
+        console.log('📤 Sent pending (shop):', message);
+      });
+      setPendingMessages([]);
+    }
+  }, [isConnected, pendingMessages, stompClient, activeSession, shopProfile.email]);
+
+  // Subscribe to WebSocket messages and typing events
   useEffect(() => {
     if (!stompClient || !isConnected || !activeSession) return;
 
-    const subscription = stompClient.subscribe(
+    const messageSubscription = stompClient.subscribe(
       `/user/${shopProfile.email}/queue/chat/messages/${activeSession.id}`,
       (msg) => {
         const body = JSON.parse(msg.body);
         console.log('📩 Received (shop):', body);
-        setMessages((prev) => [...prev, body]);
+        setMessages((prev) => {
+          const exists = prev.some((m) => m.id === body.id);
+          if (exists) return prev.map((m) => (m.id === body.id ? body : m));
+          return [...prev, body];
+        });
         if (activeSession?.id !== body.sessionId) {
           setSessions((prev) =>
             prev.map((s) =>
@@ -148,14 +181,37 @@ const ShopChatModal = memo(({ open, onClose, darkMode }) => {
       { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
     );
 
+    const typingSubscription = stompClient.subscribe(
+      `/user/${shopProfile.email}/queue/chat/typing/${activeSession.id}`,
+      (msg) => {
+        setIsTyping(true);
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 3000);
+      },
+      { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+    );
+
     fetchMessages();
 
     return () => {
-      subscription?.unsubscribe();
+      messageSubscription?.unsubscribe();
+      typingSubscription?.unsubscribe();
+      clearTimeout(typingTimeoutRef.current);
     };
   }, [stompClient, isConnected, activeSession, shopProfile.email, fetchMessages]);
 
-  // Send message instantly
+  // Send typing event
+  const sendTypingEvent = useCallback(() => {
+    if (stompClient && isConnected && activeSession) {
+      stompClient.publish({
+        destination: '/app/chat/typing',
+        headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` },
+        body: JSON.stringify({ sessionId: activeSession.id, senderType: 'SHOP' }),
+      });
+    }
+  }, [stompClient, isConnected, activeSession]);
+
+  // Send message
   const sendMessage = useCallback(() => {
     if (!input.trim()) return;
     if (!activeSession) {
@@ -172,10 +228,11 @@ const ShopChatModal = memo(({ open, onClose, darkMode }) => {
       return;
     }
     if (!stompClient || !isConnected) {
+      setPendingMessages((prev) => [...prev, { input, sessionId: activeSession.id }]);
       Swal.fire({
-        title: 'Error',
-        text: 'Cannot send message: WebSocket is not connected',
-        icon: 'error',
+        title: 'Warning',
+        text: 'Message will be sent when reconnected',
+        icon: 'warning',
         toast: true,
         position: 'top-end',
         showConfirmButton: false,
@@ -186,19 +243,17 @@ const ShopChatModal = memo(({ open, onClose, darkMode }) => {
     }
 
     const message = {
+      id: uuidv4(),
       sessionId: activeSession.id,
-      content: input,
+      content: DOMPurify.sanitize(input),
       senderType: 'SHOP',
       senderName: shopProfile.email,
       createdAt: new Date().toISOString(),
-      id: Date.now(), // Temporary ID for instant rendering
     };
 
-    // Add message to UI immediately
     setMessages((prev) => [...prev, message]);
     setInput('');
 
-    // Send to WebSocket
     stompClient.publish({
       destination: '/app/chat/send',
       headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` },
@@ -214,9 +269,11 @@ const ShopChatModal = memo(({ open, onClose, darkMode }) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         sendMessage();
+      } else {
+        sendTypingEvent();
       }
     },
-    [sendMessage]
+    [sendMessage, sendTypingEvent]
   );
 
   // End chat session
@@ -349,7 +406,12 @@ const ShopChatModal = memo(({ open, onClose, darkMode }) => {
             <>
               <div className="bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-800 dark:to-blue-800 text-white p-5 border-b border-indigo-300 dark:border-indigo-700 shadow-md">
                 <h3 className="text-xl font-bold">محادثة مع {activeSession.userName}</h3>
-                <p className="text-sm opacity-90">{isConnected ? 'متصل' : 'غير متصل'}</p>
+                <p className="text-sm opacity-90">
+                  {isConnected ? 'متصل' : 'جاري إعادة الاتصال...'}
+                </p>
+                {isTyping && (
+                  <p className="text-xs text-indigo-200 animate-pulse">يكتب...</p>
+                )}
               </div>
               <div className="flex-1 p-6 overflow-y-auto space-y-4 relative">
                 {isLoadingMessages ? (
@@ -413,9 +475,9 @@ const ShopChatModal = memo(({ open, onClose, darkMode }) => {
                 />
                 <button
                   onClick={sendMessage}
-                  disabled={!isConnected}
+                  disabled={!isConnected && !input.trim()}
                   className={`bg-gradient-to-r from-indigo-600 to-blue-600 text-white p-3 rounded-xl shadow-lg transition-all duration-300 transform hover:scale-110 flex items-center gap-2 ${
-                    !isConnected ? 'opacity-50 cursor-not-allowed' : 'hover:from-indigo-700 hover:to-blue-700'
+                    !isConnected || !input.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:from-indigo-700 hover:to-blue-700'
                   }`}
                 >
                   <FiSend className="text-xl" />
