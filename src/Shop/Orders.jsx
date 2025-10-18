@@ -68,6 +68,7 @@ const Orders = () => {
         try {
           const url = status === 'all' ? '/api/shops/orders/control' : `/api/shops/orders/control/status/${status}`;
           const res = await api.get(url, { params: { query: search } });
+          console.log(Array.isArray(res.data) ? res.data : res.data.content || [])
           setOrders(Array.isArray(res.data) ? res.data : res.data.content || []);
         } catch (err) {
           console.error('Error fetching orders:', err.response?.data || err.message);
@@ -233,7 +234,7 @@ const Orders = () => {
   }, [totalPages]);
 
   return (
-    <div style={{marginTop:"-600px"}} className="min-h-screen font-cairo bg-gray-100 dark:bg-gray-900 p-4 sm:p-6 md:p-8">
+    <div style={{marginTop:"-600px",marginLeft:"250px"}} className="min-h-screen font-cairo bg-gray-100 dark:bg-gray-900 p-4 sm:p-6 md:p-8">
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 max-w-6xl mx-auto">
         <div className="p-6 bg-white dark:bg-gray-800 shadow-lg border-l-4 border-indigo-600 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
@@ -318,6 +319,8 @@ const Orders = () => {
                       <th className="px-4 py-3 font-semibold">#</th>
                       <th className="px-4 py-3 font-semibold">الطلب</th>
                       <th className="px-4 py-3 font-semibold">المنتج</th>
+                      <th className="px-4 py-3 font-semibold">الكمية</th>
+
                       <th className="px-4 py-3 font-semibold">المجموع</th>
                       <th className="px-4 py-3 font-semibold">الحالة</th>
                       <th className="px-4 py-3 font-semibold">إجراءات</th>
@@ -331,7 +334,13 @@ const Orders = () => {
                       >
                         <td className="px-4 py-3">{indexOfFirstOrder + i + 1}</td>
                         <td className="px-4 py-3">{order.id}</td>
-                        <td className="px-4 py-3">{order.productName}</td>
+                        <td className="px-4 py-3"> {order.orderItems?.map((o) =>
+                               o.productNAme
+                        ) }</td>
+
+                                    <td className="px-4 py-3"> {order.orderItems?.map((o) =>
+                               o.quantity
+                        ) }</td>
 
                         <td className="px-4 py-3 font-medium">{order.totalPrice} EGP</td>
                         <td className="px-4 py-3">

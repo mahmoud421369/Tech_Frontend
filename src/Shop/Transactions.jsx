@@ -154,7 +154,7 @@ const Transactions = ({ darkMode }) => {
   const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / transactionsPerPage));
 
   return (
-    <div style={{marginTop:"-600px"}} className="min-h-screen font-cairo bg-gray-100 dark:bg-gray-900 p-4 sm:p-6 md:p-8">
+    <div style={{marginTop:"-600px",marginLeft:"250px"}} className="min-h-screen font-cairo bg-gray-100 dark:bg-gray-900 p-4 sm:p-6 md:p-8">
       <div className="max-w-6xl mx-auto mb-6">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
           <div className="relative w-full sm:w-64">
@@ -169,22 +169,7 @@ const Transactions = ({ darkMode }) => {
           <h1 className="text-2xl sm:text-3xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center justify-end gap-3">
             <FiDollarSign className="text-xl sm:text-2xl" /> الإيرادات
           </h1>
-          <div className="relative w-full sm:w-56">
-            <select
-              value={timeRange}
-              onChange={(e) => {
-                setTimeRange(e.target.value);
-                setCurrentPage(1);
-              }}
-              dir="rtl"
-              className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
-            >
-              <option value="day">اليوم</option>
-              <option value="week">الأسبوع</option>
-              <option value="month">الشهر</option>
-              <option value="year">السنة</option>
-            </select>
-          </div>
+     
         </div>
       </div>
 

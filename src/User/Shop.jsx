@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { Link, useParams } from "react-router-dom";
-import { FiSearch, FiStar, FiTrash2, FiEdit3, FiXCircle, FiSend, FiX, FiMessageCircle, FiTag, FiCheckCircle, FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import { FiSearch, FiStar, FiTrash2, FiEdit3, FiSend, FiX, FiMessageCircle, FiTag, FiCheckCircle, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { RiChat1Fill } from "@remixicon/react";
 import { RiStore2Line } from "react-icons/ri";
 import Swal from "sweetalert2";
@@ -41,7 +41,8 @@ const Shop = ({ darkMode, addToCart }) => {
   const [currentIndex, setCurrentIndex] = useState(0); // For custom pagination
   const subscriptionRef = useRef(null);
   const messagesEndRef = useRef(null);
-
+const dropdownRef = useRef(null);
+  const [isOpen, setIsOpen] = useState(false);
   const debouncedSetSearch = useCallback(
     debounce((value) => setSearch(value), 300),
     []
@@ -77,6 +78,22 @@ const Shop = ({ darkMode, addToCart }) => {
   const handleDotClick = (index) => {
     setCurrentIndex(index);
   };
+    const [categorySearch, setCategorySearch] = useState("");
+   const filteredCategories = categories.filter((c) =>
+    c.name.toLowerCase().includes(categorySearch.toLowerCase())
+  );
+
+    useEffect(() => {
+      const handleClickOutside = (e) => {
+        if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+          setIsOpen(false);
+          setCategorySearch("");
+        }
+      };
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+  
 
   const fetchShopProfile = useCallback(async () => {
     if (!token) {
@@ -147,33 +164,15 @@ const Shop = ({ darkMode, addToCart }) => {
     setIsLoading((prev) => ({ ...prev, products: true }));
     try {
       const response = await api.get(`/api/products/shop/${shopId}`);
-      console.log(response.data.content || response.data)
       setProducts(response.data.content || response.data);
+      setImageLoadStatus(
+        (response.data.content || response.data).reduce(
+          (acc, product) => ({ ...acc, [product.id]: false }),
+          {}
+        )
+      );
     } catch (error) {
       console.error("Error fetching products:", error.response?.data || error.message);
-      Swal.fire({
-        title: 'Error',
-        text: 'Could not load products!',
-        icon: 'error',
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 1500,
-      
-});
-    } finally {
-      setIsLoading((prev) => ({ ...prev, products: false }));
-    }
-  }, [shopId, darkMode]);
-
-  const fetchProductsByCategory = useCallback(async (categoryId) => {
-    setIsLoading((prev) => ({ ...prev, products: true }));
-    try {
-      const response = await api.get(`/api/products/${shopId}/${categoryId}`);
-      setProducts(response.data.content || response.data);
-    } catch (error) {
-      console.error("Error fetching products by category:", error.response?.data || error.message);
-      setError("Failed to load products");
       Swal.fire({
         title: 'Error',
         text: 'Could not load products!',
@@ -185,20 +184,82 @@ const Shop = ({ darkMode, addToCart }) => {
       });
     } finally {
       setIsLoading((prev) => ({ ...prev, products: false }));
+            setCategorySearch("");
     }
   }, [shopId, darkMode]);
 
+  const fetchProductsByCategory = useCallback(
+  async (categoryId) => {
+    // Avoid unnecessary calls
+    if (!shopId || !categoryId) return;
+
+    // Setup loading state
+    setIsLoading((prev) => ({ ...prev, products: true }));
+    setError(null);
+
+    // Create AbortController once for this call
+    const controller = new AbortController();
+
+    try {
+      const url = `/api/products/${shopId}/${categoryId}`;
+      const response = await api.get(url, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
+      });
+
+      const data = response?.data?.content || response?.data || [];
+
+      // Update products
+      setProducts(data);
+
+      // Track image loading states
+      setImageLoadStatus(
+        data.reduce((acc, product) => ({ ...acc, [product.id]: false }), {})
+      );
+    } catch (error) {
+      // Handle aborts gracefully
+      if (error.name === "CanceledError" || error.name === "AbortError") return;
+
+      console.error("Error fetching products by category:", error.response?.data || error.message);
+      setError("Failed to load products");
+
+      Swal.fire({
+        title: 'Error Loading Products',
+        text: error.response?.data?.message || 'Could not load products. Please try again later.',
+        icon: 'error',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2000,
+      });
+    } finally {
+      setIsLoading((prev) => ({ ...prev, products: false }));
+    }
+
+    // Return a cleanup function to abort ongoing requests if needed
+    return () => controller.abort();
+  },
+  [shopId, token]
+);
+
+
   const handleCategoryChange = useCallback(
-    (categoryId) => {
-      setSelectedCategory(categoryId);
-      if (categoryId === "all") {
-        fetchProductsByShop();
-      } else {
-        fetchProductsByCategory(categoryId);
-      }
-    },
-    [fetchProductsByShop, fetchProductsByCategory]
-  );
+  async (categoryId) => {
+    // Prevent redundant fetches
+    if (categoryId === selectedCategory) return;
+
+    setSelectedCategory(categoryId);
+    setProducts([]); // Optional: clear old products for smoother UX
+
+    if (categoryId === "all") {
+      await fetchProductsByShop();
+    } else {
+      await fetchProductsByCategory(categoryId);
+    }
+  },
+  [selectedCategory, fetchProductsByShop, fetchProductsByCategory]
+);
+
 
   const fetchShopReviews = useCallback(async () => {
     setIsLoading((prev) => ({ ...prev, reviews: true }));
@@ -681,7 +742,7 @@ const Shop = ({ darkMode, addToCart }) => {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 text-red-600 dark:text-red-400 text-center text-lg font-semibold px-4">
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 text-red-600 dark:text-red-400 text-center text-lg font-semibold px-4">
         {error}
       </div>
     );
@@ -689,8 +750,8 @@ const Shop = ({ darkMode, addToCart }) => {
 
   if (!shop || isLoading.shop) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-16 animate-pulse">
-        <div className="relative bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-800 dark:to-blue-800 text-white py-16 px-6 md:px-12 shadow-2xl">
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 pt-16 animate-pulse">
+        <div className="relative bg-gradient-to-br from-white via-gray-50 to-gray-100 dark:from-gray-900 via-gray-800 to-gray-700 text-gray-900 dark:text-white py-16 px-6 md:px-12 shadow-2xl">
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
             <div className="space-y-4 w-full md:w-2/3">
               <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
@@ -707,17 +768,17 @@ const Shop = ({ darkMode, addToCart }) => {
   }
 
   return (
-    <div className={`min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"} text-gray-900 dark:text-gray-100 pt-16 transition-all duration-300`}>
+    <div className={`min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-100"} text-gray-900 dark:text-gray-100 pt-16 transition-all duration-300`}>
       {/* Hero Section */}
-      <div className="relative bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-800 dark:to-blue-800 text-white py-20 px-6 md:px-12 shadow-2xl overflow-hidden">
-        <div className="absolute inset-0 opacity-10 bg-black"></div>
+      <div className="relative bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-900 dark:to-gray-800 text-white py-20 px-6 md:px-12 shadow-2xl overflow-hidden">
+        <div className="absolute inset-0 opacity-5 bg-black"></div>
         <div className="absolute top-[-50px] left-[-50px] w-96 h-96 bg-indigo-300 rounded-full opacity-20 blur-3xl animate-float"></div>
         <div className="absolute bottom-[-80px] right-[-80px] w-80 h-80 bg-blue-300 rounded-full opacity-20 blur-3xl animate-float-slow"></div>
         <div className="absolute top-1/2 left-1/4 w-48 h-48 bg-indigo-400 rounded-full opacity-15 blur-2xl animate-float delay-1000"></div>
         <div className="absolute bottom-1/4 right-1/3 w-64 h-64 bg-blue-400 rounded-full opacity-15 blur-2xl animate-float-slow delay-500"></div>
         <div className="relative max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8 z-10 animate-fade-in">
           <div className="space-y-4 text-center md:text-left">
-            <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight drop-shadow-md">{shop.name}</h1>
+            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight drop-shadow-md">{shop.name}</h1>
             <h4 className="text-xl md:text-2xl font-semibold text-indigo-200">0{shop.phone}</h4>
             <p className="text-base md:text-lg max-w-2xl leading-relaxed opacity-90">{shop.description || "No description available"}</p>
             <div className="flex items-center justify-center md:justify-start gap-2">
@@ -734,17 +795,17 @@ const Shop = ({ darkMode, addToCart }) => {
       </div>
 
       {/* Search and Categories */}
-      <div className="bg-white dark:bg-gray-900 border-b dark:border-gray-800">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex flex-col justify-between items-center gap-6">
-            <div className="relative w-full md:w-1/2">
-              <div className="flex items-center bg-white dark:bg-gray-800 rounded-xl border border-indigo-200 dark:border-indigo-700 px-4 py-3 shadow-inner transition-all hover:shadow-md focus-within:ring-2 focus-within:ring-indigo-500">
+      <div className="bg-white/30 dark:bg-gray-800/30 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-700/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-col  justify-between items-center gap-4 sm:gap-6">
+            <div className="relative w-full sm:w-1/2">
+              <div className="flex items-center bg-white/30 dark:bg-gray-800/30 rounded-xl border border-gray-200/50 dark:border-gray-700/50 px-4 py-3 shadow-inner transition-all hover:shadow-md focus-within:ring-2 focus-within:ring-indigo-500 backdrop-blur-md">
                 <FiSearch className="text-indigo-500 dark:text-indigo-400 mr-3 text-xl" />
                 <input
                   type="text"
                   onChange={(e) => debouncedSetSearch(e.target.value)}
                   placeholder="Search products in this shop..."
-                  className="w-full bg-transparent outline-none text-gray-800 dark:text-gray-100 placeholder-indigo-400 dark:placeholder-indigo-500 text-base"
+                  className="w-full bg-transparent outline-none text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-300 text-base"
                 />
                 {search && (
                   <button
@@ -752,19 +813,19 @@ const Shop = ({ darkMode, addToCart }) => {
                       setSearch("");
                       debouncedSetSearch("");
                     }}
-                    className="text-indigo-500 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
+                    className="text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-white transition-colors"
                   >
                     <FiX className="text-lg" />
                   </button>
                 )}
               </div>
             </div>
-            <div className="flex flex-wrap justify-center gap-3">
+            <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
               <button
-                className={`px-6 py-2 rounded-xl text-sm font-semibold transition-all duration-300 transform hover:scale-105 shadow-md ${
+                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 transform hover:scale-105 shadow-md ${
                   selectedCategory === "all"
                     ? "bg-indigo-600 text-white"
-                    : "bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 border border-indigo-300 dark:border-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900"
+                    : "bg-white/30 dark:bg-gray-800/30 text-indigo-600 dark:text-indigo-400 border border-indigo-300 dark:border-indigo-600 hover:bg-indigo-50/30 dark:hover:bg-indigo-900/30 backdrop-blur-md"
                 }`}
                 onClick={() => handleCategoryChange("all")}
               >
@@ -773,10 +834,10 @@ const Shop = ({ darkMode, addToCart }) => {
               {categories.map((cat) => (
                 <button
                   key={cat.id}
-                  className={`px-6 py-2 rounded-xl text-sm font-semibold transition-all duration-300 transform hover:scale-105 shadow-md ${
+                  className={`px-4 py-2 rounded-3xl text-sm font-semibold transition-all duration-300 transform hover:scale-105 shadow-md ${
                     selectedCategory === cat.id
                       ? "bg-indigo-600 text-white"
-                      : "bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 border border-indigo-300 dark:border-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900"
+                      : "bg-white/30 dark:bg-gray-800/30 text-indigo-600 dark:text-indigo-400 border border-gray-100 dark:border-indigo-600 hover:bg-indigo-50/30 dark:hover:bg-indigo-900/30 backdrop-blur-md"
                   }`}
                   onClick={() => handleCategoryChange(cat.id)}
                 >
@@ -789,97 +850,90 @@ const Shop = ({ darkMode, addToCart }) => {
       </div>
 
       {/* Products Section */}
-      <div className="max-w-7xl mx-auto px-6 py-12">
-        <h2 className="text-3xl md:text-4xl font-bold text-indigo-600 dark:text-indigo-400 mb-10 text-center animate-fade-in">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <h2 className="text-2xl sm:text-3xl font-bold text-indigo-600 dark:text-indigo-400 mb-6 flex items-center gap-2 animate-fade-in">
           Available Products
         </h2>
         {isLoading.products ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
             {[...Array(8)].map((_, index) => (
-              <div key={index} className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg animate-pulse">
-                <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded-xl mb-4"></div>
-                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
+              <div key={index} className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg animate-pulse">
+                <div className="h-48 bg-gray-200 dark:bg-gray-700 rounded-xl mb-4"></div>
+                <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
                 <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded mb-3 w-3/4"></div>
-                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
+                <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
               </div>
             ))}
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-            {filteredProducts.length > 0 ? (
-              filteredProducts.map((p) => (
-                <Link
-                  to={`/device/${p.id}`}
-                  key={p.id}
-                  className="group bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden"
-                >
-                  <div className="relative h-64 bg-gray-100 dark:bg-gray-700 overflow-hidden">
-                    {!imageLoadStatus[p.id] && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-gray-200 dark:bg-gray-700">
-                        <svg className="animate-spin h-12 w-12 text-indigo-500" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                        </svg>
-                      </div>
-                    )}
-                    <img
-                      src={p.imageUrl || "https://images.pexels.com/photos/163097/black-smartphone-163097.jpeg"}
-                      alt={p.name}
-                      className={`w-full h-full object-cover transition-opacity duration-500 group-hover:scale-110 ${
-                        imageLoadStatus[p.id] ? "opacity-100" : "opacity-0"
-                      }`}
-                      onLoad={() => handleImageLoad(p.id)}
-                      onError={() => handleImageLoad(p.id)}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  </div>
-                  <div className="p-6">
-                    <h3 className="font-bold text-xl text-indigo-600 dark:text-indigo-400 mb-2 group-hover:text-indigo-700 dark:group-hover:text-indigo-300 transition-colors">
-                      {p.name}
-                    </h3>
-                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-2">
-                      <FiTag className="text-indigo-500 dark:text-indigo-400" />
-                      {p.categoryName || "Uncategorized"}
+        ) : filteredProducts.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+            {filteredProducts.map((p) => (
+              <Link
+                to={`/device/${p.id}`}
+                key={p.id}
+                className="group bg-white/30 dark:bg-gray-800/30 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 overflow-hidden backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50"
+              >
+                <div className="relative h-48 bg-gray-100 dark:bg-gray-700 overflow-hidden">
+                  {!imageLoadStatus[p.id] && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-gray-200/50 dark:bg-gray-700/50 animate-pulse">
+                      <div className="w-8 h-8 border-2 border-indigo-500 dark:border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-4">
-                      <FiCheckCircle className="text-green-500 dark:text-green-400" />
-                      {p.condition || "New"}
-                    </div>
-                    <p className="text-gray-600 dark:text-gray-300 text-sm mb-4 line-clamp-2">{p.description || "No description available"}</p>
-                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-4">{p.price} EGP</p>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleAddToCart(p);
-                      }}
-                      className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-semibold py-3 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-md"
-                    >
-                      Add to Cart
-                    </button>
+                  )}
+                  <img
+                    src={p.imageUrl || "https://images.pexels.com/photos/163097/black-smartphone-163097.jpeg"}
+                    alt={p.name}
+                    className={`w-full h-full object-cover transition-opacity duration-300 group-hover:scale-110 ${
+                      imageLoadStatus[p.id] ? "opacity-100" : "opacity-0"
+                    }`}
+                    onLoad={() => handleImageLoad(p.id)}
+                    onError={() => handleImageLoad(p.id)}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                </div>
+                <div className="p-4">
+                  <h3 className="font-bold text-base sm:text-lg text-indigo-600 dark:text-indigo-400 mb-2 group-hover:text-indigo-700 dark:group-hover:text-indigo-300 transition-colors line-clamp-1">
+                    {p.name}
+                  </h3>
+                  <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 mb-2">
+                    <FiTag className="text-indigo-500 dark:text-indigo-400" />
+                    {p.categoryName || "Uncategorized"}
                   </div>
-                </Link>
-              ))
-            ) : (
-              <p className="col-span-full text-center text-gray-500 dark:text-gray-400 text-lg font-medium">
-                No products found matching your search.
-              </p>
-            )}
+                  <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 mb-3">
+                    <FiCheckCircle className="text-green-500 dark:text-green-400" />
+                    {p.condition || "New"}
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mb-3 line-clamp-2">{p.description || "No description available"}</p>
+                  <p className="text-lg sm:text-xl font-bold text-blue-600 dark:text-blue-400 mb-3">{p.price} EGP</p>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleAddToCart(p);
+                    }}
+                    className="w-full bg-indigo-600 dark:bg-indigo-700 hover:bg-indigo-700 dark:hover:bg-indigo-800 text-white font-semibold py-2 rounded-xl transition-all duration-300 transform hover:scale-105"
+                  >
+                    Add to Cart
+                  </button>
+                </div>
+              </Link>
+            ))}
           </div>
+        ) : (
+          <p className="text-center text-gray-500 dark:text-gray-400 text-base sm:text-lg">No products found matching your search.</p>
         )}
       </div>
 
       {/* Reviews Section */}
-      <div className="max-w-7xl mx-auto px-6 py-12 bg-gray-50 dark:bg-gray-900 rounded-t-3xl shadow-inner">
-        <h2 className="text-3xl md:text-4xl font-bold text-indigo-600 dark:text-indigo-400 mb-10 text-center animate-fade-in">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <h2 className="text-2xl sm:text-3xl font-bold text-indigo-600 dark:text-indigo-400 mb-6 flex items-center gap-2 animate-fade-in">
           Customer Reviews
         </h2>
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-xl mb-10 border border-indigo-100 dark:border-gray-700">
-          <h3 className="font-bold text-xl text-indigo-600 dark:text-indigo-400 mb-6">Share Your Experience</h3>
-          <div className="flex items-center mb-6">
+        <div className="bg-white/30 dark:bg-gray-800/30 rounded-2xl p-4 sm:p-6 shadow-lg backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50 mb-8">
+          <h3 className="font-bold text-lg sm:text-xl text-indigo-600 dark:text-indigo-400 mb-4">Share Your Experience</h3>
+          <div className="flex items-center mb-4">
             {[1, 2, 3, 4, 5].map((star) => (
               <FiStar
                 key={star}
-                className={`cursor-pointer text-3xl transition-all duration-200 transform hover:scale-125 ${
+                className={`cursor-pointer text-2xl sm:text-3xl transition-all duration-200 transform hover:scale-125 ${
                   newReview.rating >= star ? "text-yellow-400 fill-yellow-400" : "text-gray-300 dark:text-gray-600"
                 }`}
                 onClick={() => handleRatingClick(star)}
@@ -890,28 +944,28 @@ const Shop = ({ darkMode, addToCart }) => {
             value={newReview.comment}
             onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })}
             placeholder="Write your detailed review here..."
-            className="w-full rounded-xl border border-indigo-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 p-4 text-gray-700 dark:text-gray-200 shadow-inner focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 resize-none"
-            rows="5"
+            className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 p-4 text-gray-900 dark:text-gray-100 shadow-inner focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 resize-none text-sm sm:text-base"
+            rows="4"
           />
-          <div className="mt-6 flex justify-end">
+          <div className="mt-4 flex justify-end">
             <button
               onClick={addReview}
-              className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white px-8 py-3 rounded-xl font-semibold shadow-lg transition-all duration-300 transform hover:scale-105"
+              className="bg-indigo-600 dark:bg-indigo-700 hover:bg-indigo-700 dark:hover:bg-indigo-800 text-white px-6 py-2 rounded-xl font-semibold shadow-md transition-all duration-300 transform hover:scale-105"
             >
               Submit Review
             </button>
           </div>
         </div>
         {isLoading.reviews ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[...Array(6)].map((_, index) => (
-              <div key={index} className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg animate-pulse border border-indigo-100 dark:border-indigo-700">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            {[...Array(3)].map((_, index) => (
+              <div key={index} className="bg-white dark:bg-gray-800 rounded-2xl p-4 sm:p-6 shadow-lg animate-pulse border border-gray-200/50 dark:border-gray-700/50">
                 <div className="flex items-center mb-4">
-                  <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mr-2"></div>
-                  <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mr-2"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
                 </div>
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded mb-2 w-full"></div>
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded mb-2 w-full"></div>
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
               </div>
             ))}
           </div>
@@ -919,34 +973,34 @@ const Shop = ({ darkMode, addToCart }) => {
           <div className="relative">
             <div className="overflow-hidden">
               <div
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 transition-transform duration-500 ease-in-out"
-                style={{ transform: `translateX(-${currentIndex * 100 / slidesPerView}%)` }}
+                className="flex transition-transform duration-500 ease-in-out"
+                style={{ transform: `translateX(-${currentIndex * (100 / slidesPerView)}%)`, width: `${100 * totalPages}%` }}
               >
                 {reviews.map((r) => (
-                  <div key={r.id} className="min-w-[100%] md:min-w-[50%] lg:min-w-[33.333%]">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg hover:shadow-2xl transition-all duration-300 border border-indigo-100 dark:border-gray-700 transform hover:-translate-y-1">
+                  <div key={r.id} className="min-w-[100%] sm:min-w-[50%] lg:min-w-[33.333%] px-2">
+                    <div className="bg-white/30 dark:bg-gray-800/30 rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200/50 dark:border-gray-700/50 transform hover:-translate-y-1 backdrop-blur-md">
                       <div className="flex items-center mb-4">
                         {[1, 2, 3, 4, 5].map((star) => (
                           <FiStar
                             key={star}
-                            className={`text-xl ${r.rating >= star ? "text-yellow-400 fill-yellow-400" : "text-gray-300 dark:text-gray-600"}`}
+                            className={`text-lg sm:text-xl ${r.rating >= star ? "text-yellow-400 fill-yellow-400" : "text-gray-300 dark:text-gray-600"}`}
                           />
                         ))}
                         <span className="ml-auto text-sm text-gray-500 dark:text-gray-400">
                           {new Date(r.createdAt).toLocaleDateString()}
                         </span>
                       </div>
-                      <p className="text-gray-700 dark:text-gray-200 leading-relaxed mb-4">{r.comment}</p>
-                      <div className="flex items-center gap-3 mt-4">
+                      <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 leading-relaxed mb-4">{r.comment}</p>
+                      <div className="flex items-center gap-2 mt-4">
                         <button
                           onClick={() => handleEditReview(r)}
-                          className="p-2 rounded-full bg-indigo-100 dark:bg-indigo-900 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300"
+                          className="p-2 rounded-full bg-white/30 dark:bg-gray-700/30 hover:bg-indigo-200/30 dark:hover:bg-indigo-800/30 transition-all duration-300 backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50"
                         >
                           <FiEdit3 className="text-indigo-600 dark:text-indigo-400 text-lg" />
                         </button>
                         <button
                           onClick={() => deleteReview(r.id)}
-                          className="p-2 rounded-full bg-red-100 dark:bg-red-900 hover:bg-red-200 dark:hover:bg-red-800 transition-all duration-300"
+                          className="p-2 rounded-full bg-white/30 dark:bg-gray-700/30 hover:bg-red-200/30 dark:hover:bg-red-800/30 transition-all duration-300 backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50"
                         >
                           <FiTrash2 className="text-red-600 dark:text-red-400 text-lg" />
                         </button>
@@ -960,22 +1014,22 @@ const Shop = ({ darkMode, addToCart }) => {
               <>
                 <button
                   onClick={handlePrev}
-                  className="absolute left-0 top-1/2 transform -translate-y-1/2 bg-indigo-600 dark:bg-indigo-800 text-white p-3 rounded-full shadow-lg hover:bg-indigo-700 dark:hover:bg-indigo-700 transition-all duration-300"
+                  className="absolute left-0 top-1/2 transform -translate-y-1/2 bg-white/30 dark:bg-gray-800/30 text-gray-900 dark:text-white p-3 rounded-full shadow-lg hover:bg-white/40 dark:hover:bg-gray-700/40 transition-all duration-300 backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50"
                 >
-                  <FiChevronLeft className="text-2xl" />
+                  <FiChevronLeft className="text-xl sm:text-2xl" />
                 </button>
                 <button
                   onClick={handleNext}
-                  className="absolute right-0 top-1/2 transform -translate-y-1/2 bg-indigo-600 dark:bg-indigo-800 text-white p-3 rounded-full shadow-lg hover:bg-indigo-700 dark:hover:bg-indigo-700 transition-all duration-300"
+                  className="absolute right-0 top-1/2 transform -translate-y-1/2 bg-white/30 dark:bg-gray-800/30 text-gray-900 dark:text-white p-3 rounded-full shadow-lg hover:bg-white/40 dark:hover:bg-gray-700/40 transition-all duration-300 backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50"
                 >
-                  <FiChevronRight className="text-2xl" />
+                  <FiChevronRight className="text-xl sm:text-2xl" />
                 </button>
                 <div className="flex justify-center mt-6 gap-2">
                   {Array.from({ length: totalPages }).map((_, index) => (
                     <button
                       key={index}
                       onClick={() => handleDotClick(index)}
-                      className={`h-3 w-3 rounded-full transition-all duration-300 ${
+                      className={`h-2 w-2 sm:h-3 sm:w-3 rounded-full transition-all duration-300 ${
                         currentIndex === index
                           ? "bg-indigo-600 dark:bg-indigo-400 scale-125"
                           : "bg-gray-300 dark:bg-gray-600 hover:bg-indigo-400 dark:hover:bg-indigo-500"
@@ -987,32 +1041,32 @@ const Shop = ({ darkMode, addToCart }) => {
             )}
           </div>
         ) : (
-          <p className="col-span-full text-center text-gray-500 dark:text-gray-400 text-lg font-medium">
-            No reviews yet. Be the first to review this shop!
-          </p>
+          <p className="text-center text-gray-500 dark:text-gray-400 text-base sm:text-lg">No reviews yet. Be the first to review this shop!</p>
         )}
       </div>
 
       {/* Chat Button */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-8 right-8 bg-gradient-to-r from-indigo-600 to-blue-600 text-white p-4 rounded-full shadow-2xl hover:from-indigo-700 hover:to-blue-700 transition-all duration-300 transform hover:scale-110 z-50 flex items-center justify-center"
+        className="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 bg-indigo-600 dark:bg-indigo-700 text-white p-3 sm:p-4 rounded-full shadow-2xl hover:bg-indigo-700 dark:hover:bg-indigo-800 transition-all duration-300 transform hover:scale-110 z-50 flex items-center justify-center backdrop-blur-md border border-indigo-200/50 dark:border-indigo-700/50"
+        aria-label="Open chat"
       >
-        <FiMessageCircle className="text-3xl" />
+        <FiMessageCircle className="text-2xl sm:text-3xl" />
       </button>
 
       {/* Chat Modal */}
       {open && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 animate-fade-in backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-900 w-full max-w-5xl h-[80vh] rounded-2xl shadow-2xl flex overflow-hidden border border-indigo-200 dark:border-indigo-700">
-            <div className="w-80 bg-gradient-to-b from-indigo-100 to-blue-100 dark:from-indigo-900 dark:to-blue-900 flex flex-col border-r border-indigo-200 dark:border-indigo-700">
-              <div className="flex items-center justify-between p-5 border-b border-indigo-200 dark:border-indigo-700 bg-indigo-200 dark:bg-indigo-800">
-                <h2 className="font-bold text-xl text-indigo-700 dark:text-indigo-300">Chats</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in backdrop-blur-sm">
+          <div className="bg-white/30 dark:bg-gray-800/30 w-full max-w-4xl sm:max-w-5xl h-[70vh] sm:h-[80vh] rounded-2xl shadow-2xl flex overflow-hidden backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50">
+            <div className="w-full sm:w-80 bg-white/30 dark:bg-gray-800/30 flex flex-col border-r border-gray-200/50 dark:border-gray-700/50 backdrop-blur-md">
+              <div className="flex items-center justify-between p-4 sm:p-5 border-b border-gray-200/50 dark:border-gray-700/50 bg-indigo-600/30 dark:bg-indigo-800/30 backdrop-blur-md">
+                <h2 className="font-bold text-lg sm:text-xl text-indigo-700 dark:text-indigo-300">Chats</h2>
                 <button
                   onClick={onClose}
                   className="text-indigo-600 dark:text-indigo-400 hover:text-red-500 transition-colors duration-200"
+                  aria-label="Close chat"
                 >
-                  <FiX className="text-2xl" />
+                  <FiX className="text-xl sm:text-2xl" />
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -1021,10 +1075,10 @@ const Shop = ({ darkMode, addToCart }) => {
                     <div
                       key={s.id}
                       onClick={() => setActiveSession(s)}
-                      className={`p-4 rounded-xl cursor-pointer transition-all duration-300 relative border-2 border-indigo-300 dark:border-indigo-700 ${
+                      className={`p-4 rounded-xl cursor-pointer transition-all duration-300 relative border border-indigo-300/50 dark:border-indigo-700/50 backdrop-blur-md ${
                         activeSession?.id === s.id
-                          ? "bg-indigo-200 dark:bg-indigo-800 shadow-md"
-                          : "bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-800 dark:to-blue-800 hover:bg-indigo-100 dark:hover:bg-indigo-900"
+                          ? "bg-indigo-200/30 dark:bg-indigo-800/30 shadow-md"
+                          : "bg-gradient-to-r from-indigo-50/30 to-blue-50/30 dark:from-indigo-800/30 to-blue-800/30 hover:bg-indigo-100/30 dark:hover:bg-indigo-900/30"
                       }`}
                     >
                       <div className="flex items-center gap-2 font-semibold text-indigo-700 dark:text-indigo-300">
@@ -1052,31 +1106,31 @@ const Shop = ({ darkMode, addToCart }) => {
                   <div className="text-center text-gray-500 dark:text-gray-400 py-8">No active chats. Start a new one!</div>
                 )}
               </div>
-              <div className="p-4 border-t border-indigo-200 dark:border-indigo-700 bg-indigo-100 dark:bg-indigo-900">
+              <div className="p-4 border-t border-gray-200/50 dark:border-gray-700/50 bg-indigo-100/30 dark:bg-indigo-900/30 backdrop-blur-md">
                 <button
                   onClick={startChat}
-                  className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white py-3 rounded-xl font-semibold shadow-lg transition-all duration-300 transform hover:scale-105"
+                  className="w-full bg-indigo-600 dark:bg-indigo-700 hover:bg-indigo-700 dark:hover:bg-indigo-800 text-white py-3 rounded-xl font-semibold shadow-lg transition-all duration-300 transform hover:scale-105"
                 >
                   New Chat with Shop
                 </button>
               </div>
             </div>
-            <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-800">
+            <div className="flex-1 flex flex-col bg-white/30 dark:bg-gray-800/30 backdrop-blur-md">
               {activeSession ? (
                 <>
-                  <div className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white p-5 border-b border-indigo-200 dark:border-indigo-700 shadow-md">
-                    <h3 className="font-bold text-xl">Chat with {activeSession.shopName}</h3>
-                    <p className="text-sm opacity-90">Online - Responds quickly</p>
+                  <div className="bg-indigo-600/30 dark:bg-indigo-800/30 p-4 sm:p-5 border-b border-gray-200/50 dark:border-gray-700/50 shadow-md backdrop-blur-md">
+                    <h3 className="font-bold text-lg sm:text-xl text-indigo-700 dark:text-indigo-300">Chat with {activeSession.shopName}</h3>
+                    <p className="text-sm opacity-90 text-gray-200">Online - Responds quickly</p>
                   </div>
-                  <div className="flex-1 p-6 overflow-y-auto space-y-4">
+                  <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 bg-gradient-to-b from-white/10 to-blue-50/10 dark:from-gray-800/10 to-blue-900/10 backdrop-blur-sm">
                     {isLoading.messages ? (
                       <div className="space-y-4">
                         {[...Array(3)].map((_, index) => (
                           <div key={index} className="flex items-start gap-3 animate-pulse">
-                            <div className="w-10 h-10 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
-                            <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-2xl p-4 max-w-xs">
-                              <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded mb-2"></div>
-                              <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-3/4"></div>
+                            <div className="w-8 sm:w-10 h-8 sm:h-10 bg-gray-200 dark:bg-gray-600 rounded-full"></div>
+                            <div className="flex-1 bg-gray-200/50 dark:bg-gray-700/50 rounded-2xl p-4 max-w-xs sm:max-w-md backdrop-blur-md">
+                              <div className="h-3 bg-gray-300 dark:bg-gray-600 rounded mb-2"></div>
+                              <div className="h-3 bg-gray-300 dark:bg-gray-600 rounded w-3/4"></div>
                             </div>
                           </div>
                         ))}
@@ -1087,49 +1141,49 @@ const Shop = ({ darkMode, addToCart }) => {
                           key={msg.id}
                           className={`flex items-start gap-3 ${msg.senderType !== 'SHOP' ? "flex-row-reverse" : ""}`}
                         >
-                          <div className="w-10 h-10 bg-indigo-200 dark:bg-indigo-700 rounded-full flex items-center justify-center text-indigo-600 dark:text-indigo-300 font-bold text-sm">
+                          <div className="w-8 sm:w-10 h-8 sm:h-10 bg-indigo-200/50 dark:bg-indigo-700/50 rounded-full flex items-center justify-center text-indigo-600 dark:text-indigo-300 font-bold text-sm backdrop-blur-md">
                             {msg.senderName?.[0] || "U"}
                           </div>
                           <div
-                            className={`max-w-xs sm:max-w-md px-5 py-3 rounded-3xl shadow-md transition-all duration-200 ${
+                            className={`max-w-xs sm:max-w-md px-4 py-3 rounded-3xl shadow-md transition-all duration-200 backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50 ${
                               msg.senderType !== 'SHOP'
-                                ? "bg-gradient-to-r from-indigo-500 to-blue-500 text-white"
-                                : "bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-indigo-100 dark:border-indigo-600"
+                                ? "bg-gradient-to-r from-indigo-500/50 to-blue-500/50 text-white"
+                                : "bg-white/30 dark:bg-gray-700/30 text-gray-800 dark:text-gray-200"
                             }`}
                           >
-                            <p className="text-sm font-semibold mb-1">{msg.senderName || "Anonymous"}</p>
-                            <p className="text-base">{msg.content}</p>
-                            <p className="text-xs opacity-70 mt-1 text-right">
+                            <p className="text-sm font-semibold mb-1 text-gray-900 dark:text-gray-100">{msg.senderName || "Anonymous"}</p>
+                            <p className="text-sm sm:text-base">{msg.content}</p>
+                            <p className="text-xs opacity-70 mt-1 text-right text-gray-600 dark:text-gray-400">
                               {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </p>
                           </div>
                         </div>
                       ))
                     ) : (
-                      <div className="text-center text-gray-500 dark:text-gray-400 mt-20 text-lg">
+                      <div className="text-center text-gray-500 dark:text-gray-400 mt-20 text-base sm:text-lg">
                         Say hello to start the conversation! 👋
                       </div>
                     )}
                     <div ref={messagesEndRef} />
                   </div>
-                  <div className="p-5 border-t border-indigo-200 dark:border-indigo-700 flex items-center gap-3 bg-white dark:bg-gray-800">
+                  <div className="p-4 sm:p-5 border-t border-gray-200/50 dark:border-gray-700/50 flex items-center gap-3 bg-white/30 dark:bg-gray-800/30 backdrop-blur-md">
                     <input
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
                       onKeyPress={(e) => e.key === "Enter" && sendMessage()}
-                      className="flex-1 border border-indigo-300 dark:border-indigo-600 rounded-xl px-5 py-3 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 placeholder-indigo-400"
+                      className="flex-1 border border-gray-200/50 dark:border-gray-600/50 rounded-xl px-4 sm:px-5 py-2 sm:py-3 bg-white/30 dark:bg-gray-700/30 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 placeholder-gray-500 dark:placeholder-gray-300 backdrop-blur-md text-sm sm:text-base"
                       placeholder="Type your message..."
                     />
                     <button
                       onClick={sendMessage}
-                      className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white p-3 rounded-xl shadow-lg transition-all duration-300 transform hover:scale-110"
+                      className="bg-indigo-600 dark:bg-indigo-700 hover:bg-indigo-700 dark:hover:bg-indigo-800 text-white p-2 sm:p-3 rounded-xl shadow-lg transition-all duration-300 transform hover:scale-110 backdrop-blur-md border border-indigo-200/50 dark:border-indigo-700/50"
                     >
-                      <FiSend className="text-xl" />
+                      <FiSend className="text-lg sm:text-xl" />
                     </button>
                   </div>
                 </>
               ) : (
-                <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400 text-xl font-medium">
+                <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400 text-lg sm:text-xl font-medium">
                   Select a session or start a new chat
                 </div>
               )}

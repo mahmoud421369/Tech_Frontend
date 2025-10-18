@@ -298,10 +298,7 @@ const DeliveryPersons = ({ darkMode }) => {
                           })
                         : 'N/A'}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <FiBell className="text-indigo-500" /> Notifications:{' '}
-                      {person.notificationHistory || 'No history'}
-                    </div>
+            
                   </div>
                   <div className="mt-4 border-t dark:border-gray-800 pt-3 text-xs text-gray-600 dark:text-gray-400 space-y-2">
                     <div className="flex justify-between">

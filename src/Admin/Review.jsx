@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiSearch, FiEye, FiTrash2, FiMessageCircle, FiCopy, FiChevronLeft, FiChevronRight, FiXCircle, FiFlag } from 'react-icons/fi';
@@ -7,43 +6,41 @@ import DOMPurify from 'dompurify';
 import api from '../api';
 import Modal from '../components/Modal';
 
-
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center h-64">
     <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
   </div>
 );
 
-
 const ReviewsSkeleton = ({ darkMode }) => (
   <div className="animate-pulse p-6">
     <div className="space-y-4 mb-8">
       <div className="flex justify-between items-center">
         <div className="space-y-2">
-          <div className="h-8 w-1/4 bg-gray-300 dark:bg-gray-700 rounded"></div>
-          <div className="h-4 w-1/2 bg-gray-300 dark:bg-gray-700 rounded"></div>
+          <div className="h-8 w-1/4 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+          <div className="h-4 w-1/2 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
         </div>
       </div>
     </div>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
       {[...Array(3)].map((_, idx) => (
-        <div key={idx} className="bg-white dark:bg-gray-950 p-4 rounded-lg shadow">
-          <div className="h-6 w-1/2 bg-gray-300 dark:bg-gray-600 rounded mb-2"></div>
-          <div className="h-8 w-1/4 bg-gray-300 dark:bg-gray-600 rounded"></div>
+        <div key={idx} className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+          <div className="h-6 w-1/2 bg-gray-200 dark:bg-gray-600 rounded-lg mb-3"></div>
+          <div className="h-8 w-1/4 bg-gray-200 dark:bg-gray-600 rounded-lg"></div>
         </div>
       ))}
     </div>
-    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-6">
-      <div className="relative w-full md:w-64 mb-4">
-        <div className="h-10 w-full bg-gray-300 dark:bg-gray-700 rounded-xl"></div>
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+      <div className="relative w-full md:w-64 mb-6">
+        <div className="h-10 w-full bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
       </div>
-      <div className="bg-white dark:bg-gray-950 rounded-lg shadow-md">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-gray-100 dark:bg-gray-700">
+          <thead className="bg-gray-50 dark:bg-gray-800">
             <tr>
               {['Customer', 'Repair Shop', 'Rating', 'Comment', 'Date', 'Actions'].map((header, idx) => (
-                <th key={idx} className="px-6 py-3">
-                  <div className="h-4 w-20 bg-gray-300 dark:bg-gray-600 rounded"></div>
+                <th key={idx} className="px-6 py-4">
+                  <div className="h-4 w-20 bg-gray-200 dark:bg-gray-600 rounded-lg"></div>
                 </th>
               ))}
             </tr>
@@ -51,15 +48,15 @@ const ReviewsSkeleton = ({ darkMode }) => (
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {[...Array(5)].map((_, idx) => (
               <tr key={idx}>
-                <td className="px-6 py-4"><div className="h-4 w-32 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-                <td className="px-6 py-4"><div className="h-4 w-32 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-                <td className="px-6 py-4"><div className="h-4 w-20 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-                <td className="px-6 py-4"><div className="h-4 w-48 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-                <td className="px-6 py-4"><div className="h-4 w-24 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
+                <td className="px-6 py-4"><div className="h-4 w-32 bg-gray-200 dark:bg-gray-600 rounded-lg"></div></td>
+                <td className="px-6 py-4"><div className="h-4 w-32 bg-gray-200 dark:bg-gray-600 rounded-lg"></div></td>
+                <td className="px-6 py-4"><div className="h-4 w-20 bg-gray-200 dark:bg-gray-600 rounded-lg"></div></td>
+                <td className="px-6 py-4"><div className="h-4 w-48 bg-gray-200 dark:bg-gray-600 rounded-lg"></div></td>
+                <td className="px-6 py-4"><div className="h-4 w-24 bg-gray-200 dark:bg-gray-600 rounded-lg"></div></td>
                 <td className="px-6 py-4">
                   <div className="flex justify-center gap-2">
-                    <div className="h-8 w-8 bg-gray-300 dark:bg-gray-600 rounded"></div>
-                    <div className="h-8 w-8 bg-gray-300 dark:bg-gray-600 rounded"></div>
+                    <div className="h-8 w-8 bg-gray-200 dark:bg-gray-600 rounded-full"></div>
+                    <div className="h-8 w-8 bg-gray-200 dark:bg-gray-600 rounded-full"></div>
                   </div>
                 </td>
               </tr>
@@ -83,7 +80,6 @@ const Reviews = ({ darkMode }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const reviewsPerPage = 5;
 
- 
   const computedStats = useMemo(() => {
     const totalReviews = reviews.length;
     const approvedReviews = reviews.filter((r) => r.status === 'APPROVED').length;
@@ -97,7 +93,6 @@ const Reviews = ({ darkMode }) => {
     };
   }, [reviews]);
 
-  
   const debounce = (func, delay) => {
     let timeoutId;
     return (...args) => {
@@ -125,7 +120,7 @@ const Reviews = ({ darkMode }) => {
           position: 'top-end',
           showConfirmButton: false,
           timer: 1500,
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : 'bg-white text-gray-800' },
         });
       },
       (err) => {
@@ -138,7 +133,7 @@ const Reviews = ({ darkMode }) => {
           position: 'top-end',
           showConfirmButton: false,
           timer: 1500,
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : 'bg-white text-gray-800' },
         });
       }
     );
@@ -150,7 +145,7 @@ const Reviews = ({ darkMode }) => {
         title: 'Error',
         text: 'No authentication token found. Please log in.',
         icon: 'error',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : 'bg-white text-gray-800' },
       });
       navigate('/login');
       return;
@@ -172,7 +167,7 @@ const Reviews = ({ darkMode }) => {
         title: 'Error',
         text: error.response?.status === 401 ? 'Unauthorized, please log in' : 'Failed to fetch reviews',
         icon: 'error',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : 'bg-white text-gray-800' },
       });
       if (error.response?.status === 401) {
         localStorage.removeItem('authToken');
@@ -193,11 +188,11 @@ const Reviews = ({ darkMode }) => {
       text: 'This review will be deleted permanently',
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
+      confirmButtonColor: '#4f46e5',
+      cancelButtonColor: '#dc2626',
       confirmButtonText: 'Yes, delete it',
       cancelButtonText: 'Cancel',
-      customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+      customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : 'bg-white text-gray-800' },
     });
 
     if (!confirm.isConfirmed) return;
@@ -212,7 +207,7 @@ const Reviews = ({ darkMode }) => {
         icon: 'success',
         timer: 2000,
         showConfirmButton: false,
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : 'bg-white text-gray-800' },
       });
       await fetchReviews();
     } catch (error) {
@@ -221,7 +216,7 @@ const Reviews = ({ darkMode }) => {
         title: 'Error',
         text: error.response?.status === 401 ? 'Unauthorized, please log in' : 'Failed to delete review',
         icon: 'error',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : 'bg-white text-gray-800' },
       });
       if (error.response?.status === 401) {
         localStorage.removeItem('authToken');
@@ -284,27 +279,27 @@ const Reviews = ({ darkMode }) => {
   const getStatusBadge = (status, flagged) => {
     if (flagged) {
       return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300">
-          <FiFlag className="mr-1" /> Flagged
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
+          <FiFlag className="mr-1.5" /> Flagged
         </span>
       );
     }
     switch (status) {
       case 'APPROVED':
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300">
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
             Approved
           </span>
         );
       case 'PENDING':
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300">
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
             Pending
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-300">
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200">
             {status}
           </span>
         );
@@ -316,7 +311,7 @@ const Reviews = ({ darkMode }) => {
       {[1, 2, 3, 4, 5].map((star) => (
         <svg
           key={star}
-          className={`w-4 h-4 ${star <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 dark:text-gray-600'}`}
+          className={`w-5 h-5 ${star <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 dark:text-gray-600'}`}
           viewBox="0 0 20 20"
           fill="currentColor"
           xmlns="http://www.w3.org/2000/svg"
@@ -340,34 +335,35 @@ const Reviews = ({ darkMode }) => {
   }, [searchTerm, handleSearchChange]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 mt-14 transition-colors duration-300 animate-fade-in">
+    <div style={{marginTop:"50px",marginLeft:"250px"}} className="min-h-screen bg-gray-100 dark:bg-gray-900 p-8 transition-colors duration-500 animate-fade-in">
       <div className="max-w-7xl mx-auto">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6">
-          <h1 className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
-            <FiMessageCircle /> Review Management
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8 border border-gray-200 dark:border-gray-700">
+          <h1 className="text-3xl font-bold text-indigo-600 dark:text-gray-100 flex items-center gap-3">
+            <FiMessageCircle className="text-indigo-600 dark:text-indigo-400" /> Review Management
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">Monitor and manage customer reviews</p>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">Efficiently monitor and manage customer reviews</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-950 p-4 rounded-lg shadow-md transition-all duration-300 transform hover:-translate-y-1">
-            <h3 className="text-lg font-semibold text-indigo-600 dark:text-indigo-400">Total Reviews</h3>
-            <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">{computedStats.totalReviews}</p>
-          </div>
-          <div className="bg-white dark:bg-gray-950 p-4 rounded-lg shadow-md transition-all duration-300 transform hover:-translate-y-1">
-            <h3 className="text-lg font-semibold text-indigo-600 dark:text-indigo-400">Approved Reviews</h3>
-            <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">{computedStats.approvedReviews}</p>
-          </div>
-          <div className="bg-white dark:bg-gray-950 p-4 rounded-lg shadow-md transition-all duration-300 transform hover:-translate-y-1">
-            <h3 className="text-lg font-semibold text-indigo-600 dark:text-indigo-400">Flagged Reviews</h3>
-            <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">{computedStats.flaggedReviews}</p>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {[
+            { title: 'Total Reviews', value: computedStats.totalReviews },
+            { title: 'Approved Reviews', value: computedStats.approvedReviews },
+            { title: 'Flagged Reviews', value: computedStats.flaggedReviews },
+          ].map((stat, idx) => (
+            <div
+              key={idx}
+              className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-md hover:-translate-y-1"
+            >
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{stat.title}</h3>
+              <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 mt-2">{stat.value}</p>
+            </div>
+          ))}
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6">
-          <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-            <div className="relative w-full md:w-64">
-              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-300" />
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8 border border-gray-200 dark:border-gray-700">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="relative w-full md:w-80">
+              <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400" />
               <input
                 type="text"
                 placeholder="Search by customer, shop, or comment..."
@@ -376,7 +372,7 @@ const Reviews = ({ darkMode }) => {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full pl-10 pr-10 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all duration-300"
+                className="w-full pl-12 pr-10 py-3 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all duration-300 placeholder-gray-500 dark:placeholder-gray-400"
               />
               {searchTerm && (
                 <button
@@ -384,23 +380,23 @@ const Reviews = ({ darkMode }) => {
                     setSearchTerm('');
                     setCurrentPage(1);
                   }}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-200"
                 >
-                  <FiXCircle />
+                  <FiXCircle size={20} />
                 </button>
               )}
             </div>
-            <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
-              <span className="bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 px-3 py-1 rounded-full">
+            <div className="flex items-center flex-wrap justify-center gap-4 text-sm">
+              <span className="bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-full font-medium">
                 Total: {computedStats.totalReviews}
               </span>
-              <span className="bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400 px-3 py-1 rounded-full">
+              <span className="bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400 px-4 py-2 rounded-full font-medium">
                 Approved: {computedStats.approvedReviews}
               </span>
-              <span className="bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400 px-3 py-1 rounded-full">
+              <span className="bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400 px-4 py-2 rounded-full font-medium">
                 Flagged: {computedStats.flaggedReviews}
               </span>
-              <span className="bg-yellow-100 dark:bg-yellow-900 text-yellow-600 dark:text-yellow-400 px-3 py-1 rounded-full">
+              <span className="bg-yellow-100 dark:bg-yellow-900 text-yellow-600 dark:text-yellow-400 px-4 py-2 rounded-full font-medium">
                 Page: {currentPage} of {totalPages}
               </span>
             </div>
@@ -410,8 +406,8 @@ const Reviews = ({ darkMode }) => {
         {loading ? (
           <ReviewsSkeleton darkMode={darkMode} />
         ) : filteredReviews.length === 0 ? (
-          <div className="bg-white dark:bg-gray-950 rounded-lg shadow-md p-8 text-center">
-            <FiMessageCircle className="text-6xl mx-auto mb-4 text-indigo-500 dark:text-indigo-400" />
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center border border-gray-200 dark:border-gray-700">
+            <FiMessageCircle className="text-6xl mx-auto mb-4 text-indigo-600 dark:text-indigo-400" />
             <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">No reviews found</h3>
             <p className="text-gray-600 dark:text-gray-400">
               {searchTerm ? 'Try adjusting your search terms' : 'No reviews available'}
@@ -419,58 +415,67 @@ const Reviews = ({ darkMode }) => {
           </div>
         ) : (
           <>
-            <div className="bg-white dark:bg-gray-950 rounded-lg shadow-md overflow-x-auto">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-x-auto border border-gray-200 dark:border-gray-700">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-100 dark:bg-gray-700 text-indigo-600 dark:text-indigo-400">
+                <thead className="bg-gray-50 dark:bg-gray-800">
                   <tr>
-                    <th className="px-6 py-3 text-center font-medium uppercase tracking-wider">ID</th>
-                    <th className="px-6 py-3 text-center font-medium uppercase tracking-wider">Customer</th>
-                    <th className="px-6 py-3 text-center font-medium uppercase tracking-wider">Repair Shop</th>
-                    <th className="px-6 py-3 text-center font-medium uppercase tracking-wider">Rating</th>
-                    <th className="px-6 py-3 text-center font-medium uppercase tracking-wider">Comment</th>
-                    <th className="px-6 py-3 text-center font-medium uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-3 text-center font-medium uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-center font-medium uppercase tracking-wider">Actions</th>
+                    {['ID', 'Rating', 'Comment', 'Date', 'Actions'].map((header, idx) => (
+                      <th
+                        key={idx}
+                        className="px-6 py-4 text-sm font-semibold text-indigo-600 dark:text-gray-100 uppercase tracking-wider text-center"
+                      >
+                        {header}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {currentReviews.map((review) => (
                     <tr
                       key={review.id}
-                      className="text-center text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all duration-300"
+                      className="hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all duration-200"
                     >
-                      <td className="px-6 py-4 text-sm flex items-center justify-center gap-2">
-                        {review.id}
-                        <button
-                          onClick={() => copyToClipboard(review.id)}
-                          className="relative group p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
-                          title="Copy Review ID"
-                        >
-                          <FiCopy />
-                          <span className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2">
-                            Copy Review ID
-                          </span>
-                        </button>
+                       <td className="px-6 py-4 text-sm font-medium flex items-center justify-center gap-2 mt-3">
+                                         <span className="truncate max-w-[150px]">{review.id}</span>
+                                         <button
+                                           onClick={() => copyToClipboard(review.id)}
+                                           className="relative group p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                                           title="Copy Offer ID"
+                                         >
+                                           <FiCopy size={16} />
+                                           <span className="absolute hidden group-hover:block bg-gray-800 dark:bg-gray-900 text-white dark:text-gray-200 text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                                             Copy review ID
+                                           </span>
+                                         </button>
+                                       </td>
+                      {/* <td className="py-6 px-6 text-center text-gray-600 dark:text-gray-300">
+                        {DOMPurify.sanitize(review.userId) || 'N/A'}
+                      </td> */}
+                      {/* <td className="py-6 px-6 text-center text-gray-600 dark:text-gray-300">
+                        {DOMPurify.sanitize(review.shopId) || 'N/A'}
+                      </td> */}
+                      <td className="py-6 px-6 text-center">{renderStars(review.rating)}</td>
+                      <td className="py-6 px-6 text-center text-gray-600 dark:text-gray-300 max-w-xs truncate">
+                        {DOMPurify.sanitize(review.comment) || 'N/A'}
                       </td>
-                      <td className="px-6 py-4">{DOMPurify.sanitize(review.userId) || 'N/A'}</td>
-                      <td className="px-6 py-4">{DOMPurify.sanitize(review.shopId) || 'N/A'}</td>
-                      <td className="px-6 py-4">{renderStars(review.rating)}</td>
-                      <td className="px-6 py-4 max-w-xs truncate">{DOMPurify.sanitize(review.comment) || 'N/A'}</td>
-                      <td className="px-6 py-4">{new Date(review.createdAt).toLocaleDateString() || 'N/A'}</td>
-                      <td className="px-6 py-4">{getStatusBadge(review.status, review.flagged)}</td>
-                      <td className="px-6 py-4 flex justify-center gap-2">
-                        <button
-                          onClick={() => openReviewDetails(review)}
-                          className="p-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300"
-                        >
-                          <FiEye />
-                        </button>
-                        <button
-                          onClick={() => deleteReview(review.id)}
-                          className="p-2 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-800 transition-all duration-300"
-                        >
-                          <FiTrash2 />
-                        </button>
+                      <td className="py-6 px-6 text-center text-gray-600 dark:text-gray-300">
+                        {new Date(review.createdAt).toLocaleDateString() || 'N/A'}
+                      </td>
+                      <td className="py-6 px-6 text-center">
+                        <div className="flex items-center justify-center gap-3">
+                          <button
+                            onClick={() => openReviewDetails(review)}
+                            className="p-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-200 hover:shadow-md"
+                          >
+                            <FiEye size={18} />
+                          </button>
+                          <button
+                            onClick={() => deleteReview(review.id)}
+                            className="p-2 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-800 transition-all duration-200 hover:shadow-md"
+                          >
+                            <FiTrash2 size={18} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -479,21 +484,21 @@ const Reviews = ({ darkMode }) => {
             </div>
 
             {totalPages > 1 && (
-              <div className="flex justify-center items-center space-x-2 mt-6">
+              <div className="flex justify-center items-center gap-3 mt-8">
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="px-4 py-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
                 >
-                  <FiChevronLeft /> Previous
+                  <FiChevronLeft size={18} /> Previous
                 </button>
 
                 {getPageNumbers().map((page, idx) => (
                   <button
                     key={idx}
                     onClick={() => typeof page === 'number' && setCurrentPage(page)}
-                    className={`px-4 py-2 rounded-xl transition-all duration-300 ${
-                      page === '...' ? 'cursor-default' : currentPage === page ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-800'
+                    className={`px-4 py-2 rounded-lg transition-all duration-200 ${
+                      page === '...' ? 'cursor-default text-gray-500 dark:text-gray-400' : currentPage === page ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-800'
                     }`}
                     disabled={page === '...'}
                   >
@@ -504,9 +509,9 @@ const Reviews = ({ darkMode }) => {
                 <button
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className="px-4 py-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
                 >
-                  Next <FiChevronRight />
+                  Next <FiChevronRight size={18} />
                 </button>
               </div>
             )}
@@ -515,47 +520,47 @@ const Reviews = ({ darkMode }) => {
 
         {isModalOpen && selectedReview && (
           <Modal onClose={() => setIsModalOpen(false)} title="Review Details" darkMode={darkMode}>
-            <div className="space-y-4">
-              <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
+            <div className="space-y-6">
+              <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-6 border border-indigo-100 dark:border-indigo-800">
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
                   Review Information
                   <button
                     onClick={() => copyToClipboard(selectedReview.id)}
-                    className="relative group p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                    className="relative group p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200"
                     title="Copy Review ID"
                   >
-                    <FiCopy />
+                    <FiCopy size={18} />
                     <span className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2">
                       Copy Review ID
                     </span>
                   </button>
                 </h4>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>ID:</strong> {selectedReview.id || 'N/A'}
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>Customer:</strong> {DOMPurify.sanitize(selectedReview.userId) || 'N/A'}
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>Repair Shop:</strong> {DOMPurify.sanitize(selectedReview.shopId) || 'N/A'}
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>Rating:</strong> {renderStars(selectedReview.rating)}
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>Comment:</strong> {DOMPurify.sanitize(selectedReview.comment) || 'N/A'}
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>Date:</strong> {new Date(selectedReview.createdAt).toLocaleDateString() || 'N/A'}
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>Status:</strong> {getStatusBadge(selectedReview.status, selectedReview.flagged)}
-                </p>
+                <div className="space-y-3">
+                  <p className="text-sm text-gray-700 dark:text-gray-200">
+                    <strong className="font-medium">ID:</strong> {selectedReview.id || 'N/A'}
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-200">
+                    <strong className="font-medium">Customer:</strong> {DOMPurify.sanitize(selectedReview.userId) || 'N/A'}
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-200">
+                    <strong className="font-medium">Repair Shop:</strong> {DOMPurify.sanitize(selectedReview.shopId) || 'N/A'}
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-200">
+                    <strong className="font-medium">Rating:</strong> {renderStars(selectedReview.rating)}
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-200">
+                    <strong className="font-medium">Comment:</strong> {DOMPurify.sanitize(selectedReview.comment) || 'N/A'}
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-200">
+                    <strong className="font-medium">Date:</strong> {new Date(selectedReview.createdAt).toLocaleDateString() || 'N/A'}
+                  </p>
+                 
+                </div>
               </div>
               <div className="flex justify-end">
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all duration-300 transform hover:-translate-y-1 shadow-md"
+                  className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg"
                 >
                   Close
                 </button>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiCheckCircle, FiInfo, FiUsers, FiTrash2, FiXOctagon, FiCopy, FiSearch, FiXCircle, FiChevronLeft, FiChevronRight, FiList } from 'react-icons/fi';
@@ -7,44 +6,47 @@ import DOMPurify from 'dompurify';
 import api from '../api';
 import Modal from '../components/Modal';
 
-
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center h-64">
     <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
   </div>
 );
 
-
 const AssignersSkeleton = ({ darkMode }) => (
-  <div className="animate-pulse p-6">
+  <div className="animate-pulse p-8">
     <div className="space-y-4 mb-8">
       <div className="flex justify-between items-center">
         <div className="space-y-2">
-          <div className="h-8 w-1/4 bg-gray-300 dark:bg-gray-700 rounded"></div>
-          <div className="h-4 w-1/2 bg-gray-300 dark:bg-gray-700 rounded"></div>
+          <div className="h-8 w-1/4 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+          <div className="h-4 w-1/2 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
         </div>
       </div>
     </div>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
       {[...Array(3)].map((_, idx) => (
-        <div key={idx} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-          <div className="h-6 w-1/2 bg-gray-300 dark:bg-gray-600 rounded mb-2"></div>
-          <div className="h-8 w-1/4 bg-gray-300 dark:bg-gray-600 rounded"></div>
+        <div key={idx} className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="h-6 w-1/2 bg-gray-200 dark:bg-gray-600 rounded-lg mb-3"></div>
+          <div className="h-8 w-1/4 bg-gray-200 dark:bg-gray-600 rounded-lg"></div>
         </div>
       ))}
     </div>
-    <div className="flex space-x-4 mb-6">
-      {[...Array(4)].map((_, idx) => (
-        <div key={idx} className="h-10 w-24 bg-gray-300 dark:bg-gray-600 rounded-lg"></div>
-      ))}
+    <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-8">
+      <div className="relative w-full md:w-80">
+        <div className="h-10 w-full bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+      </div>
+      <div className="flex gap-4 flex-wrap">
+        {[...Array(4)].map((_, idx) => (
+          <div key={idx} className="h-10 w-24 bg-gray-200 dark:bg-gray-600 rounded-lg"></div>
+        ))}
+      </div>
     </div>
-    <div className="bg-white dark:bg-gray-950 rounded-lg shadow-md">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-        <thead className="bg-gray-100 dark:bg-gray-700">
+        <thead className="bg-gray-50 dark:bg-gray-800">
           <tr>
-            {['Name', 'Email', 'Phone', 'Status', 'Created At', 'Actions'].map((header, idx) => (
-              <th key={idx} className="px-6 py-3">
-                <div className="h-4 w-20 bg-gray-300 dark:bg-gray-600 rounded"></div>
+            {['ID', 'Name', 'Email', 'Phone', 'Status', 'Created At', 'Actions'].map((header, idx) => (
+              <th key={idx} className="px-6 py-4">
+                <div className="h-4 w-20 bg-gray-200 dark:bg-gray-600 rounded-lg"></div>
               </th>
             ))}
           </tr>
@@ -52,16 +54,17 @@ const AssignersSkeleton = ({ darkMode }) => (
         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
           {[...Array(5)].map((_, idx) => (
             <tr key={idx}>
-              <td className="px-6 py-4"><div className="h-4 w-32 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-              <td className="px-6 py-4"><div className="h-4 w-48 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-              <td className="px-6 py-4"><div className="h-4 w-24 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-              <td className="px-6 py-4"><div className="h-4 w-20 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-              <td className="px-6 py-4"><div className="h-4 w-28 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
+              <td className="px-6 py-4"><div className="h-4 w-32 bg-gray-200 dark:bg-gray-600 rounded-lg"></div></td>
+              <td className="px-6 py-4"><div className="h-4 w-32 bg-gray-200 dark:bg-gray-600 rounded-lg"></div></td>
+              <td className="px-6 py-4"><div className="h-4 w-48 bg-gray-200 dark:bg-gray-600 rounded-lg"></div></td>
+              <td className="px-6 py-4"><div className="h-4 w-24 bg-gray-200 dark:bg-gray-600 rounded-lg"></div></td>
+              <td className="px-6 py-4"><div className="h-4 w-20 bg-gray-200 dark:bg-gray-600 rounded-lg"></div></td>
+              <td className="px-6 py-4"><div className="h-4 w-28 bg-gray-200 dark:bg-gray-600 rounded-lg"></div></td>
               <td className="px-6 py-4">
                 <div className="flex justify-center gap-2">
-                  <div className="h-8 w-8 bg-gray-300 dark:bg-gray-600 rounded"></div>
-                  <div className="h-8 w-8 bg-gray-300 dark:bg-gray-600 rounded"></div>
-                  <div className="h-8 w-8 bg-gray-300 dark:bg-gray-600 rounded"></div>
+                  <div className="h-8 w-8 bg-gray-200 dark:bg-gray-600 rounded-full"></div>
+                  <div className="h-8 w-8 bg-gray-200 dark:bg-gray-600 rounded-full"></div>
+                  <div className="h-8 w-8 bg-gray-200 dark:bg-gray-600 rounded-full"></div>
                 </div>
               </td>
             </tr>
@@ -85,7 +88,6 @@ const Assigners = ({ darkMode }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(5);
 
- 
   const computedStats = useMemo(() => {
     const totalHandled = assigners.reduce((sum, a) => sum + (a.totalAssignmentsHandled || 0), 0);
     const pending = assigners.reduce((sum, a) => sum + (a.pendingAssignments || 0), 0);
@@ -97,7 +99,6 @@ const Assigners = ({ darkMode }) => {
     };
   }, [assigners]);
 
- 
   const debounce = (func, delay) => {
     let timeoutId;
     return (...args) => {
@@ -109,6 +110,7 @@ const Assigners = ({ darkMode }) => {
   const handleSearchChange = useCallback(
     debounce((value) => {
       setDebouncedSearchTerm(value);
+      setCurrentPage(1);
     }, 300),
     []
   );
@@ -132,7 +134,7 @@ const Assigners = ({ darkMode }) => {
           position: 'top-end',
           showConfirmButton: false,
           timer: 1500,
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : 'bg-white text-gray-800' },
         });
       },
       (err) => {
@@ -145,7 +147,7 @@ const Assigners = ({ darkMode }) => {
           position: 'top-end',
           showConfirmButton: false,
           timer: 1500,
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : 'bg-white text-gray-800' },
         });
       }
     );
@@ -157,7 +159,7 @@ const Assigners = ({ darkMode }) => {
         title: 'Error',
         text: 'No authentication token found. Please log in.',
         icon: 'error',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : 'bg-white text-gray-800' },
       });
       navigate('/login');
       return;
@@ -201,7 +203,7 @@ const Assigners = ({ darkMode }) => {
         title: 'Error',
         text: 'No authentication token found. Please log in.',
         icon: 'error',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : 'bg-white text-gray-800' },
       });
       navigate('/login');
       return;
@@ -222,7 +224,7 @@ const Assigners = ({ darkMode }) => {
           ? 'Unauthorized, please log in'
           : 'Failed to load assigner details',
         icon: 'error',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : 'bg-white text-gray-800' },
       });
       if (error.response?.status === 401) {
         localStorage.removeItem('authToken');
@@ -242,11 +244,11 @@ const Assigners = ({ darkMode }) => {
         text: "You won't be able to revert this!",
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#3085d6',
-        cancelButtonColor: '#d33',
+        confirmButtonColor: '#4f46e5',
+        cancelButtonColor: '#dc2626',
         confirmButtonText: `Yes, ${actionText}!`,
         cancelButtonText: 'Cancel',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : 'bg-white text-gray-800' },
       });
       if (!result.isConfirmed) return;
     }
@@ -262,7 +264,7 @@ const Assigners = ({ darkMode }) => {
         icon: 'success',
         timer: 2000,
         showConfirmButton: false,
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : 'bg-white text-gray-800' },
       });
       await fetchAssigners();
     } catch (error) {
@@ -273,7 +275,7 @@ const Assigners = ({ darkMode }) => {
           ? 'Unauthorized, please log in'
           : `Failed to ${actionText.toLowerCase()} assigner`,
         icon: 'error',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : 'bg-white text-gray-800' },
       });
       if (error.response?.status === 401) {
         localStorage.removeItem('authToken');
@@ -282,18 +284,22 @@ const Assigners = ({ darkMode }) => {
         navigate('/login');
       }
     }
-  }, [token, fetchAssigners, darkMode]);
+  }, [token, fetchAssigners, darkMode, navigate]);
 
-  const filteredAssigners = assigners.filter(
-    (a) =>
-      a.name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-      a.email?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-      a.phone?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-  );
+  const filteredAssigners = useMemo(() => {
+    return assigners.filter(
+      (a) =>
+        a.name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        a.email?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        a.phone?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+    );
+  }, [assigners, debouncedSearchTerm]);
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentAssigners = filteredAssigners.slice(indexOfFirstItem, indexOfLastItem);
+  const currentAssigners = useMemo(() => {
+    return filteredAssigners.slice(indexOfFirstItem, indexOfLastItem);
+  }, [filteredAssigners, indexOfFirstItem, indexOfLastItem]);
   const totalPages = Math.ceil(filteredAssigners.length / itemsPerPage);
 
   const getPageNumbers = useCallback(() => {
@@ -337,34 +343,35 @@ const Assigners = ({ darkMode }) => {
   }, [searchTerm, handleSearchChange]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 mt-14 transition-colors duration-300 animate-fade-in">
+    <div style={{marginTop:"50px",marginLeft:"250px"}} className="min-h-screen bg-gray-100 dark:bg-gray-900 p-8 transition-colors duration-500 animate-fade-in">
       <div className="max-w-7xl mx-auto">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6">
-          <h1 className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
-            <FiUsers /> Assigners Management
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8 border border-gray-200 dark:border-gray-700">
+          <h1 className="text-3xl font-bold text-indigo-600 dark:text-gray-100 flex items-center gap-3">
+            <FiUsers className="text-indigo-600 dark:text-indigo-400" /> Assigners Management
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">Monitor and manage assigner details</p>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">Efficiently monitor and manage assigner details</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-950 p-4 rounded-lg shadow-md transition-all duration-300 transform hover:-translate-y-1">
-            <h3 className="text-lg font-semibold text-indigo-600 dark:text-indigo-400">Total Assignments Handled</h3>
-            <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">{computedStats.totalAssignmentsHandled}</p>
-          </div>
-          <div className="bg-white dark:bg-gray-950 p-4 rounded-lg shadow-md transition-all duration-300 transform hover:-translate-y-1">
-            <h3 className="text-lg font-semibold text-indigo-600 dark:text-indigo-400">Pending Assignments</h3>
-            <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">{computedStats.pendingAssignments}</p>
-          </div>
-          <div className="bg-white dark:bg-gray-950 p-4 rounded-lg shadow-md transition-all duration-300 transform hover:-translate-y-1">
-            <h3 className="text-lg font-semibold text-indigo-600 dark:text-indigo-400">Verified Assigners</h3>
-            <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">{computedStats.verifiedAssigners}</p>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {[
+            { title: 'Total Assignments Handled', value: computedStats.totalAssignmentsHandled },
+            { title: 'Pending Assignments', value: computedStats.pendingAssignments },
+            { title: 'Verified Assigners', value: computedStats.verifiedAssigners },
+          ].map((stat, idx) => (
+            <div
+              key={idx}
+              className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-md hover:-translate-y-1"
+            >
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{stat.title}</h3>
+              <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 mt-2">{stat.value}</p>
+            </div>
+          ))}
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6">
-          <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-            <div className="relative w-full md:w-64">
-              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-300" />
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8 border border-gray-200 dark:border-gray-700">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="relative w-full md:w-80">
+              <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400" />
               <input
                 type="text"
                 placeholder="Search by name, email, or phone..."
@@ -373,7 +380,7 @@ const Assigners = ({ darkMode }) => {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full pl-10 pr-10 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all duration-300"
+                className="w-full pl-12 pr-10 py-3 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all duration-300 placeholder-gray-500 dark:placeholder-gray-400"
               />
               {searchTerm && (
                 <button
@@ -381,27 +388,27 @@ const Assigners = ({ darkMode }) => {
                     setSearchTerm('');
                     setCurrentPage(1);
                   }}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-200"
                 >
-                  <FiXCircle />
+                  <FiXCircle size={20} />
                 </button>
               )}
             </div>
-            <div className="flex space-x-4 space-x-reverse">
+            <div className="flex flex-wrap gap-4">
               {['all', 'pending', 'approved', 'suspended'].map((f) => (
                 <button
                   key={f}
                   onClick={() => handleFilterChange(f)}
-                  className={`px-4 py-2 m-2 rounded-xl font-medium flex items-center gap-2 transition-all duration-300 ${
+                  className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-all duration-200 ${
                     filter === f
-                      ? 'bg-indigo-600 text-white'
+                      ? 'bg-indigo-600 text-white shadow-md'
                       : 'bg-gray-100 dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-800'
                   }`}
                 >
-                  {f === 'all' && <FiList />}
-                  {f === 'pending' && <FiXOctagon />}
-                  {f === 'approved' && <FiCheckCircle />}
-                  {f === 'suspended' && <FiTrash2 />}
+                  {f === 'all' && <FiList size={18} />}
+                  {f === 'pending' && <FiXOctagon size={18} />}
+                  {f === 'approved' && <FiCheckCircle size={18} />}
+                  {f === 'suspended' && <FiTrash2 size={18} />}
                   {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
                 </button>
               ))}
@@ -412,10 +419,12 @@ const Assigners = ({ darkMode }) => {
         {loading ? (
           <AssignersSkeleton darkMode={darkMode} />
         ) : error ? (
-          <p className="text-red-500 dark:text-red-400 text-center">{error}</p>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center border border-gray-200 dark:border-gray-700">
+            <p className="text-red-500 dark:text-red-400 text-lg font-medium">{error}</p>
+          </div>
         ) : filteredAssigners.length === 0 ? (
-          <div className="bg-white dark:bg-gray-950 rounded-lg shadow-md p-8 text-center">
-            <FiUsers className="text-6xl mx-auto mb-4 text-indigo-500 dark:text-indigo-400" />
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center border border-gray-200 dark:border-gray-700">
+            <FiUsers className="text-6xl mx-auto mb-4 text-indigo-600 dark:text-indigo-400" />
             <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">No assigners found</h3>
             <p className="text-gray-600 dark:text-gray-400">
               {searchTerm ? 'Try adjusting your search terms' : 'No assigners available for the selected filter'}
@@ -423,55 +432,62 @@ const Assigners = ({ darkMode }) => {
           </div>
         ) : (
           <>
-            <div className="bg-white dark:bg-gray-950 rounded-lg shadow-md overflow-x-auto">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-x-auto border border-gray-200 dark:border-gray-700">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-100 dark:bg-gray-700 text-indigo-600 dark:text-indigo-400">
+                <thead className="bg-gray-50 dark:bg-gray-800">
                   <tr>
-                    <th className="px-6 py-3 text-center font-medium uppercase tracking-wider">ID</th>
-                    <th className="px-6 py-3 text-center font-medium uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-3 text-center font-medium uppercase tracking-wider">Email</th>
-                    <th className="px-6 py-3 text-center font-medium uppercase tracking-wider">Phone</th>
-                    <th className="px-6 py-3 text-center font-medium uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-center font-medium uppercase tracking-wider">Created At</th>
-                    <th className="px-6 py-3 text-center font-medium uppercase tracking-wider">Actions</th>
+                    {['ID', 'Name', 'Email', 'Phone', 'Status', 'Created At', 'Actions'].map((header, idx) => (
+                      <th
+                        key={idx}
+                        className="px-6 py-4 text-sm font-semibold text-indigo-600 dark:text-gray-100 uppercase tracking-wider text-center"
+                      >
+                        {header}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {currentAssigners.map((a) => (
                     <tr
                       key={a.id}
-                      className="text-center text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all duration-300"
+                      className="hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all duration-200"
                     >
-                      <td className="px-6 py-4 text-sm flex items-center justify-center gap-2">
-                        {a.id}
-                        <button
-                          onClick={() => copyToClipboard(a.id)}
-                          className="relative group p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
-                          title="Copy Assigner ID"
-                        >
-                          <FiCopy />
-                          <span className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2">
-                            Copy Assigner ID
-                          </span>
-                        </button>
+                      <td className="px-6 py-4 text-sm font-medium flex items-center dark:text-white  justify-center gap-2 mt-3">
+                                                              <span className="truncate max-w-[150px]">{a.id}</span>
+                                                              <button
+                                                                onClick={() => copyToClipboard(a.id)}
+                                                                className="relative group p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                                                                title="Copy Offer ID"
+                                                              >
+                                                                <FiCopy size={16} />
+                                                                <span className="absolute hidden group-hover:block bg-gray-800 dark:bg-gray-900 text-white dark:text-gray-200 text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                                                                  Copy review ID
+                                                                </span>
+                                                              </button>
+                                                            </td>
+                      <td className="px-6 py-4 dark:text-white text-sm font-medium">
+                        {DOMPurify.sanitize(a.name) || 'N/A'}
                       </td>
-                      <td className="px-6 py-4 font-medium">{DOMPurify.sanitize(a.name) || 'N/A'}</td>
-                      <td className="px-6 py-4">{DOMPurify.sanitize(a.email) || 'N/A'}</td>
-                      <td className="px-6 py-4">0{DOMPurify.sanitize(a.phone) || 'N/A'}</td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 dark:text-white  text-sm font-medium">
+                        {DOMPurify.sanitize(a.email) || 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 dark:text-white  text-sm font-medium">
+                        {DOMPurify.sanitize(a.phone) || 'N/A'}
+                      </td>
+                      <td className="py-6 px-6 dark:text-white  text-center">
                         <span
-                          className={`px-2 py-1 rounded text-xs font-semibold ${
+                          className={`px-3 py-1 rounded-full text-sm font-medium ${
                             a.status === 'APPROVED'
-                              ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
+                              ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200'
                               : a.status === 'PENDING'
-                              ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300'
-                              : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
+                              ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-200'
+                              : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200'
                           }`}
                         >
                           {a.status === 'APPROVED' ? 'Approved' : a.status === 'PENDING' ? 'Pending' : 'Suspended'}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 dark:text-white  text-sm font-medium">
                         {new Date(a.createdAt).toLocaleString('en-US', {
                           year: 'numeric',
                           month: 'short',
@@ -480,35 +496,37 @@ const Assigners = ({ darkMode }) => {
                           minute: '2-digit',
                         })}
                       </td>
-                      <td className="px-6 py-4 flex justify-center gap-2">
-                        <button
-                          onClick={() => fetchAssignerById(a.id)}
-                          className="p-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300"
-                        >
-                          <FiInfo />
-                        </button>
-                        {a.status !== 'APPROVED' && (
+                      <td className="py-6 px-6 dark:text-white  text-center">
+                        <div className="flex items-center justify-center gap-3">
                           <button
-                            onClick={() => updateStatus(a.id, 'approve')}
-                            className="p-2 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400 rounded-full hover:bg-green-200 dark:hover:bg-green-800 transition-all duration-300"
+                            onClick={() => fetchAssignerById(a.id)}
+                            className="p-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-200 hover:shadow-md"
                           >
-                            <FiCheckCircle />
+                            <FiInfo size={18} />
                           </button>
-                        )}
-                        {a.status !== 'SUSPENDED' && (
+                          {a.status !== 'APPROVED' && (
+                            <button
+                              onClick={() => updateStatus(a.id, 'approve')}
+                              className="p-2 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400 rounded-full hover:bg-green-200 dark:hover:bg-green-800 transition-all duration-200 hover:shadow-md"
+                            >
+                              <FiCheckCircle size={18} />
+                            </button>
+                          )}
+                          {a.status !== 'SUSPENDED' && (
+                            <button
+                              onClick={() => updateStatus(a.id, 'suspend')}
+                              className="p-2 bg-amber-100 dark:bg-amber-900 text-amber-600 dark:text-amber-400 rounded-full hover:bg-amber-200 dark:hover:bg-amber-800 transition-all duration-200 hover:shadow-md"
+                            >
+                              <FiXOctagon size={18} />
+                            </button>
+                          )}
                           <button
-                            onClick={() => updateStatus(a.id, 'suspend')}
-                            className="p-2 bg-amber-100 dark:bg-amber-900 text-amber-600 dark:text-amber-400 rounded-full hover:bg-amber-200 dark:hover:bg-amber-800 transition-all duration-300"
+                            onClick={() => updateStatus(a.id, 'delete')}
+                            className="p-2 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-800 transition-all duration-200 hover:shadow-md"
                           >
-                            <FiXOctagon />
+                            <FiTrash2 size={18} />
                           </button>
-                        )}
-                        <button
-                          onClick={() => updateStatus(a.id, 'delete')}
-                          className="p-2 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-800 transition-all duration-300"
-                        >
-                          <FiTrash2 />
-                        </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -517,21 +535,21 @@ const Assigners = ({ darkMode }) => {
             </div>
 
             {totalPages > 1 && (
-              <div className="flex justify-center items-center space-x-2 mt-6">
+              <div className="flex justify-center items-center gap-3 mt-8">
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="px-4 py-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
                 >
-                  <FiChevronLeft /> Previous
+                  <FiChevronLeft size={18} /> Previous
                 </button>
 
                 {getPageNumbers().map((page, idx) => (
                   <button
                     key={idx}
                     onClick={() => typeof page === 'number' && setCurrentPage(page)}
-                    className={`px-4 py-2 rounded-xl transition-all duration-300 ${
-                      page === '...' ? 'cursor-default' : currentPage === page ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-800'
+                    className={`px-4 py-2 rounded-lg transition-all duration-200 ${
+                      page === '...' ? 'cursor-default text-gray-500 dark:text-gray-400' : currentPage === page ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-800'
                     }`}
                     disabled={page === '...'}
                   >
@@ -542,9 +560,9 @@ const Assigners = ({ darkMode }) => {
                 <button
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className="px-4 py-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
                 >
-                  Next <FiChevronRight />
+                  Next <FiChevronRight size={18} />
                 </button>
               </div>
             )}
@@ -553,56 +571,70 @@ const Assigners = ({ darkMode }) => {
 
         {selectedAssigner && (
           <Modal onClose={() => setSelectedAssigner(null)} title="Assigner Details" darkMode={darkMode}>
-            <div className="space-y-4">
-              <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
+            <div className="space-y-6">
+              <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-6 border border-indigo-100 dark:border-indigo-800">
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
                   Assigner Information
                   <button
                     onClick={() => copyToClipboard(selectedAssigner.id)}
-                    className="relative group p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                    className="relative group p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200"
                     title="Copy Assigner ID"
                   >
-                    <FiCopy />
+                    <FiCopy size={18} />
                     <span className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2">
                       Copy Assigner ID
                     </span>
                   </button>
                 </h4>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>ID:</strong> {selectedAssigner.id || 'N/A'}
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>Name:</strong> {DOMPurify.sanitize(selectedAssigner.name) || 'N/A'}
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>Email:</strong> {DOMPurify.sanitize(selectedAssigner.email) || 'N/A'}
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>Phone:</strong> {DOMPurify.sanitize(selectedAssigner.phone) || 'N/A'}
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>Status:</strong>{' '}
-                  {selectedAssigner.status === 'APPROVED'
-                    ? 'Approved'
-                    : selectedAssigner.status === 'PENDING'
-                    ? 'Pending'
-                    : 'Suspended'}
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>Created At:</strong>{' '}
-                  {new Date(selectedAssigner.createdAt).toLocaleString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </p>
+                <div className="space-y-3">
+                  <p className="text-sm text-gray-700 dark:text-gray-200">
+                    <strong className="font-medium">ID:</strong> {selectedAssigner.id || 'N/A'}
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-200">
+                    <strong className="font-medium">Total Assignments Handled:</strong> {selectedAssigner.totalAssignmentsHandled || 'N/A'}
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-200">
+                    <strong className="font-medium">Pending Assignments:</strong> {selectedAssigner.pendingAssignments || 'N/A'}
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-200">
+                    <strong className="font-medium">Name:</strong> {DOMPurify.sanitize(selectedAssigner.name) || 'N/A'}
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-200">
+                    <strong className="font-medium">Email:</strong> {DOMPurify.sanitize(selectedAssigner.email) || 'N/A'}
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-200">
+                    <strong className="font-medium">Phone:</strong> {DOMPurify.sanitize(selectedAssigner.phone) || 'N/A'}
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-200">
+                    <strong className="font-medium">Status:</strong>{' '}
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        selectedAssigner.status === 'APPROVED'
+                          ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200'
+                          : selectedAssigner.status === 'PENDING'
+                          ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-200'
+                          : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200'
+                      }`}
+                    >
+                      {selectedAssigner.status === 'APPROVED' ? 'Approved' : selectedAssigner.status === 'PENDING' ? 'Pending' : 'Suspended'}
+                    </span>
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-200">
+                    <strong className="font-medium">Created At:</strong>{' '}
+                    {new Date(selectedAssigner.createdAt).toLocaleString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </p>
+                </div>
               </div>
               <div className="flex justify-end">
                 <button
                   onClick={() => setSelectedAssigner(null)}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all duration-300 transform hover:-translate-y-1 shadow-md"
+                  className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg"
                 >
                   Close
                 </button>

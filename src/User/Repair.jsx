@@ -773,7 +773,7 @@ const RepairRequest = ({ onApproved, onRejected, darkMode }) => {
                           }}
                         >
                           <div className={`text-4xl mb-4 flex justify-center items-center ${c.color} dark:text-indigo-400`}>
-                            {c.icon}
+                            <FiList/>
                           </div>
                           <p className="font-semibold text-gray-900 dark:text-gray-100 text-center">{c.name}</p>
                         </button>
@@ -872,7 +872,7 @@ const RepairRequest = ({ onApproved, onRejected, darkMode }) => {
                             }
                           }}
                         >
-                          <FiChevronLeft /> Previous
+                          <FiChevronLeft /> 
                         </button>
                         <span className="text-gray-700 dark:text-gray-200 font-semibold">
                           Page {currentPage} of {totalPages}
@@ -890,7 +890,7 @@ const RepairRequest = ({ onApproved, onRejected, darkMode }) => {
                             }
                           }}
                         >
-                          Next <FiChevronRight />
+                           <FiChevronRight />
                         </button>
                       </div>
                     </>
@@ -1072,13 +1072,13 @@ const RepairRequest = ({ onApproved, onRejected, darkMode }) => {
 
   return (
     <div
-      className={`relative mb-0 min-h-screen transition-all duration-300 mt-20 ${
+      className={`relative mb-0 min-h-screen transition-all duration-300 mt-16 py-5 ${
         darkMode ? 'bg-gray-900' : 'bg-gray-50'
       }`}
     >
-      <div className="relative bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-900 dark:to-gray-800 text-white py-12 px-6 shadow-2xl">
+      <div className="relative bg-gradient-to-br from-white via-gray-50 to-gray-100 dark:from-indigo-900 dark:to-gray-800 text-gray-500 dark:text-gray-800 py-12 px-6 shadow-2xl">
              <div className="absolute inset-0 opacity-5 pointer-events-none">
-                          <FiTool className="absolute w-20 h-20 bottom-1/3 right-1/5 animate-float-medium dark:text-blue-500" />
+                          <FiTool className="absolute w-20 h-20 bottom-1/3 right-1/5 animate-float-medium  dark:text-blue-500" />
                           <FiShoppingBag className="absolute w-24 h-24 top-1/3 right-1/4 animate-float-slow dark:text-blue-500" />
                           <FiShoppingBag className="absolute w-16 h-16 bottom-1/4 left-1/3 animate-float-fast dark:text-blue-500" />
                           <FiSmartphone className="absolute w-20 h-20 top-10 left-10 animate-float-medium dark:text-blue-500" />
@@ -1086,10 +1086,10 @@ const RepairRequest = ({ onApproved, onRejected, darkMode }) => {
                           <FiMonitor className="absolute w-18 h-18 top-1/2 left-1/4 animate-float-fast dark:text-blue-500" />
                         </div>
         <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-3 animate__animated animate__fadeInDown flex justify-center items-center gap-3">
-            <FiTool className="text-4xl" /> Create a Repair Request
+          <h1 className="text-3xl sm:text-4xl text-gray-800 dark:text-white font-extrabold tracking-tight mb-3 animate__animated animate__fadeInDown flex justify-center items-center gap-3">
+            <FiTool className="text-4xl" /> Book a Repair Request
           </h1>
-          <p className="text-lg sm:text-xl max-w-2xl mx-auto opacity-90 animate__animated animate__fadeInUp">
+          <p className="text-lg sm:text-xl text-gray-700 dark:text-white max-w-2xl mx-auto opacity-90 animate__animated animate__fadeInUp">
             Easily schedule a repair for your device by selecting a shop and describing the issue.
           </p>
         </div>

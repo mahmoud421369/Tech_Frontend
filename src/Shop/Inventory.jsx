@@ -218,11 +218,36 @@ const Inventory = ({ darkMode }) => {
   }, [fetchInventory, fetchStats]);
 
   return (
-    <div style={{marginTop:"-600px"}} className="min-h-screen font-cairo bg-gray-100 dark:bg-gray-900 p-4 sm:p-6 md:p-8">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 mb-8 max-w-6xl mx-auto">
+    <div style={{marginTop:"-600px",marginLeft:"250px"}} className="min-h-screen font-cairo bg-gray-100 dark:bg-gray-900 p-4 sm:p-6 md:p-8">
+      <div className="bg-white flex justify-between items-center flex-wrap flex-row-reverse dark:bg-gray-800 rounded-2xl shadow-lg p-6 mb-8 max-w-6xl mx-auto">
         <h1 className="text-2xl sm:text-3xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center justify-end gap-3">
           <FiInbox className="text-xl sm:text-2xl" /> الجرد
         </h1>
+        <div className="flex gap-2 flex-row-reverse flex-wrap">
+          <div className="relative w-full sm:w-64">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-300" />
+            <input
+              type="text"
+              placeholder="...ابحث في الجرد"
+              className="w-full pl-10 pr-4 py-2.5 placeholder:text-right bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-wrap gap-4">
+            {/* <label className="flex items-center gap-2 px-4 py-2 font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition-all duration-300 shadow-md cursor-pointer">
+              <FiUpload /> استيراد CSV
+              <input type="file" accept=".csv" onChange={importFromExcel} className="hidden" />
+            </label> */}
+            <button
+              onClick={exportToExcel}
+              className="flex items-center gap-2 px-4 py-2 font-bold bg-white text-emerald-600 border-2 rounded-lg  dark:bg-gray-950 dark:text-white dark:border-gray-700 dark:hover:bg-emerald-600 transition-all duration-300 shadow-md"
+            >
+              <FiDownload /> تصدير CSV
+            </button>
+        
+          </div>
+        </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-8 max-w-6xl mx-auto">
         <div className="p-6 bg-white dark:bg-gray-800 shadow-lg border-l-4 border-indigo-600 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
@@ -245,7 +270,7 @@ const Inventory = ({ darkMode }) => {
       <br />
       <br />
 
-      <div className="max-w-6xl mx-auto mb-6">
+      {/* <div className="max-w-6xl mx-auto mb-6">
         <div className="flex flex-col sm:flex-row-reverse items-center justify-between gap-4 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
           <div className="relative w-full sm:w-64">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-300" />
@@ -258,10 +283,7 @@ const Inventory = ({ darkMode }) => {
             />
           </div>
           <div className="flex flex-wrap gap-4">
-            {/* <label className="flex items-center gap-2 px-4 py-2 font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition-all duration-300 shadow-md cursor-pointer">
-              <FiUpload /> استيراد CSV
-              <input type="file" accept=".csv" onChange={importFromExcel} className="hidden" />
-            </label> */}
+
             <button
               onClick={exportToExcel}
               className="flex items-center gap-2 px-4 py-2 font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 transition-all duration-300 shadow-md"
@@ -271,7 +293,7 @@ const Inventory = ({ darkMode }) => {
         
           </div>
         </div>
-      </div>
+      </div> */}
 
       {showForm && (
         <div className="max-w-6xl mx-auto mb-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
@@ -390,7 +412,7 @@ const Inventory = ({ darkMode }) => {
                   <th className="px-4 py-3 font-semibold">السعر</th>
                   <th className="px-4 py-3 font-semibold">الكمية</th>
                   <th className="px-4 py-3 font-semibold">حالة المنتج</th>
-                  <th className="px-4 py-3 font-semibold">الإجراءات</th>
+                  {/* <th className="px-4 py-3 font-semibold">الإجراءات</th> */}
                 </tr>
               </thead>
               <tbody className="text-gray-700 dark:text-gray-200">
@@ -415,7 +437,7 @@ const Inventory = ({ darkMode }) => {
                           {item.stock <= (item.threshold || 0) ? 'مخزون منخفض' : 'متوفر'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 flex justify-center gap-2">
+                      {/* <td className="px-4 py-3 flex justify-center gap-2">
                         <button
                           onClick={() => handleEdit(item)}
                           className="p-2 bg-amber-100 dark:bg-amber-900 text-amber-600 dark:text-amber-300 rounded-md hover:bg-amber-200 dark:hover:bg-amber-800 transition-all duration-200"
@@ -428,7 +450,7 @@ const Inventory = ({ darkMode }) => {
                         >
                           <FiTrash2 />
                         </button>
-                      </td>
+                      </td> */}
                     </tr>
                   ))
                 ) : (

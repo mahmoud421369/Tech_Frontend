@@ -1829,7 +1829,7 @@ const handleEditRepairRequest = useCallback(
   ];
 
   return (
-    <div className={`min-h-screen transition-all duration-300 mt-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
+    <div className={`min-h-screen transition-all duration-300 mt-20 ${darkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
       <div className="relative bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-900 dark:to-gray-800 text-white py-12 px-6 shadow-xl">
           <div className="absolute inset-0 opacity-5 pointer-events-none">
                                   <FiTool className="absolute w-20 h-20 bottom-1/3 right-1/5 animate-float-medium dark:text-blue-500" />
@@ -1844,7 +1844,7 @@ const handleEditRepairRequest = useCallback(
             <FiUser /> Account
           </h1>
           <p className="text-lg md:text-xl max-w-2xl mx-auto opacity-90">
-            Manage your profile, addresses, orders, repair requests, and notifications with ease.
+            Manage your profile, addresses, orders, and repair requests with ease.
           </p>
         </div>
       </div>

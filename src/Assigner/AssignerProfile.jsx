@@ -203,20 +203,20 @@ const AssignerProfile = ({ darkMode }) => {
     <div className="p-6 max-w-8xl bg-gray-50 dark:bg-gray-900 w-full space-y-6 transition-colors duration-300 animate-fade-in">
       <h2 className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">Profile</h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white dark:bg-gray-950 p-4 rounded-xl shadow-md border-l-4 border-indigo-500 transition-all duration-300 transform hover:-translate-y-1">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        <div className="bg-white dark:bg-gray-950 p-4  shadow-md border-l-4 border-indigo-500 transition-all duration-300 transform hover:-translate-y-1">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Assignments</h3>
           <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
             {profile.totalAssignmentsHandled || 0}
           </p>
         </div>
-        <div className="bg-white dark:bg-gray-950 p-4 rounded-xl shadow-md border-l-4 border-yellow-500 transition-all duration-300 transform hover:-translate-y-1">
+        <div className="bg-white dark:bg-gray-950 p-4  shadow-md border-l-4 border-yellow-500 transition-all duration-300 transform hover:-translate-y-1">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Pending Assignments</h3>
           <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
             {profile.pendingAssignments || 0}
           </p>
         </div>
-        <div className="bg-white dark:bg-gray-950 p-4 rounded-xl shadow-md border-l-4 border-green-500 transition-all duration-300 transform hover:-translate-y-1">
+        <div className="bg-white dark:bg-gray-950 p-4 shadow-md border-l-4 border-green-500 transition-all duration-300 transform hover:-translate-y-1">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Account Status</h3>
           <span
             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(
@@ -226,10 +226,10 @@ const AssignerProfile = ({ darkMode }) => {
             {profile.status || 'UNKNOWN'}
           </span>
         </div>
-        <div className="bg-white dark:bg-gray-950 p-4 rounded-xl shadow-md border-l-4 border-purple-500 transition-all duration-300 transform hover:-translate-y-1">
+        {/* <div className="bg-white dark:bg-gray-950 p-4  shadow-md border-l-4 border-purple-500 transition-all duration-300 transform hover:-translate-y-1">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Last Activity</h3>
           <p className="text-sm text-gray-900 dark:text-gray-100">{formatDate(profile.lastActivity)}</p>
-        </div>
+        </div> */}
       </div>
 
       <div className="bg-white dark:bg-gray-950 shadow rounded-xl overflow-hidden">
@@ -249,13 +249,13 @@ const AssignerProfile = ({ darkMode }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
-              <p className="mt-1 text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700 p-2 rounded-xl">
+              <p className="mt-1 text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 border dark:border-gray-800 p-2 rounded-xl">
                 {profile.email || 'N/A'}
               </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Assigner ID</label>
-              <p className="mt-1 text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700 p-2 rounded-xl">
+              <p className="mt-1 text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 border dark:border-gray-800 p-2 rounded-xl">
                 {profile.id || 'N/A'}
               </p>
             </div>
@@ -269,10 +269,10 @@ const AssignerProfile = ({ darkMode }) => {
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="mt-1 block w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all duration-300"
+                  className="mt-1 block w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-800 text-gray-800 dark:text-gray-100 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all duration-300"
                 />
               ) : (
-                <p className="mt-1 text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700 p-2 rounded-xl">
+                <p className="mt-1 text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 border dark:border-gray-800 p-2 rounded-xl">
                   {profile.name || 'N/A'}
                 </p>
               )}
@@ -284,10 +284,10 @@ const AssignerProfile = ({ darkMode }) => {
                   type="text"
                   value={form.department}
                   onChange={(e) => setForm({ ...form, department: e.target.value })}
-                  className="mt-1 block w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all duration-300"
+                  className="mt-1 block w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-800 text-gray-800 dark:text-gray-100 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all duration-300"
                 />
               ) : (
-                <p className="mt-1 text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700 p-2 rounded-xl">
+                <p className="mt-1 text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 border dark:border-gray-800 p-2 rounded-xl">
                   {profile.department || 'N/A'}
                 </p>
               )}
@@ -296,13 +296,13 @@ const AssignerProfile = ({ darkMode }) => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Phone</label>
               {isEditing ? (
                 <input
-                  type="tel"
+                  type="text"
                   value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  className="mt-1 block w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all duration-300"
+                  className="mt-1 block w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-800 text-gray-800 dark:text-gray-100 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all duration-300"
                 />
               ) : (
-                <p className="mt-1 text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700 p-2 rounded-xl">
+                <p className="mt-1 text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 border dark:border-gray-800 p-2 rounded-xl">
                   {profile.phone ? `0${profile.phone}` : 'N/A'}
                 </p>
               )}
@@ -312,16 +312,16 @@ const AssignerProfile = ({ darkMode }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Member Since</label>
-              <p className="mt-1 text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700 p-2 rounded-xl">
+              <p className="mt-1 text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 border dark:border-gray-800 p-2 rounded-xl">
                 {formatDate(profile.createdAt)}
               </p>
             </div>
-            <div>
+            {/* <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Last Updated</label>
               <p className="mt-1 text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700 p-2 rounded-xl">
                 {formatDate(profile.updatedAt)}
               </p>
-            </div>
+            </div> */}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

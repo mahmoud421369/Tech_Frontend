@@ -1,10 +1,21 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUsers, FiShoppingCart, FiLayers, FiTag, FiMessageSquare, FiTruck, FiUserCheck, FiCopy, FiBarChart2, FiHome, FiTool, FiBox } from 'react-icons/fi';
+import { FiUsers, FiShoppingCart, FiTool, FiHome, FiCopy, FiBarChart2 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import api from '../api';
+import {
+  Chart ,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+} from 'chart.js';
+import { Bar, Pie } from 'react-chartjs-2';
 
+Chart.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center h-64">
@@ -12,10 +23,9 @@ const LoadingSpinner = () => (
   </div>
 );
 
-
 const DashboardSkeleton = ({ darkMode }) => (
   <div className="animate-pulse p-6">
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
       {[...Array(4)].map((_, idx) => (
         <div key={idx} className="p-6 bg-white dark:bg-gray-950 rounded-lg shadow-md">
           <div className="flex items-center justify-between">
@@ -28,13 +38,11 @@ const DashboardSkeleton = ({ darkMode }) => (
         </div>
       ))}
     </div>
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-      {[...Array(7)].map((_, idx) => (
-        <div key={idx} className="p-6 bg-white dark:bg-gray-950 rounded-lg shadow-md">
-          <div className="flex flex-col items-center justify-center">
-            <div className="h-12 w-12 bg-gray-300 dark:bg-gray-600 rounded-full mb-4"></div>
-            <div className="h-4 w-1/2 bg-gray-300 dark:bg-gray-600 rounded"></div>
-          </div>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {[...Array(2)].map((_, idx) => (
+        <div key={idx} className="p-6 bg-white dark:bg-gray-950 rounded-lg shadow-md h-64">
+          <div className="h-8 w-1/3 bg-gray-300 dark:bg-gray-600 rounded mb-4"></div>
+          <div className="h-full bg-gray-300 dark:bg-gray-600 rounded"></div>
         </div>
       ))}
     </div>
@@ -46,7 +54,6 @@ const Dashboard = ({ darkMode }) => {
   const token = localStorage.getItem('authToken');
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [hoveredCard, setHoveredCard] = useState(null);
 
   const copyToClipboard = useCallback((value, label) => {
     navigator.clipboard.writeText(value).then(
@@ -120,21 +127,6 @@ const Dashboard = ({ darkMode }) => {
     return () => controller.abort();
   }, [token, navigate, darkMode]);
 
-  const cards = useMemo(
-    () => [
-      { title: 'Users', icon: <FiUsers size={24} />, path: '/users'},
-      { title: 'Shops', icon: <FiHome size={24} />, path: '/repair-shops'},
-      { title: "Repair Requests", icon: <FiTool />, label: "Repair Shops",path: "/admin/repair-requests"},
-      { title: "Products ", icon: <FiBox />, label: "Products", path: "/admin/products" },
-      { title: 'Categories', icon: <FiLayers size={24} />, path: '/category'},
-      { title: 'Offers', icon: <FiTag size={24} />, path: '/admin/offers' },
-      { title: 'Reviews', icon: <FiMessageSquare size={24} />, path: '/reviews' },
-      { title: 'Delivery', icon: <FiTruck size={24} />, path: '/deliveries' },
-      { title: 'Assigners', icon: <FiUserCheck size={24} />, path: '/assigners' },
-    ],
-    []
-  );
-
   useEffect(() => {
     fetchStats();
     return () => {
@@ -142,6 +134,60 @@ const Dashboard = ({ darkMode }) => {
       controller.abort();
     };
   }, [fetchStats]);
+
+  const chartLabels = ['Users', 'Shops', 'Repair Requests', 'Orders'];
+  const chartValues = [stats?.users || 0, stats?.shops || 0, stats?.repairs || 0, stats?.orders || 0];
+
+  const barChartData = useMemo(() => ({
+    labels: chartLabels,
+    datasets: [{
+      label: 'Counts',
+      data: chartValues,
+      backgroundColor: darkMode ? 'rgba(99, 102, 241, 0.4)' : 'rgba(99, 102, 241, 0.6)',
+      borderColor: darkMode ? 'rgba(99, 102, 241, 0.8)' : 'rgb(99, 102, 241)',
+      borderWidth: 1,
+    }],
+  }), [darkMode, stats]);
+
+  const barChartOptions = useMemo(() => ({
+    responsive: true,
+    plugins: {
+      legend: { position: 'top', labels: { color: darkMode ? '#e5e7eb' : '#1f2937' } },
+      title: { display: true, text: 'Admin Statistics Overview', color: darkMode ? '#e5e7eb' : '#1f2937' },
+    },
+    scales: {
+      x: { ticks: { color: darkMode ? '#e5e7eb' : '#1f2937' } },
+      y: { beginAtZero: true, ticks: { color: darkMode ? '#e5e7eb' : '#1f2937' } },
+    },
+  }), [darkMode]);
+
+  const pieChartData = useMemo(() => ({
+    labels: chartLabels,
+    datasets: [{
+      data: chartValues,
+      backgroundColor: [
+        darkMode ? 'rgba(99, 102, 241, 0.6)' : 'rgba(99, 102, 241, 0.8)',
+        darkMode ? 'rgba(59, 130, 246, 0.6)' : 'rgba(59, 130, 246, 0.8)',
+        darkMode ? 'rgba(129, 140, 248, 0.6)' : 'rgba(129, 140, 248, 0.8)',
+        darkMode ? 'rgba(167, 139, 250, 0.6)' : 'rgba(167, 139, 250, 0.8)',
+      ],
+      borderColor: [
+        'rgb(99, 102, 241)',
+        'rgb(59, 130, 246)',
+        'rgb(129, 140, 248)',
+        'rgb(167, 139, 250)',
+      ],
+      borderWidth: 1,
+    }],
+  }), [darkMode, stats]);
+
+  const pieChartOptions = useMemo(() => ({
+    responsive: true,
+    plugins: {
+      legend: { position: 'top', labels: { color: darkMode ? '#e5e7eb' : '#1f2937' } },
+      title: { display: true, text: 'Distribution of Stats', color: darkMode ? '#e5e7eb' : '#1f2937' },
+    },
+  }), [darkMode]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 mt-14 transition-colors duration-300 animate-fade-in">
@@ -156,7 +202,7 @@ const Dashboard = ({ darkMode }) => {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+            <div style={{ marginLeft: "250px" }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
               {[
                 { title: 'Total Users', value: stats.users, icon: <FiUsers className="text-4xl text-indigo-600 dark:text-indigo-400" /> },
                 { title: 'Total Shops', value: stats.shops, icon: <FiHome className="text-4xl text-indigo-600 dark:text-indigo-400" /> },
@@ -165,7 +211,7 @@ const Dashboard = ({ darkMode }) => {
               ].map((stat, index) => (
                 <div
                   key={index}
-                  className="p-6 bg-white dark:bg-gray-950  shadow-md flex items-center justify-between border-l-4 border-indigo-600 transition-all duration-300 transform hover:-translate-y-1"
+                  className="p-6 bg-white dark:bg-gray-950 shadow-md flex items-center justify-between border-l-4 border-indigo-600 transition-all duration-300 transform hover:-translate-y-1"
                 >
                   <div>
                     <h3 className="font-semibold text-gray-900 dark:text-gray-100">{stat.title}</h3>
@@ -188,22 +234,13 @@ const Dashboard = ({ darkMode }) => {
               ))}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 relative">
-              {cards.map((card, index) => (
-                <div
-                  key={index}
-                  onClick={() => navigate(card.path)}
-                  onMouseEnter={() => setHoveredCard(index)}
-                  onMouseLeave={() => setHoveredCard(null)}
-                  className="relative bg-white dark:bg-gray-950 cursor-pointer rounded-xl p-6 shadow-md flex flex-col items-center justify-center transition-all duration-300 transform hover:-translate-y-1"
-                >
-                  <div className="text-3xl bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 p-4 rounded-full mb-4">
-                    {card.icon}
-                  </div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{card.title}</p>
-                
-                </div>
-              ))}
+            <div style={{ marginLeft: "250px" }} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white dark:bg-gray-950 rounded-lg shadow-md p-6">
+                <Bar options={barChartOptions} data={barChartData} />
+              </div>
+              <div className="bg-white dark:bg-gray-950 rounded-lg shadow-md p-6">
+                <Pie options={pieChartOptions} data={pieChartData} />
+              </div>
             </div>
           </>
         )}

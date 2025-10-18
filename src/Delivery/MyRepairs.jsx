@@ -13,14 +13,17 @@ const MyRepairs = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const repairsPerPage = 8;
 
+
+ 
+
+
   const statusOptions = {
-    PENDING_PICKUP: "Pending Pickup",
-    PICKED_UP: "Picked Up",
-    DELIVERED_TO_SHOP: "Delivered to Shop",
-    IN_REPAIR: "In Repair",
+    // PENDING_PICKUP: "Pending Pickup",
+    // PICKED_UP: "Picked Up",
+    // DELIVERED_TO_SHOP: "Delivered to Shop",
+    // IN_REPAIR: "In Repair",
     REPAIR_COMPLETED: "Repair Completed",
-    READY_FOR_RETURN: "Ready for Return",
-    DELIVERED_TO_USER: "Delivered to User",
+    DEVICE_DELIVERED: "Device Delivered",
     CANCELLED: "Cancelled",
   };
 
@@ -139,7 +142,7 @@ const MyRepairs = () => {
                     Status:{" "}
                     <span
                       className={`px-2 py-1 rounded-full text-xs ${
-                        repair.status === "DELIVERED_TO_USER" || repair.status === "REPAIR_COMPLETED"
+                        repair.status === "DEVICE_DELIVERED" || repair.status === "REPAIR_COMPLETED"
                           ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
                           : repair.status === "CANCELLED"
                           ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
@@ -155,12 +158,12 @@ const MyRepairs = () => {
                   <button
                     onClick={() => openStatusModal(repair)}
                     className={`flex-1 px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
-                      repair.status === "DELIVERED_TO_USER"
+                      repair.status === "DEVICE_DELIVERED"
                         ? "bg-emerald-600 hover:bg-emerald-700 text-white"
                         : "bg-indigo-600 hover:bg-indigo-700 text-white"
                     }`}
                   >
-                    {repair.status === "DELIVERED_TO_USER" ? "Delivered" : "Update Status"}
+                    {repair.status === "DEVICE_DELIVERED" ? "Delivered" : "Update Status"}
                   </button>
                 </div>
               </div>

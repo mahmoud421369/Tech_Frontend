@@ -1,8 +1,7 @@
-
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
-import { FiUser, FiSettings, FiBell, FiLogOut, FiMoon, FiSun } from 'react-icons/fi';
+import { FiUser, FiSettings, FiBell, FiLogOut, FiMoon, FiSun, FiMenu } from 'react-icons/fi';
 import {
   RiBox2Line,
   RiInbox2Line,
@@ -14,14 +13,14 @@ import {
   RiToolsFill,
 } from 'react-icons/ri';
 import { jwtDecode } from 'jwt-decode';
-import api from '../api'; // Import the Axios instance from api.js
+import api from '../api';
 
 const ShopHeader = ({ children }) => {
   const [darkMode, setDarkMode] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const profileRef = useRef(null);
-  const notifRef = useRef(null);
+  const sidebarRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
   const [token, setToken] = useState(localStorage.getItem('authToken'));
@@ -99,8 +98,8 @@ const ShopHeader = ({ children }) => {
       if (profileRef.current && !profileRef.current.contains(e.target)) {
         setProfileOpen(false);
       }
-      if (notifRef.current && !notifRef.current.contains(e.target)) {
-        setNotificationsOpen(false);
+      if (sidebarRef.current && !sidebarRef.current.contains(e.target)) {
+        setSidebarOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -108,73 +107,58 @@ const ShopHeader = ({ children }) => {
   }, []);
 
   const menuItems = [
-    { name: 'dashboard', icon: <RiStore2Line />, label: 'لوحة التحكم', path: '/shop-dashboard' },
-    { name: 'repairs', icon: <RiToolsFill />, label: 'طلبات التصليح', path: '/repair/requests' },
-    { name: 'devices', icon: <RiBox2Line />, label: 'المنتجات', path: '/shop/devices' },
-    { name: 'orders', icon: <RiShoppingBag2Line />, label: 'الطلبات', path: '/shop/orders' },
-    { name: 'transactions', icon: <RiMoneyDollarCircleLine />, label: 'الفواتير', path: '/shop/transactions' },
-    { name: 'inventory', icon: <RiInbox2Line />, label: 'جرد', path: '/shop/inventory' },
-    { name: 'offers', icon: <RiPriceTag2Line />, label: 'العروض', path: '/shop/offers' },
-    { name: 'support', icon: <RiMessage2Line />, label: 'الدعم', path: '/support' },
+    { name: 'dashboard', icon: <RiStore2Line className="text-xl" />, label: 'لوحة التحكم', path: '/shop-dashboard' },
+    { name: 'repairs', icon: <RiToolsFill className="text-xl" />, label: 'طلبات التصليح', path: '/repair/requests' },
+    { name: 'devices', icon: <RiBox2Line className="text-xl" />, label: 'المنتجات', path: '/shop/devices' },
+    { name: 'orders', icon: <RiShoppingBag2Line className="text-xl" />, label: 'الطلبات', path: '/shop/orders' },
+    { name: 'transactions', icon: <RiMoneyDollarCircleLine className="text-xl" />, label: 'الفواتير', path: '/shop/transactions' },
+    { name: 'inventory', icon: <RiInbox2Line className="text-xl" />, label: 'جرد', path: '/shop/inventory' },
+    { name: 'offers', icon: <RiPriceTag2Line className="text-xl" />, label: 'العروض', path: '/shop/offers' },
+    { name: 'support', icon: <RiMessage2Line className="text-xl" />, label: 'الدعم', path: '/support' },
   ];
 
   return (
-    <div className={`${darkMode ? 'bg-gray-900 text-white' : 'bg-[#f1f5f9] text-gray-800'} font-cairo min-h-screen`}>
-      <header
-        className={`fixed top-0 w-full h-16 flex items-center justify-between px-6 shadow-md z-30 transition-colors
-          ${darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-800'}`}
-      >
-        <h1 className="text-xl font-bold">Tech & Restore</h1>
-
+    <div className={`min-h-screen font-cairo transition-colors duration-200 ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-800'}`}>
+      {/* Header */}
+      <header className={`fixed top-0 w-full h-16 flex items-center justify-between px-4 sm:px-6  z-30 transition-colors duration-200 ${darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-800'}`}>
         <div className="flex items-center gap-4">
           <button
-            onClick={toggleDarkMode}
-            className={`p-2 rounded-full ${
-              darkMode ? 'bg-gray-700 text-yellow-400' : 'bg-gray-100 text-gray-600'
-            }`}
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200 md:hidden"
           >
-            {darkMode ? <FiMoon /> : <FiSun />}
+            <FiMenu className="text-xl" />
           </button>
-
+          <h1 className="text-lg sm:text-xl font-bold">Tech & Restore</h1>
+        </div>
+        <div className="flex items-center gap-3 sm:gap-4">
+          <button
+            onClick={toggleDarkMode}
+            className={`p-2 rounded-full transition-colors duration-200 ${darkMode ? 'bg-gray-700 text-yellow-400' : 'bg-gray-200 text-gray-600'}`}
+          >
+            {darkMode ? <FiMoon className="text-lg" /> : <FiSun className="text-lg" />}
+          </button>
           <div className="relative" ref={profileRef}>
             <button
               onClick={() => setProfileOpen(!profileOpen)}
-              className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200"
             >
-              <FiUser />
-              <span>حسابي</span>
+              <FiUser className="text-lg" />
+              <span className="hidden sm:inline text-sm sm:text-base">حسابي</span>
             </button>
             {profileOpen && (
-              <div
-                className={`absolute right-0 mt-2 w-64 rounded-lg shadow-lg p-3 transition-colors
-                  ${darkMode ? 'bg-gray-700 text-white' : 'bg-white text-gray-800'}`}
-              >
+              <div className={`absolute right-0 mt-2 w-56 sm:w-64 rounded-lg shadow-lg p-3 transition-colors duration-200 ${darkMode ? 'bg-gray-700 text-white' : 'bg-white text-gray-800'}`}>
                 <Link
                   to="/shop/profile"
-                  className="flex items-center gap-2 p-2 text-blue-500 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  className="flex items-center gap-2 p-2 text-blue-500 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
+                  onClick={() => setProfileOpen(false)}
                 >
-                  <FiUser /> بيانات الحساب
+                  <FiUser className="text-lg" /> بيانات الحساب
                 </Link>
-                <br />
-                <p className="font-bold mb-2">القائمة</p>
-                <ul className="space-y-2 text-sm">
-                  {menuItems.map((item) => (
-                    <li key={item.name}>
-                      <Link
-                        to={item.path}
-                        className="flex items-center gap-2 p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                      >
-                        {item.icon} {item.label}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-                <hr className="my-2 border-gray-400" />
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-2 p-2 w-full text-left rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  className="flex items-center gap-2 p-2 w-full text-left rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
                 >
-                  <FiLogOut /> تسجيل الخروج
+                  <FiLogOut className="text-lg" /> تسجيل الخروج
                 </button>
               </div>
             )}
@@ -182,7 +166,40 @@ const ShopHeader = ({ children }) => {
         </div>
       </header>
 
-      <main className="pt-20 px-6 pb-6">{children}</main>
+      {/* Sidebar */}
+      <div className="flex">
+        <aside
+          ref={sidebarRef}
+          className={`fixed top-16 left-0 h-[calc(100vh-4rem)] w-32 md:w-64 bg-white dark:bg-gray-800 text-white transform transition-transform duration-300 ease-in-out z-20
+            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
+        >
+          <nav className="flex flex-col p-4 h-full">
+            <ul className="space-y-2 flex-1 mt-6">
+              {menuItems.map((item) => (
+                <li key={item.name}>
+                  <Link
+                    to={item.path}
+                    className={`flex items-center gap-3 p-3 rounded-lg font-bold transition-colors duration-200 ${
+                      location.pathname === item.path
+                        ? 'bg-blue-500 text-white'
+                        : ' text-blue-600'
+                    }`}
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    {item.icon}
+                    <span className="hidden md:inline text-sm md:text-base">{item.label}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 pt-16 md:pl-64 px-4 sm:px-6 pb-6 min-h-screen transition-all duration-300">
+          <div className="max-w-7xl mx-auto">{children}</div>
+        </main>
+      </div>
     </div>
   );
 };

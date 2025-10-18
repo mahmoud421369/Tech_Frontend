@@ -262,121 +262,119 @@ const Homepage = memo(({ darkMode }) => {
 
   return (
     <>
-        <section
-      className={`relative mt-10 min-h-80 overflow-hidden ${
+     <section
+      className={`relative py-16 sm:py-20 ${
         darkMode
-          ? "bg-gradient-to-br from-gray-900 via-indigo-900 to-blue-900 text-white"
-          : "bg-gradient-to-br from-blue-700 to-indigo-700 text-white"
-      }`}
+          ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700 text-white"
+          : "bg-gradient-to-br from-white via-gray-50 to-gray-100 text-gray-900"
+      } overflow-hidden`}
     >
-     
+      {/* Floating Icons */}
       <div className="absolute inset-0 opacity-20 pointer-events-none">
-     
-
-        <FiTool className="absolute w-20 h-20 bottom-1/3 right-1/5 animate-float-medium text-indigo-300" />
-        <FiShoppingBag className="absolute w-24 h-24 top-1/3 right-1/4 animate-float-slow text-indigo-300" />
-        <FiShoppingBag className="absolute w-16 h-16 bottom-1/4 left-1/3 animate-float-fast text-indigo-300" />
-        <FiSmartphone className="absolute w-20 h-20 top-10 left-10 animate-float-medium text-indigo-300" />
-        <FiSmartphone className="absolute w-28 h-28 bottom-20 right-20 animate-float-slow text-indigo-300" />
-        <FiMonitor className="absolute w-18 h-18 top-1/2 left-1/4 animate-float-fast text-indigo-300" />
+        <FiTool className="absolute w-16 h-16 sm:w-20 sm:h-20 bottom-1/3 right-1/5 animate-float-medium text-indigo-300 dark:text-indigo-500" />
+        <FiShoppingBag className="absolute w-20 h-20 sm:w-24 sm:h-24 top-1/3 right-1/4 animate-float-slow text-indigo-300 dark:text-indigo-500" />
+        <FiShoppingBag className="absolute w-12 h-12 sm:w-16 sm:h-16 bottom-1/4 left-1/3 animate-float-fast text-indigo-300 dark:text-indigo-500" />
+        <FiSmartphone className="absolute w-16 h-16 sm:w-20 sm:h-20 top-10 left-10 animate-float-medium text-indigo-300 dark:text-indigo-500" />
+        <FiSmartphone className="absolute w-24 h-24 sm:w-28 sm:h-28 bottom-20 right-12 sm:right-20 animate-float-slow text-indigo-300 dark:text-indigo-500" />
+        <FiShield className="absolute w-14 h-14 sm:w-18 sm:h-18 top-1/2 left-1/4 animate-float-fast text-indigo-300 dark:text-indigo-500" />
       </div>
 
-      <div className="container mx-auto px-4 py-16 md:py-32 min-h-screen relative z-10">
-        <div className="max-w-6xl mx-auto">
-          <h1 className="text-4xl md:text-5xl font-bold mb-6 text-white">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-24 z-10">
+        <div className="text-center">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold">
             Repair & Buy Devices with Confidence
           </h1>
-          <p className="text-xl mb-8 text-indigo-200">
-            Find trusted repair shops and purchase refurbished devices at great prices
+          <p className="mt-4 text-base sm:text-lg text-gray-600 dark:text-gray-200 max-w-xl sm:max-w-2xl mx-auto">
+            Find trusted repair shops and purchase refurbished devices at great prices.
           </p>
+        </div>
 
-          <div className="relative">
-            <form
-              onSubmit={heroHandleSearch}
-              className="bg-white/10 dark:bg-gray-800/10 rounded-lg shadow-lg p-2 flex flex-wrap justify-center items-center mb-10 backdrop-blur-md border border-white/20 dark:border-gray-700/20"
-            >
-              <input
-                type="text"
-                placeholder="Search for devices, shops, or services..."
-                className="flex-grow px-4 py-3 text-white bg-transparent focus:outline-none cursor-pointer pr-10"
-                value={heroSearchQuery}
-                onChange={(e) => setHeroSearchQuery(e.target.value)}
-              />
-              {heroSearchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setHeroSearchQuery("")}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-indigo-200 hover:text-white"
-                >
-                  <FiX />
-                </button>
-              )}
-            </form>
-
+        <div className="relative mt-8 max-w-3xl mx-auto">
+          <form
+            onSubmit={heroHandleSearch}
+            className="bg-white/30 dark:bg-gray-800/30 rounded-lg shadow-lg p-2 flex flex-wrap justify-center items-center backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50"
+          >
+            <input
+              type="text"
+              placeholder="Search for devices, shops, or services..."
+              className="flex-grow px-4 py-3 text-gray-900 dark:text-white bg-transparent focus:outline-none placeholder-gray-500 dark:placeholder-gray-300"
+              value={heroSearchQuery}
+              onChange={(e) => setHeroSearchQuery(e.target.value)}
+            />
             {heroSearchQuery && (
-              <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white/10 dark:bg-gray-800/10 rounded-lg shadow-xl max-h-96 overflow-y-auto backdrop-blur-md border border-white/20 dark:border-gray-700/20">
-                {isLoading ? (
-                  <div className="p-4 text-center text-white/80">
-                    Loading...
-                  </div>
-                ) : searchResults.length > 0 ? (
-                  <ul className="divide-y divide-white/20 dark:divide-gray-700/20">
-                    {searchResults.map((item) => (
-                      <li
-                        key={item.id}
-                        className="hover:bg-indigo-500/30 dark:hover:bg-indigo-700/30 transition-colors"
-                      >
-                        <Link
-                          to={`/${item.type}/${item.id}`}
-                          className="p-4 flex justify-between items-center"
-                        >
-                          <div>
-                            <h3 className="font-medium text-white">
-                              {item.name}
-                            </h3>
-                            <p className="text-sm text-white/80">
-                              {item.category || item.shopName}
-                            </p>
-                          </div>
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-600 text-white">
-                            {item.type}
-                          </span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="p-4 text-center text-white/80">
-                    No results found for "{heroSearchQuery}"
-                  </div>
-                )}
-              </div>
+              <button
+                type="button"
+                onClick={() => setHeroSearchQuery("")}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-white transition-colors"
+              >
+                <FiX className="text-lg" />
+              </button>
             )}
+          </form>
+
+          {heroSearchQuery && (
+            <div className="absolute top-full left-0 right-0 z-10 mt-2 bg-white/30 dark:bg-gray-800/30 rounded-lg shadow-xl max-h-96 overflow-y-auto backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50">
+              {isLoading ? (
+                <div className="p-4 text-center text-gray-600 dark:text-gray-300">
+                  Loading...
+                </div>
+              ) : searchResults.length > 0 ? (
+                <ul className="divide-y divide-gray-200/50 dark:divide-gray-700/50">
+                  {searchResults.map((item) => (
+                    <li
+                      key={item.id}
+                      className="hover:bg-indigo-100/50 dark:hover:bg-indigo-700/30 transition-colors"
+                    >
+                      <Link
+                        to={`/${item.type}/${item.id}`}
+                        className="p-4 flex justify-between items-center"
+                      >
+                        <div>
+                          <h3 className="font-medium text-gray-900 dark:text-white">
+                            {item.name}
+                          </h3>
+                          <p className="text-sm text-gray-600 dark:text-gray-300">
+                            {item.category || item.shopName}
+                          </p>
+                        </div>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-500 text-white">
+                          {item.type}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="p-4 text-center text-gray-600 dark:text-gray-300">
+                  No results found for "{heroSearchQuery}"
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-10 sm:mt-12">
+          <div className="bg-white/30 dark:bg-gray-800/30 p-4 sm:p-5 rounded-lg flex items-center backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50 hover:shadow-lg transition-all duration-300">
+            <FiTool className="text-2xl sm:text-3xl mr-3 text-indigo-400 dark:text-indigo-300" />
+            <div>
+              <h3 className="font-bold text-gray-900 dark:text-white">Expert Repairs</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300">Certified technicians</p>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white/10 dark:bg-gray-800/10 p-4 rounded-lg flex items-center backdrop-blur-md border border-white/20 dark:border-gray-700/20">
-              <FiTool className="text-3xl mr-3 text-indigo-300" />
-              <div>
-                <h3 className="font-bold text-white">Expert Repairs</h3>
-                <p className="text-indigo-200">Certified technicians</p>
-              </div>
+          <div className="bg-white/30 dark:bg-gray-800/30 p-4 sm:p-5 rounded-lg flex items-center backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50 hover:shadow-lg transition-all duration-300">
+            <FiSmartphone className="text-2xl sm:text-3xl mr-3 text-indigo-400 dark:text-indigo-300" />
+            <div>
+              <h3 className="font-bold text-gray-900 dark:text-white">Quality Devices</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300">Tested and guaranteed</p>
             </div>
+          </div>
 
-            <div className="bg-white/10 dark:bg-gray-800/10 p-4 rounded-lg flex items-center backdrop-blur-md border border-white/20 dark:border-gray-700/20">
-              <FiShoppingBag className="text-3xl mr-3 text-indigo-300" />
-              <div>
-                <h3 className="font-bold text-white">Quality Devices</h3>
-                <p className="text-indigo-200">Tested and guaranteed</p>
-              </div>
-            </div>
-
-            <div className="bg-white/10 dark:bg-gray-800/10 p-4 rounded-lg flex items-center backdrop-blur-md border border-white/20 dark:border-gray-700/20">
-              <FiClock className="text-3xl mr-3 text-indigo-300" />
-              <div>
-                <h3 className="font-bold text-white">6 Months Warranty</h3>
-                <p className="text-indigo-200">On all repairs</p>
-              </div>
+          <div className="bg-white/30 dark:bg-gray-800/30 p-4 sm:p-5 rounded-lg flex items-center backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50 hover:shadow-lg transition-all duration-300">
+            <FiClock className="text-2xl sm:text-3xl mr-3 text-indigo-400 dark:text-indigo-300" />
+            <div>
+              <h3 className="font-bold text-gray-900 dark:text-white">6 Months Warranty</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300">On all repairs</p>
             </div>
           </div>
         </div>
@@ -389,7 +387,7 @@ const Homepage = memo(({ darkMode }) => {
             transform: translateY(0) translateX(0);
           }
           50% {
-            transform: translateY(-20px) translateX(10px);
+            transform: translateY(-15px) translateX(8px);
           }
           100% {
             transform: translateY(0) translateX(0);
@@ -400,7 +398,7 @@ const Homepage = memo(({ darkMode }) => {
             transform: translateY(0) translateX(0);
           }
           50% {
-            transform: translateY(-15px) translateX(-10px);
+            transform: translateY(-10px) translateX(-8px);
           }
           100% {
             transform: translateY(0) translateX(0);
@@ -411,7 +409,7 @@ const Homepage = memo(({ darkMode }) => {
             transform: translateY(0) translateX(0);
           }
           50% {
-            transform: translateY(-25px) translateX(5px);
+            transform: translateY(-12px) translateX(5px);
           }
           100% {
             transform: translateY(0) translateX(0);
@@ -422,7 +420,7 @@ const Homepage = memo(({ darkMode }) => {
             transform: translateY(0) translateX(0);
           }
           50% {
-            transform: translateY(-10px) translateX(15px);
+            transform: translateY(-8px) translateX(10px);
           }
           100% {
             transform: translateY(0) translateX(0);
@@ -769,7 +767,7 @@ const Homepage = memo(({ darkMode }) => {
                             handleAddToCart(product);
                           }}
                           disabled={isImageLoading}
-                          className="flex-1 px-4 py-2 bg-white text-indigo-600 font-semibold rounded-xl  disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:-translate-y-1 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                          className="flex-1 px-4 py-2 bg-white dark:bg-gray-950 dark:border-gray-700 text-indigo-600 font-semibold rounded-xl  disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:-translate-y-1 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                         >
                           <FiShoppingCart /> Add to Cart
                         </button>

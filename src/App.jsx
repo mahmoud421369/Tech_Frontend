@@ -27,7 +27,8 @@ import {
   Assigners,
   AdminOffers,
   AdminRepairRequests,
-  AdminProducts
+  AdminProducts,
+  AdminAssignmentLogs
 } from './Admin';
 
 
@@ -179,7 +180,6 @@ const [cartCount, setCartCount] = useState(0);
         <Route path="/device/:id" element={withNavbarLayout(DeviceDetail, { addToCart })} />
         <Route path="/shops/:shopId" element={withNavbarLayout(Shop)}/>
         <Route path="/repair-request/:requestId/update" element={withNavbarLayout(RepairRequest)}/>
-
         <Route path="/oauth2/success" element={<SuccessGoogle />} />
 
 
@@ -194,6 +194,8 @@ const [cartCount, setCartCount] = useState(0);
         <Route path="/reviews" element={withAdminLayout(Reviews)} />
         <Route path="/admin/repair-requests" element={withAdminLayout(AdminRepairRequests)} />
         <Route path="/admin/products" element={withAdminLayout(AdminProducts)} />
+        <Route path="/admin/assignment-logs" element={withAdminLayout(AdminAssignmentLogs)} />
+
 
         <Route path="/notifications" element={withAdminLayout(Notifications)} />
 

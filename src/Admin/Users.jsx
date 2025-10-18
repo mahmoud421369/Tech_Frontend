@@ -8,45 +8,32 @@ import { debounce } from 'lodash';
 import api from '../api';
 import Modal from '../components/Modal';
 
-
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center h-64">
     <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
   </div>
 );
 
-
 const UsersSkeleton = ({ darkMode }) => (
   <div className="animate-pulse p-6">
-    <div className="space-y-4 mb-8">
-      <div className="flex justify-between items-center">
-        <div className="space-y-2">
-          <div className="h-8 w-1/4 bg-gray-300 dark:bg-gray-700 rounded"></div>
-          <div className="h-4 w-1/2 bg-gray-300 dark:bg-gray-700 rounded"></div>
-        </div>
-      </div>
-    </div>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
       {[...Array(3)].map((_, idx) => (
-        <div key={idx} className="bg-white dark:bg-gray-950 p-4 rounded-lg shadow">
+        <div key={idx} className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-md border border-gray-100 dark:border-gray-800">
           <div className="h-6 w-1/2 bg-gray-300 dark:bg-gray-600 rounded mb-2"></div>
           <div className="h-8 w-1/4 bg-gray-300 dark:bg-gray-600 rounded"></div>
         </div>
       ))}
     </div>
-    <div className="bg-white dark:bg-gray-950 rounded-lg shadow-md">
-      <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-        <div className="h-10 w-32 bg-gray-300 dark:bg-gray-700 rounded-xl"></div>
-        <div className="relative w-full md:w-64">
-          <div className="h-10 w-full bg-gray-300 dark:bg-gray-700 rounded-xl"></div>
-        </div>
+    <div className="bg-white dark:bg-gray-950 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+      <div className="relative w-full sm:w-80 mb-6">
+        <div className="h-10 w-full bg-gray-300 dark:bg-gray-700 rounded-lg"></div>
       </div>
       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-        <thead className="bg-gray-100 dark:bg-gray-700">
+        <thead className="bg-gray-100 dark:bg-gray-800">
           <tr>
-            {['Name', 'Email', 'Role', 'Status', 'Actions'].map((header, idx) => (
-              <th key={idx} className="px-6 py-3">
-                <div className="h-4 w-20 bg-gray-300 dark:bg-gray-600 rounded"></div>
+            {['ID', 'Name', 'Email', 'Role', 'Status', 'Actions'].map((header, idx) => (
+              <th key={idx} className="px-6 py-3 text-center text-sm font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                {header}
               </th>
             ))}
           </tr>
@@ -72,7 +59,6 @@ const UsersSkeleton = ({ darkMode }) => (
     </div>
   </div>
 );
-
 
 const PaginatedTable = ({ data, columns, page, setPage, pageSize, renderRow, emptyMessage, darkMode }) => {
   const totalPages = Math.ceil(data.length / pageSize);
@@ -109,25 +95,23 @@ const PaginatedTable = ({ data, columns, page, setPage, pageSize, renderRow, emp
     return pages;
   };
 
-  
-
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-        <thead className="bg-gray-100 dark:bg-gray-700 text-indigo-600 dark:text-indigo-400">
+        <thead className="bg-gray-100 dark:bg-gray-800 text-indigo-600 dark:text-indigo-400">
           <tr>
             {columns.map((col, index) => (
-              <th key={index} className="px-6 py-3 text-center font-medium uppercase tracking-wider">
+              <th key={index} className="px-6 py-3 text-center text-sm font-semibold uppercase tracking-wider">
                 {col}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-200 dark:divide-gray-700 text-gray-700 dark:text-gray-200">
+        <tbody className="divide-y divide-gray-200 dark:divide-gray-700 text-gray-900 dark:text-gray-100">
           {paginatedData.map(renderRow)}
           {paginatedData.length === 0 && (
             <tr>
-              <td colSpan={columns.length} className="py-4 text-center text-gray-500 dark:text-gray-400">
+              <td colSpan={columns.length} className="py-6 text-center text-gray-500 dark:text-gray-400">
                 <div className="flex flex-col items-center gap-2">
                   <FiUsers className="text-2xl text-gray-500 dark:text-gray-400" />
                   {emptyMessage}
@@ -142,16 +126,16 @@ const PaginatedTable = ({ data, columns, page, setPage, pageSize, renderRow, emp
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="px-4 py-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+            className="px-4 py-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
           >
-            <FiChevronLeft /> Previous
+            <FiChevronLeft /> 
           </button>
           {getPageNumbers().map((pageNum, idx) => (
             <button
               key={idx}
               onClick={() => typeof pageNum === 'number' && setPage(pageNum)}
-              className={`px-4 py-2 rounded-xl transition-all duration-300 ${
-                pageNum === '...' ? 'cursor-default' : page === pageNum ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-800'
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                pageNum === '...' ? 'cursor-default' : page === pageNum ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-800'
               }`}
               disabled={pageNum === '...'}
             >
@@ -161,9 +145,9 @@ const PaginatedTable = ({ data, columns, page, setPage, pageSize, renderRow, emp
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            className="px-4 py-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+            className="px-4 py-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
           >
-            Next <FiChevronRight />
+             <FiChevronRight />
           </button>
         </div>
       )}
@@ -171,22 +155,34 @@ const PaginatedTable = ({ data, columns, page, setPage, pageSize, renderRow, emp
   );
 };
 
-
-const UserSection = ({ users, search, setSearch, activateUser, deactivateUser, updateRole, deleteUser, viewUser, darkMode, token }) => {
+const UsersPage = ({ darkMode }) => {
+  const navigate = useNavigate();
+  const token = localStorage.getItem('authToken');
+  const [users, setUsers] = useState([]);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
   const [userPage, setUserPage] = useState(1);
-  const [debouncedSearch, setDebouncedSearch] = useState(search);
+  const [itemsPerPage] = useState(5);
   const [roleUpdates, setRoleUpdates] = useState({});
+
+  const computedStats = useMemo(() => {
+    const totalUsers = users.length;
+    const activeUsers = users.filter((u) => u.activate).length;
+    const inactiveUsers = users.filter((u) => !u.activate).length;
+    return { totalUsers, activeUsers, inactiveUsers };
+  }, [users]);
 
   const handleSearchChange = useCallback(
     debounce((value) => {
       setDebouncedSearch(value);
-      setSearch(value);
       setUserPage(1);
     }, 300),
-    [setSearch]
+    []
   );
 
- const copyToClipboard = useCallback(
+  const copyToClipboard = useCallback(
     (id) => {
       navigator.clipboard.writeText(id).then(
         () => {
@@ -219,174 +215,6 @@ const UserSection = ({ users, search, setSearch, activateUser, deactivateUser, u
     [darkMode]
   );
 
-  const computedStats = useMemo(() => {
-    const totalUsers = users.length;
-    const activeUsers = users.filter((u) => u.activate).length;
-    const inactiveUsers = users.filter((u) => !u.activate).length;
-    return { totalUsers, activeUsers, inactiveUsers };
-  }, [users]);
-
-  const filteredUsers = useMemo(() => {
-    return users.filter(
-      (user) =>
-        user.firstName?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        user.lastName?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        user.email?.toLowerCase().includes(debouncedSearch.toLowerCase())
-    );
-  }, [users, debouncedSearch]);
-
- 
-  
-
-  return (
-    <section className="bg-white dark:bg-gray-950 rounded-lg shadow-md p-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white dark:bg-gray-900 p-4 rounded-lg shadow transition-all duration-300 transform hover:-translate-y-1">
-          <h3 className="text-lg font-semibold text-indigo-600 dark:text-indigo-400">Total Users</h3>
-          <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">{computedStats.totalUsers}</p>
-        </div>
-        <div className="bg-white dark:bg-gray-900 p-4 rounded-lg shadow transition-all duration-300 transform hover:-translate-y-1">
-          <h3 className="text-lg font-semibold text-indigo-600 dark:text-indigo-400">Active Users</h3>
-          <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">{computedStats.activeUsers}</p>
-        </div>
-        <div className="bg-white dark:bg-gray-900 p-4 rounded-lg shadow transition-all duration-300 transform hover:-translate-y-1">
-          <h3 className="text-lg font-semibold text-indigo-600 dark:text-indigo-400">Inactive Users</h3>
-          <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">{computedStats.inactiveUsers}</p>
-        </div>
-      </div>
-      <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 mb-6">
-        <div className="relative w-full md:w-64">
-          <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-300" />
-          <input
-            type="text"
-            placeholder="Search by name or email..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              handleSearchChange(e.target.value);
-            }}
-            className="w-full pl-10 pr-10 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all duration-300"
-          />
-          {search && (
-            <button
-              onClick={() => {
-                setSearch('');
-                handleSearchChange('');
-                setUserPage(1);
-              }}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-            >
-              <FiXCircle />
-            </button>
-          )}
-        </div>
-      </div>
-      <PaginatedTable
-        data={filteredUsers}
-        columns={['ID', 'Name', 'Email', 'Role', 'Status', 'Actions']}
-        page={userPage}
-        setPage={setUserPage}
-        pageSize={5}
-        darkMode={darkMode}
-        renderRow={(user) => (
-          <tr
-            key={user.id}
-            className="text-center hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all duration-300"
-          >
-            <td className="px-6 py-4 text-sm flex items-center justify-center gap-2">
-              {user.id}
-              <button
-                onClick={() => copyToClipboard(user.id)}
-                className="relative group p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
-                title="Copy User ID"
-              >
-                <FiCopy />
-                <span className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2">
-                  Copy User ID
-                </span>
-              </button>
-            </td>
-            <td className="px-6 py-4">{DOMPurify.sanitize(`${user.firstName} ${user.lastName}`) || 'N/A'}</td>
-            <td className="px-6 py-4">{DOMPurify.sanitize(user.email) || 'N/A'}</td>
-            <td className="px-6 py-4 flex justify-center gap-2">
-              <select
-                value={roleUpdates[user.id] || user.role}
-                onChange={(e) =>
-                  setRoleUpdates((prev) => ({
-                    ...prev,
-                    [user.id]: e.target.value,
-                  }))
-                }
-                className="border rounded-lg px-2 py-1 text-sm bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all duration-300"
-              >
-                <option value="USER">USER</option>
-                <option value="ADMIN">ADMIN</option>
-                <option value="SHOP_OWNER">SHOP_OWNER</option>
-              </select>
-              <button
-                onClick={() => updateRole(user.id, roleUpdates[user.id] || user.role)}
-                className="px-3 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-md hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300"
-              >
-                Save
-              </button>
-            </td>
-            <td className="px-6 py-4">
-              <span
-                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                  user.activate
-                    ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300'
-                    : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300'
-                }`}
-              >
-                {user.activate ? 'Active' : 'Inactive'}
-              </span>
-            </td>
-            <td className="px-6 py-4 flex justify-center gap-2">
-              <button
-                onClick={() => viewUser(user.id)}
-                className="p-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300"
-              >
-                <FiEye />
-              </button>
-              {!user.activate ? (
-                <button
-                  onClick={() => activateUser(user.id)}
-                  className="p-2 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400 rounded-full hover:bg-green-200 dark:hover:bg-green-800 transition-all duration-300"
-                >
-                  <FiCheckCircle />
-                </button>
-              ) : (
-                <button
-                  onClick={() => deactivateUser(user.id)}
-                  className="p-2 bg-yellow-100 dark:bg-yellow-900 text-yellow-600 dark:text-yellow-400 rounded-full hover:bg-yellow-200 dark:hover:bg-yellow-800 transition-all duration-300"
-                >
-                  <FiXCircle />
-                </button>
-              )}
-              <button
-                onClick={() => deleteUser(user.id)}
-                className="p-2 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-800 transition-all duration-300"
-              >
-                <FiTrash2 />
-              </button>
-            </td>
-          </tr>
-        )}
-        emptyMessage="No users found"
-      />
-    </section>
-  );
-};
-
-
-const UsersPage = ({ darkMode }) => {
-  const navigate = useNavigate();
-  const token = localStorage.getItem('authToken');
-  const [users, setUsers] = useState([]);
-  const [search, setSearch] = useState('');
-  const [loadingUsers, setLoadingUsers] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
-
   const fetchUsers = useCallback(async () => {
     if (!token) {
       Swal.fire({
@@ -398,14 +226,20 @@ const UsersPage = ({ darkMode }) => {
       navigate('/login');
       return;
     }
-    setLoadingUsers(true);
+
     const controller = new AbortController();
     try {
-      const response = await api.get('/api/admin/users?page=0&size=5', {
+      setLoadingUsers(true);
+      const response = await api.get('/api/admin/users?page=0&size=100', {
         signal: controller.signal,
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = response.data.content || response.data || [];
+      let data = response.data;
+      if (response.data && response.data.content) {
+        data = response.data.content;
+      }
+      data = Array.isArray(data) ? data : [];
+      console.log('Processed User Data:', data);
       setUsers(data);
     } catch (error) {
       console.error('Error fetching users:', error.response?.data || error.message);
@@ -436,8 +270,10 @@ const UsersPage = ({ darkMode }) => {
         });
         Swal.fire({
           title: 'Success',
-          text: 'User has been activated.',
+          text: 'User activated successfully',
           icon: 'success',
+          toast: true,
+          position: 'top-end',
           timer: 2000,
           showConfirmButton: false,
           customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
@@ -470,8 +306,10 @@ const UsersPage = ({ darkMode }) => {
         });
         Swal.fire({
           title: 'Success',
-          text: 'User has been deactivated.',
-          icon: 'warning',
+          text: 'User deactivated successfully',
+          icon: 'success',
+          toast: true,
+          position: 'top-end',
           timer: 2000,
           showConfirmButton: false,
           customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
@@ -511,11 +349,18 @@ const UsersPage = ({ darkMode }) => {
         );
         Swal.fire({
           title: 'Success',
-          text: `User role updated to ${role}.`,
+          text: `User role updated to ${role}`,
           icon: 'success',
+          toast: true,
+          position: 'top-end',
           timer: 2000,
           showConfirmButton: false,
           customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+        });
+        setRoleUpdates((prev) => {
+          const newUpdates = { ...prev };
+          delete newUpdates[id];
+          return newUpdates;
         });
         fetchUsers();
       } catch (error) {
@@ -543,12 +388,13 @@ const UsersPage = ({ darkMode }) => {
     async (id) => {
       const result = await Swal.fire({
         title: 'Are you sure?',
-        text: "You won't be able to revert this!",
+        text: "This action cannot be undone!",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#d33',
         cancelButtonColor: '#374151',
         confirmButtonText: 'Yes, delete it!',
+        cancelButtonText: 'Cancel',
         customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
       });
 
@@ -560,8 +406,10 @@ const UsersPage = ({ darkMode }) => {
         });
         Swal.fire({
           title: 'Success',
-          text: 'User has been deleted.',
+          text: 'User deleted successfully',
           icon: 'success',
+          toast: true,
+          position: 'top-end',
           timer: 2000,
           showConfirmButton: false,
           customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
@@ -614,6 +462,16 @@ const UsersPage = ({ darkMode }) => {
     [token, navigate, darkMode]
   );
 
+  const filteredUsers = useMemo(() => {
+    const usersArray = Array.isArray(users) ? users : [];
+    return usersArray.filter(
+      (user) =>
+        user.firstName?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        user.lastName?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        user.email?.toLowerCase().includes(debouncedSearch.toLowerCase())
+    );
+  }, [users, debouncedSearch]);
+
   useEffect(() => {
     fetchUsers();
     return () => {
@@ -622,33 +480,175 @@ const UsersPage = ({ darkMode }) => {
     };
   }, [fetchUsers]);
 
+  useEffect(() => {
+    handleSearchChange(search);
+  }, [search, handleSearchChange]);
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 mt-14 transition-colors duration-300 animate-fade-in">
+    <div style={{ marginLeft: '250px' }} className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 mt-14 transition-colors duration-300 animate-fade-in">
       <div className="max-w-7xl mx-auto space-y-10">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <h1 className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
             <FiUsers /> Users Management
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Monitor and manage your users, activate, deactivate, and change user roles
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            Monitor and manage users, activate, deactivate, and change user roles
           </p>
         </div>
+
         {loadingUsers ? (
           <UsersSkeleton darkMode={darkMode} />
         ) : (
-          <UserSection
-            users={users}
-            search={search}
-            setSearch={setSearch}
-            activateUser={activateUser}
-            deactivateUser={deactivateUser}
-            updateRole={updateRole}
-            deleteUser={deleteUser}
-            viewUser={viewUser}
-            darkMode={darkMode}
-            token={token}
-          />
+          <div className="bg-white dark:bg-gray-950 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+              <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-md border border-gray-100 dark:border-gray-800 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl">
+                <h3 className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide">Total Users</h3>
+                <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-2">{computedStats.totalUsers}</p>
+              </div>
+              <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-md border border-gray-100 dark:border-gray-800 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl">
+                <h3 className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide">Active Users</h3>
+                <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-2">{computedStats.activeUsers}</p>
+              </div>
+              <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-md border border-gray-100 dark:border-gray-800 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl">
+                <h3 className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide">Inactive Users</h3>
+                <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-2">{computedStats.inactiveUsers}</p>
+              </div>
+            </div>
+
+            {/* Search */}
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
+              <div className="w-full sm:w-80 relative">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search Users</label>
+                <div className="relative">
+                  <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-300" />
+                  <input
+                    type="text"
+                    placeholder="Search by name or email..."
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setUserPage(1);
+                    }}
+                    className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all duration-300"
+                  />
+                  {search && (
+                    <button
+                      onClick={() => {
+                        setSearch('');
+                        setUserPage(1);
+                      }}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                    >
+                      <FiXCircle size={18} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Table */}
+            <PaginatedTable
+              data={filteredUsers}
+              columns={['ID', 'Name', 'Email', 'Role', 'Status', 'Actions']}
+              page={userPage}
+              setPage={setUserPage}
+              pageSize={itemsPerPage}
+              darkMode={darkMode}
+              renderRow={(user, index) => (
+                <tr
+                  key={user.id}
+                  className="text-center hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-all duration-300"
+                >
+                  <td className="px-6 py-4 text-sm font-medium flex items-center justify-center gap-2">
+                    <span className="truncate max-w-[150px]">{user.id}</span>
+                    <button
+                      onClick={() => copyToClipboard(user.id)}
+                      className="relative group p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                      title="Copy User ID"
+                    >
+                      <FiCopy size={16} />
+                      <span className="absolute hidden group-hover:block bg-gray-800 dark:bg-gray-900 text-white dark:text-gray-200 text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                        Copy User ID
+                      </span>
+                    </button>
+                  </td>
+                  <td className="px-6 py-4 text-sm font-medium">
+                    {DOMPurify.sanitize(`${user.firstName} ${user.lastName}`) || 'N/A'}
+                  </td>
+                  <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(user.email) || 'N/A'}</td>
+                  <td className="px-6 py-4 text-sm">
+                    <div className="flex items-center justify-center gap-2">
+                      <select
+                        value={roleUpdates[user.id] || user.role}
+                        onChange={(e) =>
+                          setRoleUpdates((prev) => ({ ...prev, [user.id]: e.target.value }))
+                        }
+                        className="border rounded-lg px-2 py-1 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 text-sm text-gray-900 dark:text-gray-100"
+                      >
+                        <option value="USER">USER</option>
+                        <option value="ADMIN">ADMIN</option>
+                        <option value="SHOP_OWNER">SHOP_OWNER</option>
+                      </select>
+                      <button
+                        onClick={() => updateRole(user.id, roleUpdates[user.id] || user.role)}
+                        className="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-800/70 transition-all duration-300 text-sm"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm">
+                    <span
+                      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                        user.activate
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400'
+                          : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400'
+                      }`}
+                    >
+                      {user.activate ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 flex justify-center gap-2">
+                    <button
+                      onClick={() => viewUser(user.id)}
+                      className="p-2 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800/70 transition-all duration-300"
+                      title="View User"
+                    >
+                      <FiEye size={16} />
+                    </button>
+                    {user.activate ? (
+                      <button
+                        onClick={() => deactivateUser(user.id)}
+                        className="p-2 bg-yellow-100 dark:bg-yellow-900/50 text-yellow-600 dark:text-yellow-400 rounded-full hover:bg-yellow-200 dark:hover:bg-yellow-800/70 transition-all duration-300"
+                        title="Deactivate User"
+                      >
+                        <FiXCircle size={16} />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => activateUser(user.id)}
+                        className="p-2 bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400 rounded-full hover:bg-green-200 dark:hover:bg-green-800/70 transition-all duration-300"
+                        title="Activate User"
+                      >
+                        <FiCheckCircle size={16} />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => deleteUser(user.id)}
+                      className="p-2 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-800/70 transition-all duration-300"
+                      title="Delete User"
+                    >
+                      <FiTrash2 size={16} />
+                    </button>
+                  </td>
+                </tr>
+              )}
+              emptyMessage="No users found"
+            />
+          </div>
         )}
+
         {selectedUser && (
           <Modal
             onClose={() => setSelectedUser(null)}
@@ -659,7 +659,16 @@ const UsersPage = ({ darkMode }) => {
               <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4">
                 <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
                   User Information
-          
+                  <button
+                    onClick={() => copyToClipboard(selectedUser.id)}
+                    className="relative group p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                    title="Copy User ID"
+                  >
+                    <FiCopy size={16} />
+                    <span className="absolute hidden group-hover:block bg-gray-800 dark:bg-gray-900 text-white dark:text-gray-200 text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                      Copy User ID
+                    </span>
+                  </button>
                 </h4>
                 <p className="text-sm text-gray-700 dark:text-gray-200">
                   <strong>ID:</strong> {selectedUser.id || 'N/A'}
@@ -680,7 +689,7 @@ const UsersPage = ({ darkMode }) => {
               <div className="flex justify-end">
                 <button
                   onClick={() => setSelectedUser(null)}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all duration-300 transform hover:-translate-y-1 shadow-md"
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-300 transform hover:-translate-y-1 shadow-md"
                 >
                   Close
                 </button>

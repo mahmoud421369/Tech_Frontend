@@ -320,13 +320,13 @@ const Login = () => {
 
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-600 via-blue-600 to-purple-600 p-4 overflow-hidden dark:bg-gray-900">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-600 via-blue-600 to-purple-600  p-4 overflow-hidden dark:from-black dark:to-gray-950">
       <RiComputerLine className="absolute top-10 left-10 text-white dark:text-gray-700 opacity-10 text-7xl animate-bounce" />
       <RiSmartphoneLine className="absolute bottom-16 right-12 text-white dark:text-gray-700 opacity-10 text-6xl animate-pulse" />
       <RiToolsLine className="absolute top-1/2 left-1/3 text-white dark:text-gray-700 opacity-10 text-8xl animate-spin-slow" />
 
       <div className="w-full max-w-md relative z-10">
-        <div className="bg-white/10 dark:bg-gray-800/90 backdrop-blur-lg border border-white/20 dark:border-gray-700 rounded-2xl shadow-2xl p-8">
+        <div className="bg-white/10 dark:bg-gray-950/90 backdrop-blur-lg border-2 border-white/20 dark:border-gray-700 rounded-2xl shadow-2xl p-8">
           <h1 className="text-3xl font-bold text-white dark:text-gray-100 text-center mb-2">
             Welcome Back
           </h1>

@@ -77,10 +77,11 @@ const Signup = () => {
     return emailRegex.test(email);
   }, []);
 
-  const validatePhone = useCallback((phone) => {
-    const phoneRegex = /^\d{10,15}$/;
-    return phoneRegex.test(phone);
-  }, []);
+const validatePhone = useCallback((phone) => {
+  const cleaned = phone.replace(/\D/g, '');  
+  const phoneRegex = /^\d{10,15}$/;
+  return phoneRegex.test(cleaned);
+}, []);
 
   const validatePassword = useCallback((password) => {
     return password.length >= 6;

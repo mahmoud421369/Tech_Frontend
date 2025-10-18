@@ -135,7 +135,7 @@ const Footer = ({ darkMode }) => {
         </div>
 
         {/* Copyright Section */}
-        <div className="pt-8 border-t border-indigo-500 text-center">
+        <div className="pt-8 border-t border-indigo-500 dark:border-gray-900 text-center">
           <p className="text-sm text-white/80">
             &copy; {new Date().getFullYear()}{" "}
             <span className="font-semibold text-indigo-200">

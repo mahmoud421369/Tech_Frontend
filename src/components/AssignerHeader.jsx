@@ -191,7 +191,7 @@ const AssignerHeader = () => {
       {isInitialLoading ? (
         SkeletonLoader
       ) : (
-        <div className="flex justify-between items-center px-6 py-4 bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-900 dark:to-blue-900 text-white shadow-md">
+        <div className="flex justify-between items-center px-6 py-4 bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-black dark:to-gray-950 text-white shadow-md">
           <h1 className="font-bold text-xl tracking-wide">Assigner Dashboard</h1>
 
           <div className="flex items-center gap-4">

@@ -204,7 +204,7 @@ const Products = () => {
 
   return (
     <ShopLayout>
-      <div style={{marginTop:"-1200px"}} className="min-h-screen font-cairo bg-gray-100 dark:bg-gray-900 p-4 sm:p-6 md:p-8">
+      <div style={{marginTop:"-1200px",marginLeft:"250px"}} className="min-h-screen font-cairo bg-gray-100 dark:bg-gray-900 p-4 sm:p-6 md:p-8">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 mb-8 max-w-6xl mx-auto">
           <h1 className="text-2xl sm:text-3xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center justify-end gap-3">
             <FiBox className="text-xl sm:text-2xl" /> المنتجات

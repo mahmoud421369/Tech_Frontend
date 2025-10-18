@@ -225,18 +225,28 @@ const ShopOffers = () => {
   }, [fetchOffers]);
 
   return (
-    <div style={{marginTop:"-600px"}} className="min-h-screen font-cairo bg-gray-100 dark:bg-gray-900 p-4 sm:p-6 md:p-8">
+    <div style={{marginTop:"-600px",marginLeft:"250px"}} className="min-h-screen font-cairo bg-gray-100 dark:bg-gray-900 p-4 sm:p-6 md:p-8">
       
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 mb-8 max-w-6xl mx-auto">
+      <div className="bg-white flex justify-between items-center flex-wrap flex-row-reverse dark:bg-gray-800 rounded-2xl shadow-lg p-6 mb-8 max-w-6xl mx-auto">
         <h1 className="text-2xl sm:text-3xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center justify-end gap-3">
           <FiShoppingBag className="text-xl sm:text-2xl" /> عروض المتجر
         </h1>
+              <div className="relative w-full sm:w-64">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-300" />
+            <input
+              type="text"
+              placeholder="...ابحث عن عرض"
+              onChange={handleSearchChange}
+              className="w-full pl-10 pr-4 py-2.5 placeholder:text-right bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300 font-cairo"
+             
+            />
+          </div>
       </div>
 
     
       <div className="max-w-6xl mx-auto mb-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-white flex justify-center flex-row-reverse text-center items-center gap-3">
+        <div className="flex justify-end items-center mb-4">
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-white flex justify-center flex-row-reverse text-right items-center gap-3">
             <FiTag className="text-indigo-600 dark:text-indigo-400" />
             {editingOffer ? 'تعديل العرض' : 'إضافة عرض جديد'}
           </h2>
@@ -319,7 +329,7 @@ const ShopOffers = () => {
                           : setNewOffer({ ...newOffer, discountType: 'PERCENTAGE' });
                         setIsDiscountTypeOpen(false);
                       }}
-                      className="w-full px-4 py-2 text-right font-cairo hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-all duration-200"
+                      className="w-full px-4 py-2 text-right font-cairo dark:text-white hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-all duration-200"
                     >
                       نسبة مئوية
                     </button>
@@ -330,7 +340,7 @@ const ShopOffers = () => {
                           : setNewOffer({ ...newOffer, discountType: 'FIXED_AMOUNT' });
                         setIsDiscountTypeOpen(false);
                       }}
-                      className="w-full px-4 py-2 text-right font-cairo hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-all duration-200"
+                      className="w-full px-4 py-2 text-right font-cairo dark:text-white hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-all duration-200"
                     >
                       مبلغ ثابت
                     </button>
@@ -444,21 +454,7 @@ const ShopOffers = () => {
         </div>
       </div>
 
-  
-      <div className="max-w-6xl mx-auto mb-6">
-        <div className="flex items-center justify-between flex-row-reverse gap-4 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-          <div className="relative w-full sm:w-64">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-300" />
-            <input
-              type="text"
-              placeholder="...ابحث عن عرض"
-              onChange={handleSearchChange}
-              className="w-full pl-10 pr-4 py-2.5 placeholder:text-right bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300 font-cairo"
-              dir="rtl"
-            />
-          </div>
-        </div>
-      </div>
+
 
       
       <div className="max-w-6xl mx-auto">
@@ -552,7 +548,7 @@ const ShopOffers = () => {
 
               
               {totalPages > 1 && (
-                <div className="flex justify-center items-center gap-2 mt-6">
+                <div className="flex justify-center items-center gap-2 mt-6 p-4">
                   <button
                     onClick={() => setCurrentPage(currentPage - 1)}
                     className="px-4 py-2 bg-gray-50 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed font-cairo"

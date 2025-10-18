@@ -6,7 +6,7 @@ const Chat = () => {
   const [openChat, setOpenChat] = useState(false);
 
   return (
-    <div style={{marginTop:"-700px"}} className="min-h-screen flex items-center justify-center p-4 sm:p-6 bg-gray-100 dark:bg-gray-950 transition-all duration-300 font-cairo">
+    <div style={{marginTop:"-700px",marginLeft:"250px"}} className="min-h-screen flex items-center justify-center p-4 sm:p-6 bg-gray-100 dark:bg-gray-950 transition-all duration-300 font-cairo">
       <div className="w-full max-w-4xl bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sm:p-8">
         {/* Header */}
         <div className="mb-6 text-center">
