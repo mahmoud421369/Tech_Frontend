@@ -20,7 +20,7 @@ const Navbar = ({ cartItems, setCartItems, onCartClick, addToCart, darkMode, tog
   const [showNotifications, setShowNotifications] = useState(false);
   const dropdownRef = useRef(null);
 
-  const cartCount = (cartItems || []).length; // Fallback to empty array if cartItems is undefined
+  const cartCount = (cartItems || []).length;
 
   const fetchCart = useCallback(async () => {
     if (!token || isTokenExpired(token)) return;
@@ -33,11 +33,11 @@ const Navbar = ({ cartItems, setCartItems, onCartClick, addToCart, darkMode, tog
       setCartItems(items);
       updateCartCount(items);
     } catch (error) {
-      console.error("Error fetching cart:", error.response?.data || error.message);
-      toast.error("Failed to load cart", {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      // console.error("Error fetching cart:", error.response?.data || error.message);
+      // toast.error("Failed to load cart", {
+      //   position: "top-right",
+      //   autoClose: 3000,
+      // });
       setCartItems([]);
       updateCartCount([]);
     } finally {
@@ -51,11 +51,11 @@ const Navbar = ({ cartItems, setCartItems, onCartClick, addToCart, darkMode, tog
       const response = await api.get("/api/notifications/users");
       setNotifications(response.data || []);
     } catch (error) {
-      console.error("Error fetching notifications:", error.response?.data || error.message);
-      toast.error("Failed to load notifications", {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      // console.error("Error fetching notifications:", error.response?.data || error.message);
+      // toast.error("Failed to load notifications", {
+      //   position: "top-right",
+      //   autoClose: 3000,
+      // });
     }
   }, [token]);
 

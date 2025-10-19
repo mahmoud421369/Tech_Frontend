@@ -413,7 +413,7 @@ const AdminOffers = ({ darkMode }) => {
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">Manage and view available offers</p>
           </div>
-          <button
+          {/* <button
             onClick={() => {
               setIsModalOpen(true);
               setEditingOffer(null);
@@ -423,7 +423,7 @@ const AdminOffers = ({ darkMode }) => {
             className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 dark:bg-indigo-700 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-800 transition-all duration-300 transform hover:-translate-y-1 shadow-md"
           >
             <FiPlus /> Add Offer
-          </button>
+          </button> */}
         </div>
 
         {isLoading ? (
@@ -498,24 +498,24 @@ const AdminOffers = ({ darkMode }) => {
                   <td className="px-6 py-4 text-sm font-medium">{o.name || 'N/A'}</td>
                   <td className="px-6 py-4 text-sm">{o.description || 'N/A'}</td>
                   <td className="px-6 py-4 flex justify-center gap-2">
-                    <button
+                    {/* <button
                       onClick={() => {
                         setEditingOffer(o);
                         setOfferTitle(o.name || '');
                         setOfferDescription(o.description || '');
                         setIsModalOpen(true);
                       }}
-                      className="p-2 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800/70 transition-all duration-300"
+                      className="p-2 bg-indigo-100 text-xs dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800/70 transition-all duration-300"
                       title="Edit Offer"
                     >
-                      <FiEdit3 size={16} />
-                    </button>
+                      Edit
+                    </button> */}
                     <button
                       onClick={() => deleteOffer(o.id)}
-                      className="p-2 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-800/70 transition-all duration-300"
+                      className="p-2 bg-red-100 text-xs dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-800/70 transition-all duration-300"
                       title="Delete Offer"
                     >
-                      <FiTrash2 size={16} />
+                     Delete
                     </button>
                   </td>
                 </tr>

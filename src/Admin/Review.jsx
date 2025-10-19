@@ -465,15 +465,15 @@ const Reviews = ({ darkMode }) => {
                         <div className="flex items-center justify-center gap-3">
                           <button
                             onClick={() => openReviewDetails(review)}
-                            className="p-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-200 hover:shadow-md"
+                            className="p-2 bg-indigo-100 text-xs dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-200 hover:shadow-md"
                           >
-                            <FiEye size={18} />
+                            View
                           </button>
                           <button
                             onClick={() => deleteReview(review.id)}
-                            className="p-2 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-800 transition-all duration-200 hover:shadow-md"
+                            className="p-2 bg-red-100 text-xs dark:bg-red-900 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-800 transition-all duration-200 hover:shadow-md"
                           >
-                            <FiTrash2 size={18} />
+                            Delete
                           </button>
                         </div>
                       </td>
@@ -490,7 +490,7 @@ const Reviews = ({ darkMode }) => {
                   disabled={currentPage === 1}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
                 >
-                  <FiChevronLeft size={18} /> Previous
+                  <FiChevronLeft size={18} /> 
                 </button>
 
                 {getPageNumbers().map((page, idx) => (
@@ -511,7 +511,7 @@ const Reviews = ({ darkMode }) => {
                   disabled={currentPage === totalPages}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
                 >
-                  Next <FiChevronRight size={18} />
+                   <FiChevronRight size={18} />
                 </button>
               </div>
             )}
@@ -543,7 +543,7 @@ const Reviews = ({ darkMode }) => {
                     <strong className="font-medium">Customer:</strong> {DOMPurify.sanitize(selectedReview.userId) || 'N/A'}
                   </p>
                   <p className="text-sm text-gray-700 dark:text-gray-200">
-                    <strong className="font-medium">Repair Shop:</strong> {DOMPurify.sanitize(selectedReview.shopId) || 'N/A'}
+                    <strong className="font-medium">Shop:</strong> {DOMPurify.sanitize(selectedReview.shopId) || 'N/A'}
                   </p>
                   <p className="text-sm text-gray-700 dark:text-gray-200">
                     <strong className="font-medium">Rating:</strong> {renderStars(selectedReview.rating)}

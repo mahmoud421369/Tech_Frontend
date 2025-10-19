@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUsers, FiShoppingCart, FiTool, FiHome, FiCopy, FiBarChart2 } from 'react-icons/fi';
+import { FiUsers, FiShoppingCart, FiTool, FiHome, FiCopy, FiBarChart2, FiActivity } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import api from '../api';
 import {
-  Chart ,
+  Chart,
   CategoryScale,
   LinearScale,
   BarElement,
@@ -70,7 +70,7 @@ const Dashboard = ({ darkMode }) => {
         });
       },
       (err) => {
-        console.error('Copy failed:', err);
+       
         Swal.fire({
           title: 'Error',
           text: `Failed to copy ${label.toLowerCase()}`,
@@ -109,7 +109,7 @@ const Dashboard = ({ darkMode }) => {
     } catch (error) {
       console.error('Error fetching stats:', error.response?.data || error.message);
       Swal.fire({
-        title: 'Error',
+         title: 'Error',
         text: error.response?.status === 401 ? 'Unauthorized, please log in' : 'Failed to load stats',
         icon: 'error',
         customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
@@ -136,6 +136,7 @@ const Dashboard = ({ darkMode }) => {
   }, [fetchStats]);
 
   const chartLabels = ['Users', 'Shops', 'Repair Requests', 'Orders'];
+
   const chartValues = [stats?.users || 0, stats?.shops || 0, stats?.repairs || 0, stats?.orders || 0];
 
   const barChartData = useMemo(() => ({
@@ -143,21 +144,53 @@ const Dashboard = ({ darkMode }) => {
     datasets: [{
       label: 'Counts',
       data: chartValues,
-      backgroundColor: darkMode ? 'rgba(99, 102, 241, 0.4)' : 'rgba(99, 102, 241, 0.6)',
-      borderColor: darkMode ? 'rgba(99, 102, 241, 0.8)' : 'rgb(99, 102, 241)',
-      borderWidth: 1,
+      backgroundColor: darkMode
+        ? ['rgba(239, 68, 68, 0.4)', 'rgba(59, 130, 246, 0.4)', 'rgba(16, 185, 129, 0.4)', 'rgba(245, 158, 11, 0.4)']
+        : ['rgba(239, 68, 68, 0.6)', 'rgba(59, 130, 246, 0.6)', 'rgba(16, 185, 129, 0.6)', 'rgba(245, 158, 11, 0.6)'],
+      borderColor: darkMode
+        ? ['rgb(239, 68, 68)', 'rgb(59, 130, 246)', 'rgb(16, 185, 129)', 'rgb(245, 158, 11)']
+        : ['rgb(220, 38, 38)', 'rgb(29, 100, 216)', 'rgb(5, 150, 105)', 'rgb(217, 119, 6)'],
+      borderWidth: 1.5,
+      hoverBackgroundColor: darkMode
+        ? ['rgba(239, 68, 68, 0.6)', 'rgba(59, 130, 246, 0.6)', 'rgba(16, 185, 129, 0.6)', 'rgba(245, 158, 11, 0.6)']
+        : ['rgba(220, 38, 38, 0.8)', 'rgba(29, 100, 216, 0.8)', 'rgba(5, 150, 105, 0.8)', 'rgba(217, 119, 6, 0.8)'],
     }],
   }), [darkMode, stats]);
 
   const barChartOptions = useMemo(() => ({
     responsive: true,
     plugins: {
-      legend: { position: 'top', labels: { color: darkMode ? '#e5e7eb' : '#1f2937' } },
-      title: { display: true, text: 'Admin Statistics Overview', color: darkMode ? '#e5e7eb' : '#1f2937' },
+      legend: {
+        position: 'top',
+        labels: { color: darkMode ? '#e5e7eb' : '#1f2937', font: { size: 14, weight: 'bold' } },
+      },
+      title: {
+        display: true,
+        text: 'Admin Statistics Overview',
+        color: darkMode ? '#e5e7eb' : '#1f2937',
+        font: { size: 18, weight: 'bold' },
+        padding: { top: 10, bottom: 20 },
+      },
+      tooltip: {
+        backgroundColor: darkMode ? 'rgba(55, 65, 81, 0.9)' : 'rgba(17, 24, 39, 0.9)',
+        titleFont: { size: 14 },
+        bodyFont: { size: 12 },
+      },
     },
     scales: {
-      x: { ticks: { color: darkMode ? '#e5e7eb' : '#1f2937' } },
-      y: { beginAtZero: true, ticks: { color: darkMode ? '#e5e7eb' : '#1f2937' } },
+      x: {
+        ticks: { color: darkMode ? '#e5e7eb' : '#1f2937', font: { size: 12 } },
+        grid: { display: false },
+      },
+      y: {
+        beginAtZero: true,
+        ticks: { color: darkMode ? '#e5e7eb' : '#1f2937', font: { size: 12 } },
+        grid: { color: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' },
+      },
+    },
+    animation: {
+      duration: 1000,
+      easing: 'easeInOutQuad',
     },
   }), [darkMode]);
 
@@ -165,38 +198,59 @@ const Dashboard = ({ darkMode }) => {
     labels: chartLabels,
     datasets: [{
       data: chartValues,
-      backgroundColor: [
-        darkMode ? 'rgba(99, 102, 241, 0.6)' : 'rgba(99, 102, 241, 0.8)',
-        darkMode ? 'rgba(59, 130, 246, 0.6)' : 'rgba(59, 130, 246, 0.8)',
-        darkMode ? 'rgba(129, 140, 248, 0.6)' : 'rgba(129, 140, 248, 0.8)',
-        darkMode ? 'rgba(167, 139, 250, 0.6)' : 'rgba(167, 139, 250, 0.8)',
-      ],
-      borderColor: [
-        'rgb(99, 102, 241)',
-        'rgb(59, 130, 246)',
-        'rgb(129, 140, 248)',
-        'rgb(167, 139, 250)',
-      ],
-      borderWidth: 1,
+      backgroundColor: darkMode
+        ? ['rgba(236, 72, 153, 0.6)', 'rgba(34, 197, 94, 0.6)', 'rgba(249, 115, 22, 0.6)', 'rgba(139, 92, 246, 0.6)']
+        : ['rgba(236, 72, 153, 0.8)', 'rgba(34, 197, 94, 0.8)', 'rgba(249, 115, 22, 0.8)', 'rgba(139, 92, 246, 0.8)'],
+      borderColor: darkMode
+        ? ['rgb(236, 72, 153)', 'rgb(34, 197, 94)', 'rgb(249, 115, 22)', 'rgb(139, 92, 246)']
+        : ['rgb(219, 39, 119)', 'rgb(21, 128, 61)', 'rgb(194, 86, 0)', 'rgb(109, 40, 217)'],
+      borderWidth: 1.5,
+      hoverBackgroundColor: darkMode
+        ? ['rgba(236, 72, 153, 0.8)', 'rgba(34, 197, 94, 0.8)', 'rgba(249, 115, 22, 0.8)', 'rgba(139, 92, 246, 0.8)']
+        : ['rgba(219, 39, 119, 1)', 'rgba(21, 128, 61, 1)', 'rgba(194, 86, 0, 1)', 'rgb(109, 40, 217, 1)'],
     }],
   }), [darkMode, stats]);
 
   const pieChartOptions = useMemo(() => ({
     responsive: true,
     plugins: {
-      legend: { position: 'top', labels: { color: darkMode ? '#e5e7eb' : '#1f2937' } },
-      title: { display: true, text: 'Distribution of Stats', color: darkMode ? '#e5e7eb' : '#1f2937' },
+      legend: {
+        position: 'top',
+        labels: { color: darkMode ? '#e5e7eb' : '#1f2937', font: { size: 14, weight: 'bold' } },
+      },
+      title: {
+        display: true,
+        text: 'Distribution of Stats',
+        color: darkMode ? '#e5e7eb' : '#1f2937',
+        font: { size: 18, weight: 'bold' },
+        padding: { top: 10, bottom: 20 },
+      },
+      tooltip: {
+        backgroundColor: darkMode ? 'rgba(55, 65, 81, 0.9)' : 'rgba(17, 24, 39, 0.9)',
+        titleFont: { size: 14 },
+        bodyFont: { size: 12 },
+      },
+    },
+    animation: {
+      duration: 1000,
+      easing: 'easeInOutQuad',
     },
   }), [darkMode]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 mt-14 transition-colors duration-300 animate-fade-in">
       <div className="max-w-7xl mx-auto">
+        <div style={{marginLeft:"250px"}} className="bg-white dark:bg-gray-800 mb-6 rounded-lg shadow-md p-6 flex justify-between flex-wrap gap-4  items-center">
+          <h1 className="text-3xl font-bold flex items-center gap-4 text-indigo-600 dark:text-gray-100">
+            <FiActivity/>
+            Admin Dashboard</h1>
+          <p className="text-gray-600 dark:text-gray-400">Overview of key metrics and statistics</p>
+        </div>
         {loading ? (
           <DashboardSkeleton darkMode={darkMode} />
         ) : !stats ? (
-          <div className="bg-white dark:bg-gray-950 rounded-lg shadow-md p-8 text-center">
-            <FiBarChart2 className="text-6xl mx-auto mb-4 text-indigo-500 dark:text-indigo-400" />
+          <div className="bg-white dark:bg-gray-950 rounded-lg shadow-md p-8 text-center transition-all duration-300">
+            <FiBarChart2 className="text-6xl mx-auto mb-4 text-indigo-500 dark:text-indigo-400 animate-pulse" />
             <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">No stats available</h3>
             <p className="text-gray-600 dark:text-gray-400">Unable to load dashboard statistics. Please try again.</p>
           </div>
@@ -204,22 +258,22 @@ const Dashboard = ({ darkMode }) => {
           <>
             <div style={{ marginLeft: "250px" }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
               {[
-                { title: 'Total Users', value: stats.users, icon: <FiUsers className="text-4xl text-indigo-600 dark:text-indigo-400" /> },
-                { title: 'Total Shops', value: stats.shops, icon: <FiHome className="text-4xl text-indigo-600 dark:text-indigo-400" /> },
-                { title: 'Total Repair Requests', value: stats.repairs, icon: <FiTool className="text-4xl text-indigo-600 dark:text-indigo-400" /> },
-                { title: 'Total Orders', value: stats.orders, icon: <FiShoppingCart className="text-4xl text-indigo-600 dark:text-indigo-400" /> },
+                { title: 'Total Users', value: stats.users, icon: <FiUsers className="text-4xl text-red-500 dark:text-red-400" /> },
+                { title: 'Total Shops', value: stats.shops, icon: <FiHome className="text-4xl text-green-500 dark:text-green-400" /> },
+                { title: 'Total Repair Requests', value: stats.repairs, icon: <FiTool className="text-4xl text-orange-500 dark:text-orange-400" /> },
+                { title: 'Total Orders', value: stats.orders, icon: <FiShoppingCart className="text-4xl text-purple-500 dark:text-purple-400" /> },
               ].map((stat, index) => (
                 <div
                   key={index}
-                  className="p-6 bg-white dark:bg-gray-950 shadow-md flex items-center justify-between border-l-4 border-indigo-600 transition-all duration-300 transform hover:-translate-y-1"
+                  className="p-6 bg-white dark:bg-gray-950 shadow-lg  flex items-center justify-between border-l-4 border-indigo-600 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl"
                 >
                   <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">{stat.title}</h3>
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-lg">{stat.title}</h3>
                     <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
                       {stat.value || '-'}
                       <button
                         onClick={() => copyToClipboard(stat.value || '0', stat.title)}
-                        className="relative group p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                        className="relative group p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-transform duration-200 hover:scale-110"
                         title={`Copy ${stat.title}`}
                       >
                         <FiCopy />
@@ -235,10 +289,10 @@ const Dashboard = ({ darkMode }) => {
             </div>
 
             <div style={{ marginLeft: "250px" }} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white dark:bg-gray-950 rounded-lg shadow-md p-6">
+              <div className="bg-white dark:bg-gray-950 rounded-xl shadow-lg p-6 transition-all duration-300 hover:shadow-xl">
                 <Bar options={barChartOptions} data={barChartData} />
               </div>
-              <div className="bg-white dark:bg-gray-950 rounded-lg shadow-md p-6">
+              <div className="bg-white dark:bg-gray-950 rounded-xl shadow-lg p-6 transition-all duration-300 hover:shadow-xl">
                 <Pie options={pieChartOptions} data={pieChartData} />
               </div>
             </div>

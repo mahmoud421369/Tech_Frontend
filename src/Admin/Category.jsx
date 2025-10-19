@@ -497,17 +497,17 @@ const Categories = ({ darkMode }) => {
                         setCategoryName(c.name || '');
                         setIsModalOpen(true);
                       }}
-                      className="p-2 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800/70 transition-all duration-300"
+                      className="p-2 bg-indigo-100 text-xs dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800/70 transition-all duration-300"
                       title="Edit Category"
                     >
-                      <FiEdit3 size={16} />
+                      Edit
                     </button>
                     <button
                       onClick={() => deleteCategory(c.id)}
-                      className="p-2 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-800/70 transition-all duration-300"
+                      className="p-2 bg-red-100 text-xs dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-800/70 transition-all duration-300"
                       title="Delete Category"
                     >
-                      <FiTrash2 size={16} />
+                      Delete
                     </button>
                   </td>
                 </tr>

@@ -448,7 +448,7 @@ const Deliveries = ({ darkMode }) => {
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody className="divide-y divide-gray-200 text-center dark:divide-gray-700">
                   {currentDeliveries.map((d) => (
                     <tr
                       key={d.id}
@@ -467,16 +467,16 @@ const Deliveries = ({ darkMode }) => {
                                                                              </span>
                                                                            </button>
                                                                          </td>
-                      <td className="py-6 px-6 text-center text-gray-600 dark:text-gray-300 font-medium">
+                      <td className="px-6 py-4 dark:text-white text-sm font-medium">
                         {DOMPurify.sanitize(d.name) || 'N/A'}
                       </td>
-                      <td className="py-6 px-6 text-center text-gray-600 dark:text-gray-300">
+                      <td className="px-6 py-4 dark:text-white text-sm font-medium">
                         {DOMPurify.sanitize(d.email) || 'N/A'}
                       </td>
-                      <td className="py-6 px-6 text-center text-gray-600 dark:text-gray-300">
-                        {DOMPurify.sanitize(d.phone) || 'N/A'}
+                      <td className="px-6 py-4 dark:text-white text-sm font-medium">
+                        0{DOMPurify.sanitize(d.phone) || 'N/A'}
                       </td>
-                      <td className="py-6 px-6 text-center">
+                      <td className="px-6 py-4 dark:text-white text-sm font-medium">
                         <span
                           className={`px-3 py-1 rounded-full text-sm font-medium ${
                             d.status === 'APPROVED'
@@ -489,38 +489,38 @@ const Deliveries = ({ darkMode }) => {
                           {d.status === 'APPROVED' ? 'Approved' : d.status === 'PENDING' ? 'Pending' : 'Suspended'}
                         </span>
                       </td>
-                      <td className="py-6 px-6 text-center text-gray-600 dark:text-gray-300">
+                      <td className="px-6 py-4 dark:text-white text-sm font-medium">
                         {d.totalCompletedDeliveries || 0}
                       </td>
-                      <td className="py-6 px-6 text-center">
+                      <td className="px-6 py-4 dark:text-white text-sm font-medium">
                         <div className="flex items-center justify-center gap-3">
                           <button
                             onClick={() => fetchDeliveryById(d.id)}
-                            className="p-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-200 hover:shadow-md"
+                            className="p-2 bg-indigo-100 text-xs dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-200 hover:shadow-md"
                           >
-                            <FiInfo size={18} />
+                            View
                           </button>
                           {d.status !== 'APPROVED' && (
                             <button
                               onClick={() => updateStatus(d.id, 'approve')}
-                              className="p-2 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400 rounded-full hover:bg-green-200 dark:hover:bg-green-800 transition-all duration-200 hover:shadow-md"
+                              className="p-2 bg-green-100 text-xs dark:bg-green-900 text-green-600 dark:text-green-400 rounded-full hover:bg-green-200 dark:hover:bg-green-800 transition-all duration-200 hover:shadow-md"
                             >
-                              <FiCheckCircle size={18} />
+                              Approve
                             </button>
                           )}
                           {d.status !== 'SUSPENDED' && (
                             <button
                               onClick={() => updateStatus(d.id, 'suspend')}
-                              className="p-2 bg-amber-100 dark:bg-amber-900 text-amber-600 dark:text-amber-400 rounded-full hover:bg-amber-200 dark:hover:bg-amber-800 transition-all duration-200 hover:shadow-md"
+                              className="p-2 bg-amber-100 text-xs dark:bg-amber-900 text-amber-600 dark:text-amber-400 rounded-full hover:bg-amber-200 dark:hover:bg-amber-800 transition-all duration-200 hover:shadow-md"
                             >
-                              <FiXCircle size={18} />
+                              Suspend
                             </button>
                           )}
                           <button
                             onClick={() => updateStatus(d.id, 'delete')}
-                            className="p-2 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-800 transition-all duration-200 hover:shadow-md"
+                            className="p-2 bg-red-100 text-xs dark:bg-red-900 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-800 transition-all duration-200 hover:shadow-md"
                           >
-                            <FiTrash2 size={18} />
+                            Delete
                           </button>
                         </div>
                       </td>
@@ -537,7 +537,7 @@ const Deliveries = ({ darkMode }) => {
                   disabled={currentPage === 1}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
                 >
-                  <FiChevronLeft size={18} /> Previous
+                  <FiChevronLeft size={18} /> 
                 </button>
 
                 {getPageNumbers().map((page, idx) => (
@@ -558,7 +558,7 @@ const Deliveries = ({ darkMode }) => {
                   disabled={currentPage === totalPages}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
                 >
-                  Next <FiChevronRight size={18} />
+                   <FiChevronRight size={18} />
                 </button>
               </div>
             )}
@@ -593,7 +593,7 @@ const Deliveries = ({ darkMode }) => {
                     <strong className="font-medium">Email:</strong> {DOMPurify.sanitize(selectedDelivery.email) || 'N/A'}
                   </p>
                   <p className="text-sm text-gray-700 dark:text-gray-200">
-                    <strong className="font-medium">Phone:</strong> {DOMPurify.sanitize(selectedDelivery.phone) || 'N/A'}
+                    <strong className="font-medium">Phone:</strong> 0{DOMPurify.sanitize(selectedDelivery.phone) || 'N/A'}
                   </p>
                   <p className="text-sm text-gray-700 dark:text-gray-200">
                     <strong className="font-medium">Address:</strong> {DOMPurify.sanitize(selectedDelivery.address) || 'N/A'}

@@ -176,6 +176,7 @@ const Assigners = ({ darkMode }) => {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = response.data.content || response.data || [];
+      console.log(data);
       setAssigners(data);
     } catch (error) {
       console.error('Error fetching assigners:', error.response?.data || error.message);
@@ -500,31 +501,31 @@ const Assigners = ({ darkMode }) => {
                         <div className="flex items-center justify-center gap-3">
                           <button
                             onClick={() => fetchAssignerById(a.id)}
-                            className="p-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-200 hover:shadow-md"
+                            className="p-2 bg-indigo-100 text-xs dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-200 hover:shadow-md"
                           >
-                            <FiInfo size={18} />
+                           View
                           </button>
                           {a.status !== 'APPROVED' && (
                             <button
                               onClick={() => updateStatus(a.id, 'approve')}
-                              className="p-2 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400 rounded-full hover:bg-green-200 dark:hover:bg-green-800 transition-all duration-200 hover:shadow-md"
+                              className="p-2 bg-green-100 text-xs dark:bg-green-900 text-green-600 dark:text-green-400 rounded-full hover:bg-green-200 dark:hover:bg-green-800 transition-all duration-200 hover:shadow-md"
                             >
-                              <FiCheckCircle size={18} />
+                              Approve
                             </button>
                           )}
                           {a.status !== 'SUSPENDED' && (
                             <button
                               onClick={() => updateStatus(a.id, 'suspend')}
-                              className="p-2 bg-amber-100 dark:bg-amber-900 text-amber-600 dark:text-amber-400 rounded-full hover:bg-amber-200 dark:hover:bg-amber-800 transition-all duration-200 hover:shadow-md"
+                              className="p-2 bg-amber-100 text-xs dark:bg-amber-900 text-amber-600 dark:text-amber-400 rounded-full hover:bg-amber-200 dark:hover:bg-amber-800 transition-all duration-200 hover:shadow-md"
                             >
-                              <FiXOctagon size={18} />
+                              Suspend
                             </button>
                           )}
                           <button
                             onClick={() => updateStatus(a.id, 'delete')}
-                            className="p-2 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-800 transition-all duration-200 hover:shadow-md"
+                            className="p-2 bg-red-100 text-xs dark:bg-red-900 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-800 transition-all duration-200 hover:shadow-md"
                           >
-                            <FiTrash2 size={18} />
+                            Delete
                           </button>
                         </div>
                       </td>
@@ -541,7 +542,7 @@ const Assigners = ({ darkMode }) => {
                   disabled={currentPage === 1}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
                 >
-                  <FiChevronLeft size={18} /> Previous
+                  <FiChevronLeft size={18} /> 
                 </button>
 
                 {getPageNumbers().map((page, idx) => (
@@ -562,7 +563,7 @@ const Assigners = ({ darkMode }) => {
                   disabled={currentPage === totalPages}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
                 >
-                  Next <FiChevronRight size={18} />
+                   <FiChevronRight size={18} />
                 </button>
               </div>
             )}
@@ -591,10 +592,10 @@ const Assigners = ({ darkMode }) => {
                     <strong className="font-medium">ID:</strong> {selectedAssigner.id || 'N/A'}
                   </p>
                   <p className="text-sm text-gray-700 dark:text-gray-200">
-                    <strong className="font-medium">Total Assignments Handled:</strong> {selectedAssigner.totalAssignmentsHandled || 'N/A'}
+                    <strong className="font-medium">Total Assignments Handled:</strong> {selectedAssigner.totalAssignmentsHandled || 0}
                   </p>
                   <p className="text-sm text-gray-700 dark:text-gray-200">
-                    <strong className="font-medium">Pending Assignments:</strong> {selectedAssigner.pendingAssignments || 'N/A'}
+                    <strong className="font-medium">Pending Assignments:</strong> {selectedAssigner.pendingAssignments || 0}
                   </p>
                   <p className="text-sm text-gray-700 dark:text-gray-200">
                     <strong className="font-medium">Name:</strong> {DOMPurify.sanitize(selectedAssigner.name) || 'N/A'}
@@ -603,7 +604,7 @@ const Assigners = ({ darkMode }) => {
                     <strong className="font-medium">Email:</strong> {DOMPurify.sanitize(selectedAssigner.email) || 'N/A'}
                   </p>
                   <p className="text-sm text-gray-700 dark:text-gray-200">
-                    <strong className="font-medium">Phone:</strong> {DOMPurify.sanitize(selectedAssigner.phone) || 'N/A'}
+                    <strong className="font-medium">Phone:</strong> 0{DOMPurify.sanitize(selectedAssigner.phone) || 'N/A'}
                   </p>
                   <p className="text-sm text-gray-700 dark:text-gray-200">
                     <strong className="font-medium">Status:</strong>{' '}

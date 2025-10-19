@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
-import { FiUser, FiHome, FiDollarSign, FiPackage, FiSearch, FiChevronLeft, FiChevronRight, FiCopy, FiXCircle } from 'react-icons/fi';
+import { FiUser, FiHome, FiDollarSign, FiPackage, FiSearch, FiChevronLeft, FiChevronRight, FiCopy, FiXCircle, FiMapPin } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import api from '../api';
 import Modal from '../components/Modal';
 import { useNavigate } from 'react-router-dom';
-
+import { FaStore } from 'react-icons/fa';
 
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center h-64">
@@ -13,26 +12,25 @@ const LoadingSpinner = () => (
   </div>
 );
 
-
 const OrdersSkeleton = ({ darkMode }) => (
-  <div className="animate-pulse p-6">
-    <div className="space-y-4 mb-8">
-      <div className="h-8 w-1/4 bg-gray-300 dark:bg-gray-700 rounded"></div>
+  <div className="animate-pulse p-4 sm:p-6">
+    <div className="space-y-4 mb-6 sm:mb-8">
+      <div className="h-8 w-1/3 sm:w-1/4 bg-gray-300 dark:bg-gray-700 rounded"></div>
       <div className="h-4 w-1/2 bg-gray-300 dark:bg-gray-700 rounded"></div>
     </div>
-    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-6 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-      <div className="h-10 w-64 bg-gray-300 dark:bg-gray-700 rounded-xl"></div>
-      <div className="flex space-x-4">
+    <div className="bg-white dark:bg-gray-950 rounded-2xl p-4 sm:p-6 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="h-10 w-full sm:w-64 bg-gray-300 dark:bg-gray-700 rounded-xl"></div>
+      <div className="flex flex-wrap gap-4">
         <div className="h-6 w-20 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
         <div className="h-6 w-20 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
         <div className="h-6 w-20 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
       </div>
     </div>
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
       {[...Array(6)].map((_, idx) => (
         <div
           key={idx}
-          className="p-6 rounded-xl shadow-md bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-700"
+          className="p-4 sm:p-6 rounded-xl shadow-md bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-700"
         >
           <div className="flex justify-between mb-4">
             <div className="space-y-2">
@@ -70,7 +68,6 @@ const OrdersForAssignment = ({ darkMode }) => {
   const [isAssigning, setIsAssigning] = useState(false);
   const navigate = useNavigate();
 
-  
   const debounce = (func, delay) => {
     let timeoutId;
     return (...args) => {
@@ -131,12 +128,48 @@ const OrdersForAssignment = ({ darkMode }) => {
     const controller = new AbortController();
     try {
       setIsLoading(true);
-      const response = await api.get('/api/assigner/orders-for-assignment', {
-        signal: controller.signal,
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = response.data.content || response.data || [];
-      setOrders(data);
+      const [ordersRes, assignmentLogRes] = await Promise.all([
+        api.get('/api/assigner/orders-for-assignment', {
+          signal: controller.signal,
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        api.get('/api/assigner/assignment-log', {
+          signal: controller.signal,
+          headers: { Authorization: `Bearer ${token}` },
+          params: { assignmentType: 'ORDER' },
+        }),
+      ]);
+
+      const ordersData = ordersRes.data.content || ordersRes.data || [];
+      const assignmentLogData = assignmentLogRes.data.content || assignmentLogRes.data || [];
+
+
+      const mergedOrders = [
+        ...ordersData,
+        ...assignmentLogData.map((log) => ({
+          id: log.orderId,
+          userId: log.userId,
+          userName: log.userName,
+          userAddress: log.userAddress,
+          shopId: log.shopId,
+          shopName: log.shopName,
+          shopAddress: log.shopAddress,
+          totalPrice: log.totalPrice,
+          status: log.status || 'ASSIGNED',
+          createdAt: log.createdAt,
+          updatedAt: log.updatedAt,
+          assignerId: log.assignerId,
+          assignerName: log.assignerName,
+          deliveryId: log.deliveryId,
+        })),
+      ];
+
+   
+      const uniqueOrders = Array.from(
+        new Map(mergedOrders.map((order) => [order.id, order])).values()
+      );
+console.log(uniqueOrders)
+      setOrders(uniqueOrders);
     } catch (error) {
       console.error('Error fetching orders:', error.response?.data || error.message);
       Swal.fire({
@@ -261,6 +294,7 @@ const OrdersForAssignment = ({ darkMode }) => {
 
   const filteredOrders = orders.filter(
     (order) =>
+      order.id?.toString().includes(debouncedSearchTerm) ||
       order.userId?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
       order.shopId?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
       order.status?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
@@ -361,28 +395,29 @@ const OrdersForAssignment = ({ darkMode }) => {
   }, [searchTerm, handleSearchChange]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 transition-colors duration-300 animate-fade-in">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 animate-fade-in">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
-            <FiPackage /> Orders for Assignment
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400">Manage and assign orders to delivery personnel</p>
-        </div>
+        <div className="bg-white dark:bg-gray-950 p-4 sm:p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
+          <div className="mb-6 sm:mb-8">
+            <h2 className="text-2xl sm:text-3xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
+              <FiPackage size={24} />
+              Orders for Assignment
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">Manage and assign orders to delivery personnel</p>
+          </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6">
-          <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-            <div className="relative w-full md:w-64">
-              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-300" />
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6">
+            <div className="relative w-full sm:w-64">
+              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-300" size={20} />
               <input
                 type="text"
-                placeholder="Search by user, shop, address, status..."
+                placeholder="Search by ID, user, shop, address, status..."
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full pl-10 pr-10 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all duration-300"
+                className="w-full pl-10 pr-10 py-2 sm:py-3 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all duration-300 text-sm sm:text-base"
               />
               {searchTerm && (
                 <button
@@ -392,11 +427,11 @@ const OrdersForAssignment = ({ darkMode }) => {
                   }}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
                 >
-                  <FiXCircle />
+                  <FiXCircle size={20} />
                 </button>
               )}
             </div>
-            <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
+            <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
               <span className="bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 px-3 py-1 rounded-full">
                 Total: {orders.length}
               </span>
@@ -408,243 +443,249 @@ const OrdersForAssignment = ({ darkMode }) => {
               </span>
             </div>
           </div>
-        </div>
 
-        {isLoading ? (
-          <OrdersSkeleton darkMode={darkMode} />
-        ) : currentOrders.length === 0 ? (
-          <div className="bg-white dark:bg-gray-950 rounded-lg shadow-md p-8 text-center">
-            <FiPackage className="text-6xl mx-auto mb-4 text-indigo-500 dark:text-indigo-400" />
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-              {orders.length === 0 ? 'No orders available' : 'No orders found'}
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              {searchTerm ? 'Try adjusting your search terms' : 'All orders have been assigned or no orders are pending'}
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              {currentOrders.map((order) => (
-                <div
-                  key={order.id}
-                  className="bg-white dark:bg-gray-950 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg"
-                >
-                  <div className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                            Order #{order.id ? order.id.slice(-8) : 'N/A'}
-                          </h3>
-                          <button
-                            onClick={() => copyToClipboard(order.id)}
-                            className="relative group p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
-                            title="Copy Order ID"
-                          >
-                            <FiCopy />
-                            <span className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2">
-                              Copy Order ID
-                            </span>
-                          </button>
-                        </div>
-                        <span
-                          className={`inline-block mt-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(
-                            order.status
-                          )}`}
-                        >
-                          {order.status?.replace(/_/g, ' ') || 'UNKNOWN'}
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-                          {order.totalPrice || 0} EGP
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Price</div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3 mb-4">
-                      <div className="text-sm text-gray-700 dark:text-gray-200">
-                        <div className="flex items-center gap-2 mb-1">
-                          <FiUser className="text-indigo-500" />
-                          <span>
-                            <strong>User ID:</strong> {order.userId || 'N/A'}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <FiHome className="text-indigo-500" />
-                          <span>
-                            <strong>Shop ID:</strong> {order.shopId || 'N/A'}
-                          </span>
-                        </div>
-                        {order.userAddress && (
-                          <div className="text-xs bg-indigo-50 dark:bg-indigo-900/20 p-2 rounded-lg mt-2 text-indigo-600 dark:text-indigo-400">
-                            <strong className="flex items-center gap-2">
-                              <FiHome /> User Address:
-                            </strong>{' '}
-                            {order.userAddress.street}, {order.userAddress.city}, {order.userAddress.state}
-                          </div>
-                        )}
-                        {order.shopAddress && (
-                          <div className="text-xs bg-indigo-50 dark:bg-indigo-900/20 p-2 rounded-lg mt-2 text-indigo-600 dark:text-indigo-400">
-                            <strong className="flex items-center gap-2">
-                              <FiHome /> Shop Address:
-                            </strong>{' '}
-                            {order.shopAddress.street}, {order.shopAddress.city}, {order.shopAddress.state}
-                          </div>
-                        )}
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                          Created: {formatDate(order.createdAt)}
-                        </div>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => handleAssignClick(order)}
-                      disabled={isLoading || !order.id}
-                      className="w-full bg-indigo-600 text-white py-2.5 px-4 rounded-xl hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed transition-all duration-300 transform hover:-translate-y-1 shadow-md flex items-center justify-center gap-2"
-                    >
-                      <FiPackage /> {!order.id ? 'Invalid Order' : 'Assign Order'}
-                    </button>
-                  </div>
-                </div>
-              ))}
+          {isLoading ? (
+            <OrdersSkeleton darkMode={darkMode} />
+          ) : currentOrders.length === 0 ? (
+            <div className="bg-white dark:bg-gray-950 rounded-2xl shadow-md p-8 text-center border border-gray-200 dark:border-gray-700">
+              <FiPackage className="text-5xl sm:text-6xl mx-auto mb-4 text-indigo-500 dark:text-indigo-400" />
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                {orders.length === 0 ? 'No orders available' : 'No orders found'}
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
+                {searchTerm ? 'Try adjusting your search terms' : 'All orders have been assigned or no orders are pending'}
+              </p>
             </div>
-
-            {totalPages > 1 && (
-              <div className="flex justify-center items-center space-x-2">
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-4 py-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                >
-                  <FiChevronLeft /> Previous
-                </button>
-
-                {getPageNumbers().map((page, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => typeof page === 'number' && setCurrentPage(page)}
-                    className={`px-4 py-2 rounded-xl transition-all duration-300 ${
-                      page === '...' ? 'cursor-default' : currentPage === page ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-800'
-                    }`}
-                    disabled={page === '...'}
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">
+                {currentOrders.map((order) => (
+                  <div
+                    key={order.id}
+                    className="bg-white dark:bg-gray-950 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg"
                   >
-                    {page}
-                  </button>
-                ))}
+                    <div className="p-4 sm:p-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
+                              Order #{order.id ? order.id.slice(-8) : 'N/A'}
+                            </h3>
+                            <button
+                              onClick={() => copyToClipboard(order.id)}
+                              className="relative group p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                              title="Copy Order ID"
+                            >
+                              <FiCopy size={16} />
+                              <span className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2">
+                                Copy Order ID
+                              </span>
+                            </button>
+                          </div>
+                          <span
+                            className={`inline-block mt-1 px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${getStatusBadge(
+                              order.status
+                            )}`}
+                          >
+                            {order.status?.replace(/_/g, ' ') || 'UNKNOWN'}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-xl sm:text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+                            {order.totalPrice || 0} EGP
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Price</div>
+                        </div>
+                      </div>
 
-                <button
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-4 py-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                >
-                  Next <FiChevronRight />
-                </button>
-              </div>
-            )}
-          </>
-        )}
-
-        {selectedOrder && (
-          <Modal onClose={handleCloseModal} title="Assign Order" darkMode={darkMode}>
-            <div className="space-y-4">
-              <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
-                  Order Details
-                  <button
-                    onClick={() => copyToClipboard(selectedOrder.id)}
-                    className="relative group p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
-                    title="Copy Order ID"
-                  >
-                    <FiCopy />
-                    <span className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2">
-                      Copy Order ID
-                    </span>
-                  </button>
-                </h4>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>Order ID:</strong> {selectedOrder.id || 'N/A'}
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>User ID:</strong> {selectedOrder.userId || 'N/A'}
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>Shop ID:</strong> {selectedOrder.shopId || 'N/A'}
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>Price:</strong> {selectedOrder.totalPrice || 0} EGP
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>Status:</strong> {selectedOrder.status?.replace(/_/g, ' ') || 'N/A'}
-                </p>
-                {selectedOrder.userAddress && (
-                  <p className="text-sm text-gray-700 dark:text-gray-200">
-                    <strong>User Address:</strong> {selectedOrder.userAddress.street}, {selectedOrder.userAddress.city},{' '}
-                    {selectedOrder.userAddress.state}
-                  </p>
-                )}
-                {selectedOrder.shopAddress && (
-                  <p className="text-sm text-gray-700 dark:text-gray-200">
-                    <strong>Shop Address:</strong> {selectedOrder.shopAddress.street}, {selectedOrder.shopAddress.city},{' '}
-                    {selectedOrder.shopAddress.state}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Assignment Notes:
-                </label>
-                <textarea
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-xl p-3 bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-300"
-                  placeholder="Add any special instructions, delivery notes, or important information for the delivery person..."
-                  rows="4"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Choose Delivery Person:</h3>
-                {deliveryPersons.length === 0 ? (
-                  <div className="text-center py-4 text-gray-600 dark:text-gray-400">
-                    <p>No delivery persons available</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {deliveryPersons.map((deliveryPerson) => (
-                      <button
-                        key={deliveryPerson.id}
-                        className="w-full text-left p-3 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-800 rounded-lg transition-all duration-300 border border-indigo-200 dark:border-indigo-700"
-                        onClick={() => assignOrder(deliveryPerson.id)}
-                        disabled={isAssigning || !deliveryPerson.id}
-                      >
-                        <div className="font-medium text-gray-900 dark:text-gray-100">
-                          {deliveryPerson.name || 'Unknown Name'}
-                          {!deliveryPerson.id && (
-                            <span className="text-red-500 text-xs ml-2">(Invalid ID)</span>
+                      <div className="space-y-3 mb-4">
+                        <div className="text-sm text-gray-700 dark:text-gray-200">
+                         {order.shopName && (
+                            <div className="text-xs bg-indigo-50 flex justify-between dark:bg-indigo-900/20 p-2 rounded-lg mt-2 text-indigo-600 dark:text-indigo-400">
+                              <strong className="flex items-center gap-2">
+                                <FaStore size={16} /> Shop
+                              </strong>{' '}
+                              {order.shopName}
+                            </div>
                           )}
+                           {order.userName && (
+                            <div className="text-xs bg-indigo-50 flex justify-between  dark:bg-indigo-900/20 p-2 rounded-lg mt-2 text-indigo-600 dark:text-indigo-400">
+                              <strong className="flex items-center gap-2">
+                                <FiUser size={16} /> Username
+                              </strong>{' '}
+                              {order.userName}
+                            </div>
+                          )}
+                          {order.userAddress && (
+                            <div className="text-xs bg-indigo-50 dark:bg-indigo-900/20 p-2 rounded-lg mt-2 text-indigo-600 dark:text-indigo-400">
+                              <strong className="flex items-center gap-2">
+                                <FiHome size={16} /> User Address:
+                              </strong>{' '}
+                              {order.userAddress.street}, {order.userAddress.city}, {order.userAddress.state}
+                            </div>
+                          )}
+                          {order.shopAddress && (
+                            <div className="text-xs bg-indigo-50 dark:bg-indigo-900/20 p-2 rounded-lg mt-2 text-indigo-600 dark:text-indigo-400">
+                              <strong className="flex items-center gap-2">
+                                <FiMapPin size={16} /> Shop Address:
+                              </strong>{' '}
+                              {order.shopAddress.street}, {order.shopAddress.city}, {order.shopAddress.state}
+                            </div>
+                          )}
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                            Created: {formatDate(order.createdAt)}
+                          </div>
                         </div>
-                        <div className="text-sm text-indigo-600 dark:text-indigo-400">
-                          ID: {deliveryPerson.id || 'N/A'}
-                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleAssignClick(order)}
+                        disabled={isLoading || !order.id}
+                        className="w-full bg-indigo-600 text-white py-2.5 px-4 rounded-xl hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed transition-all duration-300 transform hover:-translate-y-1 shadow-md flex items-center justify-center gap-2 text-sm sm:text-base"
+                      >
+                        <FiPackage size={16} /> {!order.id ? 'Invalid Order' : 'Assign Order'}
                       </button>
-                    ))}
+                    </div>
                   </div>
-                )}
+                ))}
               </div>
 
-              {isAssigning && (
-                <div className="flex justify-center items-center py-2">
-                  <LoadingSpinner />
-                  <span className="ml-2 text-indigo-600 dark:text-indigo-400">Assigning order...</span>
+              {totalPages > 1 && (
+                <div className="flex flex-wrap justify-center items-center gap-2 mt-6">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 sm:px-4 py-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm sm:text-base"
+                  >
+                    <FiChevronLeft size={16} />
+                    
+                  </button>
+
+                  {getPageNumbers().map((page, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => typeof page === 'number' && setCurrentPage(page)}
+                      className={`px-3 sm:px-4 py-2 rounded-xl transition-all duration-300 text-sm sm:text-base ${
+                        page === '...' ? 'cursor-default' : currentPage === page ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-800'
+                      }`}
+                      disabled={page === '...'}
+                    >
+                      {page}
+                    </button>
+                  ))}
+
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 sm:px-4 py-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm sm:text-base"
+                  >
+                    
+                    <FiChevronRight size={16} />
+                  </button>
                 </div>
               )}
-            </div>
-          </Modal>
-        )}
+            </>
+          )}
+
+          {selectedOrder && (
+            <Modal onClose={handleCloseModal} title="Assign Order" darkMode={darkMode}>
+              <div className="space-y-4">
+                <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4">
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2 text-base sm:text-lg">
+                    Order Details
+                    <button
+                      onClick={() => copyToClipboard(selectedOrder.id)}
+                      className="relative group p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                      title="Copy Order ID"
+                    >
+                      <FiCopy size={16} />
+                      <span className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2">
+                        Copy Order ID
+                      </span>
+                    </button>
+                  </h4>
+                  <p className="text-sm text-gray-700 dark:text-gray-200">
+                    <strong>Order ID:</strong> {selectedOrder.id || 'N/A'}
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-200">
+                    <strong>User ID:</strong> {selectedOrder.userId || 'N/A'}
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-200">
+                    <strong>Shop ID:</strong> {selectedOrder.shopId || 'N/A'}
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-200">
+                    <strong>Price:</strong> {selectedOrder.totalPrice || 0} EGP
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-200">
+                    <strong>Status:</strong> {selectedOrder.status?.replace(/_/g, ' ') || 'N/A'}
+                  </p>
+                  {selectedOrder.userAddress && (
+                    <p className="text-sm text-gray-700 dark:text-gray-200">
+                      <strong>User Address:</strong> {selectedOrder.userAddress.street}, {selectedOrder.userAddress.city},{' '}
+                      {selectedOrder.userAddress.state}
+                    </p>
+                  )}
+                  {selectedOrder.shopAddress && (
+                    <p className="text-sm text-gray-700 dark:text-gray-200">
+                      <strong>Shop Address:</strong> {selectedOrder.shopAddress.street}, {selectedOrder.shopAddress.city},{' '}
+                      {selectedOrder.shopAddress.state}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Assignment Notes:
+                  </label>
+                  <textarea
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-xl p-3 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-300 text-sm sm:text-base"
+                    placeholder="Add any special instructions, delivery notes, or important information for the delivery person..."
+                    rows="4"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3 text-base sm:text-lg">Choose Delivery Person:</h3>
+                  {deliveryPersons.length === 0 ? (
+                    <div className="text-center py-4 text-gray-600 dark:text-gray-400">
+                      <p className="text-sm sm:text-base">No delivery persons available</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                      {deliveryPersons.map((deliveryPerson) => (
+                        <button
+                          key={deliveryPerson.id}
+                          className="w-full text-left p-3 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-800 rounded-lg transition-all duration-300 border border-indigo-200 dark:border-indigo-700"
+                          onClick={() => assignOrder(deliveryPerson.id)}
+                          disabled={isAssigning || !deliveryPerson.id}
+                        >
+                          <div className="font-medium text-gray-900 dark:text-gray-100 text-sm sm:text-base">
+                            {deliveryPerson.name || 'Unknown Name'}
+                            {!deliveryPerson.id && (
+                              <span className="text-red-500 text-xs ml-2">(Invalid ID)</span>
+                            )}
+                          </div>
+                          <div className="text-sm text-indigo-600 dark:text-indigo-400">
+                            ID: {deliveryPerson.id || 'N/A'}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {isAssigning && (
+                  <div className="flex justify-center items-center py-2">
+                    <LoadingSpinner />
+                    <span className="ml-2 text-indigo-600 dark:text-indigo-400 text-sm sm:text-base">Assigning order...</span>
+                  </div>
+                )}
+              </div>
+            </Modal>
+          )}
+        </div>
       </div>
     </div>
   );

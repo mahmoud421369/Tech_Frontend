@@ -358,17 +358,17 @@ const ProductSection = ({ products, updateProduct, deleteProduct, darkMode }) =>
             <td className="px-6 py-4 flex justify-center gap-2">
               <button
                 onClick={() => updateProduct(p)}
-                className="p-2 bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400 rounded-full hover:bg-green-200 dark:hover:bg-green-800/70 transition-all duration-300"
+                className="p-2 bg-indigo-100 text-xs dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800/70 transition-all duration-300"
                 title="Edit Product"
               >
-                <FiEdit3 size={16} />
+                Edit
               </button>
               <button
                 onClick={() => deleteProduct(p.id)}
-                className="p-2 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-800/70 transition-all duration-300"
+                className="p-2 bg-red-100 text-xs dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-800/70 transition-all duration-300"
                 title="Delete Product"
               >
-                <FiTrash2 size={16} />
+                Delete
               </button>
             </td>
           </tr>

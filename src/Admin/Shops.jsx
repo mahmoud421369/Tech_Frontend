@@ -355,34 +355,34 @@ const ShopsTable = ({ shops, filter, setFilter, search, setSearch, approveShop, 
             <td className="px-6 py-4 flex justify-center gap-2">
               <button
                 onClick={() => viewShop(shop.id)}
-                className="p-2 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800/70 transition-all duration-300"
+                className="p-2 bg-indigo-100 text-xs dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800/70 transition-all duration-300"
                 title="View Shop"
               >
-                <FiEye size={16} />
+                View
               </button>
               {!shop.verified ? (
                 <button
                   onClick={() => approveShop(shop.id)}
-                  className="p-2 bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400 rounded-full hover:bg-green-200 dark:hover:bg-green-800/70 transition-all duration-300"
+                  className="p-2 bg-green-100 text-xs dark:bg-green-900/50 text-green-600 dark:text-green-400 rounded-full hover:bg-green-200 dark:hover:bg-green-800/70 transition-all duration-300"
                   title="Approve Shop"
                 >
-                  <FiCheckCircle size={16} />
+                  Approve
                 </button>
               ) : (
                 <>
                   <button
                     onClick={() => suspendShop(shop.id)}
-                    className="p-2 bg-yellow-100 dark:bg-yellow-900/50 text-yellow-600 dark:text-yellow-400 rounded-full hover:bg-yellow-200 dark:hover:bg-yellow-800/70 transition-all duration-300"
+                    className="p-2 bg-yellow-100 text-xs dark:bg-yellow-900/50 text-yellow-600 dark:text-yellow-400 rounded-full hover:bg-yellow-200 dark:hover:bg-yellow-800/70 transition-all duration-300"
                     title="Suspend Shop"
                   >
-                    <FiXCircle size={16} />
+                    Suspend
                   </button>
                   <button
                     onClick={() => deleteShop(shop.id)}
-                    className="p-2 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-800/70 transition-all duration-300"
+                    className="p-2 bg-red-100 text-xs dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-800/70 transition-all duration-300"
                     title="Delete Shop"
                   >
-                    <FiTrash2 size={16} />
+                    Delete
                   </button>
                 </>
               )}

@@ -95,8 +95,30 @@ const PaginatedTable = ({ data, columns, page, setPage, pageSize, renderRow, emp
     return pages;
   };
 
+    <style>
+        {`
+          .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-track {
+            background: ${darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
+            border-radius: 10px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: ${darkMode ? 'rgba(236, 72, 153, 0.6)' : 'rgba(236, 72, 153, 0.8)'};
+            border-radius: 10px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: ${darkMode ? 'rgba(236, 72, 153, 0.8)' : 'rgba(219, 39, 119, 1)'};
+          }
+        `}
+      </style>
+
   return (
-    <div className="overflow-x-auto">
+
+    
+    <div className="overflow-x-auto custom-scrollbar">
       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
         <thead className="bg-gray-100 dark:bg-gray-800 text-indigo-600 dark:text-indigo-400">
           <tr>
@@ -122,7 +144,7 @@ const PaginatedTable = ({ data, columns, page, setPage, pageSize, renderRow, emp
         </tbody>
       </table>
       {totalPages > 1 && (
-        <div className="flex justify-center items-center space-x-2 mt-6">
+        <div className="flex justify-center items-center space-x-2 mt-6 mb-4">
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
@@ -154,6 +176,11 @@ const PaginatedTable = ({ data, columns, page, setPage, pageSize, renderRow, emp
     </div>
   );
 };
+
+
+
+
+ 
 
 const UsersPage = ({ darkMode }) => {
   const navigate = useNavigate();
@@ -612,34 +639,34 @@ const UsersPage = ({ darkMode }) => {
                   <td className="px-6 py-4 flex justify-center gap-2">
                     <button
                       onClick={() => viewUser(user.id)}
-                      className="p-2 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800/70 transition-all duration-300"
+                      className="p-2 bg-indigo-100 dark:bg-indigo-900/50 text-xs text-indigo-600 dark:text-indigo-400 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800/70 transition-all duration-300"
                       title="View User"
                     >
-                      <FiEye size={16} />
+                     View
                     </button>
                     {user.activate ? (
                       <button
                         onClick={() => deactivateUser(user.id)}
-                        className="p-2 bg-yellow-100 dark:bg-yellow-900/50 text-yellow-600 dark:text-yellow-400 rounded-full hover:bg-yellow-200 dark:hover:bg-yellow-800/70 transition-all duration-300"
+                        className="p-2 bg-yellow-100 text-xs dark:bg-yellow-900/50 text-yellow-600 dark:text-yellow-400 rounded-full hover:bg-yellow-200 dark:hover:bg-yellow-800/70 transition-all duration-300"
                         title="Deactivate User"
                       >
-                        <FiXCircle size={16} />
+                       Deactivate
                       </button>
                     ) : (
                       <button
                         onClick={() => activateUser(user.id)}
-                        className="p-2 bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400 rounded-full hover:bg-green-200 dark:hover:bg-green-800/70 transition-all duration-300"
+                        className="p-2 bg-green-100 text-xs dark:bg-green-900/50 text-green-600 dark:text-green-400 rounded-full hover:bg-green-200 dark:hover:bg-green-800/70 transition-all duration-300"
                         title="Activate User"
                       >
-                        <FiCheckCircle size={16} />
+                       Activate
                       </button>
                     )}
                     <button
                       onClick={() => deleteUser(user.id)}
-                      className="p-2 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-800/70 transition-all duration-300"
+                      className="p-2 bg-red-100 text-xs dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-800/70 transition-all duration-300"
                       title="Delete User"
                     >
-                      <FiTrash2 size={16} />
+                     Delete
                     </button>
                   </td>
                 </tr>
@@ -678,6 +705,9 @@ const UsersPage = ({ darkMode }) => {
                 </p>
                 <p className="text-sm text-gray-700 dark:text-gray-200">
                   <strong>Email:</strong> {DOMPurify.sanitize(selectedUser.email) || 'N/A'}
+                </p>
+                 <p className="text-sm text-gray-700 dark:text-gray-200">
+                  <strong>Phone:</strong> 0{selectedUser.phone || 'N/A'}
                 </p>
                 <p className="text-sm text-gray-700 dark:text-gray-200">
                   <strong>Role:</strong> {selectedUser.role || 'N/A'}

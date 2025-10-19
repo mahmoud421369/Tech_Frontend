@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { FiMoon, FiSun, FiUser, FiLogOut, FiBell } from "react-icons/fi";
+import { FiMoon, FiSun, FiUser, FiLogOut, FiMenu, FiX, FiActivity, FiUsers, FiBox, FiTool, FiClipboard, FiRefreshCw, FiSearch } from "react-icons/fi";
 import { Link, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { jwtDecode } from "jwt-decode";
@@ -10,14 +10,13 @@ const AssignerHeader = () => {
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem("darkMode") === "true";
   });
-  const [open, setOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
   const [token, setToken] = useState(localStorage.getItem("authToken"));
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [notifications, setNotifications] = useState([]);
-  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     if (darkMode) {
@@ -44,6 +43,21 @@ const AssignerHeader = () => {
     }
   }, []);
 
+  const menuItems = useMemo(
+    () => [
+      { name: "Dashboard", path: "/assigner-dashboard", icon: <FiActivity size={20} /> },
+      { name: "Delivery Persons", path: "/assigner/delivery-persons", icon: <FiUsers size={20} /> },
+      { name: "Orders", path: "/assigner/orders", icon: <FiBox size={20} /> },
+      { name: "Repairs", path: "/assigner/repair-requests", icon: <FiTool size={20} /> },
+      { name: "Logs", path: "/assigner/assignment-logs", icon: <FiClipboard size={20} /> },
+      { name: "Assigned Orders", path: "/assigner/assigned-orders", icon: <FiBox size={20} /> },
+      { name: "Assigned Repairs", path: "/assigner/assigned-repairs", icon: <FiTool size={20} /> },
+      { name: "Reassign Repairs", path: "/assigner/reassign-repairs", icon: <FiRefreshCw size={20} /> },
+      { name: "Reassign Orders", path: "/assigner/reassign-orders", icon: <FiRefreshCw size={20} /> },
+    ],
+    []
+  );
+
   useEffect(() => {
     if (token && !isTokenExpired(token)) {
       setIsAuthenticated(true);
@@ -55,50 +69,28 @@ const AssignerHeader = () => {
     }
   }, [token, isTokenExpired, navigate]);
 
-  const fetchNotifications = useCallback(async () => {
-    setIsLoadingNotifications(true);
-    try {
-      const response = await api.get("/api/notifications/assigner", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = response.data.content || response.data || [];
-      setNotifications(data);
-      setUnreadCount(data.filter((n) => !n.read).length);
-    } catch (err) {
-      console.error("Error fetching notifications:", err.response?.data || err.message);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Failed to load notifications",
-        position: "top",
-        timer: 1500,
-        showConfirmButton: false,
-        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-      });
-    } finally {
-      setIsLoadingNotifications(false);
-    }
-  }, [token, darkMode]);
-
-  useEffect(() => {
-    if (isAuthenticated && notificationsOpen) {
-      fetchNotifications();
-    }
-  }, [isAuthenticated, notificationsOpen, fetchNotifications]);
-
-    const formatDate = (date) => {
-    if (!date || isNaN(new Date(date))) return "N/A";
-    return new Date(date).toLocaleDateString("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
-
   
+  const handleSearch = useCallback((query) => {
+    setSearchQuery(query);
+    
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    const filtered = menuItems.filter((item) =>
+      item.name.toLowerCase().includes(query.toLowerCase())
+    );
+    
+    setSearchResults(filtered);
+  }, [menuItems]);
+
+  const handleSearchResultClick = (result) => {
+    navigate(result.path);
+    setSearchQuery("");
+    setSearchResults([]);
+    setSearchOpen(false);
+  };
 
   const handleLogout = useCallback(async () => {
     const refreshToken = localStorage.getItem("refreshToken");
@@ -156,21 +148,7 @@ const AssignerHeader = () => {
     }
   }, [token, navigate, darkMode]);
 
-  const menuItems = useMemo(
-    () => [
-      { name: "Profile", path: "/assigner/profile" },
-      { name: "Dashboard", path: "/assigner-dashboard" },
-      { name: "Delivery Persons", path: "/assigner/delivery-persons" },
-      { name: "Orders", path: "/assigner/orders" },
-      { name: "Repairs", path: "/assigner/repair-requests" },
-      { name: "Logs", path: "/assigner/assignment-logs" },
-      { name: "Assigned Orders", path: "/assigner/assigned-orders" },
-      { name: "Assigned Repairs", path: "/assigner/assigned-repairs" },
-      { name: "Reassign Repairs", path: "/assigner/reassign-repairs" },
-      { name: "Reassign Orders", path: "/assigner/reassign-orders" },
-    ],
-    []
-  );
+
 
   const SkeletonLoader = useMemo(
     () => (
@@ -187,139 +165,144 @@ const AssignerHeader = () => {
   );
 
   return (
-    <header className="relative z-50">
-      {isInitialLoading ? (
-        SkeletonLoader
-      ) : (
-        <div className="flex justify-between items-center px-6 py-4 bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-black dark:to-gray-950 text-white shadow-md">
-          <h1 className="font-bold text-xl tracking-wide">Assigner Dashboard</h1>
+    <>
+      <header className="relative z-50">
+        {isInitialLoading ? (
+          SkeletonLoader
+        ) : (
+          <div className="flex justify-between items-center px-6 py-4 bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-black dark:to-gray-950 text-white shadow-md gap-4">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="p-2 rounded-full bg-indigo-500 dark:bg-gray-900 hover:bg-indigo-700 dark:hover:bg-gray-800 transition-all duration-300 transform hover:scale-110 lg:hidden"
+                aria-label={sidebarOpen ? "Close Sidebar" : "Open Sidebar"}
+              >
+                {sidebarOpen ? <FiX size={18} /> : <FiMenu size={18} />}
+              </button>
+              <h1 className="font-bold text-xl tracking-wide">Assigner Dashboard</h1>
+            </div>
 
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              className="p-2 rounded-full bg-indigo-500 dark:bg-gray-900 hover:bg-indigo-700 dark:hover:bg-gray-800 transition-all duration-300 transform hover:scale-110"
-              aria-label={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            >
-              {darkMode ? <FiSun size={18} /> : <FiMoon size={18} />}
-            </button>
-
-            {isAuthenticated && (
-              <>
-                <div className="relative">
-                  <button
-                    onClick={() => {
-                      setNotificationsOpen(!notificationsOpen);
-                      setOpen(false); // Close user menu if open
-                    }}
-                    className="relative p-2 rounded-full bg-indigo-500 dark:bg-gray-900 hover:bg-indigo-700 dark:hover:bg-gray-800 transition-all duration-300 transform hover:scale-110"
-                    aria-label="Open Notifications"
-                    aria-expanded={notificationsOpen}
-                  >
-                    <FiBell size={18} />
-                    {unreadCount > 0 && (
-                      <span className="absolute top-0 right-0 bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5 animate-pulse">
-                        {unreadCount}
-                      </span>
-                    )}
-                  </button>
-
-                  {notificationsOpen && (
-                    <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 shadow-lg rounded-xl overflow-hidden animate-fade-in z-50 max-h-96 overflow-y-auto">
-                      <div className="p-4 border-b border-indigo-200 dark:border-indigo-700">
-                        <h3 className="text-lg font-semibold text-indigo-600 dark:text-indigo-400">
-                          Notifications
-                        </h3>
-                      </div>
-                      {isLoadingNotifications ? (
-                        <div className="p-4 flex justify-center">
-                          <svg
-                            className="animate-spin h-8 w-8 text-indigo-500"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                            />
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            />
-                          </svg>
-                        </div>
-                      ) : notifications.length > 0 ? (
-                        notifications.map((notification) => (
-                          <div
-                            key={notification.id}
-                            className={`p-4 border-b border-indigo-100 dark:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-gray-700 transition-all duration-200 flex items-start gap-3 ${
-                              notification.read ? "opacity-75" : ""
-                            }`}
-                          >
-                            <div className="flex-1">
-                              <p className="text-sm text-gray-700 dark:text-gray-200">
-                                {notification.message || "No message content"}
-                              </p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                {formatDate(notification.timestamp)}
-                              </p>
-                            </div>
-                        
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-                          No notifications available
-                        </div>
-                      )}
-                    </div>
-                  )}
+          
+            <div className="flex-1 mx-8 hidden md:block">
+              <div className="relative">
+                <div className="flex items-center bg-white/20 dark:bg-gray-800 rounded-3xl px-3 py-2">
+                  <FiSearch size={18} className="text-white" />
+                  <input
+                    type="text"
+                    placeholder="Search orders, repairs, persons..."
+                    value={searchQuery}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    onFocus={() => setSearchOpen(true)}
+                    className="flex-1 ml-2 bg-transparent text-gray-800 dark:text-white outline-none placeholder-white dark:placeholder-gray-500"
+                  />
                 </div>
 
-                <div className="relative">
-                  <button
-                    onClick={() => {
-                      setOpen(!open);
-                      setNotificationsOpen(false); // Close notifications if open
-                    }}
-                    className="flex items-center gap-2 bg-indigo-500 dark:bg-gray-900 hover:bg-indigo-700 dark:hover:bg-gray-800 px-3 py-2 rounded-full transition-all duration-300 transform hover:scale-110"
-                    aria-label="Open User Menu"
-                    aria-expanded={open}
-                  >
-                    <FiUser size={18} />
-                  </button>
-
-                  {open && (
-                    <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 shadow-lg rounded-xl overflow-hidden animate-fade-in z-50">
-                      {menuItems.map((item) => (
-                        <Link
-                          key={item.name}
-                          to={item.path}
-                          className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-indigo-100 dark:hover:bg-gray-700 transition-all duration-200"
-                          onClick={() => setOpen(false)}
+               
+                {searchOpen && searchQuery && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-xl max-h-96 overflow-y-auto z-50">
+                    {searchResults.length > 0 ? (
+                      searchResults.map((result) => (
+                        <button
+                          key={result.name}
+                          onClick={() => handleSearchResultClick(result)}
+                          className="w-full text-left px-4 py-3 hover:bg-indigo-100 dark:hover:bg-gray-700 transition-all border-b border-gray-200 dark:border-gray-700 last:border-b-0 flex items-center gap-3"
                         >
-                          {item.name}
-                        </Link>
-                      ))}
-                      <button
-                        className="block w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 text-left hover:bg-indigo-100 dark:hover:bg-gray-700 flex items-center gap-2 transition-all duration-200"
-                        onClick={handleLogout}
-                        aria-label="Log Out"
-                      >
-                        <FiLogOut size={16} /> Logout
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
+                          {result.icon}
+                          <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                            {result.name}
+                          </p>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                        No results found
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setDarkMode(!darkMode)}
+                className="p-2 rounded-full bg-indigo-500 dark:bg-gray-900 hover:bg-indigo-700 dark:hover:bg-gray-800 transition-all duration-300 transform hover:scale-110"
+                aria-label={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              >
+                {darkMode ? <FiSun size={18} /> : <FiMoon size={18} />}
+              </button>
+
+              {isAuthenticated && (
+                <Link
+                  to="/assigner/profile"
+                  className="p-2 rounded-full bg-indigo-500 dark:bg-gray-900 hover:bg-indigo-700 dark:hover:bg-gray-800 transition-all duration-300 transform hover:scale-110"
+                  aria-label="Go to Profile"
+                >
+                  <FiUser size={18} />
+                </Link>
+              )}
+            </div>
           </div>
+        )}
+      </header>
+
+     
+      <div
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-indigo-600 dark:bg-gray-950 text-white transform ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        } lg:translate-x-0 transition-transform duration-300 ease-in-out shadow-lg flex flex-col`}
+      >
+        <div className="flex items-center justify-between p-4 border-b border-indigo-500 dark:border-gray-800">
+          <h2 className="text-lg font-semibold text-center">Assigner Management System</h2>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="p-2 rounded-full hover:bg-indigo-700 dark:hover:bg-gray-800 lg:hidden"
+            aria-label="Close Sidebar"
+          >
+            <FiX size={20} />
+          </button>
         </div>
+        <nav className="flex-1 p-4 overflow-y-auto">
+          {menuItems.map((item) => (
+            <Link
+              key={item.name}
+              to={item.path}
+              className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-indigo-700 dark:hover:bg-gray-800 rounded-lg transition-all duration-200"
+              onClick={() => setSidebarOpen(false)}
+            >
+              {item.icon}
+              <span>{item.name}</span>
+            </Link>
+          ))}
+        </nav>
+        <div className="p-4 border-t border-indigo-500 dark:border-gray-800">
+          <button
+            className="flex items-center gap-3 px-4 py-3 text-sm w-full hover:bg-indigo-700 dark:hover:bg-gray-800 rounded-lg transition-all duration-200"
+            onClick={handleLogout}
+            aria-label="Log Out"
+          >
+            <FiLogOut size={20} />
+            Logout
+          </button>
+        </div>
+      </div>
+
+     
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        ></div>
       )}
-    </header>
+
+     
+      {searchOpen && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setSearchOpen(false)}
+        ></div>
+      )}
+    </>
   );
 };
 
