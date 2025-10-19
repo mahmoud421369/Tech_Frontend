@@ -1830,9 +1830,9 @@ const handleEditRepairRequest = useCallback(
 
   return (
     <div className={`min-h-screen transition-all duration-300 mt-20 ${darkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
-      <div className="relative bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-900 dark:to-gray-800 text-white py-12 px-6 shadow-xl">
+      <div className="relative bg-gradient-to-r from-white  dark:from-indigo-900 dark:to-gray-800 text-indigo-500 py-12 px-6 shadow-xl">
           <div className="absolute inset-0 opacity-5 pointer-events-none">
-                                  <FiTool className="absolute w-20 h-20 bottom-1/3 right-1/5 animate-float-medium dark:text-blue-500" />
+                                  <FiTool className="absolute w-20 h-20 bottom-1/3 right-1/5 animate-float-medium text-indigo-400 dark:text-blue-500" />
                                   <FiShoppingBag className="absolute w-24 h-24 top-1/3 right-1/4 animate-float-slow dark:text-blue-500" />
                                   <FiShoppingBag className="absolute w-16 h-16 bottom-1/4 left-1/3 animate-float-fast dark:text-blue-500" />
                                   <FiSmartphone className="absolute w-20 h-20 top-10 left-10 animate-float-medium dark:text-blue-500" />
@@ -1840,10 +1840,10 @@ const handleEditRepairRequest = useCallback(
                                   <FiMonitor className="absolute w-18 h-18 top-1/2 left-1/4 animate-float-fast dark:text-blue-500" />
                                 </div>
         <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-3xl flex justify-center items-center gap-2 md:text-4xl font-extrabold tracking-tight mb-2 animate-fade-in">
+          <h1 className="text-3xl text-indigo-600 dark:text-white flex items-center justify-center gap-4 sm:text-4xl md:text-5xl font-extrabold">
             <FiUser /> Account
           </h1>
-          <p className="text-lg md:text-xl max-w-2xl mx-auto opacity-90">
+          <p className="mt-4 text-base sm:text-lg text-gray-600 dark:text-gray-200 max-w-xl sm:max-w-2xl mx-auto">
             Manage your profile, addresses, orders, and repair requests with ease.
           </p>
         </div>

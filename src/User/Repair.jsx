@@ -1086,10 +1086,10 @@ const RepairRequest = ({ onApproved, onRejected, darkMode }) => {
                           <FiMonitor className="absolute w-18 h-18 top-1/2 left-1/4 animate-float-fast dark:text-blue-500" />
                         </div>
         <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-3xl sm:text-4xl text-gray-800 dark:text-white font-extrabold tracking-tight mb-3 animate__animated animate__fadeInDown flex justify-center items-center gap-3">
+          <h1 className="text-3xl text-indigo-600 dark:text-white flex items-center justify-center gap-4 sm:text-4xl md:text-5xl font-extrabold">
             <FiTool className="text-4xl" /> Book a Repair Request
           </h1>
-          <p className="text-lg sm:text-xl text-gray-700 dark:text-white max-w-2xl mx-auto opacity-90 animate__animated animate__fadeInUp">
+          <p className="mt-4 text-base sm:text-lg text-gray-600 dark:text-gray-200 max-w-xl sm:max-w-2xl mx-auto">
             Easily schedule a repair for your device by selecting a shop and describing the issue.
           </p>
         </div>

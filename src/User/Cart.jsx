@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { FiX, FiShoppingCart, FiCreditCard, FiTruck, FiTrash2 } from "react-icons/fi";
 import { jwtDecode } from "jwt-decode";
@@ -20,6 +19,11 @@ const Cart = ({ show, onClose, darkMode }) => {
   const userId = token ? jwtDecode(token).userId : null;
   const navigate = useNavigate();
 
+  const calculateTotal = useCallback((items) => {
+    const total = items.reduce((sum, item) => sum + item.productPrice * item.quantity, 0);
+    setCartTotal(total);
+  }, []);
+
   const fetchCart = useCallback(async () => {
     if (!token) return;
     const controller = new AbortController();
@@ -35,35 +39,49 @@ const Cart = ({ show, onClose, darkMode }) => {
       if (err.name !== "AbortError") {
         console.error("Error fetching cart:", err.response?.data || err.message);
         setCartItems([]);
-           Swal.fire({
-                          title: 'Error',
-                          text: 'failed to load cart!',
-                          icon: 'error',
-                          toast: true,
-                          position: 'top-end',
-                          showConfirmButton: false,
-                          timer: 1500,
-                        })
+        Swal.fire({
+          title: 'Error',
+          text: 'Failed to load cart!',
+          icon: 'error',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 1500,
+        });
       }
     } finally {
       setIsLoading(false);
     }
     return () => controller.abort();
-  }, [token, darkMode]);
-
-  const calculateTotal = useCallback((items) => {
-    const total = items.reduce((sum, item) => sum + item.productPrice * item.quantity, 0);
-    setCartTotal(total);
-  }, []);
+  }, [token, calculateTotal]);
 
   const addToCart = useCallback(async (productId, quantity = 1) => {
     try {
-      await api.post("/api/cart/items", { productId, quantity }, {
-        headers: { "Content-Type": "application/json" },
+      // Optimistic update: Add item to cart locally
+      const newItem = { id: Date.now(), productId, quantity, productName: "New Item", productPrice: 0 }; // Placeholder, update with real data if available
+      setCartItems((prev) => {
+        const existingItem = prev.find((item) => item.productId === productId);
+        if (existingItem) {
+          return prev.map((item) =>
+            item.productId === productId ? { ...item, quantity: item.quantity + quantity } : item
+          );
+        }
+        return [...prev, newItem];
       });
-      await fetchCart();
+      calculateTotal([...cartItems, newItem]);
+
+      const res = await api.post("/api/cart/items", { productId, quantity }, {
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      });
+
+      // Sync with server response
+      setCartItems(res.data.items || []);
+      calculateTotal(res.data.items || []);
     } catch (err) {
       console.error("Error adding to cart:", err.response?.data || err.message);
+      // Revert optimistic update
+      setCartItems((prev) => prev.filter((item) => item.productId !== productId));
+      calculateTotal(cartItems);
       Swal.fire({
         icon: "error",
         title: "Error",
@@ -71,17 +89,32 @@ const Cart = ({ show, onClose, darkMode }) => {
         customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
       });
     }
-  }, [darkMode, fetchCart]);
+  }, [token, darkMode, cartItems, calculateTotal]);
 
   const updateQuantity = useCallback(async (itemId, newQuantity) => {
     if (newQuantity < 1) return removeFromCart(itemId);
+
+    // Optimistic update: Update quantity locally
+    const prevItems = [...cartItems];
+    setCartItems((prev) =>
+      prev.map((item) =>
+        item.id === itemId ? { ...item, quantity: newQuantity } : item
+      )
+    );
+    calculateTotal(cartItems.map((item) =>
+      item.id === itemId ? { ...item, quantity: newQuantity } : item
+    ));
+
     try {
       await api.put(`/api/cart/items/${itemId}`, { quantity: newQuantity }, {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       });
-      await fetchCart();
+      // No need to fetch cart, as local state is already updated
     } catch (err) {
       console.error("Error updating quantity:", err.response?.data || err.message);
+      // Revert optimistic update
+      setCartItems(prevItems);
+      calculateTotal(prevItems);
       Swal.fire({
         icon: "error",
         title: "Error",
@@ -89,44 +122,54 @@ const Cart = ({ show, onClose, darkMode }) => {
         customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
       });
     }
-  }, [token, darkMode, fetchCart]);
+  }, [token, darkMode, cartItems, calculateTotal]);
 
   const removeFromCart = useCallback(async (itemId) => {
+    // Optimistic update: Remove item locally
+    const prevItems = [...cartItems];
+    setCartItems((prev) => prev.filter((item) => item.id !== itemId));
+    calculateTotal(cartItems.filter((item) => item.id !== itemId));
+
     try {
       await api.delete(`/api/cart/items/${itemId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      await fetchCart();
-     Swal.fire({
-                 title: 'Success',
-                 text: 'Item removed!',
-                 icon: 'success',
-                 toast: true,
-                 position: 'top-start',
-                 showConfirmButton: false,
-                 timer: 1500,
-               })
+      Swal.fire({
+        title: 'Success',
+        text: 'Item removed!',
+        icon: 'success',
+        toast: true,
+        position: 'top-start',
+        showConfirmButton: false,
+        timer: 1500,
+      });
     } catch (err) {
       console.error("Error removing item:", err.response?.data || err.message);
+      // Revert optimistic update
+      setCartItems(prevItems);
+      calculateTotal(prevItems);
       Swal.fire({
-                  title: 'error',
-                  text: 'Item is not removed!',
-                  icon: 'error',
-                  toast: true,
-                  position: 'top-end',
-                  showConfirmButton: false,
-                  timer: 1500,
-                })
+        title: 'Error',
+        text: 'Item is not removed!',
+        icon: 'error',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1500,
+      });
     }
-  }, [token, darkMode, fetchCart]);
+  }, [token, darkMode, cartItems, calculateTotal]);
 
   const clearCart = useCallback(async () => {
+    // Optimistic update: Clear cart locally
+    const prevItems = [...cartItems];
+    setCartItems([]);
+    setCartTotal(0);
+
     try {
       await api.delete("/api/cart", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setCartItems([]);
-      setCartTotal(0);
       Swal.fire({
         icon: "success",
         title: "Success",
@@ -135,17 +178,20 @@ const Cart = ({ show, onClose, darkMode }) => {
       });
     } catch (err) {
       console.error("Error clearing cart:", err.response?.data || err.message);
-          Swal.fire({
-                         title: 'Error',
-                         text: 'failed to clear cart!',
-                         icon: 'error',
-                         toast: true,
-                         position: 'top-end',
-                         showConfirmButton: false,
-                         timer: 1500,
-                       })
+      // Revert optimistic update
+      setCartItems(prevItems);
+      calculateTotal(prevItems);
+      Swal.fire({
+        title: 'Error',
+        text: 'Failed to clear cart!',
+        icon: 'error',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1500,
+      });
     }
-  }, [token, darkMode]);
+  }, [token, darkMode, cartItems, calculateTotal]);
 
   const fetchAddresses = useCallback(async () => {
     if (!token) return;
@@ -163,15 +209,15 @@ const Cart = ({ show, onClose, darkMode }) => {
     } catch (err) {
       if (err.name !== "AbortError") {
         console.error("Error fetching addresses:", err.response?.data || err.message);
-         Swal.fire({
-                        title: 'Error',
-                        text: 'failed to load addresses details!',
-                        icon: 'error',
-                        toast: true,
-                        position: 'top-end',
-                        showConfirmButton: false,
-                        timer: 1500,
-                      })
+        Swal.fire({
+          title: 'Error',
+          text: 'Failed to load addresses details!',
+          icon: 'error',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 1500,
+        });
       }
     }
     return () => controller.abort();
@@ -218,7 +264,7 @@ const Cart = ({ show, onClose, darkMode }) => {
       if (paymentMethod === "visa") {
         const orderId = res.data.id;
         try {
-          const paymentRes = await api.post(`/api/payments/order/card/${orderId}`,{}, {
+          const paymentRes = await api.post(`/api/payments/order/card/${orderId}`, {}, {
             headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
           });
 
@@ -231,41 +277,41 @@ const Cart = ({ show, onClose, darkMode }) => {
           }
         } catch (paymentErr) {
           console.error("Payment failed:", paymentErr.response?.data || paymentErr.message);
-           Swal.fire({
-                          title: 'Error',
-                          text: 'payment failed!',
-                          icon: 'error',
-                          toast: true,
-                          position: 'top-end',
-                          showConfirmButton: false,
-                          timer: 1500,
-                        })
+          Swal.fire({
+            title: 'Error',
+            text: 'Payment failed!',
+            icon: 'error',
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 1500,
+          });
           return;
         }
       }
 
       setCartItems([]);
       setCheckoutStep("complete");
-          Swal.fire({
-                         title: 'Placed',
-                         text: 'order placed!',
-                         icon: 'success',
-                         toast: true,
-                         position: 'top-end',
-                         showConfirmButton: false,
-                         timer: 1500,
-                       })
+      Swal.fire({
+        title: 'Placed',
+        text: 'Order placed!',
+        icon: 'success',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1500,
+      });
     } catch (err) {
       console.error("Create order failed:", err.response?.data || err.message);
-         Swal.fire({
-                        title: 'Error',
-                        text: 'failed to place the order!',
-                        icon: 'error',
-                        toast: true,
-                        position: 'top-end',
-                        showConfirmButton: false,
-                        timer: 1500,
-                      })
+      Swal.fire({
+        title: 'Error',
+        text: 'Failed to place the order!',
+        icon: 'error',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1500,
+      });
     }
   }, [token, selectedAddress, paymentMethod, darkMode, navigate]);
 

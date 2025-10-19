@@ -114,13 +114,13 @@ const Track = ({ darkMode }) => {
   }
 
   return (
-    <div className={`min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-100"} pt-16 transition-all duration-300`}>
-      <div className="bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-900 dark:to-gray-800 text-white py-12 px-6">
+    <div className={`min-h-screen mt-4 ${darkMode ? "bg-gray-900" : "bg-gray-100"} pt-16 transition-all duration-300`}>
+      <div className="bg-gradient-to-r from-white dark:from-indigo-900 dark:to-gray-800 text-indigo-500 py-12 px-6">
         <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-2 flex items-center justify-center gap-2 animate-fade-in">
+          <h1 className="text-3xl text-indigo-600 dark:text-white flex items-center justify-center gap-4 sm:text-4xl md:text-5xl font-extrabold">
             <FiTruck className="text-4xl" /> Track Your Order
           </h1>
-          <p className="text-lg md:text-xl max-w-2xl mx-auto">
+          <p className="mt-4 text-base sm:text-lg text-gray-600 dark:text-gray-200 max-w-xl sm:max-w-2xl mx-auto">
             Follow the journey of your order in real-time with our tracking system.
           </p>
         </div>

@@ -8,25 +8,42 @@ import { jwtDecode } from "jwt-decode";
 import api from "../api";
 import logo from "../images/logo.png";
 import Swal from "sweetalert2";
-const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode }) => {
+
+const Navbar = ({ cartItems, setCartItems, onCartClick, addToCart, darkMode, toggleDarkMode, updateCartCount }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [token, setToken] = useState(localStorage.getItem("authToken"));
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isCartLoading, setIsCartLoading] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const dropdownRef = useRef(null);
 
-  const fetchCartCount = useCallback(async () => {
+  const cartCount = (cartItems || []).length; // Fallback to empty array if cartItems is undefined
+
+  const fetchCart = useCallback(async () => {
     if (!token || isTokenExpired(token)) return;
+    setIsCartLoading(true);
     try {
-      const response = await api.get("/api/cart/items/count");
-      setCartCount(response.data.count || 0);
+      const response = await api.get("/api/cart", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const items = response.data.items || [];
+      setCartItems(items);
+      updateCartCount(items);
     } catch (error) {
-      console.error("Error fetching cart count:", error.response?.data || error.message);
+      console.error("Error fetching cart:", error.response?.data || error.message);
+      toast.error("Failed to load cart", {
+        position: "top-right",
+        autoClose: 3000,
+      });
+      setCartItems([]);
+      updateCartCount([]);
+    } finally {
+      setIsCartLoading(false);
     }
-  }, [token, setCartCount]);
+  }, [token, setCartItems, updateCartCount]);
 
   const fetchNotifications = useCallback(async () => {
     if (!token || isTokenExpired(token)) return;
@@ -34,8 +51,11 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
       const response = await api.get("/api/notifications/users");
       setNotifications(response.data || []);
     } catch (error) {
-      // console.error("Error fetching notifications:", error.response?.data || error.message);
-      // toast.error("Failed to load notifications");
+      console.error("Error fetching notifications:", error.response?.data || error.message);
+      toast.error("Failed to load notifications", {
+        position: "top-right",
+        autoClose: 3000,
+      });
     }
   }, [token]);
 
@@ -58,30 +78,30 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
   useEffect(() => {
     if (token && !isTokenExpired(token)) {
       setIsAuthenticated(true);
-      fetchCartCount();
       fetchNotifications();
+      fetchCart();
     } else {
       setIsAuthenticated(false);
       localStorage.removeItem("authToken");
       localStorage.removeItem("refreshToken");
       localStorage.removeItem("userId");
       setToken(null);
-      setCartCount(0);
-      setNotifications([]);
+      setCartItems([]);
+      updateCartCount([]);
       if (location.pathname !== "/login" && location.pathname !== "/signup") {
-         Swal.fire({
-                    title: 'Session Expired',
-                    text: 'please login to continue!',
-                    icon: 'warning',
-                    toast: true,
-                    position: 'top-end',
-                    showConfirmButton: false,
-                    timer: 1500,
-                  })
+        Swal.fire({
+          title: 'Session Expired',
+          text: 'Please login to continue!',
+          icon: 'warning',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 1500,
+        });
         navigate("/login");
       }
     }
-  }, [token, location.pathname, navigate, fetchCartCount, setCartCount, isTokenExpired]);
+  }, [token, location.pathname, navigate, setCartItems, updateCartCount, isTokenExpired, fetchNotifications, fetchCart]);
 
   const handleLogout = useCallback(async () => {
     const refreshToken = localStorage.getItem("refreshToken");
@@ -95,15 +115,17 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
       setToken(null);
       setIsAuthenticated(false);
       setNotifications([]);
-       Swal.fire({
-                  title: 'Success',
-                  text: 'logout successfully!',
-                  icon: 'success',
-                  toast: true,
-                  position: 'top-end',
-                  showConfirmButton: false,
-                  timer: 1500,
-                })
+      setCartItems([]);
+      updateCartCount([]);
+      Swal.fire({
+        title: 'Success',
+        text: 'Logout successfully!',
+        icon: 'success',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1500,
+      });
       navigate("/login");
     } catch (err) {
       console.error("Logout error:", err.response?.data || err.message);
@@ -116,13 +138,57 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
       setToken(null);
       setIsAuthenticated(false);
       setNotifications([]);
+      setCartItems([]);
+      updateCartCount([]);
       navigate("/login");
     }
-  }, [token, navigate]);
+  }, [token, navigate, setCartItems, updateCartCount]);
 
   const handleAddToCart = useCallback(
     async (product) => {
+      if (!isAuthenticated) {
+        Swal.fire({
+          title: 'Not Logged In',
+          text: 'Please login to add items to cart',
+          icon: 'warning',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 1500,
+        });
+        navigate("/login");
+        return;
+      }
+
+      setIsCartLoading(true);
       try {
+        // Optimistic update: Add item to cart locally
+        setCartItems((prev = []) => {
+          const existingItem = prev.find((item) => item.productId === product.id);
+          if (existingItem) {
+            return prev.map((item) =>
+              item.productId === product.id ? { ...item, quantity: item.quantity + 1 } : item
+            );
+          }
+          return [...prev, {
+            id: Date.now(),
+            productId: product.id,
+            productName: product.name,
+            productPrice: product.price,
+            quantity: 1,
+            imageUrl: product.imageUrl || (product.imageUrls && product.imageUrls[0]),
+          }];
+        });
+        updateCartCount([...(cartItems || []), {
+          id: Date.now(),
+          productId: product.id,
+          productName: product.name,
+          productPrice: product.price,
+          quantity: 1,
+          imageUrl: product.imageUrl || (product.imageUrls && product.imageUrls[0]),
+        }]);
+
+        // Update server cart
         await api.post("/api/cart/items", {
           productId: product.id,
           quantity: 1,
@@ -130,19 +196,33 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
           name: product.name,
           imageUrl: product.imageUrl || (product.imageUrls && product.imageUrls[0]),
         });
-        await fetchCartCount();
+
+        // Update local cart in App
+        addToCart({
+          id: product.id,
+          price: product.price,
+          name: product.name,
+          imageUrl: product.imageUrl || (product.imageUrls && product.imageUrls[0]),
+        });
+
         toast.success(`${product.name} added to cart!`, {
           position: "top-end",
           autoClose: 1500,
         });
       } catch (error) {
         console.error("Error adding to cart:", error.response?.data || error.message);
+        // Revert optimistic update
+        setCartItems((prev = []) => prev.filter((item) => item.productId !== product.id));
+        updateCartCount(cartItems || []);
         toast.error(error.response?.data?.message || "Failed to add item to cart", {
           position: "top-right",
+          autoClose: 3000,
         });
+      } finally {
+        setIsCartLoading(false);
       }
     },
-    [fetchCartCount]
+    [addToCart, isAuthenticated, navigate, setCartItems, cartItems, updateCartCount]
   );
 
   useEffect(() => {
@@ -164,6 +244,15 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
+    });
+  };
+
+  const filterRecentNotifications = (notifications) => {
+    const oneDayInMs = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+    const now = Date.now();
+    return notifications.filter((notification) => {
+      const timestamp = new Date(notification.createdAt || notification.timestamp).getTime();
+      return !isNaN(timestamp) && now - timestamp <= oneDayInMs;
     });
   };
 
@@ -271,9 +360,9 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
                     aria-label="View notifications"
                   >
                     <FaBell className="w-6 h-6" />
-                    {notifications.length > 0 && (
+                    {filterRecentNotifications(notifications).length > 0 && (
                       <span className="absolute top-0 right-0 bg-red-500 text-white text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
-                        {notifications.length}
+                        {filterRecentNotifications(notifications).length}
                       </span>
                     )}
                   </button>
@@ -284,12 +373,12 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
                           Notifications
                         </h3>
                       </div>
-                      {notifications.length === 0 ? (
+                      {filterRecentNotifications(notifications).length === 0 ? (
                         <div className="p-4 text-center text-white">
-                          No notifications available
+                          No recent notifications
                         </div>
                       ) : (
-                        notifications.map((notification, index) => (
+                        filterRecentNotifications(notifications).map((notification, index) => (
                           <div
                             key={index}
                             className="p-4 border-b border-indigo-700 last:border-b-0 hover:bg-indigo-500 transition-colors"
@@ -298,7 +387,7 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
                               {notification.message || "No message"}
                             </p>
                             <p className="text-xs text-white/80 mt-1">
-                              {formatDate(notification.timestamp)}
+                              {formatDate(notification.createdAt || notification.timestamp)}
                             </p>
                           </div>
                         ))
@@ -313,11 +402,19 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
                   aria-label="View cart"
                 >
                   <FiShoppingCart className="w-6 h-6" />
-                  {cartCount > 0 && (
-                    <span className="absolute top-0 right-0 bg-red-500 text-white text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+                  {/* {isCartLoading ? (
+                    <span className="absolute top-0 right-0 bg-red-500 text-white text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center animate-spin">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    </span>
+                  ) :  */}
+                  {cartCount > 0 ? (
+                    <span className="absolute top-0 right-0 bg-white text-indigo-600 text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center ">
                       {cartCount}
                     </span>
-                  )}
+                  ) : null}
                 </button>
 
                 <button
@@ -381,9 +478,9 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
                     aria-label="View notifications"
                   >
                     <FaBell className="w-5 h-5" />
-                    {notifications.length > 0 && (
+                    {filterRecentNotifications(notifications).length > 0 && (
                       <span className="absolute top-0 right-0 bg-red-500 text-white text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
-                        {notifications.length}
+                        {filterRecentNotifications(notifications).length}
                       </span>
                     )}
                   </button>
@@ -394,12 +491,12 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
                           Notifications
                         </h3>
                       </div>
-                      {notifications.length === 0 ? (
+                      {filterRecentNotifications(notifications).length === 0 ? (
                         <div className="p-4 text-center text-white">
-                          No notifications available
+                          No recent notifications
                         </div>
                       ) : (
-                        notifications.map((notification, index) => (
+                        filterRecentNotifications(notifications).map((notification, index) => (
                           <div
                             key={index}
                             className="p-4 border-b border-indigo-700 last:border-b-0 hover:bg-indigo-500 transition-colors"
@@ -408,7 +505,7 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
                               {notification.message || "No message"}
                             </p>
                             <p className="text-xs text-white/80 mt-1">
-                              {formatDate(notification.createdAt)}
+                              {formatDate(notification.createdAt || notification.timestamp)}
                             </p>
                           </div>
                         ))
@@ -422,11 +519,19 @@ const Navbar = ({ cartCount, setCartCount, onCartClick, darkMode, toggleDarkMode
                   aria-label="View cart"
                 >
                   <FiShoppingCart className="w-5 h-5" />
-                  {cartCount > 0 && (
+                  {/* {isCartLoading ? (
+                    <span className="absolute top-0 right-0 bg-red-500 text-white text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center animate-spin">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    </span>
+                  ) : */}
+                   {cartCount > 0 ? (
                     <span className="absolute top-0 right-0 bg-red-500 text-white text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
                       {cartCount}
                     </span>
-                  )}
+                  ) : null }
                 </button>
               </>
             )}

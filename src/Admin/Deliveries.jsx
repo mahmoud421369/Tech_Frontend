@@ -454,21 +454,19 @@ const Deliveries = ({ darkMode }) => {
                       key={d.id}
                       className="hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all duration-200"
                     >
-                      <td className="py-6 px-6 text-center text-gray-600 dark:text-gray-300">
-                        <div className="flex items-center justify-center gap-2">
-                          {d.id}
-                          <button
-                            onClick={() => copyToClipboard(d.id)}
-                            className="relative group p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200"
-                            title="Copy Delivery ID"
-                          >
-                            <FiCopy size={18} />
-                            <span className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2">
-                              Copy Delivery ID
-                            </span>
-                          </button>
-                        </div>
-                      </td>
+                    <td className="px-6 py-4 text-sm font-medium flex items-center dark:text-white  justify-center gap-2 mt-3">
+                                                                           <span className="truncate max-w-[150px]">{d.id}</span>
+                                                                           <button
+                                                                             onClick={() => copyToClipboard(d.id)}
+                                                                             className="relative group p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                                                                             title="Copy delivery ID"
+                                                                           >
+                                                                             <FiCopy size={16} />
+                                                                             <span className="absolute hidden group-hover:block bg-gray-800 dark:bg-gray-900 text-white dark:text-gray-200 text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                                                                               Copy delivery ID
+                                                                             </span>
+                                                                           </button>
+                                                                         </td>
                       <td className="py-6 px-6 text-center text-gray-600 dark:text-gray-300 font-medium">
                         {DOMPurify.sanitize(d.name) || 'N/A'}
                       </td>

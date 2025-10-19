@@ -312,7 +312,7 @@ const Explore = memo(({ darkMode, addToCart }) => {
         </div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center z-10">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold">
+          <h1 className="text-3xl text-indigo-600 dark:text-white sm:text-4xl md:text-5xl font-extrabold">
             Discover Amazing Products & Shops
           </h1>
           <p className="mt-4 text-base sm:text-lg text-gray-600 dark:text-gray-200 max-w-xl sm:max-w-2xl mx-auto">
@@ -515,7 +515,7 @@ const Explore = memo(({ darkMode, addToCart }) => {
                 <Link
                   key={product.id}
                   to={`/device/${product.id}`}
-                  className="bg-white/30 dark:bg-gray-800/30 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex flex-col backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50"
+                  className="bg-white/30 dark:bg-gray-800/30 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex flex-col backdrop-blur-md border-2 border-gray-200/50 dark:border-gray-700/50"
                   aria-label={`View ${product.name}`}
                 >
                   <div className="relative w-full h-48">

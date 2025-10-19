@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import Swal from 'sweetalert2';
 import {
@@ -17,6 +16,7 @@ import {
   FiTag,
 } from 'react-icons/fi';
 import api from '../api';
+
 
 const ShopProfile = () => {
   const [shop, setShop] = useState({
@@ -45,15 +45,25 @@ const ShopProfile = () => {
   const [editingAddress, setEditingAddress] = useState({});
   const [loading, setLoading] = useState(false);
 
- 
+const userId = localStorage.getItem("id");
+const token = localStorage.getItem("access_token");
+
   const fetchShop = useCallback(async () => {
     const controller = new AbortController();
     try {
       setLoading(true);
-      const res = await api.get('/api/shops', {
-        signal: controller.signal,
+      if (!userId) {
+        throw new Error('User ID is not available. Please log in.');
+      }
+
+      const res = await api.get(`/api/shops/${userId}`, {
+
+        headers: {
+          Authorization: `Bearer ${token}`, // Include token for authentication
+        },
       });
       const data = res.data || {};
+      console.log(data)
       setShop({
         id: data.id || '',
         email: data.email || '',
@@ -78,25 +88,27 @@ const ShopProfile = () => {
     } catch (err) {
       if (err.name !== 'AbortError') {
         console.error('Error fetching shop details:', err.response?.data || err.message);
-        Swal.fire({
-          title: 'خطأ',
-          text: 'فشل في تحميل بيانات المتجر',
-          icon: 'error',
-          customClass: { popup: 'dark:bg-gray-800 dark:text-white' },
-        });
+        // Swal.fire({
+        //   title: 'خطأ',
+        //   text: err.message || 'فشل في تحميل بيانات المتجر',
+        //   icon: 'error',
+        //   customClass: { popup: 'dark:bg-gray-800 dark:text-white' },
+        // });
       }
     } finally {
       setLoading(false);
     }
     return () => controller.abort();
-  }, []);
-
+  }, [userId, token]);
 
   const fetchAddresses = useCallback(async () => {
     const controller = new AbortController();
     try {
       const res = await api.get('/api/shops/address', {
         signal: controller.signal,
+        headers: {
+          Authorization: `Bearer ${token}`, // Include token for authentication
+        },
       });
       setAddresses(res.data.content || []);
     } catch (err) {
@@ -111,9 +123,8 @@ const ShopProfile = () => {
         setAddresses([]);
       }
     }
-  }, []);
+  }, [token]);
 
- 
   const updateShop = useCallback(async () => {
     setLoading(true);
     try {
@@ -124,7 +135,11 @@ const ShopProfile = () => {
       if (shop.password && shop.password.trim() !== '') {
         updateData.password = shop.password;
       }
-      await api.put('/api/shops', updateData);
+      await api.put(`/api/shops/${userId}`, updateData, {
+        headers: {
+          Authorization: `Bearer ${token}`, // Include token for authentication
+        },
+      });
       Swal.fire({
         title: 'تم',
         text: 'تم تحديث معلومات المتجر بنجاح',
@@ -143,12 +158,15 @@ const ShopProfile = () => {
     } finally {
       setLoading(false);
     }
-  }, [shop]);
+  }, [shop, userId, token]);
 
-  
   const addAddress = useCallback(async () => {
     try {
-      await api.post('/api/shops/address', newAddress);
+      await api.post('/api/shops/address', newAddress, {
+        headers: {
+          Authorization: `Bearer ${token}`, // Include token for authentication
+        },
+      });
       Swal.fire({
         title: 'تم',
         text: 'تمت إضافة العنوان بنجاح',
@@ -172,12 +190,15 @@ const ShopProfile = () => {
         customClass: { popup: 'dark:bg-gray-800 dark:text-white' },
       });
     }
-  }, [newAddress, fetchAddresses]);
-
+  }, [newAddress, fetchAddresses, token]);
 
   const updateAddress = useCallback(async () => {
     try {
-      await api.put(`/api/shops/address/${editingAddressId}`, editingAddress);
+      await api.put(`/api/shops/address/${editingAddressId}`, editingAddress, {
+        headers: {
+          Authorization: `Bearer ${token}`, // Include token for authentication
+        },
+      });
       Swal.fire({
         title: 'تم',
         text: 'تم تحديث العنوان بنجاح',
@@ -196,8 +217,7 @@ const ShopProfile = () => {
         customClass: { popup: 'dark:bg-gray-800 dark:text-white' },
       });
     }
-  }, [editingAddressId, editingAddress, fetchAddresses]);
-
+  }, [editingAddressId, editingAddress, fetchAddresses, token]);
 
   const deleteAddress = useCallback(async (id) => {
     const result = await Swal.fire({
@@ -213,7 +233,11 @@ const ShopProfile = () => {
     if (!result.isConfirmed) return;
 
     try {
-      await api.delete(`/api/shops/address/${id}`);
+      await api.delete(`/api/shops/address/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`, // Include token for authentication
+        },
+      });
       Swal.fire({
         title: 'تم',
         text: 'تم حذف العنوان بنجاح',
@@ -230,18 +254,18 @@ const ShopProfile = () => {
         customClass: { popup: 'dark:bg-gray-800 dark:text-white' },
       });
     }
-  }, [fetchAddresses]);
+  }, [fetchAddresses, token]);
 
   useEffect(() => {
     fetchShop();
     fetchAddresses();
     return () => {
-
+      // Cleanup handled by AbortController in fetchShop and fetchAddresses
     };
   }, [fetchShop, fetchAddresses]);
 
   return (
-    <div style={{marginTop:"-600px"}} className="min-h-screen font-cairo bg-gray-100 dark:bg-gray-900 p-4 sm:p-6 md:p-8">
+    <div style={{ marginTop: "-600px" }} className="min-h-screen font-cairo bg-gray-100 dark:bg-gray-900 p-4 sm:p-6 md:p-8">
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Shop Details */}
         <div className="lg:col-span-2 h-auto bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 text-right">
@@ -284,7 +308,7 @@ const ShopProfile = () => {
             </div>
             <button
               onClick={updateShop}
-              disabled={loading}
+              disabled={loading || !userId}
               className="w-full px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-md"
             >
               {loading ? 'جارٍ التحديث...' : 'تحديث بياناتك'}
@@ -555,7 +579,7 @@ const ShopProfile = () => {
             </label>
             <button
               onClick={addAddress}
-              disabled={loading}
+              disabled={loading || !userId}
               className="w-full px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-md"
             >
               {loading ? 'جارٍ الإضافة...' : 'إضافة عنوان جديد'}
