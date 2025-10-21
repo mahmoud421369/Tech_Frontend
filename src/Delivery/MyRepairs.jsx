@@ -74,7 +74,7 @@ const MyRepairs = () => {
     setSelectedRepair(null);
   };
 
-  // Pagination logic
+ 
   const totalPages = Math.ceil(repairs.length / repairsPerPage);
   const indexOfLastRepair = currentPage * repairsPerPage;
   const indexOfFirstRepair = indexOfLastRepair - repairsPerPage;
@@ -125,7 +125,7 @@ const MyRepairs = () => {
               >
                 <div className="mb-4 space-y-3">
                   <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-semibold text-lg">
-                    <FiTool /> Repair #{repair.id}
+                    <FiTool /> Repair #{repair.id?.slice(0,8)}
                   </div>
                   {repair.userAddress && (
                     <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 text-sm">
@@ -170,7 +170,7 @@ const MyRepairs = () => {
             ))}
           </div>
 
-          {/* Pagination Controls */}
+    
           {totalPages > 1 && (
             <div className="mt-6 flex justify-center items-center gap-2">
               <button
@@ -182,7 +182,7 @@ const MyRepairs = () => {
                 }`}
                 disabled={currentPage === 1}
               >
-                Previous
+                
               </button>
               {[...Array(totalPages).keys()].map((page) => (
                 <button
@@ -206,7 +206,7 @@ const MyRepairs = () => {
                 }`}
                 disabled={currentPage === totalPages}
               >
-                Next
+                
               </button>
             </div>
           )}

@@ -64,7 +64,7 @@ const MyDeliveries = () => {
     setSelectedOrder(null);
   };
 
-  // Pagination logic
+
   const totalPages = Math.ceil(orders.length / ordersPerPage);
   const indexOfLastOrder = currentPage * ordersPerPage;
   const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
@@ -115,7 +115,7 @@ const MyDeliveries = () => {
               >
                 <div className="mb-4 space-y-3">
                   <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-semibold text-lg">
-                    <FiPackage /> Order #{order.id}
+                    <FiPackage /> Order #{order.id?.slice(0,8)}
                   </div>
                   {order.userAddress && (
                     <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 text-sm">
@@ -162,7 +162,7 @@ const MyDeliveries = () => {
             ))}
           </div>
 
-          {/* Pagination Controls */}
+      
           {totalPages > 1 && (
             <div className="mt-6 flex justify-center items-center gap-2">
               <button
@@ -174,7 +174,7 @@ const MyDeliveries = () => {
                 }`}
                 disabled={currentPage === 1}
               >
-                Previous
+                
               </button>
               {[...Array(totalPages).keys()].map((page) => (
                 <button
@@ -198,7 +198,7 @@ const MyDeliveries = () => {
                 }`}
                 disabled={currentPage === totalPages}
               >
-                Next
+                
               </button>
             </div>
           )}

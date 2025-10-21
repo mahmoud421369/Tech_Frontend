@@ -6,13 +6,12 @@ import DOMPurify from 'dompurify';
 import api from '../api';
 import Modal from '../components/Modal';
 
-
+// LoadingSpinner and ShopsSkeleton components remain unchanged
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center h-64">
     <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
   </div>
 );
-
 
 const ShopsSkeleton = ({ darkMode }) => (
   <div className="animate-pulse p-6">
@@ -73,7 +72,7 @@ const ShopsSkeleton = ({ darkMode }) => (
   </div>
 );
 
-// PaginatedTable Component
+// PaginatedTable Component (unchanged)
 const PaginatedTable = ({ data, columns, page, setPage, pageSize, renderRow, emptyMessage, darkMode }) => {
   const totalPages = Math.ceil(data.length / pageSize);
   const paginatedData = useMemo(() => {
@@ -142,7 +141,7 @@ const PaginatedTable = ({ data, columns, page, setPage, pageSize, renderRow, emp
             disabled={page === 1}
             className="px-4 py-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
           >
-            <FiChevronLeft /> 
+            <FiChevronLeft />
           </button>
           {getPageNumbers().map((pageNum, idx) => (
             <button
@@ -161,7 +160,7 @@ const PaginatedTable = ({ data, columns, page, setPage, pageSize, renderRow, emp
             disabled={page === totalPages}
             className="px-4 py-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
           >
-             <FiChevronRight />
+            <FiChevronRight />
           </button>
         </div>
       )}
@@ -169,7 +168,7 @@ const PaginatedTable = ({ data, columns, page, setPage, pageSize, renderRow, emp
   );
 };
 
-// ShopsTable Component
+// ShopsTable Component (modified to handle frontend search)
 const ShopsTable = ({ shops, filter, setFilter, search, setSearch, approveShop, suspendShop, deleteShop, viewShop, darkMode, token }) => {
   const [shopPage, setShopPage] = useState(1);
   const [searchInput, setSearchInput] = useState(search);
@@ -186,6 +185,17 @@ const ShopsTable = ({ shops, filter, setFilter, search, setSearch, approveShop, 
     }, 300),
     [setSearch]
   );
+
+  // Compute filtered shops based on search (frontend filtering)
+  const filteredShops = useMemo(() => {
+    if (!search.trim()) return shops;
+    const lowerSearch = search.toLowerCase();
+    return shops.filter(
+      (shop) =>
+        shop.name?.toLowerCase().includes(lowerSearch) ||
+        shop.email?.toLowerCase().includes(lowerSearch)
+    );
+  }, [shops, search]);
 
   const computedStats = useMemo(() => {
     const shopsArray = Array.isArray(shops) ? shops : [];
@@ -315,7 +325,7 @@ const ShopsTable = ({ shops, filter, setFilter, search, setSearch, approveShop, 
 
       {/* Table */}
       <PaginatedTable
-        data={shops}
+        data={filteredShops} // Use filteredShops instead of shops
         columns={['ID', 'Name', 'Status', 'Shop Type', 'Actions']}
         page={shopPage}
         setPage={setShopPage}
@@ -395,7 +405,7 @@ const ShopsTable = ({ shops, filter, setFilter, search, setSearch, approveShop, 
   );
 };
 
-// Shops Component
+// Shops Component (modified fetchShops)
 const Shops = ({ darkMode }) => {
   const navigate = useNavigate();
   const token = localStorage.getItem('authToken');
@@ -405,6 +415,58 @@ const Shops = ({ darkMode }) => {
   const [loadingShops, setLoadingShops] = useState(false);
   const [selectedShop, setSelectedShop] = useState(null);
 
+  // Fetch all shops
+  const fetchAllShops = useCallback(async (signal) => {
+    try {
+      const response = await api.get('/api/admin/shops', {
+        signal,
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      let data = response.data;
+      if (response.data && response.data.content) {
+        data = response.data.content;
+      }
+      return Array.isArray(data) ? data : [];
+    } catch (error) {
+      throw error;
+    }
+  }, [token]);
+
+ 
+  const fetchApprovedShops = useCallback(async (signal) => {
+    try {
+      const response = await api.get('/api/admin/shops/approved', {
+        signal,
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      let data = response.data;
+      if (response.data && response.data.content) {
+        data = response.data.content;
+      }
+      return Array.isArray(data) ? data : [];
+    } catch (error) {
+      throw error;
+    }
+  }, [token]);
+
+  // Fetch suspended shops
+  const fetchSuspendedShops = useCallback(async (signal) => {
+    try {
+      const response = await api.get('/api/admin/shops/suspended', {
+        signal,
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      let data = response.data;
+      if (response.data && response.data.content) {
+        data = response.data.content;
+      }
+      return Array.isArray(data) ? data : [];
+    } catch (error) {
+      throw error;
+    }
+  }, [token]);
+
+  // Main fetchShops function
   const fetchShops = useCallback(async () => {
     if (!token) {
       Swal.fire({
@@ -419,40 +481,24 @@ const Shops = ({ darkMode }) => {
     setLoadingShops(true);
     const controller = new AbortController();
     try {
-      let url = '/api/admin/shops';
-      let status = null;
-      if (filter !== 'all') {
-        status = filter === 'Approved' ? 'approved' : 'suspend';
+      let data;
+      if (filter === 'Approved') {
+        data = await fetchApprovedShops(controller.signal);
+      } else if (filter === 'suspend') {
+        data = await fetchSuspendedShops(controller.signal);
+      } else {
+        data = await fetchAllShops(controller.signal);
       }
-      if (search.trim()) {
-        url = `/api/admin/shops/search?query=${encodeURIComponent(search)}`;
-        if (status) {
-          url += `&status=${status}`;
-        }
-      } else if (status) {
-        url += `/${status}`;
-      }
-
-      const response = await api.get(url, {
-        signal: controller.signal,
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      let data = response.data;
-      if (response.data && response.data.content) {
-        data = response.data.content;
-      }
-      data = Array.isArray(data) ? data : [];
       console.log('Processed Shop Data:', data);
       setShops(data);
     } catch (error) {
-      // console.error('Error fetching shops:', error.response?.data || error.message);
-      // Swal.fire({
-      //   title: 'Error',
-      //   text: error.response?.status === 401 ? 'Unauthorized, please log in' : 'Failed to fetch shops',
-      //   icon: 'error',
-      //   customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      // });
+      console.error('Error fetching shops:', error.response?.data || error.message);
+      Swal.fire({
+        title: 'Error',
+        text: error.response?.status === 401 ? 'Unauthorized, please log in' : 'Failed to fetch shops',
+        icon: 'error',
+        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
+      });
       if (error.response?.status === 401) {
         localStorage.removeItem('authToken');
         localStorage.removeItem('refreshToken');
@@ -464,7 +510,7 @@ const Shops = ({ darkMode }) => {
       setLoadingShops(false);
     }
     return () => controller.abort();
-  }, [filter, search, token, navigate, darkMode]);
+  }, [filter, token, navigate, darkMode, fetchAllShops, fetchApprovedShops, fetchSuspendedShops]);
 
   const approveShop = useCallback(
     async (id) => {
@@ -651,7 +697,7 @@ const Shops = ({ darkMode }) => {
   }, [fetchShops]);
 
   return (
-    <div style={{ marginLeft: '250px' }} className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 mt-14 transition-colors duration-300 animate-fade-in">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 animate-fade-in mt-14">
       <div className="max-w-7xl mx-auto space-y-10">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <h1 className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2">

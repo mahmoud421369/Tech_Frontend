@@ -105,7 +105,7 @@ const DeliveryProfile = () => {
         <FiUser className="text-4xl" /> Welcome, {profile.name || "Delivery Person"}
       </h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+      {/* <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         <div className="bg-white dark:bg-gray-800 p-4 shadow-lg border-l-4 border-indigo-500 flex flex-col items-start">
           <span className="text-sm text-gray-500 dark:text-gray-400">Active Orders</span>
           <span className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
@@ -134,7 +134,7 @@ const DeliveryProfile = () => {
             {profile.status || "UNKNOWN"}
           </span>
         </div>
-      </div>
+      </div> */}
 
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700 space-y-6">
         <div>
@@ -210,7 +210,7 @@ const DeliveryProfile = () => {
               Phone
             </label>
             <input
-              value={0 + form.phone}
+              value={form.phone}
               disabled={!isEditing}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
               className={`w-full px-4 py-2 rounded-lg border bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${

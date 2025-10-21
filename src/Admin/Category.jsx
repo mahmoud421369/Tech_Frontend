@@ -399,7 +399,7 @@ const Categories = ({ darkMode }) => {
   }, [searchTerm, handleSearchChange]);
 
   return (
-    <div style={{ marginLeft: '250px' }} className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 mt-14 transition-colors duration-300 animate-fade-in">
+    <div  className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 animate-fade-in mt-14">
       <div className="max-w-7xl mx-auto space-y-10">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 flex justify-between flex-wrap gap-4 items-center">
           <div>

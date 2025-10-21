@@ -48,7 +48,7 @@ const AvailableRepairs = () => {
     }
   };
 
-  // Pagination logic
+
   const totalPages = Math.ceil(repairs.length / repairsPerPage);
   const indexOfLastRepair = currentPage * repairsPerPage;
   const indexOfFirstRepair = indexOfLastRepair - repairsPerPage;
@@ -154,7 +154,7 @@ const AvailableRepairs = () => {
             ))}
           </div>
 
-          {/* Pagination Controls */}
+        
           {totalPages > 1 && (
             <div className="mt-6 flex justify-center items-center gap-2">
               <button
@@ -166,7 +166,7 @@ const AvailableRepairs = () => {
                 }`}
                 disabled={currentPage === 1}
               >
-                Previous
+                
               </button>
               {[...Array(totalPages).keys()].map((page) => (
                 <button
@@ -190,7 +190,7 @@ const AvailableRepairs = () => {
                 }`}
                 disabled={currentPage === totalPages}
               >
-                Next
+                
               </button>
             </div>
           )}

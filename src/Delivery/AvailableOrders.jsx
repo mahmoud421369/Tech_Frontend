@@ -88,7 +88,7 @@ const AvailableOrders = () => {
     setSelectedOrder(null);
   };
 
-  // Pagination logic
+
   const totalPages = Math.ceil(orders.length / ordersPerPage);
   const indexOfLastOrder = currentPage * ordersPerPage;
   const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
@@ -224,7 +224,7 @@ const AvailableOrders = () => {
                 }`}
                 disabled={currentPage === 1}
               >
-                Previous
+                
               </button>
               {[...Array(totalPages).keys()].map((page) => (
                 <button
@@ -248,7 +248,7 @@ const AvailableOrders = () => {
                 }`}
                 disabled={currentPage === totalPages}
               >
-                Next
+                
               </button>
             </div>
           )}

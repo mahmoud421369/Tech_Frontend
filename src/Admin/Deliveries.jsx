@@ -345,7 +345,7 @@ const Deliveries = ({ darkMode }) => {
   }, [searchTerm, handleSearchChange]);
 
   return (
-    <div style={{marginTop:"50px",marginLeft:"250px"}} className="min-h-screen bg-gray-100 dark:bg-gray-900 p-8 transition-colors duration-500 animate-fade-in">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 animate-fade-in mt-14">
       <div className="max-w-7xl mx-auto">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8 border border-gray-200 dark:border-gray-700">
           <h1 className="text-3xl font-bold text-indigo-600 dark:text-gray-100 flex items-center gap-3">

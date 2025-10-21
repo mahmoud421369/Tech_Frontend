@@ -136,7 +136,7 @@ const AdminAssignmentLogs = ({ darkMode }) => {
   );
 
   return (
-    <div style={{marginLeft:"250px"}} className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen transition-colors duration-300 animate-fade-in mt-14">
+    <div  className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 animate-fade-in mt-14">
        <div className="bg-white p-6 rounded-xl flex justify-between dark:bg-gray-950 items-center mb-8">
                <div>
                  <h1 className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
