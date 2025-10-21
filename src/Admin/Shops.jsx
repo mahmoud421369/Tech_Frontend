@@ -452,7 +452,7 @@ const Shops = ({ darkMode }) => {
   // Fetch suspended shops
   const fetchSuspendedShops = useCallback(async (signal) => {
     try {
-      const response = await api.get('/api/admin/shops/suspended', {
+      const response = await api.get('/api/admin/shops/suspend', {
         signal,
         headers: { Authorization: `Bearer ${token}` },
       });

@@ -139,6 +139,7 @@ const Header = () => {
           </div>
           <ul className="flex-1 py-4 space-y-4">
             <h3 className="sm:text-sm text-center text-lg text-white dark:text-indigo-200">
+              <span className="text-center text-2xl font-bold">Tech & Restore</span><br />
               Admin Management System
             </h3>
             <hr className="border border-white/20 dark:border-indigo-700 flex justify-center items-center" />
@@ -212,7 +213,7 @@ const Header = () => {
      
       <header
         className={`fixed top-0 left-0 w-full h-16 z-20 shadow-sm flex items-center justify-between px-4 ${
-          darkMode ? "bg-indigo-950 text-indigo-200" : "bg-indigo-600 text-white"
+          darkMode ? "bg-indigo-950 text-indigo-200" : "bg-white text-indigo-600"
         } lg:pl-16 lg:pl-64`}
       >
         <div className="flex items-center space-x-2">
@@ -223,7 +224,7 @@ const Header = () => {
             <FiMenu className="w-5 h-5" />
           </button>
           {/* <img src={logo} alt="Logo" className="h-10 w-auto" /> */}
-          <span className="font-bold hidden sm:inline">Tech & Restore</span>
+          {/* <span className="font-bold hidden sm:inline">Tech & Restore</span> */}
         </div>
 
         <div className="flex items-center space-x-4">

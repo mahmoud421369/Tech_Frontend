@@ -247,7 +247,7 @@ const ProductSection = ({ products, updateProduct, deleteProduct, darkMode }) =>
 
   return (
     <section className="bg-white dark:bg-gray-950 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-      {/* Stats Cards */}
+      
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
         {[
           { title: 'Total Products', value: computedStats.totalProducts, color: 'indigo' },
@@ -264,7 +264,7 @@ const ProductSection = ({ products, updateProduct, deleteProduct, darkMode }) =>
         ))}
       </div>
 
-      {/* Filters and Search */}
+    
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
         {/* <div className="w-full sm:w-48">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filter Products</label>
@@ -325,10 +325,10 @@ const ProductSection = ({ products, updateProduct, deleteProduct, darkMode }) =>
         </div>
       </div>
 
-      {/* Table */}
+     
       <PaginatedTable
         data={filteredProducts}
-        columns={['ID', 'Name', 'Price', 'Condition', 'Stock', 'Actions']}
+        columns={['ID', 'Name', 'Price', 'Condition','Stock', 'Actions']}
         page={productPage}
         setPage={setProductPage}
         pageSize={5}
