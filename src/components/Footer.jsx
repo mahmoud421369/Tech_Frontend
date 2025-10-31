@@ -7,6 +7,8 @@ import {
   FiPhone,
   FiClock,
   FiShoppingBag,
+  FiTruck,
+  FiPackage,
 } from "react-icons/fi";
 import { FaFacebook, FaTwitter, FaInstagram } from "react-icons/fa";
 import { Link } from "react-router-dom";
@@ -14,35 +16,69 @@ import logo from "../images/logo.png";
 
 const Footer = ({ darkMode }) => {
   return (
-    <footer
-      className={`py-16 bg-gradient-to-b from-blue-600 to-indigo-600 dark:from-black dark:to-gray-950 text-white transition-all duration-300`}
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+    <footer className={`relative overflow-hidden py-16 ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+      {/* Animated Dots Background */}
+      <div className="absolute inset-0 opacity-10 pointer-events-none">
+        {[...Array(60)].map((_, i) => (
+          <div
+            key={i}
+            className={`absolute w-1 h-1 ${darkMode ? "bg-indigo-400" : "bg-indigo-600"} rounded-full animate-pulse`}
+            style={{
+              top: `${Math.random() * 100}%`,
+              left: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 4}s`,
+              animationDuration: `${3 + Math.random() * 3}s`,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Curved Top Border */}
+      <div className="absolute top-0 left-0 right-0">
+        <svg
+          className="w-full h-16"
+          preserveAspectRatio="none"
+          viewBox="0 0 1440 320"
+        >
+          <path
+            fill={darkMode ? "#111827" : "#f9fafb"}
+            d="M0,160L48,176C96,192,192,224,288,224C384,224,480,192,576,160C672,128,768,96,864,96C960,96,1056,128,1152,144C1248,160,1344,160,1392,160L1440,160L1440,0L0,0Z"
+          />
+        </svg>
+      </div>
+
+      <div className="relative max-w-7xl mx-auto px-6 sm:px-8 lg:px-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
+
           {/* Brand Section */}
-          <div className="animate-fade-in flex flex-col items-start">
-            <div className="mb-6">
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
               <img
                 src={logo}
-                className="h-16 w-16 object-contain rounded-full shadow-md transform hover:scale-105 transition-transform duration-300"
-                alt="Tech & Restore Logo"
+                alt="Tech & Restore"
+                className="h-14 w-14 rounded-2xl shadow-lg object-cover"
               />
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                Tech & Restore
+              </h1>
             </div>
-            <p className="text-sm leading-relaxed text-white/90 max-w-xs">
+            <p className={`text-sm leading-relaxed ${darkMode ? "text-gray-400" : "text-gray-600"} max-w-xs`}>
               Your trusted partner for top-quality device repairs and refurbished electronics. Exceptional service, guaranteed.
             </p>
-            <div className="flex space-x-4 mt-6">
+
+            {/* Social Icons */}
+            <div className="flex gap-3">
               {[
                 { Icon: FaFacebook, href: "https://facebook.com", label: "Facebook" },
                 { Icon: FaTwitter, href: "https://twitter.com", label: "Twitter" },
                 { Icon: FaInstagram, href: "https://instagram.com", label: "Instagram" },
-              ].map(({ Icon, href, label }, index) => (
+              ].map(({ Icon, href, label }, i) => (
                 <a
-                  key={index}
+                  key={i}
                   href={href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-2 rounded-full bg-indigo-700 text-white shadow-md hover:bg-indigo-500 transition-all duration-300 transform hover:scale-110"
+                  className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-md hover:shadow-xl transform hover:scale-110 transition-all duration-300"
                   aria-label={label}
                 >
                   <Icon className="w-5 h-5" />
@@ -51,24 +87,27 @@ const Footer = ({ darkMode }) => {
             </div>
           </div>
 
-          {/* Quick Links Section */}
-          <div className="animate-fade-in">
-            <h3 className="text-xl font-bold mb-6 text-indigo-200">
+          {/* Quick Links */}
+          <div>
+            <h3 className="text-xl font-bold text-indigo-600 dark:text-indigo-400 mb-6">
               Quick Links
             </h3>
             <ul className="space-y-3">
               {[
                 { to: "/", Icon: FiHome, label: "Home" },
                 { to: "/explore", Icon: FiCompass, label: "Explore" },
-                { to: "/purchase/new", Icon: FiShoppingBag, label: "Purchase New" },
-                { to: "/purchase/used", Icon: FiShoppingBag, label: "Purchase Used" },
-              ].map(({ to, Icon, label }, index) => (
-                <li key={index}>
+                { to: "/track", Icon: FiTruck, label: "Track Order" },
+                { to: "/purchase/new", Icon: FiShoppingBag, label: "Buy New" },
+                { to: "/purchase/used", Icon: FiPackage, label: "Buy Used" },
+              ].map(({ to, Icon, label }, i) => (
+                <li key={i}>
                   <Link
                     to={to}
-                    className="flex items-center text-base font-medium text-white hover:text-indigo-200 transition-colors duration-200"
+                    className={`flex items-center gap-2 text-base font-medium transition-all duration-300 hover:text-indigo-600 dark:hover:text-indigo-400 ${
+                      darkMode ? "text-gray-300" : "text-gray-700"
+                    }`}
                   >
-                    <Icon className="mr-2 text-indigo-300" />
+                    <Icon className="text-indigo-500" />
                     {label}
                   </Link>
                 </li>
@@ -76,20 +115,24 @@ const Footer = ({ darkMode }) => {
             </ul>
           </div>
 
-          {/* Services Section */}
-          <div className="animate-fade-in">
-            <h3 className="text-xl font-bold mb-6 text-indigo-200">
+          {/* Services */}
+          <div>
+            <h3 className="text-xl font-bold text-indigo-600 dark:text-indigo-400 mb-6">
               Our Services
             </h3>
             <ul className="space-y-3">
               {[
-                { to: "/services/repair", label: "Repair Devices" },
-                { to: "/services/purchase", label: "Purchase Devices" },
-              ].map(({ to, label }, index) => (
-                <li key={index}>
+                { to: "/services/repair", label: "Device Repair" },
+                { to: "/services/refurbish", label: "Refurbished Sales" },
+                { to: "/services/warranty", label: "Warranty Plans" },
+                { to: "/services/delivery", label: "Fast Delivery" },
+              ].map(({ to, label }, i) => (
+                <li key={i}>
                   <Link
                     to={to}
-                    className="text-base font-medium text-white hover:text-indigo-200 transition-colors duration-200"
+                    className={`block text-base font-medium transition-all duration-300 hover:text-indigo-600 dark:hover:text-indigo-400 ${
+                      darkMode ? "text-gray-300" : "text-gray-700"
+                    }`}
                   >
                     {label}
                   </Link>
@@ -98,53 +141,89 @@ const Footer = ({ darkMode }) => {
             </ul>
           </div>
 
-          {/* Contact Us Section */}
-          <div className="animate-fade-in">
-            <h3 className="text-xl font-bold mb-6 text-indigo-200">
+          {/* Contact */}
+          <div>
+            <h3 className="text-xl font-bold text-indigo-600 dark:text-indigo-400 mb-6">
               Contact Us
             </h3>
             <ul className="space-y-4 text-sm">
-              <li className="flex items-start">
-                <FiMap className="mt-1 mr-3 text-indigo-300 text-lg" />
-                <span>Cairo, Al Maadi, Egypt</span>
+              <li className="flex items-start gap-3">
+                <FiMap className="mt-0.5 text-indigo-500" />
+                <span className={darkMode ? "text-gray-300" : "text-gray-700"}>
+                  Cairo, Al Maadi, Egypt
+                </span>
               </li>
-              <li className="flex items-center">
-                <FiPhone className="mr-3 text-indigo-300 text-lg" />
+              <li className="flex items-center gap-3">
+                <FiPhone className="text-indigo-500" />
                 <a
                   href="tel:+2019999"
-                  className="text-white hover:text-indigo-200 transition-colors duration-200"
+                  className="text-indigo-600 dark:text-indigo-400 hover:underline"
                 >
                   +20 19999
                 </a>
               </li>
-              <li className="flex items-center">
-                <FiMail className="mr-3 text-indigo-300 text-lg" />
+              <li className="flex items-center gap-3">
+                <FiMail className="text-indigo-500" />
                 <a
                   href="mailto:support@techrestore.com"
-                  className="text-white hover:text-indigo-200 transition-colors duration-200"
+                  className="text-indigo-600 dark:text-indigo-400 hover:underline"
                 >
                   support@techrestore.com
                 </a>
               </li>
-              <li className="flex items-start">
-                <FiClock className="mt-1 mr-3 text-indigo-300 text-lg" />
-                <span>24/7 Customer Support</span>
+              <li className="flex items-start gap-3">
+                <FiClock className="mt-0.5 text-indigo-500" />
+                <span className={darkMode ? "text-gray-300" : "text-gray-700"}>
+                  24/7 Customer Support
+                </span>
               </li>
             </ul>
           </div>
         </div>
 
-        {/* Copyright Section */}
-        <div className="pt-8 border-t border-indigo-500 dark:border-gray-900 text-center">
-          <p className="text-sm text-white/80">
-            &copy; {new Date().getFullYear()}{" "}
-            <span className="font-semibold text-indigo-200">
-              Tech & Restore
-            </span>
-            . All rights reserved.
-          </p>
+        {/* Bottom Bar */}
+        <div className={`pt-8 border-t ${darkMode ? "border-gray-800" : "border-gray-200"}`}>
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-sm">
+            <p className={darkMode ? "text-gray-400" : "text-gray-600"}>
+              &copy; {new Date().getFullYear()}{" "}
+              <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+                Tech & Restore
+              </span>
+              . All rights reserved.
+            </p>
+            <div className="flex gap-6 text-sm">
+              <Link
+                to="/privacy"
+                className="hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+              >
+                Privacy Policy
+              </Link>
+              <Link
+                to="/terms"
+                className="hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+              >
+                Terms of Service
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Floating Icons */}
+      <div className="absolute inset-0 opacity-20 pointer-events-none">
+        <FiPackage className="absolute top-10 left-10 w-16 h-16 text-indigo-500 animate-float" />
+        <FiTruck className="absolute bottom-20 right-20 w-20 h-20 text-purple-500 animate-pulse" />
+        <FiCompass className="absolute top-1/3 right-1/4 w-14 h-14 text-indigo-400 animate-ping" />
+      </div>
+
+      {/* Custom Animations */}
+      <style jsx>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-12px); }
+        }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+      `}</style>
     </footer>
   );
 };

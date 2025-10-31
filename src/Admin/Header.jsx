@@ -19,7 +19,7 @@ import {
   FiMenu,
   FiSearch,
 } from "react-icons/fi";
-import { RiGift2Line, RiStore2Line, RiStore3Line, RiTruckLine } from "react-icons/ri";
+import { RiAccountBox2Line, RiGift2Line, RiStore2Line, RiStore3Line, RiTruckLine } from "react-icons/ri";
 import { Link } from "react-router-dom";
 import logo from "../images/logo.png";
 
@@ -54,7 +54,7 @@ const Header = () => {
       path: "/repair-shops",
       subMenu: [
         { name: "shops", icon: <RiStore2Line />, label: "Stores", path: "/repair-shops" },
-
+        { name: "subscriptions", icon: <RiAccountBox2Line />, label: "Subscriptions", path: "/shop/subscriptions" },
         { name: "products", icon: <FiBox />, label: "Products", path: "/admin/products" },
         { name: "repair requests", icon: <FiTool />, label: "Repair Requests", path: "/admin/repair-requests" },
       ],

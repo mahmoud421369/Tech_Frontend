@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback, memo } from "react";
 import {
-  FiCheckCircle,
   FiShoppingCart,
   FiTag,
   FiChevronLeft,
@@ -8,8 +7,8 @@ import {
   FiShoppingBag,
   FiChevronDown,
   FiX,
-  FiTool,
   FiSmartphone,
+  FiCheckCircle,
 } from "react-icons/fi";
 import { RiStore2Line } from "react-icons/ri";
 import Swal from "sweetalert2";
@@ -29,170 +28,106 @@ const Explore = memo(({ darkMode, addToCart }) => {
   const [productsLoading, setProductsLoading] = useState(false);
   const [shopsLoading, setShopsLoading] = useState(false);
   const [imageLoading, setImageLoading] = useState({});
-  const [cartItems, setCartItems] = useState([]);
-  const [isOpen, setIsOpen] = useState(false);
   const [productPage, setProductPage] = useState(1);
   const [shopPage, setShopPage] = useState(1);
   const itemsPerPage = 8;
   const token = localStorage.getItem("authToken");
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
+  const [isOpen, setIsOpen] = useState(false);
 
+  // Close dropdown on outside click
   useEffect(() => {
-    const handleClickOutside = (e) => {
+    const handleClick = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setIsOpen(false);
         setCategorySearch("");
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  // Fetchers
   const fetchProducts = useCallback(async () => {
     setProductsLoading(true);
-    const controller = new AbortController();
+    const ctrl = new AbortController();
     try {
       const res = await api.get("/api/products", {
         headers: { Authorization: `Bearer ${token}` },
-        signal: controller.signal,
+        signal: ctrl.signal,
       });
-      setProducts(res.data.content || []);
-      setImageLoading(
-        res.data.content.reduce(
-          (acc, product) => ({ ...acc, [product.id]: true }),
-          {}
-        )
-      );
+      const list = res.data.content || [];
+      setProducts(list);
+      const imgLoad = {};
+      list.forEach((p) => (imgLoad[p.id] = true));
+      setImageLoading(imgLoad);
     } catch (err) {
-      if (err.name !== "AbortError") {
-        console.error("Error fetching products:", err.response?.data || err.message);
-        Swal.fire({
-          title: "Error",
-          text: "Could not load products!",
-          icon: "error",
-          toast: true,
-          position: "top-end",
-          showConfirmButton: false,
-          timer: 1500,
-          customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-        });
-      }
+      if (err.name !== "AbortError") showError("Could not load products!");
     } finally {
       setProductsLoading(false);
     }
-    return () => controller.abort();
-  }, [token, darkMode]);
+    return () => ctrl.abort();
+  }, [token]);
 
-  const fetchProductsByCategory = useCallback(async (categoryId) => {
+  const fetchProductsByCategory = useCallback(async (catId) => {
     setProductsLoading(true);
-    setSelectedCategory(categoryId);
-    const controller = new AbortController();
+    setSelectedCategory(catId);
+    const ctrl = new AbortController();
     try {
-      const url = categoryId ? `/api/products/category/${categoryId}` : "/api/products";
+      const url = catId ? `/api/products/category/${catId}` : "/api/products";
       const res = await api.get(url, {
         headers: { Authorization: `Bearer ${token}` },
-        signal: controller.signal,
+        signal: ctrl.signal,
       });
-      setProducts(res.data.content || []);
-      setImageLoading(
-        res.data.content.reduce(
-          (acc, product) => ({ ...acc, [product.id]: true }),
-          {}
-        )
-      );
+      const list = res.data.content || [];
+      setProducts(list);
+      const imgLoad = {};
+      list.forEach((p) => (imgLoad[p.id] = true));
+      setImageLoading(imgLoad);
     } catch (err) {
-      if (err.name !== "AbortError") {
-        console.error("Error fetching products by category:", err.response?.data || err.message);
-        Swal.fire({
-          title: "Error",
-          text: "Could not load products!",
-          icon: "error",
-          toast: true,
-          position: "top-end",
-          showConfirmButton: false,
-          timer: 1500,
-          customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-        });
-      }
+      if (err.name !== "AbortError") showError("Could not load products!");
     } finally {
       setProductsLoading(false);
       setIsOpen(false);
       setCategorySearch("");
     }
-    return () => controller.abort();
-  }, [token, darkMode]);
+    return () => ctrl.abort();
+  }, [token]);
 
   const fetchShops = useCallback(async () => {
     setShopsLoading(true);
-    const controller = new AbortController();
+    const ctrl = new AbortController();
     try {
       const res = await api.get("/api/users/shops/all", {
         headers: { Authorization: `Bearer ${token}` },
-        signal: controller.signal,
+        signal: ctrl.signal,
       });
       setShops(res.data.content || []);
     } catch (err) {
-      if (err.name !== "AbortError") {
-        console.error("Error fetching shops:", err.response?.data || err.message);
-        Swal.fire({
-          title: "Error",
-          text: "Could not load shops!",
-          icon: "error",
-          toast: true,
-          position: "top-end",
-          showConfirmButton: false,
-          timer: 1500,
-          customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-        });
-      }
+      if (err.name !== "AbortError") showError("Could not load shops!");
     } finally {
       setShopsLoading(false);
     }
-    return () => controller.abort();
-  }, [token, darkMode]);
+    return () => ctrl.abort();
+  }, [token]);
 
   const fetchCategories = useCallback(async () => {
-    const controller = new AbortController();
+    const ctrl = new AbortController();
     try {
       const res = await api.get("/api/categories", {
         headers: { Authorization: `Bearer ${token}` },
-        signal: controller.signal,
+        signal: ctrl.signal,
       });
       setCategories(res.data.content || []);
     } catch (err) {
-      if (err.name !== "AbortError") {
-        console.error("Error fetching categories:", err.response?.data || err.message);
-        Swal.fire({
-          title: "Error",
-          text: "Could not load categories!",
-          icon: "error",
-          toast: true,
-          position: "top-end",
-          showConfirmButton: false,
-          timer: 1500,
-          customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-        });
-      }
+      if (err.name !== "AbortError") showError("Could not load categories!");
     }
-    return () => controller.abort();
-  }, [token, darkMode]);
+    return () => ctrl.abort();
+  }, [token]);
 
   const handleAddToCart = useCallback(
     async (product) => {
-      if (product.stock === 0) {
-        Swal.fire({
-          title: "Error",
-          text: `${product.name} is out of stock!`,
-          icon: "error",
-          toast: true,
-          position: "top-end",
-          showConfirmButton: false,
-          timer: 1500,
-          customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-        });
-        return;
-      }
       try {
         await api.post(
           "/api/cart/items",
@@ -201,74 +136,70 @@ const Explore = memo(({ darkMode, addToCart }) => {
             quantity: 1,
             price: product.price,
             name: product.name,
-            imageUrl: product.imageUrl || (product.imageUrls && product.imageUrls[0]),
+            imageUrl: product.imageUrl || product.imageUrls?.[0],
           },
-          {
-            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          }
+          { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
         );
-        if (addToCart) {
-          addToCart({ ...product });
-        }
-        setCartItems((prev) => [...prev, product]);
-        if (product.stock <= 5) {
-          setProducts((prev) =>
-            prev.map((p) =>
-              p.id === product.id ? { ...p, stock: p.stock - 1 } : p
-            )
-          );
-        }
-        Swal.fire({
-          title: "Success",
-          text: `${product.name} added to cart!`,
-          icon: "success",
-          toast: true,
-          position: "top-end",
-          showConfirmButton: false,
-          timer: 1500,
-          customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-        });
-      } catch (error) {
-        console.error("Error adding to cart:", error.response?.data || error.message);
-        Swal.fire({
-          title: "Error",
-          text: "Failed to add item to cart!",
-          icon: "error",
-          toast: true,
-          position: "top-end",
-          showConfirmButton: false,
-          timer: 1500,
-          customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-        });
+        addToCart?.(product);
+        showSuccess(`${product.name} added to cart!`);
+      } catch (err) {
+        showError("Failed to add to cart!");
       }
     },
-    [addToCart, token, darkMode]
+    [addToCart, token]
   );
 
-  const debouncedSetSearch = useCallback(debounce((value) => setSearch(value), 500), []);
+  const debouncedSetSearch = useCallback(debounce(setSearch, 400), []);
 
+  // Toast helpers
+  const showError = (msg) => {
+    Swal.fire({
+      icon: "error",
+      title: "Oops!",
+      text: msg,
+      toast: true,
+      position: "top-end",
+      timer: 2000,
+      showConfirmButton: false,
+      customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+    });
+  };
+
+  const showSuccess = (msg) => {
+    Swal.fire({
+      icon: "success",
+      title: "Success!",
+      text: msg,
+      toast: true,
+      position: "top-end",
+      timer: 1500,
+      showConfirmButton: false,
+      customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+    });
+  };
+
+  // Initial load
   useEffect(() => {
-    if (token) {
-      Promise.all([fetchProducts(), fetchShops(), fetchCategories()]).catch((err) =>
-        console.error("Error in initial fetch:", err)
-      );
-    } else {
+    if (!token) {
       Swal.fire({
         icon: "warning",
         title: "Session Expired",
         text: "Please log in again",
         customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
       }).then(() => navigate("/login"));
+      return;
     }
-  }, [token, navigate, fetchProducts, fetchShops, fetchCategories, darkMode]);
+    Promise.all([fetchProducts(), fetchShops(), fetchCategories()]);
+  }, [token, navigate, fetchProducts, fetchShops, fetchCategories]);
 
+  // Filtering
   const filteredProducts = products.filter((p) => {
     const matchSearch =
-      search === "" ||
+      !search ||
       p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.description?.toLowerCase().includes(search.toLowerCase());
-    const matchMin = minPrice === "" || parseFloat(p.price) >= parseFloat(minPrice);
-    const matchMax = maxPrice === "" || parseFloat(p.price) <= parseFloat(maxPrice);
+      (p.description && p.description.toLowerCase().includes(search.toLowerCase()));
+    const matchMin = !minPrice || p.price >= parseFloat(minPrice);
+    const matchMax = !maxPrice || p.price <= parseFloat(maxPrice);
     return matchSearch && matchMin && matchMax;
   });
 
@@ -282,100 +213,83 @@ const Explore = memo(({ darkMode, addToCart }) => {
   );
   const paginatedShops = shops.slice((shopPage - 1) * itemsPerPage, shopPage * itemsPerPage);
 
-  const stockStatus = (stock) => {
-    if (stock === 0) return { class: "bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400", label: "Out of Stock" };
-    if (stock <= 5) return { class: "bg-yellow-100 dark:bg-yellow-900 text-yellow-600 dark:text-yellow-400", label: `Low Stock: ${stock} left` };
-    return { class: "bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400", label: "In Stock" };
-  };
-
   return (
-    <div
-      className={`mx-auto min-h-screen transition-all duration-300 mt-14 ${
-        darkMode ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-900"
-      }`}
-    >
-      {/* Hero Section */}
-      <section
-        className={`relative py-16 sm:py-20 ${
-          darkMode
-            ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700"
-            : "bg-gradient-to-br from-white via-gray-50 to-gray-100"
-        } text-gray-900 dark:text-white overflow-hidden`}
-      >
-        {/* Floating Icons */}
-        <div className="absolute inset-0 opacity-20 pointer-events-none">
-          <FiTool className="absolute w-16 h-16 sm:w-20 sm:h-20 bottom-1/3 right-1/5 animate-float-medium text-indigo-300 dark:text-indigo-500" />
-          <FiShoppingBag className="absolute w-20 h-20 sm:w-24 sm:h-24 top-1/3 right-1/4 animate-float-slow text-indigo-300 dark:text-indigo-500" />
-          <FiShoppingBag className="absolute w-12 h-12 sm:w-16 sm:h-16 bottom-1/4 left-1/3 animate-float-fast text-indigo-300 dark:text-indigo-500" />
-          <FiSmartphone className="absolute w-16 h-16 sm:w-20 sm:h-20 top-10 left-10 animate-float-medium text-indigo-300 dark:text-indigo-500" />
-          <FiSmartphone className="absolute w-24 h-24 sm:w-28 sm:h-28 bottom-20 right-12 sm:right-20 animate-float-slow text-indigo-300 dark:text-indigo-500" />
+    <div className={`min-h-screen mt-10 ${darkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"}`}>
+      {/* HERO SECTION WITH CURVED BG + DOTS PATTERN */}
+      <section className="relative overflow-hidden">
+        {/* Curved Background */}
+        <div
+          className={`absolute inset-0 ${darkMode ? "bg-gradient-to-br from-indigo-900 via-gray-900 to-purple-900" : "bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500"}`}
+        >
+          <svg
+            className="absolute bottom-0 w-full h-48"
+            preserveAspectRatio="none"
+            viewBox="0 0 1440 320"
+          >
+            <path
+              fill={darkMode ? "#1f2937" : "#ffffff"}
+              fillOpacity="1"
+              d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
+            />
+          </svg>
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center z-10">
-          <h1 className="text-3xl text-indigo-600 dark:text-white sm:text-4xl md:text-5xl font-extrabold">
-            Discover Amazing Products & Shops
+        {/* Animated Dots Pattern */}
+        <div className="absolute inset-0 opacity-20 pointer-events-none">
+          {[...Array(50)].map((_, i) => (
+            <div
+              key={i}
+              className={`absolute w-1 h-1 ${darkMode ? "bg-indigo-300" : "bg-white"} rounded-full animate-pulse`}
+              style={{
+                top: `${Math.random() * 100}%`,
+                left: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 3}s`,
+                animationDuration: `${3 + Math.random() * 2}s`,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Floating Icons */}
+        <div className="absolute inset-0 opacity-30 pointer-events-none">
+          <FiShoppingBag className="absolute top-20 left-10 w-16 h-16 text-white animate-bounce" />
+          <FiSmartphone className="absolute bottom-20 right-20 w-20 h-20 text-white animate-pulse" />
+          <FiShoppingCart className="absolute top-1/3 right-1/4 w-14 h-14 text-white animate-ping" />
+        </div>
+
+        {/* Hero Content */}
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-32 text-center">
+          <h1 className="text-5xl sm:text-6xl font-extrabold text-white drop-shadow-lg">
+            Shop Smart, Shop Easy
           </h1>
-          <p className="mt-4 text-base sm:text-lg text-gray-600 dark:text-gray-200 max-w-xl sm:max-w-2xl mx-auto">
-            Explore a wide range of high-quality products and connect with verified shops tailored to your needs.
+          <p className="mt-6 text-xl text-white/90 max-w-3xl mx-auto">
+            Discover thousands of products from trusted shops. Filter, search, and add to cart in seconds.
           </p>
           <button
             onClick={() => window.scrollTo({ top: 600, behavior: "smooth" })}
-            className="mt-6 inline-flex items-center gap-2 px-6 py-3 bg-white/30 dark:bg-gray-800/30 text-gray-900 dark:text-white font-semibold rounded-full shadow-md hover:bg-white/40 dark:hover:bg-gray-700/40 transition-all duration-300 transform hover:-translate-y-1 backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50"
-            aria-label="Start shopping"
+            className="mt-10 inline-flex items-center gap-3 px-8 py-4 bg-white text-indigo-600 font-bold text-lg rounded-full shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
           >
-            <FiShoppingBag className="text-lg" /> Start Shopping
+            <FiShoppingBag className="text-xl" /> Explore Now
           </button>
         </div>
-
-        {/* Inline CSS for Animations */}
-        <style jsx>{`
-          @keyframes float {
-            0% { transform: translateY(0) translateX(0); }
-            50% { transform: translateY(-15px) translateX(8px); }
-            100% { transform: translateY(0) translateX(0); }
-          }
-          @keyframes float-slow {
-            0% { transform: translateY(0) translateX(0); }
-            50% { transform: translateY(-10px) translateX(-8px); }
-            100% { transform: translateY(0) translateX(0); }
-          }
-          @keyframes float-medium {
-            0% { transform: translateY(0) translateX(0); }
-            50% { transform: translateY(-12px) translateX(5px); }
-            100% { transform: translateY(0) translateX(0); }
-          }
-          @keyframes float-fast {
-            0% { transform: translateY(0) translateX(0); }
-            50% { transform: translateY(-8px) translateX(10px); }
-            100% { transform: translateY(0) translateX(0); }
-          }
-          .animate-float { animation: float 6s ease-in-out infinite; }
-          .animate-float-slow { animation: float-slow 8s ease-in-out infinite; }
-          .animate-float-medium { animation: float-medium 5s ease-in-out infinite; }
-          .animate-float-fast { animation: float-fast 4s ease-in-out infinite; }
-          @keyframes fade-in {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-          .animate-fade-in { animation: fade-in 0.5s ease-out; }
-        `}</style>
       </section>
 
-      {/* Filter Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white/30 dark:bg-gray-800/30 rounded-2xl p-4 sm:p-6 shadow-lg backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50">
-          <h3 className="text-xl sm:text-2xl font-bold text-indigo-600 dark:text-indigo-400 mb-4 flex items-center gap-2">
-            <FiTag className="text-lg sm:text-xl" /> Filter Products
+      {/* FILTERS */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 relative z-10">
+        <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl border border-gray-200 dark:border-gray-700">
+          <h3 className="flex items-center gap-3 text-2xl font-bold text-indigo-600 dark:text-indigo-400 mb-6">
+            <FiTag className="text-2xl" /> Find Your Product
           </h3>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1 min-w-0">
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Search */}
+            <div className="relative group">
               <input
                 type="text"
-                placeholder="Search products..."
-                className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-xl border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition pr-10 text-sm sm:text-base"
+                placeholder="Search anything..."
                 value={search}
                 onChange={(e) => debouncedSetSearch(e.target.value)}
-                aria-label="Search products"
+                className="w-full px-5 py-3 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white rounded-2xl border-2 border-transparent focus:border-indigo-500 focus:outline-none transition pr-12 text-lg"
               />
               {search && (
                 <button
@@ -383,102 +297,78 @@ const Explore = memo(({ darkMode, addToCart }) => {
                     setSearch("");
                     debouncedSetSearch("");
                   }}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                  aria-label="Clear search"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500"
                 >
-                  <FiX className="text-lg" />
+                  <FiX className="text-xl" />
                 </button>
               )}
             </div>
-            <div className="relative flex-1 min-w-0 sm:min-w-[120px]">
-              <input
-                type="number"
-                placeholder="Min Price"
-                className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-xl border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition pr-10 text-sm sm:text-base"
-                value={minPrice}
-                onChange={(e) => setMinPrice(e.target.value)}
-                aria-label="Minimum price"
-              />
-              {minPrice && (
-                <button
-                  onClick={() => setMinPrice("")}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                  aria-label="Clear minimum price"
-                >
-                  <FiX className="text-lg" />
-                </button>
-              )}
-            </div>
-            <div className="relative flex-1 min-w-0 sm:min-w-[120px]">
-              <input
-                type="number"
-                placeholder="Max Price"
-                className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-xl border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition pr-10 text-sm sm:text-base"
-                value={maxPrice}
-                onChange={(e) => setMaxPrice(e.target.value)}
-                aria-label="Maximum price"
-              />
-              {maxPrice && (
-                <button
-                  onClick={() => setMaxPrice("")}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                  aria-label="Clear maximum price"
-                >
-                  <FiX className="text-lg" />
-                </button>
-              )}
-            </div>
-            <div className="relative w-full z-50 sm:w-48" ref={dropdownRef}>
+
+            {/* Price Range */}
+            {["Min Price", "Max Price"].map((label, i) => {
+              const value = i === 0 ? minPrice : maxPrice;
+              const setter = i === 0 ? setMinPrice : setMaxPrice;
+              return (
+                <div key={label} className="relative group">
+                  <input
+                    type="number"
+                    placeholder={label}
+                    value={value}
+                    onChange={(e) => setter(e.target.value)}
+                    className="w-full px-5 py-3 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white rounded-2xl border-2 border-transparent focus:border-indigo-500 focus:outline-none transition pr-12 text-lg"
+                  />
+                  {value && (
+                    <button
+                      onClick={() => setter("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500"
+                    >
+                      <FiX className="text-xl" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Category */}
+            <div ref={dropdownRef} className="relative">
               <button
-                type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex justify-between z-50 items-center px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-600 rounded-xl shadow-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-600 transition text-sm sm:text-base"
-                aria-expanded={isOpen}
-                aria-haspopup="listbox"
+                className="w-full flex justify-between items-center px-5 py-3 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white rounded-2xl border-2 border-transparent hover:border-indigo-500 transition text-lg"
               >
                 {selectedCategory
-                  ? categories.find((c) => c.id === selectedCategory)?.name
-                  : "Select Category"}
-                <FiChevronDown
-                  className={`ml-2 h-5 w-5 transform transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}
-                />
+                  ? categories.find((c) => c.id === selectedCategory)?.name || "Category"
+                  : "All Categories"}
+                <FiChevronDown className={`ml-2 transition-transform ${isOpen ? "rotate-180" : ""}`} />
               </button>
+
               {isOpen && (
-                <div className="absolute mt-2 w-full rounded-xl shadow-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 z-50 max-h-60 overflow-y-auto">
-                  <div className="p-2">
+                <div className="absolute mt-2 w-full bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 max-h-64 overflow-y-auto z-50">
+                  <div className="p-3">
                     <input
                       type="text"
                       placeholder="Search categories..."
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition text-sm"
                       value={categorySearch}
                       onChange={(e) => setCategorySearch(e.target.value)}
-                      aria-label="Search categories"
+                      className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-xl text-sm"
                     />
                   </div>
-                  <ul className="py-1" role="listbox">
-                    <li>
+                  <div className="max-h-48 overflow-y-auto">
+                    <button
+                      onClick={() => fetchProductsByCategory("")}
+                      className="w-full text-left px-5 py-3 hover:bg-indigo-100 dark:hover:bg-indigo-900 transition"
+                    >
+                      All Categories
+                    </button>
+                    {filteredCategories.map((cat) => (
                       <button
-                        onClick={() => fetchProductsByCategory("")}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-indigo-100 dark:hover:bg-indigo-600 rounded"
-                        role="option"
-                        aria-selected={!selectedCategory}
+                        key={cat.id}
+                        onClick={() => fetchProductsByCategory(cat.id)}
+                        className="w-full text-left px-5 py-3 hover:bg-indigo-100 dark:hover:bg-indigo-900 transition"
                       >
-                        All Categories
+                        {cat.name}
                       </button>
-                    </li>
-                    {filteredCategories.map((category) => (
-                      <li key={category.id}>
-                        <button
-                          onClick={() => fetchProductsByCategory(category.id)}
-                          className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-indigo-100 dark:hover:bg-indigo-600 rounded"
-                          role="option"
-                          aria-selected={selectedCategory === category.id}
-                        >
-                          {category.name}
-                        </button>
-                      </li>
                     ))}
-                  </ul>
+                  </div>
                 </div>
               )}
             </div>
@@ -486,243 +376,212 @@ const Explore = memo(({ darkMode, addToCart }) => {
         </div>
       </div>
 
-      {/* Products Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-14">
-        <h2 className="text-2xl sm:text-3xl font-bold text-indigo-600 dark:text-indigo-400 mb-6 flex items-center gap-2 animate-fade-in">
-          <FiShoppingCart className="text-lg sm:text-xl" /> Featured Products
+      {/* PRODUCTS */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <h2 className="flex items-center gap-3 text-3xl font-bold text-indigo-600 dark:text-indigo-400 mb-8">
+          <FiShoppingCart className="text-3xl" /> Featured Products
         </h2>
+
         {productsLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            {[...Array(4)].map((_, index) => (
-              <div key={index} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 animate-pulse">
-                <div className="w-full h-48 bg-gray-200 dark:bg-gray-700 rounded-t-2xl"></div>
-                <div className="p-4 space-y-3">
-                  <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {Array(4)
+              .fill()
+              .map((_, i) => (
+                <div key={i} className="bg-white dark:bg-gray-800 rounded-3xl shadow-lg p-6 animate-pulse">
+                  <div className="h-48 bg-gray-200 dark:bg-gray-700 rounded-2xl mb-4"></div>
+                  <div className="space-y-3">
+                    <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                    <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         ) : paginatedProducts.length === 0 ? (
-          <p className="text-gray-500 dark:text-gray-400 text-center text-base sm:text-lg">No products found.</p>
+          <div className="text-center py-16">
+            <p className="text-xl text-gray-500 dark:text-gray-400">No products found. Try adjusting filters!</p>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-12">
-            {paginatedProducts.map((product) => {
-              const { class: stockClass, label: stockLabel } = stockStatus(product.stock);
-              const isImageLoading = imageLoading[product.id] || false;
-              return (
-                <Link
-                  key={product.id}
-                  to={`/device/${product.id}`}
-                  className="bg-white/30 dark:bg-gray-800/30 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex flex-col backdrop-blur-md border-2 border-gray-200/50 dark:border-gray-700/50"
-                  aria-label={`View ${product.name}`}
-                >
-                  <div className="relative w-full h-48">
-                    {isImageLoading && (
-                      <div className="absolute inset-0 bg-gray-200/50 dark:bg-gray-700/50 flex items-center justify-center rounded-t-2xl animate-pulse">
-                        <div className="w-8 h-8 border-2 border-indigo-500 dark:border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
-                      </div>
-                    )}
-                    <img
-                      src={product.imageUrl || "https://via.placeholder.com/400x250"}
-                      alt={product.name}
-                      loading="lazy"
-                      className={`w-full h-48 object-cover rounded-t-2xl transition-opacity duration-300 ${
-                        isImageLoading ? "opacity-0" : "opacity-100"
-                      }`}
-                      onLoad={() => setImageLoading((prev) => ({ ...prev, [product.id]: false }))}
-                      onError={() => setImageLoading((prev) => ({ ...prev, [product.id]: false }))}
-                    />
-                    <span className={`absolute top-2 right-2 px-2 py-1 text-xs rounded-full ${stockClass}`}>
-                      {stockLabel}
-                    </span>
-                  </div>
-                  <div className="p-4 flex flex-col flex-1 justify-between">
-                    <div>
-                      <h2 className="text-base sm:text-lg font-bold text-indigo-600 dark:text-indigo-400 mb-2 line-clamp-1">
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {paginatedProducts.map((product) => {
+                const loading = imageLoading[product.id];
+                return (
+                  <Link
+                    key={product.id}
+                    to={`/device/${product.id}`}
+                    className="group bg-white dark:bg-gray-800 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border border-gray-200 dark:border-gray-700"
+                  >
+                    <div className="relative h-56 overflow-hidden rounded-t-3xl">
+                      {loading && (
+                        <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                          <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                      )}
+                      <img
+                        src={product.imageUrl || "https://via.placeholder.com/400x300"}
+                        alt={product.name}
+                        loading="lazy"
+                        className={`w-full h-full object-cover transition-opacity ${loading ? "opacity-0" : "opacity-100"}`}
+                        onLoad={() => setImageLoading((prev) => ({ ...prev, [product.id]: false }))}
+                        onError={() => setImageLoading((prev) => ({ ...prev, [product.id]: false }))}
+                      />
+                    </div>
+
+                    <div className="p-6">
+                      <h3 className="font-bold text-lg text-indigo-600 dark:text-indigo-400 line-clamp-1">
                         {product.name}
-                      </h2>
-                      <p className="text-sm text-gray-600 dark:text-gray-300 mb-2 flex items-center gap-1">
-                        <FiTag className="text-indigo-500" /> {product.categoryName}
+                      </h3>
+                      <p className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 mt-1">
+                        <FiTag /> {product.categoryName || "Unknown"}
                       </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mb-3">
+                      <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mt-2">
                         {product.description || "No description available"}
                       </p>
-                    </div>
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="text-sm font-bold text-indigo-600 border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-1 rounded-full">
-                        {product.price.toFixed(2)} EGP
-                      </span>
-                      <span
-                        className={`px-2 py-1 text-xs flex items-center gap-1 rounded ${
-                          product.condition === "NEW"
-                            ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-400"
-                            : "bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-400"
-                        }`}
-                      >
-                        <FiTag /> {product.condition}
-                      </span>
-                    </div>
-                    <div className="flex gap-2 mt-auto">
-                      {product.stock > 0 ? (
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handleAddToCart(product);
-                          }}
-                          className="flex-1 px-4 py-2 bg-indigo-600 dark:bg-indigo-700 text-white font-semibold rounded-xl hover:bg-indigo-700 dark:hover:bg-indigo-800 transition-all duration-300 transform hover:-translate-y-1 flex items-center justify-center gap-2"
-                          aria-label={`Add ${product.name} to cart`}
-                        >
-                          <FiShoppingCart /> Add to Cart
-                        </button>
-                      ) : (
-                        <button
-                          disabled
-                          className="flex-1 px-4 py-2 bg-gray-400 dark:bg-gray-600 text-white font-semibold rounded-xl cursor-not-allowed flex items-center justify-center gap-2"
-                          aria-disabled="true"
-                        >
-                          <FiX className="text-lg" /> Out of Stock
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-        <div className="flex justify-center gap-4 mb-12">
-          <button
-            disabled={productPage === 1 || productsLoading}
-            onClick={() => setProductPage((p) => p - 1)}
-            className="px-4 py-2 rounded-full bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-50 transition-all duration-300"
-            aria-label="Previous product page"
-          >
-            <FiChevronLeft className="text-lg" />
-          </button>
-          <button
-            disabled={productPage * itemsPerPage >= filteredProducts.length || productsLoading}
-            onClick={() => setProductPage((p) => p + 1)}
-            className="px-4 py-2 rounded-full bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-50 transition-all duration-300"
-            aria-label="Next product page"
-          >
-            <FiChevronRight className="text-lg" />
-          </button>
-        </div>
-      </div>
 
-      {/* Shops Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white/30 dark:bg-gray-800/30 rounded-2xl p-4 sm:p-6 shadow-lg backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50 mb-8">
-          <h3 className="text-xl sm:text-2xl font-bold text-indigo-600 dark:text-indigo-400 mb-4 flex items-center gap-2">
-            <FiShoppingBag className="text-lg sm:text-xl" /> Find Your Perfect Shop
-          </h3>
-          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300">
-            Browse verified shops and discover exclusive deals tailored for you!
-          </p>
-        </div>
-        <h2 className="text-2xl sm:text-3xl font-bold text-indigo-600 dark:text-indigo-400 mb-6 flex items-center gap-2 animate-fade-in">
-          <FiCheckCircle className="text-lg sm:text-xl" /> Verified Shops
+                      <div className="flex justify-between items-center mt-4">
+                        <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
+                          {product.price.toFixed(2)} EGP
+                        </span>
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            product.condition === "NEW"
+                              ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                              : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
+                          }`}
+                        >
+                          {product.condition || "USED"}
+                        </span>
+                      </div>
+
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleAddToCart(product);
+                        }}
+                        className="mt-4 w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-all duration-300 transform hover:scale-105"
+                      >
+                        <FiShoppingCart /> Add to Cart
+                      </button>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Pagination */}
+            <div className="flex justify-center gap-4 mt-12">
+              <button
+                disabled={productPage === 1 || productsLoading}
+                onClick={() => setProductPage((p) => p - 1)}
+                className="p-3 rounded-full bg-white dark:bg-gray-800 shadow-lg disabled:opacity-50 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+              >
+                <FiChevronLeft className="text-xl" />
+              </button>
+              <button
+                disabled={productPage * itemsPerPage >= filteredProducts.length || productsLoading}
+                onClick={() => setProductPage((p) => p + 1)}
+                className="p-3 rounded-full bg-white dark:bg-gray-800 shadow-lg disabled:opacity-50 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+              >
+                <FiChevronRight className="text-xl" />
+              </button>
+            </div>
+          </>
+        )}
+      </section>
+
+      {/* SHOPS */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 bg-gradient-to-b from-transparent to-gray-100 dark:to-gray-900">
+        <h2 className="flex items-center gap-3 text-3xl font-bold text-indigo-600 dark:text-indigo-400 mb-8">
+          <RiStore2Line className="text-3xl" /> Verified Shops
         </h2>
+
         {shopsLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {[...Array(3)].map((_, index) => (
-              <div key={index} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 sm:p-6 animate-pulse">
-                <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
-                <div className="space-y-3">
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array(3)
+              .fill()
+              .map((_, i) => (
+                <div key={i} className="bg-white dark:bg-gray-800 rounded-3xl shadow-lg p-6 animate-pulse">
+                  <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
+                  <div className="space-y-3">
+                    <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                    <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         ) : paginatedShops.length === 0 ? (
-          <p className="text-gray-500 dark:text-gray-400 text-center text-base sm:text-lg">No shops found.</p>
+          <p className="text-center text-gray-500 dark:text-gray-400 py-16">No shops available.</p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-12">
-            {paginatedShops.map((shop) => (
-              <div
-                key={shop.id}
-                className="rounded-2xl p-4 sm:p-6 bg-white/30 dark:bg-gray-800/30 backdrop-blur-md shadow-lg border border-gray-200/50 dark:border-gray-700/50 transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
-              >
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-base sm:text-lg font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
-                    <RiStore2Line className="text-lg" /> {shop.name}
-                  </h2>
-                  {shop.verified && (
-                    <span className="flex items-center gap-1 px-2 py-1 text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-400 rounded-full">
-                      <FiCheckCircle className="w-3 h-3" /> Verified
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mb-4 italic">
-                  {shop.description || "No description available"}
-                </p>
-                <div className="space-y-2 text-sm text-gray-600 dark:text-gray-300 mb-4">
-                  <p className="flex items-center gap-2">
-                    <FiSmartphone className="text-indigo-500" /> {shop.phone ? `0${shop.phone}` : "No phone"}
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {paginatedShops.map((shop) => (
+                <div
+                  key={shop.id}
+                  className="bg-white dark:bg-gray-800 rounded-3xl shadow-lg p-6 border border-gray-200 dark:border-gray-700 hover:shadow-2xl transition-all duration-300"
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <h3 className="flex items-center gap-2 text-xl font-bold text-indigo-600 dark:text-indigo-400">
+                      <RiStore2Line /> {shop.name}
+                    </h3>
+                    {shop.verified && (
+                      <span className="flex items-center gap-1 px-3 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-xs font-medium">
+                        <FiCheckCircle /> Verified
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-gray-600 dark:text-gray-300 text-sm italic mb-4 line-clamp-2">
+                    {shop.description || "No description"}
                   </p>
-                  <p className="flex items-center gap-2">
-                    <FiTag className="text-indigo-500" /> {shop.shopType || "General"}
-                  </p>
-                  {shop.shopAddress ? (
+
+                  <div className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
                     <p className="flex items-center gap-2">
-                      <FiSmartphone className="text-indigo-500" /> {shop.shopAddress.street}, {shop.shopAddress.city}, {shop.shopAddress.state}
+                      <FiSmartphone /> {shop.phone ? `0${shop.phone}` : "—"}
                     </p>
-                  ) : (
                     <p className="flex items-center gap-2">
-                      <FiSmartphone className="text-indigo-500" /> No Address
+                      <FiTag /> {shop.shopType || "General"}
                     </p>
-                  )}
-                  <p className="flex items-center gap-2">
-                    <span className={shop.activate ? "text-green-500" : "text-red-500"}>
-                      {shop.activate ? "🟢" : "🔴"}
-                    </span>{" "}
-                    Active: {shop.activate ? "Yes" : "No"}
-                  </p>
-                </div>
-                {shop.verified ? (
+                    {shop.shopAddress ? (
+                      <p className="flex items-center gap-2 text-xs">
+                        <FiSmartphone /> {shop.shopAddress.city}
+                      </p>
+                    ) : null}
+                  </div>
+
                   <button
                     onClick={() => navigate(`/shops/${shop.id}`)}
-                    className="w-full px-4 py-2 bg-indigo-600 dark:bg-indigo-700 text-white rounded-xl font-semibold hover:bg-indigo-700 dark:hover:bg-indigo-800 transition-all duration-300 transform hover:-translate-y-1"
-                    aria-label={`Visit ${shop.name}`}
+                    disabled={!shop.verified}
+                    className={`mt-5 w-full py-3 rounded-2xl font-bold transition-all ${
+                      shop.verified
+                        ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                        : "bg-gray-400 text-white cursor-not-allowed"
+                    }`}
                   >
                     Visit Shop
                   </button>
-                ) : (
-                  <button
-                    disabled
-                    className="w-full px-4 py-2 bg-gray-400 dark:bg-gray-600 text-white rounded-xl font-semibold cursor-not-allowed"
-                    aria-disabled="true"
-                  >
-                    Visit Shop
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-center gap-4 mt-12">
+              <button
+                disabled={shopPage === 1 || shopsLoading}
+                onClick={() => setShopPage((p) => p - 1)}
+                className="p-3 rounded-full bg-white dark:bg-gray-800 shadow-lg disabled:opacity-50 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+              >
+                <FiChevronLeft className="text-xl" />
+              </button>
+              <button
+                disabled={shopPage * itemsPerPage >= shops.length || shopsLoading}
+                onClick={() => setShopPage((p) => p + 1)}
+                className="p-3 rounded-full bg-white dark:bg-gray-800 shadow-lg disabled:opacity-50 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+              >
+                <FiChevronRight className="text-xl" />
+              </button>
+            </div>
+          </>
         )}
-        <div className="flex justify-center gap-4 mb-12">
-          <button
-            disabled={shopPage === 1 || shopsLoading}
-            onClick={() => setShopPage((p) => p - 1)}
-            className="px-4 py-2 rounded-full bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-50 transition-all duration-300"
-            aria-label="Previous shop page"
-          >
-            <FiChevronLeft className="text-lg" />
-          </button>
-          <button
-            disabled={shopPage * itemsPerPage >= shops.length || shopsLoading}
-            onClick={() => setShopPage((p) => p + 1)}
-            className="px-4 py-2 rounded-full bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-50 transition-all duration-300"
-            aria-label="Next shop page"
-          >
-            <FiChevronRight className="text-lg" />
-          </button>
-        </div>
-      </div>
+      </section>
     </div>
   );
 });

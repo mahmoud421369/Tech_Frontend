@@ -1,13 +1,14 @@
 
 import { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { FiStar, FiTool, FiShoppingBag, FiChevronLeft, FiChevronRight, FiShoppingCart, FiSmartphone, FiMapPin, FiMonitor, FiPhone, FiTag, FiDollarSign, FiShield, FiClock, FiX, FiXSquare } from 'react-icons/fi';
+import { FiStar, FiTool, FiShoppingBag, FiChevronLeft, FiChevronRight, FiShoppingCart, FiSmartphone, FiMapPin, FiMonitor, FiPhone, FiTag, FiDollarSign, FiShield, FiClock, FiX, FiXSquare, FiSearch } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import Service from './Service';
 import '../styles/style.css';
 import Swal from 'sweetalert2';
 import { jwtDecode } from 'jwt-decode';
 import api from '../api';
+import { OffersSlider } from '../components';
 
 const Homepage = memo(({ darkMode }) => {
   const [shops, setShops] = useState([]);
@@ -263,354 +264,313 @@ const Homepage = memo(({ darkMode }) => {
   return (
     <>
      <section
-      className={`relative py-16 sm:py-20 ${
-        darkMode
-          ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700 text-white"
-          : "bg-gradient-to-br from-white via-gray-50 to-gray-100 text-gray-900"
-      } overflow-hidden`}
-    >
-      {/* Floating Icons */}
-      <div className="absolute inset-0 opacity-20 pointer-events-none">
-        <FiTool className="absolute w-16 h-16 sm:w-20 sm:h-20 bottom-1/3 right-1/5 animate-float-medium text-indigo-300 dark:text-indigo-500" />
-        <FiShoppingBag className="absolute w-20 h-20 sm:w-24 sm:h-24 top-1/3 right-1/4 animate-float-slow text-indigo-300 dark:text-indigo-500" />
-        <FiShoppingBag className="absolute w-12 h-12 sm:w-16 sm:h-16 bottom-1/4 left-1/3 animate-float-fast text-indigo-300 dark:text-indigo-500" />
-        <FiSmartphone className="absolute w-16 h-16 sm:w-20 sm:h-20 top-10 left-10 animate-float-medium text-indigo-300 dark:text-indigo-500" />
-        <FiSmartphone className="absolute w-24 h-24 sm:w-28 sm:h-28 bottom-20 right-12 sm:right-20 animate-float-slow text-indigo-300 dark:text-indigo-500" />
-        <FiShield className="absolute w-14 h-14 sm:w-18 sm:h-18 top-1/2 left-1/4 animate-float-fast text-indigo-300 dark:text-indigo-500" />
-      </div>
+  className={`relative overflow-hidden mt-10 pb-20 ${
+    darkMode
+      ? 'bg-gradient-to-br from-indigo-900 via-gray-900 to-purple-900'
+      : 'bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500'
+  }`}
+>
+  {/* Floating Icons */}
+  <div className="absolute inset-0 opacity-20 pointer-events-none">
+    <FiTool className="absolute w-16 h-16 sm:w-20 sm:h-20 bottom-1/3 right-1/5 animate-float-medium text-indigo-300 dark:text-indigo-500" />
+    <FiShoppingBag className="absolute w-20 h-20 sm:w-24 sm:h-24 top-1/3 right-1/4 animate-float-slow text-indigo-300 dark:text-indigo-500" />
+    <FiShoppingBag className="absolute w-12 h-12 sm:w-16 sm:h-16 bottom-1/4 left-1/3 animate-float-fast text-indigo-300 dark:text-indigo-500" />
+    <FiSmartphone className="absolute w-16 h-16 sm:w-20 sm:h-20 top-10 left-10 animate-float-medium text-indigo-300 dark:text-indigo-500" />
+    <FiSmartphone className="absolute w-24 h-24 sm:w-28 sm:h-28 bottom-20 right-12 sm:right-20 animate-float-slow text-indigo-300 dark:text-indigo-500" />
+    <FiShield className="absolute w-14 h-14 sm:w-18 sm:h-18 top-1/2 left-1/4 animate-float-fast text-indigo-300 dark:text-indigo-500" />
+  </div>
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-24 z-10">
-        <div className="text-center">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold">
-            Repair & Buy Devices with Confidence
-          </h1>
-          <p className="mt-4 text-base sm:text-lg text-gray-600 dark:text-gray-200 max-w-xl sm:max-w-2xl mx-auto">
-            Find trusted repair shops and purchase refurbished devices at great prices.
-          </p>
-        </div>
+  {/* Wave Bottom */}
+  <svg className="absolute bottom-0 w-full h-48" preserveAspectRatio="none" viewBox="0 0 1440 320">
+    <path fill={darkMode ? '#111827' : '#ffffff'} d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,320L0,320Z" />
+  </svg>
 
-        <div className="relative mt-8 max-w-3xl mx-auto">
-          <form
-            onSubmit={heroHandleSearch}
-            className="bg-white/30 dark:bg-gray-800/30 rounded-lg shadow-lg p-2 flex flex-wrap justify-center items-center backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50"
-          >
-            <input
-              type="text"
-              placeholder="Search for devices, shops, or services..."
-              className="flex-grow px-4 py-3 text-gray-900 dark:text-white bg-transparent focus:outline-none placeholder-gray-500 dark:placeholder-gray-300"
-              value={heroSearchQuery}
-              onChange={(e) => setHeroSearchQuery(e.target.value)}
-            />
-            {heroSearchQuery && (
-              <button
-                type="button"
-                onClick={() => setHeroSearchQuery("")}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-white transition-colors"
-              >
-                <FiX className="text-lg" />
-              </button>
-            )}
-          </form>
+  <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-24 z-10">
+    <div className="text-center">
+      <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white drop-shadow-lg">
+        Repair & Buy Devices with Confidence
+      </h1>
+      <p className="mt-4 text-base sm:text-lg text-white/90 max-w-xl sm:max-w-2xl mx-auto">
+        Find trusted repair shops and purchase refurbished devices at great prices.
+      </p>
+    </div>
 
+    <div className="relative mt-8 max-w-3xl mx-auto">
+      <form
+        onSubmit={heroHandleSearch}
+        className="bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl rounded-3xl shadow-2xl p-2 flex flex-wrap justify-center items-center border border-gray-200/50 dark:border-gray-700/50"
+      >
+        <div className="flex-1 relative">
+          <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
+          <input
+            type="text"
+            placeholder="Search for devices, shops, or services..."
+            className="w-full pl-12 pr-12 py-3 bg-transparent text-gray-900 dark:text-white placeholder-white dark:placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-2xl transition"
+            value={heroSearchQuery}
+            onChange={(e) => setHeroSearchQuery(e.target.value)}
+          />
           {heroSearchQuery && (
-            <div className="absolute top-full left-0 right-0 z-10 mt-2 bg-white/30 dark:bg-gray-800/30 rounded-lg shadow-xl max-h-96 overflow-y-auto backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50">
-              {isLoading ? (
-                <div className="p-4 text-center text-gray-600 dark:text-gray-300">
-                  Loading...
-                </div>
-              ) : searchResults.length > 0 ? (
-                <ul className="divide-y divide-gray-200/50 dark:divide-gray-700/50">
-                  {searchResults.map((item) => (
-                    <li
-                      key={item.id}
-                      className="hover:bg-indigo-100/50 dark:hover:bg-indigo-700/30 transition-colors"
-                    >
-                      <Link
-                        to={`/${item.type}/${item.id}`}
-                        className="p-4 flex justify-between items-center"
-                      >
-                        <div>
-                          <h3 className="font-medium text-gray-900 dark:text-white">
-                            {item.name}
-                          </h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-300">
-                            {item.category || item.shopName}
-                          </p>
-                        </div>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-500 text-white">
-                          {item.type}
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="p-4 text-center text-gray-600 dark:text-gray-300">
-                  No results found for "{heroSearchQuery}"
-                </div>
-              )}
+            <button
+              type="button"
+              onClick={() => setHeroSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-white transition"
+            >
+              <FiX className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+        <button
+          type="submit"
+          className="ml-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition font-medium"
+        >
+          Search
+        </button>
+      </form>
+
+      {heroSearchQuery && (
+        <div className="absolute top-full left-0 right-0 z-20 mt-2 bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl rounded-2xl shadow-2xl max-h-96 overflow-y-auto border border-gray-200/50 dark:border-gray-700/50">
+          {isLoading ? (
+            <div className="p-4 text-center text-gray-600 dark:text-gray-300">
+              Loading...
+            </div>
+          ) : searchResults.length > 0 ? (
+            <ul className="divide-y divide-gray-200/50 dark:divide-gray-700/50">
+              {searchResults.map((item) => (
+                <li
+                  key={item.id}
+                  className="hover:bg-indigo-100/50 dark:hover:bg-indigo-700/30 transition-colors"
+                >
+                  <Link
+                    to={`/${item.type}/${item.id}`}
+                    className="p-4 flex justify-between items-center"
+                  >
+                    <div>
+                      <h3 className="font-medium text-gray-900 dark:text-white">
+                        {item.name}
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">
+                        {item.category || item.shopName}
+                      </p>
+                    </div>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-500 text-white">
+                      {item.type}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="p-4 text-center text-gray-600 dark:text-gray-300">
+              No results found for "{heroSearchQuery}"
             </div>
           )}
         </div>
+      )}
+    </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-10 sm:mt-12">
-          <div className="bg-white/30 dark:bg-gray-800/30 p-4 sm:p-5 rounded-lg flex items-center backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50 hover:shadow-lg transition-all duration-300">
-            <FiTool className="text-2xl sm:text-3xl mr-3 text-indigo-400 dark:text-indigo-300" />
-            <div>
-              <h3 className="font-bold text-gray-900 dark:text-white">Expert Repairs</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300">Certified technicians</p>
-            </div>
-          </div>
-
-          <div className="bg-white/30 dark:bg-gray-800/30 p-4 sm:p-5 rounded-lg flex items-center backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50 hover:shadow-lg transition-all duration-300">
-            <FiSmartphone className="text-2xl sm:text-3xl mr-3 text-indigo-400 dark:text-indigo-300" />
-            <div>
-              <h3 className="font-bold text-gray-900 dark:text-white">Quality Devices</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300">Tested and guaranteed</p>
-            </div>
-          </div>
-
-          <div className="bg-white/30 dark:bg-gray-800/30 p-4 sm:p-5 rounded-lg flex items-center backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50 hover:shadow-lg transition-all duration-300">
-            <FiClock className="text-2xl sm:text-3xl mr-3 text-indigo-400 dark:text-indigo-300" />
-            <div>
-              <h3 className="font-bold text-gray-900 dark:text-white">6 Months Warranty</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300">On all repairs</p>
-            </div>
-          </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-10 sm:mt-12">
+      <div className="bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl p-4 sm:p-5 rounded-2xl flex items-center border border-gray-200/50 dark:border-gray-700/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+        <FiTool className="text-2xl sm:text-3xl mr-3 text-white/60 dark:text-indigo-300" />
+        <div>
+          <h3 className="font-bold text-white dark:text-white">Expert Repairs</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-300">Certified technicians</p>
         </div>
       </div>
 
-      {/* Inline CSS for Animations */}
-      <style jsx>{`
-        @keyframes float {
-          0% {
-            transform: translateY(0) translateX(0);
-          }
-          50% {
-            transform: translateY(-15px) translateX(8px);
-          }
-          100% {
-            transform: translateY(0) translateX(0);
-          }
-        }
-        @keyframes float-slow {
-          0% {
-            transform: translateY(0) translateX(0);
-          }
-          50% {
-            transform: translateY(-10px) translateX(-8px);
-          }
-          100% {
-            transform: translateY(0) translateX(0);
-          }
-        }
-        @keyframes float-medium {
-          0% {
-            transform: translateY(0) translateX(0);
-          }
-          50% {
-            transform: translateY(-12px) translateX(5px);
-          }
-          100% {
-            transform: translateY(0) translateX(0);
-          }
-        }
-        @keyframes float-fast {
-          0% {
-            transform: translateY(0) translateX(0);
-          }
-          50% {
-            transform: translateY(-8px) translateX(10px);
-          }
-          100% {
-            transform: translateY(0) translateX(0);
-          }
-        }
-        .animate-float {
-          animation: float 6s ease-in-out infinite;
-        }
-        .animate-float-slow {
-          animation: float-slow 8s ease-in-out infinite;
-        }
-        .animate-float-medium {
-          animation: float-medium 5s ease-in-out infinite;
-        }
-        .animate-float-fast {
-          animation: float-fast 4s ease-in-out infinite;
-        }
-      `}</style>
-    </section>
+      <div className="bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl p-4 sm:p-5 rounded-2xl flex items-center border border-gray-200/50 dark:border-gray-700/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+        <FiSmartphone className="text-2xl sm:text-3xl mr-3 text-indigo-400 dark:text-indigo-300" />
+        <div>
+          <h3 className="font-bold text-white dark:text-white">Quality Devices</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-300">Tested and guaranteed</p>
+        </div>
+      </div>
 
-    <div className={`relative py-16 bg-gradient-to-b ${darkMode ? 'from-gray-900 to-indigo-900' : 'from-blue-600 to-indigo-600'} text-white overflow-hidden`}>
-    
+      <div className="bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl p-4 sm:p-5 rounded-2xl flex items-center border border-gray-200/50 dark:border-gray-700/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+        <FiClock className="text-2xl sm:text-3xl mr-3 text-indigo-400 dark:text-indigo-300" />
+        <div>
+          <h3 className="font-bold text-white dark:text-white">6 Months Warranty</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-300">On all repairs</p>
+        </div>
+      </div>
+    </div>
+  </div>
 
-      <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 z-10">
+  {/* Inline Animations */}
+  <style jsx>{`
+    @keyframes float {
+      0%, 100% { transform: translateY(0) translateX(0); }
+      50% { transform: translateY(-15px) translateX(8px); }
+    }
+    @keyframes float-slow {
+      0%, 100% { transform: translateY(0) translateX(0); }
+      50% { transform: translateY(-10px) translateX(-8px); }
+    }
+    @keyframes float-medium {
+      0%, 100% { transform: translateY(0) translateX(0); }
+      50% { transform: translateY(-12px) translateX(5px); }
+    }
+    @keyframes float-fast {
+      0%, 100% { transform: translateY(0) translateX(0); }
+      50% { transform: translateY(-8px) translateX(10px); }
+    }
+    .animate-float { animation: float 6s ease-in-out infinite; }
+    .animate-float-slow { animation: float-slow 8s ease-in-out infinite; }
+    .animate-float-medium { animation: float-medium 5s ease-in-out infinite; }
+    .animate-float-fast { animation: float-fast 4s ease-in-out infinite; }
+  `}</style>
+</section>
+
+    <div className={`relative py-16 bg-gradient-to-br ${darkMode ? 'from-indigo-900 via-purple-900 to-gray-900' : 'bg-gray-50'} overflow-hidden`}>
+  {/* Subtle Background Pattern */}
+  <div className="absolute inset-0 opacity-5 pointer-events-none">
+    <div className="absolute top-10 left-10 w-72 h-72 bg-indigo-300 rounded-full blur-3xl"></div>
+    <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-300 rounded-full blur-3xl"></div>
+  </div>
+
+  <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 z-10">
+    <motion.div
+      initial={{ opacity: 0, y: 50 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
+      viewport={{ once: true, amount: 0.3 }}
+    >
+      <h1 className="text-4xl md:text-5xl font-extrabold text-center text-gray-900 dark:text-white mb-8">
+        What would you like to repair today?
+      </h1>
+    </motion.div>
+
+    <section className="py-8">
+      <div className="grid md:grid-cols-2 gap-8">
+        {/* Repair Device Card */}
         <motion.div
           initial={{ opacity: 0, y: 50 }}
           whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
+          transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
           viewport={{ once: true, amount: 0.3 }}
+          className="group rounded-3xl overflow-hidden cursor-pointer transform transition-all duration-500 hover:scale-105 hover:shadow-2xl"
         >
-          <h1 className="text-4xl md:text-5xl font-extrabold text-center text-white mb-8">
-            What would you like to repair today?
-          </h1>
+          <Link
+            to="/repair"
+            className={`p-8 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl border ${
+              darkMode ? 'border-gray-700/30' : 'border-gray-200/50'
+            } shadow-xl flex flex-col justify-between h-full hover:bg-white dark:hover:bg-gray-800 transition`}
+          >
+            <div className="flex items-center justify-center mb-5">
+              <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-5 rounded-full shadow-lg">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-14 w-14 text-white"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
+                  />
+                </svg>
+              </div>
+            </div>
+
+            <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-white mb-3">
+              Repair Device
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-300 text-center max-w-xs mx-auto leading-relaxed">
+              Get your device fixed by our{" "}
+              <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+                expert technicians
+              </span>{" "}
+              quickly and reliably.
+            </p>
+
+            <div className="mt-6 grid grid-cols-2 gap-4 text-center text-sm">
+              {[
+                { name: "Screen Replacement", icon: <FiMonitor className="h-5 w-5" /> },
+                { name: "Battery Replacement", icon: <FiShield className="h-5 w-5" /> },
+                { name: "Water Damage Fix", icon: <FiDollarSign className="h-5 w-5" /> },
+                { name: "Software Issues", icon: <FiSmartphone className="h-5 w-5" /> },
+              ].map((service, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-center gap-2 text-gray-700 dark:text-gray-200"
+                >
+                  <span className="bg-indigo-100 dark:bg-indigo-900 p-2 rounded-full text-indigo-600 dark:text-indigo-300">
+                    {service.icon}
+                  </span>
+                  <span className="text-xs font-medium">{service.name}</span>
+                </div>
+              ))}
+            </div>
+
+            <button className="mt-6 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold py-3 px-5 rounded-xl hover:from-indigo-700 hover:to-purple-700 transition transform hover:-translate-y-1 shadow-md">
+              Book a Repair
+            </button>
+          </Link>
         </motion.div>
 
-        <section className="py-16">
-          <div className="grid md:grid-cols-2 gap-8">
-          
-            <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
-              viewport={{ once: true, amount: 0.3 }}
-              className="relative group rounded-3xl overflow-hidden cursor-pointer transform transition-all duration-500 hover:scale-105 hover:shadow-2xl"
-            >
-              <Link
-                to="/repair"
-                className={`p-8 bg-white/10 dark:bg-gray-800/10 rounded-3xl border ${darkMode ? 'border-gray-700/20' : 'border-white/20'} backdrop-blur-md shadow-lg flex flex-col justify-between h-full`}
-              >
-                <div className="flex items-center justify-center mb-5">
-                  <div className="bg-indigo-500 p-5 rounded-full shadow-md">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-14 w-14 text-white"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
-                      />
-                    </svg>
-                  </div>
-                </div>
-
-                <h2 className="text-2xl font-bold text-center text-white mb-3">
-                  Repair Device
-                </h2>
-                <p className="text-sm text-white/80 text-center max-w-xs mx-auto leading-relaxed">
-                  Get your device fixed by our{" "}
-                  <span className="font-semibold text-indigo-300">
-                    expert technicians
-                  </span>{" "}
-                  quickly and reliably.
-                </p>
-
-                <div className="mt-6 grid grid-cols-2 gap-4 text-center text-sm">
-                  {[
-                    { name: "Screen Replacement", icon: <FiMonitor className="h-5 w-5" /> },
-                    { name: "Battery Replacement", icon: <FiShield className="h-5 w-5" /> },
-                    { name: "Water Damage Fix", icon: <FiDollarSign className="h-5 w-5" /> },
-                    { name: "Software Issues", icon: <FiSmartphone className="h-5 w-5" /> },
-                  ].map((service, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-center gap-2 text-white"
-                    >
-                      <span className="bg-indigo-600 p-2 rounded-full">
-                        {service.icon}
-                      </span>
-                      {service.name}
-                    </div>
-                  ))}
-                </div>
-
-                <button className="mt-6 bg-indigo-600 text-white font-bold py-3 px-5 rounded-lg hover:bg-indigo-500 transition transform hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-                  Book a Repair
-                </button>
-              </Link>
-            </motion.div>
-
-            {/* Latest Offers Card */}
-            <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
-              viewport={{ once: true, amount: 0.3 }}
-              className="relative group rounded-3xl overflow-hidden cursor-pointer transform transition-all duration-500 hover:scale-105 hover:shadow-2xl"
-            >
-              <div className={`p-8 bg-white/10 dark:bg-gray-800/10 rounded-3xl border ${darkMode ? 'border-gray-700/20' : 'border-white/20'} backdrop-blur-md shadow-lg flex flex-col justify-between h-full`}>
-                <div className="flex items-center justify-center gap-2 mb-5">
-                  <div className="bg-indigo-500 p-5 rounded-full shadow-md">
-                    <FiTag size={50} className="text-white" />
-                  </div>
-                </div>
-
-                <div className="text-center">
-                  <h2 className="text-2xl font-bold text-white">
-                    Latest Offers
-                  </h2>
-                  <p className="text-sm text-white/80 text-center max-w-xs mx-auto leading-relaxed">
-                    Check out exclusive discounts on devices & services.
-                  </p>
-                </div>
-
-                <ul className="mt-4 space-y-2">
-                  <li className="bg-indigo-700/30 text-white p-2 rounded-lg">
-                    📱 20% off iPhone screen repair
-                  </li>
-                  <li className="bg-indigo-700/30 text-white p-2 rounded-lg">
-                    💻 Laptop battery replacement EGP 499
-                  </li>
-                </ul>
-
-                <Link
-                  to="/offers"
-                  className="mt-8 bg-transparent border-2 border-indigo-400 text-white text-center font-bold py-3 px-5 rounded-lg hover:bg-indigo-500 hover:border-indigo-500 transition transform hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                >
-                  View Deals
-                </Link>
+        {/* Latest Offers Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 50 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
+          viewport={{ once: true, amount: 0.3 }}
+          className="group rounded-3xl overflow-hidden cursor-pointer transform transition-all duration-500 hover:scale-105 hover:shadow-2xl"
+        >
+          <div className={`p-8 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl border ${
+            darkMode ? 'border-gray-700/30' : 'border-gray-200/50'
+          } shadow-xl flex flex-col justify-between h-full`}>
+            <div className="flex items-center justify-center mb-5">
+              <div className="bg-gradient-to-br from-pink-500 to-orange-500 p-5 rounded-full shadow-lg">
+                <FiTag size={50} className="text-white" />
               </div>
-            </motion.div>
-          </div>
-        </section>
+            </div>
 
-{/*        
-        <style jsx>{`
-          @keyframes float {
-            0% {
-              transform: translateY(0) translateX(0);
-            }
-            50% {
-              transform: translateY(-20px) translateX(10px);
-            }
-            100% {
-              transform: translateY(0) translateX(0);
-            }
-          }
-          @keyframes float-slow {
-            0% {
-              transform: translateY(0) translateX(0);
-            }
-            50% {
-              transform: translateY(-15px) translateX(-10px);
-            }
-            100% {
-              transform: translateY(0) translateX(0);
-            }
-          }
-          .animate-float {
-            animation: float 6s ease-in-out infinite;
-          }
-          .animate-float-slow {
-            animation: float-slow 8s ease-in-out infinite;
-          }
-        `}</style> */}
+            <div className="text-center">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Latest Offers
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-300 text-center max-w-xs mx-auto leading-relaxed mt-2">
+                Check out exclusive discounts on devices & services.
+              </p>
+            </div>
+
+            <ul className="mt-6 space-y-3">
+              <li className="bg-gradient-to-r from-indigo-100 to-purple-100 dark:from-indigo-900/50 dark:to-purple-900/50 text-gray-800 dark:text-gray-200 p-3 rounded-xl flex items-center gap-3">
+                {/* <span className="text-2xl">Phone</span> */}
+                <span className="text-sm font-medium">20% off iPhone screen repair</span>
+              </li>
+              <li className="bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/50 dark:to-pink-900/50 text-gray-800 dark:text-gray-200 p-3 rounded-xl flex items-center gap-3">
+                {/* <span className="text-2xl">Laptop</span> */}
+                <span className="text-sm font-medium">Laptop battery replacement EGP 499</span>
+              </li>
+            </ul>
+
+            <Link
+              to="/offers"
+              className="mt-8 bg-transparent border-2 border-indigo-600 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400 text-center font-bold py-3 px-5 rounded-xl hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-500 transition transform hover:-translate-y-1"
+            >
+              View Deals
+            </Link>
+          </div>
+        </motion.div>
       </div>
-    </div>
+    </section>
+  </div>
+</div>
       
 
       <Service darkMode={darkMode} />
 
- <section
+<OffersSlider darkMode={darkMode}/>
+
+
+ {/* <section
       id="latest-devices"
       className={`relative py-16 bg-gradient-to-b ${darkMode ? 'from-gray-900 to-indigo-900' : 'from-blue-600 to-indigo-600'} text-white overflow-hidden`}
     >
-      {/* Floating Bubbles */}
+   
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-10 left-10 w-24 h-24 bg-indigo-400 opacity-20 rounded-full animate-float"></div>
         <div className="absolute top-20 right-20 w-32 h-32 bg-blue-400 opacity-20 rounded-full animate-float-slow"></div>
@@ -699,7 +659,7 @@ const Homepage = memo(({ darkMode }) => {
                   className="group rounded-3xl bg-white/10 dark:bg-gray-800/10 overflow-hidden cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 backdrop-blur-md border border-white/20 dark:border-gray-700/20"
                 >
                   <div className="relative w-full h-48">
-                    {/* Loading Overlay */}
+          
                     {isImageLoading && (
                       <div className="absolute inset-0 bg-gradient-to-b from-indigo-600/80 to-blue-600/80 backdrop-blur-sm flex items-center justify-center rounded-t-3xl z-10 animate-pulse">
                         <div className="flex flex-col items-center">
@@ -709,7 +669,7 @@ const Homepage = memo(({ darkMode }) => {
                       </div>
                     )}
                     
-                    {/* Image */}
+                 
                     <img
                       src={
                         product.imageUrl ||
@@ -724,7 +684,7 @@ const Homepage = memo(({ darkMode }) => {
                       onError={() => handleImageError(product.id)}
                     />
                     
-                    {/* Stock Badge */}
+                    
                     <span
                       className={`absolute top-2 right-2 px-2 py-1 text-xs font-semibold rounded-full z-20 ${stockClass}`}
                     >
@@ -787,7 +747,7 @@ const Homepage = memo(({ darkMode }) => {
           </div>
         )}
 
-        {/* Inline CSS for Floating Bubbles Animation */}
+   
         <style jsx>{`
           @keyframes float {
             0% { transform: translateY(0) translateX(0); }
@@ -807,7 +767,7 @@ const Homepage = memo(({ darkMode }) => {
           }
         `}</style>
       </div>
-    </section>
+    </section> */}
     </>
   );
 });

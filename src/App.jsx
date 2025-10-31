@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Footer, Navbar, RepairDetailsModal, ServiceModal, AssignerHeader, Modal, DeliveryHeader } from './components';
 import { Login, Signup, LoginSuccess, SuccessGoogle } from './Auth';
-import { Repair, Explore, Track, Account, Homepage, Cart, DeviceDetail, Offers, RepairRequest } from './User';
+import { Repair, Explore, Track, Account, Homepage, Cart, DeviceDetail, Offers, RepairRequest, Devices, Stores } from './User';
 import { Dashboard, Notifications, Header, Shops, Users, Reviews, Category, Deliveries, Assigners, AdminOffers, AdminRepairRequests, AdminProducts, AdminAssignmentLogs } from './Admin';
 import { AssignerDashboard, DeliveryPersons, AssignerProfile, AssignedOrders, AssignedRepairs, AssignmentLogs, ReassignRepairs, ReassignOrders, OrdersForAssignment, RepairsForAssignment } from './Assigner';
 import { DeliveryDashboard, DeliveryProfile, MyDeliveries, MyRepairs, AvailableOrders, AvailableRepairs } from './Delivery';
@@ -136,6 +136,9 @@ function App() {
         <Route path="/login" element={<Login darkMode={darkMode} />} />
         <Route path="/signup" element={<Signup darkMode={darkMode} />} />
         <Route path="/explore" element={withNavbarLayout(Explore)} />
+        <Route path="/devices" element={withNavbarLayout(Devices)} />
+        <Route path="/shops" element={withNavbarLayout(Stores)} />
+
         <Route path="/track" element={withNavbarLayout(Track)} />
         <Route path="/account" element={withNavbarLayout(Account)} />
         <Route path="/repair" element={withNavbarLayout(Repair)} />
