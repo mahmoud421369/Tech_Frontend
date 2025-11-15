@@ -11,6 +11,8 @@ export { default as Assigners } from './Assigners';
 export { default as AdminOffers } from './AdminOffers';
 export { default as AdminRepairRequests } from './AdminRepairRequests';
 export { default as AdminProducts } from './AdminProducts';
+export { default as AdminSubscriptions } from './AdminSubscriptions';
+
 export { default as AdminAssignmentLogs } from './AdminAssignmentLogs';
 
 export { default as Reviews } from './Review';

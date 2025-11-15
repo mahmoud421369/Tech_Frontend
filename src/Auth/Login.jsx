@@ -1,14 +1,11 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import React, { useState, useCallback, useMemo } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import useAuthStore from "../store/Auth";
 import { jwtDecode } from "jwt-decode";
 import Swal from "sweetalert2";
 import { RiComputerLine, RiSmartphoneLine, RiToolsLine } from "react-icons/ri";
 import { RiEyeLine, RiEyeOffLine } from "@remixicon/react";
 import api from "../api";
-import { GoogleLogin } from "@react-oauth/google";
-
-
 import { debounce } from "lodash";
 
 const Login = () => {
@@ -17,10 +14,8 @@ const Login = () => {
   const [errors, setErrors] = useState({ email: "", password: "", general: "" });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
-  const { setAccessToken } = useAuthStore();
+  const { setUserData } = useAuthStore();
 
-  
   const redirectMap = useMemo(
     () => ({
       ROLE_ADMIN: "/dashboard",
@@ -34,7 +29,6 @@ const Login = () => {
     []
   );
 
-
   const handleChange = useCallback(
     debounce((name, value) => {
       setFormData((prev) => ({ ...prev, [name]: value }));
@@ -43,300 +37,284 @@ const Login = () => {
     []
   );
 
-  
   const togglePasswordVisibility = useCallback(() => {
     setShowPassword((prev) => !prev);
   }, []);
 
-  const handleSubmit = useCallback(
-  async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setErrors({ email: "", password: "", general: "" });
+  // --- EGYPT CONFIG ---
+  const CURRENCY = "EGP";
+  const PRICE_PER_MONTH = 1200;
+  const DURATION = 1;
+  const TOTAL_PRICE = DURATION * PRICE_PER_MONTH;
 
-    try {
-      const response = await api.post("/api/auth/login", {
-        email: formData.email,
-        password: formData.password,
-      });
-      console.log("API Response:", response.data);
-      const { access_token: accessToken, role } = response.data;
+  const createPayload = () => ({
+    duration: DURATION,
+    totalPrice: TOTAL_PRICE,
+  });
 
-      if (!accessToken || typeof accessToken !== "string") {
-        throw new Error("Invalid or missing access token");
-      }
+  const getConfig = () => ({
+    headers: {
+      Authorization: `Bearer ${useAuthStore.getState().accessToken}`,
+    },
+  });
 
-      setAccessToken(accessToken);
-      console.log("Stored Token:", useAuthStore.getState().accessToken);
-      const decodedToken = jwtDecode(accessToken);
-      const roles = Array.isArray(role) ? role : [];
-      console.log("Roles:", roles); 
+  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-      let redirectPath = "/dashboard";
-      for (const role of roles) {
-        if (redirectMap[role]) {
-          redirectPath = redirectMap[role];
-          break;
-        }
-      }
-      console.log("Redirecting to:", redirectPath); 
-    Swal.fire({
-             title: 'Success',
-             text: 'Login success!',
-             icon: 'success',
-             toast: true,
-             position: 'top-end',
-             showConfirmButton: false,
-             timer: 1500,
-           }).then(() => {
-        navigate(redirectPath);
-      });
-    } catch (error) {
-      console.error("Login error:", error);
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        "Login failed. Please try again.";
-      setErrors((prev) => ({
-        ...prev,
-        [errorMessage.includes("email") ? "email" : errorMessage.includes("password") ? "password" : "general"]: errorMessage,
-      }));
-       Swal.fire({
-             title: 'Error',
-             text: 'Login Failed!',
-             icon: 'error',
-             toast: true,
-             position: 'top-end',
-             showConfirmButton: false,
-             timer: 1500,
-           })
-    } finally {
-      setLoading(false);
+  // --- RENEW CARD ---
+  const renewCard = async (shopEmail) => {
+    if (!validateEmail(shopEmail)) {
+      Swal.fire("Error", "Invalid email address", "error");
+      return;
     }
-  },
-  [formData, setAccessToken, navigate, redirectMap]
-);
 
-  
-  const verifyEmail = useCallback(async () => {
-    const { value: form } = await Swal.fire({
-      title: "Verify Email",
-      position: "top",
-      html: `
-        <input id="swal-input1" class="swal2-input" placeholder="Email">
-        <input id="swal-input2" class="swal2-input" placeholder="OTP Code">
-        <button id="resend-otp-btn" type="button" class="swal2-confirm swal2-styled mt-2">Resend OTP</button>
-      `,
-      didOpen: () => {
-        const resendBtn = document.getElementById("resend-otp-btn");
-        resendBtn.addEventListener("click", async () => {
-          const email = document.getElementById("swal-input1").value.trim();
-          if (!email) {
-            Swal.showValidationMessage("Enter email before resending OTP!");
-            return;
-          }
-          try {
-            await api.post("/api/auth/resend-otp", { email });
-          Swal.fire({
-             title: 'Success',
-             text: 'OTP Resent !',
-             icon: 'OTP resent successfully',
-             toast: true,
-             position: 'top-end',
-             showConfirmButton: false,
-             timer: 1500,
-           })
-          } catch (error) {
-            console.error("Error resending OTP:", error);
-            Swal.fire({
-              icon: "error",
-              title: "Error",
-              text: error.response?.data?.message || "Failed to resend OTP",
-              position: "top",
-              confirmButtonColor: "#2563eb",
-            });
-          }
-        });
-      },
-      focusConfirm: false,
-      preConfirm: () => {
-        const email = document.getElementById("swal-input1").value.trim();
-        const otpCode = document.getElementById("swal-input2").value.trim();
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!email || !otpCode) {
-          Swal.showValidationMessage("Email and OTP are required!");
-          return false;
-        }
-        if (!emailRegex.test(email)) {
-          Swal.showValidationMessage("Invalid email format!");
-          return false;
-        }
-        return { email, otpCode };
-      },
+    const confirm = await Swal.fire({
+      title: "Confirm Card Payment",
+      text: `${DURATION} month – ${TOTAL_PRICE} ${CURRENCY}`,
+      icon: "question",
       showCancelButton: true,
-      confirmButtonText: "Verify",
-      confirmButtonColor: "#2563eb",
-      cancelButtonColor: "#d33",
+      confirmButtonText: "Pay Now",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#10b981",
+      cancelButtonColor: "#ef4444",
     });
 
-    if (!form) return;
+    if (!confirm.isConfirmed) return;
 
-    try {
-      await api.post("/api/auth/verify-email", form);
-    Swal.fire({
-             title: 'Success',
-             text: 'Verified!',
-             icon: 'email has been verified',
-             toast: true,
-             position: 'top-end',
-             showConfirmButton: false,
-             timer: 1500,
-           })
-    } catch (error) {
-      console.error("Verification error:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: error.response?.data?.message || "Verification failed",
-        position: "top",
-        confirmButtonColor: "#2563eb",
-      });
-    }
-  }, []);
-
-
-  const forgotPassword = useCallback(async () => {
-    const { value: form } = await Swal.fire({
-      title: "Forgot Password",
-      position: "top",
-      html: `
-        <input id="swal-email" class="swal2-input" placeholder="Email">
-        <input id="swal-otp" class="swal2-input" placeholder="OTP Code (after email)">
-        <input id="swal-pass1" type="password" class="swal2-input" placeholder="New Password">
-        <input id="swal-pass2" type="password" class="swal2-input" placeholder="Confirm Password">
-        <button id="send-otp-btn" type="button" class="swal2-confirm swal2-styled mt-2">Send OTP</button>
-      `,
-      didOpen: () => {
-        const sendOtpBtn = document.getElementById("send-otp-btn");
-        sendOtpBtn.addEventListener("click", async () => {
-          const email = document.getElementById("swal-email").value.trim();
-          if (!email) {
-            Swal.showValidationMessage("Enter email first!");
-            return;
-          }
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          if (!emailRegex.test(email)) {
-            Swal.showValidationMessage("Invalid email format!");
-            return;
-          }
-          try {
-            await api.post("/api/auth/forgot-password", { email });
-            Swal.fire({
-              icon: "success",
-              title: "OTP Sent",
-              text: "OTP sent to your email!",
-              position: "top",
-              timer: 2000,
-              showConfirmButton: false,
-            });
-          } catch (error) {
-            console.error("Error sending OTP:", error);
-            Swal.fire({
-              icon: "error",
-              title: "Error",
-              text: error.response?.data?.message || "Failed to send OTP to email",
-              position: "top",
-              confirmButtonColor: "#2563eb",
-            });
-          }
-        });
-      },
-      focusConfirm: false,
-      preConfirm: () => {
-        const email = document.getElementById("swal-email").value.trim();
-        const otp = document.getElementById("swal-otp").value.trim();
-        const newPassword = document.getElementById("swal-pass1").value.trim();
-        const confirmPassword = document.getElementById("swal-pass2").value.trim();
-
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!email || !otp || !newPassword || !confirmPassword) {
-          Swal.showValidationMessage("All fields are required!");
-          return false;
-        }
-        if (!emailRegex.test(email)) {
-          Swal.showValidationMessage("Invalid email format!");
-          return false;
-        }
-        if (newPassword.length < 6) {
-          Swal.showValidationMessage("Password must be at least 6 characters!");
-          return false;
-        }
-        if (newPassword !== confirmPassword) {
-          Swal.showValidationMessage("Passwords do not match!");
-          return false;
-        }
-
-        return { email, otp, newPassword };
-      },
-      showCancelButton: true,
-      confirmButtonText: "Reset Password",
-      confirmButtonColor: "#2563eb",
-      cancelButtonColor: "#d33",
+    const { value: swalLoading } = await Swal.fire({
+      title: "Processing...",
+      text: "Creating card payment...",
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading(),
     });
 
-    if (!form) return;
-
     try {
-      await api.post("/api/auth/reset-password", form);
-      Swal.fire({
+      const res = await api.post(
+        `/api/subscriptions/renew/card/${shopEmail}`,
+        createPayload(),
+        getConfig()
+      );
+
+      await Swal.fire({
         icon: "success",
-        title: "Success",
-        text: "Password has been reset!",
-        position: "top",
-        timer: 2000,
+        title: "Payment Created",
+        text: `Payment ID: ${res.data.paymentId}`,
+        timer: 3000,
         showConfirmButton: false,
       });
-    } catch (error) {
-      console.error("Reset password error:", error);
+
+      window.location.href = res.data.paymentUrl;
+    } catch (err) {
       Swal.fire({
         icon: "error",
-        title: "Error",
-        text: error.response?.data?.message || "Password reset failed",
-        position: "top",
-        confirmButtonColor: "#2563eb",
+        title: "Payment Failed",
+        text: "Could not create card payment",
       });
     }
-  }, []);
+  };
 
+  // --- RENEW CASH ---
+  const renewCash = async (shopEmail) => {
+    if (!validateEmail(shopEmail)) {
+      Swal.fire("Error", "Invalid email address", "error");
+      return;
+    }
 
-   const handleGoogleLogin = () => {
+    const confirm = await Swal.fire({
+      title: "Confirm Cash Payment",
+      text: `${DURATION} month – ${TOTAL_PRICE} ${CURRENCY}`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Submit Request",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#10b981",
+      cancelButtonColor: "#ef4444",
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    try {
+      await api.post(
+        `/api/subscriptions/renew/cash/${shopEmail}`,
+        createPayload(),
+        getConfig()
+      );
+
+      await Swal.fire({
+        icon: "success",
+        title: "Request Sent",
+        text: "Cash payment request submitted successfully",
+        timer: 2500,
+        showConfirmButton: false,
+      });
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Request Failed",
+        text: "Could not submit cash payment request",
+      });
+    }
+  };
+
+  // --- RENEWAL POPUP ---
+  const showRenewalPopup = (shopEmail) => {
+    Swal.fire({
+      title: "Renew Subscription",
+      html: `
+        <div class="bg-white p-6 rounded-2xl shadow-2xl text-center max-w-md mx-auto font-cairo">
+          <div class="bg-gradient-to-br from-lime-50 to-white p-5 rounded-xl border border-lime-200 mb-4">
+            <h3 class="text-2xl font-bold mb-3 text-lime-700">Choose a Paid Plan</h3>
+            <div class="mb-4">
+              <select id="duration" class="w-full p-3 rounded-lg bg-lime-50 text-lime-900 border border-lime-300 focus:ring-2 focus:ring-lime-500">
+                <option value="1">1 Month (1200 EGP)</option>
+              </select>
+            </div>
+            <div class="text-3xl font-bold mb-4 text-lime-600">
+              1200 EGP
+              <p class="text-sm opacity-80">1 × 1200 EGP</p>
+            </div>
+            <div class="flex flex-col gap-3 text-sm text-lime-700">
+              <p class="flex items-center justify-center gap-2"><span class="text-lime-500">Check</span> Full Shop Management</p>
+              <p class="flex items-center justify-center gap-2"><span class="text-lime-500">Check</span> 24/7 Support</p>
+              <p class="flex items-center justify-center gap-2"><span class="text-lime-500">Check</span> Free Updates</p>
+            </div>
+          </div>
+          <div class="flex gap-2 mt-4">
+            <button id="pay-card" class="flex-1 bg-gradient-to-r from-lime-500 to-green-600 text-white font-bold py-3 rounded-lg shadow hover:shadow-lime-500/50 transition-all flex items-center justify-center gap-2 text-sm">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h10m-9 4h8m-8-8h8"></path></svg>
+              Credit Card
+            </button>
+            <button id="pay-cash" class="flex-1 bg-gradient-to-r from-green-600 to-teal-600 text-white font-bold py-3 rounded-lg shadow hover:shadow-teal-500/50 transition-all flex items-center justify-center gap-2 text-sm">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+              Cash Payment
+            </button>
+          </div>
+        </div>
+      `,
+      showConfirmButton: false,
+      allowOutsideClick: false,
+      width: "600px",
+      background: "transparent",
+      didOpen: () => {
+        document.getElementById("pay-card").onclick = () => {
+          Swal.close();
+          renewCard(shopEmail);
+        };
+        document.getElementById("pay-cash").onclick = () => {
+          Swal.close();
+          renewCash(shopEmail);
+        };
+      },
+    });
+  };
+
+  const handleSubmit = useCallback(
+    async (e) => {
+      e.preventDefault();
+      setLoading(true);
+      setErrors({ email: "", password: "", general: "" });
+
+      try {
+        const response = await api.post("/api/auth/login", {
+          email: formData.email,
+          password: formData.password,
+        });
+
+        const {
+          access_token: accessToken,
+          role,
+          id: backendUserId,
+          email: backendEmail,
+          requiresRenewal = false,
+          shopEmail,
+        } = response.data;
+
+        if (!accessToken || typeof accessToken !== "string") {
+          throw new Error("Invalid or missing access token");
+        }
+
+        let decodedToken;
+        try {
+          decodedToken = jwtDecode(accessToken);
+        } catch (err) {
+          console.warn("Failed to decode token");
+        }
+
+        const roles = Array.isArray(role) ? role : role ? [role] : [];
+        const finalUserId = backendUserId ?? decodedToken?.sub ?? null;
+        const finalEmail = backendEmail ?? formData.email;
+
+        // Store ID in localStorage
+        localStorage.setItem("id", finalUserId);
+
+        setUserData(accessToken, roles, finalUserId, finalEmail);
+
+        let redirectPath = "/dashboard";
+        for (const r of roles) {
+          if (redirectMap[r]) {
+            redirectPath = redirectMap[r];
+            break;
+          }
+        }
+
+        await Swal.fire({
+          icon: "success",
+          title: "Login Successful",
+          text: "Welcome back!",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+
+        if (requiresRenewal && roles.includes("ROLE_SHOP_OWNER") && shopEmail) {
+          showRenewalPopup(shopEmail);
+        } else {
+          navigate(redirectPath);
+        }
+      } catch (error) {
+        const errorMessage =
+          error.response?.data?.message ||
+          error.message ||
+          "Login failed. Please try again.";
+
+        setErrors((prev) => ({
+          ...prev,
+          [errorMessage.includes("email") ? "email" : errorMessage.includes("password") ? "password" : "general"]: errorMessage,
+        }));
+
+        await Swal.fire({
+          icon: "error",
+          title: "Login Failed",
+          text: errorMessage,
+        });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [formData.email, formData.password, navigate, redirectMap, setUserData]
+  );
+
+  const handleGoogleLogin = () => {
     window.location.href = "http://localhost:8080/oauth2/authorization/google";
   };
 
-
-
-
-
-
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-600 via-blue-600 to-purple-600  p-4 overflow-hidden dark:from-black dark:to-gray-950">
-      <RiComputerLine className="absolute top-10 left-10 text-white dark:text-gray-700 opacity-10 text-7xl animate-bounce" />
-      <RiSmartphoneLine className="absolute bottom-16 right-12 text-white dark:text-gray-700 opacity-10 text-6xl animate-pulse" />
-      <RiToolsLine className="absolute top-1/2 left-1/3 text-white dark:text-gray-700 opacity-10 text-8xl animate-spin-slow" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-gray-50 to-white p-4 relative overflow-hidden font-cairo">
+      {/* Floating Icons */}
+      <RiComputerLine className="absolute top-10 left-10 text-lime-400 text-7xl animate-pulse opacity-20" />
+      <RiSmartphoneLine className="absolute bottom-16 right-12 text-lime-500 text-6xl animate-bounce opacity-20" />
+      <RiToolsLine className="absolute top-1/2 left-1/3 text-lime-600 text-8xl animate-spin-slow opacity-20" />
 
       <div className="w-full max-w-md relative z-10">
-        <div className="bg-white/10 dark:bg-gray-950/90 backdrop-blur-lg border-2 border-white/20 dark:border-gray-700 rounded-2xl shadow-2xl p-8">
-          <h1 className="text-3xl font-bold text-white dark:text-gray-100 text-center mb-2">
+        <div className="bg-white/90 backdrop-blur-xl border border-gray-200 rounded-3xl shadow-2xl p-8">
+          <h1 className="text-3xl font-bold text-lime-700 text-center mb-2">
             Welcome Back
           </h1>
-          <p className="text-white/80 dark:text-gray-300 text-center mb-6">
-            Sign in to access your account
+          <p className="text-lime-600 text-center mb-6 text-sm">
+            Log in to access your account
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-white dark:text-gray-100 mb-1">
+              <label className="block text-sm font-medium text-lime-700 mb-1">
                 Email Address
               </label>
               <input
@@ -344,18 +322,18 @@ const Login = () => {
                 name="email"
                 required
                 onChange={(e) => handleChange(e.target.name, e.target.value)}
-                className={`block w-full px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition-all ${
-                  errors.email ? "border-2 border-red-500" : "border border-gray-300 dark:border-gray-600"
-                }`}
+                className={`block w-full px-4 py-3 rounded-lg bg-gray-50 text-lime-900 placeholder-gray-400 border ${
+                  errors.email ? "border-red-400" : "border-gray-300"
+                } focus:ring-2 focus:ring-lime-500 focus:outline-none transition-all`}
                 placeholder="you@example.com"
               />
               {errors.email && (
-                <p className="text-white text-xs mt-1">{errors.email}</p>
+                <p className="text-red-600 text-xs mt-1">{errors.email}</p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-white dark:text-gray-100 mb-1">
+              <label className="block text-sm font-medium text-lime-700 mb-1">
                 Password
               </label>
               <div className="relative">
@@ -364,55 +342,39 @@ const Login = () => {
                   name="password"
                   required
                   onChange={(e) => handleChange(e.target.name, e.target.value)}
-                  className={`block w-full px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-indigo-400 focus:outline-none transition-all ${
-                    errors.password ? "border-2 border-red-500" : "border border-gray-300 dark:border-gray-600"
-                  }`}
-                  placeholder="Password"
+                  className={`block w-full px-4 py-3 rounded-lg text-right placeholder:text-right bg-gray-50 text-lime-900 placeholder-gray-400 border ${
+                    errors.password ? "border-red-400" : "border-gray-300"
+                  } focus:ring-2 focus:ring-lime-500 focus:outline-none transition-all`}
+                  placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={togglePasswordVisibility}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 dark:text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-300"
+                  className="absolute inset-y-0 left-0 pl-3 flex items-center text-lime-600 hover:text-lime-700"
                 >
-                  {showPassword ? (
-                    <RiEyeOffLine className="text-lg" />
-                  ) : (
-                    <RiEyeLine className="text-lg" />
-                  )}
+                  {showPassword ? <RiEyeOffLine /> : <RiEyeLine />}
                 </button>
               </div>
               {errors.password && (
-                <p className="text-white text-xs mt-1">{errors.password}</p>
+                <p className="text-red-600 text-xs mt-1">{errors.password}</p>
               )}
             </div>
 
             {errors.general && (
-              <div className="text-white text-sm text-center">{errors.general}</div>
+              <div className="text-red-600 text-sm text-center">
+                {errors.general}
+              </div>
             )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              className="w-full bg-gradient-to-r from-lime-500 to-green-600 text-white font-bold py-3 rounded-lg shadow-lg hover:shadow-lime-500/50 transform hover:scale-105 transition-all disabled:opacity-70 flex items-center justify-center"
             >
               {loading ? (
-                <svg
-                  className="animate-spin h-5 w-5 mr-2 text-white"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
+                <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
               ) : (
                 "Log In"
@@ -420,40 +382,36 @@ const Login = () => {
             </button>
           </form>
 
-          <div className="mt-6 space-y-2 text-center text-sm text-white/80 dark:text-gray-300">
-            {/* <button onClick={verifyEmail} className="underline hover:text-white dark:hover:text-gray-100">
-              Verify Email
-            </button>{" "}
-            |{" "} */}
-            <button onClick={forgotPassword} className="underline hover:text-white dark:hover:text-gray-100">
-              Forgot / Reset Password
+          <div className="mt-6 text-center text-sm text-lime-700">
+            <button className="underline hover:text-lime-800">
+              Forgot password?
             </button>
           </div>
 
           <button
-            type="button"
             onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-3 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 font-bold py-3 rounded-lg shadow-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-all mt-4"
+            className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-300 text-lime-700 font-bold py-3 rounded-lg shadow hover:bg-lime-50 transition-all mt-4"
           >
-            <img
-              src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-              alt="Google"
-              className="w-5 h-5"
-            />
-            Sign in with Google
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+            Continue with Google
           </button>
 
-          <div className="mt-6 text-center text-sm text-white/80 dark:text-gray-300">
+          <div className="mt-6 text-center text-sm text-lime-700">
             New user?{" "}
-            <Link
-              to="/signup"
-              className="font-medium text-white dark:text-indigo-400 underline hover:text-indigo-200 dark:hover:text-indigo-300"
-            >
-              Sign up
+            <Link to="/signup" className="font-medium text-lime-600 underline hover:text-lime-700">
+              Create an account
             </Link>
           </div>
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes spin-slow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow { animation: spin-slow 20s linear infinite; }
+      `}</style>
     </div>
   );
 };

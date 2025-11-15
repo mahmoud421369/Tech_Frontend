@@ -6,10 +6,11 @@ import {
   FaClock,
   FaStore,
 } from "react-icons/fa";
-import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import { FiChevronLeft, FiChevronRight, FiTruck } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import Swal from "sweetalert2";
 import api from "../api";
+import { RiCarLine, RiMotorbikeLine } from "react-icons/ri";
 
 const Offers = ({ darkMode }) => {
   const [offers, setOffers] = useState([]);
@@ -80,7 +81,44 @@ const Offers = ({ darkMode }) => {
         darkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"
       } min-h-screen`}
     >
-      <div className="relative bg-gradient-to-r from-blue-500 to-indigo-600 dark:from-indigo-900 dark:to-gray-800 py-20 px-6 text-center overflow-hidden">
+
+
+ <section className="relative overflow-hidden pb-6">
+              <div
+                className={`absolute inset-0 ${darkMode ? "bg-gradient-to-br from-indigo-900 via-gray-900 to-purple-900" : "bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500"}`}
+              >
+                <svg className="absolute bottom-0 w-full h-48" preserveAspectRatio="none" viewBox="0 0 1440 320">
+                  <path
+                    fill={darkMode ? "#111827" : "#ffffff"}
+                    d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
+                  />
+                </svg>
+              </div>
+      
+         
+              <div className="absolute inset-0 opacity-30 pointer-events-none">
+                <FiTruck className="absolute top-16 left-10 w-16 h-16 text-white animate-bounce" />
+                <RiCarLine className="absolute bottom-20 right-20 w-20 h-20 text-white animate-pulse" />
+                <RiMotorbikeLine className="absolute top-1/3 right-1/4 w-14 h-14 text-white animate-ping" />
+              </div>
+      
+              <div className="relative max-w-7xl mx-auto px-6 pt-20 pb-32 text-center">
+                <h1 className="text-5xl sm:text-6xl font-extrabold text-white drop-shadow-lg">
+                   🎉 Exclusive Offers
+                </h1>
+                <p className="mt-6 text-xl text-white/90 max-w-3xl mx-auto">
+          Discover amazing discounts and deals available at your favorite shops.
+                </p>
+              </div>
+            </section>
+
+
+
+
+
+
+
+      {/* <div className="relative bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 dark:from-indigo-900 dark:to-gray-800 py-20 px-6 text-center overflow-hidden">
         <h1 className="text-4xl md:text-5xl font-bold text-white z-10 relative">
           🎉 Exclusive Offers
         </h1>
@@ -90,7 +128,7 @@ const Offers = ({ darkMode }) => {
         <div className="absolute top-10 left-10 w-24 h-24 bg-pink-500 opacity-40 rounded-full animate-bounce"></div>
         <div className="absolute bottom-10 right-20 w-32 h-32 bg-yellow-400 opacity-30 rounded-full animate-pulse"></div>
         <div className="absolute top-20 right-10 w-20 h-20 bg-green-400 opacity-30 rounded-full animate-bounce"></div>
-      </div>
+      </div> */}
 
       <div className="max-w-6xl mx-auto px-6 py-12">
         {isLoading ? (

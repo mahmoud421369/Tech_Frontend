@@ -15,17 +15,53 @@ const Cart = ({ show, onClose, darkMode }) => {
   const [cartTotal, setCartTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
-  const token = localStorage.getItem("authToken");
-  const userId = token ? jwtDecode(token).userId : null;
   const navigate = useNavigate();
 
+  /* ------------------------------------------------------------------ */
+  /*  SAFE JWT DECODE (FIXED DIRECTLY HERE)                             */
+  /* ------------------------------------------------------------------ */
+  const safeDecodeJwt = useCallback((token) => {
+    if (!token || typeof token !== "string" || token.trim() === "") {
+      return null;
+    }
+    try {
+      return jwtDecode(token);
+    } catch (error) {
+      console.warn("Invalid JWT token:", error.message);
+      return null;
+    }
+  }, []);
+
+  const isTokenExpired = useCallback((token) => {
+    const decoded = safeDecodeJwt(token);
+    if (!decoded) return true;
+    return !decoded.exp || decoded.exp < Date.now() / 1000;
+  }, [safeDecodeJwt]);
+
+  // Safe token & userId
+  const token = localStorage.getItem("authToken");
+  const decodedToken = token ? safeDecodeJwt(token) : null;
+  const userId = decodedToken?.userId || null;
+
+  const isAuthenticated = !!token && !isTokenExpired(token);
+
+  /* ------------------------------------------------------------------ */
+  /*  CALCULATE TOTAL                                                   */
+  /* ------------------------------------------------------------------ */
   const calculateTotal = useCallback((items) => {
     const total = items.reduce((sum, item) => sum + item.productPrice * item.quantity, 0);
     setCartTotal(total);
   }, []);
 
+  /* ------------------------------------------------------------------ */
+  /*  FETCH CART                                                        */
+  /* ------------------------------------------------------------------ */
   const fetchCart = useCallback(async () => {
-    if (!token) return;
+    if (!token || !isAuthenticated) {
+      setCartItems([]);
+      return;
+    }
+
     const controller = new AbortController();
     try {
       setIsLoading(true);
@@ -33,12 +69,14 @@ const Cart = ({ show, onClose, darkMode }) => {
         headers: { Authorization: `Bearer ${token}` },
         signal: controller.signal,
       });
-      setCartItems(res.data.items || []);
-      calculateTotal(res.data.items || []);
+      const items = res.data.items || [];
+      setCartItems(items);
+      calculateTotal(items);
     } catch (err) {
       if (err.name !== "AbortError") {
         console.error("Error fetching cart:", err.response?.data || err.message);
         setCartItems([]);
+        calculateTotal([]);
         Swal.fire({
           title: 'Error',
           text: 'Failed to load cart!',
@@ -53,35 +91,51 @@ const Cart = ({ show, onClose, darkMode }) => {
       setIsLoading(false);
     }
     return () => controller.abort();
-  }, [token, calculateTotal]);
+  }, [token, isAuthenticated, calculateTotal]);
 
+  /* ------------------------------------------------------------------ */
+  /*  ADD TO CART                                                       */
+  /* ------------------------------------------------------------------ */
   const addToCart = useCallback(async (productId, quantity = 1) => {
+    if (!isAuthenticated) {
+      Swal.fire({
+        icon: "info",
+        title: "Login Required",
+        text: "Please log in to add items to cart",
+        confirmButtonText: "Go to Login",
+      }).then(() => navigate("/login"));
+      return;
+    }
+
     try {
-      // Optimistic update: Add item to cart locally
-      const newItem = { id: Date.now(), productId, quantity, productName: "New Item", productPrice: 0 }; // Placeholder, update with real data if available
+      // Optimistic update
+      const placeholder = { id: Date.now(), productId, quantity, productName: "Loading...", productPrice: 0 };
       setCartItems((prev) => {
-        const existingItem = prev.find((item) => item.productId === productId);
-        if (existingItem) {
-          return prev.map((item) =>
-            item.productId === productId ? { ...item, quantity: item.quantity + quantity } : item
+        const existing = prev.find((i) => i.productId === productId);
+        if (existing) {
+          return prev.map((i) =>
+            i.productId === productId ? { ...i, quantity: i.quantity + quantity } : i
           );
         }
-        return [...prev, newItem];
-      });
-      calculateTotal([...cartItems, newItem]);
-
-      const res = await api.post("/api/cart/items", { productId, quantity }, {
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        return [...prev, placeholder];
       });
 
-      // Sync with server response
+      const res = await api.post(
+        "/api/cart/items",
+        { productId, quantity },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
       setCartItems(res.data.items || []);
       calculateTotal(res.data.items || []);
     } catch (err) {
       console.error("Error adding to cart:", err.response?.data || err.message);
-      // Revert optimistic update
-      setCartItems((prev) => prev.filter((item) => item.productId !== productId));
-      calculateTotal(cartItems);
+      fetchCart(); // Revert to server state
       Swal.fire({
         icon: "error",
         title: "Error",
@@ -89,30 +143,30 @@ const Cart = ({ show, onClose, darkMode }) => {
         customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
       });
     }
-  }, [token, darkMode, cartItems, calculateTotal]);
+  }, [token, isAuthenticated, darkMode, navigate, calculateTotal, fetchCart]);
 
+  /* ------------------------------------------------------------------ */
+  /*  UPDATE QUANTITY                                                   */
+  /* ------------------------------------------------------------------ */
   const updateQuantity = useCallback(async (itemId, newQuantity) => {
     if (newQuantity < 1) return removeFromCart(itemId);
 
-    // Optimistic update: Update quantity locally
     const prevItems = [...cartItems];
     setCartItems((prev) =>
-      prev.map((item) =>
-        item.id === itemId ? { ...item, quantity: newQuantity } : item
-      )
+      prev.map((item) => (item.id === itemId ? { ...item, quantity: newQuantity } : item))
     );
-    calculateTotal(cartItems.map((item) =>
-      item.id === itemId ? { ...item, quantity: newQuantity } : item
-    ));
+    calculateTotal(cartItems.map((i) => (i.id === itemId ? { ...i, quantity: newQuantity } : i)));
 
     try {
-      await api.put(`/api/cart/items/${itemId}`, { quantity: newQuantity }, {
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      });
-      // No need to fetch cart, as local state is already updated
+      await api.put(
+        `/api/cart/items/${itemId}`,
+        { quantity: newQuantity },
+        {
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        }
+      );
     } catch (err) {
       console.error("Error updating quantity:", err.response?.data || err.message);
-      // Revert optimistic update
       setCartItems(prevItems);
       calculateTotal(prevItems);
       Swal.fire({
@@ -122,13 +176,15 @@ const Cart = ({ show, onClose, darkMode }) => {
         customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
       });
     }
-  }, [token, darkMode, cartItems, calculateTotal]);
+  }, [token, cartItems, calculateTotal]);
 
+  /* ------------------------------------------------------------------ */
+  /*  REMOVE FROM CART                                                  */
+  /* ------------------------------------------------------------------ */
   const removeFromCart = useCallback(async (itemId) => {
-    // Optimistic update: Remove item locally
     const prevItems = [...cartItems];
-    setCartItems((prev) => prev.filter((item) => item.id !== itemId));
-    calculateTotal(cartItems.filter((item) => item.id !== itemId));
+    setCartItems((prev) => prev.filter((i) => i.id !== itemId));
+    calculateTotal(cartItems.filter((i) => i.id !== itemId));
 
     try {
       await api.delete(`/api/cart/items/${itemId}`, {
@@ -145,12 +201,11 @@ const Cart = ({ show, onClose, darkMode }) => {
       });
     } catch (err) {
       console.error("Error removing item:", err.response?.data || err.message);
-      // Revert optimistic update
       setCartItems(prevItems);
       calculateTotal(prevItems);
       Swal.fire({
         title: 'Error',
-        text: 'Item is not removed!',
+        text: 'Failed to remove item!',
         icon: 'error',
         toast: true,
         position: 'top-end',
@@ -158,10 +213,12 @@ const Cart = ({ show, onClose, darkMode }) => {
         timer: 1500,
       });
     }
-  }, [token, darkMode, cartItems, calculateTotal]);
+  }, [token, cartItems, calculateTotal]);
 
+  /* ------------------------------------------------------------------ */
+  /*  CLEAR CART                                                        */
+  /* ------------------------------------------------------------------ */
   const clearCart = useCallback(async () => {
-    // Optimistic update: Clear cart locally
     const prevItems = [...cartItems];
     setCartItems([]);
     setCartTotal(0);
@@ -178,7 +235,6 @@ const Cart = ({ show, onClose, darkMode }) => {
       });
     } catch (err) {
       console.error("Error clearing cart:", err.response?.data || err.message);
-      // Revert optimistic update
       setCartItems(prevItems);
       calculateTotal(prevItems);
       Swal.fire({
@@ -193,25 +249,29 @@ const Cart = ({ show, onClose, darkMode }) => {
     }
   }, [token, darkMode, cartItems, calculateTotal]);
 
+  /* ------------------------------------------------------------------ */
+  /*  FETCH ADDRESSES                                                   */
+  /* ------------------------------------------------------------------ */
   const fetchAddresses = useCallback(async () => {
-    if (!token) return;
+    if (!token || !isAuthenticated) return;
+
     const controller = new AbortController();
     try {
       const res = await api.get("/api/users/addresses", {
         headers: { Authorization: `Bearer ${token}` },
         signal: controller.signal,
       });
-      console.log("Fetched addresses:", res.data.content);
-      setAddresses(res.data.content || []);
-      if (res.data.content?.length > 0) {
-        setSelectedAddress(res.data.content[0].id);
+      const addrList = res.data.content || [];
+      setAddresses(addrList);
+      if (addrList.length > 0) {
+        setSelectedAddress(addrList[0].id);
       }
     } catch (err) {
       if (err.name !== "AbortError") {
         console.error("Error fetching addresses:", err.response?.data || err.message);
         Swal.fire({
           title: 'Error',
-          text: 'Failed to load addresses details!',
+          text: 'Failed to load addresses!',
           icon: 'error',
           toast: true,
           position: 'top-end',
@@ -221,10 +281,13 @@ const Cart = ({ show, onClose, darkMode }) => {
       }
     }
     return () => controller.abort();
-  }, [token, darkMode]);
+  }, [token, isAuthenticated]);
 
+  /* ------------------------------------------------------------------ */
+  /*  CREATE ORDER                                                      */
+  /* ------------------------------------------------------------------ */
   const createOrder = useCallback(async () => {
-    if (!token) {
+    if (!isAuthenticated) {
       Swal.fire({
         icon: "info",
         title: "Not Logged In",
@@ -240,94 +303,114 @@ const Cart = ({ show, onClose, darkMode }) => {
     if (!selectedAddress) {
       Swal.fire({
         icon: "info",
-        title: "Missing Field",
-        text: "Please select an address to continue",
+        title: "Missing Address",
+        text: "Please select a delivery address",
+        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+      });
+      return;
+    }
+
+    if (!paymentMethod) {
+      Swal.fire({
+        icon: "info",
+        title: "Missing Payment",
+        text: "Please select a payment method",
         customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
       });
       return;
     }
 
     try {
-      const orderPayload = {
+      const payload = {
         deliveryAddressId: selectedAddress,
         paymentMethod: paymentMethod === "visa" ? "CREDIT_CARD" : "CASH",
       };
 
-      console.log("Sending order payload:", orderPayload);
-
-      const res = await api.post("/api/users/orders", orderPayload, {
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      const orderRes = await api.post("/api/users/orders", payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       });
 
-      console.log("Order created:", res.data);
+      const orderId = orderRes.data.id;
 
       if (paymentMethod === "visa") {
-        const orderId = res.data.id;
-        try {
-          const paymentRes = await api.post(`/api/payments/order/card/${orderId}`, {}, {
-            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          });
-
-          console.log("Payment Response:", paymentRes.data);
-
-          if (paymentRes.data.paymentURL) {
-            window.open(paymentRes.data.paymentURL, "_blank");
-          } else {
-            throw new Error("Payment URL not found in response");
+        const paymentRes = await api.post(
+          `/api/payments/order/card/${orderId}`,
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
           }
-        } catch (paymentErr) {
-          console.error("Payment failed:", paymentErr.response?.data || paymentErr.message);
-          Swal.fire({
-            title: 'Error',
-            text: 'Payment failed!',
-            icon: 'error',
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 1500,
-          });
-          return;
+        );
+
+        if (paymentRes.data.paymentURL) {
+          window.open(paymentRes.data.paymentURL, "_blank");
+        } else {
+          throw new Error("Payment URL missing");
         }
       }
 
       setCartItems([]);
       setCheckoutStep("complete");
       Swal.fire({
-        title: 'Placed',
-        text: 'Order placed!',
+        title: 'Success!',
+        text: 'Order placed successfully!',
         icon: 'success',
         toast: true,
         position: 'top-end',
         showConfirmButton: false,
-        timer: 1500,
+        timer: 2000,
       });
     } catch (err) {
-      console.error("Create order failed:", err.response?.data || err.message);
+      console.error("Order failed:", err.response?.data || err.message);
       Swal.fire({
         title: 'Error',
-        text: 'Failed to place the order!',
+        text: err.response?.data?.message || 'Failed to place order!',
         icon: 'error',
         toast: true,
         position: 'top-end',
         showConfirmButton: false,
-        timer: 1500,
+        timer: 2000,
       });
     }
-  }, [token, selectedAddress, paymentMethod, darkMode, navigate]);
+  }, [
+    token,
+    isAuthenticated,
+    selectedAddress,
+    paymentMethod,
+    darkMode,
+    navigate,
+  ]);
 
+  /* ------------------------------------------------------------------ */
+  /*  INITIAL FETCH                                                     */
+  /* ------------------------------------------------------------------ */
   useEffect(() => {
-    if (show) {
+    if (show && isAuthenticated) {
       Promise.all([fetchCart(), fetchAddresses()]).catch((err) =>
-        console.error("Error in initial fetch:", err)
+        console.error("Initial fetch error:", err)
       );
+    } else if (show && !isAuthenticated) {
+      setCartItems([]);
+      setAddresses([]);
     }
-  }, [show, fetchCart, fetchAddresses]);
+  }, [show, isAuthenticated, fetchCart, fetchAddresses]);
 
   if (!show) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-end z-50 transition-opacity duration-300">
-      <div className={`w-full max-w-md h-full overflow-y-auto ${darkMode ? "bg-gray-900" : "bg-white"} shadow-2xl transform transition-transform duration-300 ease-in-out ${show ? "translate-x-0" : "translate-x-full"}`}>
+      <div
+        className={`w-full max-w-md h-full overflow-y-auto ${
+          darkMode ? "bg-gray-900" : "bg-white"
+        } shadow-2xl transform transition-transform duration-300 ease-in-out ${
+          show ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
         <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
           <h2 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
             <FiShoppingCart />
@@ -439,7 +522,9 @@ const Cart = ({ show, onClose, darkMode }) => {
                         addresses.find((a) => a.id === selectedAddress)?.city
                       : "Select Address"}
                     <svg
-                      className={`w-5 h-5 transition-transform duration-200 ${showDropdown ? "rotate-180" : ""}`}
+                      className={`w-5 h-5 transition-transform duration-200 ${
+                        showDropdown ? "rotate-180" : ""
+                      }`}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -492,9 +577,9 @@ const Cart = ({ show, onClose, darkMode }) => {
                 </div>
                 <button
                   onClick={createOrder}
-                  disabled={!paymentMethod}
+                  disabled={!paymentMethod || !selectedAddress}
                   className={`w-full py-3 rounded-xl text-white font-semibold transition ${
-                    paymentMethod
+                    paymentMethod && selectedAddress
                       ? "bg-indigo-600 hover:bg-indigo-700"
                       : "bg-gray-400 cursor-not-allowed"
                   }`}

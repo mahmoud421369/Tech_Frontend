@@ -392,6 +392,7 @@ const Account = ({ darkMode }) => {
     try {
       setIsLoadingRepairs(true);
       const res = await api.get('/api/users/repair-request', { headers: { Authorization: `Bearer ${token}` } });
+      console.log(res.data.content)
       setRepairRequests(res.data.content || []);
     } catch (err) {
       Swal.fire({ title: 'Error', text: 'Failed to load repairs', icon: 'error', toast: true, position: 'top-end', timer: 1500 });
@@ -528,9 +529,13 @@ const Account = ({ darkMode }) => {
       const repair = res.data;
       Swal.fire({
         title: `Repair #${repair.id.slice(0, 8)}`,
-        html: `<p><strong>Shop:</strong> ${repair.shopName}</p>
+        html: `<div class="flex justify-center items-center flex-col"><p><strong>Shop:</strong> ${repair.shopName}</p>
+               <p><strong>Address:</strong> ${repair.deliveryAddressDetails}</p>
+               <p><strong>Delivery:</strong> ${repair.deliveryMethod}</p>
+               <p><strong>Payment:</strong> ${repair.paymentMethod}</p>
+  
                <p><strong>Issue:</strong> ${repair.description}</p>
-               <p><strong>Status:</strong> ${repair.status}</p>`,
+               <p><strong>Status:</strong> ${repair.status}</p></div>`,
         icon: 'info',
       });
     } catch (err) {

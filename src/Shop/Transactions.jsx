@@ -1,58 +1,108 @@
-
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { FiChevronLeft, FiChevronRight, FiDollarSign, FiSearch, FiChevronDown } from 'react-icons/fi';
+import React, { useState, useEffect, useCallback, useMemo, memo, useRef } from 'react';
+import {
+  FiChevronLeft,
+  FiChevronRight,
+  FiDollarSign,
+  FiSearch,
+  FiChevronDown,
+  FiMoreVertical,
+} from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import debounce from 'lodash/debounce';
 import api from '../api';
 
-const Transactions = ({ darkMode }) => {
+const ROWS_PER_PAGE = 10;
+
+// ---------------------------------------------------------------------
+// Memoized Table Row
+// ---------------------------------------------------------------------
+const TransactionRow = memo(({ txn }) => {
+  const statusColor =
+    txn.status === 'مكتمل'
+      ? 'bg-green-100 text-green-800'
+      : 'bg-yellow-100 text-yellow-800';
+
+  return (
+    <tr className="border-b border-lime-100 hover:bg-lime-50 transition">
+      <td className="px-4 py-3 text-sm text-center">{txn.paidAt}</td>
+      <td className="px-4 py-3 text-sm text-center">{txn.type}</td>
+      <td className="px-4 py-3 text-sm text-center">{txn.item}</td>
+      <td className="px-4 py-3 text-sm text-center">{txn.shop}</td>
+      <td className="px-4 py-3 text-sm text-center">{txn.paymentMethod}</td>
+      <td className="px-4 py-3 text-sm font-medium text-center">{txn.amount.toFixed(2)} ج.م</td>
+      <td className="px-4 py-3 text-center">
+        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusColor}`}>
+          {txn.status}
+        </span>
+      </td>
+    </tr>
+  );
+});
+TransactionRow.displayName = 'TransactionRow';
+
+// ---------------------------------------------------------------------
+// Loading Skeleton Row
+// ---------------------------------------------------------------------
+const SkeletonRow = memo(() => (
+  <tr>
+    {Array.from({ length: 7 }).map((_, i) => (
+      <td key={i} className="px-4 py-3 text-center">
+        <div className="h-4 bg-gray-200 rounded animate-pulse mx-auto w-20" />
+      </td>
+    ))}
+  </tr>
+));
+SkeletonRow.displayName = 'SkeletonRow';
+
+// ---------------------------------------------------------------------
+// Main Component
+// ---------------------------------------------------------------------
+const Transactions = () => {
   const [transactions, setTransactions] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [timeRange, setTimeRange] = useState('month');
-  const [searchTerm, setSearchTerm] = useState('');
   const [financialReport, setFinancialReport] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [isTimeRangeDropdownOpen, setIsTimeRangeDropdownOpen] = useState(false);
-  const transactionsPerPage = 4;
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [timeRange, setTimeRange] = useState('month');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState(null);
 
+  const abortCtrl = useRef(new AbortController());
 
-  const statusTranslations = {
-    completed: 'مكتمل',
-    pending: 'معلق',
-  };
-
-  const typeTranslations = {
-    repair: 'إصلاح',
-    sale: 'بيع',
-  };
-
+  // -----------------------------------------------------------------
+  // Translations
+  // -----------------------------------------------------------------
+  const statusMap = { completed: 'مكتمل', pending: 'معلق' };
+  const typeMap = { repair: 'إصلاح', sale: 'بيع' };
   const timeRangeOptions = [
     { value: 'week', label: 'الأسبوع' },
     { value: 'month', label: 'الشهر' },
-    { value: 'year', label: 'السنة' },
   ];
 
+  // -----------------------------------------------------------------
   // Fetch data
-  const fetchData = useCallback(async () => {
-    const controller = new AbortController();
+  // -----------------------------------------------------------------
+  const fetchAll = useCallback(async () => {
+    abortCtrl.current.abort();
+    abortCtrl.current = new AbortController();
     setLoading(true);
+
     try {
-      const reportRes = await api.get('/api/shops/payments/financial-report', {
-        signal: controller.signal,
-      });
+      const [reportRes, repairRes, orderRes] = await Promise.all([
+        api.get('/api/shops/payments/financial-report', { signal: abortCtrl.current.signal }),
+        api.get('/api/shops/payments/repairs', {
+          signal: abortCtrl.current.signal,
+          params: { timeRange },
+        }),
+        api.get('/api/shops/payments/orders', {
+          signal: abortCtrl.current.signal,
+          params: { timeRange },
+        }),
+      ]);
+
       setFinancialReport(reportRes.data);
 
-      const repairRes = await api.get('/api/shops/payments/repairs', {
-        signal: controller.signal,
-        params: { timeRange },
-      });
-
-      const orderRes = await api.get('/api/shops/payments/orders', {
-        signal: controller.signal,
-        params: { timeRange },
-      });
-
-      const allTransactions = [...repairRes.data, ...orderRes.data].map((t, idx) => ({
+      const merged = [...repairRes.data, ...orderRes.data].map((t, idx) => ({
         id: t.id ?? idx,
         paidAt: t.paidAt
           ? new Date(t.paidAt).toLocaleString('ar-EG', {
@@ -60,230 +110,147 @@ const Transactions = ({ darkMode }) => {
               timeStyle: 'short',
             })
           : 'غير متوفر',
-        type: (t.type || '').toLowerCase().includes('repair')
-          ? typeTranslations.repair
-          : typeTranslations.sale,
-        item: t.item || (t.type && t.type.includes('REPAIR') ? 'إصلاح جهاز' : 'طلب شراء'),
+        type: t.type?.toLowerCase().includes('repair') ? typeMap.repair : typeMap.sale,
+        item: t.item || (t.type?.includes('REPAIR') ? 'إصلاح جهاز' : 'طلب شراء'),
         shop: t.shopName || 'متحرك',
         paymentMethod: t.paymentMethod || 'غير محدد',
         amount: Number(t.amount) || 0,
-        status: (t.status || 'Completed').toLowerCase() === 'completed'
-          ? statusTranslations.completed
-          : statusTranslations.pending,
+        status: (t.status || 'completed').toLowerCase() === 'completed'
+          ? statusMap.completed
+          : statusMap.pending,
       }));
 
-      setTransactions(allTransactions);
+      setTransactions(merged);
     } catch (err) {
-      if (err.name !== 'AbortError') {
-        console.error('Error fetching transactions:', err.response?.data || err.message);
-        Swal.fire({
-          title: 'خطأ',
-          text: 'فشل في تحميل العمليات المالية',
-          icon: 'error',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
-      }
+      // if (err.name !== 'AbortError') {
+      //   console.error(err);
+      //   Swal.fire({
+      //     title: 'خطأ',
+      //     text: 'فشل تحميل العمليات',
+      //     icon: 'error',
+      //     toast: true,
+      //     position: 'top-end',
+      //     timer: 2000,
+      //   });
+      // }
     } finally {
       setLoading(false);
     }
-    return () => controller.abort();
-  }, [timeRange, darkMode]);
+  }, [timeRange]);
 
+  // -----------------------------------------------------------------
   // Debounced search
-  const debouncedSetSearchTerm = useMemo(
-    () => debounce((value) => setSearchTerm(value), 300),
+  // -----------------------------------------------------------------
+  const debouncedSearch = useMemo(
+    () => debounce((val) => setSearchTerm(val), 300),
     []
   );
 
-  const handleSearchChange = useCallback(
-    (e) => {
-      debouncedSetSearchTerm(e.target.value);
-      setCurrentPage(1);
-    },
-    [debouncedSetSearchTerm]
-  );
+  const handleSearch = (e) => {
+    const val = e.target.value;
+    debouncedSearch(val);
+    setCurrentPage(1);
+  };
 
-  // Pagination
-  const handlePageChange = useCallback((page) => {
-    if (page < 1 || page > totalPages) return;
-    setCurrentPage(page);
-  }, []);
-
-  // Cleanup debounce
+  // -----------------------------------------------------------------
+  // Load on mount / timeRange change
+  // -----------------------------------------------------------------
   useEffect(() => {
-    return () => debouncedSetSearchTerm.cancel();
-  }, [debouncedSetSearchTerm]);
+    fetchAll();
+    return () => abortCtrl.current.abort();
+  }, [fetchAll]);
 
-  // Fetch data on mount or timeRange change
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
+  // -----------------------------------------------------------------
   // Financial calculations
-  const totalEarnings = useMemo(
+  // -----------------------------------------------------------------
+  const totalEarnings = useMemo(() => {
+    if (financialReport?.totalEarnings != null) return financialReport.totalEarnings;
+    return transactions.reduce((s, t) => s + t.amount, 0);
+  }, [financialReport, transactions]);
+
+  const repairEarnings = useMemo(() => {
+    if (financialReport?.repairEarnings != null) return financialReport.repairEarnings;
+    return transactions
+      .filter((t) => t.type === typeMap.repair)
+      .reduce((s, t) => s + t.amount, 0);
+  }, [financialReport, transactions, typeMap.repair]);
+
+  const salesEarnings = useMemo(() => {
+    if (financialReport?.salesEarnings != null) return financialReport.salesEarnings;
+    return transactions
+      .filter((t) => t.type === typeMap.sale)
+      .reduce((s, t) => s + t.amount, 0);
+  }, [financialReport, transactions, typeMap.sale]);
+
+  const repairPct = totalEarnings > 0 ? Math.round((repairEarnings / totalEarnings) * 100) : 0;
+  const salesPct = totalEarnings > 0 ? Math.round((salesEarnings / totalEarnings) * 100) : 0;
+
+  // -----------------------------------------------------------------
+  // Filtering & pagination
+  // -----------------------------------------------------------------
+  const filtered = useMemo(
     () =>
-      financialReport?.totalEarnings ??
-      transactions.reduce((sum, t) => sum + t.amount, 0),
-    [financialReport, transactions]
-  );
-
-  const repairEarnings = useMemo(
-    () =>
-      financialReport?.repairEarnings ??
-      transactions
-        .filter((t) => t.type === typeTranslations.repair)
-        .reduce((sum, t) => sum + t.amount, 0),
-    [financialReport, transactions]
-  );
-
-  const salesEarnings = useMemo(
-    () =>
-      financialReport?.salesEarnings ??
-      transactions
-        .filter((t) => t.type === typeTranslations.sale)
-        .reduce((sum, t) => sum + t.amount, 0),
-    [financialReport, transactions]
-  );
-
-  const repairPercentage = useMemo(
-    () => (totalEarnings > 0 ? Math.round((repairEarnings / totalEarnings) * 100) : 0),
-    [totalEarnings, repairEarnings]
-  );
-
-  const salesPercentage = useMemo(
-    () => (totalEarnings > 0 ? Math.round((salesEarnings / totalEarnings) * 100) : 0),
-    [totalEarnings, salesEarnings]
-  );
-
-  // Filter transactions
-  const filteredTransactions = useMemo(
-    () =>
-      transactions.filter((transaction) =>
-        [transaction.paidAt, transaction.type, transaction.shop]
-          .join(' ')
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase())
+      transactions.filter((t) =>
+        [t.paidAt, t.type, t.shop].join(' ').toLowerCase().includes(searchTerm.toLowerCase())
       ),
     [transactions, searchTerm]
   );
 
-  const indexOfLastTransaction = currentPage * transactionsPerPage;
-  const indexOfFirstTransaction = indexOfLastTransaction - transactionsPerPage;
-  const currentTransactions = filteredTransactions.slice(
-    indexOfFirstTransaction,
-    indexOfLastTransaction
-  );
-  const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / transactionsPerPage));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ROWS_PER_PAGE));
+  const paginated = useMemo(() => {
+    const start = (currentPage - 1) * ROWS_PER_PAGE;
+    return filtered.slice(start, start + ROWS_PER_PAGE);
+  }, [filtered, currentPage]);
 
-  // const earningsChart = {
-  //   type: 'bar',
-  //   data: {
-  //     labels: ['إصلاح', 'مبيعات'],
-  //     datasets: [
-  //       {
-  //         label: 'الإيرادات (EGP)',
-  //         data: [repairEarnings, salesEarnings],
-  //         backgroundColor: ['#10B981', '#F59E0B'],
-  //         borderColor: ['#059669', '#D97706'],
-  //         borderWidth: 1,
-  //       },
-  //     ],
-  //   },
-  //   options: {
-  //     responsive: true,
-  //     maintainAspectRatio: false,
-  //     scales: {
-  //       y: {
-  //         beginAtZero: true,
-  //         title: {
-  //           display: true,
-  //           text: 'المبلغ (EGP)',
-  //           color: darkMode ? '#D1D5DB' : '#374151',
-  //         },
-  //         ticks: {
-  //           color: darkMode ? '#D1D5DB' : '#374151',
-  //         },
-  //         grid: {
-  //           color: darkMode ? '#4B5563' : '#E5E7EB',
-  //         },
-  //       },
-  //       x: {
-  //         title: {
-  //           display: true,
-  //           text: 'نوع الإيرادات',
-  //           color: darkMode ? '#D1D5DB' : '#374151',
-  //         },
-  //         ticks: {
-  //           color: darkMode ? '#D1D5DB' : '#374151',
-  //         },
-  //         grid: {
-  //           display: false,
-  //         },
-  //       },
-  //     },
-  //     plugins: {
-  //       legend: {
-  //         labels: {
-  //           color: darkMode ? '#D1D5DB' : '#374151',
-  //         },
-  //       },
-  //       tooltip: {
-  //         callbacks: {
-  //           label: (context) => `${context.dataset.label}: ${context.raw.toFixed(2)} EGP`,
-  //         },
-  //       },
-  //     },
-  //   },
-  // };
+  const goToPage = (page) => {
+    if (page >= 1 && page <= totalPages) setCurrentPage(page);
+  };
 
   return (
-    <div style={{ marginTop: "-600px", marginLeft: "250px" }} className="min-h-screen bg-gray-50 dark:bg-gray-800 p-6 lg:p-8 font-cairo">
+    <div dir="rtl" style={{marginLeft:"-25px",marginTop:"-575px"}} className="min-h-screen max-w-6xl mx-auto p-4 lg:p-8 font-cairo bg-gradient-to-br from-gray-50 via-white to-gray-50">
       <div className="max-w-7xl mx-auto">
+
         {/* Header */}
-        <div className="mb-8 text-right bg-white p-4 rounded-xl dark:bg-gray-950">
-          <h1 className="text-4xl mb-4 font-bold text-indigo-600 dark:text-white flex items-center justify-end gap-3">
-            <FiDollarSign className="text-indigo-600 dark:text-indigo-400" /> الإيرادات
+        <div className="mb-8 text-right bg-white p-6  shadow-sm border-l-4 border-lime-500">
+          <h1 className="text-3xl font-bold text-black mb-2 flex items-center justify-start gap-3">
+            <FiDollarSign className="text-gray-500" /> الإيرادات
           </h1>
-          <p className="text-sm text-gray-600 dark:text-gray-300 text-right">إدارة ومتابعة العمليات المالية بسهولة</p>
+          <p className="text-sm text-gray-600">إدارة ومتابعة العمليات المالية بسهولة</p>
         </div>
 
-        {/* Filters and Search */}
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6 bg-white dark:bg-gray-900 rounded-2xl shadow-md p-6">
-          <div className="relative w-full sm:w-64">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-300" />
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          {/* Search */}
+          <div className="relative flex-1">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              id="search"
-              placeholder=" "
-              onChange={handleSearchChange}
-              className="peer w-full pl-10 pr-4 py-3 pt-6 bg-white dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300 text-right text-sm"
+              placeholder="ابحث في العمليات..."
+              onChange={handleSearch}
+              className="w-full pl-10 pr-4 py-3 rounded-lg border  bg-gray-50 text-black placeholder-gray-500 focus:ring-2 focus:ring-lime-400 focus:border-lime-500 outline-none transition text-right"
             />
-            <label
-              htmlFor="search"
-              className="absolute right-10 top-1 text-sm text-gray-500 dark:text-gray-400 transition-all duration-300 peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-focus:top-1 peer-focus:text-sm peer-focus:text-indigo-500 dark:peer-focus:text-indigo-400"
-            >
-              ابحث في العمليات...
-            </label>
           </div>
-          {/* <div className="relative w-full sm:w-56">
+
+          {/* Time range dropdown */}
+          {/* <div className="relative">
             <button
-              onClick={() => setIsTimeRangeDropdownOpen(!isTimeRangeDropdownOpen)}
-              className="w-full px-4 py-3 bg-white dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg flex justify-between items-center hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-300 shadow-sm hover:shadow-lg text-sm text-right"
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="flex items-center gap-2 px-5 py-3 bg-lime-50 border border-lime-300 rounded-lg hover:border-lime-500 transition text-right"
             >
-              <span>{timeRangeOptions.find((opt) => opt.value === timeRange)?.label || 'اختر المدة'}</span>
-              <FiChevronDown className={`transition-transform duration-300 ${isTimeRangeDropdownOpen ? 'rotate-180' : ''}`} />
+              {timeRangeOptions.find((o) => o.value === timeRange)?.label || 'اختر المدة'}
+              <FiChevronDown className={`transition ${dropdownOpen ? 'rotate-180' : ''}`} />
             </button>
-            {isTimeRangeDropdownOpen && (
-              <div className="absolute z-10 mt-2 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+            {dropdownOpen && (
+              <div className="absolute z-10 mt-2 w-full bg-white border border-lime-200 rounded-lg shadow-lg">
                 {timeRangeOptions.map((opt) => (
                   <button
                     key={opt.value}
                     onClick={() => {
                       setTimeRange(opt.value);
-                      setIsTimeRangeDropdownOpen(false);
+                      setDropdownOpen(false);
                       setCurrentPage(1);
                     }}
-                    className="w-full px-4 py-2 text-right text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm"
+                    className="block w-full text-right px-4 py-2 hover:bg-lime-50 transition text-sm"
                   >
                     {opt.label}
                   </button>
@@ -294,145 +261,131 @@ const Transactions = ({ darkMode }) => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-          <div className="p-6 bg-white dark:bg-gray-900  shadow-md hover:shadow-xl transition-all duration-300 border-l-4 border-indigo-600 dark:border-indigo-500 group">
-            <h3 className="text-lg font-semibold flex justify-end items-center gap-3 text-indigo-600 dark:text-indigo-400">
-              إجمالي الأرباح <FiDollarSign className="text-xl group-hover:scale-110 transition-transform duration-300" />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+          <div className="p-5 bg-white  shadow-sm border-l-4 border-lime-500">
+            <h3 className="text-sm font-medium flex items-center gap-1 text-lime-700 justify-start">
+              <FiDollarSign /> إجمالي الأرباح
             </h3>
-            <p className="text-3xl font-bold text-gray-800 dark:text-white mt-2 text-right">
-              {totalEarnings.toFixed(2)} EGP
-            </p>
+            <p className="mt-1 text-2xl font-bold text-black">{totalEarnings.toFixed(2)} ج.م</p>
           </div>
-          <div className="p-6 bg-white dark:bg-gray-900  shadow-md hover:shadow-xl transition-all duration-300 border-l-4 border-green-600 dark:border-green-500 group">
-            <h3 className="text-lg font-semibold flex justify-end items-center gap-3 text-green-600 dark:text-green-400">
-              تصليح ({repairPercentage}%) <FiDollarSign className="text-xl group-hover:scale-110 transition-transform duration-300" />
+          <div className="p-5 bg-white  shadow-sm border-l-4 border-green-500">
+            <h3 className="text-sm font-medium flex items-center gap-1 text-green-700 justify-start">
+              <FiDollarSign /> تصليح ({repairPct}%)
             </h3>
-            <p className="text-3xl font-bold text-gray-800 dark:text-white mt-2 text-right">
-              {repairEarnings.toFixed(2)} EGP
-            </p>
+            <p className="mt-1 text-2xl font-bold text-black">{repairEarnings.toFixed(2)} ج.م</p>
           </div>
-          <div className="p-6 bg-white dark:bg-gray-900  shadow-md hover:shadow-xl transition-all duration-300 border-l-4 border-yellow-600 dark:border-yellow-500 group">
-            <h3 className="text-lg font-semibold flex justify-end items-center gap-3 text-yellow-600 dark:text-yellow-400">
-              مبيعات ({salesPercentage}%) <FiDollarSign className="text-xl group-hover:scale-110 transition-transform duration-300" />
+          <div className="p-5 bg-white  shadow-sm border-l-4 border-yellow-500">
+            <h3 className="text-sm font-medium flex items-center gap-1 text-yellow-700 justify-start">
+              <FiDollarSign /> مبيعات ({salesPct}%)
             </h3>
-            <p className="text-3xl font-bold text-gray-800 dark:text-white mt-2 text-right">
-              {salesEarnings.toFixed(2)} EGP
-            </p>
+            <p className="mt-1 text-2xl font-bold text-black">{salesEarnings.toFixed(2)} ج.م</p>
           </div>
         </div>
 
-      
-
-        {/* Transactions Table */}
-        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-md overflow-hidden">
+        {/* Table */}
+        <div className="bg-white rounded-xl shadow-sm border border-lime-100">
           {loading ? (
-            <div className="flex justify-center items-center h-64">
-              <div className="w-12 h-12 border-4 border-indigo-600 dark:border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
-            </div>
+            <table className="min-w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  {['التاريخ', 'نوع الخدمة', 'الجهاز', 'المكان', 'طريقة الدفع', 'الحساب', 'الحالة'].map((h) => (
+                    <th key={h} className="px-4 py-3 text-xs font-bold text-gray-700 text-center">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: ROWS_PER_PAGE }).map((_, i) => (
+                  <SkeletonRow key={i} />
+                ))}
+              </tbody>
+            </table>
           ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="min-w-full table-auto text-sm text-right">
-                  <thead className="bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                    <tr>
-                      <th className="px-6 py-4 font-semibold text-right">التاريخ</th>
-                      <th className="px-6 py-4 font-semibold text-right">نوع الخدمة</th>
-                      <th className="px-6 py-4 font-semibold text-right">الجهاز</th>
-                      <th className="px-6 py-4 font-semibold text-right">المكان</th>
-                      <th className="px-6 py-4 font-semibold text-right">طريقة الدفع</th>
-                      <th className="px-6 py-4 font-semibold text-right">الحساب</th>
-                      <th className="px-6 py-4 font-semibold text-right">حالة العملية</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-gray-700 dark:text-gray-200">
-                    {currentTransactions.map((txn, index) => (
-                      <tr
-                        key={txn.id ?? index}
-                        className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead className="bg-gray-50 sticky top-0 z-10">
+                  <tr>
+                    {['التاريخ', 'نوع الخدمة', 'الجهاز', 'المكان', 'طريقة الدفع', 'الحساب', 'الحالة'].map((h) => (
+                      <th
+                        key={h}
+                        className="px-4 py-3 text-xs font-bold text-gray-700 text-center"
                       >
-                        <td className="px-6 py-4">{txn.paidAt}</td>
-                        <td className="px-6 py-4">{txn.type}</td>
-                        <td className="px-6 py-4">{txn.item}</td>
-                        <td className="px-6 py-4">{txn.shop}</td>
-                        <td className="px-6 py-4">{txn.paymentMethod}</td>
-                        <td className="px-6 py-4 font-medium">{txn.amount.toFixed(2)} EGP</td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                              txn.status === statusTranslations.completed
-                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                                : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
-                            }`}
-                          >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-lime-100">
+                  {paginated.length ? (
+                    paginated.map((txn) => (
+                      <tr key={txn.id} className="hover:bg-lime-50 transition">
+                        <td className="px-4 py-3 text-sm text-center">{txn.paidAt}</td>
+                        <td className="px-4 py-3 text-sm text-center">{txn.type}</td>
+                        <td className="px-4 py-3 text-sm text-center">{txn.item}</td>
+                        <td className="px-4 py-3 text-sm text-center">{txn.shop}</td>
+                        <td className="px-4 py-3 text-sm text-center">{txn.paymentMethod}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-center">{txn.amount.toFixed(2)} ج.م</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${txn.status === 'مكتمل' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                             {txn.status}
                           </span>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {currentTransactions.length === 0 && (
-                <div className="p-8 text-center bg-white dark:bg-gray-900">
-                  <div className="text-indigo-600 dark:text-indigo-400 mb-4">
-                    <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
-                    لا توجد عمليات
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    {searchTerm ? 'حاول تعديل مصطلحات البحث' : 'لا توجد عمليات مالية متاحة'}
-                  </p>
-                </div>
-              )}
-            </>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={7} className="py-16 text-center text-gray-500">
+                        <div className="text-lime-400 mb-4">
+                          <FiDollarSign className="w-16 h-16 mx-auto opacity-30" />
+                        </div>
+                        <h3 className="text-xl font-bold text-black mb-2">
+                          لا توجد عمليات
+                        </h3>
+                        <p className="text-gray-600">
+                          {searchTerm ? 'جرب تعديل البحث' : 'سيتم عرض العمليات عند وجودها'}
+                        </p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between max-w-7xl mx-auto p-4 bg-white dark:bg-gray-900 rounded-2xl shadow-md mt-6">
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            عرض {indexOfFirstTransaction + 1} إلى{' '}
-            {Math.min(indexOfLastTransaction, filteredTransactions.length)} من{' '}
-            {filteredTransactions.length} عملية
-          </div>
-          <div className="flex justify-center items-center gap-2">
+        {!loading && totalPages > 1 && (
+          <div className="flex justify-center items-center gap-2 mt-6">
             <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              className="px-4 py-2 bg-white dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={() => goToPage(currentPage - 1)}
               disabled={currentPage === 1}
+              className="p-2 rounded-lg border border-lime-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-lime-50 transition"
             >
-              <FiChevronLeft />
+              <FiChevronRight />
             </button>
             {[...Array(totalPages)].map((_, i) => (
               <button
                 key={i}
-                onClick={() => handlePageChange(i + 1)}
-                className={`px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg transition-all duration-300 ${
+                onClick={() => goToPage(i + 1)}
+                className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${
                   currentPage === i + 1
-                    ? 'bg-indigo-600 text-white dark:bg-indigo-500'
-                    : 'bg-white dark:bg-gray-700 dark:text-white hover:bg-indigo-100 dark:hover:bg-indigo-900'
+                    ? 'bg-lime-500 text-white border-lime-500'
+                    : 'border-lime-200 hover:bg-lime-50 text-black'
                 }`}
               >
                 {i + 1}
               </button>
             ))}
             <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              className="px-4 py-2 bg-white dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={() => goToPage(currentPage + 1)}
               disabled={currentPage === totalPages}
+              className="p-2 rounded-lg border border-lime-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-lime-50 transition"
             >
-              <FiChevronRight />
+              <FiChevronLeft />
             </button>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

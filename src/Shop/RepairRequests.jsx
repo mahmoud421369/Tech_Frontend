@@ -1,301 +1,375 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Swal from 'sweetalert2';
-import { FiTool, FiDollarSign, FiInfo, FiChevronDown, FiSearch, FiChevronRight, FiChevronLeft } from 'react-icons/fi';
+import { FiSearch, FiChevronDown, FiInfo, FiDollarSign, FiRefreshCw, FiX } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import ShopLayout from '../components/ShopLayout';
-import { RiCheckLine, RiClockwiseLine } from 'react-icons/ri';
 import api from '../api';
 import debounce from 'lodash/debounce';
 
+// -------------------------------------------------
+// Status translations
+// -------------------------------------------------
+const statusTranslations = {
+  SUBMITTED: 'مقدم',
+  QUOTE_PENDING: 'في انتظار عرض السعر',
+  QUOTE_SENT: 'تم إرسال عرض السعر',
+  QUOTE_APPROVED: 'تمت الموافقة على عرض السعر',
+  QUOTE_REJECTED: 'تم رفض عرض السعر',
+  DEVICE_COLLECTED: 'تم جمع الجهاز',
+  REPAIRING: 'قيد التصليح',
+  REPAIR_COMPLETED: 'اكتمل التصليح',
+  DEVICE_DELIVERED: 'تم تسليم الجهاز',
+  CANCELLED: 'ملغى',
+  FAILED: 'فشل',
+  all: 'الكل',
+};
+
+const statuses = Object.keys(statusTranslations).filter((s) => s !== 'all');
+
+// -------------------------------------------------
+// Next valid statuses (define flow)
+// -------------------------------------------------
+const nextStatuses = {
+  SUBMITTED: ['QUOTE_PENDING', 'CANCELLED'],
+  QUOTE_PENDING: ['QUOTE_SENT'],
+  QUOTE_SENT: ['QUOTE_APPROVED', 'QUOTE_REJECTED'],
+  QUOTE_APPROVED: ['DEVICE_COLLECTED'],
+  QUOTE_REJECTED: ['CANCELLED'],
+  DEVICE_COLLECTED: ['REPAIRING'],
+  REPAIRING: ['REPAIR_COMPLETED'],
+  REPAIR_COMPLETED: ['DEVICE_DELIVERED'],
+  DEVICE_DELIVERED: [],
+  CANCELLED: [],
+  FAILED: [],
+};
+const normalizeStatus = (status) => {
+  if (!status) return null;
+  return status.toString().toUpperCase().trim();
+};
+
+const getTranslatedStatus = (status) => {
+  const normalized = normalizeStatus(status);
+  return statusTranslations[normalized] || status || 'غير معروف';
+};
+
+// -------------------------------------------------
+// Status badge colour
+// -------------------------------------------------
+const getStatusColor = (status) => {
+  const map = {
+    SUBMITTED: 'bg-blue-100 text-blue-800',
+    QUOTE_PENDING: 'bg-yellow-100 text-yellow-800',
+    QUOTE_SENT: 'bg-teal-100 text-teal-800',
+    QUOTE_APPROVED: 'bg-emerald-100 text-emerald-800',
+    QUOTE_REJECTED: 'bg-red-100 text-red-800',
+    DEVICE_COLLECTED: 'bg-purple-100 text-purple-800',
+    REPAIRING: 'bg-orange-100 text-orange-800',
+    REPAIR_COMPLETED: 'bg-green-100 text-green-800',
+    DEVICE_DELIVERED: 'bg-green-200 text-green-900',
+    CANCELLED: 'bg-red-100 text-red-800',
+    FAILED: 'bg-red-200 text-red-900',
+  };
+  return map[status] || 'bg-gray-100 text-gray-800';
+};
+ 
+
+
 const RepairRequests = () => {
   const { user } = useAuth();
-  const [darkMode, setDarkMode] = useState(false);
   const [repairs, setRepairs] = useState([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [isLoading, setIsLoading] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedRepair, setSelectedRepair] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Modal state
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [statusModalRepair, setStatusModalRepair] = useState(null);
+  const [selectedNewStatus, setSelectedNewStatus] = useState('');
+  const [updatingStatus, setUpdatingStatus] = useState(null);
+
+  const dropdownRef = useRef(null);
   const repairsPerPage = 10;
 
-  // Define status mappings for English to Arabic
-  const statusTranslations = {
-    SUBMITTED: 'مقدم',
-    PRICED: 'تم التسعير',
-    QUOTE_PENDING: 'في انتظار عرض السعر',
-    QUOTE_SENT: 'تم إرسال عرض السعر',
-    QUOTE_APPROVED: 'تمت الموافقة على عرض السعر',
-    QUOTE_REJECTED: 'تم رفض عرض السعر',
-    DEVICE_COLLECTED: 'تم جمع الجهاز',
-    REPAIRING: 'قيد التصليح',
-    REPAIR_COMPLETED: 'اكتمل التصليح',
-    DEVICE_DELIVERED: 'تم تسليم الجهاز',
-    CANCELLED: 'ملغى',
-    FAILED: 'فشل',
-    all: 'الكل',
-  };
-
-  const statuses = [
-    'SUBMITTED',
-    'PRICED',
-    'QUOTE_PENDING',
-    'QUOTE_SENT',
-    'QUOTE_APPROVED',
-    'QUOTE_REJECTED',
-    'DEVICE_COLLECTED',
-    'REPAIRING',
-    'REPAIR_COMPLETED',
-    'DEVICE_DELIVERED',
-    'CANCELLED',
-    'FAILED',
-  ];
-
-  const getStatusColor = useCallback((status) => {
-    switch (status) {
-      case 'SUBMITTED': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
-      case 'QUOTE_PENDING': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-      case 'REPAIRING': return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300';
-      case 'REPAIR_COMPLETED': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
-      case 'DEVICE_DELIVERED': return 'bg-green-200 text-green-900 dark:bg-green-800 dark:text-green-200';
-      case 'CANCELLED': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
-      case 'FAILED': return 'bg-red-200 text-red-900 dark:bg-red-800 dark:text-red-200';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
-    }
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // -------------------------------------------------
+  // Fetch repairs
+  // -------------------------------------------------
   const fetchRepairs = useCallback(async () => {
     setIsLoading(true);
     const controller = new AbortController();
     try {
-      const url = statusFilter === 'all' ? '/api/shops/repair-request' : `/api/shops/repair-request/status/${statusFilter}`;
+      const url =
+        statusFilter === 'all'
+          ? '/api/shops/repair-request'
+          : `/api/shops/repair-request/status/${statusFilter}`;
       const res = await api.get(url, {
         signal: controller.signal,
         params: { query: searchTerm },
       });
       setRepairs(res.data.content || []);
     } catch (err) {
-      // if (err.name !== 'AbortError') {
-      //   console.error('Error fetching repairs:', err.response?.data || err.message);
-      //   Swal.fire('خطأ', 'فشل في جلب الطلبات', 'error');
-      // }
+      if (err.name !== 'AbortError') {
+        console.error(err);
+        toast.error('فشل جلب الطلبات');
+      }
     } finally {
       setIsLoading(false);
     }
     return () => controller.abort();
   }, [statusFilter, searchTerm]);
 
-  const viewRepairDetails = useCallback(async (repairId) => {
-    try {
-      const res = await api.get(`/api/shops/repair-request/${repairId}`);
-      const repair = res.data;
-
-      Swal.fire({
-        title: `تفاصيل الطلب #${repair.id}`,
-        html: `
-          <div class="text-right font-sans" style="line-height: 1.8;">
-            <p class="flex justify-between flex-row-reverse"><strong class="text-blue-500">العميل</strong> ${repair.userId}</p><hr class="border-gray-100 p-1">
-            <p class="flex justify-between flex-row-reverse"><strong class="text-blue-500">الوصف</strong> ${repair.description || 'غير متوفر'}</p><hr class="border-gray-100 p-1">
-            <p class="flex justify-between flex-row-reverse"><strong class="text-blue-500">العنوان</strong> ${repair.deliveryAddress}</p><hr class="border-gray-100 p-1">
-            <p class="flex justify-between flex-row-reverse"><strong class="text-blue-500">الفئة</strong> ${repair.deviceCategory}</p><hr class="border-gray-100 p-1">
-          </div>
-        `,
-        icon: 'info',
-        confirmButtonText: 'إغلاق',
-        customClass: {
-          popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '',
-        },
-      });
-    } catch (err) {
-      console.error('Error fetching repair details:', err.response?.data || err.message);
-      Swal.fire('خطأ', 'فشل في جلب تفاصيل الطلب', 'error');
-    }
-  }, [darkMode]);
-
-  const updateRepairPrice = useCallback(async (repairId, price) => {
-    try {
-      await api.put(`/api/shops/repair-request/${repairId}/price`, { price });
-      Swal.fire('نجاح', `تم تحديث السعر إلى ${price}`, 'success');
-      fetchRepairs();
-    } catch (err) {
-      console.error('Error updating price:', err.response?.data || err.message);
-      toast.error('فشل تحديث السعر');
-    }
-  }, [fetchRepairs]);
-
-  const updateRepairStatus = useCallback(async (repairId, status) => {
-    try {
-      await api.put(`/api/shops/repair-request/${repairId}/status`, { status });
-      toast.success(`تم تحديث الحالة إلى ${statusTranslations[status]}`);
-      fetchRepairs();
-    } catch (err) {
-      console.error('Error updating status:', err.response?.data || err.message);
-      toast.error('فشل في تحديث حالة الطلب');
-    }
-  }, [fetchRepairs]);
-
-  const debouncedFetchRepairs = useMemo(() => debounce(fetchRepairs, 300), [fetchRepairs]);
+  const debouncedFetch = useMemo(() => debounce(fetchRepairs, 300), [fetchRepairs]);
 
   useEffect(() => {
-    debouncedFetchRepairs();
-    return () => debouncedFetchRepairs.cancel();
-  }, [debouncedFetchRepairs]);
+    debouncedFetch();
+    return () => debouncedFetch.cancel();
+  }, [debouncedFetch]);
 
-  const filteredRepairs = useMemo(
-    () =>
-      repairs.filter(
-        (repair) =>
-          repair.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          repair.userId?.toLowerCase().includes(searchTerm.toLowerCase())
-      ),
-    [repairs, searchTerm]
+  // -------------------------------------------------
+  // View Details
+  // -------------------------------------------------
+  const viewRepairDetails = async (repairId) => {
+    try {
+      const { data } = await api.get(`/api/shops/repair-request/${repairId}`);
+      const html = `
+        <div class="text-right font-cairo space-y-3 text-sm">
+          <p class="flex justify-between flex-row-reverse"><strong class="text-lime-600">المعرف</strong> ${data.id}</p>
+          <p class="flex justify-between flex-row-reverse"><strong class="text-lime-600">اسم المتجر</strong> ${data.shopName || 'غير متوفر'}</p>
+          <p class="flex justify-between flex-row-reverse"><strong class="text-lime-600">تفاصيل العنوان</strong> ${data.deliveryAddressDetails || 'غير متوفر'}</p>
+          <p class="flex justify-between flex-row-reverse"><strong class="text-lime-600">الوصف</strong> ${data.description || 'غير متوفر'}</p>
+          <p class="flex justify-between flex-row-reverse"><strong class="text-lime-600">طريقة التوصيل</strong> ${data.deliveryMethod || 'غير متوفر'}</p>
+          <p class="flex justify-between flex-row-reverse"><strong class="text-lime-600">طريقة الدفع</strong> ${data.paymentMethod || 'غير متوفر'}</p>
+
+          <p class="flex justify-between flex-row-reverse"><strong class="text-lime-600">الحالة</strong> <span class="px-2 py-1 rounded-full text-xs ${getStatusColor(data.status)}">${statusTranslations[data.status]}</span></p>
+          <p class="flex justify-between flex-row-reverse"><strong class="text-lime-600">تم التأكيد</strong> ${data.confirmed ? 'نعم' : 'لا'}</p>
+        </div>`;
+      Swal.fire({
+        title:` # ${data.id}`,
+        html,
+        icon: 'info',
+        confirmButtonText: 'إغلاق',
+        confirmButtonColor: '#84cc16',
+        width: '600px',
+      });
+    } catch (err) {
+      toast.error('فشل جلب التفاصيل');
+    }
+  };
+
+  // -------------------------------------------------
+  // Update Price
+  // -------------------------------------------------
+  const updateRepairPrice = async (repairId, price) => {
+    if (!price || price <= 0) return toast.error('السعر غير صالح');
+    try {
+      await api.put(`/api/shops/repair-request/${repairId}/price`, { price });
+      toast.success(` تحديث السعر إلى ${price} ج.م`);
+      fetchRepairs();
+    } catch (err) {
+      toast.error('فشل تحديث السعر');
+    }
+  };
+
+  // -------------------------------------------------
+  // Open Status Modal
+  // -------------------------------------------------
+  const openStatusUpdateModal = (repair) => {
+    setStatusModalRepair(repair);
+    setSelectedNewStatus('');
+    setShowStatusModal(true);
+  };
+
+  // -------------------------------------------------
+  // Confirm Status Update
+  // -------------------------------------------------
+const confirmStatusUpdate = async () => {
+  if (!statusModalRepair || !selectedNewStatus) return;
+
+  setUpdatingStatus(statusModalRepair.id);
+  setShowStatusModal(false);
+
+  try {
+    await api.put(`/api/shops/repair-request/${statusModalRepair.id}/status`, {
+      newStatus: selectedNewStatus,
+    });
+    
+
+    toast.success(` تحديث الحالة إلى ${statusTranslations[selectedNewStatus] || selectedNewStatus}`);
+
+    // أعد جلب البيانات من الـ Backend (الطريقة الوحيدة المضمونة)
+    await fetchRepairs();
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'فشل تحديث الحالة');
+  } finally {
+    setUpdatingStatus(null);
+  }
+};
+
+  // -------------------------------------------------
+  // Filtering
+  // -------------------------------------------------
+  const filteredRepairs = useMemo(() => {
+    let list = [...repairs];
+
+    if (statusFilter !== 'all') {
+      list = list.filter((r) => r.status === statusFilter);
+    }
+
+    if (searchTerm) {
+      const lower = searchTerm.toLowerCase();
+      list = list.filter(
+        (r) =>
+          (r.description || '').toLowerCase().includes(lower) ||
+          (r.userId || '').toString().includes(lower) ||
+          (r.shopName || '').toLowerCase().includes(lower)
+      );
+    }
+
+    return list;
+  }, [repairs, statusFilter, searchTerm]);
+
+  const totalPages = Math.ceil(filteredRepairs.length / repairsPerPage);
+  const pageRepairs = filteredRepairs.slice(
+    (currentPage - 1) * repairsPerPage,
+    currentPage * repairsPerPage
   );
 
-  const indexOfLastRepair = currentPage * repairsPerPage;
-  const indexOfFirstRepair = indexOfLastRepair - repairsPerPage;
-  const currentRepairs = filteredRepairs.slice(indexOfFirstRepair, indexOfLastRepair);
-  const totalPages = Math.ceil(filteredRepairs.length / repairsPerPage);
+  const changePage = (page) => {
+    if (page >= 1 && page <= totalPages) setCurrentPage(page);
+  };
 
-  const changePage = useCallback((page) => {
-    if (page < 1 || page > totalPages) return;
-    setCurrentPage(page);
-  }, [totalPages]);
-
+  // -------------------------------------------------
+  // Render
+  // -------------------------------------------------
   return (
     <ShopLayout>
-      <div style={{marginTop:"-1230px",marginLeft:"250px"}} className="min-h-screen bg-gray-50 dark:bg-gray-800 p-6 lg:p-8 font-cairo">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="mb-8 text-right bg-white p-4 rounded-xl dark:bg-gray-950">
-            <h1 className="text-4xl font-bold text-indigo-600 mb-4 dark:text-white">طلبات التصليح</h1>
-            <p className="text-sm text-gray-600 dark:text-gray-300">إدارة ومتابعة طلبات التصليح بسهولة</p>
+      <div style={{ marginTop: '-1225px', marginLeft: '-25px' }} className="min-h-screen max-w-6xl mx-auto p-4 lg:p-8 font-cairo bg-gradient-to-br from-gray-50 via-white to-white">
+        {/* Header */}
+        <div className="mb-8 text-right bg-white p-6 shadow-md border-l-4 border-lime-500 ">
+          <h1 className="text-3xl font-bold text-black mb-2">طلبات التصليح</h1>
+          <p className="text-sm text-gray-600">إدارة ومتابعة طلبات التصليح بسهولة</p>
+        </div>
+
+        {/* Filters & Search */}
+        <div className="flex flex-col sm:flex-row sm:flex-row-reverse items-center justify-between gap-4 mb-6 bg-white rounded-xl shadow-sm p-5 border ">
+          <div className="relative w-full sm:w-64">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder=" ...ابحث في الطلبات"
+              className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-200 bg-gray-50 text-black placeholder-gray-500 focus:ring-2 focus:ring-lime-400 focus:border-lime-500 outline-none transition-all text-sm text-right"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-            <div className="p-6 bg-white dark:bg-gray-900  shadow-md hover:shadow-xl transition-all duration-300 border-l-4 border-indigo-600 dark:border-indigo-500 group">
-              <h3 className="text-lg font-semibold flex justify-end items-center gap-3 text-indigo-600 dark:text-indigo-400">
-                إجمالي طلبات التصليح <FiTool className="text-xl group-hover:scale-110 transition-transform duration-300" />
-              </h3>
-              <p className="text-3xl font-bold text-gray-800 dark:text-white mt-2 text-right">{repairs.length}</p>
-            </div>
-            <div className="p-6 bg-white dark:bg-gray-900  shadow-md hover:shadow-xl transition-all duration-300 border-l-4 border-yellow-600 dark:border-yellow-500 group">
-              <h3 className="text-lg font-semibold flex justify-end items-center gap-3 text-yellow-600 dark:text-yellow-400">
-                طلبات معلقة <RiClockwiseLine className="text-xl group-hover:scale-110 transition-transform duration-300" />
-              </h3>
-              <p className="text-3xl font-bold text-gray-800 dark:text-white mt-2 text-right">
-                {repairs.filter((r) => r.status === 'QUOTE_PENDING').length}
-              </p>
-            </div>
-            <div className="p-6 bg-white dark:bg-gray-900 shadow-md hover:shadow-xl transition-all duration-300 border-l-4 border-green-600 dark:border-green-500 group">
-              <h3 className="text-lg font-semibold flex justify-end items-center gap-3 text-green-600 dark:text-green-400">
-                طلبات مكتملة <RiCheckLine className="text-xl group-hover:scale-110 transition-transform duration-300" />
-              </h3>
-              <p className="text-3xl font-bold text-gray-800 dark:text-white mt-2 text-right">
-                {repairs.filter((r) => r.status === 'DEVICE_DELIVERED').length}
-              </p>
-            </div>
+          <div className="relative w-full sm:w-56" ref={dropdownRef}>
+            <button
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg flex justify-between flex-row-reverse items-center hover:bg-gray-100 transition-all text-sm font-medium text-black"
+            >
+              <span>{statusTranslations[statusFilter]}</span>
+              <FiChevronDown className={`transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {isDropdownOpen && (
+              <div className="absolute z-20 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                {['all', ...statuses].map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => {
+                      setStatusFilter(s);
+                      setIsDropdownOpen(false);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full px-4 py-2 text-right hover:bg-lime-50 transition-all text-sm font-medium text-black"
+                  >
+                    {statusTranslations[s]}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+        </div>
 
-          {/* Filters and Search */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 bg-white dark:bg-gray-900 rounded-2xl shadow-md p-6">
-            <div className="relative w-full sm:w-64">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-300" />
-              <input
-                type="text"
-                placeholder="ابحث في طلبات التصليح..."
-                className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300 shadow-sm hover:shadow-lg text-sm text-right"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+        {/* Table */}
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden border ">
+          {isLoading ? (
+            <div className="p-12 flex justify-center">
+              <div className="w-12 h-12 border-4 border-lime-500 border-t-transparent rounded-full animate-spin"></div>
             </div>
-            <div className="relative w-full sm:w-56">
-              <button
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="w-full px-4 py-3 bg-white dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg flex justify-between items-center hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-300 shadow-sm hover:shadow-lg text-sm"
-              >
-                <span>{statusTranslations[statusFilter]}</span>
-                <FiChevronDown className={`transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {isDropdownOpen && (
-                <div className="absolute z-10 mt-2 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-xl max-h-60 overflow-y-auto">
-                  {['all', ...statuses].map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => {
-                        setStatusFilter(s);
-                        setIsDropdownOpen(false);
-                      }}
-                      className="w-full px-4 py-2 text-right text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm"
-                    >
-                      {statusTranslations[s]}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-100">
+                <thead className="bg-gray-50 sticky top-0 z-10">
+                  <tr>
+                    <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">#</th>
+                    <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">المتجر</th>
+                    <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">السعر</th>
+                    <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">الوصف</th>
+                    <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">الحالة</th>
+                    <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">إجراءات</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-100">
+                  {pageRepairs.length > 0 ? (
+                    pageRepairs.map((r, i) => {
+                      const globalIdx = (currentPage - 1) * repairsPerPage + i + 1;
+                      const priceDisplay = r.price ? `${r.price} ج.م `:  "" ;
 
-          {/* Table */}
-          <div className="max-w-7xl mx-auto">
-            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-md overflow-hidden">
-              {isLoading ? (
-                <div className="flex justify-center items-center h-64">
-                  <div className="w-12 h-12 border-4 border-indigo-600 dark:border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
-                </div>
-              ) : (
-                <>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full table-auto text-sm text-right">
-                      <thead className="bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                        <tr>
-                          <th className="px-6 py-4 font-semibold text-right">رقم الطلب</th>
-                          <th className="px-6 py-4 font-semibold text-right">العميل</th>
-                          <th className="px-6 py-4 font-semibold text-right">الوصف</th>
-                          <th className="px-6 py-4 font-semibold text-right">الحالة</th>
-                          <th className="px-6 py-4 font-semibold text-right">إجراءات</th>
-                        </tr>
-                      </thead>
-                      <tbody className="text-gray-700 dark:text-gray-200">
-                        {currentRepairs.map((r, i) => (
-                          <tr
-                            key={r.id}
-                            className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
-                          >
-                            <td className="px-6 py-4">{indexOfFirstRepair + i + 1}</td>
-                            <td className="px-6 py-4">{r.userId}</td>
-                            <td className="px-6 py-4">{r.description || 'غير متوفر'}</td>
-                            <td className="px-6 py-4">
-                              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(r.status)}`}>
-                                {statusTranslations[r.status]}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 flex justify-end gap-2">
-                              <div className="relative w-40">
-                                <select
-                                  value={r.status}
-                                  onChange={(e) => updateRepairStatus(r.id, e.target.value)}
-                                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300 text-sm text-right appearance-none"
-                                >
-                                  {statuses.map((s) => (
-                                    <option key={s} value={s}>
-                                      {statusTranslations[s]}
-                                    </option>
-                                  ))}
-                                </select>
-                                <FiChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-300 pointer-events-none" />
-                              </div>
+                      return (
+                        <tr key={r.id} className="hover:bg-lime-50 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-medium text-black">{globalIdx}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-black">{r.shopName || '—'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-medium text-black">{priceDisplay}</td>
+                          <td className="px-6 py-4 text-sm text-center text-black max-w-xs truncate">{r.description || '—'}</td>
+
+         <td className="px-6 py-4 whitespace-nowrap text-center">
+  <button
+    onClick={() => openStatusUpdateModal(r)}
+    disabled={updatingStatus === r.id}
+    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:shadow-md ${
+      getStatusColor(r.status)
+    } disabled:opacity-70 disabled:cursor-not-allowed`}
+  >
+    {updatingStatus === r.id ? (
+      <>
+        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+        <span>جاري...</span>
+      </>
+    ) : (
+      <>
+        <span>{statusTranslations[r.status] || r.status || 'غير معروف'}</span>
+        {nextStatuses[r.status]?.length > 0 && <FiChevronDown className="w-3 h-3" />}
+      </>
+    )}
+  </button>
+</td>
+
+                          {/* Actions */}
+                          <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                            <div className="flex items-center justify-center gap-2">
                               <button
                                 onClick={() => viewRepairDetails(r.id)}
-                                className="p-2 bg-amber-100 dark:bg-amber-900 text-amber-600 dark:text-amber-300 rounded-md hover:bg-amber-200 dark:hover:bg-amber-800 transition-all duration-200"
-                                title="عرض التفاصيل"
+                                className="flex items-center gap-1 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-all text-xs"
                               >
-                                <FiInfo />
+                                <FiInfo className="w-4 h-4" /> تفاصيل
                               </button>
+
                               <button
-                                onClick={() =>
+                                onClick={() => {
                                   Swal.fire({
                                     title: 'أدخل السعر الجديد',
                                     input: 'number',
@@ -303,79 +377,150 @@ const RepairRequests = () => {
                                     showCancelButton: true,
                                     confirmButtonText: 'تحديث',
                                     cancelButtonText: 'إلغاء',
-                                    preConfirm: (value) => updateRepairPrice(r.id, value),
-                                    customClass: {
-                                      popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '',
+                                    confirmButtonColor: '#84cc16',
+                                    preConfirm: (v) => {
+                                      if (v && v > 0) updateRepairPrice(r.id, v);
+                                      else toast.error('السعر يجب أن يكون أكبر من 0');
                                     },
-                                  })
-                                }
-                                className="p-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-200"
-                                title="تحديث السعر"
+                                  });
+                                }}
+                                className="flex items-center gap-1 px-3 py-1.5 bg-lime-100 text-lime-700 rounded-lg hover:bg-lime-200 transition-all text-xs"
                               >
-                                <FiDollarSign />
+                                <FiDollarSign className="w-4 h-4" /> تحديث السعر
                               </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  {currentRepairs.length === 0 && (
-                    <div className="p-8 text-center bg-white dark:bg-gray-900">
-                      <div className="text-indigo-600 dark:text-indigo-400 mb-4">
-                        <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
-                        {repairs.length === 0 ? 'لا توجد طلبات تصليح' : 'لم يتم العثور على طلبات'}
-                      </h3>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        {searchTerm ? 'حاول تعديل مصطلحات البحث' : 'جميع الطلبات تم تخصيصها أو لا توجد طلبات معلقة'}
-                      </p>
-                    </div>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-12 text-center">
+                        <div className="w-16 h-16 mx-auto text-lime-400 mb-4">
+                          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <h3 className="text-xl font-semibold text-black mb-2">
+                          {repairs.length === 0 ? 'لا توجد طلبات' : 'لا توجد نتائج'}
+                        </h3>
+                        <p className="text-gray-600">
+                          {searchTerm ? 'جرب تعديل كلمات البحث' : 'جميع الطلبات تمت معالجتها'}
+                        </p>
+                      </td>
+                    </tr>
                   )}
-                </>
-              )}
+                </tbody>
+              </table>
             </div>
+          )}
+        </div>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex justify-center items-center gap-2 mt-6">
-                <button
-                  onClick={() => changePage(currentPage - 1)}
-                  className="px-4 py-2 bg-white dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={currentPage === 1}
-                >
-                  <FiChevronLeft />
-                </button>
-                {[...Array(totalPages)].map((_, i) => (
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-3 mt-6">
+            <button
+              onClick={() => changePage(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              السابق
+            </button>
+
+            <div className="flex gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                const page = i + 1;
+                return (
                   <button
-                    key={i}
-                    onClick={() => changePage(i + 1)}
-                    className={`px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg transition-all duration-300 ${
-                      currentPage === i + 1
-                        ? 'bg-indigo-600 text-white dark:bg-indigo-500'
-                        : 'bg-white dark:bg-gray-700 dark:text-white hover:bg-indigo-100 dark:hover:bg-indigo-900'
+                    key={page}
+                    onClick={() => changePage(page)}
+                    className={`px-4 py-2 border rounded-lg transition-all text-sm font-medium ${
+                      currentPage === page
+                        ? 'bg-lime-500 text-white border-lime-500'
+                        : 'bg-white border-gray-200 hover:bg-gray-50 text-black'
                     }`}
                   >
-                    {i + 1}
+                    {page}
                   </button>
-                ))}
+                );
+              })}
+              {totalPages > 5 && <span className="px-2 py-2 text-gray-600">...</span>}
+            </div>
+
+            <button
+              onClick={() => changePage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              التالي
+            </button>
+          </div>
+        )}
+
+        {/* Status Update Modal */}
+        {showStatusModal && statusModalRepair && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md font-cairo text-right">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold">تحديث حالة الطلب #{statusModalRepair.id}</h3>
                 <button
-                  onClick={() => changePage(currentPage + 1)}
-                  className="px-4 py-2 bg-white dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={currentPage === totalPages}
+                  onClick={() => setShowStatusModal(false)}
+                  className="p-1 hover:bg-gray-100 rounded-lg transition"
                 >
-                  <FiChevronRight />
+                  <FiX className="w-5 h-5 text-gray-600" />
                 </button>
               </div>
-            )}
+
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-2">الحالة الحالية:</p>
+             <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(statusModalRepair.status)}`}>
+{statusModalRepair.status|| 'غير معروف'}
+</span>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-sm text-gray-600 mb-2">اختر الحالة الجديدة:</p>
+                <div className="space-y-2">
+                  {nextStatuses[statusModalRepair.status]?.map((s) => (
+                    <label
+                      key={s}
+                      className="flex items-center justify-end gap-2 cursor-pointer p-2 rounded-lg hover:bg-lime-50 transition"
+                    >
+                      <input
+                        type="radio"
+                        name="newStatus"
+                        value={s}
+                        checked={selectedNewStatus === s}
+                        onChange={(e) => setSelectedNewStatus(e.target.value)}
+                        className="w-4 h-4 text-lime-600"
+                      />
+                      <span className="text-sm font-medium">{statusTranslations[s]}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowStatusModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={confirmStatusUpdate}
+                  disabled={!selectedNewStatus || updatingStatus}
+                  className="px-4 py-2 bg-lime-500 text-white rounded-lg hover:bg-lime-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  تأكيد التغيير
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-        </div>
-      </ShopLayout>
-    );
+        )}
+      </div>
+    </ShopLayout>
+  );
 };
 
 export default RepairRequests;

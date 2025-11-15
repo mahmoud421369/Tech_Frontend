@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FiSearch, FiMapPin, FiStar, FiFilter, FiPhone, FiMail, FiCheckCircle } from 'react-icons/fi';
+import { FiSearch, FiMapPin, FiStar, FiFilter, FiPhone, FiMail, FiCheckCircle, FiTruck } from 'react-icons/fi';
 import api from '../api';
 import Swal from 'sweetalert2';
+import { RiCarLine, RiMotorbikeLine } from 'react-icons/ri';
 
 const ShopCard = ({ shop, darkMode }) => (
   <div className={`group p-6 rounded-2xl backdrop-blur-xl transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl ${
@@ -22,9 +23,15 @@ const ShopCard = ({ shop, darkMode }) => (
           )} */}
         </div>
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{shop.shopType}</p>
-        <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1 mt-1">
-          <FiMapPin /> {shop.shopAddress?.street}, {shop.shopAddress?.city}, {shop.shopAddress?.state} {shop.shopAddress?.zipCode}
-        </p>
+
+
+       
+                  {shop.shopAddress && (
+                            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 text-sm">
+                              <FiMapPin />  {shop.shopAddress.street}, {shop.shopAddress.city}, {shop.shopAddress.state}
+                            </div>
+                          )}
+       
         {/* <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1 mt-1">
           <FiMail /> {shop.email}
         </p> */}
@@ -84,20 +91,39 @@ const Shops = ({ darkMode }) => {
 
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-gray-900' : 'bg-gray-50'} pt-16`}>
-      {/* Hero */}
-      <section className="relative overflow-hidden pb-20">
-        <div className={`h-64 ${darkMode ? 'bg-gradient-to-br from-indigo-900 via-gray-900 to-purple-900' : 'bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500'}`}>
-          <svg className="absolute bottom-0 w-full h-48" preserveAspectRatio="none" viewBox="0 0 1440 320">
-            <path fill={darkMode ? '#111827' : '#ffffff'} d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,320L0,320Z" />
-          </svg>
-          <div className="relative max-w-7xl mx-auto px-6 pt-20 text-center">
-            <h1 className="text-5xl sm:text-6xl font-extrabold text-white drop-shadow-lg">All Shops</h1>
-            <p className="mt-4 text-xl text-white/90">Discover trusted repair shops near you</p>
-          </div>
-        </div>
-      </section>
+      
 
-      {/* Search & Filter */}
+<section className="relative overflow-hidden pb-6">
+              <div
+                className={`absolute inset-0 ${darkMode ? "bg-gradient-to-br from-indigo-900 via-gray-900 to-purple-900" : "bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500"}`}
+              >
+                <svg className="absolute bottom-0 w-full h-48" preserveAspectRatio="none" viewBox="0 0 1440 320">
+                  <path
+                    fill={darkMode ? "#111827" : "#ffffff"}
+                    d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
+                  />
+                </svg>
+              </div>
+      
+         
+              <div className="absolute inset-0 opacity-30 pointer-events-none">
+                <FiTruck className="absolute top-16 left-10 w-16 h-16 text-white animate-bounce" />
+                <RiCarLine className="absolute bottom-20 right-20 w-20 h-20 text-white animate-pulse" />
+                <RiMotorbikeLine className="absolute top-1/3 right-1/4 w-14 h-14 text-white animate-ping" />
+              </div>
+      
+              <div className="relative max-w-7xl mx-auto px-6 pt-20 pb-32 text-center">
+                <h1 className="text-5xl sm:text-6xl font-extrabold text-white drop-shadow-lg">
+                   Shops 
+                </h1>
+                <p className="mt-6 text-xl text-white/90 max-w-3xl mx-auto">
+         Discover trusted repair shops near you
+                </p>
+              </div>
+            </section>
+
+
+  
       <div className="max-w-7xl mx-auto px-6 py-8 -mt-16 relative z-10">
         <div className="bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl rounded-3xl shadow-2xl p-6 border border-gray-200/50 dark:border-gray-700/50">
           <div className="flex flex-col md:flex-row gap-4">
@@ -108,17 +134,17 @@ const Shops = ({ darkMode }) => {
                 placeholder="Search shops by name, location, email, type, or description..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 transition"
+                className="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-xl border border-gray-300 dark:border-gray-600 focus:outline-none cursor-pointer focus:ring-2 focus:ring-indigo-500 transition"
               />
             </div>
-            <button className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition shadow-md">
+            {/* <button className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition shadow-md">
               <FiFilter /> Filter
-            </button>
+            </button> */}
           </div>
         </div>
       </div>
 
-      {/* Shops Grid */}
+      
       <div className="max-w-7xl mx-auto px-6 pb-12">
         {isLoading ? (
           <div className="flex justify-center items-center h-64">

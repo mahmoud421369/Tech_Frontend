@@ -119,7 +119,12 @@ const MyDeliveries = () => {
                   </div>
                   {order.userAddress && (
                     <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 text-sm">
-                      <FiMapPin /> {order.userAddress.street}, {order.userAddress.city}
+                      <FiMapPin />User Address : {order.userAddress.street}, {order.userAddress.city}
+                    </div>
+                  )}
+                     {order.shopAddress && (
+                    <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 text-sm">
+                      <FiMapPin />Shop Address : {order.shopAddress.street}, {order.shopAddress.city}
                     </div>
                   )}
                   {order.totalPrice && (

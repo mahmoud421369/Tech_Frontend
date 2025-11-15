@@ -1,5 +1,5 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   FiSettings,
   FiLogOut,
@@ -18,20 +18,28 @@ import {
   FiClipboard,
   FiMenu,
   FiSearch,
+  FiX,
 } from "react-icons/fi";
-import { RiAccountBox2Line, RiGift2Line, RiStore2Line, RiStore3Line, RiTruckLine } from "react-icons/ri";
+import {
+  RiAccountBox2Line,
+  RiGift2Line,
+  RiStore2Line,
+  RiStore3Line,
+  RiTruckLine,
+} from "react-icons/ri";
 import { Link } from "react-router-dom";
-import logo from "../images/logo.png";
+import logo from "../images/new-logo.jpg";
 
 const Header = () => {
+  // === State ===
   const [darkMode, setDarkMode] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [unreadCount] = useState(3);
   const [shopDropdownOpen, setShopDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filteredMenuItems, setFilteredMenuItems] = useState([]);
+
+  const unreadCount = 3;
 
   const notifications = [
     { id: 1, title: "New device registered", message: "A new iPhone 13 was added", time: "10 min ago", read: false },
@@ -44,75 +52,77 @@ const Header = () => {
     email: "tech@repairdevices.com",
   };
 
-  const menuItems = [
-    { name: "dashboard", icon: <FiHome />, label: "Dashboard", path: "/dashboard" },
-    { name: "users", icon: <FiUsers />, label: "Users", path: "/users" },
-    {
-      name: "shops",
-      icon: <RiStore3Line />,
-      label: "Shops",
-      path: "/repair-shops",
-      subMenu: [
-        { name: "shops", icon: <RiStore2Line />, label: "Stores", path: "/repair-shops" },
-        { name: "subscriptions", icon: <RiAccountBox2Line />, label: "Subscriptions", path: "/shop/subscriptions" },
-        { name: "products", icon: <FiBox />, label: "Products", path: "/admin/products" },
-        { name: "repair requests", icon: <FiTool />, label: "Repair Requests", path: "/admin/repair-requests" },
-      ],
-    },
-    { name: "categories", icon: <FiList />, label: "Categories", path: "/category" },
-    { name: "offers", icon: <FiTag />, label: "Offers", path: "/admin/offers" },
-    { name: "reviews", icon: <FiStar />, label: "Reviews", path: "/reviews" },
-    { name: "delivery", icon: <RiTruckLine />, label: "Delivery", path: "/deliveries" },
-    { name: "assigners", icon: <RiGift2Line />, label: "Assigners", path: "/assigners" },
-    { name: "assignment-logs", icon: <FiClipboard />, label: "Assignment Logs", path: "/admin/assignment-logs" },
-  ];
+  const menuItems = useMemo(
+    () => [
+      { name: "dashboard", icon: <FiHome />, label: "Dashboard", path: "/dashboard" },
+      { name: "users", icon: <FiUsers />, label: "Users", path: "/users" },
+      {
+        name: "shops",
+        icon: <RiStore3Line />,
+        label: "Shop",
+        path: "/repair-shops",
+        subMenu: [
+          { name: "shops", icon: <RiStore2Line />, label: "Stores", path: "/repair-shops" },
+          { name: "subscriptions", icon: <RiAccountBox2Line />, label: "Subscription", path: "/shop/subscriptions" },
+          { name: "products", icon: <FiBox />, label: "Products", path: "/admin/products" },
+          { name: "repair requests", icon: <FiTool />, label: "Repair Requests", path: "/admin/repair-requests" },
+        ],
+      },
+      { name: "categories", icon: <FiList />, label: "Category", path: "/category" },
+      { name: "offers", icon: <FiTag />, label: "Offers", path: "/admin/offers" },
+      { name: "reviews", icon: <FiStar />, label: "Reviews", path: "/reviews" },
+      { name: "delivery", icon: <RiTruckLine />, label: "Delivery", path: "/deliveries" },
+      { name: "assigners", icon: <RiGift2Line />, label: "Assigner", path: "/assigners" },
+      { name: "assignment-logs", icon: <FiClipboard />, label: "Assignment Logs", path: "/admin/assignment-logs" },
+    ],
+    []
+  );
 
+  // === Dark Mode ===
   useEffect(() => {
-    const savedMode = localStorage.getItem("darkMode");
-    if (savedMode === "true") {
-      setDarkMode(true);
-      document.documentElement.classList.add("dark");
-    }
-    setFilteredMenuItems(menuItems); // Initialize with all menu items
+    const saved = localStorage.getItem("darkMode") === "true";
+    setDarkMode(saved);
+    document.documentElement.classList.toggle("dark", saved);
   }, []);
 
-  useEffect(() => {
-    // Live search filtering
-    if (searchQuery.trim() === "") {
-      setFilteredMenuItems(menuItems);
-    } else {
-      const query = searchQuery.toLowerCase();
-      const filtered = menuItems
-        .map((item) => {
-          const matchesMain = item.label.toLowerCase().includes(query);
-          if (item.subMenu) {
-            const filteredSubMenu = item.subMenu.filter((subItem) =>
-              subItem.label.toLowerCase().includes(query)
-            );
-            return matchesMain || filteredSubMenu.length > 0
-              ? { ...item, subMenu: filteredSubMenu }
-              : null;
-          }
-          return matchesMain ? item : null;
-        })
-        .filter((item) => item !== null);
-      setFilteredMenuItems(filtered);
-    }
-  }, [searchQuery]);
-
-  const toggleDarkMode = () => {
+  const toggleDarkMode = useCallback(() => {
     setDarkMode((prev) => {
       const newMode = !prev;
       localStorage.setItem("darkMode", newMode);
-      if (newMode) document.documentElement.classList.add("dark");
-      else document.documentElement.classList.remove("dark");
+      document.documentElement.classList.toggle("dark", newMode);
       return newMode;
     });
-  };
+  }, []);
+
+  // === Search Filtering ===
+  const filteredMenuItems = useMemo(() => {
+    if (!searchQuery.trim()) return menuItems;
+    const q = searchQuery.toLowerCase();
+    return menuItems
+      .map((item) => {
+        const matchesMain = item.label.toLowerCase().includes(q);
+        if (item.subMenu) {
+          const filteredSub = item.subMenu.filter((s) => s.label.toLowerCase().includes(q));
+          return matchesMain || filteredSub.length > 0 ? { ...item, subMenu: filteredSub } : null;
+        }
+        return matchesMain ? item : null;
+      })
+      .filter(Boolean);
+  }, [menuItems, searchQuery]);
+
+  // === Close on outside click ===
+  useEffect(() => {
+    const closeMenus = (e) => {
+      if (!e.target.closest(".profile-btn") && showProfileMenu) setShowProfileMenu(false);
+      if (!e.target.closest(".notif-btn") && showNotifications) setShowNotifications(false);
+    };
+    document.addEventListener("click", closeMenus);
+    return () => document.removeEventListener("click", closeMenus);
+  }, [showProfileMenu, showNotifications]);
 
   return (
     <>
-      {/* Mobile overlay */}
+      {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-20 lg:hidden"
@@ -120,65 +130,64 @@ const Header = () => {
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar – Blue/Indigo */}
       <nav
-        className={`fixed inset-y-0 left-0 z-30 w-16 lg:w-64 overflow-y-auto transform ${
+        className={`fixed inset-y-0 left-0 z-30 w-64 overflow-y-auto transform transition-transform duration-300 ease-in-out ${
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0 transition-transform duration-200 ease-in-out ${
-          darkMode ? "bg-indigo-950" : "bg-indigo-600"
-        } shadow-lg lg:shadow-none`}
+        } lg:translate-x-0 ${
+          darkMode ? "bg-indigo-950" : "bg-white"
+        } shadow-2xl lg:shadow-lg border-r border-indigo-200 dark:border-indigo-800`}
       >
         <div className="flex flex-col h-full">
-          <div className="p-4 border-b border-indigo-200 dark:border-indigo-700 lg:border-b-0">
-            <button
-              onClick={() => setIsSidebarOpen(false)}
-              className="lg:hidden p-1 text-indigo-500 dark:text-indigo-300 hover:text-indigo-700"
-            >
-              <FiChevronDown className="w-5 h-5 rotate-90" />
-            </button>
+          {/* Logo */}
+          <div className="p-6 border-b border-indigo-200 dark:border-indigo-800">
+            <div className="flex items-center justify-between">
+              <img src={logo} alt="Logo" className="h-40 w-auto" /> 
+              <button
+                onClick={() => setIsSidebarOpen(false)}
+                className="lg:hidden p-2 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400"
+              >
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
           </div>
-          <ul className="flex-1 py-4 space-y-4">
-            <h3 className="sm:text-sm text-center text-lg text-white dark:text-indigo-200">
-              <span className="text-center text-2xl font-bold">Tech & Restore</span><br />
-              Admin Management System
-            </h3>
-            <hr className="border border-white/20 dark:border-indigo-700 flex justify-center items-center" />
+
+          {/* Menu */}
+          <ul className="flex-1 py-4 space-y-3 px-3">
             {filteredMenuItems.length > 0 ? (
               filteredMenuItems.map((item) => (
                 <li key={item.name}>
                   {item.subMenu ? (
-                    <div className="overflow-hidden">
+                    <div>
                       <button
                         onClick={() => setShopDropdownOpen(!shopDropdownOpen)}
-                        className={`flex items-center w-full px-4 py-2 text-sm font-medium ${
+                        className={`flex items-center justify-start w-full px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                           darkMode
-                            ? "text-indigo-200 hover:bg-indigo-800 hover:text-white"
-                            : "text-white m-2 rounded-xl px-3 py-2 hover:bg-indigo-100 hover:text-indigo-800"
+                            ? "text-gray-300 hover:bg-indigo-900 hover:text-white"
+                            : "text-indigo-700 hover:bg-indigo-50"
                         }`}
                       >
-                        <span className="mr-0 lg:mr-3 text-lg">{item.icon}</span>
-                        <span className="hidden lg:block">{item.label}</span>
+                        <span className="text-gray-400 mr-3 text-lg">{item.icon}</span>
+                        <span className="flex-1 text-left">{item.label}</span>
                         <FiChevronDown
-                          className={`ml-auto hidden lg:block transform ${
-                            shopDropdownOpen ? "rotate-180" : ""
-                          }`}
+                          className={`transition-transform ${shopDropdownOpen ? "rotate-180" : ""}`}
                         />
                       </button>
-                      {shopDropdownOpen && item.subMenu.length > 0 && (
-                        <ul className="pl-8 space-y-2">
-                          {item.subMenu.map((subItem) => (
-                            <li key={subItem.name}>
+                      {shopDropdownOpen && (
+                        <ul className="pr-8 mt-1 space-y-1">
+                          {item.subMenu.map((sub) => (
+                            <li key={sub.name}>
                               <Link
-                                to={subItem.path}
+                                to={sub.path}
                                 onClick={() => setIsSidebarOpen(false)}
-                                className={`flex items-center px-4 py-2 text-sm font-medium ${
+                                className={`flex items-center justify-start px-4 py-2.5 rounded-lg text-sm transition-all ${
                                   darkMode
-                                    ? "text-indigo-200 hover:bg-indigo-800 hover:text-white"
-                                    : "text-white hover:bg-indigo-100 hover:text-indigo-800"
+                                    ? "text-gray-400 hover:bg-indigo-900 hover:text-white"
+                                    : "text-indigo-600 hover:bg-indigo-50"
                                 }`}
                               >
-                                <span className="mr-3 text-lg">{subItem.icon}</span>
-                                <span className="hidden lg:block">{subItem.label}</span>
+                                <span className="text-gray-400 mr-3 text-base">{sub.icon}</span>
+                                <span className="text-left">{sub.label}</span>
                               </Link>
                             </li>
                           ))}
@@ -189,158 +198,173 @@ const Header = () => {
                     <Link
                       to={item.path}
                       onClick={() => setIsSidebarOpen(false)}
-                      className={`flex items-center px-4 py-2 text-sm font-medium ${
+                      className={`flex items-center justify-start px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                         darkMode
-                          ? "text-indigo-200 hover:bg-indigo-800 hover:text-white"
-                          : "text-white m-2 rounded-xl px-3 py-2 hover:bg-indigo-100 hover:text-indigo-800"
+                          ? "text-gray-300 hover:bg-indigo-900 hover:text-white"
+                          : "text-indigo-700 hover:bg-indigo-50"
                       }`}
                     >
-                      <span className="mr-0 lg:mr-3 text-lg">{item.icon}</span>
-                      <span className="hidden lg:block">{item.label}</span>
+                      <span className="text-gray-400 mr-3 text-lg">{item.icon}</span>
+                      <span className="flex-1 text-left">{item.label}</span>
                     </Link>
                   )}
                 </li>
               ))
             ) : (
-              <li className="px-4 py-2 text-sm text-indigo-500 dark:text-indigo-300">
-                No results found
+              <li className="px-4 py-3 text-sm text-gray-400 text-center">
+                لا توجد نتائج
               </li>
             )}
           </ul>
         </div>
       </nav>
 
-     
+      {/* Header – Blue/Indigo */}
       <header
-        className={`fixed top-0 left-0 w-full h-16 z-20 shadow-sm flex items-center justify-between px-4 ${
-          darkMode ? "bg-indigo-950 text-indigo-200" : "bg-white text-indigo-600"
-        } lg:pl-16 lg:pl-64`}
+        className={`fixed top-0 left-0 right-0 h-16 z-20 flex items-center justify-between px-4 lg:px-6 shadow-md transition-colors ${
+          darkMode ? "bg-indigo-950 text-white" : "bg-white text-indigo-800"
+        } lg:pl-64`}
       >
-        <div className="flex items-center space-x-2">
+        {/* Left: Mobile Menu + Logo */}
+        <div className="flex items-center gap-4">
           <button
             onClick={() => setIsSidebarOpen(true)}
-            className="lg:hidden p-2 rounded hover:bg-indigo-100 dark:hover:bg-indigo-800"
+            className="lg:hidden p-2 rounded-lg text-gray-400 hover:bg-indigo-100 dark:hover:bg-indigo-900 transition"
           >
             <FiMenu className="w-5 h-5" />
           </button>
-          {/* <img src={logo} alt="Logo" className="h-10 w-auto" /> */}
-          {/* <span className="font-bold hidden sm:inline">Tech & Restore</span> */}
+          <div className="flex items-center gap-2">
+            <img src={logo} alt="Logo" className="h-9 w-auto" />
+            <span className="hidden sm:inline font-bold text-indigo-700 dark:text-indigo-300">
+              Tech & Restore
+            </span>
+          </div>
         </div>
 
-        <div className="flex items-center space-x-4">
-          <div className="relative">
+        {/* Right: Search, Dark Mode, Notifications, Profile */}
+        <div className="flex items-center gap-3">
+
+          {/* Search */}
+          <div className="relative hidden md:block">
             <input
               type="text"
-              placeholder="Search dashboard..."
+              placeholder=" Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`pl-10 pr-4 py-2 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 ${
-                darkMode ? "bg-indigo-900 text-indigo-200" : "bg-indigo-100 text-indigo-800"
+              className={`w-64 pl-10 pr-4 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition ${
+                darkMode
+                  ? "bg-indigo-900 text-white placeholder-gray-400"
+                  : "bg-indigo-50 text-indigo-800 placeholder-indigo-400"
               }`}
             />
-            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-indigo-400" />
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           </div>
 
+          {/* Dark Mode */}
           <button
             onClick={toggleDarkMode}
-            className={`p-2 rounded-full ${
-              darkMode ? "bg-indigo-800 text-yellow-400" : "bg-indigo-100 text-indigo-600"
+            className={`p-2.5 rounded-xl transition ${
+              darkMode
+                ? "bg-indigo-800 text-yellow-400 hover:bg-indigo-700"
+                : "bg-indigo-100 text-indigo-600 hover:bg-indigo-200"
             }`}
           >
-            {darkMode ? <FiMoon /> : <FiSun />}
+            {darkMode ? <FiMoon className="w-5 h-5" /> : <FiSun className="w-5 h-5" />}
           </button>
 
-          <div className="relative">
+          {/* Notifications */}
+          <div className="relative notif-btn">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className={`p-2 rounded-full ${
+              className={`relative p-2.5 rounded-xl transition ${
                 darkMode ? "hover:bg-indigo-800" : "hover:bg-indigo-100"
               }`}
             >
-              <FiBell className="w-5 h-5" />
+              <FiBell className="w-5 h-5 text-gray-400" />
               {unreadCount > 0 && (
-                <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-medium">
                   {unreadCount}
                 </span>
               )}
             </button>
             {showNotifications && (
               <div
-                className={`absolute right-0 mt-2 w-80 rounded-md shadow-lg py-1 z-20 max-h-96 overflow-y-auto border ${
+                className={`absolute right-0 mt-2 w-80 rounded-2xl shadow-xl overflow-hidden z-50 border ${
                   darkMode
                     ? "bg-indigo-900 border-indigo-700"
-                    : "bg-indigo-50 border-indigo-200"
+                    : "bg-white border-indigo-200"
                 }`}
               >
-                <div className="px-4 py-2 border-b border-indigo-200 dark:border-indigo-700">
-                  <h3 className="font-medium">Notifications</h3>
+                <div className="p-4 border-b border-indigo-200 dark:border-indigo-700">
+                  <h3 className="font-bold text-indigo-700 dark:text-indigo-300">الإشعارات</h3>
                 </div>
-                {notifications.map((n) => (
-                  <div
-                    key={n.id}
-                    className={`px-4 py-3 border-b ${
-                      darkMode
-                        ? "border-indigo-700 hover:bg-indigo-800"
-                        : "border-indigo-200 hover:bg-indigo-100"
-                    } ${!n.read ? (darkMode ? "bg-indigo-800" : "bg-indigo-100") : ""}`}
-                  >
-                    <p className="font-medium">{n.title}</p>
-                    <p className="text-sm text-indigo-300 dark:text-indigo-400">
-                      {n.message}
-                    </p>
-                    <p className="text-xs text-indigo-400">{n.time}</p>
-                  </div>
-                ))}
+                <div className="max-h-96 overflow-y-auto">
+                  {notifications.map((n) => (
+                    <div
+                      key={n.id}
+                      className={`p-4 border-b border-indigo-100 dark:border-indigo-800 transition ${
+                        !n.read
+                          ? darkMode
+                            ? "bg-indigo-800"
+                            : "bg-indigo-50"
+                          : ""
+                      } hover:bg-indigo-100 dark:hover:bg-indigo-800`}
+                    >
+                      <p className="font-medium text-sm text-indigo-900 dark:text-white">{n.title}</p>
+                      <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1">{n.message}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{n.time}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
 
-          <div className="relative">
+          {/* Profile */}
+          <div className="relative profile-btn">
             <button
               onClick={() => setShowProfileMenu(!showProfileMenu)}
-              className="flex items-center space-x-2"
+              className="flex items-center gap-2 p-2 rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900 transition"
             >
-              <div className="bg-indigo-500 text-white w-8 h-8 rounded-full flex items-center justify-center">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
                 {user.name.charAt(0)}
               </div>
-              <span className="hidden sm:inline">{user.name}</span>
-              <FiChevronDown />
+              <span className="hidden md:inline text-sm font-medium text-indigo-700 dark:text-indigo-300">
+                {user.name}
+              </span>
+              <FiChevronDown className="text-gray-400 text-sm" />
             </button>
-
             {showProfileMenu && (
               <div
-                className={`absolute right-0 mt-2 w-56 rounded-md shadow-lg py-2 z-20 border ${
+                className={`absolute right-0 mt-2 w-56 rounded-2xl shadow-xl overflow-hidden z-50 border ${
                   darkMode
                     ? "bg-indigo-900 border-indigo-700"
-                    : "bg-indigo-50 border-indigo-200"
+                    : "bg-white border-indigo-200"
                 }`}
               >
-                <div className="px-4 py-2 border-b border-indigo-200 dark:border-indigo-700">
-                  <p className="text-sm font-medium">{user.name}</p>
-                  <p className="text-xs text-indigo-400">{user.email}</p>
+                <div className="p-4 border-b border-indigo-200 dark:border-indigo-700">
+                  <p className="font-bold text-indigo-700 dark:text-white">{user.name}</p>
+                  <p className="text-xs text-indigo-600 dark:text-indigo-400">{user.email}</p>
                 </div>
-
-                <div className="border-t border-indigo-200 dark:border-indigo-700 my-1"></div>
-
                 <a
                   href="#"
-                  className={`flex items-center px-4 py-2 text-sm ${
+                  className={`flex items-center gap-3 px-4 py-3 text-sm transition ${
                     darkMode
-                      ? "hover:bg-indigo-800 hover:text-white"
-                      : "hover:bg-indigo-100 hover:text-indigo-800"
+                      ? "hover:bg-indigo-800 text-gray-300"
+                      : "hover:bg-indigo-50 text-indigo-700"
                   }`}
                 >
-                  <FiUser className="mr-2" /> Profile
+                  <FiUser className="text-gray-400" />  Profile
                 </a>
                 <a
                   href="#"
-                  className={`flex items-center px-4 py-2 text-sm ${
+                  className={`flex items-center gap-3 px-4 py-3 text-sm transition ${
                     darkMode
-                      ? "hover:bg-indigo-800 hover:text-white"
-                      : "hover:bg-indigo-100 hover:text-indigo-800"
+                      ? "hover:bg-indigo-800 text-gray-300"
+                      : "hover:bg-indigo-50 text-indigo-700"
                   }`}
                 >
-                  <FiLogOut className="mr-2" /> Logout
+                  <FiLogOut className="text-gray-400" /> Logout
                 </a>
               </div>
             )}

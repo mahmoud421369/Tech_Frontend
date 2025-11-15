@@ -1,45 +1,42 @@
-
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+// src/pages/ShopDashboard.jsx
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Swal from 'sweetalert2';
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler } from 'chart.js';
+import { Line, Bar } from 'react-chartjs-2';
 import { RiMoneyDollarCircleLine, RiBox2Line, RiToolsLine } from 'react-icons/ri';
-import { FiCalendar } from 'react-icons/fi';
+import { FiCalendar, FiHome } from 'react-icons/fi';
 import { FaChartLine } from 'react-icons/fa';
 import api from '../api';
+import useAuthStore from '../store/Auth';
 import debounce from 'lodash/debounce';
+import { toast } from 'react-toastify';
 
-const DashboardSkeleton = ({ darkMode }) => (
-  <div className="animate-pulse p-4 sm:p-6">
-    <div className="mb-8 bg-indigo-50 dark:bg-indigo-900 rounded-xl p-4">
-      <div className="h-8 w-1/3 bg-indigo-200 dark:bg-indigo-700 rounded mb-4"></div>
-      <div className="h-4 w-2/3 bg-indigo-200 dark:bg-indigo-700 rounded"></div>
-    </div>
-    <div className="flex flex-col sm:flex-row gap-4 mb-10 justify-center">
-      {[...Array(2)].map((_, idx) => (
-        <div key={idx} className="w-full sm:w-64">
-          <div className="h-4 w-1/3 bg-indigo-200 dark:bg-indigo-700 rounded mb-2"></div>
-          <div className="h-10 bg-indigo-200 dark:bg-indigo-700 rounded"></div>
-        </div>
+// Register Chart.js components
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler);
+
+const DashboardSkeleton = () => (
+  <div className="space-y-6 p-4 sm:p-6 animate-pulse">
+    <div className="h-10 bg-lime-200 w-48 rounded"></div>
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      {[...Array(2)].map((_, i) => (
+        <div key={i} className="h-10 bg-lime-100 rounded"></div>
       ))}
     </div>
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-      {[...Array(5)].map((_, idx) => (
-        <div key={idx} className="p-6 bg-indigo-50 dark:bg-indigo-900 rounded-xl shadow-md">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="h-6 w-1/2 bg-indigo-200 dark:bg-indigo-700 rounded mb-2"></div>
-              <div className="h-8 w-1/3 bg-indigo-200 dark:bg-indigo-700 rounded"></div>
-            </div>
-            <div className="h-10 w-10 bg-indigo-200 dark:bg-indigo-700 rounded-full"></div>
-          </div>
-        </div>
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {[...Array(6)].map((_, i) => (
+        <div key={i} className="h-36 bg-lime-50 rounded-lg"></div>
       ))}
+    </div>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="h-64 bg-lime-50 rounded-lg"></div>
+      <div className="h-64 bg-lime-50 rounded-lg"></div>
     </div>
   </div>
 );
 
-const ShopDashboard = ({ darkMode }) => {
+const ShopDashboard = () => {
   const navigate = useNavigate();
+  const { accessToken } = useAuthStore();
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [totalSales, setTotalSales] = useState(0);
@@ -49,180 +46,140 @@ const ShopDashboard = ({ darkMode }) => {
   const [totalRepairs, setTotalRepairs] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { 
+        position: 'top',
+        labels: { 
+          color: '#000000',
+          font: { family: 'Cairo', size: 12 }
+        }
+      },
+      title: { display: false },
+      tooltip: {
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        titleColor: '#000000',
+        bodyColor: '#1f2937',
+        borderColor: '#84cc16',
+        borderWidth: 2,
+        cornerRadius: 8,
+        displayColors: true,
+      },
+    },
+    scales: {
+      x: { 
+        grid: { display: false }, 
+        ticks: { color: '#6b7280' }
+      },
+      y: { 
+        grid: { color: '#e5e7eb' }, 
+        ticks: { color: '#6b7280' }
+      },
+    },
+
+  };
+
   const validateDates = useCallback(() => {
     if (!startDate || !endDate) return true;
     const start = new Date(startDate);
     const end = new Date(endDate);
     const now = new Date();
     if (start > now || end > now) {
-      Swal.fire({
-        title: 'خطأ',
-        text: 'لا يمكن تحديد تواريخ في المستقبل',
-        icon: 'error',
-        customClass: { popup: darkMode ? 'dark:bg-indigo-900 dark:text-indigo-200' : 'bg-indigo-50 text-indigo-800' },
-      });
+      toast.error('لا يمكن تحديد تواريخ في المستقبل');
       return false;
     }
     if (start > end) {
-      Swal.fire({
-        title: 'خطأ',
-        text: 'تاريخ البداية يجب أن يكون قبل تاريخ النهاية',
-        icon: 'error',
-        customClass: { popup: darkMode ? 'dark:bg-indigo-900 dark:text-indigo-200' : 'bg-indigo-50 text-indigo-800' },
-      });
+      toast.error('تاريخ البداية يجب أن يكون قبل تاريخ النهاية');
       return false;
     }
     return true;
-  }, [startDate, endDate, darkMode]);
+  }, [startDate, endDate]);
 
   const fetchSales = useCallback(async () => {
     if (!validateDates()) return;
     const controller = new AbortController();
     try {
       setIsLoading(true);
-      const res = await api.post(
-        '/api/shops/dashboard/sales/total',
-        { startDate, endDate },
-        { signal: controller.signal, headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
-      );
+      const res = await api.post('/api/shops/dashboard/sales/total', { startDate, endDate }, { signal: controller.signal });
       setTotalSales(res.data || 0);
     } catch (err) {
-      if (err.name !== 'AbortError') {
-        console.error('Error fetching sales:', err.response?.data || err.message);
-        Swal.fire({
-          title: 'خطأ',
-          text: 'فشل في جلب إجمالي المبيعات',
-          icon: 'error',
-          customClass: { popup: darkMode ? 'dark:bg-indigo-900 dark:text-indigo-200' : 'bg-indigo-50 text-indigo-800' },
-        });
-      }
+      if (err.name !== 'AbortError') toast.error('فشل في جلب إجمالي المبيعات');
     } finally {
       setIsLoading(false);
     }
     return () => controller.abort();
-  }, [startDate, endDate, darkMode]);
+  }, [startDate, endDate]);
 
   const fetchSalesStats = useCallback(async () => {
     const controller = new AbortController();
     try {
       setIsLoading(true);
-      const res = await api.get('/api/shops/dashboard/sales/stats', {
-        signal: controller.signal,
-        headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` },
-      });
+      const res = await api.get('/api/shops/dashboard/sales/stats', { signal: controller.signal });
       setSalesStats(res.data);
     } catch (err) {
-      if (err.name !== 'AbortError') {
-        console.error('Error fetching sales stats:', err.response?.data || err.message);
-        Swal.fire({
-          title: 'خطأ',
-          text: 'فشل في جلب إحصائيات المبيعات',
-          icon: 'error',
-          customClass: { popup: darkMode ? 'dark:bg-indigo-900 dark:text-indigo-200' : 'bg-indigo-50 text-indigo-800' },
-        });
-      }
+      if (err.name !== 'AbortError') toast.error('فشل في جلب إحصائيات المبيعات');
     } finally {
       setIsLoading(false);
     }
     return () => controller.abort();
-  }, [darkMode]);
+  }, []);
 
   const fetchOrders = useCallback(async () => {
     if (!validateDates()) return;
     const controller = new AbortController();
     try {
       setIsLoading(true);
-      const res = await api.post(
-        '/api/shops/dashboard/orders/total',
-        { startDate, endDate },
-        { signal: controller.signal, headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
-      );
+      const res = await api.post('/api/shops/dashboard/orders/total', { startDate, endDate }, { signal: controller.signal });
       setTotalOrders(res.data || 0);
     } catch (err) {
-      if (err.name !== 'AbortError') {
-        console.error('Error fetching orders:', err.response?.data || err.message);
-        Swal.fire({
-          title: 'خطأ',
-          text: 'فشل في جلب إجمالي الطلبات',
-          icon: 'error',
-          customClass: { popup: darkMode ? 'dark:bg-indigo-900 dark:text-indigo-200' : 'bg-indigo-50 text-indigo-800' },
-        });
-      }
+      if (err.name !== 'AbortError') toast.error('فشل في جلب إجمالي الطلبات');
     } finally {
       setIsLoading(false);
     }
     return () => controller.abort();
-  }, [startDate, endDate, darkMode]);
+  }, [startDate, endDate]);
 
   const fetchRepairsStats = useCallback(async () => {
     const controller = new AbortController();
     try {
       setIsLoading(true);
-      const res = await api.get('/api/shops/dashboard/repairs/stats', {
-        signal: controller.signal,
-        headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` },
-      });
+      const res = await api.get('/api/shops/dashboard/repairs/stats', { signal: controller.signal });
       setRepairsStats(res.data);
     } catch (err) {
-      if (err.name !== 'AbortError') {
-        console.error('Error fetching repairs stats:', err.response?.data || err.message);
-        Swal.fire({
-          title: 'خطأ',
-          text: 'فشل في جلب إحصائيات التصليحات',
-          icon: 'error',
-          customClass: { popup: darkMode ? 'dark:bg-indigo-900 dark:text-indigo-200' : 'bg-indigo-50 text-indigo-800' },
-        });
-      }
+      if (err.name !== 'AbortError') toast.error('فشل في جلب إحصائيات التصليحات');
     } finally {
       setIsLoading(false);
     }
     return () => controller.abort();
-  }, [darkMode]);
+  }, []);
 
   const fetchRepairsTotal = useCallback(async () => {
     const controller = new AbortController();
     try {
       setIsLoading(true);
-      const res = await api.get('/api/shops/dashboard/repairs/total', {
-        signal: controller.signal,
-        headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` },
-      });
+      const res = await api.get('/api/shops/dashboard/repairs/total', { signal: controller.signal });
       setTotalRepairs(res.data || 0);
     } catch (err) {
-      if (err.name !== 'AbortError') {
-        console.error('Error fetching repairs total:', err.response?.data || err.message);
-        Swal.fire({
-          title: 'خطأ',
-          text: 'فشل في جلب إجمالي طلبات التصليح',
-          icon: 'error',
-          customClass: { popup: darkMode ? 'dark:bg-indigo-900 dark:text-indigo-200' : 'bg-indigo-50 text-indigo-800' },
-        });
-      }
+      if (err.name !== 'AbortError') toast.error('فشل في جلب إجمالي طلبات التصليح');
     } finally {
       setIsLoading(false);
     }
     return () => controller.abort();
-  }, [darkMode]);
+  }, []);
 
   const resetDates = useCallback(() => {
     setStartDate('');
     setEndDate('');
-    Swal.fire({
-      title: 'تم',
-      text: 'تم إعادة تعيين التواريخ',
-      icon: 'success',
-      timer: 1500,
-      showConfirmButton: false,
-      customClass: { popup: darkMode ? 'dark:bg-indigo-900 dark:text-indigo-200' : 'bg-indigo-50 text-indigo-800' },
-    });
-  }, [darkMode]);
+    toast.success('تم إعادة تعيين التواريخ');
+  }, []);
 
   const debouncedFetchSales = useMemo(() => debounce(fetchSales, 300), [fetchSales]);
   const debouncedFetchOrders = useMemo(() => debounce(fetchOrders, 300), [fetchOrders]);
 
   useEffect(() => {
-    const token = localStorage.getItem('authToken');
-    if (!token) {
+    if (!accessToken) {
       navigate('/login');
       return;
     }
@@ -237,150 +194,222 @@ const ShopDashboard = ({ darkMode }) => {
       debouncedFetchSales.cancel();
       debouncedFetchOrders.cancel();
     };
-  }, [debouncedFetchSales, fetchSalesStats, debouncedFetchOrders, fetchRepairsStats, fetchRepairsTotal, navigate]);
+  }, [
+    accessToken,
+    debouncedFetchSales,
+    fetchSalesStats,
+    debouncedFetchOrders,
+    fetchRepairsStats,
+    fetchRepairsTotal,
+    navigate,
+  ]);
+
+  // Chart Data with vibrant colors
+  const salesChartData = {
+    labels: salesStats?.trend?.map((d) => d.day) || ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'],
+    datasets: [
+      {
+        label: 'المبيعات (EGP)',
+        data: salesStats?.trend?.map((d) => d.sales) || [2400, 1398, 9800, 3908, 4800, 3800, 4300],
+        borderColor: '#84cc16', // Lime
+        backgroundColor: 'rgba(132, 204, 22, 0.15)',
+        borderWidth: 3,
+        pointBackgroundColor: '#84cc16',
+        pointRadius: 6,
+        pointHoverRadius: 8,
+        fill: true,
+        tension: 0.4,
+      },
+    ],
+  };
+
+  const repairsChartData = {
+    labels: repairsStats?.weekly?.map((d) => d.day) || ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'],
+    datasets: [
+      {
+        label: 'التصليحات',
+        data: repairsStats?.weekly?.map((d) => d.repairs) || [12, 19, 15, 22, 18, 14, 20],
+        backgroundColor: '#10b981', // Emerald
+        borderColor: '#10b981',
+        borderWidth: 1,
+        borderRadius: 6,
+        borderSkipped: false,
+      },
+    ],
+  };
 
   return (
-    <div className={`min-h-screen font-cairo transition-colors duration-300 ${darkMode ? 'bg-gray-950 text-indigo-200' : 'bg-indigo-50 text-indigo-800'} p-4 sm:p-6 lg:p-8 mt-16 lg:ml-72 sm:ml-24 ml-20`}>
-      {isLoading && <DashboardSkeleton darkMode={darkMode} />}
+    <div style={{marginTop:"-575px"}} className="p-4 sm:p-6 font-cairo space-y-6 bg-gradient-to-br from-gray-50 via-white to-white min-h-screen">
+      {isLoading && <DashboardSkeleton />}
+
       {!isLoading && (
-        <div className="max-w-full sm:max-w-7xl mx-auto">
-          <div className="mb-8 text-right bg-indigo-50 dark:bg-indigo-900 rounded-xl p-4 sm:p-6 shadow-md">
-            <h1 className="text-2xl sm:text-3xl font-bold text-indigo-600 dark:text-indigo-400">لوحة تحكم المتجر</h1>
-            <p className="text-sm sm:text-base text-indigo-600 dark:text-indigo-300 mt-2">راقب أداء متجرك وإحصائياته بسهولة</p>
+        <>
+          {/* Header */}
+          <div className="bg-white p-5 shadow-sm border-l-4 border-lime-500  max-w-5xl">
+            <div className="flex justify-start flex-row-reverse items-center gap-3">
+              <FiHome size={40} className="p-3 rounded-xl bg-lime-500 text-white shadow-md" />
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-black">
+                  لوحة تحكم المتجر
+                </h1>
+                <p className="text-sm text-gray-600">راقب أداء متجرك بسهولة</p>
+              </div>
+            </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 mb-10 justify-center items-center">
-            <div className="relative w-full sm:w-64 group">
-              <label className="block text-sm sm:text-base font-medium text-indigo-700 dark:text-indigo-300 mb-1.5">تاريخ البداية</label>
-              <div className="relative">
+          {/* Date Filters */}
+          <div className="bg-white p-4 max-w-5xl shadow-sm rounded-lg border ">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+              <div>
+                <label className="block text-sm font-medium text-right text-gray-700 mb-1">
+                  تاريخ البداية
+                </label>
                 <input
                   type="datetime-local"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className={`w-full px-4 py-3 rounded-lg border ${darkMode ? 'border-indigo-700 bg-indigo-800 text-indigo-200' : 'border-indigo-200 bg-indigo-100 text-indigo-800'} focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300 shadow-sm hover:shadow-md text-sm sm:text-base`}
-                  aria-label="تاريخ البداية"
+                  className="w-full px-4 py-2.5 border  bg-gray-50 text-black placeholder:none placeholder-gray-500 focus:ring-2 focus:ring-lime-400 focus:border-lime-500 rounded-md transition-all"
                 />
-                <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-indigo-400" />
               </div>
-            </div>
-            <div className="relative w-full sm:w-64 group">
-              <label className="block text-sm sm:text-base font-medium text-indigo-700 dark:text-indigo-300 mb-1.5">تاريخ النهاية</label>
-              <div className="relative">
+
+              <div>
+                <label className="block text-sm font-medium text-right text-gray-700 mb-1">
+                  تاريخ النهاية
+                </label>
                 <input
                   type="datetime-local"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className={`w-full px-4 py-3 rounded-lg border ${darkMode ? 'border-indigo-700 bg-indigo-800 text-indigo-200' : 'border-indigo-200 bg-indigo-100 text-indigo-800'} focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-300 shadow-sm hover:shadow-md text-sm sm:text-base`}
-                  aria-label="تاريخ النهاية"
+                  className="w-full px-4 py-2.5 border  bg-gray-50 text-black placeholder-gray-500 focus:ring-2 focus:ring-lime-400 focus:border-lime-500 rounded-md transition-all"
                 />
-                <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-indigo-400" />
               </div>
+
+              <button
+                onClick={resetDates}
+                className="px-5 py-2.5 bg-lime-600 hover:bg-lime-700 text-white font-medium text-sm rounded-md transition-colors shadow-sm"
+              >
+                إعادة تعيين
+              </button>
             </div>
-            <button
-              onClick={resetDates}
-              className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-indigo-700 text-indigo-200 hover:bg-indigo-800' : 'bg-indigo-200 text-indigo-800 hover:bg-indigo-300'} transition-all duration-300 shadow-sm hover:shadow-md text-sm sm:text-base`}
-            >
-              إعادة تعيين
-            </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            <div className="relative p-4 sm:p-6 bg-indigo-50 dark:bg-indigo-900 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border-l-4 border-indigo-600 dark:border-indigo-500 group">
-              {isLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-indigo-50/70 dark:bg-indigo-900/70">
-                  <div className="w-6 h-6 border-2 border-indigo-600 dark:border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
-                </div>
-              )}
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl gap-5">
+            {/* Total Sales */}
+            <div className="bg-white p-5 shadow-sm border-l-4 border-lime-500 ">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-base sm:text-lg font-semibold text-indigo-700 dark:text-indigo-200">إجمالي المبيعات</h3>
-                  <p className="text-xl sm:text-2xl font-bold text-indigo-600 dark:text-indigo-400">{totalSales} EGP</p>
+                  <h3 className="text-sm font-semibold text-gray-700">إجمالي المبيعات</h3>
+                  <p className="text-2xl font-bold text-black mt-1">
+                    {totalSales.toLocaleString()} EGP
+                  </p>
                 </div>
-                <RiMoneyDollarCircleLine className="text-3xl sm:text-4xl text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform duration-300" />
+                <RiMoneyDollarCircleLine className="text-4xl text-gray-500 opacity-80" />
               </div>
             </div>
 
+            {/* Today vs Yesterday Sales */}
             {salesStats && (
-              <div className="relative p-4 sm:p-6 bg-indigo-50 dark:bg-indigo-900 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border-l-4 border-indigo-600 dark:border-indigo-500 group">
-                {isLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-indigo-50/70 dark:bg-indigo-900/70">
-                    <div className="w-6 h-6 border-2 border-indigo-600 dark:border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
-                  </div>
-                )}
+              <div className="bg-white p-5 shadow-sm border-l-4 border-lime-500 ">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-base sm:text-lg font-semibold text-indigo-700 dark:text-indigo-200">المبيعات اليوم مقابل الأمس</h3>
-                    <p className="text-xl sm:text-2xl font-bold text-indigo-600 dark:text-indigo-400">{salesStats.todaySales || 0} EGP</p>
-                    <p className="text-sm sm:text-base text-indigo-600 dark:text-indigo-300">
-                      الأمس: {salesStats.previousDaySales} EGP (
-                      {salesStats.increased ? (
-                        <span className="text-emerald-600 dark:text-emerald-400">⬆ {salesStats.difference} EGP</span>
-                      ) : (
-                        <span className="text-red-600 dark:text-red-400">⬇ {salesStats.difference} EGP</span>
-                      )})
+                    <h3 className="text-sm font-semibold text-gray-700">المبيعات اليوم</h3>
+                    <p className="text-2xl font-bold text-black mt-1">
+                      {salesStats.todaySales || 0} EGP
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      الأمس: {salesStats.previousDaySales || 0} EGP
                     </p>
                   </div>
-                  <FaChartLine className="text-3xl sm:text-4xl text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform duration-300" />
+                  <FaChartLine className="text-4xl text-gray-500 opacity-80" />
                 </div>
               </div>
             )}
 
-            <div className="relative p-4 sm:p-6 bg-indigo-50 dark:bg-indigo-900 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border-l-4 border-indigo-600 dark:border-indigo-500 group">
-              {isLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-indigo-50/70 dark:bg-indigo-900/70">
-                  <div className="w-6 h-6 border-2 border-indigo-600 dark:border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
-                  </div>
-              )}
+            {/* Total Orders */}
+            <div className="bg-white p-5 shadow-sm border-l-4 border-lime-500 ">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-base sm:text-lg font-semibold text-indigo-700 dark:text-indigo-200">إجمالي الطلبات</h3>
-                  <p className="text-xl sm:text-2xl font-bold text-indigo-600 dark:text-indigo-400">{totalOrders}</p>
+                  <h3 className="text-sm font-semibold text-gray-700">إجمالي الطلبات</h3>
+                  <p className="text-2xl font-bold text-black mt-1">
+                    {totalOrders}
+                  </p>
                 </div>
-                <RiBox2Line className="text-3xl sm:text-4xl text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform duration-300" />
+                <RiBox2Line className="text-4xl text-gray-500 opacity-80" />
               </div>
             </div>
 
+            {/* Today vs Yesterday Repairs */}
             {repairsStats && (
-              <div className="relative p-4 sm:p-6 bg-indigo-50 dark:bg-indigo-900 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border-l-4 border-indigo-600 dark:border-indigo-500 group">
-                {isLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-indigo-50/70 dark:bg-indigo-900/70">
-                    <div className="w-6 h-6 border-2 border-indigo-600 dark:border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
-                  </div>
-                )}
+              <div className="bg-white p-5 shadow-sm border-l-4 border-lime-500 ">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-base sm:text-lg font-semibold text-indigo-700 dark:text-indigo-200">التصليحات اليوم مقابل الأمس</h3>
-                    <p className="text-xl sm:text-2xl font-bold text-indigo-600 dark:text-indigo-400">{repairsStats.todayRepairs}</p>
-                    <p className="text-sm sm:text-base text-indigo-600 dark:text-indigo-300">
-                      الأمس: {repairsStats.yesterdayRepairs} (
-                      {repairsStats.increase ? (
-                        <span className="text-emerald-600 dark:text-emerald-400">⬆ {repairsStats.difference}</span>
-                      ) : (
-                        <span className="text-red-600 dark:text-red-400">⬇ {repairsStats.difference}</span>
-                      )})
+                    <h3 className="text-sm font-semibold text-gray-700">التصليحات اليوم</h3>
+                    <p className="text-2xl font-bold text-black mt-1">
+                      {repairsStats.todayRepairs || 0}
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      الأمس: {repairsStats.yesterdayRepairs || 0}
                     </p>
                   </div>
-                  <FaChartLine className="text-3xl sm:text-4xl text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform duration-300" />
+                  <FaChartLine className="text-4xl text-gray-500 opacity-80" />
                 </div>
               </div>
             )}
 
-            <div className="relative p-4 sm:p-6 bg-indigo-50 dark:bg-indigo-900 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border-l-4 border-indigo-600 dark:border-indigo-500 group">
-              {isLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-indigo-50/70 dark:bg-indigo-900/70">
-                  <div className="w-6 h-6 border-2 border-indigo-600 dark:border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
-                </div>
-              )}
+            {/* Total Repairs */}
+            <div className="bg-white p-5 shadow-sm border-l-4 border-lime-500">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-base sm:text-lg font-semibold text-indigo-700 dark:text-indigo-200">إجمالي طلبات التصليح</h3>
-                  <p className="text-xl sm:text-2xl font-bold text-indigo-600 dark:text-indigo-400">{totalRepairs}</p>
+                  <h3 className="text-sm font-semibold text-gray-700">إجمالي طلبات التصليح</h3>
+                  <p className="text-2xl font-bold text-black mt-1">
+                    {totalRepairs}
+                  </p>
                 </div>
-                <RiToolsLine className="text-3xl sm:text-4xl text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform duration-300" />
+                <RiToolsLine className="text-4xl text-gray-500 opacity-80" />
               </div>
             </div>
           </div>
-        </div>
+
+          {/* Charts Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 max-w-5xl gap-6">
+            {/* Sales Trend */}
+            <div className="bg-white p-5 shadow-sm rounded-lg border border-lime-100">
+              <h3 className="text-lg font-bold text-black mb-4">
+                اتجاه المبيعات (أسبوعي)
+              </h3>
+              <div className="h-64">
+                <Line data={salesChartData} options={chartOptions} />
+              </div>
+            </div>
+
+            {/* Repairs Trend */}
+            <div className="bg-white p-5 shadow-sm rounded-lg border border-lime-100">
+              <h3 className="text-lg font-bold text-black mb-4">
+                اتجاه التصليحات (أسبوعي)
+              </h3>
+              <div className="h-64">
+                <Bar 
+                  data={repairsChartData} 
+                  options={{ 
+                    ...chartOptions, 
+                    plugins: { 
+                      ...chartOptions.plugins, 
+                      legend: { display: false } 
+                    },
+                    scales: {
+                      ...chartOptions.scales,
+                      y: {
+                        ...chartOptions.scales.y,
+                        beginAtZero: true,
+                      }
+                    }
+                  }} 
+                />
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

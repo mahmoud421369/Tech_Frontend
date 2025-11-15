@@ -3,10 +3,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Footer, Navbar, RepairDetailsModal, ServiceModal, AssignerHeader, Modal, DeliveryHeader } from './components';
 import { Login, Signup, LoginSuccess, SuccessGoogle } from './Auth';
 import { Repair, Explore, Track, Account, Homepage, Cart, DeviceDetail, Offers, RepairRequest, Devices, Stores } from './User';
-import { Dashboard, Notifications, Header, Shops, Users, Reviews, Category, Deliveries, Assigners, AdminOffers, AdminRepairRequests, AdminProducts, AdminAssignmentLogs } from './Admin';
+import { Dashboard, Notifications, Header, Shops, Users, Reviews, Category, Deliveries, Assigners, AdminOffers, AdminRepairRequests, AdminProducts, AdminAssignmentLogs, AdminSubscriptions } from './Admin';
 import { AssignerDashboard, DeliveryPersons, AssignerProfile, AssignedOrders, AssignedRepairs, AssignmentLogs, ReassignRepairs, ReassignOrders, OrdersForAssignment, RepairsForAssignment } from './Assigner';
 import { DeliveryDashboard, DeliveryProfile, MyDeliveries, MyRepairs, AvailableOrders, AvailableRepairs } from './Delivery';
-import { ShopHeader, ShopDashboard, RepairRequests, Products, Transactions, Support, ShopOffers, ShopProfile, ShopSettings, Inventory, Chat, Orders, ShopNotifications } from './Shop';
+import { ShopHeader, ShopDashboard, RepairRequests, Products, Transactions, Support, ShopOffers, ShopProfile, ShopSettings, Inventory, Chat, Orders, ShopNotifications, Subscriptions } from './Shop';
 import { useAuth } from './context/AuthContext';
 import Shop from './User/Shop';
 
@@ -150,6 +150,8 @@ function App() {
         {/* Admin Routes */}
         <Route path="/dashboard" element={withAdminLayout(Dashboard)} />
         <Route path="/repair-shops" element={withAdminLayout(Shops)} />
+        <Route path="/shop/subscriptions" element={withAdminLayout(AdminSubscriptions)} />
+
         <Route path="/users" element={withAdminLayout(Users)} />
         <Route path="/admin/offers" element={withAdminLayout(AdminOffers)} />
         <Route path="/category" element={withAdminLayout(Category)} />
@@ -178,6 +180,7 @@ function App() {
         <Route path="/delivery/available-repair-requests" element={withDeliveryLayout(AvailableRepairs)} />
         <Route path="/delivery/my-deliveries" element={withDeliveryLayout(MyDeliveries)} />
         <Route path="/delivery/my-repairs" element={withDeliveryLayout(MyRepairs)} />
+        
         {/* Shop Routes */}
         <Route path="/shop-dashboard" element={withShopLayout(ShopDashboard)} />
         <Route path="/support" element={withShopLayout(Chat)} />
@@ -185,6 +188,7 @@ function App() {
         <Route path="/repair/requests" element={withShopLayout(RepairRequests)} />
         <Route path="/shop/devices" element={withShopLayout(Products)} />
         <Route path="/shop/offers" element={withShopLayout(ShopOffers)} />
+        <Route path="/subscriptions" element={withShopLayout(Subscriptions)} />
         <Route path="/shop/orders" element={withShopLayout(Orders)} />
         <Route path="/shop/profile" element={withShopLayout(ShopProfile)} />
         <Route path="/shop/inventory" element={withShopLayout(Inventory)} />

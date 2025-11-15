@@ -242,11 +242,11 @@ const Dashboard = ({ darkMode }) => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 animate-fade-in mt-14">
       <div className="max-w-full sm:max-w-7xl mx-auto">
         <div className="bg-white dark:bg-indigo-900 mb-6 rounded-lg shadow-md p-4 sm:p-6 flex flex-col sm:flex-row justify-between gap-4 items-center">
-          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-4 text-indigo-600 dark:text-indigo-200">
+          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-4 text-green-600 dark:text-indigo-200">
             <FiActivity />
             Admin Dashboard
           </h1>
-          <p className="text-indigo-600 dark:text-indigo-300 text-sm sm:text-base">
+          <p className="text-gray-600 dark:text-indigo-300 text-sm sm:text-base">
             Overview of key metrics and statistics
           </p>
         </div>
@@ -266,22 +266,22 @@ const Dashboard = ({ darkMode }) => {
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
               {[
-                { title: 'Total Users', value: stats.users, icon: <FiUsers className="text-3xl sm:text-4xl text-indigo-500 dark:text-indigo-400" /> },
-                { title: 'Total Shops', value: stats.shops, icon: <FiHome className="text-3xl sm:text-4xl text-indigo-500 dark:text-indigo-400" /> },
-                { title: 'Total Repair Requests', value: stats.repairs, icon: <FiTool className="text-3xl sm:text-4xl text-indigo-500 dark:text-indigo-400" /> },
-                { title: 'Total Orders', value: stats.orders, icon: <FiShoppingCart className="text-3xl sm:text-4xl text-indigo-500 dark:text-indigo-400" /> },
+                { title: 'Total Users', value: stats.users, icon: <FiUsers className="text-xl sm:text-4xl text-emerald-500 dark:text-indigo-400" /> },
+                { title: 'Total Shops', value: stats.shops, icon: <FiHome className="text-xl sm:text-4xl text-emerald-500 dark:text-indigo-400" /> },
+                { title: 'Total Repair Requests', value: stats.repairs, icon: <FiTool className="text-xl sm:text-4xl text-emerald-500 dark:text-indigo-400" /> },
+                { title: 'Total Orders', value: stats.orders, icon: <FiShoppingCart className="text-xl sm:text-4xl text-emerald-500 dark:text-indigo-400" /> },
               ].map((stat, index) => (
                 <div
                   key={index}
-                  className="p-4 sm:p-6 bg-white dark:bg-indigo-900 shadow-lg flex items-center justify-between border-l-4 border-indigo-600 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl"
+                  className="p-4 sm:p-6 bg-white dark:bg-indigo-900 shadow-lg flex items-center justify-between border-l-4 border-emerald-600 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl"
                 >
                   <div>
-                    <h3 className="font-semibold text-indigo-700 dark:text-indigo-200 text-base sm:text-lg">
+                    <h3 className="font-semibold text-gray-700 text-md dark:text-indigo-200 text-base sm:text-lg">
                       {stat.title}
                     </h3>
-                    <p className="text-xl sm:text-2xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
+                    <p className="text-xl sm:text-2xl font-bold text-emerald-600 dark:text-indigo-400 flex items-center gap-2">
                       {stat.value || '-'}
-                      <button
+                      {/* <button
                         onClick={() => copyToClipboard(stat.value || '0', stat.title)}
                         className="relative group p-1 text-indigo-500 hover:text-indigo-700 dark:hover:text-indigo-300 transition-transform duration-200 hover:scale-110"
                         title={`Copy ${stat.title}`}
@@ -290,10 +290,10 @@ const Dashboard = ({ darkMode }) => {
                         <span className="absolute hidden group-hover:block bg-indigo-800 text-white text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2">
                           Copy {stat.title}
                         </span>
-                      </button>
+                      </button> */}
                     </p>
                   </div>
-                  {stat.icon}
+                  <span className='p-3 rounded-3xl bg-emerald-50  text-md'>{stat.icon}</span>
                 </div>
               ))}
             </div>

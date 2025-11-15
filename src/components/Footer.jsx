@@ -12,7 +12,7 @@ import {
 } from "react-icons/fi";
 import { FaFacebook, FaTwitter, FaInstagram } from "react-icons/fa";
 import { Link } from "react-router-dom";
-import logo from "../images/logo.png";
+import logo from "../images/new-logo.jpg";
 
 const Footer = ({ darkMode }) => {
   return (
@@ -56,10 +56,10 @@ const Footer = ({ darkMode }) => {
               <img
                 src={logo}
                 alt="Tech & Restore"
-                className="h-14 w-14 rounded-2xl shadow-lg object-cover"
+                className="h-14 w-14 rounded-2xl  object-cover"
               />
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                Tech & Restore
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-lime-600">
+                Tech Bazaar
               </h1>
             </div>
             <p className={`text-sm leading-relaxed ${darkMode ? "text-gray-400" : "text-gray-600"} max-w-xs`}>
@@ -78,7 +78,7 @@ const Footer = ({ darkMode }) => {
                   href={href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-md hover:shadow-xl transform hover:scale-110 transition-all duration-300"
+                  className="p-2.5 rounded-xl bg-lime-500 text-white shadow-md hover:shadow-xl transform hover:scale-110 transition-all duration-300"
                   aria-label={label}
                 >
                   <Icon className="w-5 h-5" />
@@ -89,7 +89,7 @@ const Footer = ({ darkMode }) => {
 
           {/* Quick Links */}
           <div>
-            <h3 className="text-xl font-bold text-indigo-600 dark:text-indigo-400 mb-6">
+            <h3 className="text-xl font-bold text-emerald-600 dark:text-indigo-400 mb-6">
               Quick Links
             </h3>
             <ul className="space-y-3">
@@ -107,7 +107,7 @@ const Footer = ({ darkMode }) => {
                       darkMode ? "text-gray-300" : "text-gray-700"
                     }`}
                   >
-                    <Icon className="text-indigo-500" />
+                    <Icon className="text-emerald-500" />
                     {label}
                   </Link>
                 </li>
@@ -117,7 +117,7 @@ const Footer = ({ darkMode }) => {
 
           {/* Services */}
           <div>
-            <h3 className="text-xl font-bold text-indigo-600 dark:text-indigo-400 mb-6">
+            <h3 className="text-xl font-bold text-emerald-600 dark:text-indigo-400 mb-6">
               Our Services
             </h3>
             <ul className="space-y-3">
@@ -143,36 +143,36 @@ const Footer = ({ darkMode }) => {
 
           {/* Contact */}
           <div>
-            <h3 className="text-xl font-bold text-indigo-600 dark:text-indigo-400 mb-6">
+            <h3 className="text-xl font-bold text-emerald-600 dark:text-indigo-400 mb-6">
               Contact Us
             </h3>
             <ul className="space-y-4 text-sm">
               <li className="flex items-start gap-3">
-                <FiMap className="mt-0.5 text-indigo-500" />
+                <FiMap className="mt-0.5 text-lime-500" />
                 <span className={darkMode ? "text-gray-300" : "text-gray-700"}>
                   Cairo, Al Maadi, Egypt
                 </span>
               </li>
               <li className="flex items-center gap-3">
-                <FiPhone className="text-indigo-500" />
+                <FiPhone className="text-lime-500" />
                 <a
                   href="tel:+2019999"
-                  className="text-indigo-600 dark:text-indigo-400 hover:underline"
+                  className="text-lime-600 dark:text-indigo-400 hover:underline"
                 >
                   +20 19999
                 </a>
               </li>
               <li className="flex items-center gap-3">
-                <FiMail className="text-indigo-500" />
+                <FiMail className="text-lime-500" />
                 <a
                   href="mailto:support@techrestore.com"
-                  className="text-indigo-600 dark:text-indigo-400 hover:underline"
+                  className="text-lime-600 dark:text-indigo-400 hover:underline"
                 >
                   support@techrestore.com
                 </a>
               </li>
               <li className="flex items-start gap-3">
-                <FiClock className="mt-0.5 text-indigo-500" />
+                <FiClock className="mt-0.5 text-lime-500" />
                 <span className={darkMode ? "text-gray-300" : "text-gray-700"}>
                   24/7 Customer Support
                 </span>
@@ -186,7 +186,7 @@ const Footer = ({ darkMode }) => {
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-sm">
             <p className={darkMode ? "text-gray-400" : "text-gray-600"}>
               &copy; {new Date().getFullYear()}{" "}
-              <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+              <span className="font-semibold text-lime-600 dark:text-indigo-400">
                 Tech & Restore
               </span>
               . All rights reserved.
@@ -211,9 +211,9 @@ const Footer = ({ darkMode }) => {
 
       {/* Floating Icons */}
       <div className="absolute inset-0 opacity-20 pointer-events-none">
-        <FiPackage className="absolute top-10 left-10 w-16 h-16 text-indigo-500 animate-float" />
-        <FiTruck className="absolute bottom-20 right-20 w-20 h-20 text-purple-500 animate-pulse" />
-        <FiCompass className="absolute top-1/3 right-1/4 w-14 h-14 text-indigo-400 animate-ping" />
+        <FiPackage className="absolute top-10 left-10 w-16 h-16 text-lime-500 animate-float" />
+        <FiTruck className="absolute bottom-20 right-20 w-20 h-20 text-lime-500 animate-pulse" />
+        <FiCompass className="absolute top-1/3 right-1/4 w-14 h-14 text-lime-400 animate-ping" />
       </div>
 
       {/* Custom Animations */}

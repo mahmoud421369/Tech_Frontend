@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { Link, useParams } from "react-router-dom";
-import { FiSearch, FiStar, FiTrash2, FiEdit3, FiSend, FiX, FiMessageCircle, FiTag, FiCheckCircle, FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import { FiSearch, FiStar, FiTrash2, FiEdit3, FiSend, FiX, FiMessageCircle, FiTag, FiCheckCircle, FiChevronLeft, FiChevronRight, FiTruck } from "react-icons/fi";
 import { RiChat1Fill } from "@remixicon/react";
-import { RiStore2Line } from "react-icons/ri";
+import { RiCarLine, RiMotorbikeLine, RiStore2Line } from "react-icons/ri";
 import Swal from "sweetalert2";
 import { debounce } from "lodash";
 import SockJS from "sockjs-client";
@@ -769,8 +769,8 @@ const dropdownRef = useRef(null);
 
   return (
     <div className={`min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-100"} text-gray-900 dark:text-gray-100 pt-16 transition-all duration-300`}>
-      {/* Hero Section */}
-      <div className="relative bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-900 dark:to-gray-800 text-white py-20 px-6 md:px-12 shadow-2xl overflow-hidden">
+  
+      <div className="relative bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 dark:from-indigo-900 dark:to-gray-800 text-white py-20 px-6 md:px-12 shadow-2xl overflow-hidden">
         <div className="absolute inset-0 opacity-5 bg-black"></div>
         <div className="absolute top-[-50px] left-[-50px] w-96 h-96 bg-indigo-300 rounded-full opacity-20 blur-3xl animate-float"></div>
         <div className="absolute bottom-[-80px] right-[-80px] w-80 h-80 bg-blue-300 rounded-full opacity-20 blur-3xl animate-float-slow"></div>

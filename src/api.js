@@ -8,22 +8,16 @@ const api = axios.create({
   withCredentials: true,
 });
 
-
 let isRefreshing = false;
 let failedQueue = [];
 
+// -------------------------------------------------
 const processQueue = (error, token = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
+  failedQueue.forEach((prom) => (error ? prom.reject(error) : prom.resolve(token)));
   failedQueue = [];
 };
 
-
+// ------------------------------------------------- REQUEST INTERCEPTOR
 api.interceptors.request.use((config) => {
   const { accessToken } = useAuthStore.getState();
   if (accessToken) {
@@ -40,7 +34,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-
+// ------------------------------------------------- RESPONSE INTERCEPTOR
 api.interceptors.response.use(
   (response) => {
     console.log(
@@ -65,13 +59,12 @@ api.interceptors.response.use(
       error.response?.data
     );
 
-
+    // ---------- 403 → try refresh ----------
     if (error.response?.status === 403 && !originalRequest._retry) {
       originalRequest._retry = true;
 
- 
       if (isRefreshing) {
-        console.log(`⏳ Queuing request: ${originalRequest.url} until refresh finishes`);
+        // wait for the ongoing refresh
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
@@ -82,49 +75,46 @@ api.interceptors.response.use(
           .catch((err) => Promise.reject(err));
       }
 
-   
       isRefreshing = true;
       try {
-        console.log('🔄 Refreshing token...');
+        console.log('Refreshing token...');
         const res = await axios.post(
           `${base}/api/auth/refresh-token`,
           {},
           { withCredentials: true }
         );
 
-        const newToken = res.data.access_token;
-        console.log('✅ New token received:', newToken);
+        // ---- BACKEND PAYLOAD EXAMPLE ----
+        // {
+        //   access_token: "eyJhbGciOi...",
+        //   roles: ["USER", "ADMIN"],
+        //   userId: "12345",
+        //   email: "john@example.com"
+        // }
+        const { access_token: newToken, roles, userId, email } = res.data;
 
-       
-        const authStore = useAuthStore.getState();
-        authStore.setAccessToken(newToken);
-        localStorage.setItem('authToken', newToken); 
+        console.log('New token received:', newToken);
 
-       
+        // ---- UPDATE STORE & LOCALSTORAGE (including email) ----
+        const store = useAuthStore.getState();
+        store.setUserData(newToken, roles ?? [], userId ?? null, email ?? null);
+
         processQueue(null, newToken);
-
-      
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return api(originalRequest);
-      } catch (err) {
-        console.error('❌ Token refresh failed:', err.response?.data || err.message);
+      } catch (refreshErr) {
+        console.error('Token refresh failed:', refreshErr.response?.data || refreshErr.message);
 
-    
-        const authStore = useAuthStore.getState();
-        authStore.clearAuth();
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('roles');
-        localStorage.removeItem('userId');
-
-        processQueue(err);
+        const store = useAuthStore.getState();
+        store.clearAuth();               // clears email too
+        processQueue(refreshErr);
         window.location.href = '/login';
-        return Promise.reject(err);
+        return Promise.reject(refreshErr);
       } finally {
         isRefreshing = false;
       }
     }
 
-  
     return Promise.reject(error);
   }
 );
