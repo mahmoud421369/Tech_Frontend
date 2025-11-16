@@ -71,3 +71,60 @@
   scrollbar-color: #3b82f6 transparent;
   scrollbar-width: thin;
 }
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(5deg); }
+}
+@keyframes float-medium {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-15px) rotate(-3deg); }
+}
+@keyframes float-fast {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes float-3d {
+  0%, 100% { transform: translateY(0) rotateY(12deg) rotateX(6deg); }
+  50% { transform: translateY(-25px) rotateY(-12deg) rotateX(-6deg); }
+}
+@keyframes float-3d-delay {
+  0%, 100% { transform: translateY(0) rotateY(-15deg) rotateX(8deg); }
+  50% { transform: translateY(-20px) rotateY(15deg) rotateX(-8deg); }
+}
+@keyframes float-3d-fast {
+  0%, 100% { transform: translateY(0) rotateY(20deg) rotateX(10deg); }
+  50% { transform: translateY(-15px) rotateY(-20deg) rotateX(-10deg); }
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(30px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-float-slow { animation: float-slow 6s ease-in-out infinite; }
+.animate-float-medium { animation: float-medium 5s ease-in-out infinite; }
+.animate-float-fast { animation: float-fast 4s ease-in-out infinite; }
+.animate-spin-slow { animation: spin-slow 20s linear infinite; }
+.animate-float-3d { animation: float-3d 8s ease-in-out infinite; }
+.animate-float-3d-delay { animation: float-3d-delay 7s ease-in-out infinite 1s; }
+.animate-float-3d-fast { animation: float-3d-fast 5s ease-in-out infinite; }
+.animate-slideIn { animation: slideIn 0.5s ease-out forwards; opacity: 0; }
+.animate-fadeIn { animation: fadeIn 0.5s ease-out; }
+
+.perspective-1000 { perspective: 1000px; }
+.rotate-y-12 { transform: rotateY(12deg); }
+.rotate-y--15 { transform: rotateY(-15deg); }
+.rotate-y-20 { transform: rotateY(20deg); }
+.rotate-x-6 { transform: rotateX(6deg); }
+.rotate-x-8 { transform: rotateX(8deg); }
+.rotate-x-10 { transform: rotateX(10deg); }
+
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

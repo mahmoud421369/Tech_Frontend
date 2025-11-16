@@ -1,9 +1,8 @@
-
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Swal from 'sweetalert2';
-import debounce from 'lodash/debounce';
-import sanitizeHtml from 'sanitize-html';
+import React, { useEffect, useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
+import debounce from "lodash/debounce";
+import sanitizeHtml from "sanitize-html";
 import {
   FaMobileAlt,
   FaLaptop,
@@ -12,7 +11,6 @@ import {
   FaGamepad,
   FaTabletAlt,
   FaArrowAltCircleRight,
-  FaTimesCircle,
   FaClock,
   FaMapMarkedAlt,
   FaCheckCircle,
@@ -25,23 +23,30 @@ import {
   FaSpinner,
   FaStore,
   FaTruck,
-  FaCreditCard,
   FaDollarSign,
-} from 'react-icons/fa';
-import { FiChevronLeft, FiChevronRight, FiList, FiMonitor, FiShoppingBag, FiSmartphone, FiTool, FiTruck } from 'react-icons/fi';
-import api from '../api';
-import { RiCarLine, RiMotorbikeLine } from 'react-icons/ri';
+  FaWrench,
+  FaTools,
+  FaCog,
+  FaHeadset,
+} from "react-icons/fa";
+import { FiChevronLeft, FiChevronRight, FiList, FiMonitor, FiTool, FiSmartphone } from "react-icons/fi";
+import api from "../api";
+import { RiCarLine, RiMotorbikeLine } from "react-icons/ri";
 
-const LoadingSpinner = () => (
+const LoadingSpinner = ({ darkMode }) => (
   <div className="flex justify-center items-center h-64">
-    <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+    <div
+      className={`w-12 h-12 border-4 ${
+        darkMode ? "border-lime-400" : "border-lime-500"
+      } border-t-transparent rounded-full animate-spin`}
+    ></div>
   </div>
 );
 
-const RepairRequest = ({ onApproved, onRejected, darkMode }) => {
+const RepairRequest = ({ darkMode }) => {
   const navigate = useNavigate();
-  const token = localStorage.getItem('authToken');
-  const [addressSearch, setAddressSearch] = useState('');
+  const token = localStorage.getItem("authToken");
+  const [addressSearch, setAddressSearch] = useState("");
   const [step, setStep] = useState(1);
   const [shops, setShops] = useState([]);
   const [addresses, setAddresses] = useState([]);
@@ -51,7 +56,7 @@ const RepairRequest = ({ onApproved, onRejected, darkMode }) => {
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [selectedDelivery, setSelectedDelivery] = useState(null);
   const [selectedPayment, setSelectedPayment] = useState(null);
-  const [description, setDescription] = useState('');
+  const [description, setDescription] = useState("");
   const [requestStatus, setRequestStatus] = useState(null);
   const [progressPercentage, setProgressPercentage] = useState(0);
   const [estimatedTime, setEstimatedTime] = useState(30);
@@ -61,1129 +66,485 @@ const RepairRequest = ({ onApproved, onRejected, darkMode }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const shopsPerPage = 6;
 
-  const staticCategories = [
-    { id: 1, name: 'Laptop', icon: <FaLaptop size={28} />, color: 'text-indigo-600' },
-    { id: 2, name: 'Phone', icon: <FaMobileAlt size={28} />, color: 'text-indigo-600' },
-    { id: 3, name: 'Tablet', icon: <FaTabletAlt size={28} />, color: 'text-indigo-600' },
-    { id: 4, name: 'Monitor', icon: <FaDesktop size={28} />, color: 'text-indigo-600' },
-    { id: 5, name: 'PC', icon: <FaDesktop size={28} />, color: 'text-indigo-600' },
-    { id: 6, name: 'Gaming Console', icon: <FaGamepad size={28} />, color: 'text-indigo-600' },
-    { id: 7, name: 'TV', icon: <FaTv size={28} />, color: 'text-indigo-600' },
-    { id: 8, name: 'Others', icon: <FaArrowAltCircleRight size={28} />, color: 'text-indigo-600' },
-  ];
-
   const deliveryOptions = [
-    { id: 1, name: 'Home Delivery', description: 'Pickup & delivery', apiValue: 'HOME_DELIVERY', icon: '🚚' },
-    { id: 2, name: 'Drop Off', description: 'Bring device to shop', apiValue: 'SHOP_VISIT', icon: '🏪' },
-    { id: 3, name: 'Courier Service', description: 'Courier pickup', apiValue: 'PICKUP', icon: '📦' },
+    { id: 1, name: "Home Delivery", description: "Pickup & delivery", apiValue: "HOME_DELIVERY", icon: <FaTruck /> },
+    { id: 2, name: "Drop Off", description: "Bring device to shop", apiValue: "SHOP_VISIT", icon: <FaStore /> },
+    { id: 3, name: "Courier Service", description: "Courier pickup", apiValue: "PICKUP", icon: <RiCarLine /> },
   ];
 
   const paymentOptions = [
-    { id: 1, name: 'Cash on Delivery', desc: 'Pay when the device is repaired', apiValue: 'CASH', icon: '💵' },
-    { id: 2, name: 'Credit Card', desc: 'Pay securely online', apiValue: 'CREDIT_CARD', icon: '💳' },
-    { id: 3, name: 'Debit Card', desc: 'Pay securely online', apiValue: 'DEBIT_CARD', icon: '💳' },
-    { id: 4, name: 'Bank Transfer', desc: 'Pay via bank account', apiValue: 'BANK_TRANSFER', icon: '🏦' },
-    { id: 5, name: 'Mobile Wallet', desc: 'Pay with mobile wallet', apiValue: 'MOBILE_WALLET', icon: '💳' },
+    { id: 1, name: "Cash on Delivery", desc: "Pay when repaired", apiValue: "CASH", icon: <FaDollarSign /> },
+    { id: 2, name: "Credit Card", desc: "Pay securely online", apiValue: "CREDIT_CARD", icon: <FaDollarSign /> },
   ];
 
-  const debouncedSetAddressSearch = useMemo(
-    () => debounce((value) => setAddressSearch(value), 300),
-    []
-  );
-
+  const debouncedSetAddressSearch = useMemo(() => debounce((value) => setAddressSearch(value), 300), []);
   const filteredAddresses = useMemo(
     () =>
       addresses.filter((addr) =>
-        `${addr.street} ${addr.city} ${addr.state}`
-          .toLowerCase()
-          .includes(addressSearch.toLowerCase())
+        `${addr.street} ${addr.city} ${addr.state}`.toLowerCase().includes(addressSearch.toLowerCase())
       ),
     [addresses, addressSearch]
   );
 
   const indexOfLastShop = currentPage * shopsPerPage;
   const indexOfFirstShop = indexOfLastShop - shopsPerPage;
-  const currentShops = useMemo(
-    () => shops.slice(indexOfFirstShop, indexOfLastShop),
-    [shops, indexOfFirstShop, indexOfLastShop]
-  );
+  const currentShops = useMemo(() => shops.slice(indexOfFirstShop, indexOfLastShop), [shops, indexOfFirstShop, indexOfLastShop]);
   const totalPages = Math.ceil(shops.length / shopsPerPage);
 
+  const sanitizeDescription = (input) => sanitizeHtml(input, { allowedTags: [], allowedAttributes: {} }).trim();
 
-  const sanitizeDescription = (input) => {
-    return sanitizeHtml(input, {
-      allowedTags: [],
-      allowedAttributes: {}, 
-    }).trim();
+  // ────── FETCH CATEGORIES ──────
+  useEffect(() => {
+    const controller = new AbortController();
+    const fetchCategories = async () => {
+      setIsLoading(true);
+      try {
+        const res = await api.get("/api/categories", {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
+        const data = res.data.content || res.data || [];
+        setCategories(
+          data.map((cat) => ({
+            ...cat,
+            color: darkMode ? "text-lime-400" : "text-lime-600",
+            icon: getCategoryIcon(cat.name),
+          }))
+        );
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          console.warn("Categories not loaded, using fallback");
+          setCategories(getFallbackCategories(darkMode));
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (token) {
+      fetchCategories();
+    } else {
+      setCategories(getFallbackCategories(darkMode));
+    }
+
+    return () => controller.abort();
+  }, [token, darkMode]);
+
+  // ────── FETCH SHOPS BY CATEGORY ──────
+  useEffect(() => {
+    if (!selectedCategory || step !== 2) return;
+
+    const controller = new AbortController();
+    const fetchShops = async () => {
+      setIsLoading(true);
+      try {
+        const res = await api.get(`/api/shops/category/${selectedCategory.id}`, {
+          signal: controller.signal,
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = res.data.content || res.data || [];
+        setShops(data);
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          console.warn("Shops not loaded, using fallback");
+          setShops(getFallbackShops());
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchShops();
+    return () => controller.abort();
+  }, [selectedCategory, step, token]);
+
+  const getCategoryIcon = (name) => {
+    const icons = {
+      Phone: <FiSmartphone />,
+      Laptop: <FaLaptop />,
+      Tablet: <FaTabletAlt />,
+      TV: <FaTv />,
+      Desktop: <FaDesktop />,
+      Gaming: <FaGamepad />,
+      default: <FaMobileAlt />,
+    };
+    return icons[name] || icons.default;
   };
 
-  const fetchCategories = useCallback(async () => {
-    const controller = new AbortController();
-    setIsLoading(true);
-    try {
-      if (!token) throw new Error('Login required');
-      const res = await api.get('/api/categories', {
-        headers: { Authorization: `Bearer ${token}` },
-        signal: controller.signal,
-      });
-      const content = res.data.content || [];
-      setCategories(
-        content.length === 0
-          ? staticCategories
-          : content.map((cat) => ({
-              id: cat.id,
-              name: cat.name,
-              icon: staticCategories.find((s) => s.name === cat.name)?.icon || (
-                <FaArrowAltCircleRight size={28} />
-              ),
-              color: 'text-indigo-600',
-            }))
-      );
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        setCategories(staticCategories);
-       Swal.fire({
-                         title: 'Error',
-                         text: 'could not load categories!',
-                         icon: 'error',
-                         toast: true,
-                         position: 'top-end',
-                         showConfirmButton: false,
-                         timer: 1500,
-                       })
-      }
-    } finally {
-      setIsLoading(false);
-    }
-    return () => controller.abort();
-  }, [token, darkMode]);
+  const getFallbackCategories = (darkMode) => [
+    { id: "1", name: "Phone", color: darkMode ? "text-lime-400" : "text-lime-600", icon: <FiSmartphone /> },
+    { id: "2", name: "Laptop", color: darkMode ? "text-lime-400" : "text-lime-600", icon: <FaLaptop /> },
+    { id: "3", name: "Tablet", color: darkMode ? "text-lime-400" : "text-lime-600", icon: <FaTabletAlt /> },
+    { id: "4", name: "TV", color: darkMode ? "text-lime-400" : "text-lime-600", icon: <FaTv /> },
+    { id: "5", name: "Desktop", color: darkMode ? "text-lime-400" : "text-lime-600", icon: <FaDesktop /> },
+    { id: "6", name: "Gaming", color: darkMode ? "text-lime-400" : "text-lime-600", icon: <FaGamepad /> },
+  ];
 
-  const fetchShops = useCallback(async () => {
-    const controller = new AbortController();
-    setIsLoading(true);
-    try {
-      const res = await api.get('/api/users/shops/all', {
-        headers: { Authorization: `Bearer ${token}` },
-        signal: controller.signal,
-      });
-      setShops(res.data.content || []);
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-      Swal.fire({
-                        title: 'Error',
-                        text: 'could not load shops!',
-                        icon: 'error',
-                        toast: true,
-                        position: 'top-end',
-                        showConfirmButton: false,
-                        timer: 1500,
-                      })
-      }
-    } finally {
-      setIsLoading(false);
-    }
-    return () => controller.abort();
-  }, [token, darkMode]);
+  const getFallbackShops = () => [
+    { id: 1, name: "TechFix Pro", rating: 4.8, address: "123 Nile St, Cairo", phone: "+20 123 456 7890" },
+    { id: 2, name: "FixIt Fast", rating: 4.6, address: "456 Giza Rd, Giza", phone: "+20 987 654 3210" },
+    { id: 3, name: "Device Care", rating: 4.9, address: "789 Alexandria St", phone: "+20 111 222 3334" },
+  ];
 
-  const fetchAddresses = useCallback(async () => {
-    const controller = new AbortController();
-    setIsLoading(true);
-    try {
-      const res = await api.get('/api/users/addresses', {
-        headers: { Authorization: `Bearer ${token}` },
-        signal: controller.signal,
-      });
-      setAddresses(res.data.content || []);
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: err.response?.data?.message || 'Could not load addresses',
-          position: 'top',
-          confirmButtonColor: '#2563eb',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
-      }
-    } finally {
-      setIsLoading(false);
-    }
-    return () => controller.abort();
-  }, [token, darkMode]);
-
-  const fetchRepairRequestStatus = useCallback(async () => {
-    if (!repairRequestId) return;
-    try {
-      const res = await api.get(`/api/users/repair-request/${repairRequestId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const { status, price } = res.data;
-      setRequestStatus(status);
-      if (status === 'QUOTE_SENT' && price) {
-        setPrice(price);
-      }
-      if (status === 'REJECTED') {
-        setPrice(null);
-      }
-    } catch (err) {
-      console.error('Error fetching repair request status:', err.response?.data || err.message);
-   Swal.fire({
-                     title: 'Error',
-                     text: 'failed to load repair request status!',
-                     icon: 'error',
-                     toast: true,
-                     position: 'top-end',
-                     showConfirmButton: false,
-                     timer: 1500,
-                   })
-    }
-  }, [repairRequestId, token, darkMode]);
-
-  const createRepairRequest = useCallback(
-    async (shop) => {
-      if (!shop || !selectedCategory) {
-        Swal.fire({
-          icon: 'warning',
-          title: 'Missing Information',
-          text: 'Please select a device category and shop.',
-          position: 'top',
-          confirmButtonColor: '#2563eb',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
-        return false;
-      }
-
-      if (!token) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Login Required',
-          text: 'Please log in to create a repair request.',
-          position: 'top',
-          confirmButtonColor: '#2563eb',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        }).then(() => navigate('/login'));
-        return false;
-      }
-
-      const sanitizedDescription = sanitizeDescription(description);
-      if (!sanitizedDescription) {
-        Swal.fire({
-          icon: 'warning',
-          title: 'Missing Description',
-          text: 'Please provide a description of the issue.',
-          position: 'top',
-          confirmButtonColor: '#2563eb',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
-        setStep(1);
-        return false;
-      }
-
-      if (sanitizedDescription.length > 1000) {
-        Swal.fire({
-          icon: 'warning',
-          title: 'Description Too Long',
-          text: 'Description must be 1000 characters or less.',
-          position: 'top',
-          confirmButtonColor: '#2563eb',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
-        setStep(1);
-        return false;
-      }
-
-      const requestData = {
-        deviceCategory: selectedCategory.id.toString(),
-        description: sanitizedDescription,
-      };
-
-      try {
-        setIsLoading(true);
-        const res = await api.post(`/api/users/repair-request/${shop.id}`, requestData, {
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        });
-        setRepairRequestId(res.data.id);
-        Swal.fire({
-          title: 'Success',
-          text: `Repair request submitted successfully`,
-          icon: 'success',
-          toast: true,
-          position: 'top-end',
-          showConfirmButton: false,
-          timer: 1500,
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        }).then(() => {
-          navigate('/');
-        });
-        return true;
-      } catch (err) {
-        console.error('Error creating repair request:', err.response?.data || err.message);
-       Swal.fire({
-                         title: 'Error',
-                         text: 'failed to send repair request!',
-                         icon: 'error',
-                         toast: true,
-                         position: 'top-end',
-                         showConfirmButton: false,
-                         timer: 1500,
-                       })
-        return false;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [token, selectedCategory, description, navigate, darkMode]
-  );
-
-  const updateRepairRequest = useCallback(
-    async () => {
-      if (!repairRequestId) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'No repair request ID found. Please try again.',
-          position: 'top',
-          confirmButtonColor: '#2563eb',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
-        return false;
-      }
-
-      if (!selectedAddress) {
-        Swal.fire({
-          icon: 'warning',
-          title: 'Missing Address',
-          text: 'Please select a delivery address.',
-          position: 'top',
-          confirmButtonColor: '#2563eb',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
-        setStep(3);
-        return false;
-      }
-
-      if (!selectedDelivery || !selectedPayment) {
-        Swal.fire({
-          icon: 'warning',
-          title: 'Missing Information',
-          text: 'Please select delivery and payment methods.',
-          position: 'top',
-          confirmButtonColor: '#2563eb',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
-        setStep(3);
-        return false;
-      }
-
-      const updateData = {
-        deliveryAddress: selectedAddress.id.toString(),
-        deliveryMethod: selectedDelivery.apiValue,
-        paymentMethod: selectedPayment.apiValue,
-      };
-
-      try {
-        setIsLoading(true);
-        await api.post(`/api/users/repair-request/${repairRequestId}/update`, updateData, {
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        });
-        return true;
-      } catch (err) {
-        console.error('Error updating repair request:', err.response?.data || err.message);
-       Swal.fire({
-                         title: 'Error',
-                         text: 'failed to update repair request!',
-                         icon: 'error',
-                         toast: true,
-                         position: 'top-end',
-                         showConfirmButton: false,
-                         timer: 1500,
-                       })
-        return false;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [repairRequestId, selectedAddress, selectedDelivery, selectedPayment, token, darkMode]
-  );
-
-  const handleShopSelect = useCallback(
-    async (shop) => {
-      setSelectedShop(shop);
-      setRequestStatus(null);
-      setPrice(null);
-      const success = await createRepairRequest(shop);
-      if (!success) {
-        setSelectedShop(null);
-      }
-    },
-    [createRepairRequest]
-  );
-
-  const handlePriceApproval = useCallback(async () => {
-    if (!repairRequestId) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'No repair request ID found. Please try again.',
-        position: 'top',
-        confirmButtonColor: '#2563eb',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
-      setStep(2);
-      return;
-    }
-
-    const success = await updateRepairRequest();
-    if (!success) return;
-
-    try {
-      await api.post(`/api/users/repair-request/repairs/${repairRequestId}/confirm`, {}, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      });
-     Swal.fire({
-                       title: 'Approved',
-                       text: 'repair request approved!',
-                       icon: 'success',
-                       toast: true,
-                       position: 'top-end',
-                       showConfirmButton: false,
-                       timer: 1500,
-                     }).then(() => {
-        onApproved?.();
-        navigate('/');
-      });
-    } catch (err) {
-      console.error('Error approving price:', err.response?.data || err.message);
-    Swal.fire({
-                      title: 'Error',
-                      text: 'failed to approve repair request!',
-                      icon: 'error',
-                      toast: true,
-                      position: 'top-end',
-                      showConfirmButton: false,
-                      timer: 1500,
-                    })
-    }
-  }, [repairRequestId, token, onApproved, navigate, updateRepairRequest, darkMode]);
-
-  const handlePriceRejection = useCallback(async () => {
-    if (!repairRequestId) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'No repair request ID found. Please try again.',
-        position: 'top',
-        confirmButtonColor: '#2563eb',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
-      setStep(2);
-      return;
-    }
-
-    try {
-      await api.post(`/api/users/repair-request/${repairRequestId}/reject`, {}, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      });
-      Swal.fire({
-        icon: 'info',
-        title: 'Quote Rejected',
-        text: 'Please select another shop.',
-        position: 'top',
-        confirmButtonColor: '#2563eb',
-        timer: 2000,
-        showConfirmButton: false,
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      }).then(() => {
-        onRejected?.();
-        setPrice(null);
-        setRequestStatus(null);
-        setRepairRequestId(null);
-        setSelectedShop(null);
-        setStep(2);
-      });
-    } catch (err) {
-      console.error('Error rejecting price:', err.response?.data || err.message);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: err.response?.data?.message || 'Failed to reject quote.',
-        position: 'top',
-        confirmButtonColor: '#2563eb',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
-    }
-  }, [repairRequestId, token, onRejected, darkMode]);
-
-  const handleDeliverySelect = useCallback((option) => {
-    setSelectedDelivery(option);
-    setStep(4);
-  }, []);
-
-  const handlePaymentSelect = useCallback((option) => {
-    setSelectedPayment(option);
-  }, []);
-
-  const handlePageChange = useCallback((pageNumber) => {
-    setCurrentPage(pageNumber);
-  }, []);
-
-  const handleBackStep = useCallback(() => {
-    if (step === 0 && requestStatus === 'QUOTE_SENT') {
-      setStep(2);
-    } else if (step === 0 && requestStatus === 'REJECTED') {
-      setStep(2);
-    } else if (step === 2) {
-      setStep(1);
-    } else if (step === 3) {
-      setStep(0);
-    } else if (step === 4) {
-      setStep(3);
-    }
-  }, [step, requestStatus]);
-
-  useEffect(() => {
-    fetchCategories();
-    if (token) {
-      fetchShops();
-      fetchAddresses();
-    }
-  }, [fetchCategories, fetchShops, fetchAddresses, token]);
-
-  useEffect(() => {
-    if (!repairRequestId) return;
-
-    const interval = setInterval(() => {
-      setProgressPercentage((prev) => {
-        if (prev >= 100) return 100;
-        return prev + 5;
-      });
-      setEstimatedTime((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-
-    const statusInterval = setInterval(() => {
-      fetchRepairRequestStatus();
-    }, 5000);
-
-    return () => {
-      clearInterval(interval);
-      clearInterval(statusInterval);
-    };
-  }, [repairRequestId, fetchRepairRequestStatus]);
+  const textPrimary = darkMode ? "text-gray-100" : "text-gray-800";
+  const textSecondary = darkMode ? "text-gray-300" : "text-gray-600";
+  const bgCard = darkMode ? "bg-gray-800" : "bg-white";
+  const border = darkMode ? "border-gray-700" : "border-gray-200";
 
   const steps = useMemo(() => {
-    const baseSteps = ['Device Type', 'Select Shop'];
-    if (requestStatus === 'QUOTE_SENT') {
-      return [...baseSteps, 'Delivery & Address', 'Payment Method'];
-    }
-    return baseSteps;
+    const base = ["Device Type", "Select Shop"];
+    return requestStatus === "QUOTE_SENT" ? [...base, "Delivery & Address", "Payment Method"] : base;
   }, [requestStatus]);
 
-  const renderStep = () => {
-    return (
-      <div className="mb-8 max-w-6xl mx-auto px-6 animate__animated animate__fadeIn">
-        {step !== 1 && (
-          <button
-            onClick={handleBackStep}
-            className="mb-6 flex items-center gap-2 text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-semibold transition-colors duration-200"
-            aria-label="Go back to previous step"
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                handleBackStep();
-              }
-            }}
-          >
-            <FaArrowLeft className="text-lg" /> Back
-          </button>
-        )}
-        {(() => {
-          switch (step) {
-            case 0:
-              if (!requestStatus || requestStatus === 'PENDING') {
-                return (
-                  <div className="flex flex-col items-center py-12 animate__animated animate__pulse">
-                    <FaClock className="text-indigo-600 dark:text-indigo-400 text-5xl mb-4" />
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-                      Waiting for Shop to Respond...
-                    </h2>
-                    <div className="w-full max-w-md bg-gray-200 dark:bg-gray-700 rounded-full h-4 mt-4 overflow-hidden">
-                      <div
-                        className="bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-500 dark:to-blue-500 h-4 rounded-full transition-all duration-500 ease-in-out"
-                        style={{ width: `${progressPercentage}%` }}
-                      ></div>
-                    </div>
-                    <p className="mt-4 text-gray-600 dark:text-gray-300 font-medium">
-                      Estimated time: {estimatedTime}s
-                    </p>
-                  </div>
-                );
-              }
+  const handleNext = () => {
+    if (step === 1 && !selectedCategory) {
+      Swal.fire({
+        icon: "warning",
+        title: "Select a Category",
+        text: "Please choose a device type to continue",
+        confirmButtonColor: "#84cc16",
+      });
+      return;
+    }
+    if (step === 2 && !selectedShop) {
+      Swal.fire({
+        icon: "warning",
+        title: "Select a Shop",
+        text: "Please choose a repair shop",
+        confirmButtonColor: "#84cc16",
+      });
+      return;
+    }
+    setStep(step + 1);
+  };
 
-              if (requestStatus === 'QUOTE_SENT' && price) {
-                return (
-                  <div className="flex flex-col items-center py-12 animate__animated animate__fadeInUp">
-                    <h2 className="text-2xl font-bold text-green-600 dark:text-green-400 mb-6">
-                      Shop Has Provided a Quote
-                    </h2>
-                    <div className="w-full max-w-lg bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 border border-gray-200 dark:border-gray-700">
-                      <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6 flex items-center gap-3">
-                        <FiTool className="text-indigo-600 dark:text-indigo-400" /> Repair Request Details
-                      </h3>
-                      <div className="space-y-4 text-gray-700 dark:text-gray-200">
-                        <p className="flex items-center gap-3">
-                          <FaStore className="text-indigo-500" />
-                          <span className="font-semibold">Shop:</span> {selectedShop?.name || 'N/A'}
-                          {selectedShop?.shopAddress && (
-                            <span className="text-sm">
-                              {' '}
-                              ({selectedShop.shopAddress.street}, {selectedShop.shopAddress.city},{' '}
-                              {selectedShop.shopAddress.state})
-                            </span>
-                          )}
-                        </p>
-                        <p className="flex items-center gap-3">
-                          <FaLaptop className="text-indigo-500" />
-                          <span className="font-semibold">Device:</span> {selectedCategory?.name || 'N/A'}
-                        </p>
-                        <p className="flex items-center gap-3">
-                          <FaInfoCircle className="text-indigo-500" />
-                          <span className="font-semibold">Issue Description:</span>{' '}
-                          {description || 'No description provided'}
-                        </p>
-                        <p className="flex items-center gap-3">
-                          <FaDollarSign className="text-indigo-500" />
-                          <span className="font-semibold">Quoted Price:</span>{' '}
-                          <span className="text-indigo-600 dark:text-indigo-400 font-bold">{price} EGP</span>
-                        </p>
-                        <p className="flex items-center gap-3">
-                          <FaCheckCircle className="text-green-600 dark:text-green-400" />
-                          <span className="font-semibold">Status:</span>{' '}
-                          <span className="text-green-600 dark:text-green-400">Quote Sent</span>
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex gap-4 mt-8">
-                      <button
-                        onClick={() => setStep(3)}
-                        className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 dark:hover:bg-indigo-500 transition transform hover:-translate-y-1 shadow-lg"
-                        aria-label="Proceed to delivery and payment"
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            setStep(3);
-                          }
-                        }}
-                      >
-                        <FaTruck /> Proceed to Delivery & Payment
-                      </button>
-                      <button
-                        onClick={handlePriceRejection}
-                        className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 dark:hover:bg-red-500 transition transform hover:-translate-y-1 shadow-lg"
-                        aria-label="Reject shop quote"
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            handlePriceRejection();
-                          }
-                        }}
-                      >
-                        <FaTimesCircle /> Reject Quote
-                      </button>
-                    </div>
-                  </div>
-                );
-              }
-
-              if (requestStatus === 'REJECTED') {
-                return (
-                  <div className="flex flex-col items-center py-12 animate__animated animate__fadeInUp">
-                    <FaTimesCircle className="text-red-500 dark:text-red-400 text-5xl mb-4" />
-                    <p className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">
-                      Shop Rejected the Repair Request
-                    </p>
-                    <button
-                      onClick={() => {
-                        setRequestStatus(null);
-                        setRepairRequestId(null);
-                        setSelectedShop(null);
-                        setPrice(null);
-                        setStep(2);
-                      }}
-                      className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 dark:hover:bg-indigo-500 transition transform hover:-translate-y-1 shadow-lg"
-                      aria-label="Try another shop"
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          setRequestStatus(null);
-                          setRepairRequestId(null);
-                          setSelectedShop(null);
-                          setPrice(null);
-                          setStep(2);
-                        }
-                      }}
-                    >
-                      <FiTool /> Try Another Shop
-                    </button>
-                  </div>
-                );
-              }
-              return null;
-
-            case 1:
-              return (
-                <div className=" min-h-screen  animate__animated animate__fadeIn">
-                  <h2 className="text-3xl font-bold text-center mb-8 text-indigo-600 dark:text-indigo-400">
-                    Step 1: Select Device Type
-                  </h2>
-                  <label className="block text-indigo-600 dark:text-indigo-400 font-semibold mb-3">
-                    Problem Description
-                  </label>
-                  <textarea
-                    className="w-full px-4 py-3 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition duration-200 mb-6 resize-none"
-                    rows="5"
-                    placeholder="Describe the issue with your device..."
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    aria-label="Describe the issue with your device"
-                    maxLength={1000}
-                  ></textarea>
-                  {isLoading ? (
-                    <LoadingSpinner />
-                  ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                      {categories.map((c) => (
-                        <button
-                          key={c.id}
-                          onClick={() => {
-                            setSelectedCategory(c);
-                            setStep(2);
-                          }}
-                          className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                          aria-label={`Select ${c.name} category`}
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              setSelectedCategory(c);
-                              setStep(2);
-                            }
-                          }}
-                        >
-                          <div className={`text-4xl mb-4 flex justify-center items-center ${c.color} dark:text-indigo-400`}>
-                            <FiList/>
-                          </div>
-                          <p className="font-semibold text-gray-900 dark:text-gray-100 text-center">{c.name}</p>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-
-            case 2:
-              return (
-                <div className="animate__animated animate__fadeIn">
-                  <h2 className="text-3xl font-bold text-center mb-8 text-indigo-600 dark:text-indigo-400">
-                    Step 2: Select Shop
-                  </h2>
-                  {isLoading ? (
-                    <LoadingSpinner />
-                  ) : (
-                    <>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {currentShops.map((shop) => (
-                          <div
-                            key={shop.id}
-                            onClick={() => handleShopSelect(shop)}
-                            className={`p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 transition-all duration-300 cursor-pointer hover:shadow-xl hover:-translate-y-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none ${
-                              selectedShop?.id === shop.id
-                                ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900'
-                                : 'bg-white dark:bg-gray-800'
-                            }`}
-                            aria-label={`Select shop ${shop.name}`}
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                handleShopSelect(shop);
-                              }
-                            }}
-                          >
-                            <div className="flex justify-between items-center mb-4">
-                              <h3 className="font-bold text-lg text-indigo-600 dark:text-indigo-400">
-                                {shop.name}
-                              </h3>
-                              <span className="flex items-center text-yellow-500 dark:text-yellow-400 font-semibold">
-                                <FaStar className="mr-1" /> {shop.rating || 'N/A'}
-                              </span>
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700 dark:text-gray-200">
-                              <div className="flex items-center gap-2">
-                                <FaPhone className="text-green-500 dark:text-green-400" /> 0{shop.phone}
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <FaInfoCircle className="text-indigo-500 dark:text-indigo-400" />{' '}
-                                {shop.shopType}
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {shop.verified ? (
-                                  <FaCheckCircle className="text-green-600 dark:text-green-400" />
-                                ) : (
-                                  <FaTimesCircle className="text-red-500 dark:text-red-400" />
-                                )}
-                                {shop.verified ? 'Verified' : 'Unverified'}
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <FaClock className="text-purple-500 dark:text-purple-400" />
-                                {new Date(shop.createdAt).toLocaleDateString('en-US', {
-                                  dateStyle: 'medium',
-                                })}
-                              </div>
-                            </div>
-                            {shop.description && (
-                              <p className="mt-3 text-gray-600 dark:text-gray-300 text-sm line-clamp-2">
-                                {shop.description}
-                              </p>
-                            )}
-                            {shop.shopAddress && (
-                              <p className="mt-2 flex items-center gap-2 text-gray-700 dark:text-gray-200 text-sm">
-                                <FaMapMarkedAlt className="text-red-500 dark:text-red-400" />
-                                {shop.shopAddress.street}, {shop.shopAddress.city},{' '}
-                                {shop.shopAddress.state}
-                              </p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex justify-center mt-8 gap-4 items-center">
-                        <button
-                          onClick={() => handlePageChange(currentPage - 1)}
-                          disabled={currentPage === 1 || isLoading}
-                          className={`flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl disabled:bg-gray-400 hover:bg-indigo-700 dark:hover:bg-indigo-500 transition shadow-md disabled:cursor-not-allowed focus:ring-2 focus:ring-indigo-500 focus:outline-none`}
-                          aria-label="Previous page"
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              handlePageChange(currentPage - 1);
-                            }
-                          }}
-                        >
-                          <FiChevronLeft /> 
-                        </button>
-                        <span className="text-gray-700 dark:text-gray-200 font-semibold">
-                          Page {currentPage} of {totalPages}
-                        </span>
-                        <button
-                          onClick={() => handlePageChange(currentPage + 1)}
-                          disabled={currentPage === totalPages || isLoading}
-                          className={`flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl disabled:bg-gray-400 hover:bg-indigo-700 dark:hover:bg-indigo-500 transition shadow-md disabled:cursor-not-allowed focus:ring-2 focus:ring-indigo-500 focus:outline-none`}
-                          aria-label="Next page"
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              handlePageChange(currentPage + 1);
-                            }
-                          }}
-                        >
-                           <FiChevronRight />
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              );
-
-            case 3:
-              return (
-                <div className=" animate__animated animate__fadeIn">
-                  <h2 className="text-3xl font-bold text-center mb-8 text-indigo-600 dark:text-indigo-400">
-                    Step 3: Delivery & Address
-                  </h2>
-                  <label className="block text-indigo-600 dark:text-indigo-400 font-semibold mb-3">
-                    Choose Delivery Address
-                  </label>
-                  <div className="relative mb-6">
-                    <FaSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-300" />
-                    <input
-                      type="text"
-                      placeholder="Search address..."
-                      onChange={(e) => debouncedSetAddressSearch(e.target.value)}
-                      className="w-full pl-12 pr-10 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition duration-200"
-                      aria-label="Search addresses"
-                    />
-                    {addressSearch && (
-                      <button
-                        onClick={() => setAddressSearch('')}
-                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 focus:outline-none"
-                        aria-label="Clear address search"
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            setAddressSearch('');
-                          }
-                        }}
-                      >
-                        <FaTimes />
-                      </button>
-                    )}
-                  </div>
-                  {isLoading ? (
-                    <LoadingSpinner />
-                  ) : (
-                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm max-h-60 overflow-y-auto mb-6">
-                      {filteredAddresses.length === 0 ? (
-                        <p className="px-4 py-3 text-gray-500 dark:text-gray-300">
-                          No addresses found.
-                        </p>
-                      ) : (
-                        filteredAddresses.map((addr) => (
-                          <div
-                            key={addr.id}
-                            onClick={() => setSelectedAddress(addr)}
-                            className={`px-4 py-3 cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900 transition duration-200 ${
-                              selectedAddress?.id === addr.id ? 'bg-indigo-50 dark:bg-indigo-900' : ''
-                            }`}
-                            aria-label={`Select address ${addr.street}, ${addr.city}, ${addr.state}`}
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                setSelectedAddress(addr);
-                              }
-                            }}
-                          >
-                            {addr.street}, {addr.city}, {addr.state}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  )}
-                  <h2 className="text-xl font-bold text-indigo-600 dark:text-indigo-400 mt-8 mb-4">
-                    Select Delivery Method
-                  </h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {deliveryOptions.map((option) => (
-                      <div
-                        key={option.id}
-                        onClick={() => handleDeliverySelect(option)}
-                        className={`p-5 rounded-xl cursor-pointer transition-all duration-300 hover:shadow-xl transform hover:-translate-y-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none ${
-                          selectedDelivery?.id === option.id
-                            ? 'border-2 border-indigo-500 bg-indigo-50 dark:bg-indigo-900'
-                            : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
-                        }`}
-                        aria-label={`Select ${option.name} delivery method`}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            handleDeliverySelect(option);
-                          }
-                        }}
-                      >
-                        <div className="flex items-center gap-4">
-                          <span className="text-3xl">{option.icon}</span>
-                          <div>
-                            <h3 className="font-semibold text-gray-900 dark:text-gray-100">{option.name}</h3>
-                            <p className="text-gray-500 dark:text-gray-300 text-sm">{option.description}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-
-            case 4:
-              return (
-                <div className=" animate__animated animate__fadeIn">
-                  <h2 className="text-3xl font-bold text-center mb-8 text-indigo-600 dark:text-indigo-400">
-                    Step 4: Payment Method
-                  </h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {paymentOptions.map((option) => (
-                      <div
-                        key={option.id}
-                        onClick={() => handlePaymentSelect(option)}
-                        className={`p-5 rounded-xl cursor-pointer transition-all duration-300 hover:shadow-xl transform hover:-translate-y-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none ${
-                          selectedPayment?.id === option.id
-                            ? 'border-2 border-indigo-500 bg-indigo-50 dark:bg-indigo-900'
-                            : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
-                        }`}
-                        aria-label={`Select ${option.name} payment method`}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            handlePaymentSelect(option);
-                          }
-                        }}
-                      >
-                        <div className="flex items-center gap-4">
-                          <span className="text-3xl">{option.icon}</span>
-                          <div>
-                            <h3 className="font-semibold text-gray-900 dark:text-gray-100">{option.name}</h3>
-                            <p className="text-gray-500 dark:text-gray-300 text-sm">{option.desc}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <button
-                    onClick={handlePriceApproval}
-                    disabled={isLoading || !selectedPayment}
-                    className={`w-full mt-8 py-3 rounded-xl text-white font-semibold transition transform hover:-translate-y-1 shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none ${
-                      isLoading || !selectedPayment
-                        ? 'bg-gray-400 cursor-not-allowed'
-                        : 'bg-green-600 hover:bg-green-700 dark:hover:bg-green-500'
-                    }`}
-                    aria-label="Approve repair request"
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ' && selectedPayment) {
-                        handlePriceApproval();
-                      }
-                    }}
-                  >
-                    {isLoading ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <FaSpinner className="animate-spin" /> Submitting...
-                      </span>
-                    ) : (
-                      'Approve Repair Request'
-                    )}
-                  </button>
-                </div>
-              );
-
-            default:
-              return null;
-          }
-        })()}
-      </div>
-    );
+  const handleBack = () => {
+    setStep(Math.max(1, step - 1));
   };
 
   return (
-    <div
-      className={`relative mb-0 min-h-screen transition-all duration-300 mt-16 py-5 ${
-        darkMode ? 'bg-gray-900' : 'bg-gray-50'
-      }`}
-    >
-       <section className="relative overflow-hidden pb-4">
-              <div
-                className={`absolute inset-0 ${darkMode ? "bg-gradient-to-br from-indigo-900 via-gray-900 to-purple-900" : "bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500"}`}
-              >
-                <svg className="absolute bottom-0 w-full h-48" preserveAspectRatio="none" viewBox="0 0 1440 320">
-                  <path
-                    fill={darkMode ? "#111827" : "#ffffff"}
-                    d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
-                  />
-                </svg>
-              </div>
-      
-              {/* Animated Dots */}
-              {/* <div className="absolute inset-0 opacity-20 pointer-events-none">
-                {[...Array(40)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="absolute w-1 h-1 bg-white rounded-full animate-pulse"
-                    style={{
-                      top: `${Math.random() * 100}%`,
-                      left: `${Math.random() * 100}%`,
-                      animationDelay: `${Math.random() * 3}s`,
-                      animationDuration: `${3 + Math.random() * 2}s`,
-                    }}
-                  />
-                ))}
-              </div> */}
-      
-              {/* Floating Icons */}
-              <div className="absolute inset-0 opacity-30 pointer-events-none">
-                <FiTruck className="absolute top-16 left-10 w-16 h-16 text-white animate-bounce" />
-                <RiCarLine className="absolute bottom-20 right-20 w-20 h-20 text-white animate-pulse" />
-                <RiMotorbikeLine className="absolute top-1/3 right-1/4 w-14 h-14 text-white animate-ping" />
-              </div>
-      
-              <div className="relative max-w-7xl mx-auto px-6 pt-20 pb-32 text-center">
-                <h1 className="text-5xl sm:text-6xl font-extrabold text-white drop-shadow-lg">
-                  Book a repair request
-                </h1>
-                <p className="mt-6 text-xl text-white/90 max-w-3xl mx-auto">
-             Easily schedule a repair for your device by selecting a shop and describing the issue.
-                </p>
-              </div>
-            </section>
-      {/* <div className="relative bg-gradient-to-br from-white via-gray-50 to-gray-100 dark:from-indigo-900 dark:to-gray-800 text-gray-500 dark:text-gray-800 py-12 px-6 shadow-2xl">
-             <div className="absolute inset-0 opacity-5 pointer-events-none">
-                          <FiTool className="absolute w-20 h-20 bottom-1/3 right-1/5 animate-float-medium  dark:text-blue-500" />
-                          <FiShoppingBag className="absolute w-24 h-24 top-1/3 right-1/4 animate-float-slow dark:text-blue-500" />
-                          <FiShoppingBag className="absolute w-16 h-16 bottom-1/4 left-1/3 animate-float-fast dark:text-blue-500" />
-                          <FiSmartphone className="absolute w-20 h-20 top-10 left-10 animate-float-medium dark:text-blue-500" />
-                          <FiSmartphone className="absolute w-28 h-28 bottom-20 right-20 animate-float-slow dark:text-blue-500" />
-                          <FiMonitor className="absolute w-18 h-18 top-1/2 left-1/4 animate-float-fast dark:text-blue-500" />
-                        </div>
-        <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-3xl text-indigo-600 dark:text-white flex items-center justify-center gap-4 sm:text-4xl md:text-5xl font-extrabold">
-            <FiTool className="text-4xl" /> Book a Repair Request
-          </h1>
-          <p className="mt-4 text-base sm:text-lg text-gray-600 dark:text-gray-200 max-w-xl sm:max-w-2xl mx-auto">
-            Easily schedule a repair for your device by selecting a shop and describing the issue.
-          </p>
+    <div className={`min-h-screen transition-all duration-500 ${darkMode ? "bg-gray-900" : "bg-gray-100"}`}>
+      {/* HERO SECTION */}
+      <section className="relative overflow-hidden py-32">
+        <div
+          className={`absolute inset-0 ${
+            darkMode
+              ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700"
+              : "bg-gradient-to-br from-white via-lime-50 to-gray-100"
+          }`}
+        />
+
+        {/* Wave */}
+        <svg
+          className="absolute bottom-0 w-full h-48"
+          preserveAspectRatio="none"
+          viewBox="0 0 1440 320"
+          aria-hidden="true"
+        >
+          <path
+            fill={darkMode ? "#1f2937" : "#f3f4f6"}
+            d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
+          />
+        </svg>
+
+        {/* Floating Icons */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <FiSmartphone className={`absolute top-16 left-12 w-14 h-14 ${darkMode ? "text-lime-400" : "text-lime-600"} animate-float-slow opacity-70`} />
+          <FaWrench className={`absolute top-24 right-16 w-12 h-12 ${darkMode ? "text-lime-500" : "text-lime-700"} animate-float-medium opacity-60`} />
+          <FaTools className={`absolute bottom-32 left-20 w-10 h-10 ${darkMode ? "text-gray-400" : "text-gray-700"} animate-float-fast opacity-60`} />
+          <FiMonitor className={`absolute bottom-24 right-20 w-16 h-16 ${darkMode ? "text-lime-400" : "text-lime-600"} animate-float-slow opacity-70`} />
         </div>
-      </div> */}
-      <div className="flex justify-center items-center mb-12 relative max-w-5xl mx-auto mt-10">
+
+        {/* Content */}
+        <div className="relative max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center z-10">
+          {/* Left: Text */}
+          <div>
+            <h1 className={`text-5xl sm:text-6xl font-extrabold drop-shadow-md ${darkMode ? "text-lime-400" : "text-lime-700"}`}>
+              Put your device first
+            </h1>
+            <p className={`mt-6 text-xl max-w-xl ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+              Fast, user-friendly and engaging - turn your repair request into a seamless experience with your trusted local shop.
+            </p>
+
+            {/* CTA */}
+            {/* <div className="mt-8 flex flex-col sm:flex-row gap-4 max-w-md">
+              <button className="px-6 py-3 bg-lime-600 text-white font-semibold rounded-full hover:bg-lime-700 transition shadow-lg">
+                Book a Repair
+              </button>
+            </div> */}
+
+            {/* Stats */}
+            <div className="mt-12 grid grid-cols-2 gap-8 text-center">
+              <div>
+                <h3 className={`text-4xl font-bold ${darkMode ? "text-lime-400" : "text-lime-600"}`}>75.2%</h3>
+                <p className={`text-sm ${textSecondary}`}>Average repair success rate</p>
+              </div>
+              <div>
+                <h3 className={`text-4xl font-bold ${darkMode ? "text-lime-400" : "text-lime-600"}`}>~20k</h3>
+                <p className={`text-sm ${textSecondary}`}>Repairs completed monthly</p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center gap-2">
+              {[...Array(5)].map((_, i) => (
+                <FaStar
+                  key={i}
+                  className={i < 4 ? (darkMode ? "text-lime-400" : "text-lime-600") : "text-gray-400"}
+                />
+              ))}
+              <span className={`ml-2 text-sm ${textSecondary}`}>4.5 Average user rating</span>
+            </div>
+          </div>
+
+          {/* Right: 3D Animation */}
+          <div className="relative h-96 lg:h-full flex justify-center items-center">
+            <div className="relative w-80 h-96 perspective-1000">
+              <div
+                className="absolute top-12 left-16 w-48 h-80 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-3xl shadow-2xl transform rotate-y-12 rotate-x-6 animate-float-3d border border-gray-300 dark:border-gray-600"
+                style={{ transformStyle: "preserve-3d" }}
+              >
+                <div className="p-6 h-full flex flex-col justify-between" style={{ transform: "translateZ(20px)" }}>
+                  <div>
+                    <div className="bg-gray-300 dark:bg-gray-600 h-6 rounded mb-3 w-3/4"></div>
+                    <div className="bg-gray-300 dark:bg-gray-600 h-4 rounded w-full mb-2"></div>
+                    <div className="bg-gray-300 dark:bg-gray-600 h-4 rounded w-2/3"></div>
+                  </div>
+                  <div className="bg-lime-500 h-12 rounded-xl flex items-center justify-center text-white font-bold shadow-md">
+                    Repair Now
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className="absolute bottom-10 right-10 w-56 h-44 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-xl transform rotate-y--15 rotate-x-8 animate-float-3d-delay border border-gray-200 dark:border-gray-700"
+                style={{ transformStyle: "preserve-3d" }}
+              >
+                <div className="p-5" style={{ transform: "translateZ(15px)" }}>
+                  <div className="bg-gray-200 dark:bg-gray-700 h-4 rounded mb-2"></div>
+                  <div className="bg-gray-200 dark:bg-gray-700 h-3 rounded w-4/5"></div>
+                </div>
+              </div>
+
+              <div
+                className="absolute top-32 left-4 w-32 h-28 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl transform rotate-y-20 rotate-x-10 animate-float-3d-fast border-2 border-lime-500"
+                style={{ transformStyle: "preserve-3d" }}
+              >
+                <div className="p-4 text-center" style={{ transform: "translateZ(10px)" }}>
+                  <FaCheckCircle className="text-lime-600 text-3xl mx-auto mb-1" />
+                  <p className="text-sm font-bold text-lime-600">Fixed!</p>
+                </div>
+              </div>
+
+              <div className="absolute top-20 right-20 w-12 h-12 animate-spin-slow opacity-70">
+                <FaWrench className="text-lime-500 text-5xl" style={{ filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.3))" }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* STEPS INDICATOR */}
+      <div className={`flex justify-center items-center mb-12 max-w-5xl mx-auto mt-10 p-6 rounded-2xl shadow-md ${bgCard}`}>
         {steps.map((s, i) => (
-          <div key={i} className="flex-1 text-center relative z-10">
+          <div key={i} className="flex-1 text-center relative">
             <div
-              className={`w-12 h-12 mx-auto rounded-full flex items-center justify-center font-bold text-lg transition-all duration-300 shadow-md ${
+              className={`w-12 h-12 mx-auto rounded-full flex items-center justify-center font-bold text-lg transition-all shadow-md ${
                 step >= i + 1
-                  ? 'bg-indigo-600 dark:bg-indigo-500 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                  ? darkMode
+                    ? "bg-lime-500 text-white"
+                    : "bg-lime-600 text-white"
+                  : darkMode
+                  ? "bg-gray-700 text-gray-400"
+                  : "bg-gray-200 text-gray-600"
               }`}
             >
               {i + 1}
             </div>
             <p
-              className={`text-sm sm:text-base mt-3 font-semibold ${
-                step >= i + 1
-                  ? 'text-indigo-600 dark:text-indigo-400'
-                  : 'text-gray-500 dark:text-gray-400'
+              className={`text-sm mt-3 font-semibold ${
+                step >= i + 1 ? (darkMode ? "text-lime-400" : "text-lime-600") : textSecondary
               }`}
             >
               {s}
             </p>
             {i < steps.length - 1 && (
               <div
-                className={`absolute top-6 left-1/2 w-1/2 h-1 transition-all duration-300 ${
+                className={`absolute top-6 left-1/2 w-1/2 h-1 transition-all ${
                   step > i + 1
-                    ? 'bg-indigo-600 dark:bg-indigo-500'
-                    : 'bg-gray-300 dark:bg-gray-600'
+                    ? darkMode
+                      ? "bg-lime-500"
+                      : "bg-lime-600"
+                    : darkMode
+                    ? "bg-gray-700"
+                    : "bg-gray-300"
                 }`}
-                style={{ transform: 'translateX(50%)' }}
-              ></div>
-            )}
-            {i > 0 && (
-              <div
-                className={`absolute top-6 right-1/2 w-1/2 h-1 transition-all duration-300 ${
-                  step > i
-                    ? 'bg-indigo-600 dark:bg-indigo-500'
-                    : 'bg-gray-300 dark:bg-gray-600'
-                }`}
-                style={{ transform: 'translateX(-50%)' }}
+                style={{ transform: "translateX(50%)" }}
               ></div>
             )}
           </div>
         ))}
       </div>
-      {renderStep()}
+
+      {/* MAIN CONTENT */}
+      <div className="max-w-6xl mx-auto px-6 py-12">
+        {/* Step 1: Device Type */}
+        {step === 1 && (
+          <div className="animate-fadeIn">
+            <h2 className={`text-3xl font-bold text-center mb-8 ${darkMode ? "text-lime-400" : "text-lime-600"}`}>
+              Step 1: Select Device Type
+            </h2>
+
+            <label className={`block font-semibold mb-3 ${darkMode ? "text-lime-400" : "text-lime-600"}`}>
+              Problem Description
+            </label>
+            <textarea
+              className={`w-full px-4 py-3 rounded-xl ${bgCard} ${textPrimary} border ${border} focus:ring-2 focus:ring-lime-500 focus:outline-none transition mb-8 resize-none`}
+              rows="5"
+              placeholder="Describe the issue with your device..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              maxLength={1000}
+            />
+
+            {isLoading ? (
+              <LoadingSpinner darkMode={darkMode} />
+            ) : categories.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
+                {categories.map((cat, index) => (
+                  <div
+                    key={cat.id}
+                    onClick={() => {
+                      setSelectedCategory(cat);
+                      setStep(2);
+                    }}
+                    className={`group cursor-pointer rounded-2xl p-6 shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-3 hover:scale-105 ${
+                      selectedCategory?.id === cat.id
+                        ? darkMode
+                          ? "bg-lime-600 text-white ring-4 ring-lime-400"
+                          : "bg-lime-600 text-white ring-4 ring-lime-500"
+                        : `${bgCard} border ${border}`
+                    } animate-slideIn`}
+                    style={{ animationDelay: `${index * 100}ms` }}
+                  >
+                    <div className={`text-5xl mb-4 flex justify-center items-center transition-transform duration-300 group-hover:scale-110 ${cat.color}`}>
+                      {cat.icon}
+                    </div>
+                    <p className={`font-bold text-center text-lg ${selectedCategory?.id === cat.id ? "text-white" : textPrimary}`}>
+                      {cat.name}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-gray-500 dark:text-gray-400 text-lg">
+                No categories available.
+              </p>
+            )}
+
+            <div className="mt-12 flex justify-center">
+              <button
+                onKeyPress={(e) => e.key === "Enter" && handleNext()}
+                onClick={handleNext}
+                className="px-8 py-3 bg-lime-600 text-white font-bold rounded-full hover:bg-lime-700 transition shadow-lg flex items-center gap-2"
+              >
+                Next <FiChevronRight />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: Select Shop */}
+        {step === 2 && (
+          <div className="animate-fadeIn">
+            <h2 className={`text-3xl font-bold text-center mb-8 ${darkMode ? "text-lime-400" : "text-lime-600"}`}>
+              Step 2: Select Repair Shop
+            </h2>
+
+            {isLoading ? (
+              <LoadingSpinner darkMode={darkMode} />
+            ) : currentShops.length > 0 ? (
+              <div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {currentShops.map((shop, i) => (
+                    <div
+                      key={shop.id}
+                      onClick={() => setSelectedShop(shop)}
+                      className={`p-6 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 hover:shadow-xl ${
+                        selectedShop?.id === shop.id
+                          ? darkMode
+                            ? "bg-lime-600 text-white ring-4 ring-lime-400"
+                            : "bg-lime-600 text-white ring-4 ring-lime-500"
+                          : `${bgCard} border ${border}`
+                      } animate-slideIn`}
+                      style={{ animationDelay: `${i * 100}ms` }}
+                    >
+                      <div className="flex justify-between items-start mb-3">
+                        <h3 className={`font-bold text-xl ${selectedShop?.id === shop.id ? "text-white" : textPrimary}`}>
+                          {shop.name}
+                        </h3>
+                        <div className="flex items-center gap-1">
+                          <FaStar className="text-yellow-500 text-sm" />
+                          <span className={`text-sm ${selectedShop?.id === shop.id ? "text-white" : textSecondary}`}>
+                            {shop.rating || 4.5}
+                          </span>
+                        </div>
+                      </div>
+                      <p className={`text-sm ${selectedShop?.id === shop.id ? "text-lime-100" : textSecondary} mb-1`}>
+                        {shop.address || shop.shopAddress?.street || "Cairo, Egypt"}
+                      </p>
+                      <p className={`text-sm ${selectedShop?.id === shop.id ? "text-lime-100" : textSecondary}`}>
+                        {shop.phone || "+20 123 456 7890"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex justify-center gap-2 mt-8">
+                    {[...Array(totalPages)].map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setCurrentPage(i + 1)}
+                        className={`w-10 h-10 rounded-full transition ${
+                          currentPage === i + 1
+                            ? "bg-lime-600 text-white"
+                            : darkMode
+                            ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                        }`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-center text-gray-500 dark:text-gray-400 text-lg">
+                No shops found for this category.
+              </p>
+            )}
+
+            <div className="mt-12 flex justify-between">
+              <button
+                onClick={handleBack}
+                className={`px-6 py-3 rounded-full ${darkMode ? "bg-gray-700 text-gray-300 hover:bg-gray-600" : "bg-gray-200 text-gray-700 hover:bg-gray-300"} transition flex items-center gap-2`}
+              >
+                <FaArrowLeft /> Back
+              </button>
+              <button
+                onClick={handleNext}
+                className="px-8 py-3 bg-lime-600 text-white font-bold rounded-full hover:bg-lime-700 transition shadow-lg flex items-center gap-2"
+              >
+                Next <FiChevronRight />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Other steps... */}
+      </div>
     </div>
   );
 };

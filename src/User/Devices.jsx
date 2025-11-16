@@ -15,6 +15,14 @@ import {
   FiChevronRight,
   FiX,
   FiChevronDown,
+  FiSmartphone,
+  FiMonitor,
+  FiTablet,
+  FiHeadphones,
+  FiWatch,
+  FiTool,
+  FiTag,
+  FiDollarSign,
 } from 'react-icons/fi';
 import api from '../api';
 import Swal from 'sweetalert2';
@@ -28,48 +36,49 @@ const ProductCard = memo(({ product, darkMode, onAddToCart }) => {
 
   return (
     <div
-      className={`group p-5 rounded-2xl backdrop-blur-xl transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl ${
+    onClick={() => window.location.href = `/device/${product.id}`}
+      className={`group p-6 rounded-2xl shadow-lg transition-all duration-500 transform hover:-translate-y-3 hover:shadow-2xl ${
         darkMode
-          ? 'bg-gray-800/40 border border-gray-700/50'
-          : 'bg-white/40 border border-gray-200/50'
-      }`}
+          ? 'bg-gray-800 border border-gray-700'
+          : 'bg-white border border-gray-200'
+      } animate-slideIn`}
     >
       <div className="relative">
         {!imgLoaded && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-200 dark:bg-gray-700 rounded-xl">
-            <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+            <div className="w-10 h-10 border-4 border-lime-600 border-t-transparent rounded-full animate-spin" />
           </div>
         )}
         <img
           src={product.image || '/placeholder.png'}
           alt={product.name}
           onLoad={() => setImgLoaded(true)}
-          className={`w-full h-48 object-cover rounded-xl transition-opacity duration-300 ${
+          className={`w-full h-56 object-cover rounded-xl transition-opacity duration-300 ${
             imgLoaded ? 'opacity-100' : 'opacity-0'
-          }`}
+          } group-hover:scale-105 transition-transform duration-500`}
         />
         {product.discount && (
-          <span className="absolute top-2 left-2 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+          <span className="absolute top-3 left-3 bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-md">
             -{product.discount}%
           </span>
         )}
       </div>
 
-      <div className="mt-4 space-y-2">
-        <h3 className="font-bold text-lg text-gray-900 dark:text-white line-clamp-1">
+      <div className="mt-5 space-y-3">
+        <h3 className={`font-bold text-xl line-clamp-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
           {product.name}
         </h3>
-        <p className="text-sm text-indigo-600 dark:text-indigo-400 font-medium">
+        <p className={`text-sm font-medium ${darkMode ? 'text-lime-400' : 'text-lime-600'}`}>
           {product.brand}
         </p>
 
-        <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 leading-relaxed">
+        <p className={`text-sm line-clamp-2 leading-relaxed ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
           {product.description || 'No description available.'}
         </p>
 
         <div className="flex flex-wrap gap-2 text-xs">
           <span
-            className={`px-2 py-1 rounded-full font-medium ${
+            className={`px-3 py-1.5 rounded-full font-medium ${
               product.condition === 'New'
                 ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
                 : product.condition === 'Used'
@@ -79,32 +88,31 @@ const ProductCard = memo(({ product, darkMode, onAddToCart }) => {
           >
             {product.condition || 'Unknown'}
           </span>
-          <span className="px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 font-medium">
+          <span className="px-3 py-1.5 rounded-full bg-lime-100 text-lime-700 dark:bg-lime-900 dark:text-lime-300 font-medium">
             {product.categoryName || product.category || 'Uncategorized'}
           </span>
         </div>
 
-        <div className="flex items-center justify-between mt-3">
+        <div className="flex items-center justify-between mt-4">
           <div>
             {product.discount ? (
               <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-                  EGP{' '}
-                  {(product.price * (1 - product.discount / 100)).toFixed(2)}
+                <span className={`text-2xl font-bold ${darkMode ? 'text-lime-400' : 'text-lime-600'}`}>
+                  EGP {(product.price * (1 - product.discount / 100)).toFixed(2)}
                 </span>
                 <span className="text-sm text-gray-500 line-through">
                   EGP {product.price}
                 </span>
               </div>
             ) : (
-              <span className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+              <span className={`text-2xl font-bold ${darkMode ? 'text-lime-400' : 'text-lime-600'}`}>
                 EGP {product.price}
               </span>
             )}
           </div>
           <button
             onClick={() => onAddToCart(product)}
-            className="p-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition transform hover:scale-110"
+            className="p-3 bg-lime-600 text-white rounded-xl hover:bg-lime-700 transition transform hover:scale-110 shadow-md"
           >
             <FiShoppingCart className="w-5 h-5" />
           </button>
@@ -116,7 +124,7 @@ const ProductCard = memo(({ product, darkMode, onAddToCart }) => {
 ProductCard.displayName = 'ProductCard';
 
 // ---------------------------------------------------------------------
-// Main Component
+// Main Component – MONOTREE STYLE
 // ---------------------------------------------------------------------
 const Products = ({ darkMode }) => {
   // -----------------------------------------------------------------
@@ -126,27 +134,27 @@ const Products = ({ darkMode }) => {
   const [categories, setCategories] = useState(['all']);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [priceRange, setPriceRange] = useState([0, 50000]); // [min, max]
+  const [priceRange, setPriceRange] = useState([0, 50000]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [categorySearch, setCategorySearch] = useState('');
   const sliderRef = useRef(null);
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
 
   const pageSize = 12;
 
   // -----------------------------------------------------------------
-  // AbortController for every fetch
+  // AbortController
   // -----------------------------------------------------------------
   const abortCtrlRef = useRef(new AbortController());
 
   // -----------------------------------------------------------------
-  // API – ONE CALL per real change
+  // Fetch Products
   // -----------------------------------------------------------------
   const fetchProducts = useCallback(
     async (category) => {
-      abortCtrlRef.current.abort(); // cancel previous
+      abortCtrlRef.current.abort();
       abortCtrlRef.current = new AbortController();
 
       setIsLoading(true);
@@ -170,12 +178,11 @@ const Products = ({ darkMode }) => {
     []
   );
 
-  // Debounced search – only fires after user stops typing
+  // -----------------------------------------------------------------
+  // Debounced Search
+  // -----------------------------------------------------------------
   const debouncedSearch = useMemo(
-    () =>
-      debounce((term) => {
-        // search is client‑side, no extra request
-      }, 300),
+    () => debounce((term) => {}, 300),
     []
   );
 
@@ -186,7 +193,7 @@ const Products = ({ darkMode }) => {
   };
 
   // -----------------------------------------------------------------
-  // Load categories (once)
+  // Load Categories
   // -----------------------------------------------------------------
   useEffect(() => {
     const ctrl = new AbortController();
@@ -209,7 +216,7 @@ const Products = ({ darkMode }) => {
   }, [token]);
 
   // -----------------------------------------------------------------
-  // Fetch products when category changes
+  // Fetch on Category Change
   // -----------------------------------------------------------------
   useEffect(() => {
     fetchProducts(selectedCategory);
@@ -217,7 +224,7 @@ const Products = ({ darkMode }) => {
   }, [selectedCategory, fetchProducts]);
 
   // -----------------------------------------------------------------
-  // Add to cart (no extra fetch)
+  // Add to Cart
   // -----------------------------------------------------------------
   const handleAddToCart = useCallback(
     async (product) => {
@@ -257,7 +264,7 @@ const Products = ({ darkMode }) => {
   );
 
   // -----------------------------------------------------------------
-  // Latest 8 products (memoized)
+  // Latest Products
   // -----------------------------------------------------------------
   const latestProducts = useMemo(() => {
     return [...products]
@@ -266,7 +273,7 @@ const Products = ({ darkMode }) => {
   }, [products]);
 
   // -----------------------------------------------------------------
-  // Client‑side filtering (search + price + category already applied)
+  // Filtered Products
   // -----------------------------------------------------------------
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
@@ -290,11 +297,11 @@ const Products = ({ darkMode }) => {
   const totalPages = Math.ceil(filteredProducts.length / pageSize);
 
   // -----------------------------------------------------------------
-  // Slider helpers
+  // Slider Navigation
   // -----------------------------------------------------------------
   const scrollSlider = (dir) => {
     if (!sliderRef.current) return;
-    const amount = 300;
+    const amount = 320;
     sliderRef.current.scrollBy({
       left: dir === 'left' ? -amount : amount,
       behavior: 'smooth',
@@ -304,11 +311,11 @@ const Products = ({ darkMode }) => {
   const getActiveSlide = () => {
     if (!sliderRef.current) return 0;
     const scroll = sliderRef.current.scrollLeft;
-    return Math.round(scroll / 300);
+    return Math.round(scroll / 320);
   };
 
   // -----------------------------------------------------------------
-  // Clear filters
+  // Clear Filters
   // -----------------------------------------------------------------
   const clearFilters = () => {
     setSearchTerm('');
@@ -321,115 +328,173 @@ const Products = ({ darkMode }) => {
   // Render
   // -----------------------------------------------------------------
   return (
-    <div
-      className={`min-h-screen ${darkMode ? 'bg-gray-900' : 'bg-gray-50'} pt-16`}
-    >
-      {/* ────── Hero ────── */}
-      <section className="relative overflow-hidden pb-20">
+    <div className={`min-h-screen transition-all duration-500 ${darkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
+      {/* ────── HERO – MONOTREE STYLE ────── */}
+      <section className="relative overflow-hidden py-32">
         <div
-          className={`h-64 ${
+          className={`absolute inset-0 ${
             darkMode
-              ? 'bg-gradient-to-br from-indigo-900 via-gray-900 to-purple-900'
-              : 'bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500'
+              ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700'
+              : 'bg-gradient-to-br from-white via-lime-50 to-gray-100'
           }`}
-        >
-          {/* floating devices – unchanged */}
-          <div className="absolute inset-0 pointer-events-none">
-            <img
-              src="/devices/laptop.png"
-              alt=""
-              className="absolute top-10 left-20 w-32 animate-float"
-            />
-            <img
-              src="/devices/phone.png"
-              alt=""
-              className="absolute bottom-20 right-20 w-24 animate-float animation-delay-1000"
-            />
-            <img
-              src="/devices/tablet.png"
-              alt=""
-              className="absolute top-20 right-40 w-28 animate-float animation-delay-500"
-            />
-            <img
-              src="/devices/accessory.png"
-              alt=""
-              className="absolute bottom-10 left-40 w-20 animate-float animation-delay-1500"
-            />
+        />
+
+        {/* Wave */}
+        <svg className="absolute bottom-0 w-full h-48" preserveAspectRatio="none" viewBox="0 0 1440 320" aria-hidden="true">
+          <path
+            fill={darkMode ? '#1f2937' : '#f3f4f6'}
+            d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
+          />
+        </svg>
+
+        {/* Floating Product Icons */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <FiSmartphone className={`absolute top-16 left-12 w-14 h-14 ${darkMode ? 'text-lime-400' : 'text-lime-600'} animate-float-slow opacity-70`} />
+          <FiMonitor className={`absolute top-24 right-16 w-12 h-12 ${darkMode ? 'text-lime-500' : 'text-lime-700'} animate-float-medium opacity-60`} />
+          <FiTablet className={`absolute bottom-32 left-20 w-10 h-10 ${darkMode ? 'text-gray-400' : 'text-gray-700'} animate-float-fast opacity-60`} />
+          <FiHeadphones className={`absolute bottom-24 right-20 w-16 h-16 ${darkMode ? 'text-lime-400' : 'text-lime-600'} animate-float-slow opacity-70`} />
+          <FiWatch className={`absolute top-1/3 left-1/4 w-11 h-11 ${darkMode ? 'text-gray-300' : 'text-gray-600'} animate-float-medium opacity-60`} />
+       
+          <FiTool className={`absolute top-10 right-1/3 w-10 h-10 ${darkMode ? 'text-lime-300' : 'text-lime-500'} animate-spin-slow opacity-60`} />
+        </div>
+
+        {/* Content */}
+        <div className="relative max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center z-10">
+          {/* Left */}
+          <div>
+            <h1 className={`text-5xl sm:text-6xl font-extrabold drop-shadow-md ${darkMode ? 'text-lime-400' : 'text-lime-700'}`}>
+              Shop Premium Devices
+            </h1>
+            <p className={`mt-6 text-xl max-w-xl ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              Discover new & refurbished phones, laptops, tablets, and accessories at unbeatable prices.
+            </p>
+
+            {/* CTA */}
+            {/* <div className="mt-8 flex flex-col sm:flex-row gap-4 max-w-md">
+              <input
+                type="email"
+                placeholder="Enter your email"
+                className={`px-5 py-3 rounded-full border ${
+                  darkMode
+                    ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-400'
+                    : 'bg-white border-gray-300 text-gray-800 placeholder-gray-500'
+                } focus:outline-none focus:ring-2 focus:ring-lime-500`}
+              />
+              <button className="px-6 py-3 bg-lime-600 text-white font-semibold rounded-full hover:bg-lime-700 transition shadow-lg">
+                Browse Now
+              </button>
+            </div> */}
+
+            {/* Stats */}
+            <div className="mt-12 grid grid-cols-2 gap-8 text-center">
+              <div>
+                <h3 className={`text-4xl font-bold ${darkMode ? 'text-lime-400' : 'text-lime-600'}`}>1,200+</h3>
+                <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Products in stock</p>
+              </div>
+              <div>
+                <h3 className={`text-4xl font-bold ${darkMode ? 'text-lime-400' : 'text-lime-600'}`}>4.8</h3>
+                <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Average rating</p>
+              </div>
+            </div>
           </div>
 
-          <svg
-            className="absolute bottom-0 w-full h-48"
-            preserveAspectRatio="none"
-            viewBox="0 0 1440 320"
-          >
-            <path
-              fill={darkMode ? '#111827' : '#ffffff'}
-              d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,320L0,320Z"
-            />
-          </svg>
+          {/* Right: 3D Product Animation */}
+          <div className="relative h-96 lg:h-full flex justify-center items-center">
+            <div className="relative w-80 h-96 perspective-1000">
+              {/* Main Phone */}
+              <div
+                className="absolute top-12 left-16 w-48 h-80 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-3xl shadow-2xl transform rotate-y-12 rotate-x-6 animate-float-3d border border-gray-300 dark:border-gray-600 blur-3xl opacity-50"
+                style={{ transformStyle: 'preserve-3d' }}
+              >
+                <div className="p-6 h-full flex flex-col justify-between" style={{ transform: 'translateZ(20px)' }}>
+                  <div>
+                    <div className="bg-gray-300 dark:bg-gray-600 h-6 rounded mb-3 w-3/4"></div>
+                    <div className="bg-gray-300 dark:bg-gray-600 h-4 rounded w-full mb-2"></div>
+                    <div className="bg-gray-300 dark:bg-gray-600 h-4 rounded w-2/3"></div>
+                  </div>
+                  <div className="bg-lime-500 h-12 rounded-xl flex items-center justify-center text-white font-bold shadow-md">
+                    Buy Now
+                  </div>
+                </div>
+              </div>
 
-          <div className="relative max-w-7xl mx-auto px-6 pt-20 text-center">
-            <h1 className="text-5xl sm:text-6xl font-extrabold text-white drop-shadow-lg">
-              Products
-            </h1>
-            <p className="mt-4 text-xl text-white/90">
-              Shop the latest devices and accessories
-            </p>
+              {/* Tablet */}
+              <div
+                className="absolute bottom-10 right-10 w-56 h-44 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-xl transform rotate-y--15 rotate-x-8 animate-float-3d-delay border border-gray-200 dark:border-gray-700"
+                style={{ transformStyle: 'preserve-3d' }}
+              >
+                <div className="p-5" style={{ transform: 'translateZ(15px)' }}>
+                  <div className="bg-gray-200 dark:bg-gray-700 h-4 rounded mb-2"></div>
+                  <div className="bg-gray-200 dark:bg-gray-700 h-3 rounded w-4/5"></div>
+                </div>
+              </div>
+
+              {/* Discount Badge */}
+              <div
+                className="absolute top-32 left-4 w-32 h-28 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl transform rotate-y-20 rotate-x-10 animate-float-3d-fast border-2 border-lime-500"
+                style={{ transformStyle: 'preserve-3d' }}
+              >
+                <div className="p-4 text-center" style={{ transform: 'translateZ(10px)' }}>
+                  <FiTag className="text-lime-600 text-3xl mx-auto mb-1" />
+                  <p className="text-sm font-bold text-lime-600">50% OFF</p>
+                </div>
+              </div>
+
+              {/* Spinning Dollar */}
+              <div className="absolute top-20 right-20 w-12 h-12 animate-spin-slow opacity-70">
+                <FiDollarSign className="text-lime-500 text-5xl" style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))' }} />
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ────── FILTER PANEL (ENHANCED) ────── */}
-      <div className="max-w-7xl mx-auto px-6 py-8 -mt-16 relative z-10">
+      {/* ────── FILTER PANEL ────── */}
+      <div className="max-w-7xl mx-auto px-6 py-8 -mt-20 relative z-10">
         <div
-          className={`bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl rounded-3xl shadow-2xl border ${
-            darkMode
-              ? 'border-gray-700/50'
-              : 'border-gray-200/50'
-          } p-4 transition-all duration-300`}
+          className={`rounded-3xl shadow-2xl p-6 transition-all duration-300 ${
+            darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+          }`}
         >
-          {/* Toggle button */}
           <button
             onClick={() => setShowFilters((v) => !v)}
-            className="w-full flex items-center justify-between text-lg font-semibold text-gray-800 dark:text-gray-100"
+            className={`w-full flex items-center justify-between text-lg font-semibold ${darkMode ? 'text-lime-400' : 'text-lime-600'}`}
           >
             Filters
-            <FiChevronDown
-              className={`transition-transform ${showFilters ? 'rotate-180' : ''}`}
-            />
+            <FiChevronDown className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
           </button>
 
-          {/* Collapsible content */}
           {showFilters && (
-            <div className="mt-5 grid grid-cols-1 md:grid-cols-4 gap-4 animate-fadeIn">
-              {/* Search */}
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-5 animate-fadeIn">
               <div className="relative">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
                 <input
                   type="text"
                   placeholder="Search products..."
                   value={searchTerm}
                   onChange={handleSearchChange}
-                  className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-xl border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className={`w-full pl-12 pr-4 py-3 rounded-xl border ${
+                    darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-800'
+                  } focus:outline-none focus:ring-2 focus:ring-lime-500`}
                 />
               </div>
 
-              {/* Category */}
               <div className="relative">
                 <button
-                  onClick={() => setShowFilters(true)} // keep open
-                  className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-xl border border-gray-300 dark:border-gray-600 flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className={`w-full px-4 py-3 rounded-xl border flex items-center justify-between ${
+                    darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-800'
+                  } focus:outline-none focus:ring-2 focus:ring-lime-500`}
                 >
                   {selectedCategory}
                   <FiChevronDown className="ml-2" />
                 </button>
-                <div className="absolute z-20 mt-1 w-full bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-300 dark:border-gray-600 max-h-60 overflow-y-auto">
+                <div className="absolute z-20 mt-2 w-full bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-300 dark:border-gray-600 max-h-60 overflow-y-auto">
                   <input
                     type="text"
                     placeholder="Search categories..."
                     value={categorySearch}
                     onChange={(e) => setCategorySearch(e.target.value)}
-                    className="w-full px-3 py-2 border-b border-gray-300 dark:border-gray-600 bg-transparent focus:outline-none text-sm"
+                    className="w-full px-4 py-2 border-b border-gray-300 dark:border-gray-600 bg-transparent focus:outline-none text-sm"
                   />
                   {categories
                     .filter((c) =>
@@ -442,7 +507,7 @@ const Products = ({ darkMode }) => {
                           setSelectedCategory(cat);
                           setCategorySearch('');
                         }}
-                        className="w-full px-3 py-2 text-left hover:bg-indigo-50 dark:hover:bg-indigo-900 text-sm capitalize"
+                        className="w-full px-4 py-2 text-left hover:bg-lime-50 dark:hover:bg-lime-900 text-sm capitalize"
                       >
                         {cat}
                       </button>
@@ -450,9 +515,8 @@ const Products = ({ darkMode }) => {
                 </div>
               </div>
 
-              {/* Price Range Slider */}
               <div className="flex flex-col gap-2">
-                <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                <div className={`flex justify-between text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                   <span>EGP {priceRange[0]}</span>
                   <span>EGP {priceRange[1]}</span>
                 </div>
@@ -465,7 +529,7 @@ const Products = ({ darkMode }) => {
                   onChange={(e) =>
                     setPriceRange([+e.target.value, priceRange[1]])
                   }
-                  className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer slider-thumb"
+                  className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-lime-600"
                 />
                 <input
                   type="range"
@@ -476,27 +540,25 @@ const Products = ({ darkMode }) => {
                   onChange={(e) =>
                     setPriceRange([priceRange[0], +e.target.value])
                   }
-                  className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer slider-thumb"
+                  className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-lime-600"
                 />
               </div>
 
-              {/* Clear */}
               <button
                 onClick={clearFilters}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition"
+                className="flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition shadow-md"
               >
-                <FiX />
-                Clear
+                <FiX /> Clear
               </button>
             </div>
           )}
         </div>
       </div>
 
-      {/* ────── Latest Products Slider ────── */}
+      {/* ────── LATEST ARRIVALS SLIDER ────── */}
       {!isLoading && latestProducts.length > 0 && (
-        <div className="max-w-7xl mx-auto px-6 mb-12">
-          <h2 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">
+        <div className="max-w-7xl mx-auto px-6 mb-16">
+          <h2 className={`text-3xl font-bold mb-8 ${darkMode ? 'text-lime-400' : 'text-lime-600'}`}>
             Latest Arrivals
           </h2>
 
@@ -505,107 +567,95 @@ const Products = ({ darkMode }) => {
               ref={sliderRef}
               className="flex overflow-x-auto gap-6 snap-x snap-mandatory scroll-smooth hide-scrollbar"
             >
-              {latestProducts.map((p) => (
+              {latestProducts.map((p, i) => (
                 <div
                   key={p.id}
-                  className="snap-start flex-shrink-0 w-72"
+                  className="snap-start flex-shrink-0 w-80"
+                  style={{ animationDelay: `${i * 100}ms` }}
                 >
-                  <ProductCard
-                    product={p}
-                    darkMode={darkMode}
-                    onAddToCart={handleAddToCart}
-                  />
+                  <ProductCard product={p} darkMode={darkMode} onAddToCart={handleAddToCart} />
                 </div>
               ))}
             </div>
 
-            {/* navigation arrows */}
             <button
               onClick={() => scrollSlider('left')}
-              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md p-3 rounded-full shadow-lg hover:bg-indigo-100 dark:hover:bg-indigo-900 transition z-10"
+              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md p-3 rounded-full shadow-lg hover:bg-lime-100 dark:hover:bg-lime-900 transition z-10"
             >
-              <FiChevronLeft className="w-5 h-5 text-indigo-600" />
+              <FiChevronLeft className="w-6 h-6 text-lime-600" />
             </button>
             <button
               onClick={() => scrollSlider('right')}
-              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md p-3 rounded-full shadow-lg hover:bg-indigo-100 dark:hover:bg-indigo-900 transition z-10"
+              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md p-3 rounded-full shadow-lg hover:bg-lime-100 dark:hover:bg-lime-900 transition z-10"
             >
-              <FiChevronRight className="w-5 h-5 text-indigo-600" />
+              <FiChevronRight className="w-6 h-6 text-lime-600" />
             </button>
 
-            {/* dots */}
             <div className="flex justify-center gap-2 mt-6">
-              {Array.from(
-                { length: Math.max(1, latestProducts.length - 3) },
-                (_, i) => {
-                  const active = getActiveSlide() === i;
-                  return (
-                    <button
-                      key={i}
-                      onClick={() =>
-                        sliderRef.current?.scrollTo({
-                          left: i * 300,
-                          behavior: 'smooth',
-                        })
-                      }
-                      className={`transition-all duration-300 rounded-full ${
-                        active
-                          ? 'w-10 h-3 bg-indigo-600'
-                          : 'w-3 h-3 bg-gray-400 dark:bg-gray-600 hover:bg-indigo-400'
-                      }`}
-                    />
-                  );
-                }
-              )}
+              {Array.from({ length: Math.max(1, latestProducts.length - 2) }, (_, i) => {
+                const active = getActiveSlide() === i;
+                return (
+                  <button
+                    key={i}
+                    onClick={() =>
+                      sliderRef.current?.scrollTo({
+                        left: i * 320,
+                        behavior: 'smooth',
+                      })
+                    }
+                    className={`transition-all duration-300 rounded-full ${
+                      active
+                        ? 'w-10 h-3 bg-lime-600'
+                        : 'w-3 h-3 bg-gray-400 dark:bg-gray-600 hover:bg-lime-400'
+                    }`}
+                  />
+                );
+              })}
             </div>
           </div>
         </div>
       )}
 
-      {/* ────── Main Grid ────── */}
-      <div className="max-w-7xl mx-auto px-6 pb-12">
+      {/* ────── MAIN GRID ────── */}
+      <div className="max-w-7xl mx-auto px-6 pb-16">
         {isLoading ? (
           <div className="flex justify-center items-center h-64">
-            <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+            <div className="w-12 h-12 border-4 border-lime-600 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : filteredProducts.length === 0 ? (
           <div className="text-center py-16">
             <FiShoppingCart className="mx-auto text-6xl text-gray-400 mb-4" />
-            <p className="text-xl text-gray-600 dark:text-gray-400">
+            <p className={`text-xl ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
               No products found.
             </p>
           </div>
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {paginatedProducts.map((p) => (
-                <ProductCard
-                  key={p.id}
-                  product={p}
-                  darkMode={darkMode}
-                  onAddToCart={handleAddToCart}
-                />
+              {paginatedProducts.map((p, i) => (
+                <div key={p.id} style={{ animationDelay: `${i * 50}ms` }}>
+                  <ProductCard product={p} darkMode={darkMode} onAddToCart={handleAddToCart} />
+                </div>
               ))}
             </div>
 
-            {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex justify-center mt-10 gap-2">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                  (page) => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`px-4 py-2 rounded-xl font-medium transition ${
-                        currentPage === page
-                          ? 'bg-indigo-600 text-white'
-                          : 'bg-white/50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-indigo-900'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  )
-                )}
+              <div className="flex justify-center mt-12 gap-3">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    // className={`px-5 py-3 rounded-xl font-medium transition shadow-md ${
+                    //   currentPage === page
+                    //     ? 'bg-lime-600 text-white'
+                    //     : darkMode
+                    //     ? 'bg-gray-700 text-gray-300 hover:bg-lime-900'
+                    //     : 'bg-white text-gray-700 hover:bg-lime-100'
+                    // }`}
+                  >
+                    {page}
+                  </button>
+                ))}
               </div>
             )}
           </>

@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { FiX, FiShoppingCart, FiCreditCard, FiTruck, FiTrash2 } from "react-icons/fi";
+import { FiX, FiShoppingCart, FiCreditCard, FiTruck, FiTrash2, FiStar, FiUsers, FiZap, FiChevronDown, FiCheck } from "react-icons/fi";
 import { jwtDecode } from "jwt-decode";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import api from "../api";
 
-const Cart = ({ show, onClose, darkMode }) => {
+const Cart = ({ show, onClose, darkMode  }) => {
   const [checkoutStep, setCheckoutStep] = useState("cart");
   const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState("");
@@ -14,35 +14,26 @@ const Cart = ({ show, onClose, darkMode }) => {
   const [paymentMethod, setPaymentMethod] = useState("");
   const [cartTotal, setCartTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [showCookieBanner, setShowCookieBanner] = useState(true);
 
   const navigate = useNavigate();
 
   /* ------------------------------------------------------------------ */
-  /*  SAFE JWT DECODE (FIXED DIRECTLY HERE)                             */
+  /*  SAFE JWT DECODE                                                   */
   /* ------------------------------------------------------------------ */
   const safeDecodeJwt = useCallback((token) => {
-    if (!token || typeof token !== "string" || token.trim() === "") {
-      return null;
-    }
-    try {
-      return jwtDecode(token);
-    } catch (error) {
-      console.warn("Invalid JWT token:", error.message);
-      return null;
-    }
+    if (!token || typeof token !== "string" || token.trim() === "") return null;
+    try { return jwtDecode(token); } catch { return null; }
   }, []);
 
   const isTokenExpired = useCallback((token) => {
     const decoded = safeDecodeJwt(token);
-    if (!decoded) return true;
-    return !decoded.exp || decoded.exp < Date.now() / 1000;
+    return !decoded || !decoded.exp || decoded.exp < Date.now() / 1000;
   }, [safeDecodeJwt]);
 
-  // Safe token & userId
   const token = localStorage.getItem("authToken");
   const decodedToken = token ? safeDecodeJwt(token) : null;
   const userId = decodedToken?.userId || null;
-
   const isAuthenticated = !!token && !isTokenExpired(token);
 
   /* ------------------------------------------------------------------ */
@@ -57,10 +48,7 @@ const Cart = ({ show, onClose, darkMode }) => {
   /*  FETCH CART                                                        */
   /* ------------------------------------------------------------------ */
   const fetchCart = useCallback(async () => {
-    if (!token || !isAuthenticated) {
-      setCartItems([]);
-      return;
-    }
+    if (!token || !isAuthenticated) { setCartItems([]); return; }
 
     const controller = new AbortController();
     try {
@@ -77,15 +65,7 @@ const Cart = ({ show, onClose, darkMode }) => {
         console.error("Error fetching cart:", err.response?.data || err.message);
         setCartItems([]);
         calculateTotal([]);
-        Swal.fire({
-          title: 'Error',
-          text: 'Failed to load cart!',
-          icon: 'error',
-          toast: true,
-          position: 'top-end',
-          showConfirmButton: false,
-          timer: 1500,
-        });
+        Swal.fire({ title: 'Error', text: 'Failed to load cart!', icon: 'error', toast: true, position: 'top-end', timer: 1500 });
       }
     } finally {
       setIsLoading(false);
@@ -98,50 +78,29 @@ const Cart = ({ show, onClose, darkMode }) => {
   /* ------------------------------------------------------------------ */
   const addToCart = useCallback(async (productId, quantity = 1) => {
     if (!isAuthenticated) {
-      Swal.fire({
-        icon: "info",
-        title: "Login Required",
-        text: "Please log in to add items to cart",
-        confirmButtonText: "Go to Login",
-      }).then(() => navigate("/login"));
+      Swal.fire({ icon: "info", title: "Login Required", text: "Please log in to add items to cart", confirmButtonText: "Go to Login" })
+        .then(() => navigate("/login"));
       return;
     }
 
+    const placeholder = { id: Date.now(), productId, quantity, productName: "Loading...", productPrice: 0 };
+    setCartItems(prev => {
+      const existing = prev.find(i => i.productId === productId);
+      return existing
+        ? prev.map(i => i.productId === productId ? { ...i, quantity: i.quantity + quantity } : i)
+        : [...prev, placeholder];
+    });
+
     try {
-      // Optimistic update
-      const placeholder = { id: Date.now(), productId, quantity, productName: "Loading...", productPrice: 0 };
-      setCartItems((prev) => {
-        const existing = prev.find((i) => i.productId === productId);
-        if (existing) {
-          return prev.map((i) =>
-            i.productId === productId ? { ...i, quantity: i.quantity + quantity } : i
-          );
-        }
-        return [...prev, placeholder];
+      const res = await api.post("/api/cart/items", { productId, quantity }, {
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       });
-
-      const res = await api.post(
-        "/api/cart/items",
-        { productId, quantity },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
       setCartItems(res.data.items || []);
       calculateTotal(res.data.items || []);
     } catch (err) {
       console.error("Error adding to cart:", err.response?.data || err.message);
-      fetchCart(); // Revert to server state
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: err.response?.data?.message || "Failed to add item",
-        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-      });
+      fetchCart();
+      Swal.fire({ icon: "error", title: "Error", text: err.response?.data?.message || "Failed to add item", customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" } });
     }
   }, [token, isAuthenticated, darkMode, navigate, calculateTotal, fetchCart]);
 
@@ -150,31 +109,19 @@ const Cart = ({ show, onClose, darkMode }) => {
   /* ------------------------------------------------------------------ */
   const updateQuantity = useCallback(async (itemId, newQuantity) => {
     if (newQuantity < 1) return removeFromCart(itemId);
-
     const prevItems = [...cartItems];
-    setCartItems((prev) =>
-      prev.map((item) => (item.id === itemId ? { ...item, quantity: newQuantity } : item))
-    );
-    calculateTotal(cartItems.map((i) => (i.id === itemId ? { ...i, quantity: newQuantity } : i)));
+    setCartItems(prev => prev.map(i => i.id === itemId ? { ...i, quantity: newQuantity } : i));
+    calculateTotal(cartItems.map(i => i.id === itemId ? { ...i, quantity: newQuantity } : i));
 
     try {
-      await api.put(
-        `/api/cart/items/${itemId}`,
-        { quantity: newQuantity },
-        {
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        }
-      );
+      await api.put(`/api/cart/items/${itemId}`, { quantity: newQuantity }, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      });
     } catch (err) {
       console.error("Error updating quantity:", err.response?.data || err.message);
       setCartItems(prevItems);
       calculateTotal(prevItems);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: err.response?.data?.message || "Failed to update quantity",
-        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-      });
+      Swal.fire({ icon: "error", title: "Error", text: err.response?.data?.message || "Failed to update quantity", customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" } });
     }
   }, [token, cartItems, calculateTotal]);
 
@@ -183,35 +130,17 @@ const Cart = ({ show, onClose, darkMode }) => {
   /* ------------------------------------------------------------------ */
   const removeFromCart = useCallback(async (itemId) => {
     const prevItems = [...cartItems];
-    setCartItems((prev) => prev.filter((i) => i.id !== itemId));
-    calculateTotal(cartItems.filter((i) => i.id !== itemId));
+    setCartItems(prev => prev.filter(i => i.id !== itemId));
+    calculateTotal(cartItems.filter(i => i.id !== itemId));
 
     try {
-      await api.delete(`/api/cart/items/${itemId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      Swal.fire({
-        title: 'Success',
-        text: 'Item removed!',
-        icon: 'success',
-        toast: true,
-        position: 'top-start',
-        showConfirmButton: false,
-        timer: 1500,
-      });
+      await api.delete(`/api/cart/items/${itemId}`, { headers: { Authorization: `Bearer ${token}` } });
+      Swal.fire({ title: 'Success', text: 'Item removed!', icon: 'success', toast: true, position: 'top-start', timer: 1500 });
     } catch (err) {
       console.error("Error removing item:", err.response?.data || err.message);
       setCartItems(prevItems);
       calculateTotal(prevItems);
-      Swal.fire({
-        title: 'Error',
-        text: 'Failed to remove item!',
-        icon: 'error',
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 1500,
-      });
+      Swal.fire({ title: 'Error', text: 'Failed to remove item!', icon: 'error', toast: true, position: 'top-end', timer: 1500 });
     }
   }, [token, cartItems, calculateTotal]);
 
@@ -224,28 +153,13 @@ const Cart = ({ show, onClose, darkMode }) => {
     setCartTotal(0);
 
     try {
-      await api.delete("/api/cart", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      Swal.fire({
-        icon: "success",
-        title: "Success",
-        text: "Cart cleared successfully",
-        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-      });
+      await api.delete("/api/cart", { headers: { Authorization: `Bearer ${token}` } });
+      Swal.fire({ icon: "success", title: "Success", text: "Cart cleared successfully", customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" } });
     } catch (err) {
       console.error("Error clearing cart:", err.response?.data || err.message);
       setCartItems(prevItems);
       calculateTotal(prevItems);
-      Swal.fire({
-        title: 'Error',
-        text: 'Failed to clear cart!',
-        icon: 'error',
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 1500,
-      });
+      Swal.fire({ title: 'Error', text: 'Failed to clear cart!', icon: 'error', toast: true, position: 'top-end', timer: 1500 });
     }
   }, [token, darkMode, cartItems, calculateTotal]);
 
@@ -263,21 +177,11 @@ const Cart = ({ show, onClose, darkMode }) => {
       });
       const addrList = res.data.content || [];
       setAddresses(addrList);
-      if (addrList.length > 0) {
-        setSelectedAddress(addrList[0].id);
-      }
+      if (addrList.length > 0) setSelectedAddress(addrList[0].id);
     } catch (err) {
       if (err.name !== "AbortError") {
         console.error("Error fetching addresses:", err.response?.data || err.message);
-        Swal.fire({
-          title: 'Error',
-          text: 'Failed to load addresses!',
-          icon: 'error',
-          toast: true,
-          position: 'top-end',
-          showConfirmButton: false,
-          timer: 1500,
-        });
+        Swal.fire({ title: 'Error', text: 'Failed to load addresses!', icon: 'error', toast: true, position: 'top-end', timer: 1500 });
       }
     }
     return () => controller.abort();
@@ -288,35 +192,18 @@ const Cart = ({ show, onClose, darkMode }) => {
   /* ------------------------------------------------------------------ */
   const createOrder = useCallback(async () => {
     if (!isAuthenticated) {
-      Swal.fire({
-        icon: "info",
-        title: "Not Logged In",
-        text: "Create account or login if already have one",
-        confirmButtonText: "Go to Login",
-        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-      }).then(() => {
-        navigate("/login");
-      });
+      Swal.fire({ icon: "info", title: "Not Logged In", text: "Create account or login if already have one", confirmButtonText: "Go to Login", customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" } })
+        .then(() => navigate("/login"));
       return;
     }
 
     if (!selectedAddress) {
-      Swal.fire({
-        icon: "info",
-        title: "Missing Address",
-        text: "Please select a delivery address",
-        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-      });
+      Swal.fire({ icon: "info", title: "Missing Address", text: "Please select a delivery address", customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" } });
       return;
     }
 
     if (!paymentMethod) {
-      Swal.fire({
-        icon: "info",
-        title: "Missing Payment",
-        text: "Please select a payment method",
-        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
-      });
+      Swal.fire({ icon: "info", title: "Missing Payment", text: "Please select a payment method", customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" } });
       return;
     }
 
@@ -327,26 +214,15 @@ const Cart = ({ show, onClose, darkMode }) => {
       };
 
       const orderRes = await api.post("/api/users/orders", payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       });
 
       const orderId = orderRes.data.id;
 
       if (paymentMethod === "visa") {
-        const paymentRes = await api.post(
-          `/api/payments/order/card/${orderId}`,
-          {},
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
-
+        const paymentRes = await api.post(`/api/payments/order/card/${orderId}`, {}, {
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        });
         if (paymentRes.data.paymentURL) {
           window.open(paymentRes.data.paymentURL, "_blank");
         } else {
@@ -356,44 +232,19 @@ const Cart = ({ show, onClose, darkMode }) => {
 
       setCartItems([]);
       setCheckoutStep("complete");
-      Swal.fire({
-        title: 'Success!',
-        text: 'Order placed successfully!',
-        icon: 'success',
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 2000,
-      });
+      Swal.fire({ title: 'Success!', text: 'Order placed successfully!', icon: 'success', toast: true, position: 'top-end', timer: 2000 });
     } catch (err) {
       console.error("Order failed:", err.response?.data || err.message);
-      Swal.fire({
-        title: 'Error',
-        text: err.response?.data?.message || 'Failed to place order!',
-        icon: 'error',
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 2000,
-      });
+      Swal.fire({ title: 'Error', text: err.response?.data?.message || 'Failed to place order!', icon: 'error', toast: true, position: 'top-end', timer: 2000 });
     }
-  }, [
-    token,
-    isAuthenticated,
-    selectedAddress,
-    paymentMethod,
-    darkMode,
-    navigate,
-  ]);
+  }, [token, isAuthenticated, selectedAddress, paymentMethod, darkMode, navigate]);
 
   /* ------------------------------------------------------------------ */
   /*  INITIAL FETCH                                                     */
   /* ------------------------------------------------------------------ */
   useEffect(() => {
     if (show && isAuthenticated) {
-      Promise.all([fetchCart(), fetchAddresses()]).catch((err) =>
-        console.error("Initial fetch error:", err)
-      );
+      Promise.all([fetchCart(), fetchAddresses()]).catch(console.error);
     } else if (show && !isAuthenticated) {
       setCartItems([]);
       setAddresses([]);
@@ -403,213 +254,246 @@ const Cart = ({ show, onClose, darkMode }) => {
   if (!show) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-end z-50 transition-opacity duration-300">
+    <div className="fixed inset-0 z-50 flex justify-end">
+      {/* Backdrop */}
       <div
-        className={`w-full max-w-md h-full overflow-y-auto ${
-          darkMode ? "bg-gray-900" : "bg-white"
-        } shadow-2xl transform transition-transform duration-300 ease-in-out ${
-          show ? "translate-x-0" : "translate-x-full"
-        }`}
+        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity duration-300"
+        onClick={onClose}
+      />
+
+      {/* Modal - Slides in from right */}
+      <div
+        className={`relative w-full max-w-md h-full overflow-y-auto shadow-2xl transform transition-transform duration-300 ease-in-out ${
+          darkMode ? "bg-gray-900 text-white" : "bg-white text-gray-900"
+        } ${show ? "translate-x-0" : "translate-x-full"}`}
       >
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
-            <FiShoppingCart />
-            {checkoutStep === "cart" && "Your Cart"}
-            {checkoutStep === "checkout" && "Checkout"}
-            {checkoutStep === "complete" && "Order Complete"}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
-          >
-            <FiX className="w-6 h-6" />
-          </button>
-        </div>
+        {/* === MONOTREE HERO INSIDE MODAL === */}
+        <section className="relative overflow-hidden bg-gradient-to-br from-lime-50 to-teal-50 dark:from-lime-900/20 dark:to-teal-900/20 p-6">
+          <div className="grid md:grid-cols-2 gap-8 items-center">
+            {/* Left: Text */}
+            <div className="space-y-4">
+              <h1 className="text-3xl md:text-4xl font-bold leading-tight">
+                Your <span className="underline decoration-lime-500 decoration-4">Cart</span>
+              </h1>
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                Review items, choose delivery, and checkout securely.
+              </p>
 
-        {isLoading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-          </div>
-        ) : (
-          <>
-            {checkoutStep === "cart" && (
-              <div className="p-6">
-                {cartItems.length === 0 ? (
-                  <div className="text-center py-8">
-                    <FiShoppingCart className="text-gray-400 text-4xl mx-auto mb-4" />
-                    <p className="text-gray-500 dark:text-gray-400 text-lg">
-                      Your cart is empty
-                    </p>
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-4 pt-4">
+                <div>
+                  <div className="text-xl font-bold text-lime-600 dark:text-lime-400 flex items-center gap-1">
+                    <FiZap /> 100%
                   </div>
-                ) : (
-                  <>
-                    {cartItems.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex justify-between items-center bg-gray-50 dark:bg-gray-800 p-4 rounded-xl mb-4 shadow-sm transition-all duration-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      >
-                        <div>
-                          <h4 className="font-semibold text-gray-900 dark:text-gray-100">
-                            {item.productName}
-                          </h4>
-                          <p className="text-gray-600 dark:text-gray-400">
-                            {item.productPrice} EGP
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            className="px-3 py-1 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition"
-                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                          >
-                            -
-                          </button>
-                          <span className="text-gray-900 dark:text-gray-100 font-medium">
-                            {item.quantity}
-                          </span>
-                          <button
-                            className="px-3 py-1 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition"
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          >
-                            +
-                          </button>
-                          <button
-                            onClick={() => removeFromCart(item.id)}
-                            className="ml-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition"
-                          >
-                            <FiTrash2 />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                    <div className="mt-4 flex justify-between font-semibold text-gray-900 dark:text-gray-100">
-                      <span>Total:</span>
-                      <span>{cartTotal.toFixed(2)} EGP</span>
-                    </div>
-                    <div className="mt-6 flex gap-4">
-                      <button
-                        onClick={() => setCheckoutStep("checkout")}
-                        className="flex-1 bg-indigo-600 text-white py-3 rounded-xl hover:bg-indigo-700 transition"
-                      >
-                        Proceed to Checkout
-                      </button>
-                      <button
-                        onClick={clearCart}
-                        className="flex items-center justify-center gap-2 bg-red-600 text-white py-3 px-4 rounded-xl hover:bg-red-700 transition"
-                      >
-                        <FiTrash2 className="w-5 h-5" />
-                        Clear Cart
-                      </button>
-                    </div>
-                  </>
-                )}
+                  <p className="text-xs text-gray-600 dark:text-gray-400">Secure</p>
+                </div>
+                {/* <div>
+                  <div className="text-xl font-bold text-lime-600 dark:text-lime-400 flex items-center gap-1">
+                    <FiTruck /> 2-3 Days
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">Delivery</p>
+                </div> */}
+              
               </div>
-            )}
+            </div>
 
-            {checkoutStep === "checkout" && (
-              <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                  Delivery Address
-                </h3>
-                <div className="relative mb-6">
-                  <button
-                    type="button"
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-xl flex items-center justify-between text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
-                    onClick={() => setShowDropdown(!showDropdown)}
-                  >
-                    {selectedAddress
-                      ? addresses.find((a) => a.id === selectedAddress)?.street +
-                        ", " +
-                        addresses.find((a) => a.id === selectedAddress)?.city
-                      : "Select Address"}
-                    <svg
-                      className={`w-5 h-5 transition-transform duration-200 ${
-                        showDropdown ? "rotate-180" : ""
-                      }`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  {showDropdown && (
-                    <div className="absolute z-10 mt-2 w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl shadow-md max-h-48 overflow-y-auto">
-                      {addresses.map((addr) => (
+            {/* Right: 3D Mockup */}
+            <div className="relative hidden md:block h-48">
+              <div className="absolute inset-0 bg-gradient-to-br from-lime-100 to-teal-100 dark:from-lime-900 dark:to-teal-900 rounded-3xl blur-3xl opacity-50"></div>
+              <div className="absolute top-4 left-4 w-32 h-40 bg-white dark:bg-gray-800 rounded-3xl shadow-xl rotate-12 transform-gpu overflow-hidden">
+                <div className="p-3 space-y-2">
+                  <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
+                  <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
+                  <div className="h-6 bg-lime-500 rounded w-12"></div>
+                </div>
+              </div>
+              <div className="absolute bottom-4 right-4 w-36 h-44 bg-white dark:bg-gray-800 rounded-3xl shadow-xl -rotate-6 transform-gpu overflow-hidden">
+                <div className="p-4">
+                  <div className="w-8 h-8 bg-lime-500 rounded-full mx-auto mb-2 flex items-center justify-center">
+                    <FiShoppingCart className="text-white text-sm" />
+                  </div>
+                  <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm shadow-md hover:bg-white dark:hover:bg-gray-700 transition"
+        >
+          <FiX className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+        </button>
+
+        {/* Cart Content */}
+        <div className="p-6 pt-2">
+          {isLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="w-12 h-12 border-4 border-lime-600 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          ) : (
+            <>
+              {checkoutStep === "cart" && (
+                <div>
+                  {cartItems.length === 0 ? (
+                    <div className="text-center py-12">
+                      <FiShoppingCart className="mx-auto text-6xl text-gray-400 mb-3" />
+                      <p className="text-gray-500 dark:text-gray-400">Your cart is empty</p>
+                    </div>
+                  ) : (
+                    <>
+                      {cartItems.map((item) => (
                         <div
-                          key={addr.id}
-                          onClick={() => {
-                            setSelectedAddress(addr.id);
-                            setShowDropdown(false);
-                          }}
-                          className={`px-3 py-2 text-sm text-gray-800 dark:text-gray-100 hover:bg-indigo-50 dark:hover:bg-gray-600 cursor-pointer transition ${
-                            selectedAddress === addr.id ? "bg-indigo-50 dark:bg-gray-600" : ""
-                          }`}
+                          key={item.id}
+                          className="flex items-center gap-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm p-4 rounded-2xl mb-3 shadow-sm"
                         >
-                          {addr.street}, {addr.city}
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-100">{item.productName}</h4>
+                            <p className="text-sm text-lime-600 dark:text-lime-400">{item.productPrice} EGP</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                              className="w-8 h-8 rounded-full bg-lime-600 text-white hover:bg-lime-700 transition"
+                            >-</button>
+                            <span className="w-8 text-center font-medium">{item.quantity}</span>
+                            <button
+                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                              className="w-8 h-8 rounded-full bg-lime-600 text-white hover:bg-lime-700 transition"
+                            >+</button>
+                            <button
+                              onClick={() => removeFromCart(item.id)}
+                              className="ml-2 text-red-600 hover:text-red-700"
+                            >
+                              <FiTrash2 />
+                            </button>
+                          </div>
                         </div>
                       ))}
-                    </div>
+                      <div className="mt-6 p-4 bg-lime-50 dark:bg-lime-900/30 rounded-2xl">
+                        <div className="flex justify-between text-lg font-bold">
+                          <span>Total:</span>
+                          <span className="text-lime-600 dark:text-lime-400">{cartTotal.toFixed(2)} EGP</span>
+                        </div>
+                      </div>
+                      <div className="mt-6 flex gap-3">
+                        <button
+                          onClick={() => setCheckoutStep("checkout")}
+                          className="flex-1 py-3 bg-lime-600 text-white rounded-xl hover:bg-lime-700 transition font-semibold"
+                        >
+                          Proceed to Checkout
+                        </button>
+                        <button
+                          onClick={clearCart}
+                          className="px-4 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition flex items-center gap-2"
+                        >
+                          <FiTrash2 /> Clear
+                        </button>
+                      </div>
+                    </>
                   )}
                 </div>
+              )}
 
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                  Payment Method
-                </h3>
-                <div className="space-y-3 mb-6">
+              {checkoutStep === "checkout" && (
+                <div className="space-y-6">
+                  <h3 className="text-lg font-bold text-lime-600 dark:text-lime-400">Delivery Address</h3>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowDropdown(!showDropdown)}
+                      className="w-full px-4 py-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-600 flex justify-between items-center text-left"
+                    >
+                      <span className="truncate">
+                        {selectedAddress
+                          ? addresses.find(a => a.id === selectedAddress)?.street + ", " + addresses.find(a => a.id === selectedAddress)?.city
+                          : "Select address"}
+                      </span>
+                      <FiChevronDown className={`transition-transform ${showDropdown ? "rotate-180" : ""}`} />
+                    </button>
+                    {showDropdown && (
+                      <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                        {addresses.map(addr => (
+                          <div
+                            key={addr.id}
+                            onClick={() => { setSelectedAddress(addr.id); setShowDropdown(false); }}
+                            className="px-4 py-2 hover:bg-lime-100 dark:hover:bg-lime-900 cursor-pointer"
+                          >
+                            {addr.street}, {addr.city}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <h3 className="text-lg font-bold text-lime-600 dark:text-lime-400">Payment Method</h3>
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => setPaymentMethod("cod")}
+                      className={`w-full p-4 rounded-xl border flex items-center gap-3 transition ${
+                        paymentMethod === "cod" ? "border-lime-600 bg-lime-50 dark:bg-lime-900/30" : "border-gray-300 dark:border-gray-600"
+                      }`}
+                    >
+                      <FiTruck className="text-lime-600" /> Cash on Delivery
+                    </button>
+                    <button
+                      onClick={() => setPaymentMethod("visa")}
+                      className={`w-full p-4 rounded-xl border flex items-center gap-3 transition ${
+                        paymentMethod === "visa" ? "border-lime-600 bg-lime-50 dark:bg-lime-900/30" : "border-gray-300 dark:border-gray-600"
+                      }`}
+                    >
+                      <FiCreditCard className="text-lime-600" /> Credit/Debit Card
+                    </button>
+                  </div>
+
                   <button
-                    onClick={() => setPaymentMethod("cod")}
-                    className={`w-full p-4 border border-gray-300 dark:border-gray-600 rounded-xl flex items-center gap-2 text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-600 transition ${
-                      paymentMethod === "cod" ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900" : ""
+                    onClick={createOrder}
+                    disabled={!paymentMethod || !selectedAddress}
+                    className={`w-full py-4 rounded-xl font-bold transition ${
+                      paymentMethod && selectedAddress
+                        ? "bg-lime-600 text-white hover:bg-lime-700"
+                        : "bg-gray-400 text-gray-600 cursor-not-allowed"
                     }`}
                   >
-                    <FiTruck className="text-indigo-600 dark:text-indigo-400" />
-                    Cash on Delivery
-                  </button>
-                  <button
-                    onClick={() => setPaymentMethod("visa")}
-                    className={`w-full p-4 border border-gray-300 dark:border-gray-600 rounded-xl flex items-center gap-2 text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-600 transition ${
-                      paymentMethod === "visa" ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900" : ""
-                    }`}
-                  >
-                    <FiCreditCard className="text-indigo-600 dark:text-indigo-400" />
-                    Credit/Debit Card
+                    Place Order
                   </button>
                 </div>
-                <button
-                  onClick={createOrder}
-                  disabled={!paymentMethod || !selectedAddress}
-                  className={`w-full py-3 rounded-xl text-white font-semibold transition ${
-                    paymentMethod && selectedAddress
-                      ? "bg-indigo-600 hover:bg-indigo-700"
-                      : "bg-gray-400 cursor-not-allowed"
-                  }`}
-                >
-                  Place Order
-                </button>
-              </div>
-            )}
+              )}
 
-            {checkoutStep === "complete" && (
-              <div className="p-6 text-center">
-                <h3 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mb-4">
-                  Order Placed Successfully!
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  Thank you for your order. You'll receive a confirmation soon.
-                </p>
-                <button
-                  onClick={() => {
-                    onClose();
-                    setCheckoutStep("cart");
-                    setPaymentMethod("");
-                  }}
-                  className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition"
-                >
-                  Continue Shopping
-                </button>
+              {checkoutStep === "complete" && (
+                <div className="text-center py-12">
+                  <div className="w-20 h-20 bg-lime-100 dark:bg-lime-900 rounded-full mx-auto mb-4 flex items-center justify-center">
+                    <FiCheck className="w-10 h-10 text-lime-600 dark:text-lime-400" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-lime-600 dark:text-lime-400 mb-2">Order Confirmed!</h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-6">Thank you for shopping with us.</p>
+                  <button
+                    onClick={() => { onClose(); setCheckoutStep("cart"); setPaymentMethod(""); }}
+                    className="px-6 py-3 bg-lime-600 text-white rounded-xl hover:bg-lime-700 transition"
+                  >
+                    Continue Shopping
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Cookie Banner */}
+        {showCookieBanner && (
+          <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 shadow-lg z-50">
+            <div className="max-w-md mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
+              <p className="text-gray-700 dark:text-gray-300">
+                We use cookies to improve your cart experience. <a href="#" className="underline">Learn more</a>.
+              </p>
+              <div className="flex gap-2">
+                <button onClick={() => setShowCookieBanner(false)} className="px-3 py-1 bg-lime-600 text-white rounded-lg text-xs">Accept</button>
+                <button onClick={() => setShowCookieBanner(false)} className="px-3 py-1 bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg text-xs">Reject</button>
               </div>
-            )}
-          </>
+            </div>
+          </div>
         )}
       </div>
     </div>

@@ -266,172 +266,123 @@ const Homepage = memo(({ darkMode }) => {
   ];
 
   /* ------------------------------------------------------------------ */
-  /*  GLASS MORPHISM BACKGROUND                                        */
-  /* ------------------------------------------------------------------ */
-  const GlassCard = ({ children, className = "" }) => (
-    <div
-      className={`backdrop-blur-xl bg-white/10 dark:bg-black/20 border border-gray-200/50 dark:border-gray-700/50 rounded-2xl p-6 shadow-lg ${className}`}
-    >
-      {children}
-    </div>
-  );
-
-  /* ------------------------------------------------------------------ */
   /*  RENDER                                                           */
   /* ------------------------------------------------------------------ */
   return (
     <>
-      {/* ==================== HERO ==================== */}
-      <section
-        className={`relative overflow-hidden mt-10 pb-20 ${
-          darkMode
-            ? 'bg-gradient-to-br from-gray-900 via-black to-gray-900'
-            : 'bg-gradient-to-br from-white via-gray-50 to-white'
-        }`}
-      >
-        {/* Glass Pattern Overlay */}
-        <div className="absolute inset-0 opacity-5 pointer-events-none">
-          <div
-            className="h-full w-full"
-            style={{
-              backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(255,255,255,.03) 35px, rgba(255,255,255,.03) 70px),
-                                repeating-linear-gradient(-45deg, transparent, transparent 35px, rgba(255,255,255,.03) 35px, rgba(255,255,255,.03) 70px)`,
-              backgroundSize: '70px 70px',
-            }}
-          />
-        </div>
-
-        {/* Floating Neon Icons */}
-        <div className="absolute inset-0 opacity-30 pointer-events-none">
-          <FiTool className="absolute w-16 h-16 bottom-1/3 right-1/5 animate-float-medium text-lime-400" />
-          <FiShoppingBag className="absolute w-20 h-20 top-1/3 right-1/4 animate-float-slow text-lime-500" />
-          <FiSmartphone className="absolute w-24 h-24 bottom-20 right-12 animate-float-slow text-lime-400" />
-        </div>
+      {/* ==================== HERO - MONOTREE STYLE ==================== */}
+      <section className="relative overflow-hidden py-32">
+        {/* Gradient Background */}
+        <div
+          className={`absolute inset-0 ${
+            darkMode
+              ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700"
+              : "bg-gradient-to-br from-white via-lime-50 to-gray-100"
+          }`}
+        />
 
         {/* Wave */}
-        <svg className="absolute bottom-0 w-full h-48" preserveAspectRatio="none" viewBox="0 0 1440 320">
+        <svg className="absolute bottom-0 w-full h-48" preserveAspectRatio="none" viewBox="0 0 1440 320" aria-hidden="true">
           <path
-            fill={darkMode ? '#111827' : '#f9fafb'}
-            d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,320L0,320Z"
+            fill={darkMode ? "#1f2937" : "#f3f4f6"}
+            d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
           />
         </svg>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-24 z-10">
-          <div className="text-center">
-            <h1 className={`text-3xl sm:text-4xl md:text-5xl font-extrabold drop-shadow-lg ${
-              darkMode ? 'text-white' : 'text-gray-900'
-            }`}>
-              Repair & Buy Devices with Confidence
-            </h1>
-            <p className={`mt-4 text-base sm:text-lg max-w-2xl mx-auto ${
-              darkMode ? 'text-gray-300' : 'text-gray-600'
-            }`}>
-              Find trusted repair shops and purchase refurbished devices at great prices.
-            </p>
-          </div>
-
-          {/* Search Bar - Glass */}
-          <div className="relative mt-8 max-w-3xl mx-auto">
-            <form onSubmit={heroHandleSearch} className="relative">
-              <GlassCard className="!p-2 flex items-center">
-                <FiSearch className={`absolute left-6 top-1/2 -translate-y-1/2 ${
-                  darkMode ? 'text-lime-400' : 'text-gray-600'
-                }`} />
-                <input
-                  type="text"
-                  placeholder="Search devices, shops, or services..."
-                  className={`w-full pl-12 pr-12 py-3 bg-transparent ${
-                    darkMode ? 'text-white placeholder-gray-400' : 'text-gray-900 placeholder-gray-500'
-                  } focus:outline-none`}
-                  value={heroSearchQuery}
-                  onChange={(e) => setHeroSearchQuery(e.target.value)}
-                />
-                {heroSearchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setHeroSearchQuery('')}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
-                  >
-                    <FiX className="w-5 h-5" />
-                  </button>
-                )}
-              </GlassCard>
-            </form>
-
-            {/* Search Dropdown */}
-            {heroSearchQuery && (
-              <div className="absolute top-full left-0 right-0 z-20 mt-2">
-                <GlassCard className="!p-0 max-h-96 overflow-y-auto">
-                  {isLoading ? (
-                    <div className="p-4 text-center text-gray-500">Loading...</div>
-                  ) : searchResults.length > 0 ? (
-                    <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-                      {searchResults.map((item) => (
-                        <li key={item.id} className="hover:bg-gray-100 dark:hover:bg-gray-800 transition">
-                          <Link to={`/${item.type}/${item.id}`} className="p-4 flex justify-between items-center">
-                            <div>
-                              <h3 className={`font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                                {item.name}
-                              </h3>
-                              <p className="text-sm text-gray-500">{item.category || item.shopName}</p>
-                            </div>
-                            <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-lime-500 text-white">
-                              {item.type}
-                            </span>
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <div className="p-4 text-center text-gray-500">
-                      No results for "{heroSearchQuery}"
-                    </div>
-                  )}
-                </GlassCard>
-              </div>
-            )}
-          </div>
-
-          {/* Feature Pills */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-10">
-            {[
-              { icon: <FiTool />, title: 'Expert Repairs', desc: 'Certified technicians' },
-              { icon: <FiSmartphone />, title: 'Quality Devices', desc: 'Tested & guaranteed' },
-              { icon: <FiClock />, title: '6 Months Warranty', desc: 'On all repairs' },
-            ].map((f, i) => (
-              <GlassCard key={i} className="flex items-center p-4 hover:shadow-xl transition">
-                <div className={`p-3 rounded-full ${darkMode ? 'bg-lime-500/20 text-lime-400' : 'bg-lime-100 text-lime-600'}`}>
-                  {React.cloneElement(f.icon, { className: 'w-6 h-6' })}
-                </div>
-                <div className="ml-4">
-                  <h3 className={`font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{f.title}</h3>
-                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{f.desc}</p>
-                </div>
-              </GlassCard>
-            ))}
-          </div>
+        {/* Floating Repair Icons */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <FiSmartphone className={`absolute top-16 left-12 w-14 h-14 ${darkMode ? 'text-lime-400' : 'text-lime-600'} animate-float-slow opacity-70`} />
+          <FiTool className={`absolute top-24 right-16 w-12 h-12 ${darkMode ? 'text-lime-500' : 'text-lime-700'} animate-float-medium opacity-60`} />
+          <FiShoppingBag className={`absolute bottom-32 left-20 w-10 h-10 ${darkMode ? 'text-gray-400' : 'text-gray-700'} animate-float-fast opacity-60`} />
+          <FiMonitor className={`absolute bottom-24 right-20 w-16 h-16 ${darkMode ? 'text-lime-400' : 'text-lime-600'} animate-float-slow opacity-70`} />
+          {/* <FiShield className={`absolute top-1/3 left-1/4 w-11 h-11 ${darkMode ? 'text-gray-300' : 'text-gray-600'} animate-float-medium opacity-60`} /> */}
+        
         </div>
 
-        {/* Floating Animations */}
-        <style jsx>{`
-          @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
-          @keyframes float-slow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-          @keyframes float-medium { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
-          .animate-float { animation: float 6s ease-in-out infinite; }
-          .animate-float-slow { animation: float-slow 8s ease-in-out infinite; }
-          .animate-float-medium { animation: float-medium 5s ease-in-out infinite; }
-        `}</style>
+        {/* Content */}
+        <div className="relative max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center z-10">
+          {/* Left: Text */}
+          <div>
+            <h1 className={`text-5xl sm:text-6xl font-extrabold drop-shadow-md ${darkMode ? 'text-lime-400' : 'text-lime-700'}`}>
+              Repair & Buy Devices with Confidence
+            </h1>
+            <p className={`mt-6 text-xl max-w-xl ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              Find trusted repair shops and purchase refurbished devices at great prices.
+            </p>
+
+            {/* CTA Form */}
+            {/* <div className="mt-8 flex flex-col sm:flex-row gap-4 max-w-md">
+              <input
+                type="email"
+                placeholder="Enter your email"
+                className={`px-5 py-3 rounded-full border ${darkMode ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-800 placeholder-gray-500'} focus:outline-none focus:ring-2 focus:ring-lime-500`}
+              />
+              <button className="px-6 py-3 bg-lime-600 text-white font-semibold rounded-full hover:bg-lime-700 transition shadow-lg">
+                Get Started
+              </button>
+            </div> */}
+
+            {/* Stats */}
+            <div className="mt-12 grid grid-cols-2 gap-8 text-center">
+              <div>
+                <h3 className={`text-4xl font-bold ${darkMode ? 'text-lime-400' : 'text-lime-600'}`}>75.2%</h3>
+                <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Average repair success rate</p>
+              </div>
+              <div>
+                <h3 className={`text-4xl font-bold ${darkMode ? 'text-lime-400' : 'text-lime-600'}`}>~20k</h3>
+                <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Repairs completed monthly</p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center gap-2">
+              {[...Array(5)].map((_, i) => (
+                <FiStar key={i} className={i < 4 ? (darkMode ? 'text-lime-400' : 'text-lime-600') : 'text-gray-400'} />
+              ))}
+              <span className={`ml-2 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>4.5 Average user rating</span>
+            </div>
+          </div>
+
+          {/* Right: 3D Floating Devices */}
+          <div className="relative h-96 lg:h-full flex justify-center items-center">
+            <div className="relative w-72 h-96">
+              {/* Main Phone */}
+              <div className="absolute top-10 left-12 w-44 h-80 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-3xl shadow-2xl transform rotate-12 animate-float-slow border border-gray-300 dark:border-gray-600">
+                <div className="p-5">
+                  <div className="bg-gray-300 dark:bg-gray-600 h-5 rounded mb-3"></div>
+                  <div className="bg-gray-300 dark:bg-gray-600 h-4 rounded w-4/5 mb-2"></div>
+                  <div className="bg-lime-500 h-10 rounded-lg mt-6 flex items-center justify-center text-white font-bold text-sm">
+                    Repair Now
+                  </div>
+                </div>
+              </div>
+
+              {/* Tablet */}
+              <div className="absolute bottom-8 right-8 w-52 h-40 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-xl transform -rotate-6 animate-float-medium border border-gray-200 dark:border-gray-700">
+                <div className="p-4 text-xs text-gray-600 dark:text-gray-300">
+                  <div className="bg-gray-200 dark:bg-gray-700 h-3 rounded mb-1"></div>
+                  <div className="bg-gray-200 dark:bg-gray-700 h-2 rounded w-1/2"></div>
+                </div>
+              </div>
+
+              {/* Fixed Badge */}
+              <div className="absolute top-32 left-0 w-28 h-24 bg-white dark:bg-gray-800 rounded-xl shadow-lg transform -rotate-12 animate-float-fast border border-lime-500">
+                <div className="p-3 text-center">
+                  <FiTool className="text-lime-600 mx-auto mb-1" />
+                  <p className="text-xs font-bold text-lime-600">Fixed!</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* ==================== REPAIR & OFFERS CARDS ==================== */}
-      <section className={`py-16 ${darkMode ? 'bg-black/30' : 'bg-gray-50'}`}>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className={`py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
+        <div className="max-w-6xl mx-auto px-6">
           <motion.h1
             initial={{ opacity: 0, y: 50 }}
             whileInView={{ opacity: 1, y: 0 }}
-            className={`text-4xl md:text-5xl font-extrabold text-center mb-12 ${
-              darkMode ? 'text-white' : 'text-gray-900'
-            }`}
+            className={`text-4xl md:text-5xl font-extrabold text-center mb-12 ${darkMode ? 'text-lime-400' : 'text-lime-700'}`}
           >
             What would you like to repair today?
           </motion.h1>
@@ -443,15 +394,15 @@ const Homepage = memo(({ darkMode }) => {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <GlassCard className="!p-8 text-center group hover:scale-105 transition">
+              <div className={`rounded-2xl p-8 shadow-xl transition-all duration-500 transform hover:scale-105 ${darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
                 <Link to="/repair" className="block">
                   <div className="bg-lime-500/20 p-5 rounded-full w-20 h-20 mx-auto mb-5 flex items-center justify-center">
                     <FiTool className="w-10 h-10 text-lime-500" />
                   </div>
-                  <h2 className={`text-2xl font-bold mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                  <h2 className={`text-2xl font-bold mb-3 text-center ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                     Repair Device
                   </h2>
-                  <p className={`text-sm mb-6 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                  <p className={`text-sm mb-6 text-center ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                     Get your device fixed by <strong>expert technicians</strong> quickly.
                   </p>
 
@@ -469,11 +420,11 @@ const Homepage = memo(({ darkMode }) => {
                     ))}
                   </div>
 
-                  <button className="w-full bg-lime-500 hover:bg-lime-600 text-white font-bold py-3 rounded-xl transition">
+                  <button className="w-full bg-lime-600 hover:bg-lime-700 text-white font-bold py-3 rounded-xl transition shadow-lg">
                     Book a Repair
                   </button>
                 </Link>
-              </GlassCard>
+              </div>
             </motion.div>
 
             {/* Offers Card */}
@@ -482,7 +433,7 @@ const Homepage = memo(({ darkMode }) => {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
             >
-              <GlassCard className="!p-8">
+              <div className={`rounded-2xl p-8 shadow-xl ${darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
                 <div className="text-center mb-6">
                   <div className="bg-lime-500/20 p-5 rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center">
                     <FiTag className="w-10 h-10 text-lime-500" />
@@ -497,7 +448,7 @@ const Homepage = memo(({ darkMode }) => {
 
                 <ul className="space-y-3 mb-6">
                   {offers.map((o, i) => (
-                    <li key={i} className="flex items-center gap-3 p-3 bg-white/5 dark:bg-black/20 rounded-xl">
+                    <li key={i} className={`flex items-center gap-3 p-3 rounded-xl ${darkMode ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
                       <div className="text-lime-500">{o.icon}</div>
                       <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{o.title}</span>
                     </li>
@@ -506,11 +457,11 @@ const Homepage = memo(({ darkMode }) => {
 
                 <Link
                   to="/offers"
-                  className="block text-center bg-lime-500 hover:bg-lime-600 text-white font-bold py-3 rounded-xl transition"
+                  className="block text-center bg-lime-600 hover:bg-lime-700 text-white font-bold py-3 rounded-xl transition shadow-lg"
                 >
                   View Deals
                 </Link>
-              </GlassCard>
+              </div>
             </motion.div>
           </div>
         </div>

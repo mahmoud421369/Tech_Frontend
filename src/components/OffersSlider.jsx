@@ -28,7 +28,7 @@ const OfferCard = ({ offer, darkMode }) => {
   };
 
   return (
-    <GlassCard className="h-60 flex flex-col justify-between">
+    <GlassCard className="h-60 flex flex-col justify-between min-w-[280px] sm:min-w-[320px] mx-2">
       {/* Discount Badge */}
       {offer.discountValue && (
         <div className="absolute top-3 -left-3 bg-gradient-to-r from-lime-500 to-lime-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1">
@@ -67,46 +67,74 @@ const OffersSlider = ({ darkMode }) => {
   const [offers, setOffers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const sliderRef = useRef(null);
-  const [currentSlide, setCurrentSlide] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   const fetchOffers = useCallback(async () => {
     try {
       setIsLoading(true);
       const { data } = await api.get('/api/users/offers');
-      const latest = (data.content || []).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 8);
+      const latest = (data.content || [])
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 8);
       setOffers(latest);
     } catch (error) {
-      Swal.fire({ title: 'Error', text: 'Failed to load offers', icon: 'error', toast: true, position: 'top-end', timer: 3000 });
+      Swal.fire({
+        title: 'Error',
+        text: 'Failed to load offers',
+        icon: 'error',
+        toast: true,
+        position: 'top-end',
+        timer: 3000
+      });
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchOffers(); }, [fetchOffers]);
-
-  const scrollSlider = (direction) => {
-    if (!sliderRef.current || offers.length === 0) return;
-    const slideWidth = sliderRef.current.offsetWidth / 3;
-    const maxSlide = Math.max(0, offers.length - 3);
-    const newIndex = direction === 'next'
-      ? Math.min(currentSlide + 1, maxSlide)
-      : Math.max(currentSlide - 1, 0);
-    sliderRef.current.scrollTo({ left: newIndex * slideWidth, behavior: 'smooth' });
-    setCurrentSlide(newIndex);
-  };
-
-  const goToSlide = (index) => {
-    if (!sliderRef.current) return;
-    const slideWidth = sliderRef.current.offsetWidth / 3;
-    sliderRef.current.scrollTo({ left: index * slideWidth, behavior: 'smooth' });
-    setCurrentSlide(index);
-  };
-
   useEffect(() => {
-    if (offers.length === 0 || isLoading) return;
-    const interval = setInterval(() => scrollSlider('next'), 5000);
+    fetchOffers();
+  }, [fetchOffers]);
+
+  const scrollToIndex = (index) => {
+    if (!sliderRef.current || offers.length === 0) return;
+    const cardWidth = sliderRef.current.offsetWidth / 3 + 16; // including gap
+    const targetScroll = index * cardWidth;
+    sliderRef.current.scrollTo({ left: targetScroll, behavior: 'smooth' });
+    setCurrentIndex(index);
+  };
+
+  const goNext = () => {
+    const maxIndex = Math.max(0, offers.length - 3);
+    const nextIndex = currentIndex >= maxIndex ? 0 : currentIndex + 1;
+    scrollToIndex(nextIndex);
+  };
+
+  const goPrev = () => {
+    const prevIndex = currentIndex <= 0 ? Math.max(0, offers.length - 3) : currentIndex - 1;
+    scrollToIndex(prevIndex);
+  };
+
+  // Auto-slide every 5 seconds
+  useEffect(() => {
+    if (isLoading || offers.length === 0) return;
+    const interval = setInterval(goNext, 5000);
     return () => clearInterval(interval);
-  }, [currentSlide, offers.length, isLoading]);
+  }, [currentIndex, isLoading, offers.length]);
+
+  // Sync currentIndex with scroll position
+  useEffect(() => {
+    if (!sliderRef.current) return;
+    const handleScroll = () => {
+      const scrollLeft = sliderRef.current.scrollLeft;
+      const cardWidth = sliderRef.current.offsetWidth / 3 + 16;
+      const newIndex = Math.round(scrollLeft / cardWidth);
+      setCurrentIndex(Math.min(newIndex, Math.max(0, offers.length - 3)));
+    };
+
+    const slider = sliderRef.current;
+    slider.addEventListener('scroll', handleScroll);
+    return () => slider.removeEventListener('scroll', handleScroll);
+  }, [offers.length]);
 
   if (isLoading) {
     return (
@@ -129,6 +157,8 @@ const OffersSlider = ({ darkMode }) => {
     );
   }
 
+  const totalSlides = Math.max(1, offers.length - 2); // 3 cards visible → slides = total - 2
+
   return (
     <section className={`py-16 ${darkMode ? 'bg-black/30' : 'bg-gray-50'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -141,51 +171,62 @@ const OffersSlider = ({ darkMode }) => {
           </p>
         </div>
 
-        {/* Slider */}
-        <div className="relative">
+        {/* Carousel Container */}
+        <div className="relative overflow-hidden">
           <div
             ref={sliderRef}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 overflow-hidden"
+            className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide scroll-smooth"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             {offers.map((offer, i) => (
-              <div key={offer.id} className="snap-start">
+              <div
+                key={offer.id}
+                className="flex-shrink-0 snap-start"
+                style={{ width: 'calc(33.333% - 1rem)' }}
+              >
                 <OfferCard offer={offer} darkMode={darkMode} />
               </div>
             ))}
           </div>
 
-          {/* Navigation */}
+          {/* Navigation Arrows */}
           <button
-            onClick={() => scrollSlider('prev')}
-            className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 p-2 rounded-full backdrop-blur-xl ${
-              darkMode ? 'bg-black/40 text-lime-400 hover:bg-black/60' : 'bg-white/80 text-lime-600 hover:bg-white'
-            } shadow-lg transition`}
+            onClick={goPrev}
+            className={`absolute left-2 top-1/2 -translate-y-1/2 p-3 rounded-full backdrop-blur-xl transition-all ${
+              darkMode
+                ? 'bg-black/50 text-lime-400 hover:bg-black/70'
+                : 'bg-white/90 text-lime-600 hover:bg-white'
+            } shadow-xl`}
           >
-            <FiChevronLeft className="w-5 h-5" />
+            <FiChevronLeft className="w-6 h-6" />
           </button>
           <button
-            onClick={() => scrollSlider('next')}
-            className={`absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 p-2 rounded-full backdrop-blur-xl ${
-              darkMode ? 'bg-black/40 text-lime-400 hover:bg-black/60' : 'bg-white/80 text-lime-600 hover:bg-white'
-            } shadow-lg transition`}
+            onClick={goNext}
+            className={`absolute right-2 top-1/2 -translate-y-1/2 p-3 rounded-full backdrop-blur-xl transition-all ${
+              darkMode
+                ? 'bg-black/50 text-lime-400 hover:bg-black/70'
+                : 'bg-white/90 text-lime-600 hover:bg-white'
+            } shadow-xl`}
           >
-            <FiChevronRight className="w-5 h-5" />
+            <FiChevronRight className="w-6 h-6" />
           </button>
+        </div>
 
-          {/* Dots */}
-          <div className="flex justify-center gap-2 mt-6">
-            {Array(Math.ceil(offers.length / 3)).fill().map((_, i) => (
-              <button
-                key={i}
-                onClick={() => goToSlide(i)}
-                className={`w-2 h-2 rounded-full transition ${
-                  currentSlide === i
-                    ? 'bg-lime-500 w-8'
-                    : darkMode ? 'bg-gray-600' : 'bg-gray-400'
-                }`}
-              />
-            ))}
-          </div>
+        {/* Pagination Dots - Large & Active Wider */}
+        <div className="flex justify-center gap-3 mt-8">
+          {Array.from({ length: totalSlides }, (_, i) => (
+            <button
+              key={i}
+              onClick={() => scrollToIndex(i)}
+              className={`transition-all duration-300 rounded-full ${
+                currentIndex === i
+                  ? 'bg-lime-500 w-12 h-3'
+                  : darkMode
+                  ? 'bg-gray-600 w-3 h-3'
+                  : 'bg-gray-400 w-3 h-3'
+              }`}
+            />
+          ))}
         </div>
       </div>
     </section>

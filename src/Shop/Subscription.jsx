@@ -448,13 +448,13 @@ const Subscriptions = () => {
                 </>
               )} */}
               <button
-                onClick={renewCard}
+                onClick={subscribeCard}
                 className="flex items-center justify-center gap-2 py-3 font-bold rounded-lg bg-purple-600 hover:bg-purple-700 text-white transition shadow-sm"
               >
                 <FaSync /> تجديد بطاقة
               </button>
               <button
-                onClick={renewCash}
+                onClick={subscribeCash}
                 className="flex items-center justify-center gap-2 py-3 font-bold rounded-lg bg-orange-600 hover:bg-orange-700 text-white transition shadow-sm"
               >
                 <FaSync /> تجديد نقدي
