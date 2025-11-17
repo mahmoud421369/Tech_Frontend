@@ -3,7 +3,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Footer, Navbar, RepairDetailsModal, ServiceModal, AssignerHeader, Modal, DeliveryHeader } from './components';
 import { Login, Signup, LoginSuccess, SuccessGoogle } from './Auth';
 import { Repair, Explore, Track, Account, Homepage, Cart, DeviceDetail, Offers, RepairRequest, Devices, Stores } from './User';
-import { Dashboard, Notifications, Header, Shops, Users, Reviews, Category, Deliveries, Assigners, AdminOffers, AdminRepairRequests, AdminProducts, AdminAssignmentLogs, AdminSubscriptions } from './Admin';
+import {Notifications, Header, Shops, Users, Reviews, Category, Deliveries, Assigners, AdminOffers, AdminRepairRequests, AdminProducts, AdminAssignmentLogs, AdminSubscriptions } from './Admin';
+import  Dashboard  from './Admin/Dashboard';
 import { AssignerDashboard, DeliveryPersons, AssignerProfile, AssignedOrders, AssignedRepairs, AssignmentLogs, ReassignRepairs, ReassignOrders, OrdersForAssignment, RepairsForAssignment } from './Assigner';
 import { DeliveryDashboard, DeliveryProfile, MyDeliveries, MyRepairs, AvailableOrders, AvailableRepairs } from './Delivery';
 import { ShopHeader, ShopDashboard, RepairRequests, Products, Transactions, Support, ShopOffers, ShopProfile, ShopSettings, Inventory, Chat, Orders, ShopNotifications, Subscriptions } from './Shop';

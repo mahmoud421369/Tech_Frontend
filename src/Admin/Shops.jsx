@@ -1,79 +1,91 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiHome, FiEye, FiCheckCircle, FiXCircle, FiTrash2, FiSearch, FiChevronLeft, FiChevronRight, FiCopy, FiChevronDown } from 'react-icons/fi';
+import {
+  FiHome,
+  FiEye,
+  FiCheckCircle,
+  FiXCircle,
+  FiTrash2,
+  FiSearch,
+  FiChevronLeft,
+  FiChevronRight,
+  FiCopy,
+  FiChevronDown,
+} from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import DOMPurify from 'dompurify';
+import { debounce } from 'lodash';
 import api from '../api';
 import Modal from '../components/Modal';
 
-// LoadingSpinner and ShopsSkeleton components remain unchanged
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center h-64">
-    <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+    <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
   </div>
 );
 
 const ShopsSkeleton = ({ darkMode }) => (
   <div className="animate-pulse p-6">
-    <div className="space-y-4 mb-8">
-      <div className="flex justify-between items-center">
-        <div className="space-y-2">
-          <div className="h-8 w-1/4 bg-gray-300 dark:bg-gray-700 rounded"></div>
-          <div className="h-4 w-1/2 bg-gray-300 dark:bg-gray-700 rounded"></div>
-        </div>
-      </div>
-    </div>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
       {[...Array(3)].map((_, idx) => (
-        <div key={idx} className="bg-white dark:bg-gray-950 p-4 rounded-lg shadow">
+        <div
+          key={idx}
+          className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700"
+        >
           <div className="h-6 w-1/2 bg-gray-300 dark:bg-gray-600 rounded mb-2"></div>
           <div className="h-8 w-1/4 bg-gray-300 dark:bg-gray-600 rounded"></div>
         </div>
       ))}
     </div>
-    <div className="bg-white dark:bg-gray-950 rounded-lg shadow-md mt-4">
-      <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-        <div className="h-10 w-32 bg-gray-300 dark:bg-gray-700 rounded-xl"></div>
-        <div className="relative w-full md:w-64">
-          <div className="h-10 w-full bg-gray-300 dark:bg-gray-700 rounded-xl"></div>
-        </div>
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+        <div className="h-10 w-48 bg-gray-300 dark:bg-gray-600 rounded-lg"></div>
+        <div className="h-10 w-full sm:w-80 bg-gray-300 dark:bg-gray-600 rounded-lg"></div>
       </div>
-      <div className="bg-white dark:bg-gray-950 rounded-lg shadow-md mt-4">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-gray-100 dark:bg-gray-700">
-            <tr>
-              {['ID', 'Name', 'Status', 'Shop Type', 'Actions'].map((header, idx) => (
-                <th key={idx} className="px-6 py-3">
-                  <div className="h-4 w-20 bg-gray-300 dark:bg-gray-600 rounded"></div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-            {[...Array(5)].map((_, idx) => (
-              <tr key={idx}>
-                <td className="px-6 py-4"><div className="h-4 w-32 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-                <td className="px-6 py-4"><div className="h-4 w-32 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-                <td className="px-6 py-4"><div className="h-4 w-24 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-                <td className="px-6 py-4"><div className="h-4 w-24 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-                <td className="px-6 py-4">
-                  <div className="flex justify-center gap-2">
-                    <div className="h-8 w-8 bg-gray-300 dark:bg-gray-600 rounded"></div>
-                    <div className="h-8 w-8 bg-gray-300 dark:bg-gray-600 rounded"></div>
-                    <div className="h-8 w-8 bg-gray-300 dark:bg-gray-600 rounded"></div>
-                  </div>
-                </td>
-              </tr>
+      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <thead className="bg-gray-100 dark:bg-gray-700">
+          <tr>
+            {['ID', 'Name', 'Status', 'Shop Type', 'Actions'].map((header, idx) => (
+              <th
+                key={idx}
+                className="px-6 py-3 text-center text-sm font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300"
+              >
+                {header}
+              </th>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+          {[...Array(5)].map((_, idx) => (
+            <tr key={idx}>
+              <td className="px-6 py-4"><div className="h-4 w-32 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
+              <td className="px-6 py-4"><div className="h-4 w-48 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
+              <td className="px-6 py-4"><div className="h-4 w-24 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
+              <td className="px-6 py-4"><div className="h-4 w-24 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
+              <td className="px-6 py-4">
+                <div className="flex justify-center gap-2">
+                  <div className="h-8 w-16 bg-gray-300 dark:bg-gray-600 rounded"></div>
+                  <div className="h-8 w-16 bg-gray-300 dark:bg-gray-600 rounded"></div>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   </div>
 );
 
-// PaginatedTable Component (unchanged)
-const PaginatedTable = ({ data, columns, page, setPage, pageSize, renderRow, emptyMessage, darkMode }) => {
+const PaginatedTable = ({
+  data,
+  columns,
+  page,
+  setPage,
+  pageSize,
+  renderRow,
+  emptyMessage,
+  darkMode,
+}) => {
   const totalPages = Math.ceil(data.length / pageSize);
   const paginatedData = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -84,9 +96,7 @@ const PaginatedTable = ({ data, columns, page, setPage, pageSize, renderRow, emp
     const pages = [];
     const maxVisiblePages = 5;
     if (totalPages <= maxVisiblePages) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
     } else {
       let startPage = Math.max(1, page - Math.floor(maxVisiblePages / 2));
       let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
@@ -97,9 +107,7 @@ const PaginatedTable = ({ data, columns, page, setPage, pageSize, renderRow, emp
         pages.push(1);
         if (startPage > 2) pages.push('...');
       }
-      for (let i = startPage; i <= endPage; i++) {
-        pages.push(i);
-      }
+      for (let i = startPage; i <= endPage; i++) pages.push(i);
       if (endPage < totalPages) {
         if (endPage < totalPages - 1) pages.push('...');
         pages.push(totalPages);
@@ -109,303 +117,94 @@ const PaginatedTable = ({ data, columns, page, setPage, pageSize, renderRow, emp
   };
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-        <thead className="bg-gray-100 dark:bg-gray-800 text-indigo-600 dark:text-indigo-400">
-          <tr>
-            {columns.map((col, index) => (
-              <th key={index} className="px-6 py-3 text-center text-sm font-semibold uppercase tracking-wider">
-                {col}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-200 dark:divide-gray-700 text-gray-900 dark:text-gray-100">
-          {paginatedData.map(renderRow)}
-          {paginatedData.length === 0 && (
+    <>
+      <style>
+        {`
+          .custom-scrollbar::-webkit-scrollbar {
+            width: 8px; height: 8px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-track {
+            background: ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'};
+            border-radius: 10px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: ${darkMode ? '#34d399' : '#10b981'};
+            border-radius: 10px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: ${darkMode ? '#6ee7b7' : '#059669'};
+          }
+        `}
+      </style>
+
+      <div className="overflow-x-auto custom-scrollbar">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead className="bg-gray-100 dark:bg-gray-700">
             <tr>
-              <td colSpan={columns.length} className="py-6 text-center text-gray-500 dark:text-gray-400">
-                <div className="flex flex-col items-center gap-2">
-                  <FiHome className="text-2xl text-gray-500 dark:text-gray-400" />
-                  {emptyMessage}
-                </div>
-              </td>
+              {columns.map((col, index) => (
+                <th
+                  key={index}
+                  className="px-6 py-3 text-center text-sm font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300"
+                >
+                  {col}
+                </th>
+              ))}
             </tr>
-          )}
-        </tbody>
-      </table>
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center space-x-2 mt-6">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="px-4 py-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
-          >
-            <FiChevronLeft />
-          </button>
-          {getPageNumbers().map((pageNum, idx) => (
-            <button
-              key={idx}
-              onClick={() => typeof pageNum === 'number' && setPage(pageNum)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                pageNum === '...' ? 'cursor-default' : page === pageNum ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-800'
-              }`}
-              disabled={pageNum === '...'}
-            >
-              {pageNum}
-            </button>
-          ))}
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className="px-4 py-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
-          >
-            <FiChevronRight />
-          </button>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ShopsTable Component (modified to handle frontend search)
-const ShopsTable = ({ shops, filter, setFilter, search, setSearch, approveShop, suspendShop, deleteShop, viewShop, darkMode, token }) => {
-  const [shopPage, setShopPage] = useState(1);
-  const [searchInput, setSearchInput] = useState(search);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
-  useEffect(() => {
-    setSearchInput(search);
-  }, [search]);
-
-  const handleSearch = useCallback(
-    debounce((val) => {
-      setSearch(val);
-      setShopPage(1);
-    }, 300),
-    [setSearch]
-  );
-
-  // Compute filtered shops based on search (frontend filtering)
-  const filteredShops = useMemo(() => {
-    if (!search.trim()) return shops;
-    const lowerSearch = search.toLowerCase();
-    return shops.filter(
-      (shop) =>
-        shop.name?.toLowerCase().includes(lowerSearch) ||
-        shop.email?.toLowerCase().includes(lowerSearch)
-    );
-  }, [shops, search]);
-
-  const computedStats = useMemo(() => {
-    const shopsArray = Array.isArray(shops) ? shops : [];
-    const totalShops = shopsArray.length;
-    const approvedShops = shopsArray.filter((s) => s.verified).length;
-    const suspendedShops = shopsArray.filter((s) => !s.verified).length;
-    return { totalShops, approvedShops, suspendedShops };
-  }, [shops]);
-
-  const copyToClipboard = useCallback(
-    (id) => {
-      navigator.clipboard.writeText(id).then(
-        () => {
-          Swal.fire({
-            title: 'Success',
-            text: 'Shop ID copied to clipboard!',
-            icon: 'success',
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 1500,
-            customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-          });
-        },
-        (err) => {
-          console.error('Copy failed:', err);
-          Swal.fire({
-            title: 'Error',
-            text: 'Failed to copy Shop ID',
-            icon: 'error',
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 1500,
-            customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-          });
-        }
-      );
-    },
-    [darkMode]
-  );
-
-  const filterOptions = [
-    { value: 'all', label: 'All Shops' },
-    { value: 'Approved', label: 'Approved' },
-    { value: 'suspend', label: 'Suspended' },
-  ];
-
-  return (
-    <section className="bg-white dark:bg-gray-950 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-        {[
-          { title: 'Total Shops', value: computedStats.totalShops, color: 'indigo' },
-          { title: 'Approved Shops', value: computedStats.approvedShops, color: 'green' },
-          { title: 'Suspended Shops', value: computedStats.suspendedShops, color: 'red' },
-        ].map((stat, index) => (
-          <div
-            key={index}
-            className={`bg-white dark:bg-gray-900 p-6 rounded-lg shadow-md border border-gray-100 dark:border-gray-800 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl`}
-          >
-            <h3 className={`text-sm font-semibold text-${stat.color}-600 dark:text-${stat.color}-400 uppercase tracking-wide`}>{stat.title}</h3>
-            <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-2">{stat.value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Filters and Search */}
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
-        <div className="w-full sm:w-48">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filter Shops</label>
-          <div className="relative">
-            <button
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-2.5 text-left flex items-center justify-between focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all duration-300"
-            >
-              <span>{filterOptions.find((opt) => opt.value === filter)?.label || 'All Shops'}</span>
-              <FiChevronDown className={`transform transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
-            </button>
-            {isDropdownOpen && (
-              <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg">
-                {filterOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => {
-                      setFilter(option.value);
-                      setShopPage(1);
-                      setIsDropdownOpen(false);
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-900 dark:text-gray-100 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-all duration-200"
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+          </thead>
+          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 text-gray-900 dark:text-gray-100">
+            {paginatedData.map(renderRow)}
+            {paginatedData.length === 0 && (
+              <tr>
+                <td colSpan={columns.length} className="py-12 text-center text-gray-500 dark:text-gray-400">
+                  <div className="flex flex-col items-center gap-3">
+                    <FiHome className="text-4xl text-gray-400 dark:text-gray-500" />
+                    <p className="text-lg font-medium">{emptyMessage}</p>
+                  </div>
+                </td>
+              </tr>
             )}
-          </div>
-        </div>
-        <div className="w-full sm:w-80 relative">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search Shops</label>
-          <div className="relative">
-            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-300" />
-            <input
-              type="text"
-              placeholder="Search by name or email..."
-              value={searchInput}
-              onChange={(e) => {
-                setSearchInput(e.target.value);
-                handleSearch(e.target.value);
-              }}
-              className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all duration-300"
-            />
-            {searchInput && (
-              <button
-                onClick={() => {
-                  setSearchInput('');
-                  handleSearch('');
-                }}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-              >
-                <FiXCircle size={18} />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+          </tbody>
+        </table>
 
-      {/* Table */}
-      <PaginatedTable
-        data={filteredShops} // Use filteredShops instead of shops
-        columns={['ID', 'Name', 'Status', 'Shop Type', 'Actions']}
-        page={shopPage}
-        setPage={setShopPage}
-        pageSize={5}
-        darkMode={darkMode}
-        renderRow={(shop) => (
-          <tr
-            key={shop.id}
-            className="text-center hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-all duration-300"
-          >
-            <td className="px-6 py-4 text-sm font-medium flex items-center justify-center gap-2">
-              <span className="truncate max-w-[150px]">{shop.id}</span>
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center space-x-2 mt-8">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
+            >
+              <FiChevronLeft /> Prev
+            </button>
+            {getPageNumbers().map((pageNum, idx) => (
               <button
-                onClick={() => copyToClipboard(shop.id)}
-                className="relative group p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
-                title="Copy Shop ID"
-              >
-                <FiCopy size={16} />
-                <span className="absolute hidden group-hover:block bg-gray-800 dark:bg-gray-900 text-white dark:text-gray-200 text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
-                  Copy Shop ID
-                </span>
-              </button>
-            </td>
-            <td className="px-6 py-4 text-sm font-medium">{DOMPurify.sanitize(shop.name) || 'N/A'}</td>
-            <td className="px-6 py-4">
-              <span
-                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                  shop.verified
-                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                    : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                key={idx}
+                onClick={() => typeof pageNum === 'number' && setPage(pageNum)}
+                disabled={pageNum === '...'}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  pageNum === '...'
+                    ? 'cursor-default text-gray-500 dark:text-gray-400'
+                    : page === pageNum
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-800'
                 }`}
               >
-                {shop.verified ? 'Approved' : 'Suspended'}
-              </span>
-            </td>
-            <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(shop.shopType) || 'N/A'}</td>
-            <td className="px-6 py-4 flex justify-center gap-2">
-              <button
-                onClick={() => viewShop(shop.id)}
-                className="p-2 bg-indigo-100 text-xs dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800/70 transition-all duration-300"
-                title="View Shop"
-              >
-                View
+                {pageNum}
               </button>
-              {!shop.verified ? (
-                <button
-                  onClick={() => approveShop(shop.id)}
-                  className="p-2 bg-green-100 text-xs dark:bg-green-900/50 text-green-600 dark:text-green-400 rounded-full hover:bg-green-200 dark:hover:bg-green-800/70 transition-all duration-300"
-                  title="Approve Shop"
-                >
-                  Approve
-                </button>
-              ) : (
-                <>
-                  <button
-                    onClick={() => suspendShop(shop.id)}
-                    className="p-2 bg-yellow-100 text-xs dark:bg-yellow-900/50 text-yellow-600 dark:text-yellow-400 rounded-full hover:bg-yellow-200 dark:hover:bg-yellow-800/70 transition-all duration-300"
-                    title="Suspend Shop"
-                  >
-                    Suspend
-                  </button>
-                  <button
-                    onClick={() => deleteShop(shop.id)}
-                    className="p-2 bg-red-100 text-xs dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-800/70 transition-all duration-300"
-                    title="Delete Shop"
-                  >
-                    Delete
-                  </button>
-                </>
-              )}
-            </td>
-          </tr>
+            ))}
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
+            >
+              Next <FiChevronRight />
+            </button>
+          </div>
         )}
-        emptyMessage="No shops found"
-      />
-    </section>
+      </div>
+    </>
   );
 };
 
-// Shops Component (modified fetchShops)
 const Shops = ({ darkMode }) => {
   const navigate = useNavigate();
   const token = localStorage.getItem('authToken');
@@ -415,94 +214,41 @@ const Shops = ({ darkMode }) => {
   const [loadingShops, setLoadingShops] = useState(false);
   const [selectedShop, setSelectedShop] = useState(null);
 
-  // Fetch all shops
   const fetchAllShops = useCallback(async (signal) => {
-    try {
-      const response = await api.get('/api/admin/shops', {
-        signal,
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      let data = response.data;
-      if (response.data && response.data.content) {
-        data = response.data.content;
-      }
-      return Array.isArray(data) ? data : [];
-    } catch (error) {
-      throw error;
-    }
+    const { data } = await api.get('/api/admin/shops', { signal, headers: { Authorization: `Bearer ${token}` } });
+    return Array.isArray(data) ? data : data?.content || [];
   }, [token]);
 
- 
   const fetchApprovedShops = useCallback(async (signal) => {
-    try {
-      const response = await api.get('/api/admin/shops/approved', {
-        signal,
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      let data = response.data;
-      if (response.data && response.data.content) {
-        data = response.data.content;
-      }
-      return Array.isArray(data) ? data : [];
-    } catch (error) {
-      throw error;
-    }
+    const { data } = await api.get('/api/admin/shops/approved', { signal, headers: { Authorization: `Bearer ${token}` } });
+    return Array.isArray(data) ? data : data?.content || [];
   }, [token]);
 
-  // Fetch suspended shops
   const fetchSuspendedShops = useCallback(async (signal) => {
-    try {
-      const response = await api.get('/api/admin/shops/suspend', {
-        signal,
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      let data = response.data;
-      if (response.data && response.data.content) {
-        data = response.data.content;
-      }
-      return Array.isArray(data) ? data : [];
-    } catch (error) {
-      throw error;
-    }
+    const { data } = await api.get('/api/admin/shops/suspend', { signal, headers: { Authorization: `Bearer ${token}` } });
+    return Array.isArray(data) ? data : data?.content || [];
   }, [token]);
 
-  // Main fetchShops function
   const fetchShops = useCallback(async () => {
     if (!token) {
-      Swal.fire({
-        title: 'Error',
-        text: 'No authentication token found. Please log in.',
-        icon: 'error',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
+      Swal.fire({ title: 'Error', text: 'Please log in.', icon: 'error' });
       navigate('/login');
       return;
     }
+
     setLoadingShops(true);
     const controller = new AbortController();
     try {
       let data;
-      if (filter === 'Approved') {
-        data = await fetchApprovedShops(controller.signal);
-      } else if (filter === 'suspend') {
-        data = await fetchSuspendedShops(controller.signal);
-      } else {
-        data = await fetchAllShops(controller.signal);
-      }
-      console.log('Processed Shop Data:', data);
+      if (filter === 'Approved') data = await fetchApprovedShops(controller.signal);
+      else if (filter === 'suspend') data = await fetchSuspendedShops(controller.signal);
+      else data = await fetchAllShops(controller.signal);
       setShops(data);
     } catch (error) {
-      console.error('Error fetching shops:', error.response?.data || error.message);
-      Swal.fire({
-        title: 'Error',
-        text: error.response?.status === 401 ? 'Unauthorized, please log in' : 'Failed to fetch shops',
-        icon: 'error',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
+      const msg = error.response?.status === 401 ? 'Session expired.' : 'Failed to load shops.';
+      Swal.fire({ title: 'Error', text: msg, icon: 'error' });
       if (error.response?.status === 401) {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('userId');
+        ['authToken', 'refreshToken', 'userId'].forEach(k => localStorage.removeItem(k));
         navigate('/login');
       }
       setShops([]);
@@ -510,271 +256,231 @@ const Shops = ({ darkMode }) => {
       setLoadingShops(false);
     }
     return () => controller.abort();
-  }, [filter, token, navigate, darkMode, fetchAllShops, fetchApprovedShops, fetchSuspendedShops]);
+  }, [filter, token, navigate, fetchAllShops, fetchApprovedShops, fetchSuspendedShops]);
 
-  const approveShop = useCallback(
-    async (id) => {
-      try {
-        await api.put(`/api/admin/shops/${id}/approve`, {}, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        Swal.fire({
-          title: 'Success',
-          text: 'Shop has been approved.',
-          icon: 'success',
-          timer: 2000,
-          showConfirmButton: false,
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
-        fetchShops();
-      } catch (error) {
-        console.error('Error approving shop:', error.response?.data || error.message);
-        Swal.fire({
-          title: 'Error',
-          text: error.response?.status === 401 ? 'Unauthorized, please log in' : 'Failed to approve shop',
-          icon: 'error',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
-        if (error.response?.status === 401) {
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('userId');
-          navigate('/login');
-        }
-      }
-    },
-    [fetchShops, token, navigate, darkMode]
-  );
+  const approveShop = async (id) => {
+    try {
+      await api.put(`/api/admin/shops/${id}/approve`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      Swal.fire({ title: 'Approved!', text: 'Shop approved.', icon: 'success', toast: true, position: 'top-end', timer: 1500 });
+      fetchShops();
+    } catch (error) {
+      Swal.fire({ title: 'Error', text: 'Failed to approve.', icon: 'error' });
+    }
+  };
 
-  const suspendShop = useCallback(
-    async (id) => {
-      try {
-        await api.put(`/api/admin/shops/${id}/suspend`, {}, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        Swal.fire({
-          title: 'Success',
-          text: 'Shop has been suspended.',
-          icon: 'warning',
-          timer: 2000,
-          showConfirmButton: false,
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
-        fetchShops();
-      } catch (error) {
-        console.error('Error suspending shop:', error.response?.data || error.message);
-        Swal.fire({
-          title: 'Error',
-          text: error.response?.status === 401 ? 'Unauthorized, please log in' : 'Failed to suspend shop',
-          icon: 'error',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
-        if (error.response?.status === 401) {
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('userId');
-          navigate('/login');
-        }
-      }
-    },
-    [fetchShops, token, navigate, darkMode]
-  );
+  const suspendShop = async (id) => {
+    try {
+      await api.put(`/api/admin/shops/${id}/suspend`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      Swal.fire({ title: 'Suspended!', text: 'Shop suspended.', icon: 'warning', toast: true, position: 'top-end', timer: 1500 });
+      fetchShops();
+    } catch (error) {
+      Swal.fire({ title: 'Error', text: 'Failed to suspend.', icon: 'error' });
+    }
+  };
 
-  const deleteShop = useCallback(
-    async (id) => {
-      const result = await Swal.fire({
-        title: 'Are you sure?',
-        text: "You won't be able to revert this!",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#374151',
-        confirmButtonText: 'Yes, delete it!',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
+  const deleteShop = async (id) => {
+    const result = await Swal.fire({
+      title: 'Delete Shop?',
+      text: 'This action cannot be undone!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, delete',
+    });
+    if (!result.isConfirmed) return;
 
-      if (!result.isConfirmed) return;
+    try {
+      await api.delete(`/api/admin/shops/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      Swal.fire({ title: 'Deleted!', text: 'Shop removed.', icon: 'success', toast: true, position: 'top-end', timer: 1500 });
+      fetchShops();
+    } catch (error) {
+      Swal.fire({ title: 'Error', text: 'Failed to delete.', icon: 'error' });
+    }
+  };
 
-      try {
-        await api.delete(`/api/admin/shops/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        Swal.fire({
-          title: 'Success',
-          text: 'Shop has been deleted.',
-          icon: 'success',
-          timer: 2000,
-          showConfirmButton: false,
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
-        fetchShops();
-      } catch (error) {
-        console.error('Error deleting shop:', error.response?.data || error.message);
-        Swal.fire({
-          title: 'Error',
-          text: error.response?.status === 401
-            ? 'Unauthorized, please log in'
-            : `Failed to delete shop: ${error.response?.data?.message || error.message}`,
-          icon: 'error',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
-        if (error.response?.status === 401) {
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('userId');
-          navigate('/login');
-        }
-      }
-    },
-    [fetchShops, token, navigate, darkMode]
-  );
+  const viewShop = async (id) => {
+    try {
+      const { data } = await api.get(`/api/admin/shops/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      setSelectedShop(data);
+    } catch (error) {
+      Swal.fire({ title: 'Error', text: 'Failed to load shop.', icon: 'error' });
+    }
+  };
 
-  const viewShop = useCallback(
-    async (id) => {
-      try {
-        const response = await api.get(`/api/admin/shops/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setSelectedShop(response.data);
-      } catch (error) {
-        console.error('Error fetching shop:', error.response?.data || error.message);
-        Swal.fire({
-          title: 'Error',
-          text: error.response?.status === 401 ? 'Unauthorized, please log in' : 'Failed to fetch shop details',
-          icon: 'error',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
-        if (error.response?.status === 401) {
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('userId');
-          navigate('/login');
-        }
-      }
-    },
-    [token, navigate, darkMode]
-  );
+  const copyToClipboard = (id) => {
+    navigator.clipboard.writeText(id).then(
+      () => Swal.fire({ title: 'Copied!', text: 'Shop ID copied!', icon: 'success', toast: true, position: 'top-end', timer: 1500 }),
+      () => Swal.fire({ title: 'Error', text: 'Failed to copy', icon: 'error', toast: true, position: 'top-end', timer: 1500 })
+    );
+  };
 
-  const copyToClipboard = useCallback(
-    (id) => {
-      navigator.clipboard.writeText(id).then(
-        () => {
-          Swal.fire({
-            title: 'Success',
-            text: 'Shop ID copied to clipboard!',
-            icon: 'success',
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 1500,
-            customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-          });
-        },
-        (err) => {
-          console.error('Copy failed:', err);
-          Swal.fire({
-            title: 'Error',
-            text: 'Failed to copy Shop ID',
-            icon: 'error',
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 1500,
-            customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-          });
-        }
-      );
-    },
-    [darkMode]
-  );
+  const filteredShops = useMemo(() => {
+    if (!search.trim()) return shops;
+    const lower = search.toLowerCase();
+    return shops.filter(s => 
+      s.name?.toLowerCase().includes(lower) || 
+      s.email?.toLowerCase().includes(lower)
+    );
+  }, [shops, search]);
 
-  useEffect(() => {
-    fetchShops();
-    return () => {
-      const controller = new AbortController();
-      controller.abort();
-    };
-  }, [fetchShops]);
+  const computedStats = useMemo(() => {
+    const total = shops.length;
+    const approved = shops.filter(s => s.verified).length;
+    const suspended = total - approved;
+    return { totalShops: total, approvedShops: approved, suspendedShops: suspended };
+  }, [shops]);
+
+  useEffect(() => { fetchShops(); }, [fetchShops]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 animate-fade-in mt-14">
-      <div className="max-w-7xl mx-auto space-y-10">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h1 className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-14">
+      <div className="max-w-7xl mx-auto space-y-8">
+
+        {/* Header */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+          <h1 className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-3">
             <FiHome /> Shops Management
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Monitor and manage all shops, approve or suspend shops, and view detailed information.
-          </p>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Manage, approve, suspend, and view shop details</p>
         </div>
+
         {loadingShops ? (
           <ShopsSkeleton darkMode={darkMode} />
         ) : (
-          <ShopsTable
-            shops={shops}
-            filter={filter}
-            setFilter={setFilter}
-            search={search}
-            setSearch={setSearch}
-            approveShop={approveShop}
-            suspendShop={suspendShop}
-            deleteShop={deleteShop}
-            viewShop={viewShop}
-            darkMode={darkMode}
-            token={token}
-          />
-        )}
-        {selectedShop && (
-          <Modal
-            onClose={() => setSelectedShop(null)}
-            title={`Shop Details - ${DOMPurify.sanitize(selectedShop.name)}`}
-            darkMode={darkMode}
-          >
-            <div className="space-y-4">
-              <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
-                  Shop Information
-                  <button
-                    onClick={() => copyToClipboard(selectedShop.id)}
-                    className="relative group p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
-                    title="Copy Shop ID"
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+
+            {/* Stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 p-6 border-b border-gray-200 dark:border-gray-700">
+              {[
+                { label: 'Total Shops', value: computedStats.totalShops, color: 'emerald' },
+                { label: 'Approved', value: computedStats.approvedShops, color: 'green' },
+                { label: 'Suspended', value: computedStats.suspendedShops, color: 'red' },
+              ].map((stat, i) => (
+                <div key={i} className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg border border-gray-200 dark:border-gray-600 text-center">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{stat.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Filters & Search */}
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="w-full sm:w-48">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filter</label>
+                  <select
+                    value={filter}
+                    onChange={(e) => { setFilter(e.target.value); setSearch(''); }}
+                    className="w-full px-4 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
                   >
-                    <FiCopy />
-                    <span className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2">
-                      Copy Shop ID
-                    </span>
+                    <option value="all">All Shops</option>
+                    <option value="Approved">Approved</option>
+                    <option value="suspend">Suspended</option>
+                  </select>
+                </div>
+                <div className="flex-1 relative">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
+                  <div className="relative">
+                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                    <input
+                      type="text"
+                      placeholder="Search by name or email..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
+                    />
+                    {search && (
+                      <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                        <FiXCircle />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="p-6">
+              <PaginatedTable
+                data={filteredShops}
+                columns={['ID', 'Name', 'Status', 'Shop Type', 'Actions']}
+                page={1}
+                setPage={() => {}}
+                pageSize={5}
+                darkMode={darkMode}
+                renderRow={(shop) => (
+                  <tr key={shop.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <td className="px-6 py-4 text-sm font-medium text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="truncate max-w-32">{shop.id}</span>
+                        <button onClick={() => copyToClipboard(shop.id)} className="text-gray-500 hover:text-emerald-600">
+                          <FiCopy className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(shop.name) || 'N/A'}</td>
+                    <td className="px-6 py-4 text-center">
+                      <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
+                        shop.verified
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                      }`}>
+                        {shop.verified ? 'Approved' : 'Suspended'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(shop.shopType) || 'N/A'}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex justify-center gap-2">
+                        <button onClick={() => viewShop(shop.id)} className="px-3 py-1.5 text-xs bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded hover:bg-emerald-200 dark:hover:bg-emerald-800">
+                          View
+                        </button>
+                        {!shop.verified ? (
+                          <button onClick={() => approveShop(shop.id)} className="px-3 py-1.5 text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded hover:bg-green-200 dark:hover:bg-green-800">
+                            Approve
+                          </button>
+                        ) : (
+                          <>
+                            <button onClick={() => suspendShop(shop.id)} className="px-3 py-1.5 text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300 rounded hover:bg-yellow-200 dark:hover:bg-yellow-800">
+                              Suspend
+                            </button>
+                            <button onClick={() => deleteShop(shop.id)} className="px-3 py-1.5 text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-800">
+                              Delete
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                emptyMessage="No shops found"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Shop Details Modal */}
+        {selectedShop && (
+          <Modal onClose={() => setSelectedShop(null)} title="Shop Details" darkMode={darkMode}>
+            <div className="space-y-4 text-sm">
+              <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100">Shop Info</h4>
+                  <button onClick={() => copyToClipboard(selectedShop.id)} className="text-gray-500 hover:text-emerald-600">
+                    <FiCopy className="w-4 h-4" />
                   </button>
-                </h4>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>ID:</strong> {selectedShop.id || 'N/A'}
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>Name:</strong> {DOMPurify.sanitize(selectedShop.name) || 'N/A'}
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>Email:</strong> {DOMPurify.sanitize(selectedShop.email) || 'N/A'}
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>Phone:</strong> {DOMPurify.sanitize(selectedShop.phone) || 'N/A'}
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>Status:</strong> {selectedShop.verified ? 'Approved' : 'Suspended'}
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>Rating:</strong> {selectedShop.rating || 'N/A'}
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>Description:</strong> {DOMPurify.sanitize(selectedShop.description) || 'N/A'}
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  <strong>Shop Type:</strong> {DOMPurify.sanitize(selectedShop.shopType) || 'N/A'}
-                </p>
+                </div>
+                <p><strong>ID:</strong> {selectedShop.id}</p>
+                <p><strong>Name:</strong> {DOMPurify.sanitize(selectedShop.name)}</p>
+                <p><strong>Email:</strong> {DOMPurify.sanitize(selectedShop.email)}</p>
+                <p><strong>Phone:</strong> {DOMPurify.sanitize(selectedShop.phone) || 'N/A'}</p>
+                <p><strong>Status:</strong> <span className={selectedShop.verified ? 'text-green-600' : 'text-red-600'}>{selectedShop.verified ? 'Approved' : 'Suspended'}</span></p>
+                <p><strong>Rating:</strong> {selectedShop.rating || 'N/A'}</p>
+                <p><strong>Description:</strong> {DOMPurify.sanitize(selectedShop.description) || 'N/A'}</p>
+                <p><strong>Shop Type:</strong> {DOMPurify.sanitize(selectedShop.shopType) || 'N/A'}</p>
               </div>
               <div className="flex justify-end">
-                <button
-                  onClick={() => setSelectedShop(null)}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-300 transform hover:-translate-y-1 shadow-md"
-                >
+                <button onClick={() => setSelectedShop(null)} className="px-5 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition">
                   Close
                 </button>
               </div>
@@ -785,13 +491,5 @@ const Shops = ({ darkMode }) => {
     </div>
   );
 };
-
-function debounce(func, delay) {
-  let timeoutId;
-  return (...args) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => func(...args), delay);
-  };
-}
 
 export default Shops;

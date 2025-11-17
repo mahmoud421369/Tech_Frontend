@@ -25,6 +25,11 @@ const statusTranslations = {
   all: 'الكل',
 };
 
+
+const getTranslatedStatus = (status) => {
+  const normalized = status?.toString().toUpperCase().trim();
+  return statusTranslations[normalized] ?? status ?? 'غير معروف';
+};
 const statuses = Object.keys(statusTranslations).filter((s) => s !== 'all');
 
 // -------------------------------------------------
@@ -46,11 +51,6 @@ const nextStatuses = {
 const normalizeStatus = (status) => {
   if (!status) return null;
   return status.toString().toUpperCase().trim();
-};
-
-const getTranslatedStatus = (status) => {
-  const normalized = normalizeStatus(status);
-  return statusTranslations[normalized] || status || 'غير معروف';
 };
 
 // -------------------------------------------------
@@ -153,7 +153,12 @@ const RepairRequests = () => {
           <p class="flex justify-between flex-row-reverse"><strong class="text-lime-600">طريقة التوصيل</strong> ${data.deliveryMethod || 'غير متوفر'}</p>
           <p class="flex justify-between flex-row-reverse"><strong class="text-lime-600">طريقة الدفع</strong> ${data.paymentMethod || 'غير متوفر'}</p>
 
-          <p class="flex justify-between flex-row-reverse"><strong class="text-lime-600">الحالة</strong> <span class="px-2 py-1 rounded-full text-xs ${getStatusColor(data.status)}">${statusTranslations[data.status]}</span></p>
+<p className="flex justify-between flex-row-reverse">
+  <strong className="text-lime-600">الحالة</strong>
+  <span className={px-2 py-1 rounded-full text-xs ${getStatusColor(data.status)}}>
+    {getTranslatedStatus(data.status)}
+  </span>
+</p>
           <p class="flex justify-between flex-row-reverse"><strong class="text-lime-600">تم التأكيد</strong> ${data.confirmed ? 'نعم' : 'لا'}</p>
         </div>`;
       Swal.fire({
@@ -205,11 +210,19 @@ const confirmStatusUpdate = async () => {
     await api.put(`/api/shops/repair-request/${statusModalRepair.id}/status`, {
       newStatus: selectedNewStatus,
     });
+
+setRepairs(prev =>
+  prev.map(item =>
+    item.id === statusModalRepair.id
+      ? { ...item, status: selectedNewStatus }
+      : item
+  )
+);
     
 
     toast.success(` تحديث الحالة إلى ${statusTranslations[selectedNewStatus] || selectedNewStatus}`);
 
-    // أعد جلب البيانات من الـ Backend (الطريقة الوحيدة المضمونة)
+
     await fetchRepairs();
   } catch (err) {
     toast.error(err.response?.data?.message || 'فشل تحديث الحالة');
@@ -218,9 +231,6 @@ const confirmStatusUpdate = async () => {
   }
 };
 
-  // -------------------------------------------------
-  // Filtering
-  // -------------------------------------------------
   const filteredRepairs = useMemo(() => {
     let list = [...repairs];
 
@@ -251,9 +261,7 @@ const confirmStatusUpdate = async () => {
     if (page >= 1 && page <= totalPages) setCurrentPage(page);
   };
 
-  // -------------------------------------------------
-  // Render
-  // -------------------------------------------------
+
   return (
     <ShopLayout>
       <div style={{ marginTop: '-1225px', marginLeft: '-25px' }} className="min-h-screen max-w-6xl mx-auto p-4 lg:p-8 font-cairo bg-gradient-to-br from-gray-50 via-white to-white">
@@ -263,7 +271,7 @@ const confirmStatusUpdate = async () => {
           <p className="text-sm text-gray-600">إدارة ومتابعة طلبات التصليح بسهولة</p>
         </div>
 
-        {/* Filters & Search */}
+        
         <div className="flex flex-col sm:flex-row sm:flex-row-reverse items-center justify-between gap-4 mb-6 bg-white rounded-xl shadow-sm p-5 border ">
           <div className="relative w-full sm:w-64">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -304,7 +312,7 @@ const confirmStatusUpdate = async () => {
           </div>
         </div>
 
-        {/* Table */}
+ 
         <div className="bg-white rounded-xl shadow-sm overflow-hidden border ">
           {isLoading ? (
             <div className="p-12 flex justify-center">
@@ -336,7 +344,7 @@ const confirmStatusUpdate = async () => {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-medium text-black">{priceDisplay}</td>
                           <td className="px-6 py-4 text-sm text-center text-black max-w-xs truncate">{r.description || '—'}</td>
 
-         <td className="px-6 py-4 whitespace-nowrap text-center">
+     <td className="px-6 py-4 whitespace-nowrap text-center">
   <button
     onClick={() => openStatusUpdateModal(r)}
     disabled={updatingStatus === r.id}
@@ -351,45 +359,46 @@ const confirmStatusUpdate = async () => {
       </>
     ) : (
       <>
-        <span>{statusTranslations[r.status] || r.status || 'غير معروف'}</span>
+        <span>{getTranslatedStatus(r.status)}</span>
         {nextStatuses[r.status]?.length > 0 && <FiChevronDown className="w-3 h-3" />}
       </>
     )}
   </button>
 </td>
 
-                          {/* Actions */}
-                          <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                            <div className="flex items-center justify-center gap-2">
-                              <button
-                                onClick={() => viewRepairDetails(r.id)}
-                                className="flex items-center gap-1 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-all text-xs"
-                              >
-                                <FiInfo className="w-4 h-4" /> تفاصيل
-                              </button>
+                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+  <div className="flex items-center justify-center gap-2">
+    <button
+      onClick={() => viewRepairDetails(r.id)}
+      className="flex items-center gap-1 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-all text-xs"
+    >
+      <FiInfo className="w-4 h-4" /> تفاصيل
+    </button>
 
-                              <button
-                                onClick={() => {
-                                  Swal.fire({
-                                    title: 'أدخل السعر الجديد',
-                                    input: 'number',
-                                    inputValue: r.price || '',
-                                    showCancelButton: true,
-                                    confirmButtonText: 'تحديث',
-                                    cancelButtonText: 'إلغاء',
-                                    confirmButtonColor: '#84cc16',
-                                    preConfirm: (v) => {
-                                      if (v && v > 0) updateRepairPrice(r.id, v);
-                                      else toast.error('السعر يجب أن يكون أكبر من 0');
-                                    },
-                                  });
-                                }}
-                                className="flex items-center gap-1 px-3 py-1.5 bg-lime-100 text-lime-700 rounded-lg hover:bg-lime-200 transition-all text-xs"
-                              >
-                                <FiDollarSign className="w-4 h-4" /> تحديث السعر
-                              </button>
-                            </div>
-                          </td>
+    
+    <button
+      onClick={() => {
+        Swal.fire({
+          title: 'أدخل السعر الجديد',
+          input: 'number',
+          inputValue: r.price || '',
+          showCancelButton: true,
+          confirmButtonText: 'تحديث',
+          cancelButtonText: 'إلغاء',
+          confirmButtonColor: '#84cc16',
+          preConfirm: (v) => {
+            if (v && v > 0) updateRepairPrice(r.id, v);
+            else toast.error('السعر يجب أن يكون أكبر من 0');
+          },
+        });
+      }}
+      className="flex items-center gap-1 px-3 py-1.5 bg-lime-100 text-lime-700 rounded-lg hover:bg-lime-200 transition-all text-xs"
+    >
+      <FiDollarSign className="w-4 h-4 " /> {r.price ? 'تحديث السعر' : 'إضافة سعر'}
+    </button>
+ 
+  </div>
+</td>
                         </tr>
                       );
                     })
@@ -416,7 +425,7 @@ const confirmStatusUpdate = async () => {
           )}
         </div>
 
-        {/* Pagination */}
+        
         {totalPages > 1 && (
           <div className="flex flex-col sm:flex-row justify-center items-center gap-3 mt-6">
             <button
@@ -457,7 +466,7 @@ const confirmStatusUpdate = async () => {
           </div>
         )}
 
-        {/* Status Update Modal */}
+     
         {showStatusModal && statusModalRepair && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md font-cairo text-right">
@@ -473,8 +482,9 @@ const confirmStatusUpdate = async () => {
 
               <div className="mb-4">
                 <p className="text-sm text-gray-600 mb-2">الحالة الحالية:</p>
-             <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(statusModalRepair.status)}`}>
-{statusModalRepair.status|| 'غير معروف'}
+            
+<span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(statusModalRepair.status)}`}>
+  {getTranslatedStatus(statusModalRepair.status)}
 </span>
               </div>
 

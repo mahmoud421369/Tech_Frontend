@@ -15,83 +15,83 @@ import {
 } from 'chart.js';
 import { Bar, Pie } from 'react-chartjs-2';
 
+// Register Chart.js components
 Chart.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
+// Loading Spinner
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center h-64">
-    <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+    <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
   </div>
 );
 
+// Skeleton Loader
 const DashboardSkeleton = ({ darkMode }) => (
   <div className="animate-pulse p-4 sm:p-6">
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
       {[...Array(4)].map((_, idx) => (
-        <div key={idx} className="p-4 sm:p-6 bg-indigo-50 dark:bg-indigo-900 rounded-lg shadow-md">
+        <div key={idx} className="p-4 sm:p-6 bg-gray-100 dark:bg-gray-800 rounded-lg shadow-md">
           <div className="flex items-center justify-between">
             <div className="space-y-2">
-              <div className="h-6 w-1/2 bg-indigo-200 dark:bg-indigo-700 rounded"></div>
-              <div className="h-8 w-1/4 bg-indigo-200 dark:bg-indigo-700 rounded"></div>
+              <div className="h-6 w-1/2 bg-gray-300 dark:bg-gray-700 rounded"></div>
+              <div className="h-8 w-1/4 bg-gray-300 dark:bg-gray-700 rounded"></div>
             </div>
-            <div className="h-10 w-10 bg-indigo-200 dark:bg-indigo-700 rounded-full"></div>
+            <div className="h-10 w-10 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
           </div>
         </div>
       ))}
     </div>
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
       {[...Array(2)].map((_, idx) => (
-        <div key={idx} className="p-4 sm:p-6 bg-indigo-50 dark:bg-indigo-900 rounded-lg shadow-md h-64">
-          <div className="h-8 w-1/3 bg-indigo-200 dark:bg-indigo-700 rounded mb-4"></div>
-          <div className="h-full bg-indigo-200 dark:bg-indigo-700 rounded"></div>
+        <div key={idx} className="p-4 sm:p-6 bg-gray-100 dark:bg-gray-800 rounded-lg shadow-md h-64">
+          <div className="h-8 w-1/3 bg-gray-300 dark:bg-gray-700 rounded mb-4"></div>
+          <div className="h-full bg-gray-300 dark:bg-gray-700 rounded"></div>
         </div>
       ))}
     </div>
   </div>
 );
 
+// Main Dashboard Component
 const Dashboard = ({ darkMode }) => {
   const navigate = useNavigate();
   const token = localStorage.getItem('authToken');
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Copy to clipboard
   const copyToClipboard = useCallback((value, label) => {
     navigator.clipboard.writeText(value).then(
       () => {
         Swal.fire({
-          title: 'Success',
-          text: `${label} copied to clipboard!`,
+          title: 'Copied!',
+          text: `${label} copied!`,
           icon: 'success',
           toast: true,
           position: 'top-end',
           showConfirmButton: false,
           timer: 1500,
-          customClass: { popup: darkMode ? 'dark:bg-indigo-900 dark:text-indigo-200' : '' },
+          background: darkMode ? '#1f2937' : '#fff',
+          color: darkMode ? '#d1d5db' : '#111',
         });
       },
-      (err) => {
+      () => {
         Swal.fire({
           title: 'Error',
-          text: `Failed to copy ${label.toLowerCase()}`,
+          text: 'Failed to copy',
           icon: 'error',
           toast: true,
           position: 'top-end',
-          showConfirmButton: false,
           timer: 1500,
-          customClass: { popup: darkMode ? 'dark:bg-indigo-900 dark:text-indigo-200' : '' },
         });
       }
     );
   }, [darkMode]);
 
+  // Fetch stats
   const fetchStats = useCallback(async () => {
     if (!token) {
-      Swal.fire({
-        title: 'Error',
-        text: 'No authentication token found. Please log in.',
-        icon: 'error',
-        customClass: { popup: darkMode ? 'dark:bg-indigo-900 dark:text-indigo-200' : '' },
-      });
+      Swal.fire({ title: 'Error', text: 'Please log in.', icon: 'error' });
       navigate('/login');
       return;
     }
@@ -99,24 +99,18 @@ const Dashboard = ({ darkMode }) => {
     const controller = new AbortController();
     try {
       setLoading(true);
-      const response = await api.get('/api/admin/stats', {
+      const { data } = await api.get('/api/admin/stats', {
         signal: controller.signal,
         headers: { Authorization: `Bearer ${token}` },
       });
-      console.log('Fetched stats:', response.data);
-      setStats(response.data);
+      setStats(data);
     } catch (error) {
-      console.error('Error fetching stats:', error.response?.data || error.message);
-      Swal.fire({
-        title: 'Error',
-        text: error.response?.status === 401 ? 'Unauthorized, please log in' : 'Failed to load stats',
-        icon: 'error',
-        customClass: { popup: darkMode ? 'dark:bg-indigo-900 dark:text-indigo-200' : '' },
-      });
+      const msg = error.response?.status === 401
+        ? 'Session expired. Logging out...'
+        : 'Failed to load data.';
+      Swal.fire({ title: 'Error', text: msg, icon: 'error' });
       if (error.response?.status === 401) {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('userId');
+        ['authToken', 'refreshToken', 'userId'].forEach(k => localStorage.removeItem(k));
         navigate('/login');
       }
       setStats(null);
@@ -124,186 +118,145 @@ const Dashboard = ({ darkMode }) => {
       setLoading(false);
     }
     return () => controller.abort();
-  }, [token, navigate, darkMode]);
+  }, [token, navigate]);
 
   useEffect(() => {
     fetchStats();
-    return () => {
-      const controller = new AbortController();
-      controller.abort();
-    };
   }, [fetchStats]);
 
+  // Chart Data
   const chartLabels = ['Users', 'Shops', 'Repair Requests', 'Orders'];
-
   const chartValues = [stats?.users || 0, stats?.shops || 0, stats?.repairs || 0, stats?.orders || 0];
+
+  const lightColors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444']; // emerald, blue, amber, red
+  const darkColors = ['#34d399', '#60a5fa', '#fbbf24', '#f87171'];
 
   const barChartData = useMemo(() => ({
     labels: chartLabels,
     datasets: [{
-      label: 'Counts',
+      label: 'Count',
       data: chartValues,
-      backgroundColor: darkMode
-        ? ['rgba(99, 102, 241, 0.4)', 'rgba(159, 122, 234, 0.4)', 'rgba(139, 92, 246, 0.4)', 'rgba(196, 181, 253, 0.4)']
-        : ['rgba(99, 102, 241, 0.6)', 'rgba(159, 122, 234, 0.6)', 'rgba(139, 92, 246, 0.6)', 'rgba(196, 181, 253, 0.6)'],
-      borderColor: darkMode
-        ? ['rgb(99, 102, 241)', 'rgb(159, 122, 234)', 'rgb(139, 92, 246)', 'rgb(196, 181, 253)']
-        : ['rgb(79, 70, 229)', 'rgb(139, 92, 246)', 'rgb(109, 40, 217)', 'rgb(167, 139, 250)'],
-      borderWidth: 1.5,
-      hoverBackgroundColor: darkMode
-        ? ['rgba(99, 102, 241, 0.6)', 'rgba(159, 122, 234, 0.6)', 'rgba(139, 92, 246, 0.6)', 'rgba(196, 181, 253, 0.6)']
-        : ['rgba(79, 70, 229, 0.8)', 'rgba(139, 92, 246, 0.8)', 'rgba(109, 40, 217, 0.8)', 'rgba(167, 139, 250, 0.8)'],
+      backgroundColor: darkMode ? darkColors.map(c => c + '80') : lightColors.map(c => c + '99'),
+      borderColor: darkMode ? darkColors : lightColors,
+      borderWidth: 2,
+      borderRadius: 6,
+      borderSkipped: false,
     }],
-  }), [darkMode, stats]);
-
-  const barChartOptions = useMemo(() => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'top',
-        labels: { color: darkMode ? '#e0e7ff' : '#4b5e8e', font: { size: 14, weight: 'bold' } },
-      },
-      title: {
-        display: true,
-        text: 'Admin Statistics Overview',
-        color: darkMode ? '#e0e7ff' : '#4b5e8e',
-        font: { size: 18, weight: 'bold' },
-        padding: { top: 10, bottom: 20 },
-      },
-      tooltip: {
-        backgroundColor: darkMode ? 'rgba(79, 70, 229, 0.9)' : 'rgba(49, 46, 129, 0.9)',
-        titleFont: { size: 14 },
-        bodyFont: { size: 12 },
-      },
-    },
-    scales: {
-      x: {
-        ticks: { color: darkMode ? '#e0e7ff' : '#4b5e8e', font: { size: 12 } },
-        grid: { display: false },
-      },
-      y: {
-        beginAtZero: true,
-        ticks: { color: darkMode ? '#e0e7ff' : '#4b5e8e', font: { size: 12 } },
-        grid: { color: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' },
-      },
-    },
-    animation: {
-      duration: 1000,
-      easing: 'easeInOutQuad',
-    },
-  }), [darkMode]);
+  }), [darkMode, chartValues]);
 
   const pieChartData = useMemo(() => ({
     labels: chartLabels,
     datasets: [{
       data: chartValues,
-      backgroundColor: darkMode
-        ? ['rgba(99, 102, 241, 0.6)', 'rgba(159, 122, 234, 0.6)', 'rgba(139, 92, 246, 0.6)', 'rgba(196, 181, 253, 0.6)']
-        : ['rgba(99, 102, 241, 0.8)', 'rgba(159, 122, 234, 0.8)', 'rgba(139, 92, 246, 0.8)', 'rgba(196, 181, 253, 0.8)'],
-      borderColor: darkMode
-        ? ['rgb(99, 102, 241)', 'rgb(159, 122, 234)', 'rgb(139, 92, 246)', 'rgb(196, 181, 253)']
-        : ['rgb(79, 70, 229)', 'rgb(139, 92, 246)', 'rgb(109, 40, 217)', 'rgb(167, 139, 250)'],
-      borderWidth: 1.5,
-      hoverBackgroundColor: darkMode
-        ? ['rgba(99, 102, 241, 0.8)', 'rgba(159, 122, 234, 0.8)', 'rgba(139, 92, 246, 0.8)', 'rgba(196, 181, 253, 0.8)']
-        : ['rgba(79, 70, 229, 1)', 'rgba(139, 92, 246, 1)', 'rgba(109, 40, 217, 1)', 'rgba(167, 139, 250, 1)'],
+      backgroundColor: darkMode ? darkColors.map(c => c + 'CC') : lightColors,
+      borderColor: '#fff',
+      borderWidth: 3,
+      hoverOffset: 12,
     }],
-  }), [darkMode, stats]);
+  }), [darkMode, chartValues]);
 
-  const pieChartOptions = useMemo(() => ({
+  const chartOptions = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: {
         position: 'top',
-        labels: { color: darkMode ? '#e0e7ff' : '#4b5e8e', font: { size: 14, weight: 'bold' } },
+        labels: {
+          color: darkMode ? '#e5e7eb' : '#374151',
+          font: { size: 13, weight: '600' },
+          padding: 20,
+          usePointStyle: true,
+        },
       },
       title: {
         display: true,
-        text: 'Distribution of Stats',
-        color: darkMode ? '#e0e7ff' : '#4b5e8e',
+        color: darkMode ? '#e5e7eb' : '#1f2937',
         font: { size: 18, weight: 'bold' },
         padding: { top: 10, bottom: 20 },
       },
       tooltip: {
-        backgroundColor: darkMode ? 'rgba(79, 70, 229, 0.9)' : 'rgba(49, 46, 129, 0.9)',
-        titleFont: { size: 14 },
-        bodyFont: { size: 12 },
+        backgroundColor: darkMode ? 'rgba(31, 41, 55, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+        titleColor: darkMode ? '#e5e7eb' : '#1f2937',
+        bodyColor: darkMode ? '#d1d5db' : '#374151',
+        borderColor: darkMode ? '#374151' : '#e5e7eb',
+        borderWidth: 1,
+        cornerRadius: 8,
       },
     },
-    animation: {
-      duration: 1000,
-      easing: 'easeInOutQuad',
-    },
+    animation: { duration: 1200, easing: 'easeOutQuart' },
   }), [darkMode]);
 
+  const barOptions = { ...chartOptions, plugins: { ...chartOptions.plugins, title: { text: 'Statistics Overview' } } };
+  const pieOptions = { ...chartOptions, plugins: { ...chartOptions.plugins, title: { text: 'Data Distribution' } } };
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 animate-fade-in mt-14">
-      <div className="max-w-full sm:max-w-7xl mx-auto">
-        <div className="bg-white dark:bg-indigo-900 mb-6 rounded-lg shadow-md p-4 sm:p-6 flex flex-col sm:flex-row justify-between gap-4 items-center">
-          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-4 text-green-600 dark:text-indigo-200">
-            <FiActivity />
-            Admin Dashboard
-          </h1>
-          <p className="text-gray-600 dark:text-indigo-300 text-sm sm:text-base">
-            Overview of key metrics and statistics
-          </p>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-14">
+      <div className="max-w-7xl mx-auto">
+
+        {/* Header */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 mb-8 border border-gray-200 dark:border-gray-700">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-3 text-emerald-700 dark:text-emerald-400">
+              <FiActivity /> Admin Dashboard
+            </h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Real-time platform insights
+            </p>
+          </div>
         </div>
+
+        {/* Loading / Error */}
         {loading ? (
           <DashboardSkeleton darkMode={darkMode} />
         ) : !stats ? (
-          <div className="bg-indigo-50 dark:bg-indigo-900 rounded-lg shadow-md p-6 sm:p-8 text-center transition-all duration-300">
-            <FiBarChart2 className="text-5xl sm:text-6xl mx-auto mb-4 text-indigo-500 dark:text-indigo-400 animate-pulse" />
-            <h3 className="text-lg sm:text-xl font-semibold text-indigo-700 dark:text-indigo-200 mb-2">
-              No stats available
-            </h3>
-            <p className="text-indigo-600 dark:text-indigo-300 text-sm sm:text-base">
-              Unable to load dashboard statistics. Please try again.
-            </p>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-10 text-center border border-gray-200 dark:border-gray-700">
+            <FiBarChart2 className="mx-auto text-6xl text-gray-400 dark:text-gray-600 mb-4" />
+            <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300">No Data</h3>
+            <p className="text-gray-500 dark:text-gray-400 mt-2">Try refreshing.</p>
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
               {[
-                { title: 'Total Users', value: stats.users, icon: <FiUsers className="text-xl sm:text-4xl text-emerald-500 dark:text-indigo-400" /> },
-                { title: 'Total Shops', value: stats.shops, icon: <FiHome className="text-xl sm:text-4xl text-emerald-500 dark:text-indigo-400" /> },
-                { title: 'Total Repair Requests', value: stats.repairs, icon: <FiTool className="text-xl sm:text-4xl text-emerald-500 dark:text-indigo-400" /> },
-                { title: 'Total Orders', value: stats.orders, icon: <FiShoppingCart className="text-xl sm:text-4xl text-emerald-500 dark:text-indigo-400" /> },
-              ].map((stat, index) => (
+                { title: 'Total Users', value: stats.users, icon: FiUsers, color: 'emerald' },
+                { title: 'Total Shops', value: stats.shops, icon: FiHome, color: 'blue' },
+                { title: 'Repair Requests', value: stats.repairs, icon: FiTool, color: 'amber' },
+                { title: 'Total Orders', value: stats.orders, icon: FiShoppingCart, color: 'red' },
+              ].map((stat, i) => (
                 <div
-                  key={index}
-                  className="p-4 sm:p-6 bg-white dark:bg-indigo-900 shadow-lg flex items-center justify-between border-l-4 border-emerald-600 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl"
+                  key={i}
+                  className="group relative bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-200 dark:border-gray-700 transition-all hover:shadow-lg hover:-translate-y-1"
                 >
-                  <div>
-                    <h3 className="font-semibold text-gray-700 text-md dark:text-indigo-200 text-base sm:text-lg">
-                      {stat.title}
-                    </h3>
-                    <p className="text-xl sm:text-2xl font-bold text-emerald-600 dark:text-indigo-400 flex items-center gap-2">
-                      {stat.value || '-'}
-                      {/* <button
-                        onClick={() => copyToClipboard(stat.value || '0', stat.title)}
-                        className="relative group p-1 text-indigo-500 hover:text-indigo-700 dark:hover:text-indigo-300 transition-transform duration-200 hover:scale-110"
-                        title={`Copy ${stat.title}`}
-                      >
-                        <FiCopy />
-                        <span className="absolute hidden group-hover:block bg-indigo-800 text-white text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2">
-                          Copy {stat.title}
-                        </span>
-                      </button> */}
-                    </p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.title}</p>
+                      <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mt-1 flex items-center gap-2">
+                        {stat.value}
+                        <button
+                          onClick={() => copyToClipboard(stat.value, stat.title)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-gray-500 hover:text-emerald-600"
+                          title="Copy"
+                        >
+                          <FiCopy className="w-4 h-4" />
+                        </button>
+                      </p>
+                    </div>
+                    <div className={`p-3 rounded-full bg-${stat.color}-100 dark:bg-${stat.color}-900/30`}>
+                      <stat.icon className={`w-6 h-6 text-${stat.color}-600 dark:text-${stat.color}-400`} />
+                    </div>
                   </div>
-                  <span className='p-3 rounded-3xl bg-emerald-50  text-md'>{stat.icon}</span>
                 </div>
               ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-              <div className="bg-white dark:bg-indigo-900 rounded-xl shadow-lg p-4 sm:p-6 transition-all duration-300 hover:shadow-xl h-80 sm:h-96">
-                <Bar options={barChartOptions} data={barChartData} />
+            {/* Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-200 dark:border-gray-700 h-80 sm:h-96">
+                <Bar data={barChartData} options={barOptions} />
               </div>
-              <div className="bg-white dark:bg-indigo-900 rounded-xl shadow-lg p-4 sm:p-6 transition-all duration-300 hover:shadow-xl h-80 sm:h-96">
-                <Pie options={pieChartOptions} data={pieChartData} />
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-200 dark:border-gray-700 h-80 sm:h-96">
+                <Pie data={pieChartData} options={pieOptions} />
               </div>
             </div>
           </>
@@ -313,4 +266,5 @@ const Dashboard = ({ darkMode }) => {
   );
 };
 
+// CORRECT EXPORT
 export default Dashboard;

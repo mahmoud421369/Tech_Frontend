@@ -5,6 +5,7 @@ import Swal from 'sweetalert2';
 import { toast } from 'react-toastify';
 import {
   FiUser, FiLogOut, FiMenu, FiX, FiSearch,
+  FiTag,
 } from 'react-icons/fi';
 import {
   RiBox2Line, RiInbox2Line, RiMessage2Line, RiMoneyDollarCircleLine,
@@ -50,8 +51,8 @@ const ShopHeader = ({ children }) => {
     { name: 'transactions', icon: <RiMoneyDollarCircleLine className="text-xl" />, label: 'الفواتير', path: '/shop/transactions' },
     { name: 'inventory', icon: <RiInbox2Line className="text-xl" />, label: 'جرد', path: '/shop/inventory' },
     { name: 'subscription', icon: <RiPriceTag2Line className="text-xl" />, label: 'الاشتراك', path: '/subscriptions' },
-    { name: 'offers',    icon: <RiPriceTag2Line className="text-xl" />, label: 'العروض', path: '/shop/offers' },
-    { name: 'support',   icon: <RiMessage2Line className="text-xl" />, label: 'الدعم', path: '/support' },
+    { name: 'offers',    icon: <FiTag className="text-xl" />, label: 'العروض', path: '/shop/offers' },
+    { name: 'support',   icon: <RiMessage2Line className="text-xl" />, label: 'الدردشات', path: '/support' },
   ];
 
   const isTokenExpired = useCallback((t) => {
