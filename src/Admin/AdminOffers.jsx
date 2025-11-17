@@ -1,35 +1,42 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiTag, FiPlus, FiSearch, FiEdit3, FiTrash2, FiCopy, FiXCircle, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import {
+  FiTag,
+  FiPlus,
+  FiSearch,
+  FiEdit3,
+  FiTrash2,
+  FiCopy,
+  FiXCircle,
+  FiChevronLeft,
+  FiChevronRight,
+} from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import api from '../api';
 import Modal from '../components/Modal';
 
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center h-64">
-    <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+    <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
   </div>
 );
 
 const OffersSkeleton = ({ darkMode }) => (
   <div className="animate-pulse p-6">
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-      <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-md border border-gray-100 dark:border-gray-800">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
         <div className="h-6 w-1/2 bg-gray-300 dark:bg-gray-600 rounded mb-2"></div>
         <div className="h-8 w-1/4 bg-gray-300 dark:bg-gray-600 rounded"></div>
       </div>
     </div>
-    <div className="bg-white dark:bg-gray-950 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-      <div className="relative w-full sm:w-80 mb-6">
-        <div className="h-10 w-full bg-gray-300 dark:bg-gray-700 rounded-lg"></div>
-      </div>
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+      <div className="h-10 w-full sm:w-80 bg-gray-300 dark:bg-gray-600 rounded-lg mb-6"></div>
       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-        <thead className="bg-gray-100 dark:bg-gray-800">
+        <thead className="bg-gray-100 dark:bg-gray-700">
           <tr>
-            {['ID', 'Title', 'Description', 'Actions'].map((header, idx) => (
-              <th key={idx} className="px-6 py-3 text-center text-sm font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                {header}
+            {['ID', 'Title', 'Description', 'Actions'].map((_, idx) => (
+              <th key={idx} className="px-6 py-3">
+                <div className="h-4 w-20 bg-gray-300 dark:bg-gray-600 rounded"></div>
               </th>
             ))}
           </tr>
@@ -42,8 +49,8 @@ const OffersSkeleton = ({ darkMode }) => (
               <td className="px-6 py-4"><div className="h-4 w-64 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
               <td className="px-6 py-4">
                 <div className="flex justify-center gap-2">
-                  <div className="h-8 w-8 bg-gray-300 dark:bg-gray-600 rounded"></div>
-                  <div className="h-8 w-8 bg-gray-300 dark:bg-gray-600 rounded"></div>
+                  <div className="h-8 w-16 bg-gray-300 dark:bg-gray-600 rounded"></div>
+                  <div className="h-8 w-16 bg-gray-300 dark:bg-gray-600 rounded"></div>
                 </div>
               </td>
             </tr>
@@ -54,7 +61,15 @@ const OffersSkeleton = ({ darkMode }) => (
   </div>
 );
 
-const PaginatedTable = ({ data, columns, page, setPage, pageSize, renderRow, emptyMessage, darkMode }) => {
+const PaginatedTable = ({
+  data,
+  page,
+  setPage,
+  pageSize,
+  renderRow,
+  emptyMessage,
+  darkMode,
+}) => {
   const totalPages = Math.ceil(data.length / pageSize);
   const paginatedData = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -63,89 +78,96 @@ const PaginatedTable = ({ data, columns, page, setPage, pageSize, renderRow, emp
 
   const getPageNumbers = () => {
     const pages = [];
-    const maxVisiblePages = 5;
-    if (totalPages <= maxVisiblePages) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
+    const maxVisible = 5;
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
     } else {
-      let startPage = Math.max(1, page - Math.floor(maxVisiblePages / 2));
-      let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-      if (endPage - startPage + 1 < maxVisiblePages) {
-        startPage = Math.max(1, endPage - maxVisiblePages + 1);
-      }
-      if (startPage > 1) {
-        pages.push(1);
-        if (startPage > 2) pages.push('...');
-      }
-      for (let i = startPage; i <= endPage; i++) {
-        pages.push(i);
-      }
-      if (endPage < totalPages) {
-        if (endPage < totalPages - 1) pages.push('...');
-        pages.push(totalPages);
-      }
+      let start = Math.max(1, page - 2);
+      let end = Math.min(totalPages, start + maxVisible - 1);
+      if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1);
+      if (start > 1) { pages.push(1); if (start > 2) pages.push('...'); }
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (end < totalPages) { if (end < totalPages - 1) pages.push('...'); pages.push(totalPages); }
     }
     return pages;
   };
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-        <thead className="bg-gray-100 dark:bg-gray-800 text-indigo-600 dark:text-indigo-400">
-          <tr>
-            {columns.map((col, index) => (
-              <th key={index} className="px-6 py-3 text-center text-sm font-semibold uppercase tracking-wider">
-                {col}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-200 dark:divide-gray-700 text-gray-900 dark:text-gray-100">
-          {paginatedData.map(renderRow)}
-          {paginatedData.length === 0 && (
+    <>
+      <style>
+        {`
+          .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+          .custom-scrollbar::-webkit-scrollbar-track { background: ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}; border-radius: 10px; }
+          .custom-scrollbar::-webkit-scrollbar-thumb { background: ${darkMode ? '#34d399' : '#10b981'}; border-radius: 10px; }
+          .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: ${darkMode ? '#6ee7b7' : '#059669'}; }
+        `}
+      </style>
+
+      <div className="overflow-x-auto custom-scrollbar">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead className="bg-gray-100 dark:bg-gray-700">
             <tr>
-              <td colSpan={columns.length} className="py-6 text-center text-gray-500 dark:text-gray-400">
-                <div className="flex flex-col items-center gap-2">
-                  <FiTag className="text-2xl text-gray-500 dark:text-gray-400" />
-                  {emptyMessage}
-                </div>
-              </td>
+              {['ID', 'Title', 'Description', 'Actions'].map((col, i) => (
+                <th
+                  key={i}
+                  className="px-6 py-3 text-center text-sm font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300"
+                >
+                  {col}
+                </th>
+              ))}
             </tr>
-          )}
-        </tbody>
-      </table>
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center space-x-2 mt-6">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="px-4 py-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
-          >
-            <FiChevronLeft /> 
-          </button>
-          {getPageNumbers().map((pageNum, idx) => (
+          </thead>
+          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 text-gray-900 dark:text-gray-100">
+            {paginatedData.map(renderRow)}
+            {paginatedData.length === 0 && (
+              <tr>
+                <td colSpan={4} className="py-12 text-center text-gray-500 dark:text-gray-400">
+                  <div className="flex flex-col items-center gap-3">
+                    <FiTag className="text-4xl text-gray-400 dark:text-gray-500" />
+                    <p className="text-lg font-medium">{emptyMessage}</p>
+                  </div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center space-x-2 mt-8">
             <button
-              key={idx}
-              onClick={() => typeof pageNum === 'number' && setPage(pageNum)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                pageNum === '...' ? 'cursor-default' : page === pageNum ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-800'
-              }`}
-              disabled={pageNum === '...'}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
             >
-              {pageNum}
+              <FiChevronLeft /> Prev
             </button>
-          ))}
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className="px-4 py-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
-          >
-             <FiChevronRight />
-          </button>
-        </div>
-      )}
-    </div>
+            {getPageNumbers().map((num, i) => (
+              <button
+                key={i}
+                onClick={() => typeof num === 'number' && setPage(num)}
+                disabled={num === '...'}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  num === '...'
+                    ? 'cursor-default text-gray-500 dark:text-gray-400'
+                    : page === num
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-800'
+                }`}
+              >
+                {num}
+              </button>
+            ))}
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
+            >
+              Next <FiChevronRight />
+            </button>
+          </div>
+        )}
+      </div>
+    </>
   );
 };
 
@@ -154,119 +176,44 @@ const AdminOffers = ({ darkMode }) => {
   const token = localStorage.getItem('authToken');
   const [offers, setOffers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOffer, setEditingOffer] = useState(null);
   const [offerTitle, setOfferTitle] = useState('');
   const [offerDescription, setOfferDescription] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(5);
-
-  const debounce = (func, delay) => {
-    let timeoutId;
-    return (...args) => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => func(...args), delay);
-    };
-  };
-
-  const handleSearchChange = useCallback(
-    debounce((value) => {
-      setDebouncedSearchTerm(value);
-      setCurrentPage(1);
-    }, 300),
-    []
-  );
-
-  const copyToClipboard = useCallback(
-    (id) => {
-      navigator.clipboard.writeText(id).then(
-        () => {
-          Swal.fire({
-            title: 'Success',
-            text: 'Offer ID copied to clipboard!',
-            icon: 'success',
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 1500,
-            customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-          });
-        },
-        (err) => {
-          console.error('Copy failed:', err);
-          Swal.fire({
-            title: 'Error',
-            text: 'Failed to copy Offer ID',
-            icon: 'error',
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 1500,
-            customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-          });
-        }
-      );
-    },
-    [darkMode]
-  );
+  const [page, setPage] = useState(1);
+  const pageSize = 5;
 
   const fetchOffers = useCallback(async () => {
     if (!token) {
-      Swal.fire({
-        title: 'Error',
-        text: 'No authentication token found. Please log in.',
-        icon: 'error',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
+      Swal.fire({ title: 'Error', text: 'Please log in.', icon: 'error' });
       navigate('/login');
       return;
     }
 
-    const controller = new AbortController();
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      const response = await api.get('/api/admin/offers', {
-        signal: controller.signal,
+      const { data } = await api.get('/api/admin/offers', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      let data = response.data;
-      if (response.data && response.data.content) {
-        data = response.data.content;
-      }
-      data = Array.isArray(data) ? data : [];
-      console.log('Processed Offer Data:', data);
-      setOffers(data);
+      const processed = Array.isArray(data) ? data : data?.content || [];
+      setOffers(processed);
     } catch (error) {
-      console.error('Error fetching offers:', error.response?.data || error.message);
-      Swal.fire({
-        title: 'Error',
-        text: error.response?.status === 401 ? 'Unauthorized, please log in' : 'Failed to load offers',
-        icon: 'error',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
+      const msg = error.response?.status === 401 ? 'Session expired.' : 'Failed to load offers.';
+      Swal.fire({ title: 'Error', text: msg, icon: 'error' });
       if (error.response?.status === 401) {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('userId');
+        ['authToken', 'refreshToken', 'userId'].forEach(k => localStorage.removeItem(k));
         navigate('/login');
       }
       setOffers([]);
     } finally {
       setIsLoading(false);
     }
-    return () => controller.abort();
-  }, [token, navigate, darkMode]);
+  }, [token, navigate]);
 
-  const saveOffer = useCallback(async () => {
+  const saveOffer = async () => {
     if (!offerTitle.trim()) {
-      Swal.fire({
-        title: 'Error',
-        text: 'Offer title is required',
-        icon: 'error',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
+      Swal.fire({ title: 'Error', text: 'Offer title is required.', icon: 'error' });
       return;
     }
 
@@ -278,191 +225,127 @@ const AdminOffers = ({ darkMode }) => {
           { name: offerTitle, description: offerDescription },
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        Swal.fire({
-          title: 'Success',
-          text: 'Offer updated successfully',
-          icon: 'success',
-          toast: true,
-          position: 'top-end',
-          timer: 2000,
-          showConfirmButton: false,
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
+        Swal.fire({ title: 'Updated!', text: 'Offer updated.', icon: 'success', toast: true, position: 'top-end', timer: 1500 });
       } else {
         await api.post(
           '/api/admin/offers',
           { name: offerTitle, description: offerDescription },
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        Swal.fire({
-          title: 'Success',
-          text: 'Offer added successfully',
-          icon: 'success',
-          toast: true,
-          position: 'top-end',
-          timer: 2000,
-          showConfirmButton: false,
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
+        Swal.fire({ title: 'Added!', text: 'Offer created.', icon: 'success', toast: true, position: 'top-end', timer: 1500 });
       }
       setOfferTitle('');
       setOfferDescription('');
       setEditingOffer(null);
       setIsModalOpen(false);
-      await fetchOffers();
+      fetchOffers();
     } catch (error) {
-      console.error('Error saving offer:', error.response?.data || error.message);
-      Swal.fire({
-        title: 'Error',
-        text: error.response?.status === 401 ? 'Unauthorized, please log in' : 'Failed to save offer',
-        icon: 'error',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
-      if (error.response?.status === 401) {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('userId');
-        navigate('/login');
-      }
+      Swal.fire({ title: 'Error', text: 'Failed to save offer.', icon: 'error' });
     } finally {
       setIsLoading(false);
     }
-  }, [editingOffer, offerTitle, offerDescription, token, fetchOffers, darkMode]);
+  };
 
-  const deleteOffer = useCallback(
-    async (id) => {
-      const result = await Swal.fire({
-        title: 'Are you sure?',
-        text: "This action cannot be undone!",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#374151',
-        confirmButtonText: 'Yes, delete it!',
-        cancelButtonText: 'Cancel',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-      });
+  const deleteOffer = async (id) => {
+    const result = await Swal.fire({
+      title: 'Delete Offer?',
+      text: 'This action cannot be undone!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, delete',
+    });
+    if (!result.isConfirmed) return;
 
-      if (!result.isConfirmed) return;
+    try {
+      setIsLoading(true);
+      await api.delete(`/api/admin/offers/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      Swal.fire({ title: 'Deleted!', text: 'Offer removed.', icon: 'success', toast: true, position: 'top-end', timer: 1500 });
+      fetchOffers();
+    } catch (error) {
+      Swal.fire({ title: 'Error', text: 'Failed to delete.', icon: 'error' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-      try {
-        setIsLoading(true);
-        await api.delete(`/api/admin/offers/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        Swal.fire({
-          title: 'Success',
-          text: 'Offer deleted successfully',
-          icon: 'success',
-          toast: true,
-          position: 'top-end',
-          timer: 2000,
-          showConfirmButton: false,
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
-        await fetchOffers();
-      } catch (error) {
-        console.error('Error deleting offer:', error.response?.data || error.message);
-        Swal.fire({
-          title: 'Error',
-          text: error.response?.status === 401 ? 'Unauthorized, please log in' : 'Failed to delete offer',
-          icon: 'error',
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
-        });
-        if (error.response?.status === 401) {
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('userId');
-          navigate('/login');
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [token, fetchOffers, darkMode]
-  );
+  const copyToClipboard = (id) => {
+    navigator.clipboard.writeText(id).then(
+      () => Swal.fire({ title: 'Copied!', text: 'Offer ID copied!', icon: 'success', toast: true, position: 'top-end', timer: 1000 }),
+      () => Swal.fire({ title: 'Error', text: 'Failed to copy', icon: 'error', toast: true, position: 'top-end', timer: 1000 })
+    );
+  };
 
   const filteredOffers = useMemo(() => {
-    const offersArray = Array.isArray(offers) ? offers : [];
-    return offersArray.filter(
-      (o) =>
-        o.name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-        o.description?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+    if (!searchTerm.trim()) return offers;
+    const lower = searchTerm.toLowerCase();
+    return offers.filter(o =>
+      o.name?.toLowerCase().includes(lower) ||
+      o.description?.toLowerCase().includes(lower)
     );
-  }, [offers, debouncedSearchTerm]);
+  }, [offers, searchTerm]);
 
   useEffect(() => {
     fetchOffers();
-    return () => {
-      const controller = new AbortController();
-      controller.abort();
-    };
   }, [fetchOffers]);
 
-  useEffect(() => {
-    handleSearchChange(searchTerm);
-  }, [searchTerm, handleSearchChange]);
-
   return (
-    <div  className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 animate-fade-in mt-14">
-      <div className="max-w-7xl mx-auto space-y-10">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 flex justify-between flex-wrap gap-4 items-center">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-14">
+      <div className="max-w-7xl mx-auto space-y-8">
+
+        {/* Header */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
+            <h1 className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-3">
               <FiTag /> Offers
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">Manage and view available offers</p>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">Manage promotional offers</p>
           </div>
-          {/* <button
+          <button
             onClick={() => {
-              setIsModalOpen(true);
               setEditingOffer(null);
               setOfferTitle('');
               setOfferDescription('');
+              setIsModalOpen(true);
             }}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 dark:bg-indigo-700 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-800 transition-all duration-300 transform hover:-translate-y-1 shadow-md"
+            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all duration-300 shadow-md hover:shadow-lg"
           >
             <FiPlus /> Add Offer
-          </button> */}
+          </button>
         </div>
 
         {isLoading ? (
           <OffersSkeleton darkMode={darkMode} />
         ) : (
-          <div className="bg-white dark:bg-gray-950 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-            {/* Stats Card */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-              <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-md border border-gray-100 dark:border-gray-800 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl">
-                <h3 className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide">Total Offers</h3>
-                <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-2">{offers.length}</p>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+
+            {/* Stats */}
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg border border-gray-200 dark:border-gray-600 text-center">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Offers</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{offers.length}</p>
+                </div>
               </div>
             </div>
 
             {/* Search */}
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
-              <div className="w-full sm:w-80 relative">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search Offers</label>
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="relative max-w-md">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
                 <div className="relative">
-                  <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-300" />
+                  <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                   <input
                     type="text"
                     placeholder="Search by title or description..."
                     value={searchTerm}
-                    onChange={(e) => {
-                      setSearchTerm(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all duration-300"
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
                   />
                   {searchTerm && (
-                    <button
-                      onClick={() => {
-                        setSearchTerm('');
-                        setCurrentPage(1);
-                      }}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                    >
-                      <FiXCircle size={18} />
+                    <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                      <FiXCircle />
                     </button>
                   )}
                 </div>
@@ -470,127 +353,109 @@ const AdminOffers = ({ darkMode }) => {
             </div>
 
             {/* Table */}
-            <PaginatedTable
-              data={filteredOffers}
-              columns={['ID', 'Title', 'Description', 'Actions']}
-              page={currentPage}
-              setPage={setCurrentPage}
-              pageSize={itemsPerPage}
-              darkMode={darkMode}
-              renderRow={(o) => (
-                <tr
-                  key={o.id}
-                  className="text-center hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-all duration-300"
-                >
-                  <td className="px-6 py-4 text-sm font-medium flex items-center justify-center gap-2">
-                    <span className="truncate max-w-[150px]">{o.id}</span>
-                    <button
-                      onClick={() => copyToClipboard(o.id)}
-                      className="relative group p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
-                      title="Copy Offer ID"
-                    >
-                      <FiCopy size={16} />
-                      <span className="absolute hidden group-hover:block bg-gray-800 dark:bg-gray-900 text-white dark:text-gray-200 text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
-                        Copy Offer ID
-                      </span>
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 text-sm font-medium">{o.name || 'N/A'}</td>
-                  <td className="px-6 py-4 text-sm">{o.description || 'N/A'}</td>
-                  <td className="px-6 py-4 flex justify-center gap-2">
-                    {/* <button
-                      onClick={() => {
-                        setEditingOffer(o);
-                        setOfferTitle(o.name || '');
-                        setOfferDescription(o.description || '');
-                        setIsModalOpen(true);
-                      }}
-                      className="p-2 bg-indigo-100 text-xs dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800/70 transition-all duration-300"
-                      title="Edit Offer"
-                    >
-                      Edit
-                    </button> */}
-                    <button
-                      onClick={() => deleteOffer(o.id)}
-                      className="p-2 bg-red-100 text-xs dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-800/70 transition-all duration-300"
-                      title="Delete Offer"
-                    >
-                     Delete
-                    </button>
-                  </td>
-                </tr>
-              )}
-              emptyMessage={offers.length === 0 ? 'No offers available' : 'No offers found'}
-            />
+            <div className="p-6">
+              <PaginatedTable
+                data={filteredOffers}
+                page={page}
+                setPage={setPage}
+                pageSize={pageSize}
+                darkMode={darkMode}
+                renderRow={(o) => (
+                  <tr key={o.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <td className="px-6 py-4 text-sm font-medium text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="truncate max-w-32">{o.id}</span>
+                        <button onClick={() => copyToClipboard(o.id)} className="text-gray-500 hover:text-emerald-600">
+                          <FiCopy className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm">{o.name || 'N/A'}</td>
+                    <td className="px-6 py-4 text-sm max-w-xs truncate" title={o.description}>
+                      {o.description || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex	justify-center gap-2">
+                        <button
+                          onClick={() => {
+                            setEditingOffer(o);
+                            setOfferTitle(o.name || '');
+                            setOfferDescription(o.description || '');
+                            setIsModalOpen(true);
+                          }}
+                          className="px-3 py-1.5 text-xs bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded hover:bg-emerald-200 dark:hover:bg-emerald-800"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => deleteOffer(o.id)}
+                          className="px-3 py-1.5 text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-800"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                emptyMessage={offers.length === 0 ? 'No offers available' : 'No matching offers'}
+              />
+            </div>
           </div>
         )}
 
+        {/* Modal */}
         {isModalOpen && (
-          <Modal onClose={() => setIsModalOpen(false)} title={editingOffer ? 'Edit Offer' : 'Add New Offer'} darkMode={darkMode}>
+          <Modal onClose={() => setIsModalOpen(false)} title={editingOffer ? 'Edit Offer' : 'Add Offer'} darkMode={darkMode}>
             <div className="space-y-4">
-              <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
-                  Offer Details
+              <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100">Offer Details</h4>
                   {editingOffer && (
-                    <button
-                      onClick={() => copyToClipboard(editingOffer.id)}
-                      className="relative group p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
-                      title="Copy Offer ID"
-                    >
-                      <FiCopy size={16} />
-                      <span className="absolute hidden group-hover:block bg-gray-800 dark:bg-gray-900 text-white dark:text-gray-200 text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
-                        Copy Offer ID
-                      </span>
+                    <button onClick={() => copyToClipboard(editingOffer.id)} className="text-gray-500 hover:text-emerald-600">
+                      <FiCopy className="w-4 h-4" />
                     </button>
                   )}
-                </h4>
+                </div>
                 {editingOffer && (
-                  <p className="text-sm text-gray-700 dark:text-gray-200">
-                    <strong>Offer ID:</strong> {editingOffer.id || 'N/A'}
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                    <strong>ID:</strong> {editingOffer.id}
                   </p>
                 )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                  Offer Title
-                </label>
-                <div className="relative">
-                  <FiTag className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-300" />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
                   <input
                     type="text"
                     value={offerTitle}
                     onChange={(e) => setOfferTitle(e.target.value)}
                     placeholder="Enter offer title"
-                    className="w-full pl-10 pr-3 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all duration-300"
+                    className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                  <textarea
+                    value={offerDescription}
+                    onChange={(e) => setOfferDescription(e.target.value)}
+                    placeholder="Enter offer description"
+                    rows={4}
+                    className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                  Offer Description
-                </label>
-                <textarea
-                  value={offerDescription}
-                  onChange={(e) => setOfferDescription(e.target.value)}
-                  placeholder="Enter offer description"
-                  className="w-full pl-3 pr-3 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all duration-300"
-                  rows="4"
-                />
-              </div>
-              <div className="flex justify-end space-x-2">
+              <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-100 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-all duration-300 transform hover:-translate-y-1 shadow-md"
+                  className="px-5 py-2 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={saveOffer}
-                  disabled={isLoading}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-300 transform hover:-translate-y-1 shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  disabled={isLoading || !offerTitle.trim()}
+                  className="px-5 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  {isLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : null}
-                  Save
+                  {isLoading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
+                  {editingOffer ? 'Update' : 'Create'}
                 </button>
               </div>
             </div>

@@ -1,35 +1,46 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
-import { FiClipboard, FiClock, FiUser, FiMapPin, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
-import api from '../api';
+import { FiClipboard, FiClock, FiUser, FiMapPin, FiCalendar } from 'react-icons/fi';
 import { FaStore } from 'react-icons/fa';
+import api from '../api';
 
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center h-64">
-    <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+    <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
   </div>
 );
 
 const LogsSkeleton = ({ darkMode }) => (
   <div className="animate-pulse p-6">
-    <div className="flex items-center gap-2 mb-6">
-      <div className="h-8 w-8 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
-      <div className="h-6 w-1/4 bg-gray-300 dark:bg-gray-700 rounded"></div>
-    </div>
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {[...Array(6)].map((_, idx) => (
-        <div
-          key={idx}
-          className="p-5 rounded-xl shadow-md bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-700"
-        >
-          <div className="flex items-center gap-2 mb-3">
-            <div className="h-5 w-1/3 bg-gray-300 dark:bg-gray-700 rounded"></div>
-          </div>
-          <div className="h-4 w-3/4 bg-gray-300 dark:bg-gray-700 rounded mb-2"></div>
-          <div className="h-4 w-1/2 bg-gray-300 dark:bg-gray-700 rounded"></div>
-        </div>
-      ))}
+    <div className="space-y-4">
+      <div className="h-8 w-64 bg-gray-300 dark:bg-gray-700 rounded-lg"></div>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <table className="min-w-full">
+          <thead className="bg-gray-100 dark:bg-gray-700">
+            <tr>
+              {['Assigner', 'Type', 'Shop', 'User', 'Address', 'Created', 'Updated'].map((h) => (
+                <th key={h} className="px-6 py-4 text-left">
+                  <div className="h-4 w-24 bg-gray-300 dark:bg-gray-600 rounded"></div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {[...Array(6)].map((_, i) => (
+              <tr key={i} className="border-t border-gray-200 dark:border-gray-700">
+                <td className="px-6 py-4"><div className="h-4 w-32 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
+                <td className="px-6 py-4"><div className="h-4 w-24 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
+                <td className="px-6 py-4"><div className="h-4 w-40 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
+                <td className="px-6 py-4"><div className="h-4 w-32 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
+                <td className="px-6 py-4"><div className="h-4 w-64 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
+                <td className="px-6 py-4"><div className="h-4 w-36 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
+                <td className="px-6 py-4"><div className="h-4 w-36 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 );
@@ -39,38 +50,6 @@ const AdminAssignmentLogs = ({ darkMode }) => {
   const token = localStorage.getItem('authToken');
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(0);
-
-  
-  const getItemsPerPage = () => {
-    if (window.innerWidth >= 1024) return 3; 
-    if (window.innerWidth >= 768) return 2; 
-    return 1; 
-  };
-
-  const [itemsPerPage, setItemsPerPage] = useState(getItemsPerPage());
-
-  useEffect(() => {
-    const handleResize = () => setItemsPerPage(getItemsPerPage());
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
- 
-  const totalPages = Math.ceil(logs.length / itemsPerPage);
-
-
-  const handlePrev = () => {
-    setCurrentIndex((prev) => (prev === 0 ? totalPages - 1 : prev - 1));
-  };
-
-  const handleNext = () => {
-    setCurrentIndex((prev) => (prev === totalPages - 1 ? 0 : prev + 1));
-  };
-
-  const handleDotClick = (index) => {
-    setCurrentIndex(index);
-  };
 
   const fetchLogs = useCallback(async () => {
     if (!token) {
@@ -82,7 +61,6 @@ const AdminAssignmentLogs = ({ darkMode }) => {
         position: 'top-end',
         showConfirmButton: false,
         timer: 1500,
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
       });
       navigate('/login');
       return;
@@ -96,9 +74,7 @@ const AdminAssignmentLogs = ({ darkMode }) => {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = Array.isArray(res.data.content) ? res.data.content : [];
-      console.log('Logs:', data);
       setLogs(data);
-      setCurrentIndex(0); 
     } catch (err) {
       if (err.name !== 'AbortError') {
         console.error('Error fetching logs:', err.response?.data || err.message);
@@ -110,7 +86,6 @@ const AdminAssignmentLogs = ({ darkMode }) => {
           position: 'top-end',
           showConfirmButton: false,
           timer: 1500,
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : '' },
         });
         if (err.response?.status === 401) {
           localStorage.removeItem('authToken');
@@ -124,142 +99,150 @@ const AdminAssignmentLogs = ({ darkMode }) => {
       setLoading(false);
     }
     return () => controller.abort();
-  }, [darkMode, navigate, token]);
+  }, [navigate, token]);
 
   useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
 
-  const currentLogs = logs.slice(
-    currentIndex * itemsPerPage,
-    (currentIndex + 1) * itemsPerPage
-  );
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    return new Date(dateStr).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const formatAddress = (addr) => {
+    if (!addr) return 'N/A';
+    const parts = [
+      addr.building,
+      addr.street,
+      addr.city,
+      addr.state,
+    ].filter(Boolean).join(', ');
+    return addr.notes ? `${parts} (${addr.notes})` : parts || 'N/A';
+  };
 
   return (
-    <div  className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 animate-fade-in mt-14">
-       <div className="bg-white p-6 rounded-xl flex justify-between dark:bg-gray-950 items-center mb-8">
-               <div>
-                 <h1 className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
-                   <FiClipboard /> Assignment Logs
-                 </h1>
-                 <p className="text-gray-600 dark:text-gray-400">View all of the assignment logs</p>
-               </div>
-      
-             </div>
-      {loading ? (
-        <LogsSkeleton darkMode={darkMode} />
-      ) : currentLogs.length > 0 ? (
-        <div className="relative">
-          <div className="overflow-hidden">
-            <div
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-transform duration-500 ease-in-out"
-              style={{ transform: `translateX(-${currentIndex * 100 / itemsPerPage}%)` }}
-            >
-              {currentLogs.map((log) => (
-                <div
-                  key={log.id}
-                  className="min-w-[100%] md:min-w-[50%] lg:min-w-[33.333%] p-5 bg-white dark:bg-gray-950 shadow rounded-xl border border-gray-200 dark:border-gray-700 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg"
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-indigo-500 dark:text-indigo-400">
-                      <FiUser />
-                      <span className="font-semibold text-gray-900 dark:text-gray-100">
-                        Assigner: {log.assignerName || 'N/A'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-indigo-500 dark:text-indigo-400">
-                      <FiClipboard />
-                      <span className="text-gray-700 dark:text-gray-300">
-                        Type: {log.assignmentType || 'N/A'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-indigo-500 dark:text-indigo-400">
-                      <FaStore />
-                      <span className="text-gray-700 dark:text-gray-300">
-                        Shop: {log.shopName || 'N/A'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-indigo-500 dark:text-indigo-400">
-                      <FiUser />
-                      <span className="text-gray-700 dark:text-gray-300">
-                        User: {log.userName || 'N/A'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-indigo-500 dark:text-indigo-400">
-                      <FiMapPin />
-                      <span className="text-gray-700 dark:text-gray-300">
-                        User Address: {log.userAddress
-                          ? `${log.userAddress.building}, ${log.userAddress.street}, ${log.userAddress.city}, ${log.userAddress.state}${log.userAddress.notes ? ` (${log.userAddress.notes})` : ''}`
-                          : 'N/A'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 text-xs">
-                      <FiClock />
-                      Created: {log.createdAt
-                        ? new Date(log.createdAt).toLocaleString('en-US', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })
-                        : 'N/A'}
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 text-xs">
-                      <FiClock />
-                      Updated: {log.updatedAt
-                        ? new Date(log.updatedAt).toLocaleString('en-US', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })
-                        : 'N/A'}
-                    </div>
-                  </div>
-                </div>
-              ))}
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-14">
+      <div className="max-w-7xl mx-auto">
+
+        {/* Header */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-8 border border-gray-200 dark:border-gray-700">
+          <h1 className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-3">
+            <FiClipboard className="w-8 h-8" />
+            Assignment Logs
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">
+            Track all assignment activities across assigners, shops, and users
+          </p>
+        </div>
+
+        {loading ? (
+          <LogsSkeleton darkMode={darkMode} />
+        ) : logs.length > 0 ? (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-100 dark:bg-gray-700">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      <div className="flex items-center gap-2">
+                        <FiUser className="w-4 h-4 text-emerald-600" />
+                        Assigner
+                      </div>
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      Type
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      <div className="flex items-center gap-2">
+                        <FaStore className="w-4 h-4 text-emerald-600" />
+                        Shop
+                      </div>
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      User
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      <div className="flex items-center gap-2">
+                        <FiMapPin className="w-4 h-4 text-emerald-600" />
+                        Delivery Address
+                      </div>
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      <div className="flex items-center gap-2">
+                        <FiCalendar className="w-4 h-4 text-emerald-600" />
+                        Created At
+                      </div>
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      Updated At
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {logs.map((log) => (
+                    <tr
+                      key={log.id}
+                      className="hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all duration-200"
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        {log.assignerName || '—'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                        <span className="px-3 py-1 text-xs font-medium rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
+                          {log.assignmentType || 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                        {log.shopName || '—'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                        {log.userName || '—'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={formatAddress(log.userAddress)}>
+                        {formatAddress(log.userAddress)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                        <div className="flex items-center gap-1">
+                          <FiClock className="w-4 h-4 text-emerald-600" />
+                          {formatDate(log.createdAt)}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                        <div className="flex items-center gap-1">
+                          <FiClock className="w-4 h-4 text-amber-600" />
+                          {formatDate(log.updatedAt)}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Footer Info */}
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Showing <span className="font-semibold">{logs.length}</span> assignment log{logs.length !== 1 ? 's' : ''}
+              </p>
             </div>
           </div>
-          {totalPages > 1 && (
-            <>
-              <button
-                onClick={handlePrev}
-                className="absolute left-0 top-1/2 transform -translate-y-1/2 bg-indigo-600 dark:bg-indigo-800 text-white p-3 rounded-full shadow-lg hover:bg-indigo-700 dark:hover:bg-indigo-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={currentIndex === 0}
-              >
-                <FiChevronLeft className="text-2xl" />
-              </button>
-              <button
-                onClick={handleNext}
-                className="absolute right-0 top-1/2 transform -translate-y-1/2 bg-indigo-600 dark:bg-indigo-800 text-white p-3 rounded-full shadow-lg hover:bg-indigo-700 dark:hover:bg-indigo-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={currentIndex === totalPages - 1}
-              >
-                <FiChevronRight className="text-2xl" />
-              </button>
-              <div className="flex justify-center mt-6 gap-2">
-                {Array.from({ length: totalPages }).map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleDotClick(index)}
-                    className={`h-3 w-3 rounded-full transition-all duration-300 ${
-                      currentIndex === index
-                        ? 'bg-indigo-600 dark:bg-indigo-400 scale-125'
-                        : 'bg-gray-300 dark:bg-gray-600 hover:bg-indigo-400 dark:hover:bg-indigo-500'
-                    }`}
-                  />
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      ) : (
-        <div className="text-center text-gray-500 dark:text-gray-400 py-10">
-          <FiClipboard className="text-6xl mx-auto mb-4 text-indigo-500 dark:text-indigo-400" />
-          <p className="text-lg">No logs found</p>
-        </div>
-      )}
+        ) : (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-16 text-center border border-gray-200 dark:border-gray-700">
+            <FiClipboard className="text-7xl mx-auto mb-6 text-emerald-600 dark:text-emerald-400 opacity-50" />
+            <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-3">No Assignment Logs Found</h3>
+            <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
+              There are currently no assignment activities recorded in the system.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -1,6 +1,17 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiCheckCircle, FiInfo, FiList, FiTrash2, FiXCircle, FiTruck, FiCopy, FiSearch, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import {
+  FiTruck,
+  FiSearch,
+  FiXCircle,
+  FiCopy,
+  FiChevronLeft,
+  FiChevronRight,
+  FiCheckCircle,
+  FiInfo,
+  FiList,
+  FiTrash2,
+} from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import DOMPurify from 'dompurify';
 import api from '../api';
@@ -8,45 +19,36 @@ import Modal from '../components/Modal';
 
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center h-64">
-    <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+    <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
   </div>
 );
 
 const DeliveriesSkeleton = ({ darkMode }) => (
-  <div className="animate-pulse p-8">
-    <div className="space-y-4 mb-8">
-      <div className="flex justify-between items-center">
-        <div className="space-y-2">
-          <div className="h-8 w-1/4 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
-          <div className="h-4 w-1/2 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
-        </div>
-      </div>
-    </div>
+  <div className="animate-pulse p-6">
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
       {[...Array(3)].map((_, idx) => (
-        <div key={idx} className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="h-6 w-1/2 bg-gray-200 dark:bg-gray-600 rounded-lg mb-3"></div>
-          <div className="h-8 w-1/4 bg-gray-200 dark:bg-gray-600 rounded-lg"></div>
+        <div
+          key={idx}
+          className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700"
+        >
+          <div className="h-6 w-1/2 bg-gray-300 dark:bg-gray-600 rounded mb-2"></div>
+          <div className="h-8 w-1/4 bg-gray-300 dark:bg-gray-600 rounded"></div>
         </div>
       ))}
     </div>
-    <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-8">
-      <div className="relative w-full md:w-80">
-        <div className="h-10 w-full bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
-      </div>
-      <div className="flex gap-4 flex-wrap">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+      <div className="h-10 w-full md:w-80 bg-gray-300 dark:bg-gray-600 rounded-lg mb-6"></div>
+      <div className="flex flex-wrap gap-3 mb-6">
         {[...Array(4)].map((_, idx) => (
-          <div key={idx} className="h-10 w-24 bg-gray-200 dark:bg-gray-600 rounded-lg"></div>
+          <div key={idx} className="h-10 w-28 bg-gray-300 dark:bg-gray-600 rounded-lg"></div>
         ))}
       </div>
-    </div>
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-        <thead className="bg-gray-50 dark:bg-gray-800">
+        <thead className="bg-gray-100 dark:bg-gray-700">
           <tr>
-            {['ID', 'Name', 'Email', 'Phone', 'Status', 'Completed', 'Actions'].map((header, idx) => (
-              <th key={idx} className="px-6 py-4">
-                <div className="h-4 w-20 bg-gray-200 dark:bg-gray-600 rounded-lg"></div>
+            {['ID', 'Name', 'Email', 'Phone', 'Status', 'Completed', 'Actions'].map((_, idx) => (
+              <th key={idx} className="px-6 py-3">
+                <div className="h-4 w-20 bg-gray-300 dark:bg-gray-600 rounded"></div>
               </th>
             ))}
           </tr>
@@ -54,17 +56,17 @@ const DeliveriesSkeleton = ({ darkMode }) => (
         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
           {[...Array(5)].map((_, idx) => (
             <tr key={idx}>
-              <td className="px-6 py-4"><div className="h-4 w-32 bg-gray-200 dark:bg-gray-600 rounded-lg"></div></td>
-              <td className="px-6 py-4"><div className="h-4 w-32 bg-gray-200 dark:bg-gray-600 rounded-lg"></div></td>
-              <td className="px-6 py-4"><div className="h-4 w-48 bg-gray-200 dark:bg-gray-600 rounded-lg"></div></td>
-              <td className="px-6 py-4"><div className="h-4 w-24 bg-gray-200 dark:bg-gray-600 rounded-lg"></div></td>
-              <td className="px-6 py-4"><div className="h-4 w-20 bg-gray-200 dark:bg-gray-600 rounded-lg"></div></td>
-              <td className="px-6 py-4"><div className="h-4 w-20 bg-gray-200 dark:bg-gray-600 rounded-lg"></div></td>
+              <td className="px-6 py-4"><div className="h-4 w-32 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
+              <td className="px-6 py-4"><div className="h-4 w-32 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
+              <td className="px-6 py-4"><div className="h-4 w-48 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
+              <td className="px-6 py-4"><div className="h-4 w-24 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
+              <td className="px-6 py-4"><div className="h-4 w-20 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
+              <td className="px-6 py-4"><div className="h-4 w-20 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
               <td className="px-6 py-4">
                 <div className="flex justify-center gap-2">
-                  <div className="h-8 w-8 bg-gray-200 dark:bg-gray-600 rounded-full"></div>
-                  <div className="h-8 w-8 bg-gray-200 dark:bg-gray-600 rounded-full"></div>
-                  <div className="h-8 w-8 bg-gray-200 dark:bg-gray-600 rounded-full"></div>
+                  <div className="h-8 w-16 bg-gray-300 dark:bg-gray-600 rounded"></div>
+                  <div className="h-8 w-16 bg-gray-300 dark:bg-gray-600 rounded"></div>
+                  <div className="h-8 w-16 bg-gray-300 dark:bg-gray-600 rounded"></div>
                 </div>
               </td>
             </tr>
@@ -75,558 +77,398 @@ const DeliveriesSkeleton = ({ darkMode }) => (
   </div>
 );
 
+const PaginatedTable = ({
+  data,
+  page,
+  setPage,
+  pageSize,
+  renderRow,
+  emptyMessage,
+  darkMode,
+}) => {
+  const totalPages = Math.ceil(data.length / pageSize);
+  const paginatedData = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return data.slice(start, start + pageSize);
+  }, [data, page, pageSize]);
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      let start = Math.max(1, page - 2);
+      let end = Math.min(totalPages, start + maxVisible - 1);
+      if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1);
+      if (start > 1) { pages.push(1); if (start > 2) pages.push('...'); }
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (end < totalPages) { if (end < totalPages - 1) pages.push('...'); pages.push(totalPages); }
+    }
+    return pages;
+  };
+
+  return (
+    <>
+      <style>
+        {`
+          .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+          .custom-scrollbar::-webkit-scrollbar-track { background: ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}; border-radius: 10px; }
+          .custom-scrollbar::-webkit-scrollbar-thumb { background: ${darkMode ? '#34d399' : '#10b981'}; border-radius: 10px; }
+          .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: ${darkMode ? '#6ee7b7' : '#059669'}; }
+        `}
+      </style>
+
+      <div className="overflow-x-auto custom-scrollbar">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead className="bg-gray-100 dark:bg-gray-700">
+            <tr>
+              {['ID', 'Name', 'Email', 'Phone', 'Status', 'Completed', 'Actions'].map((col, i) => (
+                <th
+                  key={i}
+                  className="px-6 py-3 text-center text-sm font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300"
+                >
+                  {col}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 text-gray-900 dark:text-gray-100">
+            {paginatedData.map(renderRow)}
+            {paginatedData.length === 0 && (
+              <tr>
+                <td colSpan={7} className="py-12 text-center text-gray-500 dark:text-gray-400">
+                  <div className="flex flex-col items-center gap-3">
+                    <FiTruck className="text-4xl text-gray-400 dark:text-gray-500" />
+                    <p className="text-lg font-medium">{emptyMessage}</p>
+                  </div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center space-x-2 mt-8">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
+            >
+              <FiChevronLeft /> Prev
+            </button>
+            {getPageNumbers().map((num, i) => (
+              <button
+                key={i}
+                onClick={() => typeof num === 'number' && setPage(num)}
+                disabled={num === '...'}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  num === '...'
+                    ? 'cursor-default text-gray-500 dark:text-gray-400'
+                    : page === num
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-800'
+                }`}
+              >
+                {num}
+              </button>
+            ))}
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
+            >
+              Next <FiChevronRight />
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+};
+
 const Deliveries = ({ darkMode }) => {
   const navigate = useNavigate();
   const token = localStorage.getItem('authToken');
   const [deliveries, setDeliveries] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
-  const [error, setError] = useState('');
+  const [filter, setFilter] = useState('all');
   const [selectedDelivery, setSelectedDelivery] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const deliveriesPerPage = 5;
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const pageSize = 5;
 
-  const computedStats = useMemo(() => {
-    const totalDeliveries = deliveries.length;
-    const pendingDeliveries = deliveries.filter((d) => d.status === 'PENDING').length;
-    const approvedDeliveries = deliveries.filter((d) => d.status === 'APPROVED').length;
-    const suspendedDeliveries = deliveries.filter((d) => d.status === 'SUSPENDED').length;
-    return {
-      totalDeliveries,
-      pendingDeliveries,
-      approvedDeliveries,
-      suspendedDeliveries,
-    };
+  const stats = useMemo(() => {
+    const total = deliveries.length;
+    const pending = deliveries.filter(d => d.status === 'PENDING').length;
+    const approved = deliveries.filter(d => d.status === 'APPROVED').length;
+    const suspended = deliveries.filter(d => d.status === 'SUSPENDED').length;
+    return { total, pending, approved, suspended };
   }, [deliveries]);
-
-  const debounce = (func, delay) => {
-    let timeoutId;
-    return (...args) => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => func(...args), delay);
-    };
-  };
-
-  const handleSearchChange = useCallback(
-    debounce((value) => {
-      setDebouncedSearchTerm(value);
-      setCurrentPage(1);
-    }, 300),
-    []
-  );
-
-  const handleFilterChange = useCallback(
-    debounce((value) => {
-      setFilter(value);
-      setCurrentPage(1);
-    }, 300),
-    []
-  );
-
-  const copyToClipboard = useCallback((id) => {
-    navigator.clipboard.writeText(id).then(
-      () => {
-        Swal.fire({
-          title: 'Success',
-          text: 'Delivery ID copied to clipboard!',
-          icon: 'success',
-          toast: true,
-          position: 'top-end',
-          showConfirmButton: false,
-          timer: 1500,
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : 'bg-white text-gray-800' },
-        });
-      },
-      (err) => {
-        console.error('Copy failed:', err);
-        Swal.fire({
-          title: 'Error',
-          text: 'Failed to copy delivery ID',
-          icon: 'error',
-          toast: true,
-          position: 'top-end',
-          showConfirmButton: false,
-          timer: 1500,
-          customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : 'bg-white text-gray-800' },
-        });
-      }
-    );
-  }, [darkMode]);
 
   const fetchDeliveries = useCallback(async () => {
     if (!token) {
-      Swal.fire({
-        title: 'Error',
-        text: 'No authentication token found. Please log in.',
-        icon: 'error',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : 'bg-white text-gray-800' },
-      });
+      Swal.fire({ title: 'Error', text: 'Please log in.', icon: 'error' });
       navigate('/login');
       return;
     }
 
     setLoading(true);
-    setError('');
-    const url = filter === 'all' ? '/api/admin/deliveries' : `/api/admin/deliveries/${filter}`;
-    const controller = new AbortController();
-
+    const url = filter === 'all' ? '/api/admin/deliveries' : `/api/admin/deliveries/status/${filter}`;
     try {
-      const response = await api.get(url, {
-        signal: controller.signal,
+      const { data } = await api.get(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = response.data.content || response.data || [];
-      setDeliveries(data);
+      const processed = Array.isArray(data) ? data : data?.content || [];
+      setDeliveries(processed);
     } catch (error) {
-      console.error('Error fetching deliveries:', error.response?.data || error.message);
-      setError(
-        error.response?.status === 401
-          ? 'Unauthorized, please log in'
-          : 'Failed to load deliveries'
-      );
+      const msg = error.response?.status === 401 ? 'Session expired.' : 'Failed to load deliveries.';
+      Swal.fire({ title: 'Error', text: msg, icon: 'error' });
       if (error.response?.status === 401) {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('userId');
+        ['authToken', 'refreshToken', 'userId'].forEach(k => localStorage.removeItem(k));
         navigate('/login');
       }
       setDeliveries([]);
     } finally {
       setLoading(false);
     }
-    return () => controller.abort();
-  }, [filter, token, navigate, darkMode]);
+  }, [token, navigate, filter]);
 
-  const fetchDeliveryById = useCallback(async (id) => {
-    if (!token) {
-      Swal.fire({
-        title: 'Error',
-        text: 'No authentication token found. Please log in.',
-        icon: 'error',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : 'bg-white text-gray-800' },
-      });
-      navigate('/login');
-      return;
-    }
-
-    const controller = new AbortController();
+  const fetchDeliveryById = async (id) => {
     try {
-      const response = await api.get(`/api/admin/deliveries/${id}`, {
-        signal: controller.signal,
+      const { data } = await api.get(`/api/admin/deliveries/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setSelectedDelivery(response.data);
+      setSelectedDelivery(data);
     } catch (error) {
-      console.error('Error fetching delivery details:', error.response?.data || error.message);
-      Swal.fire({
-        title: 'Error',
-        text: error.response?.status === 401
-          ? 'Unauthorized, please log in'
-          : 'Failed to load delivery details',
-        icon: 'error',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : 'bg-white text-gray-800' },
-      });
-      if (error.response?.status === 401) {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('userId');
-        navigate('/login');
-      }
+      Swal.fire({ title: 'Error', text: 'Failed to load details.', icon: 'error' });
     }
-    return () => controller.abort();
-  }, [token, navigate, darkMode]);
+  };
 
-  const updateStatus = useCallback(async (id, action) => {
+  const updateStatus = async (id, action) => {
     const actionText = action === 'approve' ? 'Approve' : action === 'suspend' ? 'Suspend' : 'Delete';
     if (action === 'delete') {
       const result = await Swal.fire({
-        title: 'Are you sure?',
-        text: "This action cannot be undone!",
+        title: 'Delete Delivery?',
+        text: 'This action cannot be undone.',
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#4f46e5',
-        cancelButtonColor: '#dc2626',
-        confirmButtonText: `Yes, ${actionText}!`,
-        cancelButtonText: 'Cancel',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : 'bg-white text-gray-800' },
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Yes, delete',
       });
       if (!result.isConfirmed) return;
     }
 
     try {
       const method = action === 'delete' ? 'delete' : 'put';
-      await api[method](`/api/admin/deliveries/${id}/${action}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      Swal.fire({
-        title: 'Success',
-        text: `Delivery ${actionText.toLowerCase()}d successfully`,
-        icon: 'success',
-        timer: 2000,
-        showConfirmButton: false,
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : 'bg-white text-gray-800' },
-      });
-      await fetchDeliveries();
+      const endpoint = action === 'delete' ? `/api/admin/deliveries/${id}` : `/api/admin/deliveries/${id}/${action}`;
+      await api[method](endpoint, { headers: { Authorization: `Bearer ${token}` } });
+      Swal.fire({ title: 'Success!', text: `Delivery ${actionText.toLowerCase()}d.`, icon: 'success', toast: true, position: 'top-end', timer: 1500 });
+      fetchDeliveries();
     } catch (error) {
-      console.error(`Error ${action} delivery:`, error.response?.data || error.message);
-      Swal.fire({
-        title: 'Error',
-        text: error.response?.status === 401
-          ? 'Unauthorized, please log in'
-          : `Failed to ${actionText.toLowerCase()} delivery`,
-        icon: 'error',
-        customClass: { popup: darkMode ? 'dark:bg-gray-800 dark:text-white' : 'bg-white text-gray-800' },
-      });
-      if (error.response?.status === 401) {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('userId');
-        navigate('/login');
-      }
+      Swal.fire({ title: 'Error', text: `Failed to ${actionText.toLowerCase()}.`, icon: 'error' });
     }
-  }, [fetchDeliveries, token, navigate, darkMode]);
+  };
+
+  const copyToClipboard = (id) => {
+    navigator.clipboard.writeText(id).then(
+      () => Swal.fire({ title: 'Copied!', text: 'Delivery ID copied!', icon: 'success', toast: true, position: 'top-end', timer: 1000 }),
+      () => Swal.fire({ title: 'Error', text: 'Failed to copy', icon: 'error', toast: true, position: 'top-end', timer: 1000 })
+    );
+  };
 
   const filteredDeliveries = useMemo(() => {
-    return deliveries.filter(
-      (d) =>
-        d.name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-        d.email?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-        d.phone?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+    if (!searchTerm.trim()) return deliveries;
+    const lower = searchTerm.toLowerCase();
+    return deliveries.filter(d =>
+      d.name?.toLowerCase().includes(lower) ||
+      d.email?.toLowerCase().includes(lower) ||
+      d.phone?.toLowerCase().includes(lower)
     );
-  }, [deliveries, debouncedSearchTerm]);
+  }, [deliveries, searchTerm]);
 
-  const indexOfLastDelivery = currentPage * deliveriesPerPage;
-  const indexOfFirstDelivery = indexOfLastDelivery - deliveriesPerPage;
-  const currentDeliveries = useMemo(() => {
-    return filteredDeliveries.slice(indexOfFirstDelivery, indexOfLastDelivery);
-  }, [filteredDeliveries, indexOfFirstDelivery, indexOfLastDelivery]);
-  const totalPages = Math.ceil(filteredDeliveries.length / deliveriesPerPage);
-
-  const getPageNumbers = useCallback(() => {
-    const pages = [];
-    const maxVisiblePages = 5;
-    if (totalPages <= maxVisiblePages) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-      let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-      if (endPage - startPage + 1 < maxVisiblePages) {
-        startPage = Math.max(1, endPage - maxVisiblePages + 1);
-      }
-      if (startPage > 1) {
-        pages.push(1);
-        if (startPage > 2) pages.push('...');
-      }
-      for (let i = startPage; i <= endPage; i++) {
-        pages.push(i);
-      }
-      if (endPage < totalPages) {
-        if (endPage < totalPages - 1) pages.push('...');
-        pages.push(totalPages);
-      }
-    }
-    return pages;
-  }, [currentPage, totalPages]);
+  const getStatusBadge = (status) => {
+    const map = {
+      APPROVED: { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-400', label: 'Approved' },
+      PENDING: { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-700 dark:text-yellow-400', label: 'Pending' },
+      SUSPENDED: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400', label: 'Suspended' },
+    };
+    const s = map[status] || map.PENDING;
+    return <span className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full ${s.bg} ${s.text}`}>{s.label}</span>;
+  };
 
   useEffect(() => {
     fetchDeliveries();
-    return () => {
-      const controller = new AbortController();
-      controller.abort();
-    };
   }, [fetchDeliveries]);
 
-  useEffect(() => {
-    handleSearchChange(searchTerm);
-  }, [searchTerm, handleSearchChange]);
-
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 animate-fade-in mt-14">
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8 border border-gray-200 dark:border-gray-700">
-          <h1 className="text-3xl font-bold text-indigo-600 dark:text-gray-100 flex items-center gap-3">
-            <FiTruck className="text-indigo-600 dark:text-indigo-400" /> Delivery Management
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-14">
+      <div className="max-w-7xl mx-auto space-y-8">
+
+        {/* Header */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+          <h1 className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-3">
+            <FiTruck /> Delivery Management
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">Efficiently monitor and manage delivery details</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {[
-            { title: 'Total Deliveries', value: computedStats.totalDeliveries },
-            { title: 'Pending Deliveries', value: computedStats.pendingDeliveries },
-            { title: 'Approved Deliveries', value: computedStats.approvedDeliveries },
-          ].map((stat, idx) => (
-            <div
-              key={idx}
-              className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-md hover:-translate-y-1"
-            >
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{stat.title}</h3>
-              <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 mt-2">{stat.value}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8 border border-gray-200 dark:border-gray-700">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="relative w-full md:w-80">
-              <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by name, email, or phone..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-full pl-12 pr-10 py-3 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all duration-300 placeholder-gray-500 dark:placeholder-gray-400"
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => {
-                    setSearchTerm('');
-                    setCurrentPage(1);
-                  }}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-200"
-                >
-                  <FiXCircle size={20} />
-                </button>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-4">
-              {['all', 'pending', 'approved', 'suspended'].map((f) => (
-                <button
-                  key={f}
-                  onClick={() => handleFilterChange(f)}
-                  className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-all duration-200 ${
-                    filter === f
-                      ? 'bg-indigo-600 text-white shadow-md'
-                      : 'bg-gray-100 dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-800'
-                  }`}
-                >
-                  {f === 'all' && <FiList size={18} />}
-                  {f === 'pending' && <FiXCircle size={18} />}
-                  {f === 'approved' && <FiCheckCircle size={18} />}
-                  {f === 'suspended' && <FiTrash2 size={18} />}
-                  {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Monitor and manage delivery personnel</p>
         </div>
 
         {loading ? (
           <DeliveriesSkeleton darkMode={darkMode} />
-        ) : error ? (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center border border-gray-200 dark:border-gray-700">
-            <p className="text-red-500 dark:text-red-400 text-lg font-medium">{error}</p>
-          </div>
-        ) : filteredDeliveries.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center border border-gray-200 dark:border-gray-700">
-            <FiTruck className="text-6xl mx-auto mb-4 text-indigo-600 dark:text-indigo-400" />
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">No deliveries found</h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              {searchTerm ? 'Try adjusting your search terms' : 'No deliveries available for the selected filter'}
-            </p>
-          </div>
         ) : (
-          <>
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-x-auto border border-gray-200 dark:border-gray-700">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-800">
-                  <tr>
-                    {['ID', 'Name', 'Email', 'Phone', 'Status', 'Completed', 'Actions'].map((header, idx) => (
-                      <th
-                        key={idx}
-                        className="px-6 py-4 text-sm font-semibold text-indigo-600 dark:text-gray-100 uppercase tracking-wider text-center"
-                      >
-                        {header}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 text-center dark:divide-gray-700">
-                  {currentDeliveries.map((d) => (
-                    <tr
-                      key={d.id}
-                      className="hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all duration-200"
-                    >
-                    <td className="px-6 py-4 text-sm font-medium flex items-center dark:text-white  justify-center gap-2 mt-3">
-                                                                           <span className="truncate max-w-[150px]">{d.id}</span>
-                                                                           <button
-                                                                             onClick={() => copyToClipboard(d.id)}
-                                                                             className="relative group p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
-                                                                             title="Copy delivery ID"
-                                                                           >
-                                                                             <FiCopy size={16} />
-                                                                             <span className="absolute hidden group-hover:block bg-gray-800 dark:bg-gray-900 text-white dark:text-gray-200 text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
-                                                                               Copy delivery ID
-                                                                             </span>
-                                                                           </button>
-                                                                         </td>
-                      <td className="px-6 py-4 dark:text-white text-sm font-medium">
-                        {DOMPurify.sanitize(d.name) || 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 dark:text-white text-sm font-medium">
-                        {DOMPurify.sanitize(d.email) || 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 dark:text-white text-sm font-medium">
-                        0{DOMPurify.sanitize(d.phone) || 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 dark:text-white text-sm font-medium">
-                        <span
-                          className={`px-3 py-1 rounded-full text-sm font-medium ${
-                            d.status === 'APPROVED'
-                              ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200'
-                              : d.status === 'PENDING'
-                              ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-200'
-                              : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200'
-                          }`}
-                        >
-                          {d.status === 'APPROVED' ? 'Approved' : d.status === 'PENDING' ? 'Pending' : 'Suspended'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 dark:text-white text-sm font-medium">
-                        {d.totalCompletedDeliveries || 0}
-                      </td>
-                      <td className="px-6 py-4 dark:text-white text-sm font-medium">
-                        <div className="flex items-center justify-center gap-3">
-                          <button
-                            onClick={() => fetchDeliveryById(d.id)}
-                            className="p-2 bg-indigo-100 text-xs dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-all duration-200 hover:shadow-md"
-                          >
-                            View
-                          </button>
-                          {d.status !== 'APPROVED' && (
-                            <button
-                              onClick={() => updateStatus(d.id, 'approve')}
-                              className="p-2 bg-green-100 text-xs dark:bg-green-900 text-green-600 dark:text-green-400 rounded-full hover:bg-green-200 dark:hover:bg-green-800 transition-all duration-200 hover:shadow-md"
-                            >
-                              Approve
-                            </button>
-                          )}
-                          {d.status !== 'SUSPENDED' && (
-                            <button
-                              onClick={() => updateStatus(d.id, 'suspend')}
-                              className="p-2 bg-amber-100 text-xs dark:bg-amber-900 text-amber-600 dark:text-amber-400 rounded-full hover:bg-amber-200 dark:hover:bg-amber-800 transition-all duration-200 hover:shadow-md"
-                            >
-                              Suspend
-                            </button>
-                          )}
-                          <button
-                            onClick={() => updateStatus(d.id, 'delete')}
-                            className="p-2 bg-red-100 text-xs dark:bg-red-900 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-800 transition-all duration-200 hover:shadow-md"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+
+            {/* Stats */}
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[
+                  { label: 'Total Deliveries', value: stats.total, color: 'emerald' },
+                  { label: 'Pending', value: stats.pending, color: 'yellow' },
+                  { label: 'Approved', value: stats.approved, color: 'green' },
+                ].map((stat, i) => (
+                  <div key={i} className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg border border-gray-200 dark:border-gray-600 text-center">
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{stat.value}</p>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {totalPages > 1 && (
-              <div className="flex justify-center items-center gap-3 mt-8">
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
-                >
-                  <FiChevronLeft size={18} /> 
-                </button>
-
-                {getPageNumbers().map((page, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => typeof page === 'number' && setCurrentPage(page)}
-                    className={`px-4 py-2 rounded-lg transition-all duration-200 ${
-                      page === '...' ? 'cursor-default text-gray-500 dark:text-gray-400' : currentPage === page ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-800'
-                    }`}
-                    disabled={page === '...'}
-                  >
-                    {page}
-                  </button>
-                ))}
-
-                <button
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
-                >
-                   <FiChevronRight size={18} />
-                </button>
-              </div>
-            )}
-          </>
-        )}
-
-        {selectedDelivery && (
-          <Modal onClose={() => setSelectedDelivery(null)} title="Delivery Details" darkMode={darkMode}>
-            <div className="space-y-6">
-              <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-6 border border-indigo-100 dark:border-indigo-800">
-                <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
-                  Delivery Information
-                  <button
-                    onClick={() => copyToClipboard(selectedDelivery.id)}
-                    className="relative group p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200"
-                    title="Copy Delivery ID"
-                  >
-                    <FiCopy size={18} />
-                    <span className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2">
-                      Copy Delivery ID
-                    </span>
-                  </button>
-                </h4>
-                <div className="space-y-3">
-                  <p className="text-sm text-gray-700 dark:text-gray-200">
-                    <strong className="font-medium">ID:</strong> {selectedDelivery.id || 'N/A'}
-                  </p>
-                  <p className="text-sm text-gray-700 dark:text-gray-200">
-                    <strong className="font-medium">Name:</strong> {DOMPurify.sanitize(selectedDelivery.name) || 'N/A'}
-                  </p>
-                  <p className="text-sm text-gray-700 dark:text-gray-200">
-                    <strong className="font-medium">Email:</strong> {DOMPurify.sanitize(selectedDelivery.email) || 'N/A'}
-                  </p>
-                  <p className="text-sm text-gray-700 dark:text-gray-200">
-                    <strong className="font-medium">Phone:</strong> 0{DOMPurify.sanitize(selectedDelivery.phone) || 'N/A'}
-                  </p>
-                  <p className="text-sm text-gray-700 dark:text-gray-200">
-                    <strong className="font-medium">Address:</strong> {DOMPurify.sanitize(selectedDelivery.address) || 'N/A'}
-                  </p>
-                  <p className="text-sm text-gray-700 dark:text-gray-200">
-                    <strong className="font-medium">Status:</strong>{' '}
-                    <span
-                      className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        selectedDelivery.status === 'APPROVED'
-                          ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200'
-                          : selectedDelivery.status === 'PENDING'
-                          ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-200'
-                          : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200'
+            {/* Search + Filters */}
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="relative max-w-md w-full">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
+                  <div className="relative">
+                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                    <input
+                      type="text"
+                      placeholder="Search by name, email, or phone..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
+                    />
+                    {searchTerm && (
+                      <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                        <FiXCircle />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { key: 'all', label: 'All', icon: FiList },
+                    { key: 'pending', label: 'Pending', icon: FiXCircle },
+                    { key: 'approved', label: 'Approved', icon: FiCheckCircle },
+                    { key: 'suspended', label: 'Suspended', icon: FiTrash2 },
+                  ].map(({ key, label, icon: Icon }) => (
+                    <button
+                      key={key}
+                      onClick={() => setFilter(key)}
+                      className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-all ${
+                        filter === key
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-800'
                       }`}
                     >
-                      {selectedDelivery.status === 'APPROVED' ? 'Approved' : selectedDelivery.status === 'PENDING' ? 'Pending' : 'Suspended'}
-                    </span>
-                  </p>
-                  <p className="text-sm text-gray-700 dark:text-gray-200">
-                    <strong className="font-medium">Active Orders:</strong> {selectedDelivery.activeOrderDeliveries || 0}
-                  </p>
-                  <p className="text-sm text-gray-700 dark:text-gray-200">
-                    <strong className="font-medium">Active Repairs:</strong> {selectedDelivery.activeRepairDeliveries || 0}
-                  </p>
-                  <p className="text-sm text-gray-700 dark:text-gray-200">
-                    <strong className="font-medium">Completed:</strong> {selectedDelivery.totalCompletedDeliveries || 0}
-                  </p>
+                      <Icon className="w-4 h-4" /> {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="p-6">
+              <PaginatedTable
+                data={filteredDeliveries}
+                page={page}
+                setPage={setPage}
+                pageSize={pageSize}
+                darkMode={darkMode}
+                renderRow={(d) => (
+                  <tr key={d.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <td className="px-6 py-4 text-sm font-medium text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="truncate max-w-32">{d.id}</span>
+                        <button onClick={() => copyToClipboard(d.id)} className="text-gray-500 hover:text-emerald-600">
+                          <FiCopy className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(d.name) || 'N/A'}</td>
+                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(d.email) || 'N/A'}</td>
+                    <td className="px-6 py-4 text-sm">0{DOMPurify.sanitize(d.phone) || 'N/A'}</td>
+                    <td className="px-6 py-4 text-center">{getStatusBadge(d.status)}</td>
+                    <td className="px-6 py-4 text-center">{d.totalCompletedDeliveries || 0}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex justify-center gap-2">
+                        <button
+                          onClick={() => fetchDeliveryById(d.id)}
+                          className="px-3 py-1.5 text-xs bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded hover:bg-emerald-200 dark:hover:bg-emerald-800"
+                        >
+                          View
+                        </button>
+                        {d.status !== 'APPROVED' && (
+                          <button
+                            onClick={() => updateStatus(d.id, 'approve')}
+                            className="px-3 py-1.5 text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded hover:bg-green-200 dark:hover:bg-green-800"
+                          >
+                            Approve
+                          </button>
+                        )}
+                        {d.status !== 'SUSPENDED' && (
+                          <button
+                            onClick={() => updateStatus(d.id, 'suspend')}
+                            className="px-3 py-1.5 text-xs bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 rounded hover:bg-amber-200 dark:hover:bg-amber-800"
+                          >
+                            Suspend
+                          </button>
+                        )}
+                        <button
+                          onClick={() => updateStatus(d.id, 'delete')}
+                          className="px-3 py-1.5 text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-800"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                emptyMessage={searchTerm ? 'No deliveries match your search' : 'No deliveries available'}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Modal */}
+        {selectedDelivery && (
+          <Modal onClose={() => setSelectedDelivery(null)} title="Delivery Details" darkMode={darkMode}>
+            <div className="space-y-5">
+              <div className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100">Delivery Information</h4>
+                  <button onClick={() => copyToClipboard(selectedDelivery.id)} className="text-gray-500 hover:text-emerald-600">
+                    <FiCopy className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="space-y-3 text-sm">
+                  <p><strong>ID:</strong> {selectedDelivery.id}</p>
+                  <p><strong>Name:</strong> {DOMPurify.sanitize(selectedDelivery.name) || 'N/A'}</p>
+                  <p><strong>Email:</strong> {DOMPurify.sanitize(selectedDelivery.email) || 'N/A'}</p>
+                  <p><strong>Phone:</strong> 0{DOMPurify.sanitize(selectedDelivery.phone) || 'N/A'}</p>
+                  <p><strong>Address:</strong> {DOMPurify.sanitize(selectedDelivery.address) || 'N/A'}</p>
+                  <p><strong>Status:</strong> {getStatusBadge(selectedDelivery.status)}</p>
+                  <p><strong>Active Orders:</strong> {selectedDelivery.activeOrderDeliveries || 0}</p>
+                  <p><strong>Active Repairs:</strong> {selectedDelivery.activeRepairDeliveries || 0}</p>
+                  <p><strong>Completed:</strong> {selectedDelivery.totalCompletedDeliveries || 0}</p>
                 </div>
               </div>
               <div className="flex justify-end">
                 <button
                   onClick={() => setSelectedDelivery(null)}
-                  className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg"
+                  className="px-5 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
                 >
                   Close
                 </button>
