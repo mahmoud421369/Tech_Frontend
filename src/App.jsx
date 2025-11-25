@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Footer, Navbar, RepairDetailsModal, ServiceModal, AssignerHeader, Modal, DeliveryHeader } from './components';
 import { Login, Signup, LoginSuccess, SuccessGoogle } from './Auth';
 import { Repair, Explore, Track, Account, Homepage, Cart, DeviceDetail, Offers, RepairRequest, Devices, Stores } from './User';
-import {Notifications, Header, Shops, Users, Reviews, Category, Deliveries, Assigners, AdminOffers, AdminRepairRequests, AdminProducts, AdminAssignmentLogs, AdminSubscriptions } from './Admin';
+import {Notifications, Header, Shops, Users, Reviews, Category, Deliveries, Assigners, AdminOffers, AdminRepairRequests, AdminProducts, AdminAssignmentLogs, AdminSubscriptions, AdminTransactions } from './Admin';
 import  Dashboard  from './Admin/Dashboard';
 import { AssignerDashboard, DeliveryPersons, AssignerProfile, AssignedOrders, AssignedRepairs, AssignmentLogs, ReassignRepairs, ReassignOrders, OrdersForAssignment, RepairsForAssignment } from './Assigner';
 import { DeliveryDashboard, DeliveryProfile, MyDeliveries, MyRepairs, AvailableOrders, AvailableRepairs } from './Delivery';
@@ -139,7 +139,6 @@ function App() {
         <Route path="/explore" element={withNavbarLayout(Explore)} />
         <Route path="/devices" element={withNavbarLayout(Devices)} />
         <Route path="/shops" element={withNavbarLayout(Stores)} />
-
         <Route path="/track" element={withNavbarLayout(Track)} />
         <Route path="/account" element={withNavbarLayout(Account)} />
         <Route path="/repair" element={withNavbarLayout(Repair)} />
@@ -148,10 +147,13 @@ function App() {
         <Route path="/shops/:shopId" element={withNavbarLayout(Shop)} />
         <Route path="/repair-request/:requestId/update" element={withNavbarLayout(RepairRequest)} />
         <Route path="/oauth2/success" element={<SuccessGoogle />} />
+
         {/* Admin Routes */}
         <Route path="/dashboard" element={withAdminLayout(Dashboard)} />
         <Route path="/repair-shops" element={withAdminLayout(Shops)} />
         <Route path="/shop/subscriptions" element={withAdminLayout(AdminSubscriptions)} />
+        <Route path="/admin/transactions" element={withAdminLayout(AdminTransactions)} />
+
 
         <Route path="/users" element={withAdminLayout(Users)} />
         <Route path="/admin/offers" element={withAdminLayout(AdminOffers)} />

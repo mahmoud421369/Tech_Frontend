@@ -586,8 +586,7 @@ const Orders = () => {
 
               <div className="space-y-3">
                 <div className="flex justify-between flex-row-reverse"><strong>المعرف</strong> <span>{selectedOrder.id}</span></div>
-                <div className="flex justify-between flex-row-reverse"><strong>العميل</strong> <span>{selectedOrder.userId}</span></div>
-                <div className="flex justify-between flex-row-reverse"><strong>عنوان التوصيل</strong> <span>{selectedOrder.deliveryAddress || 'غير متوفر'}</span></div>
+                <div className="flex justify-between flex-row-reverse"><strong>العميل</strong> <span>{selectedOrder.firstName} {selectedOrder.lastName}</span></div>
                 <div className="flex justify-between flex-row-reverse"><strong>الإجمالي</strong> <span className="font-bold">{selectedOrder.totalPrice} ج.م</span></div>
                 <div className="flex justify-between flex-row-reverse">
                   <strong>الحالة</strong>
@@ -596,7 +595,7 @@ const Orders = () => {
                   </span>
                 </div>
                 <div className="flex justify-between flex-row-reverse"><strong>طريقة الدفع</strong> <span>{selectedOrder.paymentMethod || 'غير متوفر'}</span></div>
-                <div className="flex justify-between flex-row-reverse"><strong>معرف الدفع</strong> <span>{selectedOrder.paymentId || 'غير متوفر'}</span></div>
+
                 <div className="flex justify-between flex-row-reverse"><strong>تاريخ الإنشاء</strong> <span>{new Date(selectedOrder.createdAt).toLocaleString('ar-EG')}</span></div>
 
                 <hr className="my-4 border-lime-100" />

@@ -382,7 +382,7 @@ const UsersPage = ({ darkMode }) => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-14">
       <div className="max-w-7xl mx-auto space-y-8">
 
-        {/* Header */}
+      
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
           <h1 className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-3">
             <FiUsers /> Users Management
@@ -395,7 +395,7 @@ const UsersPage = ({ darkMode }) => {
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
 
-            {/* Stats */}
+         
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 p-6 border-b border-gray-200 dark:border-gray-700">
               {[
                 { label: 'Total Users', value: computedStats.totalUsers, color: 'emerald' },
@@ -412,7 +412,7 @@ const UsersPage = ({ darkMode }) => {
               ))}
             </div>
 
-            {/* Search */}
+         
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="relative max-w-md">
                 <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
@@ -434,7 +434,7 @@ const UsersPage = ({ darkMode }) => {
               </div>
             </div>
 
-            {/* Table */}
+            
             <div className="p-6">
               <PaginatedTable
                 data={filteredUsers}
@@ -498,34 +498,34 @@ const UsersPage = ({ darkMode }) => {
                       <div className="flex justify-center gap-2">
                         <button
                           onClick={() => viewUser(user.id)}
-                          className="p-2 text-emerald-600 hover:bg-emerald-100 dark:hover:bg-emerald-900 rounded-lg"
+                          className="p-2  bg-blue-50  text-xs rounded-lg text-blue-600 hover:bg-emerald-100 dark:hover:bg-emerald-900 rounded-lg"
                           title="View"
                         >
-                          <FiEye className="w-4 h-4" />
+                           View
                         </button>
                         {user.activate ? (
                           <button
                             onClick={() => deactivateUser(user.id)}
-                            className="p-2 text-yellow-600 hover:bg-yellow-100 dark:hover:bg-yellow-900 rounded-lg"
+                            className="p-2  bg-purple-50  text-xs  text-purple-600 rounded-lg hover:bg-purple-100 dark:hover:bg-yellow-900 rounded-lg"
                             title="Deactivate"
                           >
-                            <FiXCircle className="w-4 h-4" />
+                            Suspend
                           </button>
                         ) : (
                           <button
                             onClick={() => activateUser(user.id)}
-                            className="p-2 text-green-600 hover:bg-green-100 dark:hover:bg-green-900 rounded-lg"
+                            className="p-2  bg-green-50  text-xs rounded-lg text-green-600 hover:bg-green-100 dark:hover:bg-green-900 rounded-lg"
                             title="Activate"
                           >
-                            <FiCheckCircle className="w-4 h-4" />
+                            Approve
                           </button>
                         )}
                         <button
                           onClick={() => deleteUser(user.id)}
-                          className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded-lg"
+                          className="p-2  bg-red-50  text-xs rounded-lg  text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded-lg"
                           title="Delete"
                         >
-                          <FiTrash2 className="w-4 h-4" />
+                       Delete
                         </button>
                       </div>
                     </td>
@@ -537,7 +537,7 @@ const UsersPage = ({ darkMode }) => {
           </div>
         )}
 
-        {/* User Details Modal */}
+
         {selectedUser && (
           <Modal onClose={() => setSelectedUser(null)} title="User Details" darkMode={darkMode}>
             <div className="space-y-4 text-sm">

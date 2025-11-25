@@ -134,8 +134,9 @@ const PaginatedTable = ({
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 text-gray-900 dark:text-gray-100">
-            {paginatedData.map(renderRow)}
-            {paginatedData.length === 0 && (
+            {paginatedData.length > 0 ? (
+              paginatedData.map(renderRow)
+            ) : (
               <tr>
                 <td colSpan={7} className="py-12 text-center text-gray-500 dark:text-gray-400">
                   <div className="flex flex-col items-center gap-3">
@@ -190,23 +191,21 @@ const PaginatedTable = ({
 const Deliveries = ({ darkMode }) => {
   const navigate = useNavigate();
   const token = localStorage.getItem('authToken');
-  const [deliveries, setDeliveries] = useState([]);
+  const [allDeliveries, setAllDeliveries] = useState([]); // Raw data from API
   const [searchTerm, setSearchTerm] = useState('');
-  const [filter, setFilter] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all'); // 'all', 'pending', 'approved', 'suspended'
   const [selectedDelivery, setSelectedDelivery] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const pageSize = 5;
 
-  const stats = useMemo(() => {
-    const total = deliveries.length;
-    const pending = deliveries.filter(d => d.status === 'PENDING').length;
-    const approved = deliveries.filter(d => d.status === 'APPROVED').length;
-    const suspended = deliveries.filter(d => d.status === 'SUSPENDED').length;
-    return { total, pending, approved, suspended };
-  }, [deliveries]);
+  // Sanitized search term
+  const sanitizedSearchTerm = useMemo(() => {
+    return DOMPurify.sanitize(searchTerm.trim().toLowerCase());
+  }, [searchTerm]);
 
-  const fetchDeliveries = useCallback(async () => {
+  // Fetch all deliveries once
+  const fetchAllDeliveries = useCallback(async () => {
     if (!token) {
       Swal.fire({ title: 'Error', text: 'Please log in.', icon: 'error' });
       navigate('/login');
@@ -214,25 +213,61 @@ const Deliveries = ({ darkMode }) => {
     }
 
     setLoading(true);
-    const url = filter === 'all' ? '/api/admin/deliveries' : `/api/admin/deliveries/status/${filter}`;
     try {
-      const { data } = await api.get(url, {
+      const { data } = await api.get('/api/admin/deliveries', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const processed = Array.isArray(data) ? data : data?.content || [];
-      setDeliveries(processed);
+      const deliveriesList = Array.isArray(data) ? data : data?.content || [];
+      setAllDeliveries(deliveriesList);
     } catch (error) {
-      const msg = error.response?.status === 401 ? 'Session expired.' : 'Failed to load deliveries.';
+      const msg = error.response?.status === 401 ? 'Session expired. Please log in again.' : 'Failed to load deliveries.';
       Swal.fire({ title: 'Error', text: msg, icon: 'error' });
+
       if (error.response?.status === 401) {
         ['authToken', 'refreshToken', 'userId'].forEach(k => localStorage.removeItem(k));
         navigate('/login');
       }
-      setDeliveries([]);
+      setAllDeliveries([]);
     } finally {
       setLoading(false);
     }
-  }, [token, navigate, filter]);
+  }, [token, navigate]);
+
+  // Fetch on mount only
+  useEffect(() => {
+    fetchAllDeliveries();
+  }, [fetchAllDeliveries]);
+
+  // Client-side filtering + search
+  const filteredDeliveries = useMemo(() => {
+    let filtered = allDeliveries;
+
+    // Filter by status
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(d => 
+        d.status?.toLowerCase() === filterStatus.toLowerCase()
+      );
+    }
+
+    // Search filter
+    if (sanitizedSearchTerm) {
+      filtered = filtered.filter(d =>
+        (d.name?.toLowerCase() || '').includes(sanitizedSearchTerm) ||
+        (d.email?.toLowerCase() || '').includes(sanitizedSearchTerm) ||
+        (d.phone?.toLowerCase() || '').includes(sanitizedSearchTerm)
+      );
+    }
+
+    return filtered;
+  }, [allDeliveries, filterStatus, sanitizedSearchTerm]);
+
+  const stats = useMemo(() => {
+    const total = allDeliveries.length;
+    const pending = allDeliveries.filter(d => d.status === 'PENDING').length;
+    const approved = allDeliveries.filter(d => d.status === 'APPROVED').length;
+    const suspended = allDeliveries.filter(d => d.status === 'SUSPENDED').length;
+    return { total, pending, approved, suspended };
+  }, [allDeliveries]);
 
   const fetchDeliveryById = async (id) => {
     try {
@@ -241,12 +276,13 @@ const Deliveries = ({ darkMode }) => {
       });
       setSelectedDelivery(data);
     } catch (error) {
-      Swal.fire({ title: 'Error', text: 'Failed to load details.', icon: 'error' });
+      Swal.fire({ title: 'Error', text: 'Failed to load delivery details.', icon: 'error' });
     }
   };
 
   const updateStatus = async (id, action) => {
     const actionText = action === 'approve' ? 'Approve' : action === 'suspend' ? 'Suspend' : 'Delete';
+    
     if (action === 'delete') {
       const result = await Swal.fire({
         title: 'Delete Delivery?',
@@ -262,31 +298,35 @@ const Deliveries = ({ darkMode }) => {
 
     try {
       const method = action === 'delete' ? 'delete' : 'put';
-      const endpoint = action === 'delete' ? `/api/admin/deliveries/${id}` : `/api/admin/deliveries/${id}/${action}`;
+      const endpoint = action === 'delete' 
+        ? `/api/admin/deliveries/${id}` 
+        : `/api/admin/deliveries/${id}/${action}`;
+
       await api[method](endpoint, { headers: { Authorization: `Bearer ${token}` } });
-      Swal.fire({ title: 'Success!', text: `Delivery ${actionText.toLowerCase()}d.`, icon: 'success', toast: true, position: 'top-end', timer: 1500 });
-      fetchDeliveries();
+
+      Swal.fire({
+        title: 'Success!',
+        text: `Delivery ${actionText.toLowerCase()}d successfully.`,
+        icon: 'success',
+        toast: true,
+        position: 'top-end',
+        timer: 1500,
+        showConfirmButton: false
+      });
+
+      // Refetch all after update
+      fetchAllDeliveries();
     } catch (error) {
-      Swal.fire({ title: 'Error', text: `Failed to ${actionText.toLowerCase()}.`, icon: 'error' });
+      Swal.fire({ title: 'Error', text: `Failed to ${actionText.toLowerCase()} delivery.`, icon: 'error' });
     }
   };
 
-  const copyToClipboard = (id) => {
-    navigator.clipboard.writeText(id).then(
-      () => Swal.fire({ title: 'Copied!', text: 'Delivery ID copied!', icon: 'success', toast: true, position: 'top-end', timer: 1000 }),
-      () => Swal.fire({ title: 'Error', text: 'Failed to copy', icon: 'error', toast: true, position: 'top-end', timer: 1000 })
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text).then(
+      () => Swal.fire({ title: 'Copied!', icon: 'success', toast: true, position: 'top-end', timer: 1000 }),
+      () => Swal.fire({ title: 'Failed to copy', icon: 'error', toast: true, position: 'top-end', timer: 1000 })
     );
   };
-
-  const filteredDeliveries = useMemo(() => {
-    if (!searchTerm.trim()) return deliveries;
-    const lower = searchTerm.toLowerCase();
-    return deliveries.filter(d =>
-      d.name?.toLowerCase().includes(lower) ||
-      d.email?.toLowerCase().includes(lower) ||
-      d.phone?.toLowerCase().includes(lower)
-    );
-  }, [deliveries, searchTerm]);
 
   const getStatusBadge = (status) => {
     const map = {
@@ -297,10 +337,6 @@ const Deliveries = ({ darkMode }) => {
     const s = map[status] || map.PENDING;
     return <span className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full ${s.bg} ${s.text}`}>{s.label}</span>;
   };
-
-  useEffect(() => {
-    fetchDeliveries();
-  }, [fetchDeliveries]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-14">
@@ -347,27 +383,34 @@ const Deliveries = ({ darkMode }) => {
                       placeholder="Search by name, email, or phone..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
+                      className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                     />
                     {searchTerm && (
-                      <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                      <button
+                        onClick={() => setSearchTerm('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-red-600 transition"
+                      >
                         <FiXCircle />
                       </button>
                     )}
                   </div>
                 </div>
+
                 <div className="flex flex-wrap gap-2">
                   {[
                     { key: 'all', label: 'All', icon: FiList },
-                    { key: 'pending', label: 'Pending', icon: FiXCircle },
-                    { key: 'approved', label: 'Approved', icon: FiCheckCircle },
-                    { key: 'suspended', label: 'Suspended', icon: FiTrash2 },
+                    { key: 'PENDING', label: 'Pending', icon: FiXCircle },
+                    { key: 'APPROVED', label: 'Approved', icon: FiCheckCircle },
+                    { key: 'SUSPENDED', label: 'Suspended', icon: FiTrash2 },
                   ].map(({ key, label, icon: Icon }) => (
                     <button
                       key={key}
-                      onClick={() => setFilter(key)}
+                      onClick={() => {
+                        setFilterStatus(key.toLowerCase());
+                        setPage(1); // Reset page on filter change
+                      }}
                       className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-all ${
-                        filter === key
+                        filterStatus === key.toLowerCase()
                           ? 'bg-emerald-600 text-white'
                           : 'bg-gray-100 dark:bg-gray-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-800'
                       }`}
@@ -397,23 +440,23 @@ const Deliveries = ({ darkMode }) => {
                         </button>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(d.name) || 'N/A'}</td>
-                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(d.email) || 'N/A'}</td>
-                    <td className="px-6 py-4 text-sm">0{DOMPurify.sanitize(d.phone) || 'N/A'}</td>
+                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(d.name || 'N/A')}</td>
+                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(d.email || 'N/A')}</td>
+                    <td className="px-6 py-4 text-sm">0{DOMPurify.sanitize(d.phone || 'N/A')}</td>
                     <td className="px-6 py-4 text-center">{getStatusBadge(d.status)}</td>
                     <td className="px-6 py-4 text-center">{d.totalCompletedDeliveries || 0}</td>
                     <td className="px-6 py-4">
                       <div className="flex justify-center gap-2">
                         <button
                           onClick={() => fetchDeliveryById(d.id)}
-                          className="px-3 py-1.5 text-xs bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded hover:bg-emerald-200 dark:hover:bg-emerald-800"
+                          className="px-3 py-1.5 text-xs bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded hover:bg-emerald-200 dark:hover:bg-emerald-800 transition"
                         >
                           View
                         </button>
                         {d.status !== 'APPROVED' && (
                           <button
                             onClick={() => updateStatus(d.id, 'approve')}
-                            className="px-3 py-1.5 text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded hover:bg-green-200 dark:hover:bg-green-800"
+                            className="px-3 py-1.5 text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded hover:bg-green-200 dark:hover:bg-green-800 transition"
                           >
                             Approve
                           </button>
@@ -421,14 +464,14 @@ const Deliveries = ({ darkMode }) => {
                         {d.status !== 'SUSPENDED' && (
                           <button
                             onClick={() => updateStatus(d.id, 'suspend')}
-                            className="px-3 py-1.5 text-xs bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 rounded hover:bg-amber-200 dark:hover:bg-amber-800"
+                            className="px-3 py-1.5 text-xs bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 rounded hover:bg-amber-200 dark:hover:bg-amber-800 transition"
                           >
                             Suspend
                           </button>
                         )}
                         <button
                           onClick={() => updateStatus(d.id, 'delete')}
-                          className="px-3 py-1.5 text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-800"
+                          className="px-3 py-1.5 text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-800 transition"
                         >
                           Delete
                         </button>
@@ -436,7 +479,9 @@ const Deliveries = ({ darkMode }) => {
                     </td>
                   </tr>
                 )}
-                emptyMessage={searchTerm ? 'No deliveries match your search' : 'No deliveries available'}
+                emptyMessage={sanitizedSearchTerm || filterStatus !== 'all' 
+                  ? 'No deliveries match your filters' 
+                  : 'No deliveries available'}
               />
             </div>
           </div>
@@ -455,10 +500,10 @@ const Deliveries = ({ darkMode }) => {
                 </div>
                 <div className="space-y-3 text-sm">
                   <p><strong>ID:</strong> {selectedDelivery.id}</p>
-                  <p><strong>Name:</strong> {DOMPurify.sanitize(selectedDelivery.name) || 'N/A'}</p>
-                  <p><strong>Email:</strong> {DOMPurify.sanitize(selectedDelivery.email) || 'N/A'}</p>
-                  <p><strong>Phone:</strong> 0{DOMPurify.sanitize(selectedDelivery.phone) || 'N/A'}</p>
-                  <p><strong>Address:</strong> {DOMPurify.sanitize(selectedDelivery.address) || 'N/A'}</p>
+                  <p><strong>Name:</strong> {DOMPurify.sanitize(selectedDelivery.name || 'N/A')}</p>
+                  <p><strong>Email:</strong> {DOMPurify.sanitize(selectedDelivery.email || 'N/A')}</p>
+                  <p><strong>Phone:</strong> 0{DOMPurify.sanitize(selectedDelivery.phone || 'N/A')}</p>
+                  <p><strong>Address:</strong> {DOMPurify.sanitize(selectedDelivery.address || 'N/A')}</p>
                   <p><strong>Status:</strong> {getStatusBadge(selectedDelivery.status)}</p>
                   <p><strong>Active Orders:</strong> {selectedDelivery.activeOrderDeliveries || 0}</p>
                   <p><strong>Active Repairs:</strong> {selectedDelivery.activeRepairDeliveries || 0}</p>

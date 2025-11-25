@@ -19,6 +19,7 @@ import {
   FiMenu,
   FiSearch,
   FiX,
+  FiDollarSign,
 } from "react-icons/fi";
 import {
   RiAccountBox2Line,
@@ -28,7 +29,7 @@ import {
   RiTruckLine,
 } from "react-icons/ri";
 import { Link } from "react-router-dom";
-import logo from "../images/new-logo.jpg";
+import logo from "../images/logo-bg.png";
 
 const Header = () => {
   // === State ===
@@ -65,11 +66,13 @@ const Header = () => {
           { name: "subscriptions", icon: <RiAccountBox2Line />, label: "Subscription", path: "/shop/subscriptions" },
           { name: "products", icon: <FiBox />, label: "Products", path: "/admin/products" },
           { name: "repair requests", icon: <FiTool />, label: "Repair Requests", path: "/admin/repair-requests" },
+           { name: "offers", icon: <FiTag />, label: "Offers", path: "/admin/offers" },
+      { name: "reviews", icon: <FiStar />, label: "Reviews", path: "/reviews" },
         ],
       },
-      { name: "categories", icon: <FiList />, label: "Category", path: "/category" },
-      { name: "offers", icon: <FiTag />, label: "Offers", path: "/admin/offers" },
-      { name: "reviews", icon: <FiStar />, label: "Reviews", path: "/reviews" },
+      { name: "categories", icon: <FiList />, label: "Categories", path: "/category" },
+      { name: "transactions", icon: <FiDollarSign />, label: "Transactions", path: "/admin/transactions" },
+
       { name: "delivery", icon: <RiTruckLine />, label: "Delivery", path: "/deliveries" },
       { name: "assigners", icon: <RiGift2Line />, label: "Assigner", path: "/assigners" },
       { name: "assignment-logs", icon: <FiClipboard />, label: "Assignment Logs", path: "/admin/assignment-logs" },
@@ -146,7 +149,7 @@ const Header = () => {
               <div className={`relative group ${darkMode ? "animate-pulse" : ""}`}>
                 <img
                   src={logo}
-                  alt="Tech & Restore"
+                  alt="Tech & Bazaar"
                   className={`h-32 w-auto object-contain transition-all duration-500 ${
                     darkMode
                       ? "drop-shadow-2xl shadow-emerald-500/80 filter brightness-110"
@@ -241,9 +244,9 @@ const Header = () => {
 
       {/* Header – Clean & Minimal (No Logo) */}
       <header
-        className={`fixed top-0 left-0 right-0 h-16 z-20 flex items-center justify-between px-6 shadow-lg transition-all duration-500 backdrop-blur-xl lg:pl-64 ${
+        className={`fixed top-0 left-0 right-0 h-16 z-20 flex items-center justify-between px-6 shadow-lg transition-all duration-500  lg:pl-64 ${
           darkMode
-            ? "bg-black/60 border-b border-emerald-500/20"
+            ? "bg-black/40 backdrop-blur-2xl border-r border-emerald-500/20 shadow-2xl shadow-emerald-500/20"
             : "bg-white/90 border-b border-gray-200"
         }`}
       >
@@ -289,7 +292,7 @@ const Header = () => {
             {darkMode && <div className="absolute inset-0 bg-emerald-500/20 animate-ping" />}
           </button>
 
-          {/* Notifications */}
+        
           <div className="relative notif-btn">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
@@ -303,7 +306,7 @@ const Header = () => {
               )}
             </button>
 
-            {showNotifications && (
+            {/* {showNotifications && (
               <div
                 className={`absolute right-0 mt-3 w-80 rounded-2xl shadow-2xl overflow-hidden z-50 border ${
                   darkMode
@@ -332,7 +335,7 @@ const Header = () => {
             )}
           </div>
 
-          {/* Profile */}
+        
           <div className="relative profile-btn">
             <button
               onClick={() => setShowProfileMenu(!showProfileMenu)}
@@ -371,7 +374,8 @@ const Header = () => {
                 </a>
               </div>
             )}
-          </div>
+          </div> */}
+        </div>
         </div>
       </header>
     </>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FiHome,
@@ -14,7 +14,6 @@ import {
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import DOMPurify from 'dompurify';
-import { debounce } from 'lodash';
 import api from '../api';
 import Modal from '../components/Modal';
 
@@ -45,11 +44,8 @@ const ShopsSkeleton = ({ darkMode }) => (
       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
         <thead className="bg-gray-100 dark:bg-gray-700">
           <tr>
-            {['ID', 'Name', 'Status', 'Shop Type', 'Actions'].map((header, idx) => (
-              <th
-                key={idx}
-                className="px-6 py-3 text-center text-sm font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300"
-              >
+            {['ID', 'Name', 'Status', 'Shop Type', 'Actions'].map((header) => (
+              <th key={header} className="px-6 py-3 text-center text-sm font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
                 {header}
               </th>
             ))}
@@ -58,10 +54,10 @@ const ShopsSkeleton = ({ darkMode }) => (
         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
           {[...Array(5)].map((_, idx) => (
             <tr key={idx}>
-              <td className="px-6 py-4"><div className="h-4 w-32 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-              <td className="px-6 py-4"><div className="h-4 w-48 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-              <td className="px-6 py-4"><div className="h-4 w-24 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-              <td className="px-6 py-4"><div className="h-4 w-24 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
+              <td className="px-6 py-4"><div className="h-4 w-32 bg-gray-300 dark:bg-gray-600 rounded mx-auto"></div></td>
+              <td className="px-6 py-4"><div className="h-4 w-48 bg-gray-300 dark:bg-gray-600 rounded mx-auto"></div></td>
+              <td className="px-6 py-4"><div className="h-4 w-24 bg-gray-300 dark:bg-gray-600 rounded mx-auto"></div></td>
+              <td className="px-6 py-4"><div className="h-4 w-24 bg-gray-300 dark:bg-gray-600 rounded mx-auto"></div></td>
               <td className="px-6 py-4">
                 <div className="flex justify-center gap-2">
                   <div className="h-8 w-16 bg-gray-300 dark:bg-gray-600 rounded"></div>
@@ -87,31 +83,23 @@ const PaginatedTable = ({
   darkMode,
 }) => {
   const totalPages = Math.ceil(data.length / pageSize);
-  const paginatedData = useMemo(() => {
+  const paginatedData = React.useMemo(() => {
     const start = (page - 1) * pageSize;
     return data.slice(start, start + pageSize);
   }, [data, page, pageSize]);
 
   const getPageNumbers = () => {
     const pages = [];
-    const maxVisiblePages = 5;
-    if (totalPages <= maxVisiblePages) {
+    const maxVisible = 5;
+    if (totalPages <= maxVisible) {
       for (let i = 1; i <= totalPages; i++) pages.push(i);
     } else {
-      let startPage = Math.max(1, page - Math.floor(maxVisiblePages / 2));
-      let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-      if (endPage - startPage + 1 < maxVisiblePages) {
-        startPage = Math.max(1, endPage - maxVisiblePages + 1);
-      }
-      if (startPage > 1) {
-        pages.push(1);
-        if (startPage > 2) pages.push('...');
-      }
-      for (let i = startPage; i <= endPage; i++) pages.push(i);
-      if (endPage < totalPages) {
-        if (endPage < totalPages - 1) pages.push('...');
-        pages.push(totalPages);
-      }
+      let start = Math.max(1, page - 2);
+      let end = Math.min(totalPages, start + maxVisible - 1);
+      if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1);
+      if (start > 1) { pages.push(1); if (start > 2) pages.push('...'); }
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (end < totalPages) { if (end < totalPages - 1) pages.push('...'); pages.push(totalPages); }
     }
     return pages;
   };
@@ -120,20 +108,10 @@ const PaginatedTable = ({
     <>
       <style>
         {`
-          .custom-scrollbar::-webkit-scrollbar {
-            width: 8px; height: 8px;
-          }
-          .custom-scrollbar::-webkit-scrollbar-track {
-            background: ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'};
-            border-radius: 10px;
-          }
-          .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: ${darkMode ? '#34d399' : '#10b981'};
-            border-radius: 10px;
-          }
-          .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: ${darkMode ? '#6ee7b7' : '#059669'};
-          }
+          .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+          .custom-scrollbar::-webkit-scrollbar-track { background: ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}; border-radius: 10px; }
+          .custom-scrollbar::-webkit-scrollbar-thumb { background: ${darkMode ? '#34d399' : '#10b981'}; border-radius: 10px; }
+          .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: ${darkMode ? '#6ee7b7' : '#059669'}; }
         `}
       </style>
 
@@ -141,9 +119,9 @@ const PaginatedTable = ({
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
           <thead className="bg-gray-100 dark:bg-gray-700">
             <tr>
-              {columns.map((col, index) => (
+              {columns.map((col) => (
                 <th
-                  key={index}
+                  key={col}
                   className="px-6 py-3 text-center text-sm font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300"
                 >
                   {col}
@@ -152,8 +130,9 @@ const PaginatedTable = ({
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 text-gray-900 dark:text-gray-100">
-            {paginatedData.map(renderRow)}
-            {paginatedData.length === 0 && (
+            {paginatedData.length > 0 ? (
+              paginatedData.map(renderRow)
+            ) : (
               <tr>
                 <td colSpan={columns.length} className="py-12 text-center text-gray-500 dark:text-gray-400">
                   <div className="flex flex-col items-center gap-3">
@@ -169,32 +148,32 @@ const PaginatedTable = ({
         {totalPages > 1 && (
           <div className="flex justify-center items-center space-x-2 mt-8">
             <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
+              className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
             >
-              <FiChevronLeft /> Prev
+              Prev <FiChevronLeft />
             </button>
-            {getPageNumbers().map((pageNum, idx) => (
+            {getPageNumbers().map((num, i) => (
               <button
-                key={idx}
-                onClick={() => typeof pageNum === 'number' && setPage(pageNum)}
-                disabled={pageNum === '...'}
+                key={i}
+                onClick={() => typeof num === 'number' && setPage(num)}
+                disabled={num === '...'}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  pageNum === '...'
+                  num === '...'
                     ? 'cursor-default text-gray-500 dark:text-gray-400'
-                    : page === pageNum
+                    : page === num
                     ? 'bg-emerald-600 text-white'
                     : 'bg-gray-100 dark:bg-gray-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-800'
                 }`}
               >
-                {pageNum}
+                {num}
               </button>
             ))}
             <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
+              className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
             >
               Next <FiChevronRight />
             </button>
@@ -208,42 +187,45 @@ const PaginatedTable = ({
 const Shops = ({ darkMode }) => {
   const navigate = useNavigate();
   const token = localStorage.getItem('authToken');
-  const [shops, setShops] = useState([]);
-  const [filter, setFilter] = useState('all');
-  const [search, setSearch] = useState('');
-  const [loadingShops, setLoadingShops] = useState(false);
+
+  const [allShops, setAllShops] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [loading, setLoading] = useState(true);
   const [selectedShop, setSelectedShop] = useState(null);
+  const [page, setPage] = useState(1);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const pageSize = 5;
 
-  const fetchAllShops = useCallback(async (signal) => {
-    const { data } = await api.get('/api/admin/shops', { signal, headers: { Authorization: `Bearer ${token}` } });
-    return Array.isArray(data) ? data : data?.content || [];
-  }, [token]);
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-  const fetchApprovedShops = useCallback(async (signal) => {
-    const { data } = await api.get('/api/admin/shops/approved', { signal, headers: { Authorization: `Bearer ${token}` } });
-    return Array.isArray(data) ? data : data?.content || [];
-  }, [token]);
+  const sanitizedSearchTerm = useMemo(() => {
+    return DOMPurify.sanitize(searchTerm.trim().toLowerCase());
+  }, [searchTerm]);
 
-  const fetchSuspendedShops = useCallback(async (signal) => {
-    const { data } = await api.get('/api/admin/shops/suspend', { signal, headers: { Authorization: `Bearer ${token}` } });
-    return Array.isArray(data) ? data : data?.content || [];
-  }, [token]);
-
-  const fetchShops = useCallback(async () => {
+  const fetchAllShops = useCallback(async () => {
     if (!token) {
       Swal.fire({ title: 'Error', text: 'Please log in.', icon: 'error' });
       navigate('/login');
       return;
     }
 
-    setLoadingShops(true);
-    const controller = new AbortController();
+    setLoading(true);
     try {
-      let data;
-      if (filter === 'Approved') data = await fetchApprovedShops(controller.signal);
-      else if (filter === 'suspend') data = await fetchSuspendedShops(controller.signal);
-      else data = await fetchAllShops(controller.signal);
-      setShops(data);
+      const { data } = await api.get('/api/admin/shops', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const shopsList = Array.isArray(data) ? data : data?.content || [];
+      setAllShops(shopsList);
     } catch (error) {
       const msg = error.response?.status === 401 ? 'Session expired.' : 'Failed to load shops.';
       Swal.fire({ title: 'Error', text: msg, icon: 'error' });
@@ -251,30 +233,63 @@ const Shops = ({ darkMode }) => {
         ['authToken', 'refreshToken', 'userId'].forEach(k => localStorage.removeItem(k));
         navigate('/login');
       }
-      setShops([]);
+      setAllShops([]);
     } finally {
-      setLoadingShops(false);
+      setLoading(false);
     }
-    return () => controller.abort();
-  }, [filter, token, navigate, fetchAllShops, fetchApprovedShops, fetchSuspendedShops]);
+  }, [token, navigate]);
+
+  useEffect(() => {
+    fetchAllShops();
+  }, [fetchAllShops]);
+
+  const filteredShops = useMemo(() => {
+    let filtered = allShops;
+
+    if (filterStatus === 'approved') {
+      filtered = filtered.filter(s => s.verified === true);
+    } else if (filterStatus === 'suspended') {
+      filtered = filtered.filter(s => s.verified === false);
+    }
+
+    if (sanitizedSearchTerm) {
+      filtered = filtered.filter(s =>
+        (s.name || '').toLowerCase().includes(sanitizedSearchTerm) ||
+        (s.email || '').toLowerCase().includes(sanitizedSearchTerm)
+      );
+    }
+
+    return filtered;
+  }, [allShops, filterStatus, sanitizedSearchTerm]);
+
+  const stats = useMemo(() => {
+    const total = allShops.length;
+    const approved = allShops.filter(s => s.verified).length;
+    const suspended = total - approved;
+    return { total, approved, suspended };
+  }, [allShops]);
 
   const approveShop = async (id) => {
     try {
-      await api.put(`/api/admin/shops/${id}/approve`, {}, { headers: { Authorization: `Bearer ${token}` } });
-      Swal.fire({ title: 'Approved!', text: 'Shop approved.', icon: 'success', toast: true, position: 'top-end', timer: 1500 });
-      fetchShops();
+      await api.put(`/api/admin/shops/${id}/approve`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      Swal.fire({ title: 'Approved!', icon: 'success', toast: true, position: 'top-end', timer: 1500 });
+      fetchAllShops();
     } catch (error) {
-      Swal.fire({ title: 'Error', text: 'Failed to approve.', icon: 'error' });
+      Swal.fire({ title: 'Error', text: 'Failed to approve shop.', icon: 'error' });
     }
   };
 
   const suspendShop = async (id) => {
     try {
-      await api.put(`/api/admin/shops/${id}/suspend`, {}, { headers: { Authorization: `Bearer ${token}` } });
-      Swal.fire({ title: 'Suspended!', text: 'Shop suspended.', icon: 'warning', toast: true, position: 'top-end', timer: 1500 });
-      fetchShops();
+      await api.put(`/api/admin/shops/${id}/suspend`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      Swal.fire({ title: 'Suspended!', icon: 'warning', toast: true, position: 'top-end', timer: 1500 });
+      fetchAllShops();
     } catch (error) {
-      Swal.fire({ title: 'Error', text: 'Failed to suspend.', icon: 'error' });
+      Swal.fire({ title: 'Error', text: 'Failed to suspend shop.', icon: 'error' });
     }
   };
 
@@ -285,77 +300,60 @@ const Shops = ({ darkMode }) => {
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
-      cancelButtonColor: '#6b7280',
       confirmButtonText: 'Yes, delete',
     });
     if (!result.isConfirmed) return;
 
     try {
-      await api.delete(`/api/admin/shops/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      Swal.fire({ title: 'Deleted!', text: 'Shop removed.', icon: 'success', toast: true, position: 'top-end', timer: 1500 });
-      fetchShops();
+      await api.delete(`/api/admin/shops/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      Swal.fire({ title: 'Deleted!', icon: 'success', toast: true, position: 'top-end', timer: 1500 });
+      fetchAllShops();
     } catch (error) {
-      Swal.fire({ title: 'Error', text: 'Failed to delete.', icon: 'error' });
+      Swal.fire({ title: 'Error', text: 'Failed to delete shop.', icon: 'error' });
     }
   };
 
   const viewShop = async (id) => {
     try {
-      const { data } = await api.get(`/api/admin/shops/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      const { data } = await api.get(`/api/admin/shops/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setSelectedShop(data);
     } catch (error) {
-      Swal.fire({ title: 'Error', text: 'Failed to load shop.', icon: 'error' });
+      Swal.fire({ title: 'Error', text: 'Failed to load shop details.', icon: 'error' });
     }
   };
 
-  const copyToClipboard = (id) => {
-    navigator.clipboard.writeText(id).then(
-      () => Swal.fire({ title: 'Copied!', text: 'Shop ID copied!', icon: 'success', toast: true, position: 'top-end', timer: 1500 }),
-      () => Swal.fire({ title: 'Error', text: 'Failed to copy', icon: 'error', toast: true, position: 'top-end', timer: 1500 })
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text).then(
+      () => Swal.fire({ title: 'Copied!', icon: 'success', toast: true, position: 'top-end', timer: 1000 }),
+      () => Swal.fire({ title: 'Failed', icon: 'error', toast: true, position: 'top-end', timer: 1000 })
     );
   };
-
-  const filteredShops = useMemo(() => {
-    if (!search.trim()) return shops;
-    const lower = search.toLowerCase();
-    return shops.filter(s => 
-      s.name?.toLowerCase().includes(lower) || 
-      s.email?.toLowerCase().includes(lower)
-    );
-  }, [shops, search]);
-
-  const computedStats = useMemo(() => {
-    const total = shops.length;
-    const approved = shops.filter(s => s.verified).length;
-    const suspended = total - approved;
-    return { totalShops: total, approvedShops: approved, suspendedShops: suspended };
-  }, [shops]);
-
-  useEffect(() => { fetchShops(); }, [fetchShops]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-14">
       <div className="max-w-7xl mx-auto space-y-8">
 
-        {/* Header */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
           <h1 className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-3">
-            <FiHome /> Shops Management
+            <FiHome className="w-8 h-8" /> Shops Management
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">Manage, approve, suspend, and view shop details</p>
         </div>
 
-        {loadingShops ? (
+        {loading ? (
           <ShopsSkeleton darkMode={darkMode} />
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
 
-            {/* Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 p-6 border-b border-gray-200 dark:border-gray-700">
               {[
-                { label: 'Total Shops', value: computedStats.totalShops, color: 'emerald' },
-                { label: 'Approved', value: computedStats.approvedShops, color: 'green' },
-                { label: 'Suspended', value: computedStats.suspendedShops, color: 'red' },
+                { label: 'Total Shops', value: stats.total },
+                { label: 'Approved', value: stats.approved },
+                { label: 'Suspended', value: stats.suspended },
               ].map((stat, i) => (
                 <div key={i} className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg border border-gray-200 dark:border-gray-600 text-center">
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
@@ -364,50 +362,81 @@ const Shops = ({ darkMode }) => {
               ))}
             </div>
 
-            {/* Filters & Search */}
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="w-full sm:w-48">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filter</label>
-                  <select
-                    value={filter}
-                    onChange={(e) => { setFilter(e.target.value); setSearch(''); }}
-                    className="w-full px-4 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
-                  >
-                    <option value="all">All Shops</option>
-                    <option value="Approved">Approved</option>
-                    <option value="suspend">Suspended</option>
-                  </select>
-                </div>
-                <div className="flex-1 relative">
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
+
+                <div className="relative max-w-md w-full">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
                   <div className="relative">
                     <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                     <input
                       type="text"
                       placeholder="Search by name or email..."
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
                     />
-                    {search && (
-                      <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
-                        <FiXCircle />
+                    {searchTerm && (
+                      <button
+                        onClick={() => setSearchTerm('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-red-600 transition"
+                      >
+                        <FiXCircle className="w-5 h-5" />
                       </button>
                     )}
                   </div>
                 </div>
+
+                <div ref={dropdownRef} className="relative">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filter by Status</label>
+                  <button
+                    onClick={() => setDropdownOpen(!dropdownOpen)}
+                    className="w-56 px-4 py-2.5 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-between text-gray-900 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-600 transition focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <span>
+                      {filterStatus === 'all' && 'All Shops'}
+                      {filterStatus === 'approved' && 'Approved Shops'}
+                      {filterStatus === 'suspended' && 'Suspended Shops'}
+                    </span>
+                    <FiChevronDown className={`w-5 h-5 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {dropdownOpen && (
+                    <div className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-xl">
+                      {[
+                        { value: 'all', label: 'All Shops' },
+                        { value: 'approved', label: 'Approved Shops' },
+                        { value: 'suspended', label: 'Suspended Shops' },
+                      ].map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => {
+                            setFilterStatus(option.value);
+                            setPage(1);
+                            setDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                            filterStatus === option.value
+                              ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 font-medium'
+                              : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Table */}
             <div className="p-6">
               <PaginatedTable
                 data={filteredShops}
                 columns={['ID', 'Name', 'Status', 'Shop Type', 'Actions']}
-                page={1}
-                setPage={() => {}}
-                pageSize={5}
+                page={page}
+                setPage={setPage}
+                pageSize={pageSize}
                 darkMode={darkMode}
                 renderRow={(shop) => (
                   <tr key={shop.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
@@ -419,7 +448,7 @@ const Shops = ({ darkMode }) => {
                         </button>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(shop.name) || 'N/A'}</td>
+                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(shop.name || 'N/A')}</td>
                     <td className="px-6 py-4 text-center">
                       <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
                         shop.verified
@@ -429,22 +458,22 @@ const Shops = ({ darkMode }) => {
                         {shop.verified ? 'Approved' : 'Suspended'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(shop.shopType) || 'N/A'}</td>
+                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(shop.shopType || 'N/A')}</td>
                     <td className="px-6 py-4">
                       <div className="flex justify-center gap-2">
-                        <button onClick={() => viewShop(shop.id)} className="px-3 py-1.5 text-xs bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded hover:bg-emerald-200 dark:hover:bg-emerald-800">
+                        <button onClick={() => viewShop(shop.id)} className="px-3 py-1.5 text-xs bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded hover:bg-emerald-200 dark:hover:bg-emerald-800 transition">
                           View
                         </button>
                         {!shop.verified ? (
-                          <button onClick={() => approveShop(shop.id)} className="px-3 py-1.5 text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded hover:bg-green-200 dark:hover:bg-green-800">
+                          <button onClick={() => approveShop(shop.id)} className="px-3 py-1.5 text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded hover:bg-green-200 dark:hover:bg-green-800 transition">
                             Approve
                           </button>
                         ) : (
                           <>
-                            <button onClick={() => suspendShop(shop.id)} className="px-3 py-1.5 text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300 rounded hover:bg-yellow-200 dark:hover:bg-yellow-800">
+                            <button onClick={() => suspendShop(shop.id)} className="px-3 py-1.5 text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300 rounded hover:bg-yellow-200 dark:hover:bg-yellow-800 transition">
                               Suspend
                             </button>
-                            <button onClick={() => deleteShop(shop.id)} className="px-3 py-1.5 text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-800">
+                            <button onClick={() => deleteShop(shop.id)} className="px-3 py-1.5 text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-800 transition">
                               Delete
                             </button>
                           </>
@@ -453,34 +482,42 @@ const Shops = ({ darkMode }) => {
                     </td>
                   </tr>
                 )}
-                emptyMessage="No shops found"
+                emptyMessage={
+                  sanitizedSearchTerm || filterStatus !== 'all'
+                    ? 'No shops match your filters'
+                    : 'No shops available'
+                }
               />
             </div>
           </div>
         )}
 
-        {/* Shop Details Modal */}
         {selectedShop && (
           <Modal onClose={() => setSelectedShop(null)} title="Shop Details" darkMode={darkMode}>
-            <div className="space-y-4 text-sm">
-              <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-semibold text-gray-900 dark:text-gray-100">Shop Info</h4>
+            <div className="space-y-5 text-sm">
+              <div className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100">Shop Information</h4>
                   <button onClick={() => copyToClipboard(selectedShop.id)} className="text-gray-500 hover:text-emerald-600">
-                    <FiCopy className="w-4 h-4" />
+                    <FiCopy className="w-5 h-5" />
                   </button>
                 </div>
-                <p><strong>ID:</strong> {selectedShop.id}</p>
-                <p><strong>Name:</strong> {DOMPurify.sanitize(selectedShop.name)}</p>
-                <p><strong>Email:</strong> {DOMPurify.sanitize(selectedShop.email)}</p>
-                <p><strong>Phone:</strong> {DOMPurify.sanitize(selectedShop.phone) || 'N/A'}</p>
-                <p><strong>Status:</strong> <span className={selectedShop.verified ? 'text-green-600' : 'text-red-600'}>{selectedShop.verified ? 'Approved' : 'Suspended'}</span></p>
-                <p><strong>Rating:</strong> {selectedShop.rating || 'N/A'}</p>
-                <p><strong>Description:</strong> {DOMPurify.sanitize(selectedShop.description) || 'N/A'}</p>
-                <p><strong>Shop Type:</strong> {DOMPurify.sanitize(selectedShop.shopType) || 'N/A'}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <p><strong>ID:</strong> {selectedShop.id}</p>
+                  <p><strong>Name:</strong> {DOMPurify.sanitize(selectedShop.name)}</p>
+                  <p><strong>Email:</strong> {DOMPurify.sanitize(selectedShop.email)}</p>
+                  <p><strong>Phone:</strong> {DOMPurify.sanitize(selectedShop.phone || 'N/A')}</p>
+                  <p><strong>Status:</strong> <span className={selectedShop.verified ? 'text-green-600' : 'text-red-600'}>{selectedShop.verified ? 'Approved' : 'Suspended'}</span></p>
+                  <p><strong>Rating:</strong> {selectedShop.rating || 'N/A'}</p>
+                  <p><strong>Shop Type:</strong> {DOMPurify.sanitize(selectedShop.shopType || 'N/A')}</p>
+                  <p className="md:col-span-2"><strong>Description:</strong> {DOMPurify.sanitize(selectedShop.description || 'N/A')}</p>
+                </div>
               </div>
               <div className="flex justify-end">
-                <button onClick={() => setSelectedShop(null)} className="px-5 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition">
+                <button
+                  onClick={() => setSelectedShop(null)}
+                  className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
+                >
                   Close
                 </button>
               </div>

@@ -117,7 +117,7 @@ const PaginatedTable = ({
               ))}
             </tr>
           </thead>
-          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 text-gray-900 dark:text-gray-100">
+          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 text-gray-900 dark:text-gray-100 text-center">
             {paginatedData.map(renderRow)}
             {paginatedData.length === 0 && (
               <tr>
@@ -139,7 +139,7 @@ const PaginatedTable = ({
               disabled={page === 1}
               className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
             >
-              <FiChevronLeft /> Prev
+              <FiChevronLeft /> 
             </button>
             {getPageNumbers().map((num, i) => (
               <button
@@ -162,7 +162,7 @@ const PaginatedTable = ({
               disabled={page === totalPages}
               className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
             >
-              Next <FiChevronRight />
+               <FiChevronRight />
             </button>
           </div>
         )}
@@ -294,7 +294,7 @@ const AdminOffers = ({ darkMode }) => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-14">
       <div className="max-w-7xl mx-auto space-y-8">
 
-        {/* Header */}
+       
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-3">
@@ -302,7 +302,7 @@ const AdminOffers = ({ darkMode }) => {
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">Manage promotional offers</p>
           </div>
-          <button
+          {/* <button
             onClick={() => {
               setEditingOffer(null);
               setOfferTitle('');
@@ -312,7 +312,7 @@ const AdminOffers = ({ darkMode }) => {
             className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all duration-300 shadow-md hover:shadow-lg"
           >
             <FiPlus /> Add Offer
-          </button>
+          </button> */}
         </div>
 
         {isLoading ? (
@@ -320,7 +320,7 @@ const AdminOffers = ({ darkMode }) => {
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
 
-            {/* Stats */}
+           
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                 <div className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg border border-gray-200 dark:border-gray-600 text-center">
@@ -330,7 +330,7 @@ const AdminOffers = ({ darkMode }) => {
               </div>
             </div>
 
-            {/* Search */}
+            
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="relative max-w-md">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
@@ -341,7 +341,7 @@ const AdminOffers = ({ darkMode }) => {
                     placeholder="Search by title or description..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
+                    className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-gray-100 focus:outline-none dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
                   />
                   {searchTerm && (
                     <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
@@ -352,7 +352,7 @@ const AdminOffers = ({ darkMode }) => {
               </div>
             </div>
 
-            {/* Table */}
+         
             <div className="p-6">
               <PaginatedTable
                 data={filteredOffers}
@@ -376,7 +376,7 @@ const AdminOffers = ({ darkMode }) => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex	justify-center gap-2">
-                        <button
+                        {/* <button
                           onClick={() => {
                             setEditingOffer(o);
                             setOfferTitle(o.name || '');
@@ -386,7 +386,7 @@ const AdminOffers = ({ darkMode }) => {
                           className="px-3 py-1.5 text-xs bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded hover:bg-emerald-200 dark:hover:bg-emerald-800"
                         >
                           Edit
-                        </button>
+                        </button> */}
                         <button
                           onClick={() => deleteOffer(o.id)}
                           className="px-3 py-1.5 text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-800"
@@ -403,7 +403,7 @@ const AdminOffers = ({ darkMode }) => {
           </div>
         )}
 
-        {/* Modal */}
+       
         {isModalOpen && (
           <Modal onClose={() => setIsModalOpen(false)} title={editingOffer ? 'Edit Offer' : 'Add Offer'} darkMode={darkMode}>
             <div className="space-y-4">

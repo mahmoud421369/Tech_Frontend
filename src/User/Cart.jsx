@@ -190,54 +190,97 @@ const Cart = ({ show, onClose, darkMode  }) => {
   /* ------------------------------------------------------------------ */
   /*  CREATE ORDER                                                      */
   /* ------------------------------------------------------------------ */
-  const createOrder = useCallback(async () => {
-    if (!isAuthenticated) {
-      Swal.fire({ icon: "info", title: "Not Logged In", text: "Create account or login if already have one", confirmButtonText: "Go to Login", customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" } })
-        .then(() => navigate("/login"));
-      return;
-    }
+ const createOrder = useCallback(async () => {
+  if (!isAuthenticated) {
+    Swal.fire({
+      icon: "info",
+      title: "Login Required",
+      text: "Please log in to place an order",
+      confirmButtonText: "Go to Login",
+      customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" }
+    }).then(() => navigate("/login"));
+    return;
+  }
 
-    if (!selectedAddress) {
-      Swal.fire({ icon: "info", title: "Missing Address", text: "Please select a delivery address", customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" } });
-      return;
-    }
+  if (!selectedAddress) {
+    Swal.fire({
+      icon: "warning",
+      title: "Select Address",
+      text: "Please choose a delivery address",
+      customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" }
+    });
+    return;
+  }
 
-    if (!paymentMethod) {
-      Swal.fire({ icon: "info", title: "Missing Payment", text: "Please select a payment method", customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" } });
-      return;
-    }
+  if (!paymentMethod) {
+    Swal.fire({
+      icon: "warning",
+      title: "Select Payment Method",
+      text: "Please choose how you'd like to pay",
+      customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" }
+    });
+    return;
+  }
 
-    try {
-      const payload = {
-        deliveryAddressId: selectedAddress,
-        paymentMethod: paymentMethod === "visa" ? "CREDIT_CARD" : "CASH",
-      };
+  setIsLoading(true);
 
-      const orderRes = await api.post("/api/users/orders", payload, {
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+  try {
+    const payload = {
+      deliveryAddressId: selectedAddress,
+      paymentMethod: paymentMethod === "visa" ? "CREDIT_CARD" : "CASH",
+    };
+
+    const orderRes = await api.post("/api/users/orders", payload, {
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    });
+
+    const orderId = orderRes.data.id;
+
+    if (paymentMethod === "visa") {
+      const paymentRes = await api.post(`/api/payments/order/card/${orderId}`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      const orderId = orderRes.data.id;
-
-      if (paymentMethod === "visa") {
-        const paymentRes = await api.post(`/api/payments/order/card/${orderId}`, {}, {
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      if (paymentRes.data.paymentURL) {
+        Swal.fire({
+          icon: "success",
+          title: "Order Placed!",
+          text: "Redirecting to payment gateway...",
+          timer: 2000,
+          showConfirmButton: false
         });
-        if (paymentRes.data.paymentURL) {
-          window.open(paymentRes.data.paymentURL, "_blank");
-        } else {
-          throw new Error("Payment URL missing");
-        }
+        window.open(paymentRes.data.paymentURL, "_blank");
       }
-
-      setCartItems([]);
-      setCheckoutStep("complete");
-      Swal.fire({ title: 'Success!', text: 'Order placed successfully!', icon: 'success', toast: true, position: 'top-end', timer: 2000 });
-    } catch (err) {
-      console.error("Order failed:", err.response?.data || err.message);
-      Swal.fire({ title: 'Error', text: err.response?.data?.message || 'Failed to place order!', icon: 'error', toast: true, position: 'top-end', timer: 2000 });
+    } else {
+      // Cash on Delivery success
+      await Swal.fire({
+        icon: "success",
+        title: "Order Confirmed!",
+        text: `Thank you! Your order #${orderId} has been placed successfully.`,
+        confirmButtonColor: "#22c55e",
+        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" }
+      });
     }
-  }, [token, isAuthenticated, selectedAddress, paymentMethod, darkMode, navigate]);
+
+    setCartItems([]);
+    setCartTotal(0);
+    setCheckoutStep("complete");
+
+  } catch (err) {
+    console.error("Order failed:", err);
+    const errorMessage = err.response?.data?.message || err.message || "Something went wrong";
+
+    Swal.fire({
+      icon: "error",
+      title: "Order Failed",
+      text: errorMessage,
+      confirmButtonColor: "#ef4444",
+      customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" }
+    });
+  } finally {
+    setIsLoading(false);
+  }
+}, [token, isAuthenticated, selectedAddress, paymentMethod, darkMode, navigate, cartTotal]);
 
   /* ------------------------------------------------------------------ */
   /*  INITIAL FETCH                                                     */
@@ -397,70 +440,123 @@ const Cart = ({ show, onClose, darkMode  }) => {
                 </div>
               )}
 
-              {checkoutStep === "checkout" && (
-                <div className="space-y-6">
-                  <h3 className="text-lg font-bold text-lime-600 dark:text-lime-400">Delivery Address</h3>
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setShowDropdown(!showDropdown)}
-                      className="w-full px-4 py-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-600 flex justify-between items-center text-left"
-                    >
-                      <span className="truncate">
-                        {selectedAddress
-                          ? addresses.find(a => a.id === selectedAddress)?.street + ", " + addresses.find(a => a.id === selectedAddress)?.city
-                          : "Select address"}
-                      </span>
-                      <FiChevronDown className={`transition-transform ${showDropdown ? "rotate-180" : ""}`} />
-                    </button>
-                    {showDropdown && (
-                      <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                        {addresses.map(addr => (
-                          <div
-                            key={addr.id}
-                            onClick={() => { setSelectedAddress(addr.id); setShowDropdown(false); }}
-                            className="px-4 py-2 hover:bg-lime-100 dark:hover:bg-lime-900 cursor-pointer"
-                          >
-                            {addr.street}, {addr.city}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                       
+{checkoutStep === "checkout" && (
+  <div className="space-y-6">
+    {/* Back Button */}
+    <button
+      onClick={() => setCheckoutStep("cart")}
+      className="flex items-center gap-2 text-lime-600 dark:text-lime-400 hover:underline font-medium mb-4"
+    >
+      <FiChevronDown className="rotate-90 w-5 h-5" />
+      Back to Cart
+    </button>
 
-                  <h3 className="text-lg font-bold text-lime-600 dark:text-lime-400">Payment Method</h3>
-                  <div className="space-y-3">
-                    <button
-                      onClick={() => setPaymentMethod("cod")}
-                      className={`w-full p-4 rounded-xl border flex items-center gap-3 transition ${
-                        paymentMethod === "cod" ? "border-lime-600 bg-lime-50 dark:bg-lime-900/30" : "border-gray-300 dark:border-gray-600"
-                      }`}
-                    >
-                      <FiTruck className="text-lime-600" /> Cash on Delivery
-                    </button>
-                    <button
-                      onClick={() => setPaymentMethod("visa")}
-                      className={`w-full p-4 rounded-xl border flex items-center gap-3 transition ${
-                        paymentMethod === "visa" ? "border-lime-600 bg-lime-50 dark:bg-lime-900/30" : "border-gray-300 dark:border-gray-600"
-                      }`}
-                    >
-                      <FiCreditCard className="text-lime-600" /> Credit/Debit Card
-                    </button>
-                  </div>
+    <h3 className="text-xl font-bold text-lime-600 dark:text-lime-400">Delivery Address</h3>
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setShowDropdown(!showDropdown)}
+        className="w-full px-4 py-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-600 flex justify-between items-center text-left shadow-sm hover:shadow transition"
+      >
+        <span className="truncate">
+          {selectedAddress
+            ? addresses.find(a => a.id === selectedAddress)?.street + ", " + addresses.find(a => a.id === selectedAddress)?.city
+            : "Select your delivery address"}
+        </span>
+        <FiChevronDown className={`transition-transform ${showDropdown ? "rotate-180" : ""}`} />
+      </button>
+      {showDropdown && addresses.length > 0 && (
+        <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+          {addresses.map(addr => (
+            <div
+              key={addr.id}
+              onClick={() => {
+                setSelectedAddress(addr.id);
+                setShowDropdown(false);
+              }}
+              className="px-4 py-3 hover:bg-lime-50 dark:hover:bg-lime-900/50 cursor-pointer flex items-center justify-between transition"
+            >
+              <span>{addr.street}, {addr.city}</span>
+              {selectedAddress === addr.id && <FiCheck className="text-lime-600" />}
+            </div>
+          ))}
+          {addresses.length === 0 && (
+            <div className="px-4 py-8 text-center text-gray-500">No addresses found</div>
+          )}
+        </div>
+      )}
+    </div>
 
-                  <button
-                    onClick={createOrder}
-                    disabled={!paymentMethod || !selectedAddress}
-                    className={`w-full py-4 rounded-xl font-bold transition ${
-                      paymentMethod && selectedAddress
-                        ? "bg-lime-600 text-white hover:bg-lime-700"
-                        : "bg-gray-400 text-gray-600 cursor-not-allowed"
-                    }`}
-                  >
-                    Place Order
-                  </button>
-                </div>
-              )}
+    <h3 className="text-xl font-bold text-lime-600 dark:text-lime-400">Payment Method</h3>
+    <div className="space-y-3">
+      <button
+        onClick={() => setPaymentMethod("cod")}
+        className={`w-full p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${
+          paymentMethod === "cod"
+            ? "border-lime-600 bg-lime-50 dark:bg-lime-900/30 shadow-md"
+            : "border-gray-300 dark:border-gray-600 hover:border-gray-400"
+        }`}
+      >
+        <div className={`w-5 h-5 rounded-full border-2 ${paymentMethod === "cod" ? "border-lime-600 bg-lime-600" : "border-gray-400"}`}>
+          {paymentMethod === "cod" && <FiCheck className="w-3 h-3 text-white" />}
+        </div>
+        <div className="text-left">
+          <div className="font-medium">Cash on Delivery</div>
+          <div className="text-sm text-gray-500">Pay when you receive</div>
+        </div>
+      </button>
+
+      <button
+        onClick={() => setPaymentMethod("visa")}
+        className={`w-full p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${
+          paymentMethod === "visa"
+            ? "border-lime-600 bg-lime-50 dark:bg-lime-900/30 shadow-md"
+            : "border-gray-300 dark:border-gray-600 hover:border-gray-400"
+        }`}
+      >
+        <div className={`w-5 h-5 rounded-full border-2 ${paymentMethod === "visa" ? "border-lime-600 bg-lime-600" : "border-gray-400"}`}>
+          {paymentMethod === "visa" && <FiCheck className="w-3 h-3 text-white" />}
+        </div>
+        <div className="text-left">
+          <div className="font-medium flex items-center gap-2">
+            <FiCreditCard /> Credit or Debit Card
+          </div>
+          <div className="text-sm text-gray-500">Secure online payment</div>
+        </div>
+      </button>
+    </div>
+
+    {/* Order Summary */}
+    <div className="p-4 bg-gradient-to-r from-lime-50 to-teal-50 dark:from-lime-900/20 dark:to-teal-900/20 rounded-2xl">
+      <div className="flex justify-between text-lg font-bold">
+        <span>Total Amount:</span>
+        <span className="text-lime-600 dark:text-lime-400">{cartTotal.toFixed(2)} EGP</span>
+      </div>
+    </div>
+
+    <button
+      onClick={createOrder}
+      disabled={!paymentMethod || !selectedAddress || isLoading}
+      className={`w-full py-4 rounded-xl font-bold text-white transition-all flex items-center justify-center gap-3 ${
+        paymentMethod && selectedAddress && !isLoading
+          ? "bg-lime-600 hover:bg-lime-700 shadow-lg"
+          : "bg-gray-400 cursor-not-allowed"
+      }`}
+    >
+      {isLoading ? (
+        <>
+          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+          Processing...
+        </>
+      ) : (
+        <>
+          <FiCheck /> Place Order ({cartTotal.toFixed(2)} EGP)
+        </>
+      )}
+    </button>
+  </div>
+)}
 
               {checkoutStep === "complete" && (
                 <div className="text-center py-12">

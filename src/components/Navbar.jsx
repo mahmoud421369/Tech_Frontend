@@ -25,7 +25,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { jwtDecode } from "jwt-decode";
 import api from "../api";
-import logo from "../images/new-logo.jpg";
+import logo from "../images/logo-bg.png";
 
 const Navbar = ({
   onCartClick,
@@ -197,11 +197,11 @@ const Navbar = ({
             <img
               src={logo}
               alt="Tech & Restore"
-              className="h-14 w-14 object-contain rounded-xl  transition-all"
+              className="h-12 w-56 object-cover rounded-xl  transition-all"
             />
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-700 to-gray-900 bg-clip-text text-transparent">
-              Tech & Restore
-            </h1>
+            {/* <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-700 to-gray-900 bg-clip-text text-transparent">
+              Tech & Bazaar
+            </h1> */}
           </Link>
 
           {/* Nav Links */}
@@ -213,7 +213,7 @@ const Navbar = ({
                 className={({ isActive }) =>
                   `flex items-center gap-2 px-5 py-2.5 rounded-full font-medium transition-all duration-300 ${
                     isActive
-                      ? "bg-gradient-to-r from-lime-500 to-lime-600 text-white shadow-md"
+                      ? "bg-gradient-to-r from-lime-500 to-lime-600 text-white  shadow-md"
                       : darkMode
                       ? "text-gray-300 hover:bg-gray-800"
                       : "text-gray-700 hover:bg-gray-100"

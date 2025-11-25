@@ -32,29 +32,26 @@ const RepairsSkeleton = ({ darkMode }) => (
       ))}
     </div>
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
-        <div className="h-10 w-48 bg-gray-300 dark:bg-gray-600 rounded-lg"></div>
-        <div className="h-10 w-full sm:w-80 bg-gray-300 dark:bg-gray-600 rounded-lg"></div>
-      </div>
+      <div className="h-10 w-full sm:w-96 bg-gray-300 dark:bg-gray-600 rounded-lg mb-6"></div>
       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
         <thead className="bg-gray-100 dark:bg-gray-700">
           <tr>
-            {['ID', 'Shop Name', 'Issue', 'Delivery Method', 'Status', 'Payment Method'].map((_, idx) => (
-              <th key={idx} className="px-6 py-3">
-                <div className="h-4 w-20 bg-gray-300 dark:bg-gray-600 rounded"></div>
+            {['ID', 'Shop Name', 'Issue', 'Delivery', 'Status', 'Payment'].map((_, i) => (
+              <th key={i} className="px-4 py-3">
+                <div className="h-3 w-16 bg-gray-300 dark:bg-gray-600 rounded"></div>
               </th>
             ))}
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-          {[...Array(5)].map((_, idx) => (
-            <tr key={idx}>
-              <td className="px-6 py-4"><div className="h-4 w-32 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-              <td className="px-6 py-4"><div className="h-4 w-48 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-              <td className="px-6 py-4"><div className="h-4 w-64 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-              <td className="px-6 py-4"><div className="h-4 w-24 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-              <td className="px-6 py-4"><div className="h-8 w-20 bg-gray-300 dark:bg-gray-600 rounded-full"></div></td>
-              <td className="px-6 py-4"><div className="h-4 w-24 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
+          {[...Array(5)].map((_, i) => (
+            <tr key={i}>
+              <td className="px-4 py-3"><div className="h-3 w-24 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
+              <td className="px-4 py-3"><div className="h-3 w-32 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
+              <td className="px-4 py-3"><div className="h-3 w-48 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
+              <td className="px-4 py-3"><div className="h-3 w-20 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
+              <td className="px-4 py-3"><div className="h-6 w-20 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto"></div></td>
+              <td className="px-4 py-3"><div className="h-3 w-24 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
             </tr>
           ))}
         </tbody>
@@ -113,21 +110,22 @@ const PaginatedTable = ({
               {columns.map((col, i) => (
                 <th
                   key={i}
-                  className="px-6 py-3 text-center text-sm font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300"
+                  className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300"
                 >
                   {col}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 text-gray-900 dark:text-gray-100">
-            {paginatedData.map(renderRow)}
-            {paginatedData.length === 0 && (
+          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 text-gray-900 dark:text-gray-100 text-xs">
+            {paginatedData.length > 0 ? (
+              paginatedData.map(renderRow)
+            ) : (
               <tr>
                 <td colSpan={columns.length} className="py-12 text-center text-gray-500 dark:text-gray-400">
                   <div className="flex flex-col items-center gap-3">
                     <FiTool className="text-4xl text-gray-400 dark:text-gray-500" />
-                    <p className="text-lg font-medium">{emptyMessage}</p>
+                    <p className="text-sm font-medium">{emptyMessage}</p>
                   </div>
                 </td>
               </tr>
@@ -140,16 +138,16 @@ const PaginatedTable = ({
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
+              className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-xs font-medium"
             >
-              <FiChevronLeft /> Prev
+              Prev <FiChevronLeft />
             </button>
             {getPageNumbers().map((num, i) => (
               <button
                 key={i}
                 onClick={() => typeof num === 'number' && setPage(num)}
                 disabled={num === '...'}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`px-3 py-1.5 rounded text-xs font-medium transition-all ${
                   num === '...'
                     ? 'cursor-default text-gray-500 dark:text-gray-400'
                     : page === num
@@ -163,7 +161,7 @@ const PaginatedTable = ({
             <button
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
+              className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-xs font-medium"
             >
               Next <FiChevronRight />
             </button>
@@ -177,12 +175,12 @@ const PaginatedTable = ({
 const RepairRequestsPage = ({ darkMode }) => {
   const navigate = useNavigate();
   const token = localStorage.getItem('authToken');
+
   const [repairRequests, setRepairRequests] = useState([]);
-  const [loadingRepairs, setLoadingRepairs] = useState(false);
+  const [loadingRepairs, setLoadingRepairs] = useState(true);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all');
   const [page, setPage] = useState(1);
-  const pageSize = 5;
+  const pageSize = 6;
 
   const fetchRepairRequests = useCallback(async () => {
     if (!token) {
@@ -194,10 +192,8 @@ const RepairRequestsPage = ({ darkMode }) => {
     setLoadingRepairs(true);
     try {
       let url = '/api/admin/repair-requests';
-      if (filter === 'pending') url += '/pending';
-      else if (filter === 'completed') url += '/completed';
       if (search.trim()) {
-        url = `/api/admin/repair-requests/search?query=${encodeURIComponent(search)}`;
+        url = `/api/admin/repair-requests/search?query=${encodeURIComponent(search.trim())}`;
       }
 
       const { data } = await api.get(url, {
@@ -217,33 +213,22 @@ const RepairRequestsPage = ({ darkMode }) => {
     } finally {
       setLoadingRepairs(false);
     }
-  }, [token, navigate, filter, search]);
+  }, [token, navigate, search]);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchRepairRequests();
+    }, 400); // Debounced search
+
+    return () => clearTimeout(timeoutId);
+  }, [search, fetchRepairRequests]);
 
   const copyToClipboard = (id) => {
     navigator.clipboard.writeText(id).then(
-      () => Swal.fire({ title: 'Copied!', text: 'Repair ID copied!', icon: 'success', toast: true, position: 'top-end', timer: 1000 }),
-      () => Swal.fire({ title: 'Error', text: 'Failed to copy', icon: 'error', toast: true, position: 'top-end', timer: 1000 })
+      () => Swal.fire({ title: 'Copied!', icon: 'success', toast: true, position: 'top-end', timer: 1000 }),
+      () => Swal.fire({ title: 'Failed to copy', icon: 'error', toast: true, position: 'top-end', timer: 1000 })
     );
   };
-
-  const filteredRepairs = useMemo(() => {
-    let filtered = repairRequests;
-
-    // Filter by status
-    if (filter === 'pending') filtered = filtered.filter(r => r.status === 'PENDING');
-    if (filter === 'completed') filtered = filtered.filter(r => r.status === 'COMPLETED');
-
-    // Search by shop name or description
-    if (search.trim()) {
-      const lower = search.toLowerCase();
-      filtered = filtered.filter(r =>
-        r.shopName?.toLowerCase().includes(lower) ||
-        r.description?.toLowerCase().includes(lower)
-      );
-    }
-
-    return filtered;
-  }, [repairRequests, filter, search]);
 
   const stats = useMemo(() => {
     const total = repairRequests.length;
@@ -252,20 +237,15 @@ const RepairRequestsPage = ({ darkMode }) => {
     return { totalRepairs: total, pendingRepairs: pending, completedRepairs: completed };
   }, [repairRequests]);
 
-  useEffect(() => {
-    fetchRepairRequests();
-  }, [fetchRepairRequests]);
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-14">
       <div className="max-w-7xl mx-auto space-y-8">
 
-        {/* Header */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
           <h1 className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-3">
-            <FiTool /> Repair Requests
+            <FiTool className="w-8 h-8" /> Repair Requests
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Monitor and view all shop repair requests</p>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">View and search all repair requests from shops</p>
         </div>
 
         {loadingRepairs ? (
@@ -276,9 +256,9 @@ const RepairRequestsPage = ({ darkMode }) => {
             {/* Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 p-6 border-b border-gray-200 dark:border-gray-700">
               {[
-                { label: 'Total Repairs', value: stats.totalRepairs, color: 'emerald' },
-                { label: 'Pending', value: stats.pendingRepairs, color: 'yellow' },
-                { label: 'Completed', value: stats.completedRepairs, color: 'green' },
+                { label: 'Total Repairs', value: stats.totalRepairs },
+                { label: 'Pending', value: stats.pendingRepairs },
+                { label: 'Completed', value: stats.completedRepairs },
               ].map((stat, i) => (
                 <div key={i} className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg border border-gray-200 dark:border-gray-600 text-center">
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
@@ -287,78 +267,75 @@ const RepairRequestsPage = ({ darkMode }) => {
               ))}
             </div>
 
-            {/* Filters & Search */}
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="w-full sm:w-48">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filter Status</label>
-                  <select
-                    value={filter}
-                    onChange={(e) => { setFilter(e.target.value); setPage(1); }}
-                    className="w-full px-4 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
-                  >
-                    <option value="all">All Repairs</option>
-                    <option value="pending">Pending</option>
-                    <option value="completed">Completed</option>
-                  </select>
-                </div>
-                <div className="flex-1 relative">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
-                  <div className="relative">
-                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                    <input
-                      type="text"
-                      placeholder="Search by shop name or issue..."
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
-                    />
-                    {search && (
-                      <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
-                        <FiXCircle />
-                      </button>
-                    )}
-                  </div>
+            {/* Search Bar Only */}
+            {/* <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="max-w-2xl mx-auto">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Search Requests</label>
+                <div className="relative">
+                  <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-5 h-5" />
+                  <input
+                    type="text"
+                    placeholder="Search by shop name, issue, or ID..."
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setPage(1);
+                    }}
+                    className="w-full pl-12 pr-12 py-3 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none transition text-sm"
+                  />
+                  {search && (
+                    <button
+                      onClick={() => {
+                        setSearch('');
+                        setPage(1);
+                      }}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-red-600 transition"
+                    >
+                      <FiXCircle className="w-5 h-5" />
+                    </button>
+                  )}
                 </div>
               </div>
-            </div>
+            </div> */}
 
-            {/* Table */}
+          
             <div className="p-6">
               <PaginatedTable
-                data={filteredRepairs}
-                columns={['ID', 'Shop Name', 'Issue', 'Delivery Method', 'Status', 'Payment Method']}
+                data={repairRequests}
+                columns={['ID', 'Shop Name', 'Issue', 'Delivery', 'Status', 'Payment']}
                 page={page}
                 setPage={setPage}
                 pageSize={pageSize}
                 darkMode={darkMode}
                 renderRow={(req) => (
                   <tr key={req.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    <td className="px-6 py-4 text-sm font-medium text-center">
+                    <td className="px-5 py-4 font-medium">
                       <div className="flex items-center justify-center gap-2">
-                        <span className="truncate max-w-32">{req.id}</span>
+                        <span className="truncate max-w-28">{req.id}</span>
                         <button onClick={() => copyToClipboard(req.id)} className="text-gray-500 hover:text-emerald-600">
-                          <FiCopy className="w-4 h-4" />
+                          <FiCopy className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(req.shopName) || 'N/A'}</td>
-                    <td className="px-6 py-4 text-sm max-w-xs truncate" title={DOMPurify.sanitize(req.description)}>
-                      {DOMPurify.sanitize(req.description) || 'N/A'}
+                    <td className="px-5 py-4">{DOMPurify.sanitize(req.shopName || 'N/A')}</td>
+                    <td className="px-5 py-4 max-w-xs">
+                      <div className="truncate" title={req.description}>
+                        {DOMPurify.sanitize(req.description || 'N/A')}
+                      </div>
                     </td>
-                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(req.deliveryMethod) || 'N/A'}</td>
-                    <td className="px-6 py-4 text-center">
-                      <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
+                    <td className="px-5 py-4">{DOMPurify.sanitize(req.deliveryMethod || 'N/A')}</td>
+                    <td className="px-5 py-4 text-center">
+                      <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ${
                         req.status === 'PENDING'
-                          ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300'
                           : req.status === 'COMPLETED'
-                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                          : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
+                          : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
                       }`}>
-                        {req.status}
+                        {req.status || 'Unknown'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(req.paymentMethod) || 'N/A'}</td>
+                    <td className="px-5 py-4">{DOMPurify.sanitize(req.paymentMethod || 'N/A')}</td>
                   </tr>
                 )}
                 emptyMessage="No repair requests found"

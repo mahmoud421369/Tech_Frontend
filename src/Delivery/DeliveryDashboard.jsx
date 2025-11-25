@@ -12,32 +12,48 @@ const DeliveryDashboard = () => {
   const [myRepairs, setMyRepairs] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const [orders, repairs, myOrdersData, myRepairsData] = await Promise.all([
-        getAvailableOrders(),
-        getAvailableRepairs(),
-        getMyDeliveries(),
-        getMyRepairs(),
-      ]);
-      setAvailableOrders(orders.content || orders || []);
-      setAvailableRepairs(repairs.content || repairs || []);
-      setMyOrders(myOrdersData.content || myOrdersData || []);
-      setMyRepairs(myRepairsData.content || myRepairsData || []);
-    } catch (err) {
-      toast.error("Failed to load dashboard data. Please try again.");
-      console.error("Error loading dashboard data:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+ // Replace your loadData + useEffect with this improved version
 
-  useEffect(() => {
-    loadData();
-    const interval = setInterval(loadData, 15000);
-    return () => clearInterval(interval);
-  }, [loadData]);
+const loadData = useCallback(async (silent = false) => {
+  if (!silent) setIsLoading(true);
+
+  try {
+    const [ordersRes, repairsRes, myOrdersRes, myRepairsRes] = await Promise.all([
+      getAvailableOrders().catch(() => ({ content: [] })),
+      getAvailableRepairs().catch(() => ({ content: [] })),
+      getMyDeliveries().catch(() => ({ content: [] })),
+      getMyRepairs().catch(() => ({ content: [] })),
+    ]);
+
+    // Safely extract .content OR fallback to empty array
+    setAvailableOrders(ordersRes?.content || ordersRes || []);
+    setAvailableRepairs(repairsRes?.content || repairsRes || []);
+    setMyOrders(myOrdersRes?.content || myOrdersRes || []);
+    setMyRepairs(myRepairsRes?.content || myRepairsRes || []);
+
+  } catch (err) {
+    // Only show error on first load, not on auto-refresh
+    if (!silent) {
+      toast.error("Failed to load data. Check your connection.");
+    }
+    console.error("Dashboard load error:", err);
+  } finally {
+    if (!silent) setIsLoading(false);
+  }
+}, []);
+
+// First load: show spinner
+useEffect(() => {
+  loadData(false); // false = show loading
+}, [loadData]);
+
+// Auto-refresh every 15 seconds: silent (no spinner, no toast)
+useEffect(() => {
+  const interval = setInterval(() => {
+    loadData(true); // true = silent refresh
+  }, 15000);
+  return () => clearInterval(interval);
+}, [loadData]);
 
   const cards = [
     {

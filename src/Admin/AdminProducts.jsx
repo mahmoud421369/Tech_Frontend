@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FiBox,
@@ -130,8 +130,9 @@ const PaginatedTable = ({
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 text-gray-900 dark:text-gray-100">
-            {paginatedData.map(renderRow)}
-            {paginatedData.length === 0 && (
+            {paginatedData.length > 0 ? (
+              paginatedData.map(renderRow)
+            ) : (
               <tr>
                 <td colSpan={columns.length} className="py-12 text-center text-gray-500 dark:text-gray-400">
                   <div className="flex flex-col items-center gap-3">
@@ -151,7 +152,7 @@ const PaginatedTable = ({
               disabled={page === 1}
               className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
             >
-              <FiChevronLeft /> Prev
+              Prev <FiChevronLeft />
             </button>
             {getPageNumbers().map((num, i) => (
               <button
@@ -186,15 +187,24 @@ const PaginatedTable = ({
 const ProductsPage = ({ darkMode }) => {
   const navigate = useNavigate();
   const token = localStorage.getItem('authToken');
+
   const [products, setProducts] = useState([]);
-  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [loadingProducts, setLoadingProducts] = useState(true);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState('all'); // all, inStock, outOfStock
   const [page, setPage] = useState(1);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
-  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
-  const [isConditionDropdownOpen, setIsConditionDropdownOpen] = useState(false);
   const [categories, setCategories] = useState([]);
+
+ 
+  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const [conditionDropdownOpen, setConditionDropdownOpen] = useState(false);
+
+  const filterRef = useRef(null);
+  const categoryRef = useRef(null);
+  const conditionRef = useRef(null);
+
   const [productForm, setProductForm] = useState({
     id: '',
     name: '',
@@ -205,6 +215,17 @@ const ProductsPage = ({ darkMode }) => {
     stockQuantity: '',
     condition: '',
   });
+
+  
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (filterRef.current && !filterRef.current.contains(event.target)) setFilterDropdownOpen(false);
+      if (categoryRef.current && !categoryRef.current.contains(event.target)) setCategoryDropdownOpen(false);
+      if (conditionRef.current && !conditionRef.current.contains(event.target)) setConditionDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const fetchProducts = useCallback(async () => {
     if (!token) {
@@ -265,11 +286,11 @@ const ProductsPage = ({ darkMode }) => {
     if (
       !productForm.name.trim() ||
       !productForm.description.trim() ||
-      isNaN(productForm.price) ||
+      !productForm.price || isNaN(productForm.price) ||
       !productForm.categoryName ||
-      isNaN(productForm.stockQuantity)
+      !productForm.stockQuantity || isNaN(productForm.stockQuantity)
     ) {
-      Swal.fire({ title: 'Error', text: 'All fields are required.', icon: 'error' });
+      Swal.fire({ title: 'Error', text: 'Please fill all required fields correctly.', icon: 'error' });
       return;
     }
 
@@ -280,14 +301,14 @@ const ProductsPage = ({ darkMode }) => {
           name: productForm.name,
           description: productForm.description,
           price: parseFloat(productForm.price),
-          imageUrl: productForm.imageUrl,
+          imageUrl: productForm.imageUrl || null,
           categoryName: productForm.categoryName,
           stockQuantity: Number(productForm.stockQuantity),
           condition: productForm.condition,
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      Swal.fire({ title: 'Updated!', text: 'Product updated.', icon: 'success', toast: true, position: 'top-end', timer: 1500 });
+      Swal.fire({ title: 'Success', text: 'Product updated successfully!', icon: 'success', toast: true, position: 'top-end', timer: 2000 });
       setIsProductModalOpen(false);
       fetchProducts();
     } catch (error) {
@@ -302,38 +323,42 @@ const ProductsPage = ({ darkMode }) => {
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
-      cancelButtonColor: '#6b7280',
       confirmButtonText: 'Yes, delete',
     });
     if (!result.isConfirmed) return;
 
     try {
-      await api.delete(`/api/admin/products/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      Swal.fire({ title: 'Deleted!', text: 'Product removed.', icon: 'success', toast: true, position: 'top-end', timer: 1500 });
+      await api.delete(`/api/admin/products/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      Swal.fire({ title: 'Deleted!', icon: 'success', toast: true, position: 'top-end', timer: 1500 });
       fetchProducts();
     } catch (error) {
-      Swal.fire({ title: 'Error', text: 'Failed to delete.', icon: 'error' });
+      Swal.fire({ title: 'Error', text: 'Failed to delete product.', icon: 'error' });
     }
   };
 
   const copyToClipboard = (id) => {
     navigator.clipboard.writeText(id).then(
-      () => Swal.fire({ title: 'Copied!', text: 'Product ID copied!', icon: 'success', toast: true, position: 'top-end', timer: 1000 }),
-      () => Swal.fire({ title: 'Error', text: 'Failed to copy', icon: 'error', toast: true, position: 'top-end', timer: 1000 })
+      () => Swal.fire({ title: 'Copied!', icon: 'success', toast: true, position: 'top-end', timer: 1000 }),
+      () => Swal.fire({ title: 'Failed to copy', icon: 'error', toast: true })
     );
   };
 
   const filteredProducts = useMemo(() => {
     let filtered = products;
+
     if (search.trim()) {
-      const lower = search.toLowerCase();
+      const term = search.toLowerCase();
       filtered = filtered.filter(p =>
-        p.name?.toLowerCase().includes(lower) ||
-        p.description?.toLowerCase().includes(lower)
+        p.name?.toLowerCase().includes(term) ||
+        p.description?.toLowerCase().includes(term)
       );
     }
+
     if (filter === 'inStock') filtered = filtered.filter(p => p.stock > 0);
     if (filter === 'outOfStock') filtered = filtered.filter(p => p.stock === 0);
+
     return filtered;
   }, [products, search, filter]);
 
@@ -344,16 +369,17 @@ const ProductsPage = ({ darkMode }) => {
     return { totalProducts: total, inStockProducts: inStock, outOfStockProducts: outOfStock };
   }, [products]);
 
-  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-14">
       <div className="max-w-7xl mx-auto space-y-8">
 
-        {/* Header */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
           <h1 className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-3">
-            <FiBox /> Products Management
+            <FiBox className="w-8 h-8" /> Products Management
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">Monitor, edit, and delete shop products</p>
         </div>
@@ -363,12 +389,12 @@ const ProductsPage = ({ darkMode }) => {
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
 
-            {/* Stats */}
+        
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 p-6 border-b border-gray-200 dark:border-gray-700">
               {[
-                { label: 'Total Products', value: stats.totalProducts, color: 'emerald' },
-                { label: 'In Stock', value: stats.inStockProducts, color: 'green' },
-                { label: 'Out of Stock', value: stats.outOfStockProducts, color: 'red' },
+                { label: 'Total Products', value: stats.totalProducts },
+                { label: 'In Stock', value: stats.inStockProducts },
+                { label: 'Out of Stock', value: stats.outOfStockProducts },
               ].map((stat, i) => (
                 <div key={i} className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg border border-gray-200 dark:border-gray-600 text-center">
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
@@ -377,23 +403,56 @@ const ProductsPage = ({ darkMode }) => {
               ))}
             </div>
 
-            {/* Filters & Search */}
+           
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="w-full sm:w-48">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filter</label>
-                  <select
-                    value={filter}
-                    onChange={(e) => { setFilter(e.target.value); setPage(1); }}
-                    className="w-full px-4 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
+              <div className="flex flex-col lg:flex-row gap-6 items-end">
+
+             
+                <div ref={filterRef} className="relative w-full sm:w-64">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filter by Stock</label>
+                  <button
+                    type="button"
+                    onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
+                    className="w-full px-4 py-2.5 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-between text-gray-900 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-600 transition focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   >
-                    <option value="all">All Products</option>
-                    <option value="inStock">In Stock</option>
-                    <option value="outOfStock">Out of Stock</option>
-                  </select>
+                    <span>
+                      {filter === 'all' && 'All Products'}
+                      {filter === 'inStock' && 'In Stock'}
+                      {filter === 'outOfStock' && 'Out of Stock'}
+                    </span>
+                    <FiChevronDown className={`w-5 h-5 transition-transform ${filterDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {filterDropdownOpen && (
+                    <div className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-xl">
+                      {[
+                        { value: 'all', label: 'All Products' },
+                        { value: 'inStock', label: 'In Stock' },
+                        { value: 'outOfStock', label: 'Out of Stock' },
+                      ].map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => {
+                            setFilter(option.value);
+                            setPage(1);
+                            setFilterDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                            filter === option.value
+                              ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 font-medium'
+                              : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
+
+             
                 <div className="flex-1 relative">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search Products</label>
                   <div className="relative">
                     <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                     <input
@@ -401,11 +460,14 @@ const ProductsPage = ({ darkMode }) => {
                       placeholder="Search by name or description..."
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
+                      className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
                     />
                     {search && (
-                      <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
-                        <FiXCircle />
+                      <button
+                        onClick={() => setSearch('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-red-600 transition"
+                      >
+                        <FiXCircle className="w-5 h-5" />
                       </button>
                     )}
                   </div>
@@ -413,7 +475,7 @@ const ProductsPage = ({ darkMode }) => {
               </div>
             </div>
 
-            {/* Table */}
+            
             <div className="p-6">
               <PaginatedTable
                 data={filteredProducts}
@@ -432,21 +494,31 @@ const ProductsPage = ({ darkMode }) => {
                         </button>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(p.name) || 'N/A'}</td>
+                    <td className="px-6 py-4 text-sm max-w-xs truncate" title={p.name}>
+                      {DOMPurify.sanitize(p.name || 'N/A')}
+                    </td>
                     <td className="px-6 py-4 text-sm">{p.price ? `${p.price} EGP` : 'N/A'}</td>
-                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(p.condition) || 'N/A'}</td>
-                    <td className="px-6 py-4 text-sm">{p.stock ? `${p.stock} items` : '0 items'}</td>
+                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(p.condition || 'N/A')}</td>
+                    <td className="px-6 py-4 text-sm text-center">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        p.stock > 0
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                      }`}>
+                        {p.stock || 0} items
+                      </span>
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex justify-center gap-2">
                         <button
                           onClick={() => updateProduct(p)}
-                          className="px-3 py-1.5 text-xs bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded hover:bg-emerald-200 dark:hover:bg-emerald-800"
+                          className="px-3 py-1.5 text-xs bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded hover:bg-emerald-200 dark:hover:bg-emerald-800 transition"
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => deleteProduct(p.id)}
-                          className="px-3 py-1.5 text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-800"
+                          className="px-3 py-1.5 text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-800 transition"
                         >
                           Delete
                         </button>
@@ -460,141 +532,160 @@ const ProductsPage = ({ darkMode }) => {
           </div>
         )}
 
-
+       
         {isProductModalOpen && (
           <Modal onClose={() => setIsProductModalOpen(false)} title="Update Product" darkMode={darkMode}>
-            <form onSubmit={handleProductUpdate} className="space-y-4">
-              <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-semibold text-gray-900 dark:text-gray-100">Product Details</h4>
-                  <button onClick={() => copyToClipboard(productForm.id)} className="text-gray-500 hover:text-emerald-600">
-                    <FiCopy className="w-4 h-4" />
+            <form onSubmit={handleProductUpdate} className="space-y-5">
+              <div className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg space-y-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100">Product Information</h4>
+                  <button type="button" onClick={() => copyToClipboard(productForm.id)} className="text-gray-500 hover:text-emerald-600">
+                    <FiCopy className="w-5 h-5" />
                   </button>
                 </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
                     <input
                       type="text"
                       value={productForm.name}
                       onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
-                      placeholder="Product name"
+                      className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-gray-800 border border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
+                      placeholder="Enter product name"
+                      required
                     />
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Price (EGP)</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Price (EGP) *</label>
                     <input
                       type="number"
                       value={productForm.price}
                       onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
-                      placeholder="Price"
+                      className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
+                      placeholder="0.00"
+                      min="0"
+                      step="0.01"
+                      required
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
-                    <div className="relative">
-                      <button
-                        type="button"
-                        onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
-                        className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-left flex items-center justify-between focus:ring-2 focus:ring-emerald-500"
-                      >
-                        <span>{productForm.categoryName || 'Select Category'}</span>
-                        <FiChevronDown className={`transition-transform ${isCategoryDropdownOpen ? 'rotate-180' : ''}`} />
-                      </button>
-                      {isCategoryDropdownOpen && (
-                        <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg">
-                          {categories.map((cat) => (
+
+                  <div ref={categoryRef} className="relative">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category *</label>
+                    <button
+                      type="button"
+                      onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
+                      className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-left flex items-center justify-between focus:ring-2 focus:ring-emerald-500 transition"
+                    >
+                      <span className={productForm.categoryName ? '' : 'text-gray-500'}>
+                        {productForm.categoryName || 'Select category'}
+                      </span>
+                      <FiChevronDown className={`w-5 h-5 transition-transform ${categoryDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {categoryDropdownOpen && (
+                      <div className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                        {categories.length === 0 ? (
+                          <div className="px-4 py-3 text-sm text-gray-500">No categories found</div>
+                        ) : (
+                          categories.map((cat) => (
                             <button
                               key={cat.id}
                               type="button"
                               onClick={() => {
                                 setProductForm({ ...productForm, categoryName: cat.name });
-                                setIsCategoryDropdownOpen(false);
+                                setCategoryDropdownOpen(false);
                               }}
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-emerald-50 dark:hover:bg-emerald-900"
+                              className="w-full text-left px-4 py-2.5 text-sm hover:bg-emerald-50 dark:hover:bg-emerald-900 transition"
                             >
                               {cat.name}
                             </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                          ))
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Condition</label>
-                    <div className="relative">
-                      <button
-                        type="button"
-                        onClick={() => setIsConditionDropdownOpen(!isConditionDropdownOpen)}
-                        className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-left flex items-center justify-between focus:ring-2 focus:ring-emerald-500"
-                      >
-                        <span>{productForm.condition || 'Select Condition'}</span>
-                        <FiChevronDown className={`transition-transform ${isConditionDropdownOpen ? 'rotate-180' : ''}`} />
-                      </button>
-                      {isConditionDropdownOpen && (
-                        <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg">
-                          {['NEW', 'USED', 'REFURBISHED'].map((cond) => (
-                            <button
-                              key={cond}
-                              type="button"
-                              onClick={() => {
-                                setProductForm({ ...productForm, condition: cond });
-                                setIsConditionDropdownOpen(false);
-                              }}
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-emerald-50 dark:hover:bg-emerald-900"
-                            >
-                              {cond}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+
+                  <div ref={conditionRef} className="relative">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Condition *</label>
+                    <button
+                      type="button"
+                      onClick={() => setConditionDropdownOpen(!conditionDropdownOpen)}
+                      className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-left flex items-center justify-between focus:ring-2 focus:ring-emerald-500 transition"
+                    >
+                      <span className={productForm.condition ? '' : 'text-gray-500'}>
+                        {productForm.condition || 'Select condition'}
+                      </span>
+                      <FiChevronDown className={`w-5 h-5 transition-transform ${conditionDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {conditionDropdownOpen && (
+                      <div className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-xl">
+                        {['NEW', 'USED', 'REFURBISHED'].map((cond) => (
+                          <button
+                            key={cond}
+                            type="button"
+                            onClick={() => {
+                              setProductForm({ ...productForm, condition: cond });
+                              setConditionDropdownOpen(false);
+                            }}
+                            className="w-full text-left px-4 py-2.5 text-sm hover:bg-emerald-50 dark:hover:bg-emerald-900 transition"
+                          >
+                            {cond}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Stock</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Stock Quantity *</label>
                     <input
                       type="number"
                       value={productForm.stockQuantity}
                       onChange={(e) => setProductForm({ ...productForm, stockQuantity: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
-                      placeholder="Stock quantity"
+                      className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
+                      placeholder="0"
+                      min="0"
+                      required
                     />
                   </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Image URL</label>
                     <input
-                      type="text"
+                      type="url"
                       value={productForm.imageUrl}
                       onChange={(e) => setProductForm({ ...productForm, imageUrl: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
-                      placeholder="Image URL"
+                      className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
+                      placeholder="https://example.com/image.jpg"
                     />
                   </div>
+
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description *</label>
                     <textarea
                       value={productForm.description}
                       onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
-                      rows={3}
-                      placeholder="Product description"
+                      className="w-full px-4 py-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
+                      rows="4"
+                      placeholder="Describe the product..."
+                      required
                     />
                   </div>
                 </div>
               </div>
+
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setIsProductModalOpen(false)}
-                  className="px-5 py-2 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition"
+                  className="px-6 py-2.5 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
+                  className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition shadow-md"
                 >
                   Update Product
                 </button>

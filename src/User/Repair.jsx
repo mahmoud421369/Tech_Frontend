@@ -1,7 +1,6 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
-import debounce from "lodash/debounce";
 import sanitizeHtml from "sanitize-html";
 import {
   FaMobileAlt,
@@ -10,28 +9,17 @@ import {
   FaTv,
   FaGamepad,
   FaTabletAlt,
-  FaArrowAltCircleRight,
-  FaClock,
-  FaMapMarkedAlt,
-  FaCheckCircle,
-  FaTimes,
-  FaInfoCircle,
-  FaPhone,
-  FaStar,
-  FaSearch,
   FaArrowLeft,
-  FaSpinner,
+  FaStar,
   FaStore,
-  FaTruck,
-  FaDollarSign,
+  FaPhone,
+  FaMapMarkedAlt,
   FaWrench,
   FaTools,
-  FaCog,
-  FaHeadset,
+  FaCheckCircle,
 } from "react-icons/fa";
-import { FiChevronLeft, FiChevronRight, FiList, FiMonitor, FiTool, FiSmartphone } from "react-icons/fi";
+import { FiChevronRight, FiSmartphone, FiMonitor } from "react-icons/fi";
 import api from "../api";
-import { RiCarLine, RiMotorbikeLine } from "react-icons/ri";
 
 const LoadingSpinner = ({ darkMode }) => (
   <div className="flex justify-center items-center h-64">
@@ -46,185 +34,182 @@ const LoadingSpinner = ({ darkMode }) => (
 const RepairRequest = ({ darkMode }) => {
   const navigate = useNavigate();
   const token = localStorage.getItem("authToken");
-  const [addressSearch, setAddressSearch] = useState("");
+
   const [step, setStep] = useState(1);
-  const [shops, setShops] = useState([]);
-  const [addresses, setAddresses] = useState([]);
-  const [categories, setCategories] = useState([]);
+  const [description, setDescription] = useState("");
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedShop, setSelectedShop] = useState(null);
-  const [selectedAddress, setSelectedAddress] = useState(null);
-  const [selectedDelivery, setSelectedDelivery] = useState(null);
-  const [selectedPayment, setSelectedPayment] = useState(null);
-  const [description, setDescription] = useState("");
-  const [requestStatus, setRequestStatus] = useState(null);
-  const [progressPercentage, setProgressPercentage] = useState(0);
-  const [estimatedTime, setEstimatedTime] = useState(30);
-  const [repairRequestId, setRepairRequestId] = useState(null);
+  const [categories, setCategories] = useState([]);
+  const [shops, setShops] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [price, setPrice] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const shopsPerPage = 6;
-
-  const deliveryOptions = [
-    { id: 1, name: "Home Delivery", description: "Pickup & delivery", apiValue: "HOME_DELIVERY", icon: <FaTruck /> },
-    { id: 2, name: "Drop Off", description: "Bring device to shop", apiValue: "SHOP_VISIT", icon: <FaStore /> },
-    { id: 3, name: "Courier Service", description: "Courier pickup", apiValue: "PICKUP", icon: <RiCarLine /> },
-  ];
-
-  const paymentOptions = [
-    { id: 1, name: "Cash on Delivery", desc: "Pay when repaired", apiValue: "CASH", icon: <FaDollarSign /> },
-    { id: 2, name: "Credit Card", desc: "Pay securely online", apiValue: "CREDIT_CARD", icon: <FaDollarSign /> },
-  ];
-
-  const debouncedSetAddressSearch = useMemo(() => debounce((value) => setAddressSearch(value), 300), []);
-  const filteredAddresses = useMemo(
-    () =>
-      addresses.filter((addr) =>
-        `${addr.street} ${addr.city} ${addr.state}`.toLowerCase().includes(addressSearch.toLowerCase())
-      ),
-    [addresses, addressSearch]
-  );
-
-  const indexOfLastShop = currentPage * shopsPerPage;
-  const indexOfFirstShop = indexOfLastShop - shopsPerPage;
-  const currentShops = useMemo(() => shops.slice(indexOfFirstShop, indexOfLastShop), [shops, indexOfFirstShop, indexOfLastShop]);
-  const totalPages = Math.ceil(shops.length / shopsPerPage);
-
-  const sanitizeDescription = (input) => sanitizeHtml(input, { allowedTags: [], allowedAttributes: {} }).trim();
-
-  // ────── FETCH CATEGORIES ──────
-  useEffect(() => {
-    const controller = new AbortController();
-    const fetchCategories = async () => {
-      setIsLoading(true);
-      try {
-        const res = await api.get("/api/categories", {
-          headers: { Authorization: `Bearer ${token}` },
-          signal: controller.signal,
-        });
-        const data = res.data.content || res.data || [];
-        setCategories(
-          data.map((cat) => ({
-            ...cat,
-            color: darkMode ? "text-lime-400" : "text-lime-600",
-            icon: getCategoryIcon(cat.name),
-          }))
-        );
-      } catch (err) {
-        if (err.name !== "AbortError") {
-          console.warn("Categories not loaded, using fallback");
-          setCategories(getFallbackCategories(darkMode));
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (token) {
-      fetchCategories();
-    } else {
-      setCategories(getFallbackCategories(darkMode));
-    }
-
-    return () => controller.abort();
-  }, [token, darkMode]);
-
-  // ────── FETCH SHOPS BY CATEGORY ──────
-  useEffect(() => {
-    if (!selectedCategory || step !== 2) return;
-
-    const controller = new AbortController();
-    const fetchShops = async () => {
-      setIsLoading(true);
-      try {
-        const res = await api.get(`/api/shops/category/${selectedCategory.id}`, {
-          signal: controller.signal,
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = res.data.content || res.data || [];
-        setShops(data);
-      } catch (err) {
-        if (err.name !== "AbortError") {
-          console.warn("Shops not loaded, using fallback");
-          setShops(getFallbackShops());
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchShops();
-    return () => controller.abort();
-  }, [selectedCategory, step, token]);
-
-  const getCategoryIcon = (name) => {
-    const icons = {
-      Phone: <FiSmartphone />,
-      Laptop: <FaLaptop />,
-      Tablet: <FaTabletAlt />,
-      TV: <FaTv />,
-      Desktop: <FaDesktop />,
-      Gaming: <FaGamepad />,
-      default: <FaMobileAlt />,
-    };
-    return icons[name] || icons.default;
-  };
-
-  const getFallbackCategories = (darkMode) => [
-    { id: "1", name: "Phone", color: darkMode ? "text-lime-400" : "text-lime-600", icon: <FiSmartphone /> },
-    { id: "2", name: "Laptop", color: darkMode ? "text-lime-400" : "text-lime-600", icon: <FaLaptop /> },
-    { id: "3", name: "Tablet", color: darkMode ? "text-lime-400" : "text-lime-600", icon: <FaTabletAlt /> },
-    { id: "4", name: "TV", color: darkMode ? "text-lime-400" : "text-lime-600", icon: <FaTv /> },
-    { id: "5", name: "Desktop", color: darkMode ? "text-lime-400" : "text-lime-600", icon: <FaDesktop /> },
-    { id: "6", name: "Gaming", color: darkMode ? "text-lime-400" : "text-lime-600", icon: <FaGamepad /> },
-  ];
-
-  const getFallbackShops = () => [
-    { id: 1, name: "TechFix Pro", rating: 4.8, address: "123 Nile St, Cairo", phone: "+20 123 456 7890" },
-    { id: 2, name: "FixIt Fast", rating: 4.6, address: "456 Giza Rd, Giza", phone: "+20 987 654 3210" },
-    { id: 3, name: "Device Care", rating: 4.9, address: "789 Alexandria St", phone: "+20 111 222 3334" },
-  ];
 
   const textPrimary = darkMode ? "text-gray-100" : "text-gray-800";
   const textSecondary = darkMode ? "text-gray-300" : "text-gray-600";
   const bgCard = darkMode ? "bg-gray-800" : "bg-white";
   const border = darkMode ? "border-gray-700" : "border-gray-200";
 
-  const steps = useMemo(() => {
-    const base = ["Device Type", "Select Shop"];
-    return requestStatus === "QUOTE_SENT" ? [...base, "Delivery & Address", "Payment Method"] : base;
-  }, [requestStatus]);
+  const sanitizeDescription = (input) =>
+    sanitizeHtml(input, { allowedTags: [], allowedAttributes: {} }).trim();
 
-  const handleNext = () => {
-    if (step === 1 && !selectedCategory) {
+  // Fetch Categories
+  useEffect(() => {
+    const fetchCategories = async () => {
+      setIsLoading(true);
+      try {
+        const res = await api.get("/api/categories", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = (res.data.content || res.data || []).map((cat) => ({
+          ...cat,
+          icon: getCategoryIcon(cat.name),
+        }));
+        setCategories(data.length > 0 ? data : fallbackCategories);
+      } catch (err) {
+        setCategories(fallbackCategories);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchCategories();
+  }, [token]);
+
+  // Fetch Shops when category selected
+  useEffect(() => {
+    if (!selectedCategory || step !== 2) return;
+
+    const fetchShops = async () => {
+      setIsLoading(true);
+      try {
+        const res = await api.get("/api/users/shops/all", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = res.data.content || res.data || [];
+        setShops(data.length > 0 ? data : fallbackShops);
+      } catch (err) {
+        setShops(fallbackShops);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchShops();
+  }, [selectedCategory, step, token]);
+
+  const getCategoryIcon = (name) => {
+    const map = {
+      Phone: <FiSmartphone />,
+      Laptop: <FaLaptop />,
+      Tablet: <FaTabletAlt />,
+      TV: <FaTv />,
+      Desktop: <FaDesktop />,
+      Gaming: <FaGamepad />,
+    };
+    return map[name] || <FaMobileAlt />;
+  };
+
+  const fallbackCategories = [
+    { id: "1", name: "Phone", icon: <FiSmartphone /> },
+    { id: "2", name: "Laptop", icon: <FaLaptop /> },
+    { id: "3", name: "Tablet", icon: <FaTabletAlt /> },
+    { id: "4", name: "TV", icon: <FaTv /> },
+    { id: "5", name: "Desktop", icon: <FaDesktop /> },
+    { id: "6", name: "Gaming", icon: <FaGamepad /> },
+  ];
+
+  const fallbackShops = [
+    { id: 1, name: "TechFix Pro", rating: 4.8, address: "Nasr City, Cairo", phone: "+20 100 123 4567" },
+    { id: 2, name: "Mobile Clinic", rating: 4.7, address: "Mohandessin, Giza", phone: "+20 111 222 3334" },
+    { id: 3, name: "FixZone", rating: 4.9, address: "Maadi, Cairo", phone: "+20 155 789 0123" },
+  ];
+
+  // Send Repair Request to Specific Shop
+  const sendRepairRequest = async () => {
+    if (!description.trim()) {
       Swal.fire({
         icon: "warning",
-        title: "Select a Category",
-        text: "Please choose a device type to continue",
+        title: "Missing Description",
+        text: "Please describe what's wrong with your device",
         confirmButtonColor: "#84cc16",
       });
       return;
     }
-    if (step === 2 && !selectedShop) {
-      Swal.fire({
-        icon: "warning",
-        title: "Select a Shop",
-        text: "Please choose a repair shop",
-        confirmButtonColor: "#84cc16",
+
+    setIsLoading(true);
+
+    try {
+      const payload = {
+        // categoryId: selectedCategory.id,
+        description: sanitizeDescription(description),
+        deviceCategory: selectedCategory.id,
+      };
+
+      await api.post(`/api/users/repair-request/${selectedShop.id}`, payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       });
+
+      Swal.fire({
+        icon: "success",
+        title: "Request Sent Successfully!",
+        html: `
+          <div class="text-center space-y-3">
+            <p>Your repair request has been sent to:</p>
+            <div class="bg-lime-100 dark:bg-lime-900/50 rounded-xl p-4 inline-block">
+              <p class="font-bold text-lg">${selectedShop.name}</p>
+              <p class="text-sm text-gray-600 dark:text-gray-400">${selectedShop.address || "Cairo"}</p>
+            </div>
+            <p class="text-sm">They will contact you soon with a quote</p>
+          </div>
+        `,
+        confirmButtonText: "View My Requests",
+        cancelButtonText: "New Request",
+        showCancelButton: true,
+        confirmButtonColor: "#84cc16",
+        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
+      }).then((result) => {
+        if (result.isConfirmed) {
+          navigate("/profile?tab=repairs");
+        } else {
+          setStep(1);
+          setSelectedCategory(null);
+          setSelectedShop(null);
+          setDescription("");
+        }
+      });
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Failed to Send",
+        text: err.response?.data?.message || "Something went wrong. Try again.",
+        confirmButtonColor: "#ef4444",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleNext = () => {
+    if (step === 1 && !selectedCategory) {
+      Swal.fire({ icon: "warning", title: "Select Device Type", confirmButtonColor: "#84cc16" });
+      return;
+    }
+    if (step === 2 && !selectedShop) {
+      Swal.fire({ icon: "warning", title: "Select a Shop", confirmButtonColor: "#84cc16" });
+      return;
+    }
+    if (step === 2) {
+      sendRepairRequest();
       return;
     }
     setStep(step + 1);
   };
 
-  const handleBack = () => {
-    setStep(Math.max(1, step - 1));
-  };
+  const handleBack = () => setStep(Math.max(1, step - 1));
 
   return (
     <div className={`min-h-screen transition-all duration-500 ${darkMode ? "bg-gray-900" : "bg-gray-100"}`}>
-      {/* HERO SECTION */}
+      {/* HERO SECTION - Exactly as your original */}
       <section className="relative overflow-hidden py-32">
         <div
           className={`absolute inset-0 ${
@@ -233,19 +218,6 @@ const RepairRequest = ({ darkMode }) => {
               : "bg-gradient-to-br from-white via-lime-50 to-gray-100"
           }`}
         />
-
-        {/* Wave */}
-        <svg
-          className="absolute bottom-0 w-full h-48"
-          preserveAspectRatio="none"
-          viewBox="0 0 1440 320"
-          aria-hidden="true"
-        >
-          <path
-            fill={darkMode ? "#1f2937" : "#f3f4f6"}
-            d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
-          />
-        </svg>
 
         {/* Floating Icons */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -259,19 +231,12 @@ const RepairRequest = ({ darkMode }) => {
         <div className="relative max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center z-10">
           {/* Left: Text */}
           <div>
-            <h1 className={`text-5xl sm:text-6xl font-extrabold drop-shadow-md ${darkMode ? "text-lime-400" : "text-lime-700"}`}>
+            <h1 className={`text-5xl sm:text-6xl font-extrabold drop-shadow.Parent ${darkMode ? "text-lime-400" : "text-lime-700"}`}>
               Put your device first
             </h1>
             <p className={`mt-6 text-xl max-w-xl ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
               Fast, user-friendly and engaging - turn your repair request into a seamless experience with your trusted local shop.
             </p>
-
-            {/* CTA */}
-            {/* <div className="mt-8 flex flex-col sm:flex-row gap-4 max-w-md">
-              <button className="px-6 py-3 bg-lime-600 text-white font-semibold rounded-full hover:bg-lime-700 transition shadow-lg">
-                Book a Repair
-              </button>
-            </div> */}
 
             {/* Stats */}
             <div className="mt-12 grid grid-cols-2 gap-8 text-center">
@@ -344,8 +309,8 @@ const RepairRequest = ({ darkMode }) => {
       </section>
 
       {/* STEPS INDICATOR */}
-      <div className={`flex justify-center items-center mb-12 max-w-5xl mx-auto mt-10 p-6 rounded-2xl shadow-md ${bgCard}`}>
-        {steps.map((s, i) => (
+      <div className={`flex justify-center items-center mb-12 max-w-4xl mx-auto p-6 rounded-2xl shadow-md ${bgCard}`}>
+        {["Device Type", "Select Shop"].map((s, i) => (
           <div key={i} className="flex-1 text-center relative">
             <div
               className={`w-12 h-12 mx-auto rounded-full flex items-center justify-center font-bold text-lg transition-all shadow-md ${
@@ -367,7 +332,7 @@ const RepairRequest = ({ darkMode }) => {
             >
               {s}
             </p>
-            {i < steps.length - 1 && (
+            {i < 1 && (
               <div
                 className={`absolute top-6 left-1/2 w-1/2 h-1 transition-all ${
                   step > i + 1
@@ -408,7 +373,7 @@ const RepairRequest = ({ darkMode }) => {
 
             {isLoading ? (
               <LoadingSpinner darkMode={darkMode} />
-            ) : categories.length > 0 ? (
+            ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
                 {categories.map((cat, index) => (
                   <div
@@ -424,9 +389,9 @@ const RepairRequest = ({ darkMode }) => {
                           : "bg-lime-600 text-white ring-4 ring-lime-500"
                         : `${bgCard} border ${border}`
                     } animate-slideIn`}
-                    style={{ animationDelay: `${index * 100}ms` }}
+                    style={{ animationDelay: `${index * 100}ms`}}
                   >
-                    <div className={`text-5xl mb-4 flex justify-center items-center transition-transform duration-300 group-hover:scale-110 ${cat.color}`}>
+                    <div className={`text-5xl mb-4 flex justify-center items-center transition-transform duration-300 group-hover:scale-110 ${darkMode ? "text-lime-400" : "text-lime-600"}`}>
                       {cat.icon}
                     </div>
                     <p className={`font-bold text-center text-lg ${selectedCategory?.id === cat.id ? "text-white" : textPrimary}`}>
@@ -435,21 +400,7 @@ const RepairRequest = ({ darkMode }) => {
                   </div>
                 ))}
               </div>
-            ) : (
-              <p className="text-center text-gray-500 dark:text-gray-400 text-lg">
-                No categories available.
-              </p>
             )}
-
-            <div className="mt-12 flex justify-center">
-              <button
-                onKeyPress={(e) => e.key === "Enter" && handleNext()}
-                onClick={handleNext}
-                className="px-8 py-3 bg-lime-600 text-white font-bold rounded-full hover:bg-lime-700 transition shadow-lg flex items-center gap-2"
-              >
-                Next <FiChevronRight />
-              </button>
-            </div>
           </div>
         )}
 
@@ -462,67 +413,44 @@ const RepairRequest = ({ darkMode }) => {
 
             {isLoading ? (
               <LoadingSpinner darkMode={darkMode} />
-            ) : currentShops.length > 0 ? (
-              <div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {currentShops.map((shop, i) => (
-                    <div
-                      key={shop.id}
-                      onClick={() => setSelectedShop(shop)}
-                      className={`p-6 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 hover:shadow-xl ${
-                        selectedShop?.id === shop.id
-                          ? darkMode
-                            ? "bg-lime-600 text-white ring-4 ring-lime-400"
-                            : "bg-lime-600 text-white ring-4 ring-lime-500"
-                          : `${bgCard} border ${border}`
-                      } animate-slideIn`}
-                      style={{ animationDelay: `${i * 100}ms` }}
-                    >
-                      <div className="flex justify-between items-start mb-3">
-                        <h3 className={`font-bold text-xl ${selectedShop?.id === shop.id ? "text-white" : textPrimary}`}>
-                          {shop.name}
-                        </h3>
-                        <div className="flex items-center gap-1">
-                          <FaStar className="text-yellow-500 text-sm" />
-                          <span className={`text-sm ${selectedShop?.id === shop.id ? "text-white" : textSecondary}`}>
-                            {shop.rating || 4.5}
-                          </span>
-                        </div>
+            ) : shops.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {shops.map((shop, i) => (
+                  <div
+                    key={shop.id}
+                    onClick={() => setSelectedShop(shop)}
+                    className={`p-6 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 hover:shadow-xl ${
+                      selectedShop?.id === shop.id
+                        ? darkMode
+                          ? "bg-lime-600 text-white ring-4 ring-lime-400"
+                          : "bg-lime-600 text-white ring-4 ring-lime-500"
+                        : `${bgCard} border ${border}`
+                    } animate-slideIn`}
+                    style={{ animationDelay: `${i * 100}ms` }}
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <h3 className={`font-bold text-xl ${selectedShop?.id === shop.id ? "text-white" : textPrimary}`}>
+                        {shop.name}
+                      </h3>
+                      <div className="flex items-center gap-1">
+                        <FaStar className="text-yellow-500 text-sm" />
+                        <span className={`text-sm ${selectedShop?.id === shop.id ? "text-white" : textSecondary}`}>
+                          {shop.rating || 4.5}
+                        </span>
                       </div>
-                      <p className={`text-sm ${selectedShop?.id === shop.id ? "text-lime-100" : textSecondary} mb-1`}>
-                        {shop.address || shop.shopAddress?.street || "Cairo, Egypt"}
-                      </p>
-                      <p className={`text-sm ${selectedShop?.id === shop.id ? "text-lime-100" : textSecondary}`}>
-                        {shop.phone || "+20 123 456 7890"}
-                      </p>
                     </div>
-                  ))}
-                </div>
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex justify-center gap-2 mt-8">
-                    {[...Array(totalPages)].map((_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setCurrentPage(i + 1)}
-                        className={`w-10 h-10 rounded-full transition ${
-                          currentPage === i + 1
-                            ? "bg-lime-600 text-white"
-                            : darkMode
-                            ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                        }`}
-                      >
-                        {i + 1}
-                      </button>
-                    ))}
+                    <p className={`text-sm ${selectedShop?.id === shop.id ? "text-lime-100" : textSecondary} mb-1`}>
+                      {shop.address || "Cairo, Egypt"}
+                    </p>
+                    <p className={`text-sm ${selectedShop?.id === shop.id ? "text-lime-100" : textSecondary}`}>
+                      {shop.phone || "+20 123 456 7890"}
+                    </p>
                   </div>
-                )}
+                ))}
               </div>
             ) : (
               <p className="text-center text-gray-500 dark:text-gray-400 text-lg">
-                No shops found for this category.
+                No shops found.
               </p>
             )}
 
@@ -531,19 +459,18 @@ const RepairRequest = ({ darkMode }) => {
                 onClick={handleBack}
                 className={`px-6 py-3 rounded-full ${darkMode ? "bg-gray-700 text-gray-300 hover:bg-gray-600" : "bg-gray-200 text-gray-700 hover:bg-gray-300"} transition flex items-center gap-2`}
               >
-                <FaArrowLeft /> Back
+                Back
               </button>
               <button
                 onClick={handleNext}
-                className="px-8 py-3 bg-lime-600 text-white font-bold rounded-full hover:bg-lime-700 transition shadow-lg flex items-center gap-2"
+                disabled={!selectedShop || isLoading}
+                className="px-8 py-3 bg-lime-600 text-white font-bold rounded-full hover:bg-lime-700 transition shadow-lg flex items-center gap-2 disabled:opacity-50"
               >
-                Next <FiChevronRight />
+                {isLoading ? "Sending Request..." : "Send Request"} <FiChevronRight />
               </button>
             </div>
           </div>
         )}
-
-        {/* Other steps... */}
       </div>
     </div>
   );

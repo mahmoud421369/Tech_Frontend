@@ -302,7 +302,7 @@ const Reviews = ({ darkMode }) => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-14">
       <div className="max-w-7xl mx-auto space-y-8">
 
-        {/* Header */}
+        
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
           <h1 className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-3">
             <FiMessageCircle /> Review Management
@@ -315,7 +315,7 @@ const Reviews = ({ darkMode }) => {
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
 
-            {/* Stats */}
+            
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[
@@ -331,7 +331,7 @@ const Reviews = ({ darkMode }) => {
               </div>
             </div>
 
-            {/* Search */}
+      
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="relative max-w-md">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
@@ -342,7 +342,7 @@ const Reviews = ({ darkMode }) => {
                     placeholder="Search by customer, shop, or comment..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
+                    className="w-full pl-10 pr-10 py-2.5 focus:outline-none rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
                   />
                   {searchTerm && (
                     <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
@@ -353,7 +353,7 @@ const Reviews = ({ darkMode }) => {
               </div>
             </div>
 
-            {/* Table */}
+           
             <div className="p-6">
               <PaginatedTable
                 data={filteredReviews}
@@ -406,7 +406,7 @@ const Reviews = ({ darkMode }) => {
           </div>
         )}
 
-        {/* Modal */}
+      
         {isModalOpen && selectedReview && (
           <Modal onClose={() => setIsModalOpen(false)} title="Review Details" darkMode={darkMode}>
             <div className="space-y-5">

@@ -12,7 +12,7 @@ import {
 } from "react-icons/fi";
 import { FaFacebook, FaTwitter, FaInstagram } from "react-icons/fa";
 import { Link } from "react-router-dom";
-import logo from "../images/new-logo.jpg";
+import logo from "../images/logo-bg.png";
 
 const Footer = ({ darkMode }) => {
   return (
@@ -56,11 +56,11 @@ const Footer = ({ darkMode }) => {
               <img
                 src={logo}
                 alt="Tech & Restore"
-                className="h-14 w-14 rounded-2xl  object-cover"
+                className="h-14 w-56 rounded-2xl  object-cover"
               />
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-lime-600">
+              {/* <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-lime-600">
                 Tech Bazaar
-              </h1>
+              </h1> */}
             </div>
             <p className={`text-sm leading-relaxed ${darkMode ? "text-gray-400" : "text-gray-600"} max-w-xs`}>
               Your trusted partner for top-quality device repairs and refurbished electronics. Exceptional service, guaranteed.
@@ -89,7 +89,7 @@ const Footer = ({ darkMode }) => {
 
           {/* Quick Links */}
           <div>
-            <h3 className="text-xl font-bold text-emerald-600 dark:text-indigo-400 mb-6">
+            <h3 className="text-xl font-bold text-emerald-600 dark:text-lime-400 mb-6">
               Quick Links
             </h3>
             <ul className="space-y-3">
@@ -103,11 +103,11 @@ const Footer = ({ darkMode }) => {
                 <li key={i}>
                   <Link
                     to={to}
-                    className={`flex items-center gap-2 text-base font-medium transition-all duration-300 hover:text-indigo-600 dark:hover:text-indigo-400 ${
+                    className={`flex items-center gap-2 text-base font-medium transition-all duration-300 hover:text-lime-600 dark:hover:text-lime-400 ${
                       darkMode ? "text-gray-300" : "text-gray-700"
                     }`}
                   >
-                    <Icon className="text-emerald-500" />
+                    <Icon className="text-lime-500 dark:text-white " />
                     {label}
                   </Link>
                 </li>
@@ -117,7 +117,7 @@ const Footer = ({ darkMode }) => {
 
           {/* Services */}
           <div>
-            <h3 className="text-xl font-bold text-emerald-600 dark:text-indigo-400 mb-6">
+            <h3 className="text-xl font-bold text-emerald-600 dark:text-lime-400 mb-6">
               Our Services
             </h3>
             <ul className="space-y-3">
@@ -130,7 +130,7 @@ const Footer = ({ darkMode }) => {
                 <li key={i}>
                   <Link
                     to={to}
-                    className={`block text-base font-medium transition-all duration-300 hover:text-indigo-600 dark:hover:text-indigo-400 ${
+                    className={`block text-base font-medium transition-all duration-300 hover:text-lime-600 dark:hover:text-lime-400 ${
                       darkMode ? "text-gray-300" : "text-gray-700"
                     }`}
                   >
@@ -143,36 +143,36 @@ const Footer = ({ darkMode }) => {
 
           {/* Contact */}
           <div>
-            <h3 className="text-xl font-bold text-emerald-600 dark:text-indigo-400 mb-6">
+            <h3 className="text-xl font-bold text-emerald-600 dark:text-lime-400 mb-6">
               Contact Us
             </h3>
             <ul className="space-y-4 text-sm">
               <li className="flex items-start gap-3">
-                <FiMap className="mt-0.5 text-lime-500" />
+                <FiMap className="mt-0.5 text-lime-500 dark:text-white" />
                 <span className={darkMode ? "text-gray-300" : "text-gray-700"}>
                   Cairo, Al Maadi, Egypt
                 </span>
               </li>
               <li className="flex items-center gap-3">
-                <FiPhone className="text-lime-500" />
+                <FiPhone className="text-lime-500 dark:text-white" />
                 <a
                   href="tel:+2019999"
-                  className="text-lime-600 dark:text-indigo-400 hover:underline"
+                  className="text-lime-600 dark:text-lime-400 hover:underline"
                 >
                   +20 19999
                 </a>
               </li>
               <li className="flex items-center gap-3">
-                <FiMail className="text-lime-500" />
+                <FiMail className="text-lime-500 dark:text-white" />
                 <a
                   href="mailto:support@techrestore.com"
-                  className="text-lime-600 dark:text-indigo-400 hover:underline"
+                  className="text-lime-600 dark:text-lime-400 hover:underline"
                 >
                   support@techrestore.com
                 </a>
               </li>
               <li className="flex items-start gap-3">
-                <FiClock className="mt-0.5 text-lime-500" />
+                <FiClock className="mt-0.5 text-lime-500 dark:text-white" />
                 <span className={darkMode ? "text-gray-300" : "text-gray-700"}>
                   24/7 Customer Support
                 </span>
@@ -194,13 +194,13 @@ const Footer = ({ darkMode }) => {
             <div className="flex gap-6 text-sm">
               <Link
                 to="/privacy"
-                className="hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                className="hover:text-indigo-600 dark:text-white dark:hover:text-indigo-400 transition"
               >
                 Privacy Policy
               </Link>
               <Link
                 to="/terms"
-                className="hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                className="hover:text-indigo-600 dark:text-white dark:hover:text-indigo-400 transition"
               >
                 Terms of Service
               </Link>

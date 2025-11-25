@@ -284,7 +284,7 @@ const Products = () => {
     <ShopLayout>
       <div style={{ marginLeft: "-25px", marginTop: "-1225px" }} className="min-h-screen max-w-6xl mx-auto p-4 lg:p-8 font-cairo bg-gradient-to-br from-gray-50 via-white to-white">
         {/* Header */}
-        <div className="mb-8 text-right bg-white p-6 shadow-sm border-l-4 border-lime-500">
+        <div className="mb-8 text-right bg-white p-6 shadow-md border-l-4 border-lime-500">
           <h1 className="text-3xl font-bold text-black mb-2 flex items-center justify-end gap-3">
             <FiBox className="text-gray-500" /> المنتجات
           </h1>
@@ -327,7 +327,7 @@ const Products = () => {
             <div className="relative" ref={addConditionRef}>
               <button
                 onClick={() => setIsAddConditionOpen(!isAddConditionOpen)}
-                className="w-full px-4 py-3 bg-gray-50 border rounded-lg flex justify-between items-center text-right text-black text-sm font-medium focus:ring-2 focus:ring-lime-400 focus:border-lime-500"
+                className="w-full px-4 py-3 bg-gray-50 border rounded-lg flex justify-between flex-row-reverse text-gray-500 items-center text-right text-black text-sm font-medium focus:ring-2 focus:ring-lime-400 focus:border-lime-500"
               >
                 <span>{conditionTranslations[newProduct.condition] || 'اختر الحالة'}</span>
                 <FiChevronDown className={`transition-transform ${isAddConditionOpen ? 'rotate-180' : ''}`} />
@@ -354,9 +354,9 @@ const Products = () => {
             <div className="relative" ref={addCategoryRef}>
               <button
                 onClick={() => setIsAddCategoryOpen(!isAddCategoryOpen)}
-                className="w-full px-4 py-3 bg-gray-50 border rounded-lg flex justify-between flex-row-reverse items-center text-right text-black text-sm font-medium focus:ring-2 focus:ring-lime-400 focus:border-lime-500"
+                className="w-full px-4 py-3 bg-gray-50 border rounded-lg flex justify-between flex-row-reverse text-gray-500 items-center text-right text-black text-sm font-medium focus:ring-2 focus:ring-lime-400 focus:border-lime-500"
               >
-                <span className="text-gray-500 font-medium">{newProduct.category?.name || 'اختر الفئة'}</span>
+                <span className=" font-medium">{newProduct.category?.name || 'اختر الفئة'}</span>
                 <FiChevronDown className={`transition-transform ${isAddCategoryOpen ? 'rotate-180' : ''}`} />
               </button>
               {isAddCategoryOpen && (

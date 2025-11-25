@@ -160,7 +160,7 @@ const OffersSlider = ({ darkMode }) => {
   const totalSlides = Math.max(1, offers.length - 2); // 3 cards visible → slides = total - 2
 
   return (
-    <section className={`py-16 ${darkMode ? 'bg-black/30' : 'bg-gray-50'}`}>
+    <section className={`py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-10">
           <h2 className={`text-3xl sm:text-4xl font-extrabold ${darkMode ? 'text-white' : 'text-gray-900'}`}>

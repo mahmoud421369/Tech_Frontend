@@ -266,7 +266,7 @@ const DeviceDetail = ({ addToCart, darkMode }) => {
                 <img
                   src={product.imageUrls?.[selectedImage] || product.imageUrl}
                   alt={product.name}
-                  className="max-h-full max-w-full object-contain transform transition-transform duration-300 hover:scale-105"
+                  className="max-h-full max-w-full object-contain rounded-xl transform transition-transform duration-300 hover:scale-105"
                 />
               </div>
 
@@ -333,7 +333,7 @@ const DeviceDetail = ({ addToCart, darkMode }) => {
                 </div>
                 <button
                   onClick={() => handleAddToCart(product)}
-                  className="inline-flex items-center justify-center px-8 py-4 bg-lime-600 text-black font-semibold rounded-lg hover:bg-lime-500 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-1"
+                  className="inline-flex items-center justify-center px-8 py-4 bg-lime-600 text-white font-semibold rounded-lg hover:bg-lime-500 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-1"
                   disabled={product.stock === 0}
                 >
                   <FaShoppingCart className="mr-2" /> Add to Cart
@@ -344,21 +344,8 @@ const DeviceDetail = ({ addToCart, darkMode }) => {
         </div>
       </div>
 
-      {/* === COOKIE BANNER === */}
-      {showCookieBanner && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 shadow-lg z-50">
-          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
-              <div className="text-xl">Cookie</div>
-              <p>We use cookies to enhance your shopping experience. Learn more in our <a href="#" className="underline">Cookie Policy</a>.</p>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => setShowCookieBanner(false)} className="px-4 py-2 bg-lime-600 text-white rounded-lg hover:bg-lime-700 transition">Accept</button>
-              <button onClick={() => setShowCookieBanner(false)} className="px-4 py-2 bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-600 transition">Reject</button>
-            </div>
-          </div>
-        </div>
-      )}
+  
+
     </div>
   );
 };

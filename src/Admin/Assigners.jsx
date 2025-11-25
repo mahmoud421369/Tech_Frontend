@@ -17,12 +17,11 @@ import DOMPurify from 'dompurify';
 import api from '../api';
 import Modal from '../components/Modal';
 
-const LoadingSpinner = () =>{
-
+const LoadingSpinner = () => (
   <div className="flex justify-center items-center h-64">
     <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
   </div>
-};
+);
 
 const AssignersSkeleton = ({ darkMode }) => (
   <div className="animate-pulse p-6">
@@ -135,8 +134,9 @@ const PaginatedTable = ({
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 text-gray-900 dark:text-gray-100">
-            {paginatedData.map(renderRow)}
-            {paginatedData.length === 0 && (
+            {paginatedData.length > 0 ? (
+              paginatedData.map(renderRow)
+            ) : (
               <tr>
                 <td colSpan={7} className="py-16 text-center text-gray-500 dark:text-gray-400">
                   <div className="flex flex-col items-center gap-4">
@@ -192,19 +192,20 @@ const Assigners = ({ darkMode }) => {
   const navigate = useNavigate();
   const token = localStorage.getItem('authToken');
 
-  // Main data
-  const [assigners, setAssigners] = useState([]);                    // All from API
-  const [filteredAssigners, setFilteredAssigners] = useState([]);    // After search + status filter
-
-  // UI states
+  const [assigners, setAssigners] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filter, setFilter] = useState('all'); // all | pending | approved | suspended
+  const [filter, setFilter] = useState('all');
   const [selectedAssigner, setSelectedAssigner] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const pageSize = 5;
 
-  // Stats based on full data
+  // Sanitized search term
+  const sanitizedSearchTerm = useMemo(() => {
+    return DOMPurify.sanitize(searchTerm.trim().toLowerCase());
+  }, [searchTerm]);
+
+  // Stats
   const stats = useMemo(() => {
     const totalHandled = assigners.reduce((sum, a) => sum + (a.totalAssignmentsHandled || 0), 0);
     const pending = assigners.reduce((sum, a) => sum + (a.pendingAssignments || 0), 0);
@@ -240,8 +241,8 @@ const Assigners = ({ darkMode }) => {
     }
   }, [token, navigate]);
 
-  // Client-side filtering (search + status)
-  useEffect(() => {
+  // Client-side filtering
+  const filteredAssigners = useMemo(() => {
     let result = assigners;
 
     // Status filter
@@ -254,26 +255,27 @@ const Assigners = ({ darkMode }) => {
       result = result.filter(a => a.status === statusMap[filter]);
     }
 
-    // Search filter
-    if (searchTerm.trim()) {
-      const lower = searchTerm.toLowerCase();
+    // Search filter (sanitized)
+    if (sanitizedSearchTerm) {
       result = result.filter(a =>
-        a.name?.toLowerCase().includes(lower) ||
-        a.email?.toLowerCase().includes(lower) ||
-        a.phone?.toLowerCase().includes(lower)
+        (a.name || '').toLowerCase().includes(sanitizedSearchTerm) ||
+        (a.email || '').toLowerCase().includes(sanitizedSearchTerm) ||
+        (a.phone || '').toLowerCase().includes(sanitizedSearchTerm)
       );
     }
 
-    setFilteredAssigners(result);
-    setPage(1); // Reset pagination when filtering
-  }, [assigners, filter, searchTerm]);
+    return result;
+  }, [assigners, filter, sanitizedSearchTerm]);
 
-  // Load data on mount
   useEffect(() => {
     fetchAssigners();
   }, [fetchAssigners]);
 
-  // Action handlers
+  // Reset page when filtering
+  useEffect(() => {
+    setPage(1);
+  }, [filter, sanitizedSearchTerm]);
+
   const fetchAssignerById = async (id) => {
     try {
       const { data } = await api.get(`/api/admin/assigners/${id}`, {
@@ -301,19 +303,32 @@ const Assigners = ({ darkMode }) => {
 
     try {
       const method = action === 'delete' ? 'delete' : 'put';
-      const endpoint = action === 'delete' ? `/api/admin/assigners/${id}` : `/api/admin/assigners/${id}/${action}`;
+      const endpoint = action === 'delete' 
+        ? `/api/admin/assigners/${id}` 
+        : `/api/admin/assigners/${id}/${action}`;
+
       await api[method](endpoint, { headers: { Authorization: `Bearer ${token}` } });
-      Swal.fire({ title: 'Success!', text: `Assigner ${actionText.toLowerCase()}d.`, icon: 'success', toast: true, position: 'top-end', timer: 1500 });
-      fetchAssigners(); // Refresh list
+
+      Swal.fire({
+        title: 'Success!',
+        text: `Assigner ${actionText.toLowerCase()}d successfully.`,
+        icon: 'success',
+        toast: true,
+        position: 'top-end',
+        timer: 1500,
+        showConfirmButton: false
+      });
+
+      fetchAssigners();
     } catch (error) {
-      Swal.fire({ title: 'Error', text: `Failed to ${actionText.toLowerCase()}.`, icon: 'error' });
+      Swal.fire({ title: 'Error', text: `Failed to ${actionText.toLowerCase()} assigner.`, icon: 'error' });
     }
   };
 
-  const copyToClipboard = (id) => {
-    navigator.clipboard.writeText(id).then(
-      () => Swal.fire({ title: 'Copied!', text: 'Assigner ID copied!', icon: 'success', toast: true, position: 'top-end', timer: 1000 }),
-      () => Swal.fire({ title: 'Error', text: 'Failed to copy', icon: 'error', toast: true, position: 'top-end', timer: 1000 })
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text).then(
+      () => Swal.fire({ title: 'Copied!', icon: 'success', toast: true, position: 'top-end', timer: 1000 }),
+      () => Swal.fire({ title: 'Failed', icon: 'error', toast: true, position: 'top-end', timer: 1000 })
     );
   };
 
@@ -359,9 +374,9 @@ const Assigners = ({ darkMode }) => {
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[
-                  { label: 'Total Assignments', value: stats.totalHandled, color: 'emerald' },
-                  { label: 'Pending', value: stats.pending, color: 'yellow' },
-                  { label: 'Verified Assigners', value: stats.verified, color: 'green' },
+                  { label: 'Total Assignments', value: stats.totalHandled },
+                  { label: 'Pending', value: stats.pending },
+                  { label: 'Verified Assigners', value: stats.verified },
                 ].map((stat, i) => (
                   <div key={i} className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg border border-gray-200 dark:border-gray-600 text-center">
                     <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
@@ -373,7 +388,8 @@ const Assigners = ({ darkMode }) => {
 
             {/* Search + Filters */}
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+                {/* Search Bar */}
                 <div className="relative max-w-md w-full">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
                   <div className="relative">
@@ -383,16 +399,20 @@ const Assigners = ({ darkMode }) => {
                       placeholder="Search by name, email, or phone..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500 transition"
+                      className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
                     />
                     {searchTerm && (
-                      <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-red-600">
+                      <button
+                        onClick={() => setSearchTerm('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-red-600 transition"
+                      >
                         <FiXCircle className="w-5 h-5" />
                       </button>
                     )}
                   </div>
                 </div>
 
+                {/* Filter Buttons - Always in one row */}
                 <div className="flex flex-wrap gap-3">
                   {[
                     { key: 'all', label: 'All', icon: FiList },
@@ -403,7 +423,7 @@ const Assigners = ({ darkMode }) => {
                     <button
                       key={key}
                       onClick={() => setFilter(key)}
-                      className={`px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all ${
+                      className={`px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all whitespace-nowrap ${
                         filter === key
                           ? 'bg-emerald-600 text-white shadow-lg'
                           : 'bg-gray-100 dark:bg-gray-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-800'
@@ -428,15 +448,15 @@ const Assigners = ({ darkMode }) => {
                   <tr key={a.id} className="hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors">
                     <td className="px-6 py-4 text-sm font-medium text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <span className="font-mono text-xs">{a.id}</span>
+                        <span className="font-mono text-xs truncate max-w-28">{a.id}</span>
                         <button onClick={() => copyToClipboard(a.id)} className="text-gray-500 hover:text-emerald-600 transition">
                           <FiCopy className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(a.name) || 'N/A'}</td>
-                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(a.email) || 'N/A'}</td>
-                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(a.phone) || 'N/A'}</td>
+                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(a.name || 'N/A')}</td>
+                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(a.email || 'N/A')}</td>
+                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(a.phone || 'N/A')}</td>
                     <td className="px-6 py-4 text-center">{getStatusBadge(a.status)}</td>
                     <td className="px-6 py-4 text-sm text-center">{formatDate(a.createdAt)}</td>
                     <td className="px-6 py-4">
@@ -473,7 +493,11 @@ const Assigners = ({ darkMode }) => {
                     </td>
                   </tr>
                 )}
-                emptyMessage={searchTerm ? 'No assigners match your search' : 'No assigners found for selected status'}
+                emptyMessage={
+                  sanitizedSearchTerm || filter !== 'all'
+                    ? 'No assigners match your filters'
+                    : 'No assigners available'
+                }
               />
             </div>
           </div>
@@ -494,9 +518,9 @@ const Assigners = ({ darkMode }) => {
                   <p><strong>ID:</strong> <span className="font-mono">{selectedAssigner.id}</span></p>
                   <p><strong>Total Assignments:</strong> {selectedAssigner.totalAssignmentsHandled || 0}</p>
                   <p><strong>Pending Assignments:</strong> {selectedAssigner.pendingAssignments || 0}</p>
-                  <p><strong>Name:</strong> {DOMPurify.sanitize(selectedAssigner.name) || 'N/A'}</p>
-                  <p><strong>Email:</strong> {DOMPurify.sanitize(selectedAssigner.email) || 'N/A'}</p>
-                  <p><strong>Phone:</strong> {DOMPurify.sanitize(selectedAssigner.phone) || 'N/A'}</p>
+                  <p><strong>Name:</strong> {DOMPurify.sanitize(selectedAssigner.name || 'N/A')}</p>
+                  <p><strong>Email:</strong> {DOMPurify.sanitize(selectedAssigner.email || 'N/A')}</p>
+                  <p><strong>Phone:</strong> {DOMPurify.sanitize(selectedAssigner.phone || 'N/A')}</p>
                   <p><strong>Status:</strong> {getStatusBadge(selectedAssigner.status)}</p>
                   <p><strong>Created At:</strong> {formatDate(selectedAssigner.createdAt)}</p>
                 </div>

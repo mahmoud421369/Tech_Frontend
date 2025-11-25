@@ -70,23 +70,24 @@ const AdminAssignmentLogs = ({ darkMode }) => {
     try {
       setLoading(true);
       const res = await api.get('/api/admin/assignment-logs', {
-        signal: controller.signal,
+    
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = Array.isArray(res.data.content) ? res.data.content : [];
+      console.log(data)
       setLogs(data);
     } catch (err) {
       if (err.name !== 'AbortError') {
-        console.error('Error fetching logs:', err.response?.data || err.message);
-        Swal.fire({
-          title: 'Error',
-          text: err.response?.data?.message || 'Failed to fetch logs',
-          icon: 'error',
-          toast: true,
-          position: 'top-end',
-          showConfirmButton: false,
-          timer: 1500,
-        });
+        // console.error('Error fetching logs:', err.response?.data || err.message);
+        // Swal.fire({
+        //   title: 'Error',
+        //   text: err.response?.data?.message || 'Failed to fetch logs',
+        //   icon: 'error',
+        //   toast: true,
+        //   position: 'top-end',
+        //   showConfirmButton: false,
+        //   timer: 1500,
+        // });
         if (err.response?.status === 401) {
           localStorage.removeItem('authToken');
           localStorage.removeItem('refreshToken');
@@ -131,7 +132,7 @@ const AdminAssignmentLogs = ({ darkMode }) => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-14">
       <div className="max-w-7xl mx-auto">
 
-        {/* Header */}
+        
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-8 border border-gray-200 dark:border-gray-700">
           <h1 className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-3">
             <FiClipboard className="w-8 h-8" />
@@ -226,7 +227,7 @@ const AdminAssignmentLogs = ({ darkMode }) => {
               </table>
             </div>
 
-            {/* Footer Info */}
+            
             <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Showing <span className="font-semibold">{logs.length}</span> assignment log{logs.length !== 1 ? 's' : ''}
