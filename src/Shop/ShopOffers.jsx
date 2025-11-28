@@ -338,13 +338,13 @@ const ShopOffers = () => {
               <div className="relative" ref={discountTypeRef}>
                 <button
                   onClick={() => setIsDiscountTypeOpen(!isDiscountTypeOpen)}
-                  className="w-full flex justify-between items-center pr-10 pl-4 py-3 bg-gray-50 border rounded-lg text-black focus:ring-2 focus:ring-lime-400 focus:border-lime-500 outline-none text-right"
+                  className="w-full flex justify-between flex-row-reverse items-center pr-10 pl-4 py-3 bg-gray-50 border rounded-lg text-gray-500 focus:ring-2 focus:ring-lime-400 focus:border-lime-500 outline-none text-right"
                 >
                   {discountTypeTranslations[offer.discountType]}
                   <FiChevronDown className={`transition ${isDiscountTypeOpen ? 'rotate-180' : ''}`} />
                 </button>
                 {isDiscountTypeOpen && (
-                  <div className="absolute w-full mt-2 bg-white border border-lime-200 rounded-lg shadow-xl z-10">
+                  <div className="absolute w-full mt-2 bg-white border  rounded-lg shadow-xl z-10">
                     {['PERCENTAGE', 'FIXED_AMOUNT'].map((type) => (
                       <button
                         key={type}
@@ -367,13 +367,13 @@ const ShopOffers = () => {
               <div className="relative" ref={statusRef}>
                 <button
                   onClick={() => setIsStatusOpen(!isStatusOpen)}
-                  className="w-full flex justify-between items-center pr-10 pl-4 py-3 bg-gray-50 border rounded-lg text-black focus:ring-2 focus:ring-lime-400 focus:border-lime-500 outline-none text-right"
+                  className="w-full flex justify-between flex-row-reverse items-center pr-10 pl-4 py-3 bg-gray-50 border rounded-lg text-gray-500 focus:ring-2 focus:ring-lime-400 focus:border-lime-500 outline-none text-right"
                 >
                   {statusTranslations[offer.status]}
                   <FiChevronDown className={`transition ${isStatusOpen ? 'rotate-180' : ''}`} />
                 </button>
                 {isStatusOpen && (
-                  <div className="absolute w-full mt-2 bg-white border border-lime-200 rounded-lg shadow-xl z-10">
+                  <div className="absolute w-full mt-2 bg-white border  rounded-lg shadow-xl z-10">
                     {['ACTIVE', 'SCHEDULED', 'EXPIRED'].map((status) => (
                       <button
                         key={status}

@@ -413,7 +413,7 @@ const Assigners = ({ darkMode }) => {
                 </div>
 
                 {/* Filter Buttons - Always in one row */}
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-1 mt-5">
                   {[
                     { key: 'all', label: 'All', icon: FiList },
                     { key: 'pending', label: 'Pending', icon: FiXOctagon },

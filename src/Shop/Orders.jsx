@@ -587,6 +587,8 @@ const Orders = () => {
               <div className="space-y-3">
                 <div className="flex justify-between flex-row-reverse"><strong>المعرف</strong> <span>{selectedOrder.id}</span></div>
                 <div className="flex justify-between flex-row-reverse"><strong>العميل</strong> <span>{selectedOrder.firstName} {selectedOrder.lastName}</span></div>
+                <div className="flex justify-between flex-row-reverse"><strong>رقم الهاتف</strong> <span>{selectedOrder.phoneNumber}</span></div>
+
                 <div className="flex justify-between flex-row-reverse"><strong>الإجمالي</strong> <span className="font-bold">{selectedOrder.totalPrice} ج.م</span></div>
                 <div className="flex justify-between flex-row-reverse">
                   <strong>الحالة</strong>

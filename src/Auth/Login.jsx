@@ -260,6 +260,8 @@ const Login = () => {
           icon: "success",
           title: "Login Successful",
           text: "Welcome back!",
+          toast:true,
+          position:'top-end',
           timer: 1500,
           showConfirmButton: false,
         });

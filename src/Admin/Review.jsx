@@ -210,6 +210,7 @@ const Reviews = ({ darkMode }) => {
         headers: { Authorization: `Bearer ${token}` },
       });
       const processed = Array.isArray(data) ? data : data?.content || [];
+      console.log('Fetched Reviews:', processed);
       setReviews(processed);
     } catch (error) {
       const msg = error.response?.status === 401 ? 'Session expired.' : 'Failed to load reviews.';
@@ -424,7 +425,6 @@ const Reviews = ({ darkMode }) => {
                   <p><strong>Rating:</strong> {renderStars(selectedReview.rating)}</p>
                   <p><strong>Comment:</strong> {DOMPurify.sanitize(selectedReview.comment) || 'N/A'}</p>
                   <p><strong>Date:</strong> {new Date(selectedReview.createdAt).toLocaleString()}</p>
-                  <p><strong>Status:</strong> {getStatusBadge(selectedReview.status, selectedReview.flagged)}</p>
                 </div>
               </div>
               <div className="flex justify-end">

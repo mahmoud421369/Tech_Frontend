@@ -1,31 +1,17 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { ToastContainer, toast } from "react-toastify";
+import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { FiTool, FiMapPin, FiDollarSign, FiClock } from "react-icons/fi";
+import {
+  FiTool, FiMapPin, FiDollarSign, FiClock,
+  FiCheckCircle, FiHome, FiUser, FiPackage
+} from "react-icons/fi";
 import { getMyRepairs, updateRepairStatus } from "../api/deliveryApi";
 
 const MyRepairs = () => {
   const [repairs, setRepairs] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedRepair, setSelectedRepair] = useState(null);
-  const [selectedStatus, setSelectedStatus] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const repairsPerPage = 8;
-
-
- 
-
-
-  const statusOptions = {
-    // PENDING_PICKUP: "Pending Pickup",
-    // PICKED_UP: "Picked Up",
-    // DELIVERED_TO_SHOP: "Delivered to Shop",
-    // IN_REPAIR: "In Repair",
-    REPAIR_COMPLETED: "Repair Completed",
-    DEVICE_DELIVERED: "Device Delivered",
-    CANCELLED: "Cancelled",
-  };
 
   const loadRepairs = useCallback(async () => {
     setIsLoading(true);
@@ -33,7 +19,7 @@ const MyRepairs = () => {
       const data = await getMyRepairs();
       setRepairs(data.content || data || []);
     } catch (err) {
-      console.error("Error loading repairs:", err);
+      toast.error("Failed to load your repairs");
     } finally {
       setIsLoading(false);
     }
@@ -45,211 +31,222 @@ const MyRepairs = () => {
     return () => clearInterval(interval);
   }, [loadRepairs]);
 
-  const handleUpdateStatus = async () => {
-    if (!selectedStatus) {
-      console.error("No status selected");
-      return;
-    }
-
+  const updateStatus = async (repairId, newStatus) => {
     try {
-      await updateRepairStatus(selectedRepair.id, { status: selectedStatus, notes: "" });
-      toast.success("Repair status updated!");
+      await updateRepairStatus(repairId, { status: newStatus });
+      toast.success(
+        newStatus === "REPAIR_COMPLETED"
+          ? "Repair marked as completed!"
+          : newStatus === "DEVICE_DELIVERED"
+          ? "Device delivered to customer!"
+          : "Status updated!"
+      );
       loadRepairs();
-      setIsModalOpen(false);
-      setSelectedStatus("");
-      setSelectedRepair(null);
     } catch (err) {
-      console.error("Error updating status:", err);
+      toast.error("Failed to update status");
     }
   };
 
-  const openStatusModal = (repair) => {
-    setSelectedRepair(repair);
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setSelectedStatus("");
-    setSelectedRepair(null);
-  };
-
- 
   const totalPages = Math.ceil(repairs.length / repairsPerPage);
-  const indexOfLastRepair = currentPage * repairsPerPage;
-  const indexOfFirstRepair = indexOfLastRepair - repairsPerPage;
-  const currentRepairs = repairs.slice(indexOfFirstRepair, indexOfLastRepair);
+  const currentRepairs = repairs.slice((currentPage - 1) * repairsPerPage, currentPage * repairsPerPage);
 
-  const handlePageChange = (pageNumber) => {
-    setCurrentPage(pageNumber);
-  };
-
-  const handlePrevious = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
+  const getStatusStyle = (status) => {
+    switch (status) {
+      case "REPAIR_COMPLETED":
+      case "DEVICE_DELIVERED":
+        return "from-emerald-500 to-teal-600";
+      case "CANCELLED":
+        return "from-red-500 to-rose-600";
+      case "PICKED_UP":
+      case "DELIVERED_TO_SHOP":
+      case "IN_REPAIR":
+        return "from-indigo-500 to-purple-600";
+      default:
+        return "from-gray-400 to-gray-600";
     }
   };
 
-  const handleNext = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
+  const getStatusLabel = (status) => {
+    const labels = {
+      REPAIR_COMPLETED: "Repair Completed",
+      DEVICE_DELIVERED: "Device Delivered",
+      CANCELLED: "Cancelled",
+      PICKED_UP: "Picked Up",
+      DELIVERED_TO_SHOP: "Delivered to Shop",
+      IN_REPAIR: "In Repair",
+    };
+    return labels[status] || status?.replace(/_/g, " ");
   };
 
   return (
-    <div className="p-6 min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
-      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
-      <h2 className="text-3xl font-bold mb-6 text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
-        <FiTool className="text-4xl" /> My Repair Deliveries
-      </h2>
+    <>
+      <ToastContainer position="top-right" theme={document.documentElement.classList.contains("dark") ? "dark" : "light"} />
 
-      {isLoading && (
-        <div className="flex justify-center items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-indigo-600"></div>
-        </div>
-      )}
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-950 dark:to-emerald-950/30 pt-24 pb-12 px-4">
+        <div className="max-w-7xl mx-auto">
 
-      {!isLoading && repairs.length === 0 && (
-        <div className="text-gray-500 dark:text-gray-400 text-center py-10">
-          No repairs assigned yet.
-        </div>
-      )}
+          
+          <div className="text-center mb-12 mt-5">
+            <h1 className="text-5xl md:text-6xl font-bold text-gray-800 dark:text-white flex items-center justify-center gap-6">
+              <div className="p-5 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl shadow-2xl text-white">
+                <FiTool size={48} />
+              </div>
+              My Repair Deliveries
+            </h1>
+            <p className="mt-4 text-xl text-gray-600 dark:text-gray-400">
+              Manage device pickup & delivery for repairs
+            </p>
+            <div className="mt-6 inline-flex items-center gap-3 px-6 py-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-full text-emerald-700 dark:text-emerald-400 font-semibold">
+              Auto-refresh every 15s • {repairs.length} active
+            </div>
+          </div>
 
-      {!isLoading && repairs.length > 0 && (
-        <>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {currentRepairs.map((repair) => (
-              <div
-                key={repair.id}
-                className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-shadow p-6 flex flex-col justify-between border border-gray-200 dark:border-gray-700"
-              >
-                <div className="mb-4 space-y-3">
-                  <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-semibold text-lg">
-                    <FiTool /> Repair #{repair.id?.slice(0,8)}
-                  </div>
-                  {repair.userAddress && (
-                    <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 text-sm">
-                      <FiMapPin /> {repair.userAddress.street}, {repair.userAddress.city}
+          
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="bg-white dark:bg-gray-900 rounded-3xl h-80 animate-pulse shadow-xl border border-gray-200 dark:border-gray-800">
+                  <div className="p-8 space-y-6">
+                    <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-2xl w-3/4"></div>
+                    <div className="space-y-4">
+                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
                     </div>
-                  )}
-                  <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 text-sm">
-                    <FiDollarSign /> Price: {repair.price} EGP
-                  </div>
-                  <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 text-xs">
-                    <FiClock /> {new Date(repair.createdAt).toLocaleString()}
-                  </div>
-                  <div className="text-sm font-medium">
-                    Status:{" "}
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs ${
-                        repair.status === "DEVICE_DELIVERED" || repair.status === "REPAIR_COMPLETED"
-                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
-                          : repair.status === "CANCELLED"
-                          ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
-                          : "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100"
-                      }`}
-                    >
-                      {repair.status}
-                    </span>
                   </div>
                 </div>
-
-                <div className="flex gap-3 mt-4">
-                  <button
-                    onClick={() => openStatusModal(repair)}
-                    className={`flex-1 px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
-                      repair.status === "DEVICE_DELIVERED"
-                        ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                        : "bg-indigo-600 hover:bg-indigo-700 text-white"
-                    }`}
+              ))}
+            </div>
+          ) : repairs.length === 0 ? (
+            <div className="text-center py-20">
+              <FiTool size={100} className="mx-auto text-gray-300 dark:text-gray-700 mb-6" />
+              <h3 className="text-2xl font-semibold text-gray-600 dark:text-gray-400">
+                No repair jobs assigned
+              </h3>
+              <p className="text-gray-500 dark:text-gray-500 mt-2">
+                Accept repair requests from the "Available Repairs" page!
+              </p>
+            </div>
+          ) : (
+            <>
+             
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                {currentRepairs.map((repair) => (
+                  <div
+                    key={repair.id}
+                    className="group relative bg-white dark:bg-gray-900 rounded-3xl shadow-xl hover:shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-all duration-500 hover:-translate-y-4"
                   >
-                    {repair.status === "DEVICE_DELIVERED" ? "Delivered" : "Update Status"}
+                    <div className={`h-2 bg-gradient-to-r ${getStatusStyle(repair.status)}`} />
+
+                    <div className="p-7">
+                      <div className="flex justify-between items-start mb-5">
+                        <h3 className="text-2xl font-bold text-gray-800 dark:text-white">
+                          #{repair.id?.slice(-8)}
+                        </h3>
+                        <span className={`px-4 py-2 rounded-full text-white font-bold text-xs shadow-lg bg-gradient-to-r ${getStatusStyle(repair.status)}`}>
+                          {getStatusLabel(repair.status)}
+                        </span>
+                      </div>
+
+                      <div className="space-y-4 text-sm">
+                        <div className="flex items-start gap-3 text-gray-700 dark:text-gray-300">
+                          <FiUser className="text-emerald-600 mt-1" size={18} />
+                          <div>
+                            <div className="font-medium">Customer Address</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {repair.userAddress?.street}, {repair.userAddress?.city}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
+                          <div className="flex items-center gap-2 font-bold text-xl text-emerald-600 dark:text-emerald-400">
+                            <FiDollarSign size={22} />
+                            {repair.price || 0} EGP
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-500">
+                            {new Date(repair.createdAt).toLocaleTimeString()}
+                          </div>
+                        </div>
+                      </div>
+
+                     
+                      <div className="mt-6 space-y-3">
+                        {repair.status === "REPAIR_COMPLETED" || repair.status === "DEVICE_DELIVERED" ? (
+                          <div className="py-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-2xl text-center shadow-lg flex items-center justify-center gap-3">
+                            <FiCheckCircle size={22} />
+                            {repair.status === "DEVICE_DELIVERED" ? "Device Delivered" : "Repair Completed"}
+                          </div>
+                        ) : (
+                          <>
+                            {repair.status !== "CANCELLED" && (
+                              <>
+                                <button
+                                  onClick={() => updateStatus(repair.id, "REPAIR_COMPLETED")}
+                                  className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2"
+                                >
+                                  <FiPackage size={18} /> Mark Repair Completed
+                                </button>
+                                <button
+                                  onClick={() => updateStatus(repair.id, "DEVICE_DELIVERED")}
+                                  className="w-full py-3 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2"
+                                >
+                                  <FiCheckCircle size={18} /> Device Delivered
+                                </button>
+                              </>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+         
+              {totalPages > 1 && (
+                <div className="flex justify-center gap-3 mt-12 flex-wrap">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-6 py-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-50 flex items-center gap-2 font-medium"
+                  >
+                    Previous
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+                    .map((page, idx, arr) => (
+                      <React.Fragment key={page}>
+                        {idx > 0 && arr[idx - 1] !== page - 1 && (
+                          <span className="px-4 py-3 text-gray-500">...</span>
+                        )}
+                        <button
+                          onClick={() => setCurrentPage(page)}
+                          className={`w-12 h-12 rounded-xl font-bold transition-all ${
+                            currentPage === page
+                              ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg'
+                              : 'bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      </React.Fragment>
+                    ))}
+
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-6 py-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-50 flex items-center gap-2 font-medium"
+                  >
+                    Next
                   </button>
                 </div>
-              </div>
-            ))}
-          </div>
-
-    
-          {totalPages > 1 && (
-            <div className="mt-6 flex justify-center items-center gap-2">
-              <button
-                onClick={handlePrevious}
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                  currentPage === 1
-                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                    : "bg-indigo-600 hover:bg-indigo-700 text-white"
-                }`}
-                disabled={currentPage === 1}
-              >
-                
-              </button>
-              {[...Array(totalPages).keys()].map((page) => (
-                <button
-                  key={page + 1}
-                  onClick={() => handlePageChange(page + 1)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                    currentPage === page + 1
-                      ? "bg-indigo-600 text-white"
-                      : "bg-gray-200 hover:bg-gray-300 text-gray-800"
-                  }`}
-                >
-                  {page + 1}
-                </button>
-              ))}
-              <button
-                onClick={handleNext}
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                  currentPage === totalPages
-                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                    : "bg-indigo-600 hover:bg-indigo-700 text-white"
-                }`}
-                disabled={currentPage === totalPages}
-              >
-                
-              </button>
-            </div>
+              )}
+            </>
           )}
-        </>
-      )}
-
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
-            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
-              Update Repair Status
-            </h3>
-            <select
-              className="w-full p-2 border rounded-md mb-4 text-gray-900 dark:text-gray-100 dark:bg-gray-700"
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-            >
-              <option value="">Select status</option>
-              {Object.entries(statusOptions).map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            <div className="flex gap-2">
-              <button
-                onClick={handleUpdateStatus}
-                className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
-                disabled={!selectedStatus}
-              >
-                Submit
-              </button>
-              <button
-                onClick={closeModal}
-                className="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
         </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 };
 
