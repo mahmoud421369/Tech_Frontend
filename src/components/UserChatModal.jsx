@@ -1,4 +1,4 @@
-// src/components/ChatModal.jsx
+
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { FiSend, FiX } from "react-icons/fi";
 import SockJS from "sockjs-client";
@@ -25,7 +25,7 @@ const UserChatModal = ({ shopId, shopName, onClose, darkMode }) => {
   const subscriptionRef = useRef(null);
   const messagesEndRef = useRef(null);
 
-  // Fetch chat sessions
+
   const fetchSessions = useCallback(async () => {
     try {
       const { data } = await api.get("/api/chats/sessions");
@@ -35,7 +35,7 @@ const UserChatModal = ({ shopId, shopName, onClose, darkMode }) => {
     }
   }, []);
 
-  // Start new chat
+  
   const startNewChat = async () => {
     try {
       const { data } = await api.post("/api/chats/start", { shopId });
@@ -49,7 +49,7 @@ const UserChatModal = ({ shopId, shopName, onClose, darkMode }) => {
     }
   };
 
-  // Connect WebSocket
+  
   const connectWebSocket = useCallback(
     (chatId) => {
       if (!token || !chatId) return;
@@ -63,14 +63,14 @@ const UserChatModal = ({ shopId, shopName, onClose, darkMode }) => {
         onConnect: () => {
           setConnected(true);
 
-          // Subscribe to messages
+        
           const sub = client.subscribe(
             `/user/${userEmail}/queue/chat/messages/${chatId}`,
             (msg) => {
               const message = JSON.parse(msg.body);
               setMessages((prev) => [...prev, message]);
 
-              // Show unread if not active
+           
               if (activeSession?.id !== chatId) {
                 setUnreadCounts((prev) => ({
                   ...prev,
@@ -100,7 +100,7 @@ const UserChatModal = ({ shopId, shopName, onClose, darkMode }) => {
     [token, userEmail, activeSession]
   );
 
-  // Send message
+
   const sendMessage = () => {
     if (!input.trim() || !stompClientRef.current || !connected || !activeSession) return;
 
@@ -126,24 +126,24 @@ const UserChatModal = ({ shopId, shopName, onClose, darkMode }) => {
     setInput("");
   };
 
-  // Cleanup on close
+
   const handleClose = () => {
     if (subscriptionRef.current) subscriptionRef.current.unsubscribe();
     if (stompClientRef.current) stompClientRef.current.deactivate();
     onClose();
   };
 
-  // Auto scroll to bottom
+  
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Load sessions on mount
+  
   useEffect(() => {
     fetchSessions();
   }, [fetchSessions]);
 
-  // Connect when active session changes
+
   useEffect(() => {
     if (activeSession?.id) {
       connectWebSocket(activeSession.id);
@@ -158,7 +158,7 @@ const UserChatModal = ({ shopId, shopName, onClose, darkMode }) => {
           darkMode ? "bg-gray-800" : "bg-white"
         } border ${darkMode ? "border-gray-700" : "border-gray-200"}`}
       >
-        {/* Sessions Sidebar */}
+        
         <div className="w-80 flex flex-col border-r border-gray-200 dark:border-gray-700">
           <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
             <h3 className={`font-bold text-lg ${darkMode ? "text-lime-400" : "text-lime-600"}`}>
@@ -216,7 +216,7 @@ const UserChatModal = ({ shopId, shopName, onClose, darkMode }) => {
           </div>
         </div>
 
-        {/* Messages Area */}
+       
         <div className="flex-1 flex flex-col">
           {activeSession ? (
             <>

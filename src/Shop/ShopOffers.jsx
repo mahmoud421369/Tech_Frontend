@@ -43,7 +43,7 @@ const ShopOffers = () => {
 
   const offersPerPage = 5;
 
-  // Arabic translations
+  
   const statusTranslations = {
     ACTIVE: 'نشط',
     SCHEDULED: 'قادم',
@@ -55,7 +55,7 @@ const ShopOffers = () => {
     FIXED_AMOUNT: 'مبلغ ثابت',
   };
 
-  // Close dropdowns on outside click
+  
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (
@@ -70,7 +70,7 @@ const ShopOffers = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Fetch offers
+
   const fetchOffers = useCallback(async () => {
     const controller = new AbortController();
     setLoading(true);
@@ -95,7 +95,7 @@ const ShopOffers = () => {
     return () => controller.abort();
   }, []);
 
-  // View offer details
+ 
   const viewOfferDetails = useCallback(async (offerId) => {
     try {
       const res = await api.get(`/api/shop/offers/${offerId}`);
@@ -150,7 +150,7 @@ const ShopOffers = () => {
     }
   }, [statusTranslations, discountTypeTranslations]);
 
-  // Add offer
+ 
   const addOffer = useCallback(async () => {
     if (!newOffer.name || !newOffer.description || !newOffer.discountValue || !newOffer.startDate || !newOffer.endDate) {
       Swal.fire({ title: 'خطأ', text: 'يرجى ملء جميع الحقول', icon: 'error', toast: true, position: 'top-end', timer: 1500 });
@@ -169,7 +169,7 @@ const ShopOffers = () => {
     }
   }, [fetchOffers, newOffer]);
 
-  // Update offer
+  
   const updateOffer = useCallback(async () => {
     if (!editingOffer.name || !editingOffer.description || !editingOffer.discountValue || !editingOffer.startDate || !editingOffer.endDate) {
       Swal.fire({ title: 'خطأ', text: 'يرجى ملء جميع الحقول', icon: 'error', toast: true, position: 'top-end', timer: 1500 });
@@ -189,7 +189,7 @@ const ShopOffers = () => {
     }
   }, [editingOffer, fetchOffers]);
 
-  // Delete offer
+
   const deleteOffer = useCallback(async (offerId) => {
     const result = await Swal.fire({
       title: 'هل أنت متأكد؟',
@@ -212,7 +212,7 @@ const ShopOffers = () => {
     }
   }, [fetchOffers]);
 
-  // Debounced search
+  
   const debouncedSetSearchTerm = useMemo(
     () => debounce((value) => setSearchTerm(value), 300),
     []
@@ -227,7 +227,7 @@ const ShopOffers = () => {
     return () => debouncedSetSearchTerm.cancel();
   }, [debouncedSetSearchTerm]);
 
-  // Filter & pagination
+  
   const filteredOffers = useMemo(
     () => offers.filter((o) => (o.name || '').toLowerCase().includes(searchTerm.toLowerCase())),
     [offers, searchTerm]
@@ -245,7 +245,7 @@ const ShopOffers = () => {
 
   return (
     <div style={{ marginTop: '-575px', marginLeft: '-25px' }} className="min-h-screen max-w-6xl mx-auto p-4 lg:p-8 font-cairo bg-gradient-to-br from-gray-50 via-white to-white">
-      {/* Header */}
+     
       <div className="mb-8 text-right bg-white p-6 shadow-md border-l-4 border-lime-500">
         <h1 className="text-3xl font-bold text-black mb-2 flex items-center justify-end gap-3">
           <FiShoppingBag className="text-gray-500" /> عروض المتجر
@@ -253,7 +253,7 @@ const ShopOffers = () => {
         <p className="text-sm text-gray-600">إدارة وتعديل عروض المتجر بسهولة</p>
       </div>
 
-      {/* Search */}
+   
       <div className="flex justify-between items-center gap-4 mb-6 bg-white rounded-xl shadow-sm p-5 border border-lime-100">
         <div className="relative w-full ">
           <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -266,7 +266,7 @@ const ShopOffers = () => {
         </div>
       </div>
 
-      {/* Add/Edit Form */}
+      
       <div className="bg-white rounded-xl shadow-sm p-6 mb-8 border border-lime-100">
         <div className="flex justify-between items-center mb-5">
           <h2 className="text-xl font-bold text-black flex items-center justify-end gap-3">
@@ -286,7 +286,7 @@ const ShopOffers = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {(editingOffer ? [editingOffer] : [newOffer]).map((offer, idx) => (
             <React.Fragment key={idx}>
-              {/* Name */}
+              
               <div className="relative">
                 <input
                   type="text"
@@ -302,7 +302,7 @@ const ShopOffers = () => {
                 <FiTag className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
               </div>
 
-              {/* Description */}
+              
               <div className="relative">
                 <input
                   type="text"
@@ -318,7 +318,7 @@ const ShopOffers = () => {
                 <FiInfo className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
               </div>
 
-              {/* Discount Value */}
+             
               <div className="relative">
                 <input
                   type="text"
@@ -334,7 +334,7 @@ const ShopOffers = () => {
                 <FiCheckSquare className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
               </div>
 
-              {/* Discount Type */}
+              
               <div className="relative" ref={discountTypeRef}>
                 <button
                   onClick={() => setIsDiscountTypeOpen(!isDiscountTypeOpen)}
@@ -363,7 +363,7 @@ const ShopOffers = () => {
                 )}
               </div>
 
-              {/* Status */}
+            
               <div className="relative" ref={statusRef}>
                 <button
                   onClick={() => setIsStatusOpen(!isStatusOpen)}
@@ -392,7 +392,7 @@ const ShopOffers = () => {
                 )}
               </div>
 
-              {/* Start Date */}
+           
               <div className="relative">
                 <DatePicker
                   selected={offer.startDate ? new Date(offer.startDate) : null}
@@ -410,7 +410,7 @@ const ShopOffers = () => {
                 <FiCalendar className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
               </div>
 
-              {/* End Date */}
+            
               <div className="relative">
                 <DatePicker
                   selected={offer.endDate ? new Date(offer.endDate) : null}
@@ -449,7 +449,7 @@ const ShopOffers = () => {
         </div>
       </div>
 
-      {/* Table */}
+      
       <div className="bg-white rounded-xl shadow-sm border  overflow-hidden">
         {loading ? (
           <div className="p-12 flex justify-center">
@@ -497,7 +497,7 @@ const ShopOffers = () => {
                         </td>
                         <td className="px-4 py-4">
                           <div className="flex items-center justify-end gap-2">
-                            {/* Details */}
+                           
                             <button
                               onClick={() => viewOfferDetails(o.id)}
                               className="flex items-center gap-1 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition text-xs font-medium"
@@ -507,7 +507,7 @@ const ShopOffers = () => {
                               تفاصيل
                             </button>
 
-                            {/* Edit */}
+                           
                             <button
                               onClick={() => setEditingOffer(o)}
                               className="flex items-center gap-1 px-3 py-1.5 bg-lime-100 text-lime-700 rounded-lg hover:bg-lime-200 transition text-xs font-medium"
@@ -517,7 +517,7 @@ const ShopOffers = () => {
                               تعديل
                             </button>
 
-                            {/* Delete */}
+                            
                             <button
                               onClick={() => deleteOffer(o.id)}
                               className="flex items-center gap-1 px-3 py-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition text-xs font-medium"
@@ -552,7 +552,7 @@ const ShopOffers = () => {
         )}
       </div>
 
-      {/* Pagination */}
+      
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-2 mt-6">
           <button

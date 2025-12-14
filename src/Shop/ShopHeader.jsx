@@ -31,7 +31,7 @@ const ShopHeader = ({ children }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredMenuItems, setFilteredMenuItems] = useState([]);
 
-  // Notifications state
+  
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -86,7 +86,7 @@ const ShopHeader = ({ children }) => {
       }
     }, [token, navigate]);
 
-  // Fetch all shop notifications
+ 
   const fetchNotifications = useCallback(async () => {
     if (!token || isTokenExpired(token)) return;
 
@@ -97,11 +97,11 @@ const ShopHeader = ({ children }) => {
       });
 
       const data = res.data || [];
-      // Sort by newest first
+      
       const sorted = data.sort((a, b) => new Date(b.timestamps) - new Date(a.timestamps));
       setNotifications(sorted);
 
-      // Count unread (assuming backend sends isRead: false)
+
       const unread = sorted.filter(n => !n.isRead).length;
       setUnreadCount(unread);
     } catch (err) {
@@ -112,7 +112,7 @@ const ShopHeader = ({ children }) => {
     }
   }, [token, isTokenExpired]);
 
-  // Delete single notification
+ 
   const deleteNotification = async (id) => {
     try {
       await api.delete(`/api/notifications/shops/${id}`, {
@@ -126,7 +126,7 @@ const ShopHeader = ({ children }) => {
     }
   };
 
-  // Delete ALL notifications at once
+
   const deleteAllNotifications = async () => {
     try {
       await api.delete('/api/notifications/shops', {
@@ -140,12 +140,12 @@ const ShopHeader = ({ children }) => {
     }
   };
 
-  // Load notifications on mount
+
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  // Close dropdowns when clicking outside
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false);
@@ -176,7 +176,7 @@ const ShopHeader = ({ children }) => {
 
   return (
     <div dir="rtl" className="min-h-screen font-cairo bg-gradient-to-br from-lime-50 via-white to-lime-50 text-black">
-      {/* ====================== Header ====================== */}
+     
       <header className="fixed top-0 inset-x-0 h-16 flex items-center justify-between px-4 sm:px-6 z-40 bg-white shadow-md">
         <Link to="/shop-dashboard" className="flex items-center gap-3">
           <img src={logo} alt="Logo" className="h-10 w-auto" />
@@ -184,7 +184,7 @@ const ShopHeader = ({ children }) => {
 
         <div className="flex items-center gap-4">
 
-          {/* Search - Desktop */}
+          
           <div className="hidden md:block relative w-64">
             <input
               type="text"
@@ -196,7 +196,7 @@ const ShopHeader = ({ children }) => {
             <FiSearch className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
           </div>
 
-          {/* Notifications Bell */}
+         
           <div className="relative" ref={notificationRef}>
             <button
               onClick={() => setNotificationsOpen(!notificationsOpen)}
@@ -204,7 +204,7 @@ const ShopHeader = ({ children }) => {
             >
               <FiBell className="text-2xl text-gray-500" />
               
-              {/* Unread Badge */}
+              
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full bg-red-500 text-white text-xs font-bold animate-pulse">
                   {unreadCount > 99 ? '99+' : unreadCount}
@@ -212,10 +212,10 @@ const ShopHeader = ({ children }) => {
               )}
             </button>
 
-            {/* Notifications Dropdown */}
+           
             {notificationsOpen && (
               <div className="absolute left-0 mt-3 w-96 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50">
-                {/* Header */}
+     
                 <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
                   <div>
                     <h3 className="text-lg font-bold text-gray-900">الإشعارات</h3>
@@ -234,7 +234,7 @@ const ShopHeader = ({ children }) => {
                   )}
                 </div>
 
-                {/* Notifications List */}
+                
                 <div className="max-h-96 overflow-y-auto">
                   {loading ? (
                     <div className="p-10 text-center text-gray-400">جاري التحميل...</div>
@@ -282,7 +282,7 @@ const ShopHeader = ({ children }) => {
                   )}
                 </div>
 
-                {/* Footer */}
+                
                 <div className="p-4 bg-gray-50 text-center border-t">
                   <Link
                     to="/shop/notifications"
@@ -296,7 +296,7 @@ const ShopHeader = ({ children }) => {
             )}
           </div>
 
-          {/* Profile Dropdown */}
+         
           <div className="relative" ref={profileRef}>
             <button
               onClick={() => setProfileOpen(!profileOpen)}
@@ -318,7 +318,7 @@ const ShopHeader = ({ children }) => {
             )}
           </div>
 
-          {/* Mobile Menu */}
+          
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="p-2 md:hidden"
@@ -328,7 +328,7 @@ const ShopHeader = ({ children }) => {
         </div>
       </header>
 
-      {/* Sidebar & Main Content (unchanged) */}
+      
       <aside
         ref={sidebarRef}
         className={`fixed top-16 right-0 h-[calc(100vh-4rem)] w-20 md:w-64 bg-white shadow-xl transition-transform z-30 border-l border-lime-100 ${

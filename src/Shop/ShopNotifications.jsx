@@ -2,13 +2,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import Swal from 'sweetalert2';
 import { FiBell, FiCheckCircle, FiTrash } from 'react-icons/fi';
-import api from '../api'; // Import the Axios instance from api.js
+import api from '../api'; 
 
 const ShopNotifications = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch notifications
+  
   const fetchNotifications = useCallback(async () => {
     const controller = new AbortController();
     try {
@@ -28,19 +28,19 @@ const ShopNotifications = () => {
     return () => controller.abort();
   }, []);
 
-  // Mark notification as read
+
   const markAsRead = useCallback(async (id) => {
     try {
       await api.put(`/api/notifications/shops/${id}`);
       Swal.fire('Success', 'Notification marked as read', 'success');
-      await fetchNotifications(); // Refresh notifications
+      await fetchNotifications();
     } catch (err) {
       console.error('Error marking notification as read:', err.response?.data || err.message);
       Swal.fire('Error', 'Failed to mark notification as read', 'error');
     }
   }, [fetchNotifications]);
 
-  // Remove notification
+
   const removeNotification = useCallback(async (id) => {
     try {
       const result = await Swal.fire({
@@ -56,7 +56,7 @@ const ShopNotifications = () => {
 
       await api.delete(`/api/notifications/shops/${id}`);
       Swal.fire('Deleted', 'Notification has been removed', 'success');
-      await fetchNotifications(); // Refresh notifications
+      await fetchNotifications(); 
     } catch (err) {
       console.error('Error removing notification:', err.response?.data || err.message);
       Swal.fire('Error', 'Failed to remove notification', 'error');
@@ -66,7 +66,7 @@ const ShopNotifications = () => {
   useEffect(() => {
     fetchNotifications();
     return () => {
-      // Cleanup is handled by AbortController in fetchNotifications
+      
     };
   }, [fetchNotifications]);
 

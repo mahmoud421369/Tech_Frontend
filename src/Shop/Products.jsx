@@ -30,7 +30,7 @@ const Products = () => {
   const [categories, setCategories] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Separate dropdown states
+ 
   const [isAddConditionOpen, setIsAddConditionOpen] = useState(false);
   const [isEditConditionOpen, setIsEditConditionOpen] = useState(false);
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
@@ -41,7 +41,7 @@ const Products = () => {
   const [selectedImage, setSelectedImage] = useState(null);
   const [openMenu, setOpenMenu] = useState(null);
 
-  // Separate refs
+
   const addConditionRef = useRef(null);
   const editConditionRef = useRef(null);
   const addCategoryRef = useRef(null);
@@ -57,7 +57,7 @@ const Products = () => {
     REFURBISHED: 'مجدّد',
   };
 
-  // Close dropdowns on outside click
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (addConditionRef.current && !addConditionRef.current.contains(e.target)) setIsAddConditionOpen(false);
@@ -73,7 +73,7 @@ const Products = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Fetch products
+ 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     const controller = new AbortController();
@@ -96,7 +96,7 @@ const Products = () => {
     return () => controller.abort();
   }, [searchTerm]);
 
-  // Fetch categories
+  
   const fetchCategories = useCallback(async () => {
     const controller = new AbortController();
     try {
@@ -112,7 +112,7 @@ const Products = () => {
     return () => controller.abort();
   }, []);
 
-  // Debounced search
+
   const debouncedSearch = useMemo(
     () => debounce((term) => {
       setSearchTerm(term);
@@ -129,7 +129,7 @@ const Products = () => {
     };
   }, [fetchProducts, fetchCategories, debouncedSearch]);
 
-  // Sorting
+
   const handleSort = (key) => {
     let direction = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -164,7 +164,7 @@ const Products = () => {
     return sortable;
   }, [filteredProducts, sortConfig]);
 
-  // Pagination
+  
   const indexOfLastProduct = currentPage * productsPerPage;
   const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
   const currentProducts = sortedProducts.slice(indexOfFirstProduct, indexOfLastProduct);
@@ -175,7 +175,7 @@ const Products = () => {
     setCurrentPage(page);
   };
 
-  // Add product
+  
   const addProduct = useCallback(async () => {
     if (!newProduct.category?.id) {
       Swal.fire('خطأ', 'يرجى اختيار فئة', 'error');
@@ -212,7 +212,7 @@ const Products = () => {
     setOpenMenu(null);
   };
 
-  // Update product
+
   const updateProduct = useCallback(async () => {
     if (!editingProduct.category?.id) {
       Swal.fire('خطأ', 'يرجى اختيار فئة', 'error');
@@ -237,7 +237,7 @@ const Products = () => {
     }
   }, [editingProduct, fetchProducts]);
 
-  // Open Stock Modal
+
   const openStockModal = (productId, currentStock) => {
     setSelectedProductId(productId);
     setNewStockValue(currentStock);
@@ -245,7 +245,7 @@ const Products = () => {
     setOpenMenu(null);
   };
 
-  // Update stock
+  
   const updateStock = useCallback(async () => {
     if (!selectedProductId || newStockValue === '') return;
 
@@ -261,7 +261,7 @@ const Products = () => {
     }
   }, [selectedProductId, newStockValue, fetchProducts]);
 
-  // Delete product
+
   const deleteProduct = useCallback(async (productId) => {
     const result = await Swal.fire({
       title: 'تأكيد الحذف',
@@ -295,7 +295,7 @@ const Products = () => {
           <p className="text-sm text-gray-600">إدارة كاملة لمنتجات متجرك</p>
         </div>
 
-        {/* زر إضافة منتج جديد في الأعلى */}
+     
       <div className="mb-8 flex justify-between items-center bg-white border p-5 rounded-xl text-right">
         <button
           onClick={() => {
@@ -314,7 +314,7 @@ const Products = () => {
         <p className="text-teal-600 font-bold text-lg">{count} عدد المنتجات : </p>
       </div>
 
-      {/* مودال إضافة أو تعديل المنتج */}
+    
       {(showAddModal || showEditModal) && (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
           <div
@@ -340,7 +340,7 @@ const Products = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* الحقول */}
+        
                 {['name', 'description', 'price', 'imageUrl', 'stockQuantity'].map((field) => {
                   const labels = {
                     name: 'اسم المنتج *',
@@ -375,7 +375,7 @@ const Products = () => {
                   );
                 })}
 
-                {/* الحالة */}
+                
                 <div className="relative" ref={addConditionRef}>
                   <button
                     onClick={() => setIsAddConditionOpen(!isAddConditionOpen)}
@@ -407,7 +407,7 @@ const Products = () => {
                   )}
                 </div>
 
-                {/* الفئة */}
+              
                 <div className="relative" ref={addCategoryRef}>
                   <button
                     onClick={() => setIsAddCategoryOpen(!isAddCategoryOpen)}
@@ -465,103 +465,7 @@ const Products = () => {
       )}
 
    
-        {/* <div className="bg-white rounded-xl shadow-sm p-6 mb-8 border border-lime-100">
-          <h2 className="text-xl font-bold text-black mb-6 flex items-center justify-end gap-2">
-            <FiBox className="text-gray-500" /> إضافة منتج جديد
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {['name', 'description', 'price', 'imageUrl', 'stockQuantity'].map((field) => {
-              const label = {
-                name: 'اسم المنتج',
-                description: 'وصف المنتج',
-                price: 'السعر (ج.م)',
-                imageUrl: 'رابط الصورة',
-                stockQuantity: 'الكمية في المخزون'
-              }[field];
-
-              return (
-                <div key={field} className="relative">
-                  <input
-                    type="text"
-                    value={newProduct[field]}
-                    onChange={(e) => setNewProduct({ ...newProduct, [field]: e.target.value })}
-                    className="peer w-full px-4 py-3 pt-6 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-lime-400 focus:border-lime-500 outline-none transition text-right text-black placeholder-gray-500"
-                    placeholder=" "
-                  />
-                  <label className="absolute right-4 top-1 text-sm text-gray-500 transition-all duration-300 peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-focus:top-1 peer-focus:text-sm peer-focus:text-lime-600">
-                    {label}
-                  </label>
-                </div>
-              );
-            })}
-
-   
-            <div className="relative" ref={addConditionRef}>
-              <button
-                onClick={() => setIsAddConditionOpen(!isAddConditionOpen)}
-                className="w-full px-4 py-3 bg-gray-50 border rounded-lg flex justify-between flex-row-reverse text-gray-500 items-center text-right text-black text-sm font-medium focus:ring-2 focus:ring-lime-400 focus:border-lime-500"
-              >
-                <span>{conditionTranslations[newProduct.condition] || 'اختر الحالة'}</span>
-                <FiChevronDown className={`transition-transform ${isAddConditionOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {isAddConditionOpen && (
-                <div className="absolute z-20 mt-2 w-full bg-white border border-lime-200 rounded-lg shadow-xl">
-                  {conditions.map((cond) => (
-                    <button
-                      key={cond}
-                      onClick={() => {
-                        setNewProduct({ ...newProduct, condition: cond });
-                        setIsAddConditionOpen(false);
-                      }}
-                      className="w-full px-4 py-2 text-right hover:bg-lime-50 transition text-sm font-medium text-black"
-                    >
-                      {conditionTranslations[cond]}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-       
-            <div className="relative" ref={addCategoryRef}>
-              <button
-                onClick={() => setIsAddCategoryOpen(!isAddCategoryOpen)}
-                className="w-full px-4 py-3 bg-gray-50 border rounded-lg flex justify-between flex-row-reverse text-gray-500 items-center text-right text-black text-sm font-medium focus:ring-2 focus:ring-lime-400 focus:border-lime-500"
-              >
-                <span className=" font-medium">{newProduct.category?.name || 'اختر الفئة'}</span>
-                <FiChevronDown className={`transition-transform ${isAddCategoryOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {isAddCategoryOpen && (
-                <div className="absolute z-20 mt-2 w-full bg-white border border-lime-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
-                  {categories.map((cat) => (
-                    <button
-                      key={cat.id}
-                      onClick={() => {
-                        setNewProduct({ ...newProduct, category: cat });
-                        setIsAddCategoryOpen(false);
-                      }}
-                      className="w-full px-4 py-2 text-right hover:bg-lime-50 transition text-sm font-medium text-black"
-                    >
-                      {cat.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-6 flex justify-end">
-            <button
-              onClick={addProduct}
-              className="px-6 py-2.5 bg-lime-500 text-white font-bold rounded-lg hover:bg-lime-600 transition shadow-sm"
-            >
-              إضافة المنتج
-            </button>
-          </div>
-        </div> */}
-
-        {/* Products Table */}
+     
         <div className="bg-white rounded-xl shadow-sm p-6 border ">
           <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
             <div className="relative w-full sm:w-72">
@@ -662,7 +566,7 @@ const Products = () => {
                           </span>
                         </td>
 
-                        {/* Actions: Icon + Text (Small, Horizontal) */}
+                        
                         <td className="px-4 py-4">
                           <div className="flex items-center justify-end gap-3">
                             <button
@@ -696,7 +600,7 @@ const Products = () => {
                 </table>
               </div>
 
-              {/* Pagination */}
+        
               {totalPages > 1 && (
                 <div className="flex justify-center items-center gap-2 mt-6">
                   <button
@@ -732,7 +636,7 @@ const Products = () => {
           )}
         </div>
 
-        {/* Edit Modal */}
+      
         {showEditModal && editingProduct && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
             <div ref={modalRef} className="bg-white rounded-xl shadow-xl p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
@@ -772,7 +676,7 @@ const Products = () => {
                   );
                 })}
 
-                {/* Edit: Condition Dropdown */}
+             
                 <div className="relative" ref={editConditionRef}>
                   <button
                     onClick={() => setIsEditConditionOpen(!isEditConditionOpen)}
@@ -799,7 +703,7 @@ const Products = () => {
                   )}
                 </div>
 
-                {/* Edit: Category Dropdown */}
+         
                 <div className="relative" ref={editCategoryRef}>
                   <button
                     onClick={() => setIsEditCategoryOpen(!isEditCategoryOpen)}
@@ -845,7 +749,7 @@ const Products = () => {
           </div>
         )}
 
-        {/* Stock Modal */}
+       
         {showStockModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
             <div ref={modalRef} className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
@@ -888,7 +792,7 @@ const Products = () => {
           </div>
         )}
 
-        {/* Image Modal */}
+       
         {selectedImage && (
           <div
             className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4"

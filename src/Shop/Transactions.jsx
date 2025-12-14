@@ -13,9 +13,7 @@ import api from '../api';
 
 const ROWS_PER_PAGE = 10;
 
-// ---------------------------------------------------------------------
-// Memoized Table Row
-// ---------------------------------------------------------------------
+
 const TransactionRow = memo(({ txn }) => {
   const statusColor =
     txn.status === 'مكتمل'
@@ -40,9 +38,7 @@ const TransactionRow = memo(({ txn }) => {
 });
 TransactionRow.displayName = 'TransactionRow';
 
-// ---------------------------------------------------------------------
-// Loading Skeleton Row
-// ---------------------------------------------------------------------
+
 const SkeletonRow = memo(() => (
   <tr>
     {Array.from({ length: 7 }).map((_, i) => (
@@ -54,9 +50,6 @@ const SkeletonRow = memo(() => (
 ));
 SkeletonRow.displayName = 'SkeletonRow';
 
-// ---------------------------------------------------------------------
-// Main Component
-// ---------------------------------------------------------------------
 const Transactions = () => {
   const [transactions, setTransactions] = useState([]);
   const [financialReport, setFinancialReport] = useState(null);
@@ -69,9 +62,7 @@ const Transactions = () => {
 
   const abortCtrl = useRef(new AbortController());
 
-  // -----------------------------------------------------------------
-  // Translations
-  // -----------------------------------------------------------------
+  
   const statusMap = { completed: 'مكتمل', pending: 'معلق' };
   const typeMap = { repair: 'إصلاح', sale: 'بيع' };
   const timeRangeOptions = [
@@ -79,9 +70,7 @@ const Transactions = () => {
     { value: 'month', label: 'الشهر' },
   ];
 
-  // -----------------------------------------------------------------
-  // Fetch data
-  // -----------------------------------------------------------------
+  
   const fetchAll = useCallback(async () => {
     abortCtrl.current.abort();
     abortCtrl.current = new AbortController();
@@ -138,9 +127,7 @@ const Transactions = () => {
     }
   }, [timeRange]);
 
-  // -----------------------------------------------------------------
-  // Debounced search
-  // -----------------------------------------------------------------
+
   const debouncedSearch = useMemo(
     () => debounce((val) => setSearchTerm(val), 300),
     []
@@ -152,17 +139,13 @@ const Transactions = () => {
     setCurrentPage(1);
   };
 
-  // -----------------------------------------------------------------
-  // Load on mount / timeRange change
-  // -----------------------------------------------------------------
+
   useEffect(() => {
     fetchAll();
     return () => abortCtrl.current.abort();
   }, [fetchAll]);
 
-  // -----------------------------------------------------------------
-  // Financial calculations
-  // -----------------------------------------------------------------
+
   const totalEarnings = useMemo(() => {
     if (financialReport?.totalEarnings != null) return financialReport.totalEarnings;
     return transactions.reduce((s, t) => s + t.amount, 0);
@@ -185,9 +168,7 @@ const Transactions = () => {
   const repairPct = totalEarnings > 0 ? Math.round((repairEarnings / totalEarnings) * 100) : 0;
   const salesPct = totalEarnings > 0 ? Math.round((salesEarnings / totalEarnings) * 100) : 0;
 
-  // -----------------------------------------------------------------
-  // Filtering & pagination
-  // -----------------------------------------------------------------
+
   const filtered = useMemo(
     () =>
       transactions.filter((t) =>
@@ -210,7 +191,7 @@ const Transactions = () => {
     <div dir="rtl" style={{marginLeft:"-25px",marginTop:"-575px"}} className="min-h-screen max-w-6xl mx-auto p-4 lg:p-8 font-cairo bg-gradient-to-br from-gray-50 via-white to-gray-50">
       <div className="max-w-7xl mx-auto">
 
-        {/* Header */}
+       
         <div className="mb-8 text-right bg-white p-6  shadow-sm border-l-4 border-lime-500">
           <h1 className="text-3xl font-bold text-black mb-2 flex items-center justify-start gap-3">
             <FiDollarSign className="text-gray-500" /> الإيرادات
@@ -218,9 +199,9 @@ const Transactions = () => {
           <p className="text-sm text-gray-600">إدارة ومتابعة العمليات المالية بسهولة</p>
         </div>
 
-        {/* Filters */}
+        
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          {/* Search */}
+         
           <div className="relative flex-1">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
@@ -231,36 +212,10 @@ const Transactions = () => {
             />
           </div>
 
-          {/* Time range dropdown */}
-          {/* <div className="relative">
-            <button
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="flex items-center gap-2 px-5 py-3 bg-lime-50 border border-lime-300 rounded-lg hover:border-lime-500 transition text-right"
-            >
-              {timeRangeOptions.find((o) => o.value === timeRange)?.label || 'اختر المدة'}
-              <FiChevronDown className={`transition ${dropdownOpen ? 'rotate-180' : ''}`} />
-            </button>
-            {dropdownOpen && (
-              <div className="absolute z-10 mt-2 w-full bg-white border border-lime-200 rounded-lg shadow-lg">
-                {timeRangeOptions.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => {
-                      setTimeRange(opt.value);
-                      setDropdownOpen(false);
-                      setCurrentPage(1);
-                    }}
-                    className="block w-full text-right px-4 py-2 hover:bg-lime-50 transition text-sm"
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div> */}
+        
         </div>
 
-        {/* Stats Cards */}
+        
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
           <div className="p-5 bg-white  shadow-sm border-l-4 border-lime-500">
             <h3 className="text-sm font-medium flex items-center gap-1 text-lime-700 justify-start">
@@ -282,7 +237,7 @@ const Transactions = () => {
           </div>
         </div>
 
-        {/* Table */}
+      
         <div className="bg-white rounded-xl shadow-sm border border-lime-100">
           {loading ? (
             <table className="min-w-full">
@@ -354,7 +309,7 @@ const Transactions = () => {
           )}
         </div>
 
-        {/* Pagination */}
+        
         {!loading && totalPages > 1 && (
           <div className="flex justify-center items-center gap-2 mt-6">
             <button

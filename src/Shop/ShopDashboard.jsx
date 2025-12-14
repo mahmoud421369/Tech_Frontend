@@ -1,4 +1,4 @@
-// src/pages/ShopDashboard.jsx
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler } from 'chart.js';
@@ -11,7 +11,7 @@ import useAuthStore from '../store/Auth';
 import debounce from 'lodash/debounce';
 import { toast } from 'react-toastify';
 
-// Register Chart.js components
+
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler);
 
 const DashboardSkeleton = () => (
@@ -204,7 +204,7 @@ const ShopDashboard = () => {
     navigate,
   ]);
 
-  // Chart Data with vibrant colors
+
   const salesChartData = {
     labels: salesStats?.trend?.map((d) => d.day) || ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'],
     datasets: [
@@ -229,7 +229,7 @@ const ShopDashboard = () => {
       {
         label: 'التصليحات',
         data: repairsStats?.weekly?.map((d) => d.repairs) || [12, 19, 15, 22, 18, 14, 20],
-        backgroundColor: '#10b981', // Emerald
+        backgroundColor: '#10b981', 
         borderColor: '#10b981',
         borderWidth: 1,
         borderRadius: 6,
@@ -244,7 +244,7 @@ const ShopDashboard = () => {
 
       {!isLoading && (
         <>
-          {/* Header */}
+          
           <div className="bg-white p-5 shadow-sm border-l-4 border-lime-500  max-w-5xl">
             <div className="flex justify-start flex-row-reverse items-center gap-3">
               <FiHome size={40} className="p-3 rounded-xl bg-lime-500 text-white shadow-md" />
@@ -257,7 +257,7 @@ const ShopDashboard = () => {
             </div>
           </div>
 
-          {/* Date Filters */}
+         
           <div className="bg-white p-4 max-w-5xl shadow-sm rounded-lg border ">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
               <div>
@@ -293,9 +293,9 @@ const ShopDashboard = () => {
             </div>
           </div>
 
-          {/* Stats Grid */}
+          
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl gap-5">
-            {/* Total Sales */}
+            
             <div className="bg-white p-5 shadow-sm border-l-4 border-lime-500 ">
               <div className="flex items-center justify-between">
                 <div>
@@ -308,7 +308,7 @@ const ShopDashboard = () => {
               </div>
             </div>
 
-            {/* Today vs Yesterday Sales */}
+     
             {salesStats && (
               <div className="bg-white p-5 shadow-sm border-l-4 border-lime-500 ">
                 <div className="flex items-center justify-between">
@@ -326,7 +326,7 @@ const ShopDashboard = () => {
               </div>
             )}
 
-            {/* Total Orders */}
+            
             <div className="bg-white p-5 shadow-sm border-l-4 border-lime-500 ">
               <div className="flex items-center justify-between">
                 <div>
@@ -339,7 +339,7 @@ const ShopDashboard = () => {
               </div>
             </div>
 
-            {/* Today vs Yesterday Repairs */}
+            
             {repairsStats && (
               <div className="bg-white p-5 shadow-sm border-l-4 border-lime-500 ">
                 <div className="flex items-center justify-between">
@@ -357,7 +357,7 @@ const ShopDashboard = () => {
               </div>
             )}
 
-            {/* Total Repairs */}
+         
             <div className="bg-white p-5 shadow-sm border-l-4 border-lime-500">
               <div className="flex items-center justify-between">
                 <div>
@@ -371,9 +371,9 @@ const ShopDashboard = () => {
             </div>
           </div>
 
-          {/* Charts Section */}
+       
           <div className="grid grid-cols-1 lg:grid-cols-2 max-w-5xl gap-6">
-            {/* Sales Trend */}
+            
             <div className="bg-white p-5 shadow-sm rounded-lg border border-lime-100">
               <h3 className="text-lg font-bold text-black mb-4">
                 اتجاه المبيعات (أسبوعي)
@@ -383,7 +383,7 @@ const ShopDashboard = () => {
               </div>
             </div>
 
-            {/* Repairs Trend */}
+         
             <div className="bg-white p-5 shadow-sm rounded-lg border border-lime-100">
               <h3 className="text-lg font-bold text-black mb-4">
                 اتجاه التصليحات (أسبوعي)

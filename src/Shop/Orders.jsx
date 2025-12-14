@@ -29,7 +29,7 @@ const Orders = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
 
-  // Modal state
+ 
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [statusModalOrder, setStatusModalOrder] = useState(null);
   const [selectedNewStatus, setSelectedNewStatus] = useState('');
@@ -38,7 +38,7 @@ const Orders = () => {
 
   const ordersPerPage = 10;
 
-  // Close dropdown on outside click
+  
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target)) {
@@ -49,7 +49,7 @@ const Orders = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Status translations
+ 
   const statusTranslations = {
     PENDING: 'معلق',
     CONFIRMED: 'مؤكد',
@@ -63,7 +63,7 @@ const Orders = () => {
 
   const statuses = Object.keys(statusTranslations).filter((s) => s !== 'all');
 
-  // Next valid statuses
+
   const nextStatuses = {
     PENDING: ['CONFIRMED', 'CANCELLED'],
     CONFIRMED: ['PROCESSING'],
@@ -74,7 +74,7 @@ const Orders = () => {
     CANCELLED: [],
   };
 
-  // Status badge color
+
   const getStatusColor = (status) => {
     const map = {
       PENDING: 'bg-blue-100 text-blue-700',
@@ -88,7 +88,7 @@ const Orders = () => {
     return map[status] || 'bg-gray-100 text-gray-700';
   };
 
-  // Row background color
+  
   const getRowBgColor = (status) => {
     const map = {
       PENDING: 'hover:bg-blue-50',
@@ -102,7 +102,7 @@ const Orders = () => {
     return map[status] || 'hover:bg-gray-50';
   };
 
-  // Fetch orders
+
   const debouncedFetch = useMemo(
     () =>
       debounce((status, search) => {
@@ -141,7 +141,7 @@ const Orders = () => {
     return () => debouncedFetch.cancel();
   }, [debouncedFetch]);
 
-  // Accept Order
+
   const acceptOrder = async (orderId) => {
     const order = orders.find((o) => o.id === orderId);
     if (!order || order.status !== 'PENDING') return;
@@ -174,7 +174,7 @@ const Orders = () => {
     }
   };
 
-  // Reject Order
+  
   const rejectOrder = async (orderId) => {
     const { isConfirmed } = await Swal.fire({
       title: 'رفض الطلب؟',
@@ -203,14 +203,14 @@ const Orders = () => {
     }
   };
 
-  // Open Status Update Modal
+
   const openStatusUpdateModal = (order) => {
     setStatusModalOrder(order);
     setSelectedNewStatus('');
     setShowStatusModal(true);
   };
 
-  // Confirm Status Update
+  
   const confirmStatusUpdate = async () => {
     if (!statusModalOrder || !selectedNewStatus) return;
 
@@ -231,13 +231,13 @@ const Orders = () => {
     }
   };
 
-  // Open Details Modal
+
   const openDetailsModal = (order) => {
     setSelectedOrder(order);
     setShowDetailsModal(true);
   };
 
-  // Sorting & Filtering
+
   const sortedOrders = useMemo(() => {
     const list = [...orders];
     list.sort((a, b) => {
@@ -286,7 +286,7 @@ const Orders = () => {
   return (
     <>
       <div style={{ marginTop: '-575px', marginLeft: '-25px' }} className="min-h-screen max-w-6xl mx-auto p-4 lg:p-8 font-cairo bg-gradient-to-br from-gray-50 via-white to-white">
-        {/* Header */}
+        
         <div className="mb-8 text-right bg-white p-6 shadow-sm border-l-4 border-lime-500">
           <h1 className="text-3xl font-bold text-black mb-2 flex items-center justify-end gap-3">
             <RiShoppingBag3Line className="text-gray-500" /> الطلبات
@@ -294,7 +294,7 @@ const Orders = () => {
           <p className="text-sm text-gray-600">إدارة ومتابعة الطلبات بسهولة</p>
         </div>
 
-        {/* Stats */}
+        
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
           <div className="p-5 bg-white shadow-md hover:shadow-xl transition-all border-l-4 border-lime-500 group">
             <h3 className="text-lg font-semibold flex justify-end items-center gap-2 text-lime-700">
@@ -322,7 +322,7 @@ const Orders = () => {
           </div>
         </div>
 
-        {/* Filters */}
+       
         <div className="flex flex-col sm:flex-row justify-between flex-row-reverse items-center gap-4 mb-6 bg-white rounded-xl shadow-sm p-5 border ">
           <div className="relative w-full sm:w-72">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -363,7 +363,7 @@ const Orders = () => {
           </div>
         </div>
 
-        {/* Table */}
+      
         <div className="bg-white rounded-xl shadow-sm border  overflow-hidden">
           {loading ? (
             <div className="p-12 flex justify-center">
@@ -410,7 +410,7 @@ const Orders = () => {
                           <td className="px-4 py-4 text-xs">{o.paymentMethod || '—'}</td>
                           <td className="px-4 py-4 text-xs">{new Date(o.createdAt).toLocaleDateString('ar-EG')}</td>
 
-                          {/* Status Badge → Opens Modal */}
+                         
                           <td className="px-4 py-4 text-center">
                             <button
                               onClick={() => openStatusUpdateModal(o)}
@@ -423,7 +423,7 @@ const Orders = () => {
                             </button>
                           </td>
 
-                          {/* Actions */}
+                          
                           <td className="px-4 py-4">
                             <div className="flex items-center justify-center gap-2">
                               <button
@@ -475,7 +475,7 @@ const Orders = () => {
           )}
         </div>
 
-        {/* Pagination */}
+       
         {totalPages > 1 && (
           <div className="flex justify-center items-center gap-2 mt-6">
             <button
@@ -508,7 +508,7 @@ const Orders = () => {
           </div>
         )}
 
-        {/* Status Update Modal */}
+        
         {showStatusModal && statusModalOrder && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md font-cairo text-right">
@@ -570,7 +570,7 @@ const Orders = () => {
           </div>
         )}
 
-        {/* Details Modal */}
+        
         {showDetailsModal && selectedOrder && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-2xl max-h-screen overflow-y-auto font-cairo text-right">

@@ -64,7 +64,7 @@ const ShopProfile = ({ darkMode }) => {
   const [editingAddress, setEditingAddress] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // FETCH ALL DATA
+
   const fetchAllData = useCallback(async () => {
     if (!accessToken || !shopId || hasFetched.current) return;
     hasFetched.current = true;
@@ -119,7 +119,7 @@ const ShopProfile = ({ darkMode }) => {
     return () => controller.abort();
   }, [accessToken, shopId]);
 
-  // UPDATE SHOP
+ 
   const updateShop = useCallback(async () => {
     if (!accessToken || !shopId) return;
     setLoading(true);
@@ -143,7 +143,7 @@ const ShopProfile = ({ darkMode }) => {
     }
   }, [shop, accessToken, shopId, fetchAllData]);
 
-  // ADD ADDRESS
+  
   const addAddress = useCallback(async () => {
     if (!accessToken) return;
     if (!newAddress.state || !newAddress.city || !newAddress.street) {
@@ -163,7 +163,7 @@ const ShopProfile = ({ darkMode }) => {
     }
   }, [newAddress, accessToken, fetchAllData]);
 
-  // UPDATE ADDRESS
+
   const updateAddress = useCallback(async () => {
     if (!accessToken || !editingAddressId) return;
     try {
@@ -180,7 +180,7 @@ const ShopProfile = ({ darkMode }) => {
     }
   }, [editingAddressId, editingAddress, accessToken, fetchAllData]);
 
-  // DELETE ADDRESS
+
   const deleteAddress = useCallback(async (id) => {
     if (!accessToken) return;
     const res = await Swal.fire({
@@ -202,7 +202,7 @@ const ShopProfile = ({ darkMode }) => {
     }
   }, [accessToken, fetchAllData]);
 
-  // USE EFFECT
+  
   useEffect(() => {
     if (accessToken && shopId && !hasFetched.current) {
       fetchAllData();
@@ -210,7 +210,7 @@ const ShopProfile = ({ darkMode }) => {
     return () => { hasFetched.current = false; };
   }, [accessToken, shopId, fetchAllData]);
 
-  // NO TOKEN OR SHOP ID
+
   if (!accessToken || !shopId) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-lime-50 to-white flex items-center justify-center p-4">
@@ -226,7 +226,7 @@ const ShopProfile = ({ darkMode }) => {
     <div style={{marginTop:"-575px",marginLeft:"-300px"}} className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-lime-50 p-4 sm:p-6 md:p-8 font-cairo">
       <div className="max-w-7xl mx-auto  lg:ml-72 md:ml-64 sm:ml-20 ml-4 space-y-8">
 
-        {/* === 3 FEATURE CARDS === */}
+        
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl gap-6">
           <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 border  shadow-lg hover:shadow-xl transition-shadow">
             <div className="flex items-center text-right gap-3 mb-3">
@@ -259,11 +259,11 @@ const ShopProfile = ({ darkMode }) => {
           </div>
         </div>
 
-        {/* === FORM + DETAILS (SIDE BY SIDE) === */}
+        
         {loading ? <ShopProfileSkeleton /> : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-            {/* Update Form - max-w-6xl */}
+        
             <div className="lg:col-span-6 bg-white/90 backdrop-blur-sm rounded-2xl p-6 border shadow-lg">
               <h1 className="text-2xl font-bold text-lime-700 text-right justify-end mb-6 flex items-center gap-2">
                 <FiUser /> تحديث بيانات المتجر
@@ -305,7 +305,7 @@ const ShopProfile = ({ darkMode }) => {
               </div>
             </div>
 
-            {/* Shop Details - max-w-4xl */}
+            
             <div className="lg:col-span-4 bg-white/90 backdrop-blur-sm rounded-2xl p-6 border  shadow-lg">
               <h2 className="text-xl font-bold text-lime-700 mb-6 flex items-center justify-end gap-2">
                 <FiInfo /> تفاصيل المتجر
@@ -340,7 +340,7 @@ const ShopProfile = ({ darkMode }) => {
           </div>
         )}
 
-        {/* === ADDRESSES (FULL WIDTH) === */}
+        
         <div className="bg-white/90 max-w-4xl backdrop-blur-sm rounded-2xl p-6 border  shadow-lg">
           <h2 className="text-xl font-bold text-lime-700 mb-6 flex items-center gap-2">
             <FiMapPin /> الفروع والعناوين

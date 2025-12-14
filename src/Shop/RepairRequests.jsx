@@ -17,7 +17,7 @@ import ShopLayout from '../components/ShopLayout';
 import api from '../api';
 import debounce from 'lodash/debounce';
 
-// الانتقالات المسموحة فقط (بالإنجليزية كما في الـ backend)
+
 const nextStatuses = {
   SUBMITTED: ['QUOTE_SENT', 'CANCELLED'],
   // QUOTE_PENDING: ['QUOTE_SENT'],
@@ -32,7 +32,7 @@ const nextStatuses = {
   FAILED: [],
 };
 
-// ألوان الحالات فقط
+
 const getStatusColor = (status) => {
   const map = {
     SUBMITTED: 'bg-blue-100 text-blue-700',
@@ -50,7 +50,7 @@ const getStatusColor = (status) => {
   return map[status] || 'bg-gray-100 text-gray-700';
 };
 
-// تحسين الأداء: تجنب إعادة التصنيع غير الضروري
+
 const TableRow = memo(({ r, idx, openStatusModal, updatePrice, getStatusColor, nextStatuses }) => {
   const currentStatus = (r.status || '').toUpperCase();
   const hasNext = nextStatuses[currentStatus]?.length > 0;
@@ -156,7 +156,7 @@ const RepairRequests = () => {
   const dropdownRef = useRef(null);
   const itemsPerPage = 10;
 
-  // Accessibility + SEO: رأس الصفحة
+  
   useEffect(() => {
     document.title = 'طلبات التصليح | لوحة تحكم المتجر';
   }, []);
@@ -268,12 +268,12 @@ const RepairRequests = () => {
   const sortedAndFiltered = useMemo(() => {
     let list = [...repairs];
 
-    // فلترة الحالة
+   
     if (statusFilter !== 'all') {
       list = list.filter((r) => (r.status || '').toUpperCase() === statusFilter);
     }
 
-    // البحث
+ 
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       list = list.filter(
@@ -284,7 +284,7 @@ const RepairRequests = () => {
       );
     }
 
-    // الترتيب
+    
     if (sortConfig.key) {
       list.sort((a, b) => {
         const aVal = a[sortConfig.key] || '';
@@ -308,7 +308,7 @@ const RepairRequests = () => {
         className="min-h-screen max-w-6xl mx-auto p-4 lg:p-8 font-cairo bg-gradient-to-br from-gray-50 via-white to-white"
         aria-labelledby="repair-requests-title"
       >
-        {/* SEO + Accessibility */}
+      
         <header className='p-4 bg-white border-l-4 border-lime-500 text-right'>
           <h1 id="repair-requests-title" className="text-3xl font-bold text-gray-900 mb-2">
             طلبات التصليح
@@ -366,7 +366,7 @@ const RepairRequests = () => {
           </div>
         </section>
 
-        {/* الجدول مع تحسينات كبيرة */}
+        
         <section aria-label="قائمة طلبات التصليح">
           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
             {loading ? (
@@ -430,7 +430,7 @@ const RepairRequests = () => {
           </div>
         </section>
 
-        {/* Pagination بألوان teal + تحسينات a11y */}
+    
         {totalPages > 1 && (
           <nav className="flex justify-center items-center gap-2 mt-8" aria-label="التنقل بين الصفحات">
             <button
@@ -467,7 +467,7 @@ const RepairRequests = () => {
           </nav>
         )}
 
-        {/* مودال تغيير الحالة */}
+     
         {showStatusModal && statusModalRepair && (
           <div
             className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"

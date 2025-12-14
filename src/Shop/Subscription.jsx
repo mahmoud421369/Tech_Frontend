@@ -51,7 +51,7 @@ const Subscriptions = () => {
     type: type.toUpperCase(),
   }), [duration, type]);
 
-  // Fetch subscriptions
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -79,7 +79,7 @@ const Subscriptions = () => {
     return () => abortCtrlRef.current?.abort();
   }, []);
 
-  // Subscribe with Card (supports credit & redirect)
+ 
   const subscribeWithCard = async () => {
     const result = await Swal.fire({
       title: 'تأكيد الاشتراك',
@@ -110,7 +110,7 @@ const Subscriptions = () => {
       const { paymentURL, paymentId, message } = res.data;
 console.log(res.data);
       if (!paymentURL) {
-        // Paid with credit or already active
+        
         await Swal.fire({
           icon: 'success',
           title: 'تم بنجاح!',
@@ -121,7 +121,7 @@ console.log(res.data);
         return;
       }
 
-      // Redirect to payment gateway
+    
       await Swal.fire({
         icon: 'success',
         title: ' سيتم توجيهك الي الدفع',
@@ -137,7 +137,7 @@ console.log(res.data);
     }
   };
 
-  // Subscribe with Cash
+
   const subscribeWithCash = async () => {
     const result = await Swal.fire({
       title: 'طلب دفع نقدي',
@@ -185,7 +185,7 @@ console.log(res.data);
     <div dir="rtl" style={{ marginLeft: "-25px", marginTop: "-600px" }} className="min-h-screen max-w-6xl mx-auto p-4 lg:p-8 font-cairo bg-gradient-to-br from-gray-50 via-white to-white">
       <div className="max-w-5xl mx-auto">
 
-        {/* Header */}
+        
         <div className="mb-8 text-right bg-white p-6 shadow-sm border-l-4 border-lime-500">
           <h1 className="text-3xl font-bold text-black mb-2 flex items-center justify-start gap-3">
             <FaCalendar className="text-gray-500" />
@@ -194,7 +194,7 @@ console.log(res.data);
           <p className="text-sm text-gray-600">اختر خطتك أو جدد اشتراكك بسهولة</p>
         </div>
 
-        {/* Feature Cards */}
+        
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
           <div className="bg-white p-6 rounded-xl border shadow-sm hover:shadow-md transition group">
             <div className="flex items-center justify-start gap-3 mb-3">
@@ -227,7 +227,7 @@ console.log(res.data);
           </div>
         </div>
 
-        {/* Plan Card */}
+        
         <div className="max-w-lg mx-auto">
           <div className="rounded-xl p-8 shadow-lg bg-white border-2 border-lime-100">
             <div className="flex justify-center mb-6">
@@ -240,7 +240,7 @@ console.log(res.data);
               {hasActiveSub ? 'تجديد الاشتراك' : 'اشترك الآن'}
             </h2>
 
-            {/* Type Dropdown */}
+       
             <div className="mb-6">
               <label className="block text-sm font-medium text-black mb-2">نوع الاشتراك</label>
               <div className="relative">
@@ -269,7 +269,7 @@ console.log(res.data);
               </div>
             </div>
 
-            {/* Duration Dropdown */}
+          
             <div className="mb-8">
               <label className="block text-sm font-medium text-black mb-2">المدة</label>
               <div className="relative">
@@ -296,13 +296,13 @@ console.log(res.data);
               </div>
             </div>
 
-            {/* Total Price */}
+     
             <div className="text-center mb-8 p-6 bg-gradient-to-r from-lime-50 to-emerald-50 rounded-xl">
               <div className="text-5xl font-bold text-lime-600">{totalPrice} {CURRENCY}</div>
               <p className="text-gray-600 mt-2">{PRICE_PER_MONTH[type]} × {duration} شهر</p>
             </div>
 
-            {/* Action Buttons */}
+            
             <div className="grid grid-cols-2 gap-4">
               <button
                 onClick={subscribeWithCard}
@@ -322,9 +322,9 @@ console.log(res.data);
           </div>
         </div>
 
-        {/* Current & History */}
+     
         <div className="mt-12 grid md:grid-cols-2 gap-8">
-          {/* Current */}
+         
           <div className="bg-white p-6 rounded-xl shadow-sm border">
             <h2 className="text-xl font-bold mb-4">الاشتراك الحالي</h2>
             {loading ? (
@@ -349,7 +349,7 @@ console.log(res.data);
             )}
           </div>
 
-          {/* History */}
+         
           <div className="bg-white p-6 rounded-xl shadow-sm border">
             <h2 className="text-xl font-bold mb-4">سجل الاشتراكات</h2>
             {allSubs.length === 0 ? (

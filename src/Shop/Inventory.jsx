@@ -16,9 +16,7 @@ import api from '../api';
 const API_BASE = '/api/shop/inventory';
 const ROWS_PER_PAGE = 10;
 
-// ---------------------------------------------------------------------
-// Memoized Row – Lime Theme
-// ---------------------------------------------------------------------
+
 const InventoryRow = memo(({ item }) => {
   const isLow = item.stock <= (item.threshold || 0);
   const statusCls = isLow
@@ -43,9 +41,7 @@ const InventoryRow = memo(({ item }) => {
 });
 InventoryRow.displayName = 'InventoryRow';
 
-// ---------------------------------------------------------------------
-// Skeleton Row
-// ---------------------------------------------------------------------
+
 const SkeletonRow = memo(() => (
   <tr>
     {Array.from({ length: 5 }).map((_, i) => (
@@ -233,7 +229,7 @@ const Inventory = () => {
     <div dir="rtl" style={{ marginTop: "-575px", marginLeft: "-25px" }} className="min-h-screen max-w-6xl mx-auto p-4 lg:p-8 font-cairo bg-gradient-to-br from-gray-50 via-white to-gray-50">
       <div className="max-w-6xl mx-auto">
 
-        {/* Header */}
+        
         <div className="mb-8 text-right bg-white p-6 shadow-md border-l-4  border-lime-500">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-3">
@@ -247,7 +243,7 @@ const Inventory = () => {
             </div>
             <div className="flex gap-3">
 
-              {/* Import CSV Button */}
+             
               <button
                 onClick={triggerFileInput}
                 disabled={uploading}
@@ -257,7 +253,7 @@ const Inventory = () => {
                 {uploading ? 'جاري الرفع...' : 'استيراد CSV'}
               </button>
 
-              {/* Hidden File Input */}
+           
               <input
                 ref={fileInputRef}
                 type="file"
@@ -276,7 +272,7 @@ const Inventory = () => {
           </div>
         </div>
 
-        {/* Search */}
+    
         <div className="mb-6 max-w-md">
           <div className="relative">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" in />
@@ -289,7 +285,7 @@ const Inventory = () => {
           </div>
         </div>
 
-        {/* Stats Cards */}
+       
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
           <div className="p-5 bg-white shadow-md border-l-4 border-lime-500">
             <div className="flex items-center justify-start gap-3 mb-2">
@@ -324,7 +320,7 @@ const Inventory = () => {
           </div>
         </div>
 
-        {/* Table */}
+      
         <div className="bg-white rounded-xl shadow-sm border ">
           {loading ? (
             <table className="min-w-full">
@@ -381,7 +377,7 @@ const Inventory = () => {
           )}
         </div>
 
-        {/* Pagination */}
+    
         {!loading && totalPages > 1 && (
           <div className="flex justify-center items-center gap-2 mt-6">
             <button

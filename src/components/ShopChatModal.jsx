@@ -26,7 +26,7 @@ const ShopChatModal = memo(({ open, onClose }) => {
   const typingTimeoutRef = useRef(null);
   const subscriptionRef = useRef({ topic: null, queue: null, typing: null });
 
-  // Fetch sessions
+  
   const fetchSessions = useCallback(async () => {
     const controller = new AbortController();
     try {
@@ -50,7 +50,7 @@ const ShopChatModal = memo(({ open, onClose }) => {
     return () => controller.abort();
   }, []);
 
-  // Fetch messages
+ 
   const fetchMessages = useCallback(async () => {
     if (!activeSession) return;
     setIsLoadingMessages(true);
@@ -80,7 +80,7 @@ const ShopChatModal = memo(({ open, onClose }) => {
     return () => controller.abort();
   }, [activeSession]);
 
-  // Initialize WebSocket
+
   useEffect(() => {
     if (!open) return;
 
@@ -113,7 +113,7 @@ const ShopChatModal = memo(({ open, onClose }) => {
     };
   }, [open, fetchSessions]);
 
-  // Send pending messages on reconnect
+  
   useEffect(() => {
     if (isConnected && pendingMessages.length > 0 && stompClient && activeSession) {
       pendingMessages.forEach(({ input, sessionId }) => {
@@ -136,7 +136,7 @@ const ShopChatModal = memo(({ open, onClose }) => {
     }
   }, [isConnected, pendingMessages, stompClient, activeSession, shopProfile.email]);
 
-  // Subscribe to shared topic + private queue + typing
+  
   useEffect(() => {
     if (!stompClient || !isConnected || !activeSession) return;
 
@@ -163,20 +163,20 @@ const ShopChatModal = memo(({ open, onClose }) => {
       }
     };
 
-    // Shared topic
+    
     const topicSub = stompClient.subscribe(
       `/topic/chat/${activeSession.id}`,
       handleIncomingMessage
     );
 
-    // Private queue
+    
     const queueSub = stompClient.subscribe(
       `/user/${shopProfile.email}/queue/chat/messages/${activeSession.id}`,
       handleIncomingMessage,
       { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
     );
 
-    // Typing indicator
+    
     const typingSub = stompClient.subscribe(
       `/user/${shopProfile.email}/queue/chat/typing/${activeSession.id}`,
       () => {
@@ -197,7 +197,7 @@ const ShopChatModal = memo(({ open, onClose }) => {
     };
   }, [stompClient, isConnected, activeSession, shopProfile.email, fetchMessages]);
 
-  // Send typing event
+ 
   const sendTypingEvent = useCallback(() => {
     if (stompClient && isConnected && activeSession) {
       stompClient.publish({
@@ -208,7 +208,7 @@ const ShopChatModal = memo(({ open, onClose }) => {
     }
   }, [stompClient, isConnected, activeSession]);
 
-  // Send message
+  
   const sendMessage = useCallback(() => {
     if (!input.trim() || !activeSession) return;
 
@@ -281,7 +281,7 @@ const ShopChatModal = memo(({ open, onClose }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
       <div className="bg-white w-full max-w-5xl h-[80vh] rounded-2xl shadow-2xl flex overflow-hidden ">
-        {/* Sessions List */}
+      
         <div className="w-full sm:w-80 bg-gradient-to-b from-gray-500 to-white flex flex-col border-r border-lime-300">
           <div className="flex items-center justify-between flex-row-reverse p-5 border-b border-lime-400 bg-lime-600">
             <h2 className="text-xl font-bold text-white text-right">محادثات العملاء</h2>
@@ -338,7 +338,7 @@ const ShopChatModal = memo(({ open, onClose }) => {
           )}
         </div>
 
-        {/* Chat Area */}
+       
         <div className="flex-1 flex flex-col bg-gray-50">
           {activeSession ? (
             <>
