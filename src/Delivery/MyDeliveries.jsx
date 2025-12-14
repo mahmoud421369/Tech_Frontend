@@ -3,7 +3,9 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
   FiPackage, FiMapPin, FiDollarSign, FiClock,
-  FiTruck, FiCheckCircle, FiHome, FiUser
+  FiTruck, FiCheckCircle, FiHome, FiUser,
+  FiPhone,
+  FiUserPlus
 } from "react-icons/fi";
 import { getMyDeliveries, updateOrderStatus } from "../api/deliveryApi";
 
@@ -58,7 +60,7 @@ const MyDeliveries = () => {
     <>
       <ToastContainer position="top-right" theme={document.documentElement.classList.contains("dark") ? "dark" : "light"} />
 
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-950 dark:to-emerald-950/30 pt-24 pb-12 px-4">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-950 pt-24 pb-12 px-4">
         <div className="max-w-7xl mx-auto">
 
        
@@ -114,7 +116,7 @@ const MyDeliveries = () => {
                     <div className={`h-2 bg-gradient-to-r ${getStatusStyle(order.status)}`} />
 
                     <div className="p-7">
-                      <div className="flex justify-between items-start mb-5">
+                      <div className="flex justify-between flex-wrap items-start mb-5">
                         <h3 className="text-2xl font-bold text-gray-800 dark:text-white">
                           #{order.id?.slice(-8)}
                         </h3>
@@ -124,12 +126,35 @@ const MyDeliveries = () => {
                       </div>
 
                       <div className="space-y-4 text-sm">
+
+ <div className="flex items-start gap-3 text-gray-700 dark:text-gray-300">
+                          <FiUserPlus className="text-emerald-600 mt-1" size={18} />
+                          <div>
+                            <div className="font-medium">Customer Name</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {order.firstName} {order.lastName}
+                            </div>
+                          </div>
+                        </div>
+
+                          <div className="flex items-start gap-3 text-gray-700 dark:text-gray-300">
+                          <FiPhone className="text-emerald-600 mt-1" size={18} />
+                          <div>
+                            <div className="font-medium">Customer Phone</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {order.phone} 
+                            </div>
+                          </div>
+                        </div>
+
+
+
                         <div className="flex items-start gap-3 text-gray-700 dark:text-gray-300">
                           <FiUser className="text-emerald-600 mt-1" size={18} />
                           <div>
-                            <div className="font-medium">Customer</div>
+                            <div className="font-medium">Customer Address</div>
                             <div className="text-xs text-gray-500 dark:text-gray-400">
-                              {order.userAddress?.street}, {order.userAddress?.city}
+                              {order.userAddress?.street}, {order.userAddress?.city},{order.userAddress?.state}
                             </div>
                           </div>
                         </div>
@@ -139,7 +164,7 @@ const MyDeliveries = () => {
                           <div>
                             <div className="font-medium">Pickup From</div>
                             <div className="text-xs text-gray-500 dark:text-gray-400">
-                              {order.shopAddress?.street}, {order.shopAddress?.city}
+                              {order.shopAddress?.street}, {order.shopAddress?.city}, {order.shopAddress?.state}
                             </div>
                           </div>
                         </div>
@@ -165,7 +190,7 @@ const MyDeliveries = () => {
                         ) : (
                           <button
                             onClick={() => markAsDelivered(order.id)}
-                            className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-3"
+                            className="w-full py-4 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-3"
                           >
                             <FiCheckCircle size={22} />
                             Mark as Delivered

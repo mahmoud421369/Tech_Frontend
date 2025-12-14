@@ -144,7 +144,7 @@ const AssignerProfile = ({ darkMode }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-950 dark:to-emerald-950/30 pt-6 lg:pl-72 transition-all duration-500">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-950 pt-6 lg:pl-72 transition-all duration-500">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
         
@@ -153,7 +153,7 @@ const AssignerProfile = ({ darkMode }) => {
             <div className="p-5 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl text-white shadow-2xl">
               <FiUser size={40} />
             </div>
-            My Profile
+            My Profile,<span className='text-5xl text-teal-600 font-bold'>{profile.displayName}</span> 
           </h1>
           <p className="mt-4 text-lg text-gray-600 dark:text-gray-400">
             Manage your assigner account and view performance stats
@@ -162,7 +162,7 @@ const AssignerProfile = ({ darkMode }) => {
 
        
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-          <div className="group bg-white dark:bg-gray-900 rounded-3xl shadow-xl p-8 border border-gray-200 dark:border-gray-800 hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
+          {/* <div className="group bg-white dark:bg-gray-900 rounded-3xl shadow-xl p-8 border border-gray-200 dark:border-gray-800 hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-500 dark:text-gray-400 text-sm">Total Assignments</p>
@@ -188,7 +188,7 @@ const AssignerProfile = ({ darkMode }) => {
                 <FiCalendar className="text-amber-600 dark:text-amber-400" size={32} />
               </div>
             </div>
-          </div>
+          </div> */}
 
           <div className="group bg-white dark:bg-gray-900 rounded-3xl shadow-xl p-8 border border-gray-200 dark:border-gray-800 hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
             <div className="flex items-center justify-between">

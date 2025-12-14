@@ -144,11 +144,11 @@ const RepairRequest = ({ darkMode }) => {
     }));
   };
 
-  // === SKELETON LOADER ===
+  
   if (isLoading) {
     return (
       <div className={`min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"} pt-16`}>
-        {/* Hero Skeleton */}
+       
         <section className="relative overflow-hidden">
           <div className="max-w-7xl mx-auto px-6 py-16 md:py-24">
             <div className="grid md:grid-cols-2 gap-12 items-center">
@@ -176,7 +176,7 @@ const RepairRequest = ({ darkMode }) => {
           </div>
         </section>
 
-        {/* Form Skeleton */}
+       
         <div className="max-w-4xl mx-auto px-6 py-12">
           <div className="bg-white/30 dark:bg-gray-800/30 backdrop-blur-md rounded-3xl p-8 shadow-xl animate-pulse">
             <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-xl mb-6"></div>
@@ -197,11 +197,11 @@ const RepairRequest = ({ darkMode }) => {
 
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'} pt-16`}>
-      {/* === HERO SECTION - MONOTREE STYLE === */}
+     
       <section className="relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-6 py-16 md:py-24">
           <div className="grid md:grid-cols-2 gap-12 items-center">
-            {/* Left: Text */}
+           
             <div className="space-y-6">
               <h1 className="text-5xl md:text-6xl font-bold leading-tight">
                 Repair <span className="underline decoration-lime-500 decoration-4">with ease</span>
@@ -210,7 +210,7 @@ const RepairRequest = ({ darkMode }) => {
                 Fast, reliable repair services. Choose your delivery, payment, and get it fixed in no time.
               </p>
 
-              {/* CTA */}
+             
               <div className="flex flex-col sm:flex-row gap-3 max-w-md">
                 <input
                   type="text"
@@ -222,7 +222,7 @@ const RepairRequest = ({ darkMode }) => {
                 </button>
               </div>
 
-              {/* Stats */}
+              
               <div className="grid grid-cols-3 gap-6 pt-8">
                 <div>
                   <div className="text-3xl font-bold text-lime-600 dark:text-lime-400 flex items-center gap-1">
@@ -245,7 +245,7 @@ const RepairRequest = ({ darkMode }) => {
               </div>
             </div>
 
-            {/* Right: 3D Illustration */}
+           
             <div className="relative hidden md:block">
               <div className="relative w-full h-96">
                 <div className="absolute inset-0 bg-gradient-to-br from-lime-100 to-teal-100 dark:from-lime-900 dark:to-teal-900 rounded-3xl blur-3xl opacity-50"></div>
@@ -287,7 +287,7 @@ const RepairRequest = ({ darkMode }) => {
         </div>
       </section>
 
-      {/* === REPAIR FORM (Mono-tree Style) === */}
+      
       <div className="max-w-4xl mx-auto px-6 py-12">
         <button
           onClick={() => navigate('/account')}
@@ -302,7 +302,7 @@ const RepairRequest = ({ darkMode }) => {
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Delivery Address */}
+           
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Delivery Address
@@ -347,7 +347,7 @@ const RepairRequest = ({ darkMode }) => {
               </div>
             </div>
 
-            {/* Delivery Method */}
+           
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Delivery Method
@@ -384,7 +384,7 @@ const RepairRequest = ({ darkMode }) => {
               </div>
             </div>
 
-            {/* Payment Method */}
+          
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Payment Method
@@ -421,7 +421,7 @@ const RepairRequest = ({ darkMode }) => {
               </div>
             </div>
 
-            {/* Buttons */}
+            
             <div className="flex gap-4">
               <button
                 type="submit"
@@ -441,8 +441,8 @@ const RepairRequest = ({ darkMode }) => {
         </div>
       </div>
 
-      {/* === COOKIE BANNER === */}
-      {showCookieBanner && (
+     
+      {/* {showCookieBanner && (
         <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 shadow-lg z-50">
           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
@@ -455,7 +455,7 @@ const RepairRequest = ({ darkMode }) => {
             </div>
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 };

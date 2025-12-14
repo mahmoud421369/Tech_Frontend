@@ -29,7 +29,7 @@ const OfferCard = ({ offer, darkMode }) => {
 
   return (
     <GlassCard className="h-60 flex flex-col justify-between min-w-[280px] sm:min-w-[320px] mx-2">
-      {/* Discount Badge */}
+      
       {offer.discountValue && (
         <div className="absolute top-3 -left-3 bg-gradient-to-r from-lime-500 to-lime-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1">
           <FiTag className="w-3 h-3" />
@@ -97,7 +97,7 @@ const OffersSlider = ({ darkMode }) => {
 
   const scrollToIndex = (index) => {
     if (!sliderRef.current || offers.length === 0) return;
-    const cardWidth = sliderRef.current.offsetWidth / 3 + 16; // including gap
+    const cardWidth = sliderRef.current.offsetWidth / 3 + 16; 
     const targetScroll = index * cardWidth;
     sliderRef.current.scrollTo({ left: targetScroll, behavior: 'smooth' });
     setCurrentIndex(index);
@@ -114,14 +114,14 @@ const OffersSlider = ({ darkMode }) => {
     scrollToIndex(prevIndex);
   };
 
-  // Auto-slide every 5 seconds
+  
   useEffect(() => {
     if (isLoading || offers.length === 0) return;
     const interval = setInterval(goNext, 5000);
     return () => clearInterval(interval);
   }, [currentIndex, isLoading, offers.length]);
 
-  // Sync currentIndex with scroll position
+ 
   useEffect(() => {
     if (!sliderRef.current) return;
     const handleScroll = () => {
@@ -157,7 +157,7 @@ const OffersSlider = ({ darkMode }) => {
     );
   }
 
-  const totalSlides = Math.max(1, offers.length - 2); // 3 cards visible → slides = total - 2
+  const totalSlides = Math.max(1, offers.length - 2); 
 
   return (
     <section className={`py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
@@ -171,7 +171,7 @@ const OffersSlider = ({ darkMode }) => {
           </p>
         </div>
 
-        {/* Carousel Container */}
+       
         <div className="relative overflow-hidden">
           <div
             ref={sliderRef}
@@ -189,7 +189,7 @@ const OffersSlider = ({ darkMode }) => {
             ))}
           </div>
 
-          {/* Navigation Arrows */}
+          
           <button
             onClick={goPrev}
             className={`absolute left-2 top-1/2 -translate-y-1/2 p-3 rounded-full backdrop-blur-xl transition-all ${
@@ -212,7 +212,7 @@ const OffersSlider = ({ darkMode }) => {
           </button>
         </div>
 
-        {/* Pagination Dots - Large & Active Wider */}
+        
         <div className="flex justify-center gap-3 mt-8">
           {Array.from({ length: totalSlides }, (_, i) => (
             <button

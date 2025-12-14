@@ -151,13 +151,13 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
         </Link>
 
         
-        <div className="flex gap-3">
+        <div className="flex items-center justify-center gap-3">
           {navItems.map((item) => (
             <NavLink
               key={item.name}
               to={item.path}
               className={({ isActive }) => `
-                flex items-center gap-3 px-6 py-3.5 rounded-2xl font-semibold text-sm transition-all duration-300
+                flex items-center justify-center gap-3 px-6 py-3.5 rounded-2xl font-semibold text-sm transition-all duration-300
                 ${isActive 
                   ? "bg-gradient-to-r from-lime-500 to-lime-600 text-white rounded-3xl shadow-lg shadow-emerald-500/50" 
                   : darkMode 

@@ -149,7 +149,7 @@ const DeliveryHeader = () => {
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                    Delivery Portal
+                    Delivery 
                   </h1>
                   <p className="text-xs text-gray-500 dark:text-gray-400">Fast • Reliable • Trusted</p>
                 </div>

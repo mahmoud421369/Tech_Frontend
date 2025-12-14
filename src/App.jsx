@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Footer, Navbar, RepairDetailsModal, ServiceModal, AssignerHeader, Modal, DeliveryHeader } from './components';
 import { Login, Signup, LoginSuccess, SuccessGoogle } from './Auth';
 import { Repair, Explore, Track, Account, Homepage, Cart, DeviceDetail, Offers, RepairRequest, Devices, Stores } from './User';
-import {Notifications, Header, Shops, Users, Reviews, Category, Deliveries, Assigners, AdminOffers, AdminRepairRequests, AdminProducts, AdminAssignmentLogs, AdminSubscriptions, AdminTransactions } from './Admin';
+import { Header, Shops, Users, Reviews, Category, Deliveries, Assigners, AdminOffers, AdminRepairRequests, AdminProducts, AdminAssignmentLogs, AdminSubscriptions, AdminTransactions } from './Admin';
 import  Dashboard  from './Admin/Dashboard';
 import { AssignerDashboard, DeliveryPersons, AssignerProfile, AssignedOrders, AssignedRepairs, AssignmentLogs, ReassignRepairs, ReassignOrders, OrdersForAssignment, RepairsForAssignment } from './Assigner';
 import { DeliveryDashboard, DeliveryProfile, MyDeliveries, MyRepairs, AvailableOrders, AvailableRepairs } from './Delivery';
@@ -153,8 +153,6 @@ function App() {
         <Route path="/repair-shops" element={withAdminLayout(Shops)} />
         <Route path="/shop/subscriptions" element={withAdminLayout(AdminSubscriptions)} />
         <Route path="/admin/transactions" element={withAdminLayout(AdminTransactions)} />
-
-
         <Route path="/users" element={withAdminLayout(Users)} />
         <Route path="/admin/offers" element={withAdminLayout(AdminOffers)} />
         <Route path="/category" element={withAdminLayout(Category)} />
@@ -164,7 +162,8 @@ function App() {
         <Route path="/admin/repair-requests" element={withAdminLayout(AdminRepairRequests)} />
         <Route path="/admin/products" element={withAdminLayout(AdminProducts)} />
         <Route path="/admin/assignment-logs" element={withAdminLayout(AdminAssignmentLogs)} />
-        <Route path="/notifications" element={withAdminLayout(Notifications)} />
+     
+
         {/* Assigner Routes */}
         <Route path="/assigner-dashboard" element={withAssignerLayout(AssignerDashboard)} />
         <Route path="/assigner/profile" element={withAssignerLayout(AssignerProfile)} />

@@ -25,6 +25,7 @@ const Products = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showStockModal, setShowStockModal] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [newStockValue, setNewStockValue] = useState('');
   const [categories, setCategories] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -49,7 +50,7 @@ const Products = () => {
 
   const productsPerPage = 10;
   const conditions = ['NEW', 'USED', 'REFURBISHED'];
-
+  const count = filteredProducts.length
   const conditionTranslations = {
     NEW: 'جديد',
     USED: 'مستعمل',
@@ -201,9 +202,12 @@ const Products = () => {
     }
   }, [newProduct, fetchProducts]);
 
-  // Open Edit Modal
-  const openEditModal = (product) => {
-    setEditingProduct({ ...product, stockQuantity: product.stock });
+ const openEditModal = (product) => {
+    setEditingProduct({
+      ...product,
+      stockQuantity: product.stock,
+      category: { id: product.categoryId, name: product.categoryName || '' }
+    });
     setShowEditModal(true);
     setOpenMenu(null);
   };
@@ -283,7 +287,7 @@ const Products = () => {
   return (
     <ShopLayout>
       <div style={{ marginLeft: "-25px", marginTop: "-1225px" }} className="min-h-screen max-w-6xl mx-auto p-4 lg:p-8 font-cairo bg-gradient-to-br from-gray-50 via-white to-white">
-        {/* Header */}
+        
         <div className="mb-8 text-right bg-white p-6 shadow-md border-l-4 border-lime-500">
           <h1 className="text-3xl font-bold text-black mb-2 flex items-center justify-end gap-3">
             <FiBox className="text-gray-500" /> المنتجات
@@ -291,8 +295,177 @@ const Products = () => {
           <p className="text-sm text-gray-600">إدارة كاملة لمنتجات متجرك</p>
         </div>
 
-        {/* Add Form */}
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-8 border border-lime-100">
+        {/* زر إضافة منتج جديد في الأعلى */}
+      <div className="mb-8 flex justify-between items-center bg-white border p-5 rounded-xl text-right">
+        <button
+          onClick={() => {
+            setNewProduct({
+              name: '', description: '', price: '', imageUrl: '',
+              category: { id: '', name: '' }, stockQuantity: '', condition: 'NEW'
+            });
+            setShowAddModal(true);
+          }}
+          className="px-8 py-3 bg-lime-500 text-white font-bold rounded-xl hover:bg-lime-600 transition shadow-lg flex items-center gap-2"
+        >
+          إضافة منتج جديد
+          <FiBox className="w-5 h-5" />
+          
+        </button>
+        <p className="text-teal-600 font-bold text-lg">{count} عدد المنتجات : </p>
+      </div>
+
+      {/* مودال إضافة أو تعديل المنتج */}
+      {(showAddModal || showEditModal) && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
+          <div
+            ref={modalRef}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-screen overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-8">
+              <div className="flex justify-between items-center mb-8 flex-row-reverse">
+                <h2 className="text-2xl font-bold text-black">
+                  {showEditModal ? 'تعديل المنتج' : 'إضافة منتج جديد'}
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setShowEditModal(false);
+                    setEditingProduct(null);
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-full transition"
+                >
+                  <FiX className="w-6 h-6 text-gray-600" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* الحقول */}
+                {['name', 'description', 'price', 'imageUrl', 'stockQuantity'].map((field) => {
+                  const labels = {
+                    name: 'اسم المنتج *',
+                    description: 'وصف المنتج',
+                    price: 'السعر (ج.م) *',
+                    imageUrl: 'رابط الصورة',
+                    stockQuantity: 'الكمية في المخزون *'
+                  };
+
+                  const currentProduct = showEditModal ? editingProduct : newProduct;
+
+                  return (
+                    <div key={field} className="relative">
+                      <input
+                        type={field === 'price' || field === 'stockQuantity' ? 'number' : 'text'}
+                        value={currentProduct[field] || ''}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (showEditModal) {
+                            setEditingProduct({ ...editingProduct, [field]: value });
+                          } else {
+                            setNewProduct({ ...newProduct, [field]: value });
+                          }
+                        }}
+                        className="peer w-full px-4 py-4 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-lime-500 focus:border-lime-500 outline-none text-right text-black"
+                        placeholder=" "
+                      />
+                      <label className="absolute right-4 top-2 text-sm text-gray-500 peer-focus:text-lime-600 peer-focus:top-2 peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 transition-all">
+                        {labels[field]}
+                      </label>
+                    </div>
+                  );
+                })}
+
+                {/* الحالة */}
+                <div className="relative" ref={addConditionRef}>
+                  <button
+                    onClick={() => setIsAddConditionOpen(!isAddConditionOpen)}
+                    className="w-full px-4 py-4 bg-gray-50 border rounded-xl flex justify-between items-center text-right font-medium"
+                  >
+                    <span>{conditionTranslations[(showEditModal ? editingProduct : newProduct).condition] || 'اختر الحالة'}</span>
+                    <FiChevronDown className={`transition ${isAddConditionOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {isAddConditionOpen && (
+                    <div className="absolute z-30 mt-2 w-full bg-white border border-lime-200 rounded-xl shadow-xl shadow-lg">
+                      {conditions.map((c) => (
+                        <button
+                          key={c}
+                          onClick={() => {
+                            const val = c;
+                            if (showEditModal) {
+                              setEditingProduct({ ...editingProduct, condition: val });
+                            } else {
+                              setNewProduct({ ...newProduct, condition: val });
+                            }
+                            setIsAddConditionOpen(false);
+                          }}
+                          className="w-full px-4 py-3 text-right hover:bg-lime-50 transition"
+                        >
+                          {conditionTranslations[c]}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* الفئة */}
+                <div className="relative" ref={addCategoryRef}>
+                  <button
+                    onClick={() => setIsAddCategoryOpen(!isAddCategoryOpen)}
+                    className="w-full px-4 py-4 bg-gray-50 border rounded-xl flex justify-between items-center text-right font-medium"
+                  >
+                    <span>{(showEditModal ? editingProduct.category?.name : newProduct.category?.name) || 'اختر الفئة *'}</span>
+                    <FiChevronDown className={`transition ${isAddCategoryOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {isAddCategoryOpen && (
+                    <div className="absolute z-30 mt-2 w-full bg-white border border-lime-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
+                      {categories.map((cat) => (
+                        <button
+                          key={cat.id}
+                          onClick={() => {
+                            const selected = { id: cat.id, name: cat.name };
+                            if (showEditModal) {
+                              setEditingProduct({ ...editingProduct, category: selected });
+                            } else {
+                              setNewProduct({ ...newProduct, category: selected });
+                            }
+                            setIsAddCategoryOpen(false);
+                          }}
+                          className="w-full px-4 py-3 text-right hover:bg-lime-50 transition"
+                        >
+                          {cat.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-8 flex justify-end gap-4">
+                <button
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setShowEditModal(false);
+                    setEditingProduct(null);
+                  }}
+                  className="px-8 py-3 bg-gray-200 text-gray-800 rounded-xl hover:bg-gray-300 transition"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={showEditModal ? updateProduct : addProduct}
+                  disabled={loading}
+                  className="px-8 py-3 bg-lime-500 text-white font-bold rounded-xl hover:bg-lime-600 transition disabled:opacity-70 flex items-center gap-2"
+                >
+                  {loading ? 'جاري الحفظ...' : (showEditModal ? 'حفظ التعديلات' : 'إضافة المنتج')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+   
+        {/* <div className="bg-white rounded-xl shadow-sm p-6 mb-8 border border-lime-100">
           <h2 className="text-xl font-bold text-black mb-6 flex items-center justify-end gap-2">
             <FiBox className="text-gray-500" /> إضافة منتج جديد
           </h2>
@@ -323,7 +496,7 @@ const Products = () => {
               );
             })}
 
-            {/* Add: Condition Dropdown */}
+   
             <div className="relative" ref={addConditionRef}>
               <button
                 onClick={() => setIsAddConditionOpen(!isAddConditionOpen)}
@@ -350,7 +523,7 @@ const Products = () => {
               )}
             </div>
 
-            {/* Add: Category Dropdown */}
+       
             <div className="relative" ref={addCategoryRef}>
               <button
                 onClick={() => setIsAddCategoryOpen(!isAddCategoryOpen)}
@@ -386,7 +559,7 @@ const Products = () => {
               إضافة المنتج
             </button>
           </div>
-        </div>
+        </div> */}
 
         {/* Products Table */}
         <div className="bg-white rounded-xl shadow-sm p-6 border ">
@@ -493,12 +666,12 @@ const Products = () => {
                         <td className="px-4 py-4">
                           <div className="flex items-center justify-end gap-3">
                             <button
-                              onClick={() => openEditModal(p)}
-                              className="flex items-center gap-1 text-amber-700 hover:text-amber-800 bg-amber-100 rounded-lg px-2 py-1 transition text-xs"
-                            >
-                              <FiEdit3 className="w-4 h-4" />
-                              <span>تعديل</span>
-                            </button>
+  onClick={() => openEditModal(p)}
+  className="flex items-center gap-1 text-amber-700 hover:text-amber-800 bg-amber-100 rounded-lg px-3 py-2 transition text-sm font-medium"
+>
+  <FiEdit3 className="w-4 h-4" />
+  تعديل
+</button>
 
                             <button
                               onClick={() => openStockModal(p.id, p.stock)}

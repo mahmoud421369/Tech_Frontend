@@ -191,7 +191,7 @@ const ProductsPage = ({ darkMode }) => {
   const [products, setProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all'); // all, inStock, outOfStock
+  const [filter, setFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [categories, setCategories] = useState([]);
@@ -374,7 +374,7 @@ const ProductsPage = ({ darkMode }) => {
   }, [fetchProducts]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-14">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-16 ml-3">
       <div className="max-w-7xl mx-auto space-y-8">
 
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
@@ -512,13 +512,13 @@ const ProductsPage = ({ darkMode }) => {
                       <div className="flex justify-center gap-2">
                         <button
                           onClick={() => updateProduct(p)}
-                          className="px-3 py-1.5 text-xs bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded hover:bg-emerald-200 dark:hover:bg-emerald-800 transition"
+                          className="px-3 py-1.5 text-xs bg-emerald-50 border border-gray-200 font-semibold dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded hover:bg-emerald-200 dark:hover:bg-emerald-800 transition"
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => deleteProduct(p.id)}
-                          className="px-3 py-1.5 text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-800 transition"
+                          className="px-3 py-1.5 text-xs bg-red-50 border border-gray-200 font-semibold dark:bg-red-900 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-800 transition"
                         >
                           Delete
                         </button>

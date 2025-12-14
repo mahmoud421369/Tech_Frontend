@@ -15,17 +15,17 @@ import {
 } from 'chart.js';
 import { Bar, Pie } from 'react-chartjs-2';
 
-// Register Chart.js components
+
 Chart.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
-// Loading Spinner
+
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center h-64">
     <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
   </div>
 );
 
-// Skeleton Loader
+
 const DashboardSkeleton = ({ darkMode }) => (
   <div className="animate-pulse p-4 sm:p-6">
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
@@ -52,14 +52,14 @@ const DashboardSkeleton = ({ darkMode }) => (
   </div>
 );
 
-// Main Dashboard Component
+
 const Dashboard = ({ darkMode }) => {
   const navigate = useNavigate();
   const token = localStorage.getItem('authToken');
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Copy to clipboard
+
   const copyToClipboard = useCallback((value, label) => {
     navigator.clipboard.writeText(value).then(
       () => {
@@ -88,7 +88,7 @@ const Dashboard = ({ darkMode }) => {
     );
   }, [darkMode]);
 
-  // Fetch stats
+
   const fetchStats = useCallback(async () => {
     if (!token) {
       Swal.fire({ title: 'Error', text: 'Please log in.', icon: 'error' });
@@ -124,7 +124,7 @@ const Dashboard = ({ darkMode }) => {
     fetchStats();
   }, [fetchStats]);
 
-  // Chart Data
+  
   const chartLabels = ['Users', 'Shops', 'Repair Requests', 'Orders'];
   const chartValues = [stats?.users || 0, stats?.shops || 0, stats?.repairs || 0, stats?.orders || 0];
 
@@ -190,10 +190,10 @@ const Dashboard = ({ darkMode }) => {
   const pieOptions = { ...chartOptions, plugins: { ...chartOptions.plugins, title: { text: 'Data Distribution' } } };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-16">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-16 ml-3">
       <div className="max-w-7xl mx-auto">
 
-        {/* Header */}
+     
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 mb-8 border border-gray-200 dark:border-gray-700">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-3 text-emerald-700 dark:text-emerald-400">
@@ -205,7 +205,7 @@ const Dashboard = ({ darkMode }) => {
           </div>
         </div>
 
-        {/* Loading / Error */}
+      
         {loading ? (
           <DashboardSkeleton darkMode={darkMode} />
         ) : !stats ? (
@@ -216,7 +216,7 @@ const Dashboard = ({ darkMode }) => {
           </div>
         ) : (
           <>
-            {/* Stats Cards */}
+            
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
               {[
                 { title: 'Total Users', value: stats.users, icon: FiUsers, color: 'emerald' },
@@ -250,7 +250,7 @@ const Dashboard = ({ darkMode }) => {
               ))}
             </div>
 
-            {/* Charts */}
+          
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-200 dark:border-gray-700 h-80 sm:h-96">
                 <Bar data={barChartData} options={barOptions} />
@@ -266,5 +266,5 @@ const Dashboard = ({ darkMode }) => {
   );
 };
 
-// CORRECT EXPORT
+
 export default Dashboard;

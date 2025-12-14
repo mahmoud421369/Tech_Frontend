@@ -41,7 +41,7 @@ const Login = () => {
     setShowPassword((prev) => !prev);
   }, []);
 
-  // --- EGYPT CONFIG ---
+  
   const CURRENCY = "EGP";
   const PRICE_PER_MONTH = 1200;
   const DURATION = 1;
@@ -60,7 +60,7 @@ const Login = () => {
 
   const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-  // --- RENEW CARD ---
+  
   const renewCard = async (shopEmail) => {
     if (!validateEmail(shopEmail)) {
       Swal.fire("Error", "Invalid email address", "error");
@@ -99,6 +99,8 @@ const Login = () => {
         title: "Payment Created",
         text: `Payment ID: ${res.data.paymentId}`,
         timer: 3000,
+           toast:true,
+        position:"top-end",
         showConfirmButton: false,
       });
 
@@ -107,12 +109,14 @@ const Login = () => {
       Swal.fire({
         icon: "error",
         title: "Payment Failed",
+           toast:true,
+        position:"top-end",
         text: "Could not create card payment",
       });
     }
   };
 
-  // --- RENEW CASH ---
+ 
   const renewCash = async (shopEmail) => {
     if (!validateEmail(shopEmail)) {
       Swal.fire("Error", "Invalid email address", "error");
@@ -144,12 +148,16 @@ const Login = () => {
         title: "Request Sent",
         text: "Cash payment request submitted successfully",
         timer: 2500,
+        toast:true,
+        position:"top-end",
         showConfirmButton: false,
       });
     } catch (err) {
       Swal.fire({
         icon: "error",
         title: "Request Failed",
+           toast:true,
+        position:"top-end",
         text: "Could not submit cash payment request",
       });
     }
@@ -243,7 +251,7 @@ const Login = () => {
         const finalUserId = backendUserId ?? decodedToken?.sub ?? null;
         const finalEmail = backendEmail ?? formData.email;
 
-        // Store ID in localStorage
+      
         localStorage.setItem("id", finalUserId);
 
         setUserData(accessToken, roles, finalUserId, finalEmail);
@@ -300,7 +308,7 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-gray-50 to-white p-4 relative overflow-hidden font-cairo">
-      {/* Floating Icons */}
+     
       <RiComputerLine className="absolute top-10 left-10 text-lime-400 text-7xl animate-pulse opacity-20" />
       <RiSmartphoneLine className="absolute bottom-16 right-12 text-lime-500 text-6xl animate-bounce opacity-20" />
       <RiToolsLine className="absolute top-1/2 left-1/3 text-lime-600 text-8xl animate-spin-slow opacity-20" />

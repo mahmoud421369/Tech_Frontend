@@ -145,7 +145,7 @@ const DeliveryDashboard = () => {
     <>
       <ToastContainer position="top-right" theme={document.documentElement.classList.contains("dark") ? "dark" : "light"} />
 
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-950 dark:to-emerald-950/30 pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-950 pt-24 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
 
           
@@ -244,7 +244,7 @@ const DeliveryDashboard = () => {
                               {notif.message}
                             </p>
                             <p className="text-xs text-gray-500 dark:text-gray-500 mt-3">
-                              {new Date(notif.createdAt).toLocaleString()}
+                              {new Date(notif.timestamp).toLocaleString()}
                             </p>
                           </div>
                         ))
@@ -272,8 +272,8 @@ const DeliveryDashboard = () => {
                             key={`${act.type}-${act.id}`}
                             className="flex items-center gap-5 p-5 bg-gray-50 dark:bg-gray-800 rounded-2xl hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all"
                           >
-                            <div className={`p-4 rounded-2xl ${act.type === 'order' ? 'bg-emerald-100 dark:bg-emerald-900/40' : 'bg-teal-100 dark:bg-teal-900/40'}`}>
-                              <act.icon size={28} className={`text-${act.type === 'order' ? 'emerald' : 'teal'}-600 dark:text-${act.type === 'order' ? 'emerald' : 'teal'}-400`} />
+                            <div className={`p-4 rounded-2xl ${act.type === 'order' ? 'bg-emerald-100 dark:bg-emerald-900/40' : 'bg-amber-100 dark:bg-amber-900/40'}`}>
+                              <act.icon size={28} className={`text-${act.type === 'order' ? 'emerald' : 'amber'}-600 dark:text-${act.type === 'order' ? 'emerald' : 'amber'}-400`} />
                             </div>
                             <div className="flex-1">
                               <h4 className="font-semibold text-gray-800 dark:text-white">

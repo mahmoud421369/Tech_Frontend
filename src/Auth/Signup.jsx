@@ -143,7 +143,8 @@ const Signup = () => {
 
     try {
       await api.post("/api/auth/register/user", userData);
-      await Swal.fire({ icon: "success", title: "Success", text: "User registered! Verify your email.", timer: 2000, showConfirmButton: false });
+      await Swal.fire({ icon: "success", title: "Success", text: "User registered! Verify your email.",   toast:true,
+        position:"top-end", timer: 2000, showConfirmButton: false });
       verifyEmail(userData.email);
       navigate("/login");
     } catch (err) {

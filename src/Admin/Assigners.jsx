@@ -200,12 +200,12 @@ const Assigners = ({ darkMode }) => {
   const [page, setPage] = useState(1);
   const pageSize = 5;
 
-  // Sanitized search term
+ 
   const sanitizedSearchTerm = useMemo(() => {
     return DOMPurify.sanitize(searchTerm.trim().toLowerCase());
   }, [searchTerm]);
 
-  // Stats
+
   const stats = useMemo(() => {
     const totalHandled = assigners.reduce((sum, a) => sum + (a.totalAssignmentsHandled || 0), 0);
     const pending = assigners.reduce((sum, a) => sum + (a.pendingAssignments || 0), 0);
@@ -213,7 +213,7 @@ const Assigners = ({ darkMode }) => {
     return { totalHandled, pending, verified };
   }, [assigners]);
 
-  // Fetch all assigners once
+  
   const fetchAssigners = useCallback(async () => {
     if (!token) {
       Swal.fire({ title: 'Error', text: 'Please log in.', icon: 'error' });
@@ -241,11 +241,11 @@ const Assigners = ({ darkMode }) => {
     }
   }, [token, navigate]);
 
-  // Client-side filtering
+
   const filteredAssigners = useMemo(() => {
     let result = assigners;
 
-    // Status filter
+    
     if (filter !== 'all') {
       const statusMap = {
         pending: 'PENDING',
@@ -255,7 +255,7 @@ const Assigners = ({ darkMode }) => {
       result = result.filter(a => a.status === statusMap[filter]);
     }
 
-    // Search filter (sanitized)
+  
     if (sanitizedSearchTerm) {
       result = result.filter(a =>
         (a.name || '').toLowerCase().includes(sanitizedSearchTerm) ||
@@ -271,7 +271,7 @@ const Assigners = ({ darkMode }) => {
     fetchAssigners();
   }, [fetchAssigners]);
 
-  // Reset page when filtering
+  
   useEffect(() => {
     setPage(1);
   }, [filter, sanitizedSearchTerm]);
@@ -354,10 +354,10 @@ const Assigners = ({ darkMode }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-14">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-16 ml-3">
       <div className="max-w-7xl mx-auto space-y-8">
 
-        {/* Header */}
+        
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
           <h1 className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-3">
             <FiUsers className="w-8 h-8" /> Assigners Management
@@ -370,7 +370,7 @@ const Assigners = ({ darkMode }) => {
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
 
-            {/* Stats Cards */}
+           
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[
@@ -386,10 +386,10 @@ const Assigners = ({ darkMode }) => {
               </div>
             </div>
 
-            {/* Search + Filters */}
+           
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-                {/* Search Bar */}
+             
                 <div className="relative max-w-md w-full">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
                   <div className="relative">
@@ -412,7 +412,7 @@ const Assigners = ({ darkMode }) => {
                   </div>
                 </div>
 
-                {/* Filter Buttons - Always in one row */}
+               
                 <div className="flex flex-wrap gap-1 mt-5">
                   {[
                     { key: 'all', label: 'All', icon: FiList },
@@ -436,7 +436,7 @@ const Assigners = ({ darkMode }) => {
               </div>
             </div>
 
-            {/* Table */}
+          
             <div className="p-6">
               <PaginatedTable
                 data={filteredAssigners}
@@ -503,7 +503,7 @@ const Assigners = ({ darkMode }) => {
           </div>
         )}
 
-        {/* Detail Modal */}
+       
         {selectedAssigner && (
           <Modal onClose={() => setSelectedAssigner(null)} title="Assigner Details" darkMode={darkMode}>
             <div className="space-y-6">

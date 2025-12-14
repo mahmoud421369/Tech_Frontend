@@ -300,7 +300,7 @@ const ShopChatModal = memo(({ open, onClose }) => {
                   key={s.id}
                   onClick={() => setActiveSession(s)}
                   className={`p-4 rounded-xl cursor-pointer relative border   transition ${
-                    activeSession?.id === s.id ? 'bg-lime-600' : 'bg-white'
+                    activeSession?.id === s.id ? 'bg-lime-600 text-white' : 'bg-white'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -309,8 +309,8 @@ const ShopChatModal = memo(({ open, onClose }) => {
                     </div>
                     <div className="flex-1">
                       <div className="flex justify-between">
-                        <span className="font-semibold text-gray-500 truncate">{s.userName}</span>
-                        <span className="text-xs text-gray-500 font-bold">
+                        <span className="font-semibold  truncate">{s.userName}</span>
+                        <span className="text-xs  font-bold">
                           {new Date(s.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>

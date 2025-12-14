@@ -191,20 +191,20 @@ const PaginatedTable = ({
 const Deliveries = ({ darkMode }) => {
   const navigate = useNavigate();
   const token = localStorage.getItem('authToken');
-  const [allDeliveries, setAllDeliveries] = useState([]); // Raw data from API
+  const [allDeliveries, setAllDeliveries] = useState([]); 
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all'); // 'all', 'pending', 'approved', 'suspended'
+  const [filterStatus, setFilterStatus] = useState('all');
   const [selectedDelivery, setSelectedDelivery] = useState(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const pageSize = 5;
 
-  // Sanitized search term
+  
   const sanitizedSearchTerm = useMemo(() => {
     return DOMPurify.sanitize(searchTerm.trim().toLowerCase());
   }, [searchTerm]);
 
-  // Fetch all deliveries once
+  
   const fetchAllDeliveries = useCallback(async () => {
     if (!token) {
       Swal.fire({ title: 'Error', text: 'Please log in.', icon: 'error' });
@@ -233,23 +233,23 @@ const Deliveries = ({ darkMode }) => {
     }
   }, [token, navigate]);
 
-  // Fetch on mount only
+  
   useEffect(() => {
     fetchAllDeliveries();
   }, [fetchAllDeliveries]);
 
-  // Client-side filtering + search
+ 
   const filteredDeliveries = useMemo(() => {
     let filtered = allDeliveries;
 
-    // Filter by status
+  
     if (filterStatus !== 'all') {
       filtered = filtered.filter(d => 
         d.status?.toLowerCase() === filterStatus.toLowerCase()
       );
     }
 
-    // Search filter
+ 
     if (sanitizedSearchTerm) {
       filtered = filtered.filter(d =>
         (d.name?.toLowerCase() || '').includes(sanitizedSearchTerm) ||
@@ -314,7 +314,7 @@ const Deliveries = ({ darkMode }) => {
         showConfirmButton: false
       });
 
-      // Refetch all after update
+     
       fetchAllDeliveries();
     } catch (error) {
       Swal.fire({ title: 'Error', text: `Failed to ${actionText.toLowerCase()} delivery.`, icon: 'error' });
@@ -339,10 +339,10 @@ const Deliveries = ({ darkMode }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-14">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-16 ml-3">
       <div className="max-w-7xl mx-auto space-y-8">
 
-        {/* Header */}
+        
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
           <h1 className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-3">
             <FiTruck /> Delivery Management
@@ -355,7 +355,7 @@ const Deliveries = ({ darkMode }) => {
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
 
-            {/* Stats */}
+            
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[
@@ -371,7 +371,7 @@ const Deliveries = ({ darkMode }) => {
               </div>
             </div>
 
-            {/* Search + Filters */}
+         
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="relative max-w-md w-full">
@@ -407,7 +407,7 @@ const Deliveries = ({ darkMode }) => {
                       key={key}
                       onClick={() => {
                         setFilterStatus(key.toLowerCase());
-                        setPage(1); // Reset page on filter change
+                        setPage(1);
                       }}
                       className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-all ${
                         filterStatus === key.toLowerCase()
@@ -422,7 +422,7 @@ const Deliveries = ({ darkMode }) => {
               </div>
             </div>
 
-            {/* Table */}
+            
             <div className="p-6">
               <PaginatedTable
                 data={filteredDeliveries}
@@ -487,7 +487,7 @@ const Deliveries = ({ darkMode }) => {
           </div>
         )}
 
-        {/* Modal */}
+      
         {selectedDelivery && (
           <Modal onClose={() => setSelectedDelivery(null)} title="Delivery Details" darkMode={darkMode}>
             <div className="space-y-5">

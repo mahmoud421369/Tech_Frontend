@@ -10,6 +10,10 @@ import {
   FiStar,
   FiUsers,
   FiZap,
+  FiMapPin,
+  FiShield,
+  FiRefreshCw,
+  FiHeadphones,
 } from "react-icons/fi";
 import { RiCarLine, RiMotorbikeLine } from "react-icons/ri";
 import Swal from "sweetalert2";
@@ -31,7 +35,6 @@ const Track = ({ darkMode }) => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [showCookieBanner, setShowCookieBanner] = useState(true);
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -76,7 +79,6 @@ const Track = ({ darkMode }) => {
     fetchOrders();
   }, [token, darkMode]);
 
-  // Skeleton Loader
   if (isLoading) {
     return (
       <div className={`min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"} pt-16`}>
@@ -87,13 +89,9 @@ const Track = ({ darkMode }) => {
                 <div className="h-16 bg-gray-200 dark:bg-gray-700 rounded-2xl w-96 animate-pulse"></div>
                 <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-xl w-full animate-pulse"></div>
                 <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-xl w-5/6 animate-pulse"></div>
-                <div className="flex gap-3">
-                  <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded-xl flex-1 animate-pulse"></div>
-                  <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded-xl w-32 animate-pulse"></div>
-                </div>
                 <div className="grid grid-cols-3 gap-6 pt-8">
                   {[...Array(3)].map((_, i) => (
-                    <div key={i}>
+                    <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-lg">
                       <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse"></div>
                       <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded mt-2 animate-pulse"></div>
                     </div>
@@ -133,63 +131,46 @@ const Track = ({ darkMode }) => {
 
   return (
     <div className={`min-h-screen ${darkMode ? "bg-gray-900 text-white" : "bg-gradient-to-br from-white via-lime-50 to-gray-100"} pt-16`}>
-      {/* === HERO SECTION - EXACT MONOTREE STYLE === */}
+
       <section className="relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-6 py-16 md:py-24">
           <div className="grid md:grid-cols-2 gap-12 items-center">
-            {/* Left: Text */}
             <div className="space-y-6">
               <h1 className="text-5xl md:text-6xl font-extrabold drop-shadow-md text-lime-700 font-bold leading-tight">
-                Track your <span className="underline decoration-lime-500 decoration-4">package</span> 
+                Track your <span className="underline decoration-lime-500 decoration-4">package</span>
               </h1>
               <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300">
                 Real-time tracking from warehouse to your doorstep. Watch every step, stay in control.
               </p>
 
-              {/* CTA */}
-              {/* <div className="flex flex-col sm:flex-row gap-3 max-w-md">
-                <input
-                  type="text"
-                  placeholder="Enter tracking number"
-                  className="flex-1 px-5 py-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-lime-500 outline-none"
-                />
-                <button className="px-6 py-3 bg-lime-500 text-black font-semibold rounded-xl hover:bg-lime-400 transition shadow-md">
-                  Track Now
-                </button>
-              </div> */}
-
-              {/* Stats */}
               <div className="grid grid-cols-3 gap-6 pt-8">
-                <div>
-                  <div className="text-3xl font-bold text-lime-600 dark:text-lime-400 flex items-center gap-1">
-                    <FiZap /> 98.9%
+                <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-lg text-center">
+                  <div className="text-3xl font-bold text-lime-600 dark:text-lime-400 flex items-center justify-center gap-2">
+                    <FiZap className="text-2xl" /> 98.9%
                   </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">On-time delivery</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">On-time delivery</p>
                 </div>
-                <div>
-                  <div className="text-3xl font-bold text-lime-600 dark:text-lime-400 flex items-center gap-1">
-                    <FiUsers /> ~50K
+                <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-lg text-center">
+                  <div className="text-3xl font-bold text-lime-600 dark:text-lime-400 flex items-center justify-center gap-2">
+                    <FiUsers className="text-2xl" /> ~50K
                   </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Packages daily</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Packages daily</p>
                 </div>
-                <div>
-                  <div className="flex items-center gap-1 text-yellow-500">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-lg text-center">
+                  <div className="flex items-center justify-center gap-1 text-yellow-500 text-3xl">
                     {[...Array(5)].map((_, i) => (
-                      <FiStar key={i} fill="currentColor" />
+                      <FiStar key={i} fill="currentColor" className="drop-shadow" />
                     ))}
                   </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">4.9 Avg rating</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">4.9 Avg rating</p>
                 </div>
               </div>
             </div>
 
-            {/* Right: 3D Illustration */}
             <div className="relative hidden md:block">
               <div className="relative w-full h-96">
-                {/* Background glow */}
                 <div className="absolute inset-0 bg-gradient-to-br from-lime-100 to-teal-100 dark:from-lime-900 dark:to-teal-900 rounded-3xl blur-3xl opacity-50"></div>
 
-                {/* Phone Mockups */}
                 <div className="absolute top-10 left-10 w-48 h-64 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl rotate-12 transform-gpu overflow-hidden">
                   <div className="p-4 space-y-3">
                     <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
@@ -233,7 +214,30 @@ const Track = ({ darkMode }) => {
         </div>
       </section>
 
-      {/* === MAIN CONTENT (Mono-tree Style) === */}
+      <section className="py-16 px-6 bg-white dark:bg-gray-800">
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-4xl font-bold text-center mb-12 text-gray-800 dark:text-white">
+            Why Customers Love Our Delivery
+          </h2>
+          <div className="grid md:grid-cols-4 gap-8">
+            {[
+              { icon: <FiMapPin className="w-10 h-10" />, title: "Real-Time Tracking", desc: "Know exactly where your package is, anytime" },
+              { icon: <FiShield className="w-10 h-10" />, title: "Fully Insured", desc: "Every order is protected from loss or damage" },
+              { icon: <FiRefreshCw className="w-10 h-10" />, title: "Easy Returns", desc: "30-day hassle-free return policy" },
+              { icon: <FiHeadphones className="w-10 h-10" />, title: "24/7 Support", desc: "We're here whenever you need us" },
+            ].map((feature, idx) => (
+              <div key={idx} className="text-center group hover:scale-105 transition-all duration-300">
+                <div className="inline-flex items-center justify-center w-20 h-20 bg-lime-100 dark:bg-lime-900 rounded-full mb-5 text-lime-600 dark:text-lime-400 group-hover:bg-lime-600 group-hover:text-white transition-all">
+                  {feature.icon}
+                </div>
+                <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
+                <p className="text-gray-600 dark:text-gray-400">{feature.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <div className="max-w-4xl mx-auto px-6 py-12">
         <div className="bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-gray-200/50 dark:border-gray-700/50">
           {orders.length === 0 ? (
@@ -249,7 +253,6 @@ const Track = ({ darkMode }) => {
             </div>
           ) : (
             <>
-              {/* Order Selector */}
               <div className="relative mb-10">
                 <button
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -279,7 +282,6 @@ const Track = ({ darkMode }) => {
                 )}
               </div>
 
-              {/* Status Timeline */}
               {selectedOrder && (
                 <div className="space-y-8">
                   <h2 className="text-2xl font-bold text-lime-600 dark:text-lime-400 text-center">
@@ -287,7 +289,6 @@ const Track = ({ darkMode }) => {
                   </h2>
 
                   <div className="relative">
-                    {/* Connecting Line */}
                     <div className="absolute left-8 top-8 bottom-8 w-1 bg-gradient-to-b from-lime-400 to-transparent dark:from-lime-500"></div>
 
                     {statusSteps.map((step, index) => {
@@ -301,7 +302,6 @@ const Track = ({ darkMode }) => {
                           key={step.key}
                           className={`flex items-center relative transition-all duration-500 ${isCompleted || isCancelled ? "opacity-100" : "opacity-50"}`}
                         >
-                          {/* Icon Circle */}
                           <div
                             className={`relative z-10 w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all duration-500 ${
                               isCancelled
@@ -314,7 +314,6 @@ const Track = ({ darkMode }) => {
                             {step.icon}
                           </div>
 
-                          {/* Label */}
                           <div className="ml-6 flex-1">
                             <p
                               className={`text-lg font-semibold transition-all ${
@@ -338,7 +337,6 @@ const Track = ({ darkMode }) => {
                     })}
                   </div>
 
-                  {/* Action Buttons */}
                   <div className="flex justify-center gap-4 mt-12">
                     <a
                       href="/explore"
@@ -354,21 +352,66 @@ const Track = ({ darkMode }) => {
         </div>
       </div>
 
-      {/* === COOKIE BANNER === */}
-      {/* {showCookieBanner && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 shadow-lg z-50">
-          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
-              <div className="text-xl">Cookie</div>
-              <p>We use cookies to enhance your tracking experience. Learn more in our <a href="#" className="underline">Cookie Policy</a>.</p>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => setShowCookieBanner(false)} className="px-4 py-2 bg-lime-600 text-white rounded-lg hover:bg-lime-700 transition">Accept</button>
-              <button onClick={() => setShowCookieBanner(false)} className="px-4 py-2 bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-600 transition">Reject</button>
-            </div>
+      <section className="py-20 px-6 bg-gradient-to-b from-transparent to-lime-50 dark:to-gray-900">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-4xl font-bold text-center mb-12 text-gray-800 dark:text-white">
+            Fast & Reliable Delivery Options
+          </h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                icon: <RiMotorbikeLine className="w-16 h-16" />,
+                title: "Same-Day Delivery",
+                desc: "Order before 2 PM → Delivered today",
+                badge: "Most Popular",
+                color: "from-orange-400 to-red-500",
+              },
+              {
+                icon: <RiCarLine className="w-16 h-16" />,
+                title: "Next-Day Delivery",
+                desc: "Guaranteed delivery within 24 hours",
+                badge: "Best Value",
+                color: "from-lime-400 to-emerald-500",
+              },
+              {
+                icon: <FiTruck className="w-16 h-16" />,
+                title: "Standard Shipping",
+                desc: "2–5 business days, free on orders over $50",
+                badge: "Free",
+                color: "from-blue-400 to-indigo-500",
+              },
+            ].map((option, idx) => (
+              <div
+                key={idx}
+                className="relative bg-white dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden hover:shadow-2xl transition-all hover:-translate-y-2"
+              >
+                {option.badge && (
+                  <div className="absolute top-4 right-4 bg-gradient-to-r from-lime-500 to-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-full z-10">
+                    {option.badge}
+                  </div>
+                )}
+                <div className={`h-2 bg-gradient-to-r ${option.color}`} />
+                <div className="p-8 text-center">
+                  <div className={`inline-flex items-center justify-center w-28 h-28 rounded-full bg-gradient-to-br ${option.color} text-white mb-6`}>
+                    {option.icon}
+                  </div>
+                  <h3 className="text-2xl font-bold mb-3">{option.title}</h3>
+                  <p className="text-gray-600 dark:text-gray-400">{option.desc}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-      )} */}
+      </section>
+
+      <section className="py-16 text-center">
+        <a
+          href="/explore"
+          className="inline-flex items-center gap-3 px-8 py-4 bg-lime-600 hover:bg-lime-700 text-white text-lg font-bold rounded-full shadow-xl hover:shadow-2xl transition-all hover:scale-105"
+        >
+          <FiPackage /> Continue Shopping
+        </a>
+      </section>
     </div>
   );
 };

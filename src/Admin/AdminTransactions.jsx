@@ -280,10 +280,10 @@ const TransactionsPage = ({ darkMode }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-14">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-16 ml-3">
       <div className="max-w-7xl mx-auto space-y-8">
 
-        {/* Header */}
+        
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
           <h1 className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-3">
             <FiCreditCard /> Transactions Management
@@ -295,7 +295,7 @@ const TransactionsPage = ({ darkMode }) => {
           <TransactionsSkeleton darkMode={darkMode} />
         ) : (
           <>
-            {/* Stats Cards */}
+          
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
               <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 text-center">
                 <FiCreditCard className="text-3xl text-emerald-600 mx-auto mb-2" />
@@ -321,7 +321,7 @@ const TransactionsPage = ({ darkMode }) => {
               </div>
             </div>
 
-            {/* Search by User ID */}
+            
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
               <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4">
                 <div className="flex-1 relative">
@@ -367,7 +367,7 @@ const TransactionsPage = ({ darkMode }) => {
               </form>
             </div>
 
-            {/* Transactions Table */}
+            
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
               <div className="p-6">
                 <PaginatedTable

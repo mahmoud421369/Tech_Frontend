@@ -19,7 +19,7 @@ const Service = ({ darkMode }) => {
           : "bg-gradient-to-b from-white via-gray-50 to-white"
       }`}
     >
-      {/* Floating Bubbles - Neon in Dark Mode */}
+      
       <div className="absolute inset-0 pointer-events-none opacity-20">
         <div className={`absolute top-10 left-10 w-20 h-20 rounded-full animate-float ${darkMode ? 'bg-lime-400' : 'bg-gray-300'}`}></div>
         <div className={`absolute top-20 right-12 w-28 h-28 rounded-full animate-float-slow ${darkMode ? 'bg-lime-500' : 'bg-gray-400'}`}></div>
@@ -28,7 +28,7 @@ const Service = ({ darkMode }) => {
       </div>
 
       <div className="relative max-w-7xl mx-auto text-center px-4 sm:px-6 lg:px-8 z-10">
-        {/* Header */}
+     
         <motion.div
           initial={{ opacity: 0, y: 50 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -47,7 +47,7 @@ const Service = ({ darkMode }) => {
           </p>
         </motion.div>
 
-        {/* Service Cards */}
+        
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
           {[
             { icon: <FiTool />, title: 'Expert Repairs', desc: 'Certified technicians who handle devices with care.' },
@@ -79,7 +79,7 @@ const Service = ({ darkMode }) => {
         </div>
       </div>
 
-      {/* Floating Animation */}
+    
       <style jsx>{`
         @keyframes float {
           0%, 100% { transform: translateY(0); }

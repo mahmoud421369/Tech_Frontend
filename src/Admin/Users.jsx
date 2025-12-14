@@ -379,7 +379,7 @@ const UsersPage = ({ darkMode }) => {
   }, [search, handleSearchChange]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-14">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-16 ml-3">
       <div className="max-w-7xl mx-auto space-y-8">
 
       
@@ -460,7 +460,8 @@ const UsersPage = ({ darkMode }) => {
                         </button>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm">
+                    <td className="px-6 py-4 text-xs font-bold text-gray-600">
+                      
                       {DOMPurify.sanitize(`${user.firstName || ''} ${user.lastName || ''}`.trim()) || 'N/A'}
                     </td>
                     <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(user.email) || 'N/A'}</td>
@@ -498,7 +499,7 @@ const UsersPage = ({ darkMode }) => {
                       <div className="flex justify-center gap-2">
                         <button
                           onClick={() => viewUser(user.id)}
-                          className="p-2  bg-blue-50  text-xs rounded-lg text-blue-600 hover:bg-emerald-100 dark:hover:bg-emerald-900 rounded-lg"
+                          className="p-2  bg-blue-50 border border-gray-200 dark:bg-gray-950 dark:border-gray-900 font-semibold  text-xs rounded-lg text-blue-600   rounded-lg"
                           title="View"
                         >
                            View
@@ -506,7 +507,7 @@ const UsersPage = ({ darkMode }) => {
                         {user.activate ? (
                           <button
                             onClick={() => deactivateUser(user.id)}
-                            className="p-2  bg-purple-50  text-xs  text-purple-600 rounded-lg hover:bg-purple-100 dark:hover:bg-yellow-900 rounded-lg"
+                            className="p-2  bg-purple-50  text-xs border border-gray-200 dark:bg-gray-950 dark:border-gray-900 font-semibold  text-purple-600 rounded-lg  rounded-lg"
                             title="Deactivate"
                           >
                             Suspend
@@ -514,7 +515,7 @@ const UsersPage = ({ darkMode }) => {
                         ) : (
                           <button
                             onClick={() => activateUser(user.id)}
-                            className="p-2  bg-green-50  text-xs rounded-lg text-green-600 hover:bg-green-100 dark:hover:bg-green-900 rounded-lg"
+                            className="p-2  bg-green-50  text-xs rounded-lg border border-gray-200 dark:bg-gray-950 dark:border-gray-900 font-semibold text-green-600  rounded-lg"
                             title="Activate"
                           >
                             Approve
@@ -522,7 +523,7 @@ const UsersPage = ({ darkMode }) => {
                         )}
                         <button
                           onClick={() => deleteUser(user.id)}
-                          className="p-2  bg-red-50  text-xs rounded-lg  text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded-lg"
+                          className="p-2  bg-red-50  text-xs rounded-lg border border-gray-200 dark:bg-gray-950 dark:border-gray-900 font-semibold text-red-600  rounded-lg"
                           title="Delete"
                         >
                        Delete

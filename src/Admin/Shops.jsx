@@ -11,7 +11,14 @@ import {
   FiChevronRight,
   FiCopy,
   FiChevronDown,
+     FiHash, FiUser, FiMail, FiPhone,
+  FiTag, FiFileText, FiMapPin,  FiStar,
+  FiToggleLeft, FiToggleRight, FiExternalLink
 } from 'react-icons/fi';
+import { FaStore } from 'react-icons/fa';
+
+
+
 import Swal from 'sweetalert2';
 import DOMPurify from 'dompurify';
 import api from '../api';
@@ -334,7 +341,7 @@ const Shops = ({ darkMode }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-14">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-16 ml-3">
       <div className="max-w-7xl mx-auto space-y-8">
 
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
@@ -461,19 +468,19 @@ const Shops = ({ darkMode }) => {
                     <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(shop.shopType || 'N/A')}</td>
                     <td className="px-6 py-4">
                       <div className="flex justify-center gap-2">
-                        <button onClick={() => viewShop(shop.id)} className="px-3 py-1.5 text-xs bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded hover:bg-emerald-200 dark:hover:bg-emerald-800 transition">
+                        <button onClick={() => viewShop(shop.id)} className="px-3 py-1.5 text-xs bg-emerald-50 border border-gray-200 font-semibold dark:bg-gray-950 dark:border-gray-900 text-blue-700 dark:text-blue-700 rounded   transition">
                           View
                         </button>
                         {!shop.verified ? (
-                          <button onClick={() => approveShop(shop.id)} className="px-3 py-1.5 text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded hover:bg-green-200 dark:hover:bg-green-800 transition">
+                          <button onClick={() => approveShop(shop.id)} className="px-3 py-1.5 text-xs border border-gray-200 font-semibold bg-green-50 dark:bg-gray-950 dark:border-gray-900 text-green-700 dark:text-green-300 rounded   transition">
                             Approve
                           </button>
                         ) : (
                           <>
-                            <button onClick={() => suspendShop(shop.id)} className="px-3 py-1.5 text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300 rounded hover:bg-yellow-200 dark:hover:bg-yellow-800 transition">
+                            <button onClick={() => suspendShop(shop.id)} className="px-3 py-1.5 text-xs border border-gray-200 font-semibold bg-yellow-50 dark:bg-gray-950 dark:border-gray-900 text-yellow-700 dark:text-yellow-300 rounded  transition">
                               Suspend
                             </button>
-                            <button onClick={() => deleteShop(shop.id)} className="px-3 py-1.5 text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-800 transition">
+                            <button onClick={() => deleteShop(shop.id)} className="px-3 py-1.5 text-xs border border-gray-200 font-semibold bg-red-50 dark:bg-gray-950 dark:border-gray-900 text-red-700 dark:text-red-300 rounded  transition">
                               Delete
                             </button>
                           </>
@@ -492,38 +499,176 @@ const Shops = ({ darkMode }) => {
           </div>
         )}
 
-        {selectedShop && (
-          <Modal onClose={() => setSelectedShop(null)} title="Shop Details" darkMode={darkMode}>
-            <div className="space-y-5 text-sm">
-              <div className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-semibold text-gray-900 dark:text-gray-100">Shop Information</h4>
-                  <button onClick={() => copyToClipboard(selectedShop.id)} className="text-gray-500 hover:text-emerald-600">
-                    <FiCopy className="w-5 h-5" />
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <p><strong>ID:</strong> {selectedShop.id}</p>
-                  <p><strong>Name:</strong> {DOMPurify.sanitize(selectedShop.name)}</p>
-                  <p><strong>Email:</strong> {DOMPurify.sanitize(selectedShop.email)}</p>
-                  <p><strong>Phone:</strong> {DOMPurify.sanitize(selectedShop.phone || 'N/A')}</p>
-                  <p><strong>Status:</strong> <span className={selectedShop.verified ? 'text-green-600' : 'text-red-600'}>{selectedShop.verified ? 'Approved' : 'Suspended'}</span></p>
-                  <p><strong>Rating:</strong> {selectedShop.rating || 'N/A'}</p>
-                  <p><strong>Shop Type:</strong> {DOMPurify.sanitize(selectedShop.shopType || 'N/A')}</p>
-                  <p className="md:col-span-2"><strong>Description:</strong> {DOMPurify.sanitize(selectedShop.description || 'N/A')}</p>
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <button
-                  onClick={() => setSelectedShop(null)}
-                  className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
-                >
-                  Close
-                </button>
-              </div>
+       {selectedShop && (
+  <Modal onClose={() => setSelectedShop(null)} title="Shop Details" darkMode={darkMode}>
+    <div className="space-y-6 text-sm">
+  
+      <div className="bg-gray-50 dark:bg-gray-800/70 p-6 rounded-xl rounded-xl border border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <FaStore className="w-5 h-5 text-emerald-600" />
+            Shop Information
+          </h3>
+          <button
+            onClick={() => copyToClipboard(selectedShop.id)}
+            className="text-gray-500 hover:text-emerald-600 transition"
+            title="Copy Shop ID"
+          >
+            <FiCopy className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="flex items-start gap-3">
+            <FiHash className="w-5 h-5 text-gray-400 mt-0.5" />
+            <div>
+              <p className="text-gray-500 dark:text-gray-400">Shop ID</p>
+              <p className="font-mono text-xs bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded mt-1">
+                {selectedShop.id}
+              </p>
             </div>
-          </Modal>
+          </div>
+
+          <div className="flex items-start gap-3">
+            <FiUser className="w-5 h-5 text-gray-400 mt-0.5" />
+            <div>
+              <p className="text-gray-500 dark:text-gray-400">Name</p>
+              <p className="font-medium dark:text-white">{DOMPurify.sanitize(selectedShop.name)}</p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3">
+            <FiMail className="w-5 h-5 text-gray-400 mt-0.5" />
+            <div>
+              <p className="text-gray-500 dark:text-gray-400">Email</p>
+              <p className='font-medium dark:text-white'>{DOMPurify.sanitize(selectedShop.email)}</p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3">
+            <FiPhone className="w-5 h-5 text-gray-400 mt-0.5" />
+            <div>
+              <p className="text-gray-500 dark:text-gray-400">Phone</p>
+              <p className='font-medium dark:text-white'>{selectedShop.phone ? DOMPurify.sanitize(selectedShop.phone) : <span className="text-gray-400">N/A</span>}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <FiCheckCircle className={`w-5 h-5 ${selectedShop.verified ? 'text-green-600' : 'text-red-600'}`} />
+            <div>
+              <p className="text-gray-500 dark:text-gray-400">Verification</p>
+              <span className={`font-semibold ${selectedShop.verified ? 'text-green-600' : 'text-red-600'}`}>
+                {selectedShop.verified ? 'Approved' : 'Suspended'}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {selectedShop.activate ? (
+              <FiToggleRight className="w-6 h-6 text-emerald-600" />
+            ) : (
+              <FiToggleLeft className="w-6 h-6 text-gray-400" />
+            )}
+            <div>
+              <p className="text-gray-500 dark:text-gray-400">Status</p>
+              <span className={`font-semibold ${selectedShop.activate ? 'text-emerald-600' : 'text-gray-500'}`}>
+                {selectedShop.activate ? 'Active' : 'Inactive'}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3">
+            <FiStar className="w-5 h-5 text-amber-500 mt-0.5" />
+            <div>
+              <p className="text-gray-500 dark:text-gray-400">Rating</p>
+              <p className="font-medium dark:text-amber-400">{selectedShop.rating || 'No ratings yet'}</p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3">
+            <FiTag className="w-5 h-5 text-gray-400 mt-0.5" />
+            <div>
+              <p className="text-gray-500 dark:text-gray-400">Shop Type</p>
+              <p className='font-medium dark:text-white'>{selectedShop.shopType ? DOMPurify.sanitize(selectedShop.shopType) : 'N/A'}</p>
+            </div>
+          </div>
+        </div>
+
+        {selectedShop.description && (
+          <div className="mt-5 flex items-start gap-3">
+            <FiFileText className="w-5 h-5 text-gray-400 mt-0.5" />
+            <div>
+              <p className="text-gray-500 dark:text-gray-400">Description</p>
+              <p className="mt-1 text-gray-700 dark:text-gray-300">
+                {DOMPurify.sanitize(selectedShop.description)}
+              </p>
+            </div>
+          </div>
         )}
+      </div>
+
+   
+      {selectedShop.shopAddress && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-xl border border-blue-200 dark:border-blue-800">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <FiMapPin className="w-5 h-5 text-blue-600" />
+              Shop Address {selectedShop.shopAddress.default && <span className="text-xs bg-blue-600 text-white px-2 py-1 rounded-full">Default</span>}
+            </h3>
+            <button
+              onClick={() => copyToClipboard(selectedShop.shopAddress.fullAddress)}
+              className="text-gray-500 hover:text-blue-600 transition"
+              title="Copy full address"
+            >
+              <FiCopy className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="space-y-3 text-gray-700 dark:text-gray-300">
+            <p><strong>Full Address:</strong> {DOMPurify.sanitize(selectedShop.shopAddress.fullAddress)}</p>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <p><strong>Street:</strong> {selectedShop.shopAddress.street}</p>
+              <p><strong>Building:</strong> {selectedShop.shopAddress.building || '—'}</p>
+              <p><strong>City:</strong> {selectedShop.shopAddress.city}</p>
+              <p><strong>State:</strong> {selectedShop.shopAddress.state}</p>
+            </div>
+            {selectedShop.shopAddress.notes && (
+              <p><strong>Notes:</strong> {DOMPurify.sanitize(selectedShop.shopAddress.notes)}</p>
+            )}
+            <div className="flex gap-6 text-xs text-gray-500">
+              <p>Lat: {selectedShop.shopAddress.latitude.toFixed(6)}</p>
+              <p>Lng: {selectedShop.shopAddress.longitude.toFixed(6)}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 pt-4 border-t dark:border-gray-700">
+        <p>Created: {new Date(selectedShop.createdAt).toLocaleString()}</p>
+        <p>Updated: {new Date(selectedShop.updatedAt).toLocaleString()}</p>
+      </div>
+
+      
+      <div className="flex justify-end gap-3 pt-4">
+        <button
+          onClick={() => setSelectedShop(null)}
+          className="px-6 py-2.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition"
+        >
+          Close
+        </button>
+        {/* <button
+          onClick={() => window.open(`https://maps.google.com/?q=${selectedShop.shopAddress?.latitude},${selectedShop.shopAddress?.longitude}`, '_blank')}
+          className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition flex items-center gap-2"
+          disabled={!selectedShop.shopAddress}
+        >
+          <FiExternalLink className="w-4 h-4" />
+          Open in Maps
+        </button> */}
+      </div>
+    </div>
+  </Modal>
+)}
       </div>
     </div>
   );

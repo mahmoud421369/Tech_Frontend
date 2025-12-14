@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import {
   FiSearch,
@@ -18,8 +19,8 @@ import debounce from 'lodash/debounce';
 
 // الانتقالات المسموحة فقط (بالإنجليزية كما في الـ backend)
 const nextStatuses = {
-  SUBMITTED: ['QUOTE_SENT', 'QUOTE_PENDING', 'CANCELLED'],
-  QUOTE_PENDING: ['QUOTE_SENT'],
+  SUBMITTED: ['QUOTE_SENT', 'CANCELLED'],
+  // QUOTE_PENDING: ['QUOTE_SENT'],
   QUOTE_SENT: ['QUOTE_APPROVED', 'QUOTE_REJECTED'],
   QUOTE_APPROVED: ['DEVICE_COLLECTED'],
   QUOTE_REJECTED: ['CANCELLED'],
@@ -35,7 +36,7 @@ const nextStatuses = {
 const getStatusColor = (status) => {
   const map = {
     SUBMITTED: 'bg-blue-100 text-blue-700',
-    QUOTE_PENDING: 'bg-yellow-100 text-yellow-700',
+    // QUOTE_PENDING: 'bg-yellow-100 text-yellow-700',
     QUOTE_SENT: 'bg-teal-100 text-teal-700',
     QUOTE_APPROVED: 'bg-emerald-100 text-emerald-700',
     QUOTE_REJECTED: 'bg-amber-100 text-amber-700',

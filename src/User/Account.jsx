@@ -1310,7 +1310,7 @@ const renderRepairs = () => {
             {/* Left */}
             <div className="space-y-6">
               <h1 className="text-5xl md:text-6xl font-extrabold drop-shadow-md text-lime-700 font-bold  leading-tight">
-                Your <span className="underline decoration-lime-500 decoration-4"> account</span> 
+                 <span className="underline decoration-lime-500 decoration-4"> Account</span> 
               </h1>
               <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300">
                 Manage profile, addresses, orders, and repairs – all in one fast, friendly dashboard.

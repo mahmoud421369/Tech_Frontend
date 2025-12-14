@@ -3,7 +3,9 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
   FiTool, FiMapPin, FiDollarSign, FiClock,
-  FiCheckCircle, FiHome, FiUser, FiPackage
+  FiCheckCircle, FiHome, FiUser, FiPackage,
+  FiUserPlus,
+  FiPhone
 } from "react-icons/fi";
 import { getMyRepairs, updateRepairStatus } from "../api/deliveryApi";
 
@@ -82,7 +84,7 @@ const MyRepairs = () => {
     <>
       <ToastContainer position="top-right" theme={document.documentElement.classList.contains("dark") ? "dark" : "light"} />
 
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-950 dark:to-emerald-950/30 pt-24 pb-12 px-4">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-950 pt-24 pb-12 px-4">
         <div className="max-w-7xl mx-auto">
 
           
@@ -138,8 +140,8 @@ const MyRepairs = () => {
                     <div className={`h-2 bg-gradient-to-r ${getStatusStyle(repair.status)}`} />
 
                     <div className="p-7">
-                      <div className="flex justify-between items-start mb-5">
-                        <h3 className="text-2xl font-bold text-gray-800 dark:text-white">
+                      <div className="flex justify-between flex-wrap items-start mb-5">
+                        <h3 className="text-lg font-bold text-gray-800 dark:text-white">
                           #{repair.id?.slice(-8)}
                         </h3>
                         <span className={`px-4 py-2 rounded-full text-white font-bold text-xs shadow-lg bg-gradient-to-r ${getStatusStyle(repair.status)}`}>
@@ -147,13 +149,42 @@ const MyRepairs = () => {
                         </span>
                       </div>
 
+          <div className="flex items-start gap-3 text-gray-700 dark:text-gray-300">
+                          <FiUserPlus className="text-emerald-600 mt-1" size={18} />
+                          <div>
+                            <div className="font-medium">Customer Name</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {repair.firstName} {repair.lastName}
+                            </div>
+                          </div>
+                        </div><br />
+
+                          <div className="flex items-start gap-3 text-gray-700 dark:text-gray-300">
+                          <FiPhone className="text-emerald-600 mt-1" size={18} />
+                          <div>
+                            <div className="font-medium">Customer Phone</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {repair.phone} 
+                            </div>
+                          </div>
+                        </div><br />
+
                       <div className="space-y-4 text-sm">
                         <div className="flex items-start gap-3 text-gray-700 dark:text-gray-300">
                           <FiUser className="text-emerald-600 mt-1" size={18} />
                           <div>
                             <div className="font-medium">Customer Address</div>
                             <div className="text-xs text-gray-500 dark:text-gray-400">
-                              {repair.userAddress?.street}, {repair.userAddress?.city}
+                              {repair.userAddress?.street}, {repair.userAddress?.city}, {repair.userAddress?.state}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3 text-gray-700 dark:text-gray-300">
+                          <FiMapPin className="text-emerald-600 mt-1" size={18} />
+                          <div>
+                            <div className="font-medium">Shop Address</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {repair.shopAddress?.street}, {repair.shopAddress?.city}, {repair.shopAddress?.state}
                             </div>
                           </div>
                         </div>

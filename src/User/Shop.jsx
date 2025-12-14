@@ -32,7 +32,7 @@ import api from "../api";
 const API_BASE = "http://localhost:8080";
 const WS_URL = `${API_BASE}/ws`;
 
-// Lazy load heavy components
+
 const ChatModal = lazy(() => import("../components/UserChatModal"));
 
 const Shop = memo(({ darkMode, addToCart }) => {
@@ -41,7 +41,7 @@ const Shop = memo(({ darkMode, addToCart }) => {
   const userEmail = localStorage.getItem("email") || "user@example.com";
   const userId = localStorage.getItem("userId");
 
-  // State
+ 
   const [shop, setShop] = useState(null);
   const [products, setProducts] = useState([]);
   const [imageLoadStatus, setImageLoadStatus] = useState({});
@@ -59,11 +59,11 @@ const Shop = memo(({ darkMode, addToCart }) => {
 
   const dropdownRef = useRef(null);
   const modalRef = useRef(null);
- const navigate = useNavigate();
-  // Debounced search
+  const navigate = useNavigate();
+  
   const debouncedSetSearch = useCallback(debounce((value) => setSearch(value), 300), []);
 
-  // Close dropdown on outside click
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -75,7 +75,7 @@ const Shop = memo(({ darkMode, addToCart }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Fetch Functions
+  
   const fetchShopProfile = useCallback(async () => {
     setIsLoading(prev => ({ ...prev, shop: true }));
     try {
@@ -177,7 +177,7 @@ const handleAddToCart = useCallback(async (product) => {
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
-    // Safely call addToCart only if it's a function
+   
     if (typeof addToCart === "function") {
       addToCart({ ...product, quantity: 1 });
     }
@@ -201,7 +201,7 @@ const handleAddToCart = useCallback(async (product) => {
   }
 }, [addToCart, token, navigate]);
 
-  // Review Actions
+  
   const submitReview = async () => {
     if (!newReview.comment || newReview.rating === 0) {
       Swal.fire({ icon: "warning", title: "Incomplete", text: "Please provide rating and comment" });
@@ -241,7 +241,7 @@ const handleAddToCart = useCallback(async (product) => {
     });
     if (result.isConfirmed) {
       try {
-        await api.delete(`/api/reviews/${reviewId}`);
+        await api.delete(`/api/reviews/cancel/${reviewId}`);
         fetchShopReviews();
         Swal.fire("Deleted!", "Review removed", "success");
       } catch {
@@ -301,7 +301,7 @@ const handleAddToCart = useCallback(async (product) => {
       </Helmet> */}
 
       <div className={`min-h-screen transition-all duration-500 ${darkMode ? "bg-gray-900" : "bg-gray-100"} pt-10 mb-0 pb-0`}>
-        {/* HERO */}
+        
         <section className="relative py-32 overflow-hidden">
           <div className={`absolute inset-0 ${darkMode ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700" : "bg-gradient-to-br from-white via-lime-50 to-gray-100"}`} />
           <div className="absolute inset-0 pointer-events-none">
@@ -347,7 +347,7 @@ const handleAddToCart = useCallback(async (product) => {
           </div>
         </section>
 
-        {/* Search & Categories */}
+        
         <div className="max-w-7xl mx-auto px-6 py-8 -mt-20 relative z-10">
           <div className={`rounded-3xl shadow-2xl p-6 ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200"}`}>
             <div className="flex flex-col md:flex-row gap-4">
@@ -397,7 +397,7 @@ const handleAddToCart = useCallback(async (product) => {
           </div>
         </div>
 
-        {/* Products */}
+       
         <section className="max-w-7xl mx-auto px-6 pb-16">
           {isLoading.products ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -472,11 +472,11 @@ const handleAddToCart = useCallback(async (product) => {
           )}
         </section>
 
-        {/* Reviews */}
+        
         <section className="max-w-7xl mx-auto px-6 mb-4">
           <h2 className={`text-3xl font-bold mb-8 ${darkMode ? "text-lime-400" : "text-lime-600"}`}>Customer Reviews</h2>
 
-          {/* Submit Review */}
+         
           <div className={`mb-10 p-6 rounded-2xl shadow-lg border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
             <h3 className={`text-xl font-semibold mb-4 ${darkMode ? "text-white" : "text-gray-800"}`}>Leave a Review</h3>
             <div className="flex items-center gap-1 mb-4">
@@ -516,7 +516,7 @@ const handleAddToCart = useCallback(async (product) => {
             </div>
           </div>
 
-          {/* Reviews List with Animation */}
+          
           <div className="space-y-6">
             {reviews.length > 0 ? reviews.map((r, i) => (
               <div
@@ -563,7 +563,7 @@ const handleAddToCart = useCallback(async (product) => {
           </div>
         </section>
 
-        {/* Floating Chat Button */}
+        
         <button
           onClick={() => setOpenChat(true)}
           aria-label="Open chat with shop"
@@ -572,7 +572,7 @@ const handleAddToCart = useCallback(async (product) => {
           <FiMessageCircle className="text-2xl" />
         </button>
 
-        {/* Edit Review Modal */}
+       
         {editingReview && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" role="dialog" aria-modal="true">
             <div ref={modalRef} className={`w-full max-w-lg p-6 rounded-2xl ${darkMode ? "bg-gray-800" : "bg-white"} shadow-2xl`}>
@@ -611,12 +611,12 @@ const handleAddToCart = useCallback(async (product) => {
           </div>
         )}
 
-        {/* Chat Modal */}
+        
         <Suspense fallback={null}>
           {openChat && <ChatModal shopId={shopId} shopName={shop?.name} onClose={() => setOpenChat(false)} darkMode={darkMode} />}
         </Suspense>
 
-        {/* Global Animations */}
+        
         <style jsx>{`
           @keyframes float-slow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
           @keyframes float-medium { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }

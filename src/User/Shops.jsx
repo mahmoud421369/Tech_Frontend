@@ -126,11 +126,11 @@ const Shops = ({ darkMode }) => {
 
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-gray-900 text-white' : 'bg-gradient-to-br from-white via-lime-50 to-gray-100'} pt-16`}>
-      {/* ==================== HERO SECTION – EXACT SAME AS TRACK.JSX ==================== */}
+
       <section className="relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-6 py-16 md:py-24">
           <div className="grid md:grid-cols-2 gap-12 items-center">
-            {/* Left: Text */}
+          
             <div className="space-y-6">
               <h1 className="text-5xl md:text-6xl font-extrabold drop-shadow-md text-lime-700 font-bold leading-tight">
                 Find Trusted <span className="underline decoration-lime-500 decoration-4">Shops</span>
@@ -139,7 +139,7 @@ const Shops = ({ darkMode }) => {
                 Verified repair centers & stores near you. Fast, reliable, and rated by real customers.
               </p>
 
-              {/* Stats */}
+           
               <div className="grid grid-cols-3 gap-6 pt-8">
                 <div>
                   <div className="text-3xl font-bold text-lime-600 dark:text-lime-400 flex items-center gap-1">
@@ -164,13 +164,10 @@ const Shops = ({ darkMode }) => {
               </div>
             </div>
 
-            {/* Right: 3D Illustration – IDENTICAL TO TRACK PAGE */}
             <div className="relative hidden md:block">
               <div className="relative w-full h-96">
-                {/* Background glow */}
                 <div className="absolute inset-0 bg-gradient-to-br from-lime-100 to-teal-100 dark:from-lime-900 dark:to-teal-900 rounded-3xl blur-3xl opacity-50"></div>
 
-                {/* Phone Mockups */}
                 <div className="absolute top-10 left-10 w-48 h-64 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl rotate-12 transform-gpu overflow-hidden">
                   <div className="p-4 space-y-3">
                     <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
@@ -214,7 +211,6 @@ const Shops = ({ darkMode }) => {
         </div>
       </section>
 
-      {/* ==================== ENHANCED SEARCH SECTION ==================== */}
       <div className="max-w-4xl mx-auto px-6 -mt-12 relative z-10">
         <div className="bg-white/40 dark:bg-gray-800/40 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-gray-200/50 dark:border-gray-700/50">
           <div className="flex flex-col md:flex-row gap-4 items-center">
@@ -228,14 +224,13 @@ const Shops = ({ darkMode }) => {
                 className="w-full pl-16 pr-6 py-5 rounded-2xl text-lg bg-white dark:bg-gray-700 border-2 border-transparent focus:border-lime-500 outline-none transition-all shadow-inner"
               />
             </div>
-            <button className="px-10 py-5 bg-lime-600 hover:bg-lime-700 text-white font-bold rounded-2xl transition-all hover:scale-105 shadow-lg flex items-center gap-3">
+            {/* <button className="px-10 py-5 bg-lime-600 hover:bg-lime-700 text-white font-bold rounded-2xl transition-all hover:scale-105 shadow-lg flex items-center gap-3">
               <FiSearch /> Search
-            </button>
+            </button> */}
           </div>
         </div>
       </div>
 
-      {/* ==================== SHOPS GRID ==================== */}
       <div className="max-w-7xl mx-auto px-6 py-16">
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

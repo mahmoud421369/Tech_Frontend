@@ -17,7 +17,7 @@ import logo from "../images/logo-bg.png";
 const Footer = ({ darkMode }) => {
   return (
     <footer className={`relative overflow-hidden py-16 ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
-      {/* Animated Dots Background */}
+      
       <div className="absolute inset-0 opacity-10 pointer-events-none">
         {[...Array(60)].map((_, i) => (
           <div
@@ -33,7 +33,7 @@ const Footer = ({ darkMode }) => {
         ))}
       </div>
 
-      {/* Curved Top Border */}
+    
       <div className="absolute top-0 left-0 right-0">
         <svg
           className="w-full h-16"
@@ -50,7 +50,7 @@ const Footer = ({ darkMode }) => {
       <div className="relative max-w-7xl mx-auto px-6 sm:px-8 lg:px-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
 
-          {/* Brand Section */}
+          
           <div className="space-y-6">
             <div className="flex items-center gap-3">
               <img
@@ -66,7 +66,7 @@ const Footer = ({ darkMode }) => {
               Your trusted partner for top-quality device repairs and refurbished electronics. Exceptional service, guaranteed.
             </p>
 
-            {/* Social Icons */}
+           
             <div className="flex gap-3">
               {[
                 { Icon: FaFacebook, href: "https://facebook.com", label: "Facebook" },
@@ -87,7 +87,7 @@ const Footer = ({ darkMode }) => {
             </div>
           </div>
 
-          {/* Quick Links */}
+          
           <div>
             <h3 className="text-xl font-bold text-emerald-600 dark:text-lime-400 mb-6">
               Quick Links
@@ -115,7 +115,7 @@ const Footer = ({ darkMode }) => {
             </ul>
           </div>
 
-          {/* Services */}
+        
           <div>
             <h3 className="text-xl font-bold text-emerald-600 dark:text-lime-400 mb-6">
               Our Services
@@ -141,7 +141,7 @@ const Footer = ({ darkMode }) => {
             </ul>
           </div>
 
-          {/* Contact */}
+          
           <div>
             <h3 className="text-xl font-bold text-emerald-600 dark:text-lime-400 mb-6">
               Contact Us
@@ -181,7 +181,7 @@ const Footer = ({ darkMode }) => {
           </div>
         </div>
 
-        {/* Bottom Bar */}
+        
         <div className={`pt-8 border-t ${darkMode ? "border-gray-800" : "border-gray-200"}`}>
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-sm">
             <p className={darkMode ? "text-gray-400" : "text-gray-600"}>
@@ -209,14 +209,14 @@ const Footer = ({ darkMode }) => {
         </div>
       </div>
 
-      {/* Floating Icons */}
+      
       <div className="absolute inset-0 opacity-20 pointer-events-none">
         <FiPackage className="absolute top-10 left-10 w-16 h-16 text-lime-500 animate-float" />
         <FiTruck className="absolute bottom-20 right-20 w-20 h-20 text-lime-500 animate-pulse" />
         <FiCompass className="absolute top-1/3 right-1/4 w-14 h-14 text-lime-400 animate-ping" />
       </div>
 
-      {/* Custom Animations */}
+      
       <style jsx>{`
         @keyframes float {
           0%, 100% { transform: translateY(0); }

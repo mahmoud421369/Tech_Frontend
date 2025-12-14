@@ -15,7 +15,7 @@ import api from "../api";
 import { jwtDecode } from "jwt-decode";
 
 const Header = () => {
-  // === State ===
+  
   const [darkMode, setDarkMode] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -193,12 +193,12 @@ const Header = () => {
 
   return (
     <>
-      {/* Mobile Overlay */}
+      
       {isSidebarOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden" onClick={() => setIsSidebarOpen(false)} />
       )}
 
-      {/* Sidebar – Premium Glassmorphism */}
+     
       <nav className={`fixed inset-y-0 left-0 z-50 w-72 bg-white/95 dark:bg-black/40 backdrop-blur-2xl border-r border-gray-200 dark:border-emerald-500/30 shadow-2xl transition-all duration-500 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
         <div className="flex flex-col h-full">
           <div className="p-8 border-b border-gray-200 dark:border-emerald-500/30">
@@ -258,14 +258,14 @@ const Header = () => {
         </div>
       </nav>
 
-      {/* Top Header – Ultra Premium */}
+      
       <header className={`fixed top-0 text-right left-0 right-0 h-20 z-40 flex items-center justify-end px-6 shadow-lg lg:pl-72 transition-all duration-500 ${darkMode ? "bg-black/50 backdrop-blur-2xl border-b border-emerald-500/30" : "bg-white/95 border-b border-gray-200"}`}>
         <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-3 rounded-2xl bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition">
           <FiMenu size={24} />
         </button>
 
         <div className="flex items-center justify-start gap-6">
-          {/* Search */}
+       
           <div className="relative hidden lg:block">
             <input
               type="text"
@@ -277,12 +277,12 @@ const Header = () => {
             <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500" size={20} />
           </div>
 
-          {/* Dark Mode */}
+        
           <button onClick={toggleDarkMode} className={`p-4 rounded-2xl transition-all ${darkMode ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 shadow-lg shadow-emerald-500/50" : "bg-emerald-100 text-emerald-600 hover:bg-emerald-200"}`}>
             {darkMode ? <FiMoon size={22} /> : <FiSun size={22} />}
           </button>
 
-          {/* Notifications */}
+         
           <div className="relative notif-btn">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
@@ -335,7 +335,7 @@ const Header = () => {
             )}
           </div>
 
-          {/* Logout */}
+          
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-2xl hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg"

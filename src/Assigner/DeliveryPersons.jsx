@@ -55,6 +55,7 @@ const DeliveryPersons = ({ darkMode }) => {
       const res = await api.get('/api/assigner/delivery-persons', {
         headers: { Authorization: `Bearer ${token}` }
       });
+      console.log(res.data.content || res.data || []);
       setPersons(res.data.content || res.data || []);
     } catch (err) {
       console.error(err);
@@ -92,7 +93,7 @@ const DeliveryPersons = ({ darkMode }) => {
   const currentPersons = filteredPersons.slice(startIdx, startIdx + itemsPerPage);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-950 dark:to-emerald-950/30 pt-8 lg:pl-72 transition-all duration-500">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-950 pt-8 lg:pl-72 transition-all duration-500">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
       
@@ -207,12 +208,12 @@ const DeliveryPersons = ({ darkMode }) => {
                   
                     <div className="mb-5">
                       <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${
-                        person.activate
+                        person.available
                           ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400'
                           : 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-400'
                       }`}>
-                        {person.activate ? <FiCheckCircle size={16} /> : <FiAlertCircle size={16} />}
-                        {person.activate ? 'Active' : 'Inactive'}
+                        {person.available ? <FiCheckCircle size={16} /> : <FiAlertCircle size={16} />}
+                        {person.available ? 'Available' : 'Busy'}
                       </span>
                     </div>
 
@@ -230,14 +231,14 @@ const DeliveryPersons = ({ darkMode }) => {
                         <FiMapPin className="text-emerald-600 dark:text-emerald-400" size={18} />
                         <span className="text-sm truncate">{person.address || 'No address'}</span>
                       </div>
-                      <div className="flex items-center gap-3">
+                      {/* <div className="flex items-center gap-3">
                         {person.verified ? (
                           <FiCheckCircle className="text-green-500" size={18} />
                         ) : (
                           <FiXCircle className="text-red-500" size={18} />
                         )}
                         <span className="text-sm">{person.verified ? 'Verified' : 'Not Verified'}</span>
-                      </div>
+                      </div> */}
                     </div>
 
                    
