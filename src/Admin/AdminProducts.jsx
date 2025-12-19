@@ -512,13 +512,13 @@ const ProductsPage = ({ darkMode }) => {
                       <div className="flex justify-center gap-2">
                         <button
                           onClick={() => updateProduct(p)}
-                          className="px-3 py-1.5 text-xs bg-emerald-50 border border-gray-200 font-semibold dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded hover:bg-emerald-200 dark:hover:bg-emerald-800 transition"
+                          className="px-3 py-1.5 text-xs bg-amber-50 border border-gray-200 font-semibold dark:bg-amber-900 dark:bg-gray-950 dark:border-gray-900 text-amber-700 dark:text-amber-800 rounded   transition"
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => deleteProduct(p.id)}
-                          className="px-3 py-1.5 text-xs bg-red-50 border border-gray-200 font-semibold dark:bg-red-900 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-800 transition"
+                          className="px-3 py-1.5 text-xs bg-red-50 border border-gray-200 font-semibold dark:bg-gray-950 dark:border-gray-900 text-red-700 dark:text-red-700 rounded transition"
                         >
                           Delete
                         </button>

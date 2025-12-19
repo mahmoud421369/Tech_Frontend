@@ -1,61 +1,44 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo, useRef } from 'react';
 import {
-  FiSearch,
-  FiDownload,
-  FiUpload,
+  FiSearch, FiDownload, FiUpload, FiPackage, FiAlertTriangle,
+  FiDollarSign, FiBox,
+  FiTrendingDown,
   FiChevronLeft,
-  FiChevronRight,
-  FiPackage,
-  FiAlertTriangle,
-  FiDollarSign,
+  FiChevronRight
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
-import debounce from 'lodash/debounce';
 import api from '../api';
 
-const API_BASE = '/api/shop/inventory';
 const ROWS_PER_PAGE = 10;
-
 
 const InventoryRow = memo(({ item }) => {
   const isLow = item.stock <= (item.threshold || 0);
-  const statusCls = isLow
-    ? 'bg-red-100 text-red-800'
-    : 'bg-green-100 text-green-800';
+  const statusCls = isLow ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800';
 
   return (
-    <tr className="border-b border-lime-100 hover:bg-lime-50 transition">
-      <td className="px-4 py-3 text-sm font-medium text-black text-center">{item.name || '-'}</td>
-      {/* <td className="px-4 py-3 text-sm text-gray-700 text-center">{item.categoryName || item.category || '-'}</td> */}
-      <td className="px-4 py-3 text-sm font-medium text-black text-center">
-        {Number(item.price || 0).toLocaleString()} ج.م
-      </td>
-      <td className="px-4 py-3 text-sm text-gray-700 text-center">{item.stock}</td>
-      <td className="px-4 py-3 text-center">
-        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusCls}`}>
+    <tr className="hover:bg-gray-50 transition">
+      <td className="px-5 py-4 text-sm font-medium text-gray-800 text-center">{item.name || '-'}</td>
+      <td className="px-5 py-4 text-center font-bold">{Number(item.price || 0).toLocaleString()} ج.م</td>
+      <td className="px-5 py-4 text-center">{item.stock}</td>
+      <td className="px-5 py-4 text-center">
+        <span className={`px-4 py-2 rounded-full text-xs font-bold ${statusCls}`}>
           {isLow ? 'مخزون منخفض' : 'متوفر'}
         </span>
       </td>
     </tr>
   );
 });
-InventoryRow.displayName = 'InventoryRow';
-
 
 const SkeletonRow = memo(() => (
   <tr>
-    {Array.from({ length: 5 }).map((_, i) => (
-      <td key={i} className="px-4 py-3 text-center">
-        <div className="h-4 bg-gray-200 rounded animate-pulse mx-auto w-24" />
+    {Array.from({ length: 4 }).map((_, i) => (
+      <td key={i} className="px-5 py-4 text-center">
+        <div className="h-4 bg-gray-200 rounded-full animate-pulse mx-auto w-32" />
       </td>
     ))}
   </tr>
 ));
-SkeletonRow.displayName = 'SkeletonRow';
 
-// ---------------------------------------------------------------------
-// Main Component
-// ---------------------------------------------------------------------
 const Inventory = () => {
   const [inventory, setInventory] = useState([]);
   const [stats, setStats] = useState({ lowStock: 0, outOfStock: 0, totalValue: 0, totalItems: 0 });
@@ -64,16 +47,16 @@ const Inventory = () => {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
 
-  const abortCtrl = React.useRef(new AbortController());
-  const fileInputRef = React.useRef(null);
+  const abortCtrl = useRef(new AbortController());
+  const fileInputRef = useRef(null);
 
-  // -----------------------------------------------------------------
-  // Fetch Data
-  // -----------------------------------------------------------------
+  const API_BASE = '/api/shop/inventory';
+
   const fetchInventory = useCallback(async () => {
     abortCtrl.current.abort();
     abortCtrl.current = new AbortController();
     setLoading(true);
+
     try {
       const [invRes, lowRes, outRes, valRes, itemsRes] = await Promise.all([
         api.get(`${API_BASE}/search?query=${searchTerm}`, { signal: abortCtrl.current.signal }),
@@ -93,47 +76,21 @@ const Inventory = () => {
         totalItems: Number(itemsRes.data) || 0,
       });
     } catch (err) {
-      // if (err.name !== 'AbortError') {
-      //   console.error(err);
-      //   showToast('خطأ', 'فشل تحميل الجرد', 'error');
-      // }
+      
     } finally {
       setLoading(false);
     }
   }, [searchTerm]);
 
-  // -----------------------------------------------------------------
-  // Debounced Search
-  // -----------------------------------------------------------------
-  const debouncedSearch = useMemo(
-    () => debounce((val) => setSearchTerm(val), 300),
-    []
-  );
-
-  const handleSearch = (e) => {
-    const val = e.target.value;
-    debouncedSearch(val);
-    setCurrentPage(1);
-  };
-
-  // -----------------------------------------------------------------
-  // Load on mount / search change
-  // -----------------------------------------------------------------
   useEffect(() => {
     fetchInventory();
     return () => abortCtrl.current.abort();
   }, [fetchInventory]);
 
-  useEffect(() => () => debouncedSearch.cancel(), [debouncedSearch]);
-
-  // -----------------------------------------------------------------
-  // Filtering & Pagination
-  // -----------------------------------------------------------------
-  const filtered = useMemo(
-    () =>
-      inventory.filter((i) =>
-        [i.name, i.categoryName, i.sku].join(' ').toLowerCase().includes(searchTerm.toLowerCase())
-      ),
+  const filtered = useMemo(() =>
+    inventory.filter(i =>
+      [i.name, i.categoryName, i.sku].join(' ').toLowerCase().includes(searchTerm.toLowerCase())
+    ),
     [inventory, searchTerm]
   );
 
@@ -143,34 +100,15 @@ const Inventory = () => {
     return filtered.slice(start, start + ROWS_PER_PAGE);
   }, [filtered, currentPage]);
 
-  const goToPage = (p) => {
-    if (p >= 1 && p <= totalPages) setCurrentPage(p);
-  };
-
-  // -----------------------------------------------------------------
-  // Toast Helper (Top-Right)
-  // -----------------------------------------------------------------
   const showToast = (title, text, icon) => {
     Swal.fire({
-      title,
-      text,
-      icon,
-      toast: true,
-      position: 'top-end',
-      showConfirmButton: false,
-      timer: 2000,
-      timerProgressBar: true,
+      title, text, icon, toast: true, position: 'top-end',
+      showConfirmButton: false, timer: 2500, timerProgressBar: true,
       background: icon === 'success' ? '#ecfdf5' : '#fee2e2',
       color: icon === 'success' ? '#166534' : '#991b1b',
-      customClass: {
-        popup: 'shadow-lg',
-      },
     });
   };
 
-  // -----------------------------------------------------------------
-  // Export Excel (CSV)
-  // -----------------------------------------------------------------
   const exportExcel = async () => {
     try {
       const res = await api.get(`${API_BASE}/export`, { responseType: 'blob' });
@@ -181,21 +119,17 @@ const Inventory = () => {
       a.download = `inventory_${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
       window.URL.revokeObjectURL(url);
-      showToast('نجح', 'تم التصدير', 'success');
-    } catch (err) {
-      showToast('خطأ', 'فشل التصدير', 'error');
+      showToast('نجح', 'تم تصدير المخزون بنجاح', 'success');
+    } catch {
+      showToast('خطأ', 'فشل تصدير الملف', 'error');
     }
   };
 
-  // -----------------------------------------------------------------
-  // Import CSV – SAME COLUMNS AS TABLE
-  // -----------------------------------------------------------------
   const handleImportCSV = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     if (!file.name.endsWith('.csv')) {
-      showToast('خطأ', 'يرجى اختيار ملف CSV', 'error');
+      showToast('خطأ', 'يرجى اختيار ملف CSV فقط', 'error');
       return;
     }
 
@@ -204,56 +138,102 @@ const Inventory = () => {
     formData.append('file', file);
 
     try {
-      await api.post(`api/shops/products/import`, formData, {
+      await api.post('/api/shops/products/import', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       await fetchInventory();
-      showToast('نجح', 'تم استيراد الملف بنجاح', 'success');
+      showToast('نجح', 'تم استيراد المخزون بنجاح', 'success');
     } catch (err) {
-      const msg = err.response?.data?.message || 'فشل استيراد الملف';
-      showToast('خطأ', msg, 'error');
+      showToast('خطأ', err.response?.data?.message || 'فشل الاستيراد', 'error');
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  // -----------------------------------------------------------------
-  // Open File Picker
-  // -----------------------------------------------------------------
-  const triggerFileInput = () => {
-    fileInputRef.current?.click();
-  };
-
   return (
-    <div dir="rtl" style={{ marginTop: "-575px", marginLeft: "-25px" }} className="min-h-screen max-w-6xl mx-auto p-4 lg:p-8 font-cairo bg-gradient-to-br from-gray-50 via-white to-gray-50">
-      <div className="max-w-6xl mx-auto">
+    <div dir="rtl" style={{ marginTop: "-575px", marginLeft: "-250px" }} className="min-h-screen bg-gray-50 font-cairo py-8">
+      <div className="max-w-5xl mx-auto px-6">
+
+      
+        <div className="mb-10 bg-white rounded-3xl shadow-sm border border-gray-200 p-8">
+          <div className="flex items-center justify-between flex-row-reverse text-right gap-5">
+            <div className="p-5 bg-lime-100 rounded-2xl">
+              <FiPackage className="text-4xl text-lime-600" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900">إدارة الجرد والمخزون</h1>
+              <p className="text-lg text-gray-600 mt-2">تابع الكميات والأسعار وتنبيهات المخزون المنخفض بدقة عالية</p>
+            </div>
+          </div>
+        </div>
 
         
-        <div className="mb-8 text-right bg-white p-6 shadow-md border-l-4  border-lime-500">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-lime-100 rounded-full">
-                <FiPackage className="w-7 h-7 text-lime-700" />
-              </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
+            <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-black">الجرد</h1>
-                <p className="text-sm text-gray-600">إدارة المخزون ومتابعة الكميات</p>
+                <p className="text-lg opacity-90">إجمالي المنتجات</p>
+                <p className="text-4xl font-bold mt-3">{stats.totalItems}</p>
               </div>
+              <FiBox className="text-6xl opacity-40" />
             </div>
-            <div className="flex gap-3">
+          </div>
 
-             
+          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-lg opacity-90">مخزون منخفض</p>
+                <p className="text-4xl font-bold mt-3 text-red-600">{stats.lowStock}</p>
+              </div>
+              <FiAlertTriangle className="text-6xl opacity-40 text-red-600" />
+            </div>
+          </div>
+
+          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-lg opacity-90">نفد المخزون</p>
+                <p className="text-4xl font-bold mt-3 text-orange-600">{stats.outOfStock}</p>
+              </div>
+              <FiTrendingDown className="text-6xl opacity-40 text-orange-600" />
+            </div>
+          </div>
+
+          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-lg opacity-90">قيمة المخزون</p>
+                <p className="text-4xl font-bold mt-3 text-emerald-600">{Number(stats.totalValue).toLocaleString()} ج.م</p>
+              </div>
+              <FiDollarSign className="text-6xl opacity-40 text-emerald-600" />
+            </div>
+          </div>
+        </div>
+
+      
+        <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
+          <div className="flex flex-col sm:flex-row gap-6 items-center justify-between">
+            <div className="flex-1 relative max-w-md">
+              <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-lg" />
+              <input
+                type="text"
+                placeholder="ابحث بالاسم، الكود، أو الفئة..."
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pr-12 py-3.5 pl-4 rounded-xl border border-gray-300 focus:border-lime-500 focus:ring-4 focus:ring-lime-100 outline-none text-base transition bg-gray-50"
+              />
+            </div>
+
+            <div className="flex gap-4">
               <button
-                onClick={triggerFileInput}
+                onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition shadow-sm disabled:opacity-60"
+                className="px-6 py-3.5 bg-blue-500 hover:bg-blue-500 border border-blue-500 text-white hover:text-white rounded-3xl font-medium shadow transition flex items-center gap-2 disabled:opacity-70"
               >
-                <FiUpload />
+                <FiUpload className="w-5 h-5" />
                 {uploading ? 'جاري الرفع...' : 'استيراد CSV'}
               </button>
 
-           
               <input
                 ref={fileInputRef}
                 type="file"
@@ -264,148 +244,82 @@ const Inventory = () => {
 
               <button
                 onClick={exportExcel}
-                className="flex items-center gap-2 px-4 py-2.5 bg-gray-700 hover:bg-gray-800 text-white rounded-lg font-semibold transition shadow-sm"
+                className="px-6 py-3.5 bg-transparent hover:bg-teal-500 border border-teal-500 text-teal-500 hover:text-white rounded-3xl font-medium shadow transition flex items-center gap-2"
               >
-                <FiDownload /> تصدير CSV
+                <FiDownload className="w-5 h-5" />
+                تصدير CSV
               </button>
             </div>
           </div>
         </div>
 
-    
-        <div className="mb-6 max-w-md">
-          <div className="relative">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" in />
-            <input
-              type="text"
-              placeholder="ابحث في الجرد..."
-              onChange={handleSearch}
-              className="w-full pl-10 pr-4 py-3 rounded-lg border bg-gray-50 text-black placeholder-gray-500 focus:ring-2 focus:ring-lime-400 focus:border-lime-500 outline-none transition text-right"
-            />
-          </div>
-        </div>
-
        
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-          <div className="p-5 bg-white shadow-md border-l-4 border-lime-500">
-            <div className="flex items-center justify-start gap-3 mb-2">
-              <FiPackage className="w-6 h-6 text-lime-600" />
-              <h3 className="text-sm font-medium text-black">عدد المنتجات</h3>
-            </div>
-            <p className="text-2xl font-bold text-black">{stats.totalItems}</p>
-          </div>
-
-          <div className="p-5 bg-white shadow-md border-l-4 border-red-500">
-            <div className="flex items-center justify-start gap-3 mb-2">
-              <FiAlertTriangle className="w-6 h-6 text-red-600" />
-              <h3 className="text-sm font-medium text-black">مخزون منخفض</h3>
-            </div>
-            <p className="text-2xl font-bold text-black">{stats.lowStock}</p>
-          </div>
-
-          <div className="p-5 bg-white shadow-md border-l-4 border-orange-500">
-            <div className="flex items-center justify-start gap-3 mb-2">
-              <FiAlertTriangle className="w-6 h-6 text-orange-600" />
-              <h3 className="text-sm font-medium text-black">نفد المخزون</h3>
-            </div>
-            <p className="text-2xl font-bold text-black">{stats.outOfStock}</p>
-          </div>
-
-          <div className="p-5 bg-white shadow-md border-l-4 border-green-500">
-            <div className="flex items-center justify-start gap-3 mb-2">
-              <FiDollarSign className="w-6 h-6 text-green-600" />
-              <h3 className="text-sm font-medium text-black">قيمة المخزون</h3>
-            </div>
-            <p className="text-2xl font-bold text-black">{Number(stats.totalValue).toLocaleString()} ج.م</p>
-          </div>
-        </div>
-
-      
-        <div className="bg-white rounded-xl shadow-sm border ">
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
           {loading ? (
-            <table className="min-w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  {['المنتج',  'السعر', 'الكمية', 'الحالة'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-xs font-bold text-gray-700 text-center">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {Array.from({ length: ROWS_PER_PAGE }).map((_, i) => (
-                  <SkeletonRow key={i} />
-                ))}
-              </tbody>
-            </table>
+            <div className="p-20 text-center">
+              <div className="w-16 h-16 border-6 border-lime-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+              <p className="mt-6 text-lg text-gray-600">جاري تحميل المخزون...</p>
+            </div>
+          ) : paginated.length === 0 ? (
+            <div className="p-20 text-center text-gray-500">
+              <FiPackage className="w-16 h-16 mx-auto opacity-30 mb-4" />
+              <p className="text-xl">لا توجد منتجات في المخزون</p>
+              <p className="mt-2">ابدأ باستيراد ملف CSV</p>
+            </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead className="bg-gray-50 sticky top-0 z-10">
+              <table className="w-full">
+                <thead className="bg-gray-100 text-gray-600">
                   <tr>
-                    {['المنتج','السعر', 'الكمية', 'الحالة'].map((h) => (
-                      <th key={h} className="px-4 py-3 text-xs font-bold text-gray-700 text-center">
-                        {h}
-                      </th>
-                    ))}
+                    <th className="px-5 py-4 text-base font-bold">المنتج</th>
+                    <th className="px-5 py-4 text-base font-bold">السعر</th>
+                    <th className="px-5 py-4 text-base font-bold">الكمية</th>
+                    <th className="px-5 py-4 text-base font-bold">الحالة</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-lime-100">
-                  {paginated.length ? (
-                    paginated.map((item) => (
-                      <InventoryRow key={item.id} item={item} />
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={5} className="py-16 text-center text-gray-500">
-                        <div className="text-lime-400 mb-4">
-                          <FiPackage className="w-16 h-16 mx-auto opacity-30" />
-                        </div>
-                        <h3 className="text-xl font-bold text-black mb-2">
-                          لا توجد منتجات
-                        </h3>
-                        <p className="text-gray-600">
-                          {searchTerm ? 'جرب تعديل البحث' : 'استورد بيانات من ملف CSV'}
-                        </p>
-                      </td>
-                    </tr>
-                  )}
+                <tbody className="divide-y divide-gray-200">
+                  {paginated.map((item) => (
+                    <InventoryRow key={item.id} item={item} />
+                  ))}
                 </tbody>
               </table>
             </div>
           )}
         </div>
 
-    
+       
         {!loading && totalPages > 1 && (
-          <div className="flex justify-center items-center gap-2 mt-6">
+          <div className="flex justify-center items-center gap-3 mt-10">
             <button
-              onClick={() => goToPage(currentPage - 1)}
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="p-2 rounded-lg border border-lime-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-lime-50 transition"
+              className="px-4 py-3 bg-white border border-lime-600 rounded-xl disabled:opacity-50 hover:bg-lime-50 text-lime-700 font-medium transition shadow-sm flex items-center gap-2"
             >
-              <FiChevronRight />
+              <FiChevronLeft className="w-5 h-5" />
+              السابق
             </button>
-            {[...Array(totalPages)].map((_, i) => (
-              <button
-                key={i}
-                onClick={() => goToPage(i + 1)}
-                className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${
-                  currentPage === i + 1
-                    ? 'bg-lime-500 text-white border-lime-500'
-                    : 'border-lime-200 hover:bg-lime-50 text-black'
-                }`}
-              >
-                {i + 1}
-              </button>
-            ))}
+
+            <div className="flex gap-2">
+              {[...Array(totalPages)].map((_, i) => (
+                <button
+                  key={i + 1}
+                  onClick={() => setCurrentPage(i + 1)}
+                  className={`w-12 h-12 rounded-xl font-bold text-base transition shadow-sm flex items-center justify-center ${
+                    currentPage === i + 1 ? 'bg-lime-600 text-white' : 'bg-white border border-lime-600 text-lime-700 hover:bg-lime-50'
+                  }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
+
             <button
-              onClick={() => goToPage(currentPage + 1)}
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="p-2 rounded-lg border border-lime-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-lime-50 transition"
+              className="px-4 py-3 bg-white border border-lime-600 rounded-xl disabled:opacity-50 hover:bg-lime-50 text-lime-700 font-medium transition shadow-sm flex items-center gap-2"
             >
-              <FiChevronLeft />
+              التالي
+              <FiChevronRight className="w-5 h-5" />
             </button>
           </div>
         )}

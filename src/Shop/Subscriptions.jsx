@@ -1,4 +1,4 @@
-// src/pages/OwnerDashboard.jsx
+
 import { useState, useEffect } from 'react';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
@@ -8,7 +8,7 @@ const Subscriptions = () => {
   const [subs, setSubs] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const shopEmail = user?.email; // assume email is shop identifier
+  const shopEmail = user?.email; 
 
   useEffect(() => {
     fetchMySubscriptions();

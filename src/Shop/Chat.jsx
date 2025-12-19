@@ -6,73 +6,77 @@ const Chat = () => {
   const [openChat, setOpenChat] = useState(false);
 
   return (
-    <div style={{marginTop:"-575px",marginLeft:"-25px"}} className="min-h-screen max-w-6xl mx-auto p-4 lg:p-8 font-cairo bg-gradient-to-br from-gray-50 via-white to-gray-50">
-      <div className="bg-white rounded-xl shadow-sm p-6 lg:p-8 border border-gray-200">
-      
-        <div className="mb-8 text-right">
-          <h1 className="text-3xl font-bold text-black mb-2 flex items-center justify-end gap-3">
-            <FiMessageSquare className="text-gray-500" />
-            إدارة المحادثات
-          </h1>
-          <p className="text-sm text-gray-600">تواصل مع عملائك بسهولة وسرعة</p>
+    <div  style={{ marginTop: "-575px", marginLeft: "-250px" }} className="min-h-screen bg-gray-50 font-cairo py-8">
+      <div className="max-w-5xl mx-auto px-6">
+
+        
+        <div className="mb-10 bg-white rounded-3xl shadow-sm border border-gray-200 p-8">
+          <div className="flex items-center justify-between text-right gap-5">
+            <div className="p-5 bg-lime-100 rounded-2xl">
+              <FiMessageSquare className="text-4xl text-lime-600" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900">إدارة المحادثات</h1>
+              <p className="text-lg text-gray-600 mt-2">تواصل مع عملائك فورياً – ردود سريعة وإشعارات ذكية</p>
+            </div>
+          </div>
         </div>
 
        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-      
-          <div className="bg-gradient-to-br from-lime-50 to-white p-6 rounded-xl border  shadow-sm hover:shadow-md transition-all group">
-            <div className="flex items-center justify-end gap-3 mb-3">
-              <div className="p-2 bg-lime-100 rounded-lg group-hover:bg-lime-200 transition">
-                <FiZap className="w-6 h-6 text-lime-700" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-lg opacity-90">محادثة فورية</p>
               </div>
-              <h3 className="text-lg font-bold text-black">محادثة فورية</h3>
+              <FiZap className="text-6xl opacity-40 text-lime-600" />
             </div>
-            <p className="text-sm text-gray-600 text-right">
-              تواصل مع العملاء لحظة بلحظة، ردود سريعة وفعّالة.
-            </p>
           </div>
 
-         
-          <div className="bg-gradient-to-br from-lime-50 to-white p-6 rounded-xl border  shadow-sm hover:shadow-md transition-all group">
-            <div className="flex items-center justify-end gap-3 mb-3">
-              <div className="p-2 bg-lime-100 rounded-lg group-hover:bg-lime-200 transition">
-                <FiBell className="w-6 h-6 text-lime-700" />
+          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-lg opacity-90">إشعارات فورية</p>
               </div>
-              <h3 className="text-lg font-bold text-black">إشعارات فورية</h3>
+              <FiBell className="text-6xl opacity-40 text-blue-600" />
             </div>
-            <p className="text-sm text-gray-600 text-right">
-              لا تفوت أي رسالة، إشعارات فورية عند وصول طلب جديد.
-            </p>
           </div>
 
-         
-          <div className="bg-gradient-to-br from-lime-50 to-white p-6 rounded-xl border  shadow-sm hover:shadow-md transition-all group">
-            <div className="flex items-center justify-end gap-3 mb-3">
-              <div className="p-2 bg-lime-100 rounded-lg group-hover:bg-lime-200 transition">
-                <FiClock className="w-6 h-6 text-lime-700" />
+          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-lg opacity-90">سجل المحادثات</p>
               </div>
-              <h3 className="text-lg font-bold text-black">سجل المحادثات</h3>
+              <FiClock className="text-6xl opacity-40 text-purple-600" />
             </div>
-            <p className="text-sm text-gray-600 text-right">
-              راجع جميع المحادثات السابقة بسهولة وسرعة.
-            </p>
           </div>
         </div>
 
-        
-        <div className="flex justify-center">
+       
+        <div className="mb-12 bg-white rounded-3xl shadow-lg border border-gray-200 p-10 text-center">
+          <div className="flex justify-center mb-8">
+            <div className="p-6 bg-lime-100 rounded-full">
+              <FiMessageSquare className="w-16 h-16 text-lime-700" />
+            </div>
+          </div>
+          <h2 className="text-4xl font-bold text-gray-900 mb-6">
+            ابدأ المحادثة مع عملائك الآن
+          </h2>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed mb-10">
+            انقر على الزر أدناه لفتح نافذة الدردشة المتكاملة – رد فوري، إشعارات ذكية، وسجل محادثات كامل يحفظ كل رسالة
+          </p>
           <button
             onClick={() => setOpenChat(true)}
-            className="flex items-center gap-2 px-8 py-3 bg-lime-500 text-white font-bold rounded-lg hover:bg-lime-600 transition-all shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-lime-400 focus:ring-offset-2"
+            className="px-12 py-5 bg-lime-600 hover:bg-lime-700 text-white font-bold text-2xl rounded-2xl shadow-2xl transition flex items-center justify-center gap-4 mx-auto"
           >
-            <FiMessageSquare className="text-xl" />
+            <FiMessageSquare className="text-3xl" />
             فتح المحادثات
           </button>
         </div>
-      </div>
 
-     
-      <ShopChatModal open={openChat} onClose={() => setOpenChat(false)} />
+       
+        <ShopChatModal open={openChat} onClose={() => setOpenChat(false)} />
+      </div>
     </div>
   );
 };

@@ -1,18 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
-  FiXCircle,
-  FiChevronDown,
-  FiSearch,
-  FiShoppingBag,
-  FiInfo,
-  FiCheckSquare,
-  FiTag,
-  FiTrash2,
-  FiEdit2,
-  FiX,
-  FiChevronLeft,
+  FiSearch, FiPlus, FiInfo, FiEdit3, FiTrash2, FiX, FiCalendar, FiTag,
+  FiPercent, FiDollarSign, FiClock, FiCheckCircle, FiAlertCircle,
   FiChevronRight,
-  FiCalendar,
+  FiChevronLeft
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import DatePicker from 'react-datepicker';
@@ -27,27 +18,23 @@ const ShopOffers = () => {
   const [editingOffer, setEditingOffer] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [newOffer, setNewOffer] = useState({
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState({
     name: '',
     description: '',
     discountValue: '',
     discountType: 'PERCENTAGE',
     status: 'ACTIVE',
-    startDate: '',
-    endDate: '',
+    startDate: null,
+    endDate: null,
   });
-  const [isDiscountTypeOpen, setIsDiscountTypeOpen] = useState(false);
-  const [isStatusOpen, setIsStatusOpen] = useState(false);
-  const discountTypeRef = useRef(null);
-  const statusRef = useRef(null);
 
-  const offersPerPage = 5;
+  const offersPerPage = 8;
 
-  
   const statusTranslations = {
     ACTIVE: 'نشط',
     SCHEDULED: 'قادم',
-    EXPIRED: 'غير نشط',
+    EXPIRED: 'منتهي',
   };
 
   const discountTypeTranslations = {
@@ -55,535 +42,507 @@ const ShopOffers = () => {
     FIXED_AMOUNT: 'مبلغ ثابت',
   };
 
-  
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (
-        discountTypeRef.current && !discountTypeRef.current.contains(e.target) &&
-        statusRef.current && !statusRef.current.contains(e.target)
-      ) {
-        setIsDiscountTypeOpen(false);
-        setIsStatusOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-
   const fetchOffers = useCallback(async () => {
-    const controller = new AbortController();
     setLoading(true);
     try {
-      const res = await api.get('/api/shop/offers', { signal: controller.signal });
+      const res = await api.get('/api/shop/offers');
       setOffers(Array.isArray(res.data) ? res.data : res.data.content || []);
     } catch (err) {
-      if (err.name !== 'AbortError') {
-        console.error('Error fetching offers:', err.response?.data || err.message);
-        Swal.fire({
-          title: 'خطأ',
-          text: 'فشل في تحميل العروض',
-          icon: 'error',
-          toast: true,
-          position: 'top-end',
-          timer: 1500,
-        });
-      }
-    } finally {
-      setLoading(false);
-    }
-    return () => controller.abort();
-  }, []);
-
- 
-  const viewOfferDetails = useCallback(async (offerId) => {
-    try {
-      const res = await api.get(`/api/shop/offers/${offerId}`);
-      const offer = res.data;
-      const startFormatted = offer.startDate
-        ? new Date(offer.startDate).toLocaleString('ar-EG', {
-            dateStyle: 'medium',
-            timeStyle: 'short',
-          })
-        : '';
-      const endFormatted = offer.endDate
-        ? new Date(offer.endDate).toLocaleString('ar-EG', {
-            dateStyle: 'medium',
-            timeStyle: 'short',
-          })
-        : '';
-
-      Swal.fire({
-        title:` تفاصيل العرض #${offer.id || '__'}`,
-        html: `
-          <div class="text-right font-cairo space-y-2">
-            <p class="flex justify-between flex-row-reverse"><strong>اسم العرض</strong> ${offer.name || ''}</p>
-            <hr class="border-lime-100">
-            <p class="flex justify-between flex-row-reverse"><strong>الوصف</strong> ${offer.description || ''}</p>
-            <hr class="border-lime-100">
-            <p class="flex justify-between flex-row-reverse"><strong>قيمة الخصم</strong> ${offer.discountValue || ''} ${offer.discountType === 'PERCENTAGE' ? '%' : 'ج.م'}</p>
-            <hr class="border-lime-100">
-            <p class="flex justify-between flex-row-reverse"><strong>نوع الخصم</strong> ${discountTypeTranslations[offer.discountType] || ''}</p>
-            <hr class="border-lime-100">
-            <p class="flex justify-between flex-row-reverse"><strong>الحالة</strong> ${statusTranslations[offer.status] || ''}</p>
-            <hr class="border-lime-100">
-            <p class="flex justify-between flex-row-reverse"><strong>تاريخ البداية</strong> ${startFormatted}</p>
-            <hr class="border-lime-100">
-            <p class="flex justify-between flex-row-reverse"><strong>تاريخ النهاية</strong> ${endFormatted}</p>
-          </div>
-        `,
-        width: 600,
-        icon: 'info',
-        confirmButtonText: 'إغلاق',
-        confirmButtonColor: '#84cc16',
-      });
-    } catch (err) {
-      console.error('Error fetching offer details:', err.response?.data || err.message);
       Swal.fire({
         title: 'خطأ',
-        text: 'فشل في تحميل تفاصيل العرض',
+        text: 'فشل في تحميل العروض',
         icon: 'error',
         toast: true,
         position: 'top-end',
         timer: 1500,
       });
+    } finally {
+      setLoading(false);
     }
-  }, [statusTranslations, discountTypeTranslations]);
+  }, []);
 
- 
-  const addOffer = useCallback(async () => {
-    if (!newOffer.name || !newOffer.description || !newOffer.discountValue || !newOffer.startDate || !newOffer.endDate) {
-      Swal.fire({ title: 'خطأ', text: 'يرجى ملء جميع الحقول', icon: 'error', toast: true, position: 'top-end', timer: 1500 });
+  useEffect(() => {
+    fetchOffers();
+  }, [fetchOffers]);
+
+const viewOfferDetails = useCallback(async (offerId) => {
+  try {
+    const res = await api.get(`/api/shop/offers/${offerId}`);
+    const offer = res.data;
+
+    const startFormatted = offer.startDate
+      ? new Date(offer.startDate).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })
+      : 'غير محدد';
+
+    const endFormatted = offer.endDate
+      ? new Date(offer.endDate).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })
+      : 'غير محدد';
+
+    const statusColor = 
+      offer.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
+      offer.status === 'SCHEDULED' ? 'bg-yellow-100 text-yellow-800' :
+      'bg-red-100 text-red-800';
+
+    const discountIcon = offer.discountType === 'PERCENTAGE' 
+      ? '<FiPercent class="w-6 h-6 text-lime-600 inline" />' 
+      : '<FiDollarSign class="w-6 h-6 text-lime-600 inline" />';
+
+    Swal.fire({
+      title: `<div class="flex items-center gap-4 justify-center mb-6">
+                <FiTag class="text-4xl text-lime-600" />
+                <p class="text-3xl font-bold text-center mb-3 bg-lime-500 text-white px-3 py-2 rounded-lg flex justify-center items-center">تفاصيل العرض</p>
+                <span class="text-3xl font-bold">#${offer.id}   </span>
+              </div>`,
+      html: `
+        <div class="text-right space-y-6 text-lg font-medium max-w-2xl mx-auto">
+          <div class="bg-gray-50 rounded-2xl p-6 shadow-sm">
+            <p class="flex items-center justify-between flex-row-reverse gap-4">
+              <span class="text-gray-600">اسم العرض</span>
+              <span class="font-bold text-xl">${offer.name || '-'}</span>
+            </p>
+          </div>
+
+          <div class="bg-gray-50 rounded-2xl p-6 shadow-sm">
+            <p class="flex items-start justify-between flex-row-reverse gap-4">
+              <span class="text-gray-600">الوصف</span>
+              <span class="font-semibold max-w-md text-right">${offer.description || 'لا يوجد وصف'}</span>
+            </p>
+          </div>
+
+          <div class="bg-gradient-to-r from-lime-50 to-emerald-50 rounded-2xl p-6 shadow-sm">
+            <p class="flex items-center justify-between flex-row-reverse gap-4">
+              <span class="text-gray-700 font-medium">قيمة الخصم</span>
+              <span class="text-3xl font-bold text-lime-600 flex items-center gap-2">
+                ${offer.discountValue}
+                ${offer.discountType === 'PERCENTAGE' ? '<span class="text-2xl">%</span>' : 'ج.م'}
+              </span>
+            </p>
+           
+          </div>
+
+          <div class="bg-gray-50 rounded-2xl p-6 shadow-sm">
+            <p class="flex items-center justify-between flex-row-reverse gap-4">
+              <span class="text-gray-600">الحالة</span>
+              <span class="px-6 py-3 rounded-full text-lg font-bold ${statusColor}">
+                ${statusTranslations[offer.status]}
+              </span>
+            </p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-6">
+            <div class="bg-blue-50 rounded-2xl p-6 text-center">
+              <p class="text-gray-600 mb-2">تاريخ البداية</p>
+              <p class="text-xl font-bold text-blue-700">${startFormatted}</p>
+            </div>
+            <div class="bg-purple-50 rounded-2xl p-6 text-center">
+              <p class="text-gray-600 mb-2">تاريخ النهاية</p>
+              <p class="text-xl font-bold text-purple-700">${endFormatted}</p>
+            </div>
+          </div>
+        </div>
+      `,
+      width: 900,
+      showConfirmButton: true,
+      confirmButtonText: 'إغلاق',
+      confirmButtonColor: '#94a3b8',
+      customClass: {
+        popup: 'rounded-3xl',
+        title: 'mb-0',
+        htmlContainer: 'mt-6',
+      },
+      buttonsStyling: false,
+    });
+  } catch (err) {
+    Swal.fire({
+      title: 'خطأ',
+      text: 'فشل تحميل تفاصيل العرض',
+      icon: 'error',
+      toast: true,
+      position: 'top-end',
+      timer: 2000,
+      timerProgressBar: true,
+    });
+  }
+}, [discountTypeTranslations, statusTranslations]);
+
+  const openModalForAdd = () => {
+    setEditingOffer(null);
+    setFormData({
+      name: '',
+      description: '',
+      discountValue: '',
+      discountType: 'PERCENTAGE',
+      status: 'ACTIVE',
+      startDate: null,
+      endDate: null,
+    });
+    setIsModalOpen(true);
+  };
+
+  const openModalForEdit = (offer) => {
+    setEditingOffer(offer);
+    setFormData({
+      ...offer,
+      startDate: offer.startDate ? new Date(offer.startDate) : null,
+      endDate: offer.endDate ? new Date(offer.endDate) : null,
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleSubmit = async () => {
+    if (!formData.name || !formData.discountValue || !formData.startDate || !formData.endDate) {
+      Swal.fire({ title: 'خطأ', text: 'يرجى ملء الحقول المطلوبة', icon: 'warning', toast: true, position: 'top-end', timer: 2000 });
       return;
     }
+
     try {
-      await api.post('/api/shop/offers', { ...newOffer, discountValue: Number(newOffer.discountValue) });
-      Swal.fire({ title: 'تم', text: 'تمت إضافة العرض', icon: 'success', toast: true, position: 'top-end', timer: 1500 });
-      setNewOffer({
-        name: '', description: '', discountValue: '', discountType: 'PERCENTAGE', status: 'ACTIVE', startDate: '', endDate: '',
-      });
+      const payload = {
+        ...formData,
+        discountValue: Number(formData.discountValue),
+      };
+
+      if (editingOffer) {
+        await api.put(`/api/shop/offers/${editingOffer.id}`, payload);
+        Swal.fire({ title: 'تم!', text: 'تم تعديل العرض بنجاح', icon: 'success', toast: true, position: 'top-end', timer: 1500 });
+      } else {
+        await api.post('/api/shop/offers', payload);
+        Swal.fire({ title: 'تم!', text: 'تم إضافة العرض بنجاح', icon: 'success', toast: true, position: 'top-end', timer: 1500 });
+      }
+
+      setIsModalOpen(false);
       fetchOffers();
     } catch (err) {
-      console.error('Error adding offer:', err.response?.data || err.message);
-      Swal.fire({ title: 'خطأ', text: 'فشل في إضافة العرض', icon: 'error', toast: true, position: 'top-end', timer: 1500 });
+      Swal.fire({ title: 'خطأ', text: 'حدث خطأ أثناء الحفظ', icon: 'error', toast: true, position: 'top-end', timer: 1500 });
     }
-  }, [fetchOffers, newOffer]);
+  };
 
-  
-  const updateOffer = useCallback(async () => {
-    if (!editingOffer.name || !editingOffer.description || !editingOffer.discountValue || !editingOffer.startDate || !editingOffer.endDate) {
-      Swal.fire({ title: 'خطأ', text: 'يرجى ملء جميع الحقول', icon: 'error', toast: true, position: 'top-end', timer: 1500 });
-      return;
-    }
-    try {
-      await api.put(`/api/shop/offers/${editingOffer.id}`, {
-        ...editingOffer,
-        discountValue: Number(editingOffer.discountValue),
-      });
-      Swal.fire({ title: 'تم', text: 'تم تعديل العرض', icon: 'success', toast: true, position: 'top-end', timer: 1500 });
-      setEditingOffer(null);
-      fetchOffers();
-    } catch (err) {
-      console.error('Error updating offer:', err.response?.data || err.message);
-      Swal.fire({ title: 'خطأ', text: 'فشل في تعديل العرض', icon: 'error', toast: true, position: 'top-end', timer: 1500 });
-    }
-  }, [editingOffer, fetchOffers]);
-
-
-  const deleteOffer = useCallback(async (offerId) => {
+  const deleteOffer = async (offerId) => {
     const result = await Swal.fire({
-      title: 'هل أنت متأكد؟',
-      text: 'سيتم حذف العرض نهائيًا',
+      title: 'تأكيد الحذف',
+      text: 'هل أنت متأكد من حذف هذا العرض؟',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'نعم، احذف',
       cancelButtonText: 'إلغاء',
       confirmButtonColor: '#ef4444',
     });
-    if (!result.isConfirmed) return;
 
-    try {
-      await api.delete(`/api/shop/offers/${offerId}`);
-      Swal.fire({ title: 'تم', text: 'تم حذف العرض', icon: 'success', toast: true, position: 'top-end', timer: 1500 });
-      fetchOffers();
-    } catch (err) {
-      console.error('Error deleting offer:', err.response?.data || err.message);
-      Swal.fire({ title: 'خطأ', text: 'فشل في حذف العرض', icon: 'error', toast: true, position: 'top-end', timer: 1500 });
+    if (result.isConfirmed) {
+      try {
+        await api.delete(`/api/shop/offers/${offerId}`);
+        Swal.fire({ title: 'تم الحذف', icon: 'success', toast: true, position: 'top-end', timer: 1500 });
+        fetchOffers();
+      } catch (err) {
+        Swal.fire({ title: 'خطأ', text: 'فشل الحذف', icon: 'error', toast: true, position: 'top-end', timer: 1500 });
+      }
     }
-  }, [fetchOffers]);
+  };
 
-  
-  const debouncedSetSearchTerm = useMemo(
-    () => debounce((value) => setSearchTerm(value), 300),
-    []
-  );
-
-  const handleSearchChange = useCallback((e) => {
-    debouncedSetSearchTerm(e.target.value);
+  const debouncedSearch = useMemo(() => debounce((value) => setSearchTerm(value), 300), []);
+  const handleSearchChange = (e) => {
+    debouncedSearch(e.target.value);
     setCurrentPage(1);
-  }, [debouncedSetSearchTerm]);
+  };
 
-  useEffect(() => {
-    return () => debouncedSetSearchTerm.cancel();
-  }, [debouncedSetSearchTerm]);
+  useEffect(() => () => debouncedSearch.cancel(), [debouncedSearch]);
 
-  
-  const filteredOffers = useMemo(
-    () => offers.filter((o) => (o.name || '').toLowerCase().includes(searchTerm.toLowerCase())),
+  const filteredOffers = useMemo(() =>
+    offers.filter(o => (o.name || '').toLowerCase().includes(searchTerm.toLowerCase())),
     [offers, searchTerm]
   );
 
-  const totalPages = Math.max(1, Math.ceil(filteredOffers.length / offersPerPage));
-  const pageOffers = filteredOffers.slice(
-    (currentPage - 1) * offersPerPage,
-    currentPage * offersPerPage
-  );
-
-  useEffect(() => {
-    fetchOffers();
-  }, [fetchOffers]);
+  const totalPages = Math.ceil(filteredOffers.length / offersPerPage);
+  const pageOffers = filteredOffers.slice((currentPage - 1) * offersPerPage, currentPage * offersPerPage);
 
   return (
-    <div style={{ marginTop: '-575px', marginLeft: '-25px' }} className="min-h-screen max-w-6xl mx-auto p-4 lg:p-8 font-cairo bg-gradient-to-br from-gray-50 via-white to-white">
-     
-      <div className="mb-8 text-right bg-white p-6 shadow-md border-l-4 border-lime-500">
-        <h1 className="text-3xl font-bold text-black mb-2 flex items-center justify-end gap-3">
-          <FiShoppingBag className="text-gray-500" /> عروض المتجر
-        </h1>
-        <p className="text-sm text-gray-600">إدارة وتعديل عروض المتجر بسهولة</p>
-      </div>
+    <div  style={{ marginTop: "-575px", marginLeft: "-250px" }} className="min-h-screen bg-gray-50 font-cairo py-8">
+      <div className="max-w-5xl mx-auto px-6">
 
-   
-      <div className="flex justify-between items-center gap-4 mb-6 bg-white rounded-xl shadow-sm p-5 border border-lime-100">
-        <div className="relative w-full ">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="ابحث في العروض"
-            onChange={handleSearchChange}
-            className="w-full pl-10 pr-4 py-3 rounded-lg border bg-gray-50 text-black placeholder-gray-500 focus:ring-2 focus:ring-lime-400 focus:border-lime-500 outline-none text-right"
-          />
-        </div>
-      </div>
-
-      
-      <div className="bg-white rounded-xl shadow-sm p-6 mb-8 border border-lime-100">
-        <div className="flex justify-between items-center mb-5">
-          <h2 className="text-xl font-bold text-black flex items-center justify-end gap-3">
-            <FiTag className="text-lime-600" />
-            {editingOffer ? 'تعديل العرض' : 'إضافة عرض جديد'}
-          </h2>
-          {editingOffer && (
-            <button
-              onClick={() => setEditingOffer(null)}
-              className="p-1 hover:bg-gray-100 rounded-lg transition"
-            >
-              <FiX className="w-5 h-5 text-gray-600" />
-            </button>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {(editingOffer ? [editingOffer] : [newOffer]).map((offer, idx) => (
-            <React.Fragment key={idx}>
-              
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="اسم العرض"
-                  value={offer.name}
-                  onChange={(e) =>
-                    editingOffer
-                      ? setEditingOffer({ ...editingOffer, name: e.target.value })
-                      : setNewOffer({ ...newOffer, name: e.target.value })
-                  }
-                  className="w-full pr-10 pl-4 py-3 rounded-lg border bg-gray-50 text-black placeholder-gray-500 focus:ring-2 focus:ring-lime-400 focus:border-lime-500 outline-none text-right"
-                />
-                <FiTag className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              </div>
-
-              
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="الوصف"
-                  value={offer.description}
-                  onChange={(e) =>
-                    editingOffer
-                      ? setEditingOffer({ ...editingOffer, description: e.target.value })
-                      : setNewOffer({ ...newOffer, description: e.target.value })
-                  }
-                  className="w-full pr-10 pl-4 py-3 rounded-lg border bg-gray-50 text-black placeholder-gray-500 focus:ring-2 focus:ring-lime-400 focus:border-lime-500 outline-none text-right"
-                />
-                <FiInfo className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              </div>
-
-             
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="قيمة الخصم"
-                  value={offer.discountValue}
-                  onChange={(e) =>
-                    editingOffer
-                      ? setEditingOffer({ ...editingOffer, discountValue: e.target.value })
-                      : setNewOffer({ ...newOffer, discountValue: e.target.value })
-                  }
-                  className="w-full pr-10 pl-4 py-3 rounded-lg border bg-gray-50 text-black placeholder-gray-500 focus:ring-2 focus:ring-lime-400 focus:border-lime-500 outline-none text-right"
-                />
-                <FiCheckSquare className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              </div>
-
-              
-              <div className="relative" ref={discountTypeRef}>
-                <button
-                  onClick={() => setIsDiscountTypeOpen(!isDiscountTypeOpen)}
-                  className="w-full flex justify-between flex-row-reverse items-center pr-10 pl-4 py-3 bg-gray-50 border rounded-lg text-gray-500 focus:ring-2 focus:ring-lime-400 focus:border-lime-500 outline-none text-right"
-                >
-                  {discountTypeTranslations[offer.discountType]}
-                  <FiChevronDown className={`transition ${isDiscountTypeOpen ? 'rotate-180' : ''}`} />
-                </button>
-                {isDiscountTypeOpen && (
-                  <div className="absolute w-full mt-2 bg-white border  rounded-lg shadow-xl z-10">
-                    {['PERCENTAGE', 'FIXED_AMOUNT'].map((type) => (
-                      <button
-                        key={type}
-                        onClick={() => {
-                          editingOffer
-                            ? setEditingOffer({ ...editingOffer, discountType: type })
-                            : setNewOffer({ ...newOffer, discountType: type });
-                          setIsDiscountTypeOpen(false);
-                        }}
-                        className="w-full px-4 py-2 text-right hover:bg-lime-50 transition text-sm font-medium text-black"
-                      >
-                        {discountTypeTranslations[type]}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-            
-              <div className="relative" ref={statusRef}>
-                <button
-                  onClick={() => setIsStatusOpen(!isStatusOpen)}
-                  className="w-full flex justify-between flex-row-reverse items-center pr-10 pl-4 py-3 bg-gray-50 border rounded-lg text-gray-500 focus:ring-2 focus:ring-lime-400 focus:border-lime-500 outline-none text-right"
-                >
-                  {statusTranslations[offer.status]}
-                  <FiChevronDown className={`transition ${isStatusOpen ? 'rotate-180' : ''}`} />
-                </button>
-                {isStatusOpen && (
-                  <div className="absolute w-full mt-2 bg-white border  rounded-lg shadow-xl z-10">
-                    {['ACTIVE', 'SCHEDULED', 'EXPIRED'].map((status) => (
-                      <button
-                        key={status}
-                        onClick={() => {
-                          editingOffer
-                            ? setEditingOffer({ ...editingOffer, status })
-                            : setNewOffer({ ...newOffer, status });
-                          setIsStatusOpen(false);
-                        }}
-                        className="w-full px-4 py-2 text-right hover:bg-lime-50 transition text-sm font-medium text-black"
-                      >
-                        {statusTranslations[status]}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-           
-              <div className="relative">
-                <DatePicker
-                  selected={offer.startDate ? new Date(offer.startDate) : null}
-                  onChange={(date) =>
-                    editingOffer
-                      ? setEditingOffer({ ...editingOffer, startDate: date?.toISOString() || '' })
-                      : setNewOffer({ ...newOffer, startDate: date?.toISOString() || '' })
-                  }
-                  showTimeSelect
-                  dateFormat="yyyy-MM-dd HH:mm"
-                  locale={ar}
-                  placeholderText="تاريخ البداية"
-                  className="w-full pr-10 pl-4 py-3 rounded-lg border bg-gray-50 text-black placeholder-gray-500 focus:ring-2 focus:ring-lime-400 focus:border-lime-500 outline-none text-right"
-                />
-                <FiCalendar className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              </div>
-
-            
-              <div className="relative">
-                <DatePicker
-                  selected={offer.endDate ? new Date(offer.endDate) : null}
-                  onChange={(date) =>
-                    editingOffer
-                      ? setEditingOffer({ ...editingOffer, endDate: date?.toISOString() || '' })
-                      : setNewOffer({ ...newOffer, endDate: date?.toISOString() || '' })
-                  }
-                  showTimeSelect
-                  dateFormat="yyyy-MM-dd HH:mm"
-                  locale={ar}
-                  placeholderText="تاريخ النهاية"
-                  className="w-full pr-10 pl-4 py-3 rounded-lg border bg-gray-50 text-black placeholder-gray-500 focus:ring-2 focus:ring-lime-400 focus:border-lime-500 outline-none text-right"
-                />
-                <FiCalendar className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              </div>
-            </React.Fragment>
-          ))}
-        </div>
-
-        <div className="mt-6 flex justify-end gap-3">
-          <button
-            onClick={editingOffer ? updateOffer : addOffer}
-            className="px-6 py-2.5 bg-lime-500 text-white font-bold rounded-lg hover:bg-lime-600 transition shadow-sm"
-          >
-            {editingOffer ? 'تعديل' : 'إضافة'}
-          </button>
-          {editingOffer && (
-            <button
-              onClick={() => setEditingOffer(null)}
-              className="px-6 py-2.5 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
-            >
-              إلغاء
-            </button>
-          )}
-        </div>
-      </div>
-
-      
-      <div className="bg-white rounded-xl shadow-sm border  overflow-hidden">
-        {loading ? (
-          <div className="p-12 flex justify-center">
-            <div className="w-12 h-12 border-4 border-lime-500 border-t-transparent rounded-full animate-spin"></div>
+        
+        <div className="mb-10 bg-white rounded-3xl shadow-sm border border-gray-200 p-8">
+          <div className="flex items-center justify-between text-right gap-5">
+            <div className="p-5 bg-lime-100 rounded-2xl">
+              <FiTag className="text-4xl text-lime-600" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900">عروض المتجر</h1>
+              <p className="text-lg text-gray-600 mt-2">إنشاء وإدارة العروض والخصومات بسهولة تامة</p>
+            </div>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-center">
-              <thead className="bg-gray-50 sticky top-0 z-10">
-                <tr>
-                  <th className="px-4 py-3 font-bold text-gray-700 min-w-16">#</th>
-                  <th className="px-4 py-3 font-bold text-gray-700 min-w-32">الاسم</th>
-                  <th className="px-4 py-3 font-bold text-gray-700 min-w-48">الوصف</th>
-                  <th className="px-4 py-3 font-bold text-gray-700 min-w-24">الخصم</th>
-                 
-                  <th className="px-4 py-3 font-bold text-gray-700 min-w-24">الحالة</th>
-                  <th className="px-4 py-3 font-bold text-gray-700 min-w-48">إجراءات</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-lime-100 text-center">
-                {pageOffers.length > 0 ? (
-                  pageOffers.map((o, i) => {
-                    const globalIdx = (currentPage - 1) * offersPerPage + i + 1;
+        </div>
+
+      
+        <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
+          <div className="flex flex-col sm:flex-row-reverse gap-4 items-center justify-between">
+            <div className="flex-1 relative max-w-md">
+              <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-lg" />
+              <input
+                type="text"
+                placeholder="ابحث في العروض بالاسم..."
+                onChange={handleSearchChange}
+                className="w-full pr-12 py-3.5 pl-4 rounded-xl border border-gray-300 focus:border-lime-500 focus:ring-4 focus:ring-lime-100 outline-none text-base transition bg-gray-50"
+              />
+            </div>
+
+            <button
+              onClick={openModalForAdd}
+              className="px-8 py-3.5 bg-teal-500  text-white border border-teal-500 rounded-3xl font-semibold hover:bg-teal-500 hover:text-white shadow transition flex items-center gap-2"
+            >
+              <FiPlus className="w-5 h-5" />
+              إضافة عرض جديد
+            </button>
+          </div>
+        </div>
+
+      
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+          {loading ? (
+            <div className="p-20 text-center">
+              <div className="w-16 h-16 border-6 border-lime-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+              <p className="mt-6 text-lg text-gray-600">جاري تحميل العروض...</p>
+            </div>
+          ) : pageOffers.length === 0 ? (
+            <div className="p-20 text-center text-gray-500">
+              <FiTag className="w-16 h-16 mx-auto opacity-30 mb-4" />
+              <p className="text-xl">لا توجد عروض حالياً</p>
+              <p className="mt-2">ابدأ بإضافة عرض جديد</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-100 text-gray-600">
+                  <tr>
+                    <th className="px-5 py-4 text-base font-bold">#</th>
+                    <th className="px-5 py-4 text-base font-bold">اسم العرض</th>
+                    <th className="px-5 py-4 text-base font-bold">الوصف</th>
+                    <th className="px-5 py-4 text-base font-bold">الخصم</th>
+                    <th className="px-5 py-4 text-base font-bold">الحالة</th>
+                    <th className="px-5 py-4 text-base font-bold">الإجراءات</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {pageOffers.map((offer, index) => {
+                    const globalIndex = (currentPage - 1) * offersPerPage + index + 1;
                     return (
-                      <tr key={o.id} className="hover:bg-lime-50 transition">
-                        <td className="px-4 py-4 font-medium text-black">{globalIdx}</td>
-                        <td className="px-4 py-4">{o.name || ''}</td>
-                        <td className="px-4 py-4 text-xs truncate max-w-xs">{o.description || ''}</td>
-                        <td className="px-4 py-4 text-center">
-                          {o.discountValue || ''} {o.discountType === 'PERCENTAGE' ? '%' : 'ج.م'}
+                      <tr key={offer.id} className="hover:bg-gray-50 transition">
+                        <td className="px-5 py-4 text-sm font-medium text-gray-800 text-center">{globalIndex}</td>
+                        <td className="px-5 py-4 text-sm font-medium text-gray-800 text-center">{offer.name}</td>
+                        <td className="px-5 py-4 text-sm text-gray-700 text-center max-w-xs truncate">{offer.description || '-'}</td>
+                        <td className="px-5 py-4 text-center font-bold">
+                          {offer.discountValue}
+                          {offer.discountType === 'PERCENTAGE' ? <FiPercent className="inline ml-1 text-lime-600" /> : <FiDollarSign className="inline ml-1 text-lime-600" />}
                         </td>
-                        {/* <td className="px-4 py-4 text-center">{discountTypeTranslations[o.discountType] || ''}</td> */}
-                        <td className="px-4 py-4 text-center">
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-medium ${
-                              o.status === 'ACTIVE'
-                                ? 'bg-green-100 text-green-700'
-                                : o.status === 'SCHEDULED'
-                                ? 'bg-yellow-100 text-yellow-700'
-                                : 'bg-red-100 text-red-600'
-                            }`}
-                          >
-                            {statusTranslations[o.status] || ''}
+                        <td className="px-5 py-4 text-center">
+                          <span className={`px-4 py-2 rounded-full text-xs font-bold ${
+                            offer.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
+                            offer.status === 'SCHEDULED' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {statusTranslations[offer.status]}
                           </span>
                         </td>
-                        <td className="px-4 py-4">
-                          <div className="flex items-center justify-end gap-2">
-                           
+                        <td className="px-5 py-4">
+                          <div className="flex justify-center gap-2">
                             <button
-                              onClick={() => viewOfferDetails(o.id)}
-                              className="flex items-center gap-1 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition text-xs font-medium"
-                              title="تفاصيل"
+                              onClick={() => viewOfferDetails(offer.id)}
+                              className="px-3 py-2 flex gap-2 bg-transparent text-amber-500 border border-amber-500 rounded-3xl text-xs font-medium transition"
                             >
-                              <FiInfo className="w-4 h-4" />
-                              تفاصيل
+                              <FiInfo className="w-4 h-4 inline ml-1" /> تفاصيل
                             </button>
-
-                           
                             <button
-                              onClick={() => setEditingOffer(o)}
-                              className="flex items-center gap-1 px-3 py-1.5 bg-lime-100 text-lime-700 rounded-lg hover:bg-lime-200 transition text-xs font-medium"
-                              title="تعديل"
+                              onClick={() => openModalForEdit(offer)}
+                              className="px-3 py-2 flex gap-2 bg-transparent text-lime-500 border border-lime-500 rounded-3xl text-xs font-medium transition"
                             >
-                              <FiEdit2 className="w-4 h-4" />
-                              تعديل
+                              <FiEdit3 className="w-4 h-4 inline ml-1" /> تعديل
                             </button>
-
-                            
                             <button
-                              onClick={() => deleteOffer(o.id)}
-                              className="flex items-center gap-1 px-3 py-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition text-xs font-medium"
-                              title="حذف"
+                              onClick={() => deleteOffer(offer.id)}
+                              className="px-3 py-2 flex gap-2 bg-transparent text-red-500 border border-red-500 rounded-3xl text-xs font-medium transition"
                             >
-                              <FiTrash2 className="w-4 h-4" />
-                              حذف
+                              <FiTrash2 className="w-4 h-4 inline ml-1" /> حذف
                             </button>
                           </div>
                         </td>
                       </tr>
                     );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={7} className="text-center py-16">
-                      <div className="text-lime-400 mb-4">
-                        <FiTag className="w-20 h-20 mx-auto opacity-30" />
-                      </div>
-                      <h3 className="text-xl font-bold text-black mb-2">
-                        {searchTerm ? 'لا توجد نتائج' : 'لا توجد عروض'}
-                      </h3>
-                      <p className="text-gray-600">
-                        {searchTerm ? 'جرب تعديل البحث' : 'أضف عرضًا جديدًا'}
-                      </p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+   
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center gap-3 mt-10">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-4 py-3 bg-white border border-lime-600 rounded-xl disabled:opacity-50 hover:bg-lime-50 text-lime-700 font-medium transition shadow-sm flex items-center gap-2"
+            >
+              <FiChevronLeft className="w-5 h-5" />
+              السابق
+            </button>
+
+            <div className="flex gap-2">
+              {[...Array(totalPages)].map((_, i) => (
+                <button
+                  key={i + 1}
+                  onClick={() => setCurrentPage(i + 1)}
+                  className={`w-12 h-12 rounded-xl font-bold text-base transition shadow-sm flex items-center justify-center ${
+                    currentPage === i + 1 ? 'bg-lime-600 text-white' : 'bg-white border border-lime-600 text-lime-700 hover:bg-lime-50'
+                  }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-4 py-3 bg-white border border-lime-600 rounded-xl disabled:opacity-50 hover:bg-lime-50 text-lime-700 font-medium transition shadow-sm flex items-center gap-2"
+            >
+              التالي
+              <FiChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+        )}
+
+       
+        {isModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-6 text-right">
+            <div className="bg-white rounded-3xl shadow-2xl p-10 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center flex-row-reverse mb-10">
+                <h3 className="text-3xl font-bold text-gray-900 flex items-center gap-4">
+                  <FiTag className="text-lime-600" />
+                  {editingOffer ? 'تعديل العرض' : 'إضافة عرض جديد'}
+                </h3>
+                <button onClick={() => setIsModalOpen(false)} className="p-4 hover:bg-gray-100 rounded-full transition">
+                  <FiX className="w-8 h-8" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <label className="block text-lg font-medium text-gray-800 mb-3">اسم العرض</label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-6 py-4 border border-gray-300 rounded-2xl focus:border-lime-500 focus:ring-4 focus:ring-lime-100 outline-none text-lg bg-gray-50"
+                    placeholder="مثال: خصم الجمعة البيضاء"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-lg font-medium text-gray-800 mb-3">قيمة الخصم</label>
+                  <input
+                    type="number"
+                    value={formData.discountValue}
+                    onChange={(e) => setFormData({ ...formData, discountValue: e.target.value })}
+                    className="w-full px-6 py-4 border border-gray-300 rounded-2xl focus:border-lime-500 focus:ring-4 focus:ring-lime-100 outline-none text-lg bg-gray-50"
+                    placeholder="مثال: 50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-lg font-medium text-gray-800 mb-3">نوع الخصم</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <button
+                      onClick={() => setFormData({ ...formData, discountType: 'PERCENTAGE' })}
+                      className={`p-6 rounded-2xl border-4 transition-all text-xl font-bold ${
+                        formData.discountType === 'PERCENTAGE'
+                          ? 'border-lime-600 bg-lime-50'
+                          : 'border-gray-300 hover:border-lime-400'
+                      }`}
+                    >
+                      <FiPercent className="inline mr-2" />
+                      نسبة مئوية
+                    </button>
+                    <button
+                      onClick={() => setFormData({ ...formData, discountType: 'FIXED_AMOUNT' })}
+                      className={`p-6 rounded-2xl border-4 transition-all text-xl font-bold ${
+                        formData.discountType === 'FIXED_AMOUNT'
+                          ? 'border-lime-600 bg-lime-50'
+                          : 'border-gray-300 hover:border-lime-400'
+                      }`}
+                    >
+                      <FiDollarSign className="inline mr-2" />
+                      مبلغ ثابت
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-lg font-medium text-gray-800 mb-3">الحالة</label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="w-full px-6 py-4 border border-gray-300 rounded-2xl focus:border-lime-500 focus:ring-4 focus:ring-lime-100 outline-none text-lg bg-gray-50"
+                  >
+                    <option value="ACTIVE">نشط</option>
+                    <option value="SCHEDULED">قادم</option>
+                    <option value="EXPIRED">منتهي</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-lg font-medium text-gray-800 mb-3">تاريخ البداية</label>
+                  <DatePicker
+                    selected={formData.startDate}
+                    onChange={(date) => setFormData({ ...formData, startDate: date })}
+                    showTimeSelect
+                    dateFormat="dd/MM/yyyy HH:mm"
+                    locale={ar}
+                    className="w-full px-6 py-4 border border-gray-300 rounded-2xl focus:border-lime-500 focus:ring-4 focus:ring-lime-100 outline-none text-lg bg-gray-50"
+                    placeholderText="اختر تاريخ ووقت البداية"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-lg font-medium text-gray-800 mb-3">تاريخ النهاية</label>
+                  <DatePicker
+                    selected={formData.endDate}
+                    onChange={(date) => setFormData({ ...formData, endDate: date })}
+                    showTimeSelect
+                    dateFormat="dd/MM/yyyy HH:mm"
+                    locale={ar}
+                    className="w-full px-6 py-4 border border-gray-300 rounded-2xl focus:border-lime-500 focus:ring-4 focus:ring-lime-100 outline-none text-lg bg-gray-50"
+                    placeholderText="اختر تاريخ ووقت النهاية"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-10">
+                <label className="block text-lg font-medium text-gray-800 mb-3">وصف العرض</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows="5"
+                  className="w-full px-6 py-4 border border-gray-300 rounded-2xl focus:border-lime-500 focus:ring-4 focus:ring-lime-100 outline-none text-lg bg-gray-50 resize-none"
+                  placeholder="وصف تفصيلي للعرض..."
+                />
+              </div>
+
+              <div className="mt-12 flex justify-end gap-6">
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-10 py-4 border-2 border-gray-400 rounded-2xl text-xl font-bold hover:bg-gray-100 transition"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  className="px-12 py-4 bg-lime-600 text-white rounded-2xl text-xl font-bold hover:bg-lime-700 transition shadow-2xl"
+                >
+                  {editingOffer ? 'حفظ التعديلات' : 'إضافة العرض'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
-
-      
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2 mt-6">
-          <button
-            onClick={() => setCurrentPage(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="p-2 rounded-lg border border-lime-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-lime-50 transition"
-          >
-            <FiChevronLeft />
-          </button>
-          {[...Array(totalPages)].map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setCurrentPage(i + 1)}
-              className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${
-                currentPage === i + 1
-                  ? 'bg-lime-500 text-white border-lime-500'
-                  : 'border-lime-200 hover:bg-lime-50 text-black'
-              }`}
-            >
-              {i + 1}
-            </button>
-          ))}
-          <button
-            onClick={() => setCurrentPage(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className="p-2 rounded-lg border border-lime-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-lime-50 transition"
-          >
-            <FiChevronRight />
-          </button>
-        </div>
-      )}
     </div>
   );
 };

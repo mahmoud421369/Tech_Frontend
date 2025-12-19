@@ -387,13 +387,13 @@ const Reviews = ({ darkMode }) => {
                             setSelectedReview(review);
                             setIsModalOpen(true);
                           }}
-                          className="px-3 py-1.5 text-xs bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded hover:bg-emerald-200 dark:hover:bg-emerald-800"
+                          className="px-3 py-1.5 text-xs bg-emerald-50 border dark:bg-gray-950 dark:border-gray-900 text-emerald-700 dark:text-emerald-700 rounded"
                         >
                           View
                         </button>
                         <button
                           onClick={() => deleteReview(review.id)}
-                          className="px-3 py-1.5 text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-800"
+                          className="px-3 py-1.5 text-xs bg-red-50 border dark:bg-gray-950 dark:border-gray-900 text-red-700 dark:text-red-700 rounded "
                         >
                           Delete
                         </button>

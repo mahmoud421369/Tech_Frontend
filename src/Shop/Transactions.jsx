@@ -1,18 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo, memo, useRef } from 'react';
 import {
-  FiChevronLeft,
+  FiDollarSign, FiSearch, FiTool, FiShoppingCart,
   FiChevronRight,
-  FiDollarSign,
-  FiSearch,
-  FiChevronDown,
-  FiMoreVertical,
+  FiChevronLeft
 } from 'react-icons/fi';
-import Swal from 'sweetalert2';
-import debounce from 'lodash/debounce';
 import api from '../api';
 
 const ROWS_PER_PAGE = 10;
-
 
 const TransactionRow = memo(({ txn }) => {
   const statusColor =
@@ -21,34 +15,31 @@ const TransactionRow = memo(({ txn }) => {
       : 'bg-yellow-100 text-yellow-800';
 
   return (
-    <tr className="border-b border-lime-100 hover:bg-lime-50 transition">
-      <td className="px-4 py-3 text-sm text-center">{txn.paidAt}</td>
-      <td className="px-4 py-3 text-sm text-center">{txn.type}</td>
-      <td className="px-4 py-3 text-sm text-center">{txn.item}</td>
-      <td className="px-4 py-3 text-sm text-center">{txn.shop}</td>
-      <td className="px-4 py-3 text-sm text-center">{txn.paymentMethod}</td>
-      <td className="px-4 py-3 text-sm font-medium text-center">{txn.amount.toFixed(2)} ج.م</td>
-      <td className="px-4 py-3 text-center">
-        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusColor}`}>
+    <tr className="hover:bg-gray-50 transition">
+      <td className="px-5 py-4 text-sm text-gray-800 text-center">{txn.paidAt}</td>
+      <td className="px-5 py-4 text-sm text-gray-800 text-center">{txn.type}</td>
+      <td className="px-5 py-4 text-sm text-gray-800 text-center">{txn.item}</td>
+      <td className="px-5 py-4 text-sm text-gray-800 text-center">{txn.shop}</td>
+      <td className="px-5 py-4 text-sm text-gray-800 text-center">{txn.paymentMethod}</td>
+      <td className="px-5 py-4 text-center font-bold text-lg">{txn.amount.toFixed(2)} ج.م</td>
+      <td className="px-5 py-4 text-center">
+        <span className={`px-4 py-2 rounded-full text-xs font-bold ${statusColor}`}>
           {txn.status}
         </span>
       </td>
     </tr>
   );
 });
-TransactionRow.displayName = 'TransactionRow';
-
 
 const SkeletonRow = memo(() => (
   <tr>
     {Array.from({ length: 7 }).map((_, i) => (
-      <td key={i} className="px-4 py-3 text-center">
-        <div className="h-4 bg-gray-200 rounded animate-pulse mx-auto w-20" />
+      <td key={i} className="px-5 py-4 text-center">
+        <div className="h-4 bg-gray-200 rounded-full animate-pulse mx-auto w-32" />
       </td>
     ))}
   </tr>
 ));
-SkeletonRow.displayName = 'SkeletonRow';
 
 const Transactions = () => {
   const [transactions, setTransactions] = useState([]);
@@ -57,20 +48,12 @@ const Transactions = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [timeRange, setTimeRange] = useState('month');
   const [currentPage, setCurrentPage] = useState(1);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [openMenu, setOpenMenu] = useState(null);
 
   const abortCtrl = useRef(new AbortController());
 
-  
   const statusMap = { completed: 'مكتمل', pending: 'معلق' };
   const typeMap = { repair: 'إصلاح', sale: 'بيع' };
-  const timeRangeOptions = [
-    { value: 'week', label: 'الأسبوع' },
-    { value: 'month', label: 'الشهر' },
-  ];
 
-  
   const fetchAll = useCallback(async () => {
     abortCtrl.current.abort();
     abortCtrl.current = new AbortController();
@@ -111,40 +94,16 @@ const Transactions = () => {
 
       setTransactions(merged);
     } catch (err) {
-      // if (err.name !== 'AbortError') {
-      //   console.error(err);
-      //   Swal.fire({
-      //     title: 'خطأ',
-      //     text: 'فشل تحميل العمليات',
-      //     icon: 'error',
-      //     toast: true,
-      //     position: 'top-end',
-      //     timer: 2000,
-      //   });
-      // }
+
     } finally {
       setLoading(false);
     }
   }, [timeRange]);
 
-
-  const debouncedSearch = useMemo(
-    () => debounce((val) => setSearchTerm(val), 300),
-    []
-  );
-
-  const handleSearch = (e) => {
-    const val = e.target.value;
-    debouncedSearch(val);
-    setCurrentPage(1);
-  };
-
-
   useEffect(() => {
     fetchAll();
     return () => abortCtrl.current.abort();
   }, [fetchAll]);
-
 
   const totalEarnings = useMemo(() => {
     if (financialReport?.totalEarnings != null) return financialReport.totalEarnings;
@@ -153,27 +112,21 @@ const Transactions = () => {
 
   const repairEarnings = useMemo(() => {
     if (financialReport?.repairEarnings != null) return financialReport.repairEarnings;
-    return transactions
-      .filter((t) => t.type === typeMap.repair)
-      .reduce((s, t) => s + t.amount, 0);
-  }, [financialReport, transactions, typeMap.repair]);
+    return transactions.filter(t => t.type === typeMap.repair).reduce((s, t) => s + t.amount, 0);
+  }, [financialReport, transactions]);
 
   const salesEarnings = useMemo(() => {
     if (financialReport?.salesEarnings != null) return financialReport.salesEarnings;
-    return transactions
-      .filter((t) => t.type === typeMap.sale)
-      .reduce((s, t) => s + t.amount, 0);
-  }, [financialReport, transactions, typeMap.sale]);
+    return transactions.filter(t => t.type === typeMap.sale).reduce((s, t) => s + t.amount, 0);
+  }, [financialReport, transactions]);
 
   const repairPct = totalEarnings > 0 ? Math.round((repairEarnings / totalEarnings) * 100) : 0;
   const salesPct = totalEarnings > 0 ? Math.round((salesEarnings / totalEarnings) * 100) : 0;
 
-
-  const filtered = useMemo(
-    () =>
-      transactions.filter((t) =>
-        [t.paidAt, t.type, t.shop].join(' ').toLowerCase().includes(searchTerm.toLowerCase())
-      ),
+  const filtered = useMemo(() =>
+    transactions.filter(t =>
+      [t.paidAt, t.type, t.shop, t.item].join(' ').toLowerCase().includes(searchTerm.toLowerCase())
+    ),
     [transactions, searchTerm]
   );
 
@@ -183,161 +136,138 @@ const Transactions = () => {
     return filtered.slice(start, start + ROWS_PER_PAGE);
   }, [filtered, currentPage]);
 
-  const goToPage = (page) => {
-    if (page >= 1 && page <= totalPages) setCurrentPage(page);
-  };
-
   return (
-    <div dir="rtl" style={{marginLeft:"-25px",marginTop:"-575px"}} className="min-h-screen max-w-6xl mx-auto p-4 lg:p-8 font-cairo bg-gradient-to-br from-gray-50 via-white to-gray-50">
-      <div className="max-w-7xl mx-auto">
+    <div dir="rtl" style={{ marginLeft: "-250px", marginTop: "-575px" }} className="min-h-screen bg-gray-50 font-cairo py-8">
+      <div className="max-w-5xl mx-auto px-6">
+
+        
+        <div className="mb-10 bg-white rounded-3xl shadow-sm border border-gray-200 p-8">
+          <div className="flex items-center justify-between flex-row-reverse text-right gap-5">
+            <div className="p-5 bg-lime-100 rounded-2xl">
+              <FiDollarSign className="text-4xl text-lime-600" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900">الإيرادات والعمليات المالية</h1>
+              <p className="text-lg text-gray-600 mt-2">متابعة شاملة للأرباح من المبيعات والإصلاحات</p>
+            </div>
+          </div>
+        </div>
 
        
-        <div className="mb-8 text-right bg-white p-6  shadow-sm border-l-4 border-lime-500">
-          <h1 className="text-3xl font-bold text-black mb-2 flex items-center justify-start gap-3">
-            <FiDollarSign className="text-gray-500" /> الإيرادات
-          </h1>
-          <p className="text-sm text-gray-600">إدارة ومتابعة العمليات المالية بسهولة</p>
-        </div>
-
-        
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-         
-          <div className="relative flex-1">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="ابحث في العمليات..."
-              onChange={handleSearch}
-              className="w-full pl-10 pr-4 py-3 rounded-lg border  bg-gray-50 text-black placeholder-gray-500 focus:ring-2 focus:ring-lime-400 focus:border-lime-500 outline-none transition text-right"
-            />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-lg opacity-90">إجمالي الأرباح</p>
+                <p className="text-4xl font-bold mt-3">{totalEarnings.toFixed(2)} ج.م</p>
+              </div>
+              <FiDollarSign className="text-6xl opacity-40 text-lime-600" />
+            </div>
           </div>
 
-        
-        </div>
+          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-lg opacity-90">من الإصلاحات ({repairPct}%)</p>
+                <p className="text-4xl font-bold mt-3 text-emerald-600">{repairEarnings.toFixed(2)} ج.م</p>
+              </div>
+              <FiTool className="text-6xl opacity-40 text-emerald-600" />
+            </div>
+          </div>
 
-        
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-          <div className="p-5 bg-white  shadow-sm border-l-4 border-lime-500">
-            <h3 className="text-sm font-medium flex items-center gap-1 text-lime-700 justify-start">
-              <FiDollarSign /> إجمالي الأرباح
-            </h3>
-            <p className="mt-1 text-2xl font-bold text-black">{totalEarnings.toFixed(2)} ج.م</p>
-          </div>
-          <div className="p-5 bg-white  shadow-sm border-l-4 border-green-500">
-            <h3 className="text-sm font-medium flex items-center gap-1 text-green-700 justify-start">
-              <FiDollarSign /> تصليح ({repairPct}%)
-            </h3>
-            <p className="mt-1 text-2xl font-bold text-black">{repairEarnings.toFixed(2)} ج.م</p>
-          </div>
-          <div className="p-5 bg-white  shadow-sm border-l-4 border-yellow-500">
-            <h3 className="text-sm font-medium flex items-center gap-1 text-yellow-700 justify-start">
-              <FiDollarSign /> مبيعات ({salesPct}%)
-            </h3>
-            <p className="mt-1 text-2xl font-bold text-black">{salesEarnings.toFixed(2)} ج.م</p>
+          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-lg opacity-90">من المبيعات ({salesPct}%)</p>
+                <p className="text-4xl font-bold mt-3 text-amber-600">{salesEarnings.toFixed(2)} ج.م</p>
+              </div>
+              <FiShoppingCart className="text-6xl opacity-40 text-amber-600" />
+            </div>
           </div>
         </div>
 
       
-        <div className="bg-white rounded-xl shadow-sm border border-lime-100">
+        <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
+          <div className="relative max-w-md mx-auto">
+            <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-lg" />
+            <input
+              type="text"
+              placeholder="ابحث في العمليات حسب التاريخ، النوع، المكان..."
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pr-12 py-3.5 pl-4 rounded-xl border border-gray-300 focus:border-lime-500 focus:ring-4 focus:ring-lime-100 outline-none text-base transition bg-gray-50"
+            />
+          </div>
+        </div>
+
+        
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
           {loading ? (
-            <table className="min-w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  {['التاريخ', 'نوع الخدمة', 'الجهاز', 'المكان', 'طريقة الدفع', 'الحساب', 'الحالة'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-xs font-bold text-gray-700 text-center">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {Array.from({ length: ROWS_PER_PAGE }).map((_, i) => (
-                  <SkeletonRow key={i} />
-                ))}
-              </tbody>
-            </table>
+            <div className="p-20 text-center">
+              <div className="w-16 h-16 border-6 border-lime-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+              <p className="mt-6 text-lg text-gray-600">جاري تحميل العمليات المالية...</p>
+            </div>
+          ) : paginated.length === 0 ? (
+            <div className="p-20 text-center text-gray-500">
+              <FiDollarSign className="w-16 h-16 mx-auto opacity-30 mb-4" />
+              <p className="text-xl">لا توجد عمليات مالية حالياً</p>
+            </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead className="bg-gray-50 sticky top-0 z-10">
+              <table className="w-full">
+                <thead className="bg-gray-100 text-gray-600">
                   <tr>
-                    {['التاريخ', 'نوع الخدمة', 'الجهاز', 'المكان', 'طريقة الدفع', 'الحساب', 'الحالة'].map((h) => (
-                      <th
-                        key={h}
-                        className="px-4 py-3 text-xs font-bold text-gray-700 text-center"
-                      >
-                        {h}
-                      </th>
-                    ))}
+                    <th className="px-5 py-4 text-base font-bold">التاريخ</th>
+                    <th className="px-5 py-4 text-base font-bold">نوع الخدمة</th>
+                    <th className="px-5 py-4 text-base font-bold">الجهاز/المنتج</th>
+                    <th className="px-5 py-4 text-base font-bold">المكان</th>
+                    <th className="px-5 py-4 text-base font-bold">طريقة الدفع</th>
+                    <th className="px-5 py-4 text-base font-bold">المبلغ</th>
+                    <th className="px-5 py-4 text-base font-bold">الحالة</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-lime-100">
-                  {paginated.length ? (
-                    paginated.map((txn) => (
-                      <tr key={txn.id} className="hover:bg-lime-50 transition">
-                        <td className="px-4 py-3 text-sm text-center">{txn.paidAt}</td>
-                        <td className="px-4 py-3 text-sm text-center">{txn.type}</td>
-                        <td className="px-4 py-3 text-sm text-center">{txn.item}</td>
-                        <td className="px-4 py-3 text-sm text-center">{txn.shop}</td>
-                        <td className="px-4 py-3 text-sm text-center">{txn.paymentMethod}</td>
-                        <td className="px-4 py-3 text-sm font-medium text-center">{txn.amount.toFixed(2)} ج.م</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${txn.status === 'مكتمل' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                            {txn.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={7} className="py-16 text-center text-gray-500">
-                        <div className="text-lime-400 mb-4">
-                          <FiDollarSign className="w-16 h-16 mx-auto opacity-30" />
-                        </div>
-                        <h3 className="text-xl font-bold text-black mb-2">
-                          لا توجد عمليات
-                        </h3>
-                        <p className="text-gray-600">
-                          {searchTerm ? 'جرب تعديل البحث' : 'سيتم عرض العمليات عند وجودها'}
-                        </p>
-                      </td>
-                    </tr>
-                  )}
+                <tbody className="divide-y divide-gray-200">
+                  {paginated.map((txn) => (
+                    <TransactionRow key={txn.id} txn={txn} />
+                  ))}
                 </tbody>
               </table>
             </div>
           )}
         </div>
 
-        
+    
         {!loading && totalPages > 1 && (
-          <div className="flex justify-center items-center gap-2 mt-6">
+          <div className="flex justify-center items-center gap-3 mt-10">
             <button
-              onClick={() => goToPage(currentPage - 1)}
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="p-2 rounded-lg border border-lime-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-lime-50 transition"
+              className="px-4 py-3 bg-white border border-lime-600 rounded-xl disabled:opacity-50 hover:bg-lime-50 text-lime-700 font-medium transition shadow-sm flex items-center gap-2"
             >
-              <FiChevronRight />
+              <FiChevronLeft className="w-5 h-5" />
+              السابق
             </button>
-            {[...Array(totalPages)].map((_, i) => (
-              <button
-                key={i}
-                onClick={() => goToPage(i + 1)}
-                className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${
-                  currentPage === i + 1
-                    ? 'bg-lime-500 text-white border-lime-500'
-                    : 'border-lime-200 hover:bg-lime-50 text-black'
-                }`}
-              >
-                {i + 1}
-              </button>
-            ))}
+
+            <div className="flex gap-2">
+              {[...Array(totalPages)].map((_, i) => (
+                <button
+                  key={i + 1}
+                  onClick={() => setCurrentPage(i + 1)}
+                  className={`w-12 h-12 rounded-xl font-bold text-base transition shadow-sm flex items-center justify-center ${
+                    currentPage === i + 1 ? 'bg-lime-600 text-white' : 'bg-white border border-lime-600 text-lime-700 hover:bg-lime-50'
+                  }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
+
             <button
-              onClick={() => goToPage(currentPage + 1)}
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="p-2 rounded-lg border border-lime-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-lime-50 transition"
+              className="px-4 py-3 bg-white border border-lime-600 rounded-xl disabled:opacity-50 hover:bg-lime-50 text-lime-700 font-medium transition shadow-sm flex items-center gap-2"
             >
-              <FiChevronLeft />
+              التالي
+              <FiChevronRight className="w-5 h-5" />
             </button>
           </div>
         )}

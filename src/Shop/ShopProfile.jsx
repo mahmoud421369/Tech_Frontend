@@ -40,7 +40,7 @@ const ShopProfileSkeleton = () => (
 const ShopProfile = ({ darkMode }) => {
   const { accessToken, user } = useAuthStore();
 
-  // Get shop ID from localStorage → key: "id"
+
   const getShopId = () => {
     const stored = localStorage.getItem('id');
     if (stored && !isNaN(stored)) return parseInt(stored);

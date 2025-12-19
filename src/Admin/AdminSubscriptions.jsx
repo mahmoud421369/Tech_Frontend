@@ -406,7 +406,7 @@ const AdminSubscriptions = ({ darkMode }) => {
                             {!isCashPendingMode && (
                               <button
                                 onClick={() => viewDetails(sub.subscriptionId || sub.id)}
-                                className="text-blue-600 dark:bg-gray-950 dark:text-blue-700 dark:border-gray-900 hover:text-blue-800 flex items-center gap-1 text-xs px-3 py-1.5 bg-blue-50 rounded-lg font-medium border border-blue-200"
+                                className="text-blue-600 dark:bg-gray-950 dark:text-blue-700 dark:border-gray-900 hover:text-blue-800 flex items-center gap-1 text-xs px-3 py-1.5 bg-blue-50 rounded-lg font-medium border "
                               >
                                 <FiInfo size={16} /> View
                               </button>
@@ -416,13 +416,13 @@ const AdminSubscriptions = ({ darkMode }) => {
                               <>
                                 <button
                                   onClick={() => confirmCash(sub.paymentId || sub.id)}
-                                  className="text-green-600 dark:bg-gray-950 dark:text-green-700 dark:border-gray-900 hover:text-green-800 flex items-center gap-1 text-xs px-3 py-1.5 bg-green-50 rounded-lg font-medium border border-green-200"
+                                  className="text-green-600 dark:bg-gray-950 dark:text-green-700 dark:border-gray-900 hover:text-green-800 flex items-center gap-1 text-xs px-3 py-1.5 bg-green-50 rounded-lg font-medium border"
                                 >
                                   <FiCheckCircle size={16} /> Confirm
                                 </button>
                                 <button
                                   onClick={() => rejectCash(sub.paymentId || sub.id)}
-                                  className="text-red-600 dark:bg-gray-950 dark:text-red-700 dark:border-gray-900 hover:text-red-800 flex items-center gap-1 text-xs px-3 py-1.5 bg-red-50 rounded-lg font-medium border border-red-200"
+                                  className="text-red-600 dark:bg-gray-950 dark:text-red-700 dark:border-gray-900 hover:text-red-800 flex items-center gap-1 text-xs px-3 py-1.5 bg-red-50 rounded-lg font-medium border"
                                 >
                                   <FiReject size={16} /> Reject
                                 </button>

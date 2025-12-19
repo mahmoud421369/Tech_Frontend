@@ -40,11 +40,11 @@ const OffersSkeleton = ({ darkMode }) => (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
       <div className="h-10 w-full sm:w-80 bg-gray-300 dark:bg-gray-600 rounded-lg mb-6"></div>
       <table className="min-w-full">
-        <thead>
-          <tr>
+        <thead className='bg-gray-100 dark:bg-gray-700'>
+          <tr className='bg-gray-100 dark:bg-gray-700'>
             {['ID', 'Title', 'Discount', 'Status', 'Shop', 'Dates', 'Actions'].map((_, idx) => (
               <th key={idx} className="px-6 py-3 text-left">
-                <div className="h-4 w-20 bg-gray-300 dark:bg-gray-600 rounded"></div>
+                <div className="h-4 w-20 bg-gray-100 dark:bg-gray-700 rounded"></div>
               </th>
             ))}
           </tr>
@@ -111,8 +111,8 @@ const PaginatedTable = ({
 
       <div className="overflow-x-auto custom-scrollbar">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-gray-100 dark:bg-gray-750">
-            <tr>
+          <thead className="bg-gray-100 dark:bg-gray-700">
+            <tr className="bg-gray-100 dark:bg-gray-700">
               {['ID', 'Title', 'Discount', 'Status', 'Shop', 'Validity', 'Actions'].map((col) => (
                 <th
                   key={col}
@@ -352,7 +352,7 @@ const AdminOffers = ({ darkMode }) => {
                   };
 
                   return (
-                    <tr key={offer.id} className={`hover:bg-gray-50 dark:hover:bg-gray-750 transition ${!isActive ? 'opacity-70' : ''}`}>
+                    <tr key={offer.id} className={` transition ${!isActive ? 'opacity-70' : ''}`}>
                       
                       <td className="px-6 py-4 text-xs font-mono text-gray-600 dark:text-gray-400">
                         <div className="flex items-center gap-2">
@@ -395,10 +395,10 @@ const AdminOffers = ({ darkMode }) => {
                       
                       <td className="px-6 py-4 text-xs text-gray-600 dark:text-gray-400">
                         <div className="flex items-center gap-2 text-gray-500">
-                          <FiCalendar className="w-4 h-4" />
-                          <span>{formatDate(offer.startDate)}</span>
+                          <FiCalendar className="w-4 h-4 dark:text-white" />
+                          <span className='dark:text-white'>{formatDate(offer.startDate)}</span>
                           <FiChevronRight className="w-3 h-3" />
-                          <span className={isExpired ? 'text-red-600 font-medium' : ''}>
+                          <span className={isExpired ? 'text-red-600 font-medium dark:font-bold' : ''}>
                             {formatDate(offer.endDate)}
                           </span>
                         </div>
@@ -409,7 +409,7 @@ const AdminOffers = ({ darkMode }) => {
                       <td className="px-6 py-4 text-center">
                         <button
                           onClick={() => deleteOffer(offer.id)}
-                          className="px-3 py-1.5 text-xs bg-red-50 border border-gray-200 font-semibold dark:bg-red-900 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-800 transition"
+                          className="px-3 py-1.5 text-xs bg-red-50 dark:bg-gray-950 dark:border-gray-900 border border-gray-200 font-semibold  text-red-700 dark:text-red-700 rounded  transition"
                           title="Delete offer"
                         >
                           Delete

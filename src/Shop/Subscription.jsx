@@ -1,17 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import API from '../api';
 import {
-  FaCalendar,
-  FaCheck,
-  FaCreditCard,
-  FaMoneyBillWave,
-  FaSync,
-  FaChevronDown,
-  FaHeadset,
-  FaCogs,
-  FaStore,
+  FaCalendar, FaCreditCard, FaMoneyBillWave, FaStore,
+  FaHeadset, FaCogs
 } from 'react-icons/fa';
 import Swal from 'sweetalert2';
+import API from '../api';
+import { FiChevronDown } from 'react-icons/fi';
 
 const VALID_SUB_TYPES = ['COMMISSION', 'RATIO'];
 const PRICE_PER_MONTH = { COMMISSION: 1000, RATIO: 800 };
@@ -51,7 +45,6 @@ const Subscriptions = () => {
     type: type.toUpperCase(),
   }), [duration, type]);
 
-
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -63,9 +56,7 @@ const Subscriptions = () => {
       setCurrentSub(currentRes.data?.content?.[0] ?? null);
       setAllSubs(Array.isArray(allRes.data?.content) ? allRes.data.content : allRes.data ?? []);
     } catch (err) {
-      // if (err.name !== 'AbortError') {
-      //   Swal.fire('خطأ', 'فشل تحميل بيانات الاشتراك', 'error');
-      // }
+  
     } finally {
       setLoading(false);
     }
@@ -79,7 +70,6 @@ const Subscriptions = () => {
     return () => abortCtrlRef.current?.abort();
   }, []);
 
- 
   const subscribeWithCard = async () => {
     const result = await Swal.fire({
       title: 'تأكيد الاشتراك',
@@ -99,44 +89,25 @@ const Subscriptions = () => {
 
     if (!result.isConfirmed) return;
 
-    Swal.fire({
-      title: 'جاري المعالجة...',
-      allowOutsideClick: false,
-      didOpen: () => Swal.showLoading(),
-    });
+    Swal.fire({ title: 'جاري المعالجة...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
     try {
       const res = await API.post('/api/subscriptions/card', createPayload(), getConfig());
-      const { paymentURL, paymentId, message } = res.data;
-console.log(res.data);
+      const { paymentURL, message } = res.data;
+
       if (!paymentURL) {
-        
-        await Swal.fire({
-          icon: 'success',
-          title: 'تم بنجاح!',
-          text: message || 'تم تفعيل الاشتراك بنجاح',
-          timer: 3000,
-        });
+        await Swal.fire({ icon: 'success', title: 'تم بنجاح!', text: message || 'تم تفعيل الاشتراك', timer: 3000 });
         fetchData();
         return;
       }
 
-    
-      await Swal.fire({
-        icon: 'success',
-        title: ' سيتم توجيهك الي الدفع',
-        toast:true,
-        position:"top-end",
-        timer: 2500,
-      });
-
+      await Swal.fire({ icon: 'success', title: 'سيتم توجيهك إلى الدفع', toast: true, position: "top-end", timer: 2500 });
       window.location.href = paymentURL;
     } catch (err) {
-      const msg = err?.response?.data?.message || 'فشل إنشاء الدفع، حاول مرة أخرى';
+      const msg = err?.response?.data?.message || 'فشل إنشاء الدفع';
       Swal.fire('فشل', msg, 'error');
     }
   };
-
 
   const subscribeWithCash = async () => {
     const result = await Swal.fire({
@@ -158,11 +129,7 @@ console.log(res.data);
 
     if (!result.isConfirmed) return;
 
-    Swal.fire({
-      title: 'جاري إرسال الطلب...',
-      allowOutsideClick: false,
-      didOpen: () => Swal.showLoading(),
-    });
+    Swal.fire({ title: 'جاري إرسال الطلب...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
     try {
       await API.post('/api/subscriptions/cash', createPayload(), getConfig());
@@ -182,84 +149,170 @@ console.log(res.data);
   const durationOptions = useMemo(() => Array.from({ length: 12 }, (_, i) => i + 1), []);
 
   return (
-    <div dir="rtl" style={{ marginLeft: "-25px", marginTop: "-600px" }} className="min-h-screen max-w-6xl mx-auto p-4 lg:p-8 font-cairo bg-gradient-to-br from-gray-50 via-white to-white">
-      <div className="max-w-5xl mx-auto">
+    <div dir="rtl" style={{ marginLeft: "-250px", marginTop: "-600px" }} className="min-h-screen bg-gray-50 font-cairo py-8">
+      <div className="max-w-5xl mx-auto px-6">
 
         
-        <div className="mb-8 text-right bg-white p-6 shadow-sm border-l-4 border-lime-500">
-          <h1 className="text-3xl font-bold text-black mb-2 flex items-center justify-start gap-3">
-            <FaCalendar className="text-gray-500" />
-            إدارة الاشتراكات
-          </h1>
-          <p className="text-sm text-gray-600">اختر خطتك أو جدد اشتراكك بسهولة</p>
-        </div>
-
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-          <div className="bg-white p-6 rounded-xl border shadow-sm hover:shadow-md transition group">
-            <div className="flex items-center justify-start gap-3 mb-3">
-              <div className="p-2 bg-lime-100 rounded-lg group-hover:bg-lime-200 transition">
-                <FaStore className="w-6 h-6 text-lime-700" />
-              </div>
-              <h3 className="text-lg font-bold text-black">إدارة كاملة</h3>
+        <div className="mb-10 bg-white rounded-3xl shadow-sm border border-gray-200 p-8">
+          <div className="flex items-center flex-row-reverse justify-between text-right gap-5">
+            <div className="p-5 bg-lime-100 rounded-2xl">
+              <FaCalendar className="text-4xl text-lime-600" />
             </div>
-            <p className="text-sm text-gray-600 text-right">تحكم كامل في المتجر والطلبات</p>
-          </div>
-
-          <div className="bg-white p-6 rounded-xl border shadow-sm hover:shadow-md transition group">
-            <div className="flex items-center justify-start gap-3 mb-3">
-              <div className="p-2 bg-lime-100 rounded-lg group-hover:bg-lime-200 transition">
-                <FaHeadset className="w-6 h-6 text-lime-700" />
-              </div>
-              <h3 className="text-lg font-bold text-black">دعم 24/7</h3>
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900">إدارة الاشتراكات</h1>
+              <p className="text-lg text-gray-600 mt-2">اختر خطتك أو جدد اشتراكك بسهولة وأمان</p>
             </div>
-            <p className="text-sm text-gray-600 text-right">فريق دعم متاح على مدار الساعة</p>
-          </div>
-
-          <div className="bg-white p-6 rounded-xl border shadow-sm hover:shadow-md transition group">
-            <div className="flex items-center justify-start gap-3 mb-3">
-              <div className="p-2 bg-lime-100 rounded-lg group-hover:bg-lime-200 transition">
-                <FaCogs className="w-6 h-6 text-lime-700" />
-              </div>
-              <h3 className="text-lg font-bold text-black">تحديثات تلقائية</h3>
-            </div>
-            <p className="text-sm text-gray-600 text-right">ميزات جديدة دائمًا بدون تكلفة</p>
           </div>
         </div>
 
-        
-        <div className="max-w-lg mx-auto">
-          <div className="rounded-xl p-8 shadow-lg bg-white border-2 border-lime-100">
-            <div className="flex justify-center mb-6">
-              <div className="p-4 bg-lime-100 text-lime-700 rounded-full">
-                <FaCalendar className="w-10 h-10" />
+     
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-lg opacity-90">إدارة كاملة للمتجر</p>
               </div>
+              <FaStore className="text-6xl opacity-40 text-lime-600" />
             </div>
+          </div>
 
-            <h2 className="text-2xl font-bold text-center text-black mb-8">
-              {hasActiveSub ? 'تجديد الاشتراك' : 'اشترك الآن'}
+          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-lg opacity-90">دعم فني 24/7</p>
+              </div>
+              <FaHeadset className="text-6xl opacity-40 text-blue-600" />
+            </div>
+          </div>
+
+          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-lg opacity-90">تحديثات تلقائية مجانية</p>
+              </div>
+              <FaCogs className="text-6xl opacity-40 text-purple-600" />
+            </div>
+          </div>
+        </div>
+
+
+
+
+  <div className="col-span-full bg-white rounded-3xl shadow-lg border border-gray-200 p-10">
+            <h2 className="text-3xl font-bold text-gray-900 mb-10 flex items-center gap-5 justify-center">
+              <FaCalendar className="text-lime-600 text-4xl" />
+              سجل الاشتراكات الكامل
             </h2>
 
-       
+            {allSubs.length === 0 ? (
+              <div className="text-center py-24 text-gray-500">
+                <FaCalendar className="w-24 h-24 mx-auto opacity-30 mb-8" />
+                <p className="text-3xl font-medium mb-4">لا توجد اشتراكات سابقة</p>
+                <p className="text-xl">ستظهر هنا جميع اشتراكاتك السابقة والحالية عند إنشائها</p>
+              </div>
+            ) : (
+              <div className="grid gap-8">
+                {allSubs.map((s, index) => {
+                  const isActive = new Date(s.endDate) > new Date();
+                  const isCurrent = index === 0 && isActive;
+
+                  return (
+                    <div
+                      key={s.id}
+                      className={`relative p-10 rounded-3xl border-4 transition-all shadow-xl ${
+                        isActive
+                          ? 'bg-gradient-to-br from-lime-50 via-emerald-50 to-teal-50 border-lime-400'
+                          : 'bg-gray-50 border-gray-300'
+                      }`}
+                    >
+                  
+                      {isCurrent && (
+                        <div className="absolute -top-5 left-1/2 -translate-x-1/2 px-8 py-3 bg-lime-600 text-white font-bold rounded-full shadow-lg text-lg">
+                          ← الاشتراك الحالي
+                        </div>
+                      )}
+
+                      <div className="grid md:grid-cols-3 gap-8 items-center text-center md:text-right">
+                       
+                        <div>
+                          <p className="text-3xl font-bold text-gray-900 mb-3">
+                            {s.type === 'COMMISSION' ? 'نسبة عمولة' : 'مبلغ ثابت'}
+                          </p>
+                          <span className={`inline-block px-8 py-4 rounded-full text-xl font-bold shadow-md ${
+                            isActive ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'
+                          }`}>
+                            {isActive ? 'نشط حاليًا' : 'منتهي الصلاحية'}
+                          </span>
+                        </div>
+
+                    
+                        <div className="space-y-4">
+                          <p className="text-xl text-gray-700">
+                            <span className="font-medium">بدأ في:</span>{' '}
+                            <span className="font-bold text-2xl text-lime-700">{formatDate(s.startDate)}</span>
+                          </p>
+                          <p className="text-xl text-gray-700">
+                            <span className="font-medium">ينتهي في:</span>{' '}
+                            <span className="font-bold text-2xl text-red-600">{formatDate(s.endDate)}</span>
+                          </p>
+                        </div>
+
+                        
+                        <div className="space-y-4">
+                          <p className="text-5xl font-extrabold text-lime-600">
+                            {Number(s.totalAmount).toLocaleString()} {CURRENCY}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            رقم الاشتراك: <span className="font-mono font-bold">#{s.id}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      
+                      {isActive && (
+                        <div className="mt-8 h-3 bg-gradient-to-r from-lime-500 to-emerald-600 rounded-full"></div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div><br />
+
+      
+        <div className="grid lg:grid-cols-1 gap-8 mb-12">
+
+         
+          <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-8">
+            <div className="text-center mb-8">
+              <div className="inline-flex p-5 bg-lime-100 rounded-2xl mb-4">
+                <FaCalendar className="text-4xl text-lime-600" />
+              </div>
+              <h2 className="text-3xl font-bold text-gray-900">
+                {hasActiveSub ? 'تجديد الاشتراك' : 'اشترك الآن'}
+              </h2>
+            </div>
+
+           
             <div className="mb-6">
-              <label className="block text-sm font-medium text-black mb-2">نوع الاشتراك</label>
+              <label className="block text-lg font-medium text-gray-800 mb-3">نوع الاشتراك</label>
               <div className="relative">
                 <button
                   onClick={() => setTypeOpen(!typeOpen)}
-                  className="w-full px-5 py-4 bg-gray-50 border-2 rounded-xl flex justify-between items-center hover:border-lime-500 transition text-right font-medium"
+                  className="w-full px-6 py-4 bg-gray-50 border-2 border-gray-300 rounded-2xl flex justify-between items-center hover:border-lime-500 transition font-medium text-lg"
                 >
                   <span>
                     {type === 'COMMISSION' ? 'نسبة عمولة' : 'مبلغ ثابت'} ({PRICE_PER_MONTH[type]} {CURRENCY}/شهر)
                   </span>
-                  <FaChevronDown className={`transition ${typeOpen ? 'rotate-180' : ''}`} />
+                  <FiChevronDown className={`text-xl transition ${typeOpen ? 'rotate-180' : ''}`} />
                 </button>
                 {typeOpen && (
-                  <div className="absolute z-10 w-full mt-2 bg-white border-2 border-lime-200 rounded-xl shadow-xl">
+                  <div className="absolute top-full mt-3 w-full bg-white border-2 border-lime-300 rounded-2xl shadow-xl z-10 overflow-hidden">
                     {VALID_SUB_TYPES.map((t) => (
                       <button
                         key={t}
                         onClick={() => { setType(t); setTypeOpen(false); }}
-                        className="block w-full px-5 py-3 text-right hover:bg-lime-50 transition font-medium"
+                        className="w-full px-6 py-4 text-right hover:bg-lime-50 transition font-medium"
                       >
                         {t === 'COMMISSION' ? 'نسبة عمولة' : 'مبلغ ثابت'} ({PRICE_PER_MONTH[t]} {CURRENCY}/شهر)
                       </button>
@@ -269,24 +322,24 @@ console.log(res.data);
               </div>
             </div>
 
-          
+           
             <div className="mb-8">
-              <label className="block text-sm font-medium text-black mb-2">المدة</label>
+              <label className="block text-lg font-medium text-gray-800 mb-3">المدة بالشهور</label>
               <div className="relative">
                 <button
                   onClick={() => setDurationOpen(!durationOpen)}
-                  className="w-full px-5 py-4 bg-gray-50 border-2 rounded-xl flex justify-between items-center hover:border-lime-500 transition text-right font-medium"
+                  className="w-full px-6 py-4 bg-gray-50 border-2 border-gray-300 rounded-2xl flex justify-between items-center hover:border-lime-500 transition font-medium text-lg"
                 >
                   <span>{duration} شهر {duration === 12 && '(سنة كاملة)'}</span>
-                  <FaChevronDown className={`transition ${durationOpen ? 'rotate-180' : ''}`} />
+                  <FiChevronDown className={`text-xl transition ${durationOpen ? 'rotate-180' : ''}`} />
                 </button>
                 {durationOpen && (
-                  <div className="absolute z-10 w-full mt-2 bg-white border-2 border-lime-200 rounded-xl shadow-xl max-h-64 overflow-y-auto">
+                  <div className="absolute top-full mt-3 w-full bg-white border-2 border-lime-300 rounded-2xl shadow-xl z-10 max-h-64 overflow-y-auto">
                     {durationOptions.map((m) => (
                       <button
                         key={m}
                         onClick={() => { setDuration(m); setDurationOpen(false); }}
-                        className="block w-full px-5 py-3 text-right hover:bg-lime-50 transition"
+                        className="w-full px-6 py-4 text-right hover:bg-lime-50 transition"
                       >
                         {m} شهر {m === 12 && '(سنة كاملة)'}
                       </button>
@@ -296,84 +349,60 @@ console.log(res.data);
               </div>
             </div>
 
-     
-            <div className="text-center mb-8 p-6 bg-gradient-to-r from-lime-50 to-emerald-50 rounded-xl">
-              <div className="text-5xl font-bold text-lime-600">{totalPrice} {CURRENCY}</div>
-              <p className="text-gray-600 mt-2">{PRICE_PER_MONTH[type]} × {duration} شهر</p>
+           
+            <div className="text-center p-8 bg-gradient-to-r from-lime-50 to-emerald-50 rounded-2xl mb-8">
+              <p className="text-5xl font-bold text-lime-600">{totalPrice.toLocaleString()} {CURRENCY}</p>
+              <p className="text-gray-700 mt-3 text-lg">{PRICE_PER_MONTH[type]} × {duration} شهر</p>
             </div>
 
-            
+           
             <div className="grid grid-cols-2 gap-4">
               <button
                 onClick={subscribeWithCard}
-                className="flex items-center justify-center gap-3 py-4 font-bold rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white transition shadow-lg text-lg"
+                className="py-5 px-6 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-2xl shadow-lg transition flex items-center justify-center gap-3 text-lg"
               >
-                <FaCreditCard className="w-6 h-6" />
+                <FaCreditCard className="text-xl" />
                 بالبطاقة
               </button>
               <button
                 onClick={subscribeWithCash}
-                className="flex items-center justify-center gap-3 py-4 font-bold rounded-xl bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white transition shadow-lg text-lg"
+                className="py-5 px-6 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white font-bold rounded-2xl shadow-lg transition flex items-center justify-center gap-3 text-lg"
               >
-                <FaMoneyBillWave className="w-6 h-6" />
+                <FaMoneyBillWave className="text-xl" />
                 نقدي
               </button>
             </div>
           </div>
-        </div>
 
-     
-        <div className="mt-12 grid md:grid-cols-2 gap-8">
-         
-          <div className="bg-white p-6 rounded-xl shadow-sm border">
-            <h2 className="text-xl font-bold mb-4">الاشتراك الحالي</h2>
+          
+          {/* <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">الاشتراك الحالي</h2>
             {loading ? (
-              <div className="flex justify-center py-8">
-                <div className="w-12 h-12 border-4 border-lime-500 border-t-transparent rounded-full animate-spin"></div>
+              <div className="flex justify-center py-12">
+                <div className="w-12 h-12 border-6 border-lime-600 border-t-transparent rounded-full animate-spin"></div>
               </div>
             ) : !currentSub ? (
-              <p className="text-center text-gray-500 py-8 text-lg">لا يوجد اشتراك نشط</p>
+              <div className="text-center py-12 text-gray-500">
+                <FaCalendar className="w-16 h-16 mx-auto opacity-30 mb-4" />
+                <p className="text-xl">لا يوجد اشتراك نشط حاليًا</p>
+              </div>
             ) : (
-              <div className="p-6 bg-gradient-to-r from-lime-50 to-emerald-50 rounded-xl">
-                <p className="font-bold text-lg">{currentSub.type === 'COMMISSION' ? 'نسبة عمولة' : 'مبلغ ثابت'}</p>
-                <p className="text-sm text-gray-600 mt-2">
-                  {formatDate(currentSub.startDate)} → {formatDate(currentSub.endDate)}
+              <div className="p-8 bg-gradient-to-r from-lime-50 to-emerald-50 rounded-2xl">
+                <p className="text-2xl font-bold text-gray-900">
+                  {currentSub.type === 'COMMISSION' ? 'نسبة عمولة' : 'مبلغ ثابت'}
                 </p>
-                <p className="text-2xl font-bold mt-3">{currentSub.totalAmount} {CURRENCY}</p>
-                <span className={`inline-block mt-4 px-4 py-2 rounded-full text-sm font-bold ${
-                  hasActiveSub ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                }`}>
+                <p className="text-lg text-gray-700 mt-3">
+                  من {formatDate(currentSub.startDate)} إلى {formatDate(currentSub.endDate)}
+                </p>
+                <p className="text-4xl font-bold text-lime-600 mt-6">{currentSub.totalAmount} {CURRENCY}</p>
+                <div className="mt-6 inline-block px-6 py-3 rounded-full text-lg font-bold bg-green-100 text-green-800">
                   {hasActiveSub ? 'نشط' : 'منتهي'}
-                </span>
+                </div>
               </div>
             )}
-          </div>
+          </div> */}
 
          
-          <div className="bg-white p-6 rounded-xl shadow-sm border">
-            <h2 className="text-xl font-bold mb-4">سجل الاشتراكات</h2>
-            {allSubs.length === 0 ? (
-              <p className="text-center text-gray-500 py-8">لا توجد اشتراكات سابقة</p>
-            ) : (
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {allSubs.map((s) => (
-                  <div key={s.id} className="p-4 bg-gray-50 rounded-lg border">
-                    <div className="flex justify-between items-center">
-                      <div className="text-right">
-                        <p className="font-medium">{s.type === 'COMMISSION' ? 'نسبة عمولة' : 'مبلغ ثابت'}</p>
-                        <p className="text-xs text-gray-600">{formatDate(s.startDate)} - {formatDate(s.endDate)}</p>
-                      </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        new Date(s.endDate) > new Date() ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'
-                      }`}>
-                        {new Date(s.endDate) > new Date() ? 'نشط' : 'منتهي'}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
       </div>
     </div>
