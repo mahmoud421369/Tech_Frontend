@@ -2,23 +2,16 @@ import React, { useEffect, useState, useCallback, useRef, memo } from 'react';
 import * as SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
 import { 
-  FiX, 
-  FiSend, 
-  FiXCircle, 
-  FiMessageSquare, 
-  FiClock, 
-  FiUser, 
-  FiCheckCircle 
+  FiX, FiSend, FiXCircle, FiMessageSquare, FiCheckCircle 
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
-import { v4 as uuidv4 } from 'uuid';
 import api from '../api';
 import DOMPurify from 'dompurify';
 
 const ShopChatModal = memo(({ open, onClose }) => {
   const shopProfile = {
-    email: localStorage.getItem('userEmail') || 'shop',
-    id: localStorage.getItem('id') || 'shop-123',
+    email: localStorage.getItem('userEmail') || 'shop@example.com',
+    id: localStorage.getItem('id') || null,
   };
 
   const [stompClient, setStompClient] = useState(null);
@@ -28,101 +21,103 @@ const ShopChatModal = memo(({ open, onClose }) => {
   const [input, setInput] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const [pendingMessages, setPendingMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
-  const [totalUnreadCount, setTotalUnreadCount] = useState(0); 
+  const [totalUnreadCount, setTotalUnreadCount] = useState(0);
 
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const subscriptionRef = useRef(null);
 
-  
   const fetchSessions = useCallback(async () => {
     try {
       const res = await api.get('/api/chats/shop/sessions');
-      const data = res.data.content || res.data || [];
-      const sessionsArray = Array.isArray(data) ? data : data.sessions || [];
-      
-      setSessions(sessionsArray.map(session => ({
-        ...session,
-        unreadCount: session.unreadCount || 0
-      })));
+      const sessionsArray = Array.isArray(res.data) ? res.data : res.data.content || [];
 
+      setSessions(sessionsArray.map(session => ({
+        id: session.id,
+        userId: session.userId,
+        userName: session.userName || 'مستخدم',
+        shopId: session.shopId,
+        shopName: session.shopName || 'المتجر',
+        createdAt: session.createdAt,
+        lastMessage: session.lastMessage ? {
+          id: session.lastMessage.id,
+          message: session.lastMessage.message,
+          sentBy: session.lastMessage.sentBy,
+          createdAt: session.lastMessage.createdAt,
+        } : null,
+        unreadCount: session.unreadCount || 0,
+        active: session.active,
+      })));
 
       fetchTotalUnreadCount();
     } catch (err) {
       console.error('Error fetching sessions:', err);
-      Swal.fire('خطأ', 'فشل تحميل المحادثات', 'error', { toast: true, position: 'top-end', timer: 1500 });
+      Swal.fire('خطأ', 'فشل تحميل المحادثات', 'error');
     }
   }, []);
 
-  
   const fetchTotalUnreadCount = async () => {
+    if (!shopProfile.id) return;
     try {
-      const res = await api.get('/api/chats/unread-count'); 
-      setTotalUnreadCount(res.data || 0);
+      const res = await api.get(`/api/chats/${shopProfile.id}/unread-count`);
+      setTotalUnreadCount(res.data.unreadCount || res.data || 0);
     } catch (err) {
       console.error('Failed to fetch unread count');
     }
   };
 
-
   const fetchMessages = useCallback(async () => {
     if (!activeSession) return;
 
     setIsLoadingMessages(true);
+
     try {
       const res = await api.get(`/api/chats/${activeSession.userId}/shop/${activeSession.shopId}/paginated`);
+      const messagesArray = res.data.content || [];
 
-      let newMessages = [];
-      if (res.data.content) newMessages = res.data.content;
-      else if (Array.isArray(res.data)) newMessages = res.data;
+      const formattedMessages = messagesArray.map(msg => ({
+        id: msg.id,
+        content: msg.message,
+        senderType: msg.sentBy,
+        senderName: msg.sentBy === "USER" ? (msg.userName || 'مستخدم') : shopProfile.email,
+        createdAt: msg.createdAt,
+        read: msg.read || false,
+      }));
 
-      const reversed = newMessages.reverse();
-      const unique = Array.from(new Map(reversed.map(m => [m.id, m])).values());
+      const sorted = formattedMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      setMessages(sorted);
 
-      setMessages(unique);
-
-     
-      markAsRead(activeSession.userId, activeSession.shopId);
+      
+      await api.put(`/api/chats/${activeSession.userId}/shop/${activeSession.shopId}/mark-read`);
+      fetchTotalUnreadCount();
     } catch (err) {
       console.error('Error loading messages:', err);
       setMessages([]);
     } finally {
       setIsLoadingMessages(false);
     }
-  }, [activeSession]);
+  }, [activeSession, shopProfile.email]);
 
- 
-  const markAsRead = async (userId, shopId) => {
-    try {
-      await api.put(`/api/chats/${userId}/shop/${shopId}/mark-read`);
-    
-      setSessions(prev => prev.map(s => 
-        s.userId === userId && s.shopId === shopId ? { ...s, unreadCount: 0 } : s
-      ));
-      fetchTotalUnreadCount();
-    } catch (err) {
-      console.error('Failed to mark as read');
-    }
-  };
-
- 
   const closeChatSession = async (userId, shopId) => {
     try {
       await api.post(`/api/chats/${userId}/shop/${shopId}/close`);
-      Swal.fire('تم', 'تم إغلاق المحادثة', 'success', { toast: true, position: 'top-end', timer: 1500 });
+      Swal.fire('تم', 'تم إغلاق المحادثة', 'success');
       
       setMessages([]);
       setActiveSession(null);
       setSessions(prev => prev.filter(s => !(s.userId === userId && s.shopId === shopId)));
     } catch (err) {
-      Swal.fire('خطأ', 'فشل إغلاق المحادثة', 'error', { toast: true, position: 'top-end', timer: 1500 });
+      Swal.fire('خطأ', 'فشل إغلاق المحادثة', 'error');
     }
   };
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      if (stompClient) stompClient.deactivate();
+      setIsConnected(false);
+      return;
+    }
 
     fetchSessions();
 
@@ -134,10 +129,7 @@ const ShopChatModal = memo(({ open, onClose }) => {
         console.log('Shop WebSocket connected');
         setIsConnected(true);
       },
-      onDisconnect: () => {
-        console.log('Shop WebSocket disconnected');
-        setIsConnected(false);
-      },
+      onDisconnect: () => setIsConnected(false),
       onStompError: (frame) => {
         console.error('WebSocket error:', frame);
         setIsConnected(false);
@@ -155,34 +147,16 @@ const ShopChatModal = memo(({ open, onClose }) => {
 
   
   useEffect(() => {
-    if (isConnected && pendingMessages.length > 0 && stompClient) {
-      pendingMessages.forEach(({ input, sessionId }) => {
-        const messageBody = {
-          type: "CHAT",
-          action: "SEND",
-          payload: DOMPurify.sanitize(input),
-          senderId: shopProfile.id,
-          senderType: "SHOP",
-          recipientId: sessionId,
-          timestamp: new Date().toISOString(),
-        };
-        stompClient.publish({
-          destination: `/app/chat/user/${sessionId}/shop/${shopProfile.id}`,
-          headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` },
-          body: JSON.stringify(messageBody),
-        });
-      });
-      setPendingMessages([]);
+    if (activeSession) {
+      fetchMessages();
     }
-  }, [isConnected, pendingMessages, stompClient, shopProfile.id]);
+  }, [activeSession, fetchMessages]);
 
-  
   useEffect(() => {
     if (!stompClient || !isConnected || !activeSession) return;
 
     const handleIncomingMessage = (msg) => {
       const body = JSON.parse(msg.body);
-      console.log('Received:', body);
 
       if (body.type === "TYPING" && body.action === "TYPING_START" && body.senderType === "USER") {
         setIsTyping(true);
@@ -192,128 +166,103 @@ const ShopChatModal = memo(({ open, onClose }) => {
       }
 
       if (body.type === "CHAT" && body.action === "CLOSED") {
-        closeChatSession(activeSession.userId, activeSession.shopId);
+        Swal.fire('تم الإغلاق', 'أنهى المستخدم المحادثة', 'info');
+        setMessages([]);
+        setActiveSession(null);
+        setSessions(prev => prev.filter(s => s.id !== activeSession.id));
         return;
       }
 
       if (body.type === "CHAT" && body.action === "SEND" && body.status === "SUCCESS") {
         const payload = body.payload;
-        const sessionId = payload.sessionId || activeSession.id;
 
         const message = {
-          id: payload.id || uuidv4(),
-          content: payload.message || payload.content || payload.payload,
+          id: payload.id,
+          content: payload.message || payload.content,
           senderType: payload.sentBy || payload.senderType,
-          senderName: payload.sentBy === "USER" ? payload.userName : payload.shopName,
+          senderName: payload.sentBy === "USER" ? (payload.userName || 'مستخدم') : shopProfile.email,
           createdAt: payload.createdAt || new Date().toISOString(),
+          read: payload.read || false,
         };
 
-        if (sessionId === activeSession.id) {
-          setMessages(prev => {
-            if (prev.some(m => m.id === message.id)) return prev;
-            return [...prev, message];
-          });
-        } else {
-          
-          setSessions(prev =>
-            prev.map(s => s.id === sessionId ? { ...s, unreadCount: (s.unreadCount || 0) + 1 } : s)
-          );
-          fetchTotalUnreadCount();
-        }
+        setMessages(prev => {
+          if (prev.some(m => m.id === message.id)) return prev;
+          return [...prev, message];
+        });
       }
     };
 
-    const topicSub = stompClient.subscribe(
-      `/topic/chat/${activeSession.id}/${shopProfile.id}`,
-      handleIncomingMessage
-    );
+    const topic = `/topic/chat/${activeSession.userId}/${activeSession.shopId}`;
+    const subscription = stompClient.subscribe(topic, handleIncomingMessage);
 
-    subscriptionRef.current = topicSub;
+    subscriptionRef.current = subscription;
+
+   
     fetchMessages();
 
     return () => {
       if (subscriptionRef.current) subscriptionRef.current.unsubscribe();
       clearTimeout(typingTimeoutRef.current);
     };
-  }, [stompClient, isConnected, activeSession, shopProfile.id, fetchMessages]);
+  }, [stompClient, isConnected, activeSession, fetchMessages]);
 
-  const sendTypingEvent = useCallback(() => {
-    if (stompClient && isConnected && activeSession) {
-      stompClient.publish({
-        destination: `/app/chat/${activeSession.id}/${shopProfile.id}/typing`,
-        headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` },
-        body: JSON.stringify({
-          type: "TYPING",
-          action: "TYPING_START",
-          senderId: shopProfile.id,
-          senderType: "SHOP",
-          recipientId: activeSession.id,
-          timestamp: new Date().toISOString()
-        }),
-      });
-    }
-  }, [stompClient, isConnected, activeSession, shopProfile.id]);
+  const sendTypingIndicator = useCallback(() => {
+    if (!stompClient || !isConnected || !activeSession || !input.trim()) return;
+
+    stompClient.publish({
+      destination: `/app/chat/${activeSession.userId}/${activeSession.shopId}/typing`,
+      headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` },
+      body: JSON.stringify({}),
+    });
+  }, [stompClient, isConnected, activeSession, input]);
 
   const sendMessage = useCallback(() => {
-    if (!input.trim() || !activeSession) return;
-
-    const sanitizedInput = DOMPurify.sanitize(input);
-    const optimisticMessage = {
-      id: uuidv4(),
-      content: sanitizedInput,
-      senderType: 'SHOP',
-      senderName: shopProfile.email,
-      createdAt: new Date().toISOString(),
-    };
-
-    setMessages(prev => [...prev, optimisticMessage]);
-    setInput('');
-
-    if (!stompClient || !isConnected) {
-      setPendingMessages(prev => [...prev, { input: sanitizedInput, sessionId: activeSession.id }]);
+    if (!input.trim() || !activeSession || !isConnected || !stompClient) {
+      Swal.fire('تحذير', 'لا يمكن إرسال الرسالة حالياً', 'warning');
       return;
     }
 
+    const sanitizedInput = DOMPurify.sanitize(input.trim());
+
     stompClient.publish({
-      destination: `/app/chat/user/${activeSession.id}/shop/${shopProfile.id}`,
+      destination: `/app/chat/send`,
       headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` },
       body: JSON.stringify({
-        type: "CHAT",
-        action: "SEND",
-        payload: sanitizedInput,
-        senderId: shopProfile.id,
-        senderType: "SHOP",
-        recipientId: activeSession.id,
-        timestamp: new Date().toISOString(),
+        sessionId: activeSession.id,
+        content: sanitizedInput,
       }),
     });
-  }, [input, activeSession, stompClient, isConnected, shopProfile]);
+
+    setInput('');
+  }, [input, activeSession, stompClient, isConnected]);
+
+  const handleInputChange = (e) => {
+    setInput(e.target.value);
+    sendTypingIndicator();
+  };
 
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
-    } else {
-      sendTypingEvent();
     }
-  }, [sendMessage, sendTypingEvent]);
-
+  }, [sendMessage]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, isTyping]);
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white w-full max-w-6xl h-[85vh] rounded-3xl shadow-2xl flex overflow-hidden">
+    <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4">
+      <div className="bg-white w-full max-w-5xl h-[85vh] rounded-3xl shadow-2xl flex overflow-hidden">
       
-        <div className="w-full sm:w-96 bg-gray-50 border-r border-gray-200 flex flex-col">
-          <div className="flex items-center justify-between p-5 border-b bg-white">
+        <div className="w-80 bg-gray-50 border-r border-gray-200 flex flex-col">
+          <div className="p-4 border-b bg-white flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <FiMessageSquare className="text-2xl text-lime-600" />
-              <h2 className="text-xl font-bold">محادثات العملاء</h2>
+              <FiMessageSquare className="text-xl text-lime-600" />
+              <h2 className="text-lg font-bold">المحادثات</h2>
               {totalUnreadCount > 0 && (
                 <span className="bg-red-500 text-white text-xs font-bold rounded-full px-2 py-1">
                   {totalUnreadCount}
@@ -321,42 +270,42 @@ const ShopChatModal = memo(({ open, onClose }) => {
               )}
             </div>
             <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
-              <FiX className="text-xl" />
+              <FiX className="text-lg" />
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
             {sessions.length === 0 ? (
-              <div className="text-center py-16 text-gray-500">
-                <FiMessageSquare className="w-16 h-16 mx-auto opacity-30 mb-4" />
-                <p className="text-lg">لا توجد محادثات حالياً</p>
+              <div className="text-center py-12 text-gray-500">
+                <FiMessageSquare className="w-12 h-12 mx-auto opacity-30 mb-3" />
+                <p className="text-sm">لا توجد محادثات</p>
               </div>
             ) : (
               sessions.map(s => (
                 <div
                   key={s.id}
                   onClick={() => setActiveSession(s)}
-                  className={`p-4 rounded-2xl cursor-pointer transition-all hover:shadow-md border ${
+                  className={`p-3 rounded-xl cursor-pointer transition-all hover:shadow border ${
                     activeSession?.id === s.id
-                      ? 'bg-lime-50 border-lime-400 shadow-sm'
+                      ? 'bg-lime-50 border-lime-400 shadow'
                       : 'bg-white border-gray-200'
                   }`}
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-lime-100 rounded-full flex items-center justify-center text-lime-700 font-bold text-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-lime-100 rounded-full flex items-center justify-center text-lime-700 font-bold text-sm">
                       {s.userName?.[0]?.toUpperCase() || '?'}
                     </div>
                     <div className="flex-1">
                       <div className="flex justify-between items-center">
-                        <h4 className="font-bold text-gray-900">{s.userName || 'مجهول'}</h4>
+                        <h4 className="font-semibold text-sm text-gray-900 truncate">{s.userName || 'مستخدم'}</h4>
                         {s.unreadCount > 0 && (
-                          <span className="bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                          <span className="bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                             {s.unreadCount}
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-600 truncate mt-1">
-                        {s.lastMessage?.content || 'ابدأ المحادثة'}
+                      <p className="text-xs text-gray-600 truncate mt-1">
+                        {s.lastMessage?.message || 'ابدأ المحادثة'}
                       </p>
                     </div>
                   </div>
@@ -366,79 +315,79 @@ const ShopChatModal = memo(({ open, onClose }) => {
           </div>
 
           {activeSession && (
-            <div className="p-4 border-t bg-gray-50">
+            <div className="p-3 border-t bg-gray-50">
               <button
                 onClick={() => closeChatSession(activeSession.userId, activeSession.shopId)}
-                className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition flex items-center justify-center gap-2"
+                className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-medium transition flex items-center justify-center gap-2"
               >
-                <FiXCircle className="text-lg" />
+                <FiXCircle className="text-base" />
                 إغلاق المحادثة
               </button>
             </div>
           )}
         </div>
 
-        
+     
         <div className="flex-1 flex flex-col bg-gray-50">
           {activeSession ? (
             <>
-              <div className="bg-white border-b px-6 py-4 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-lime-100 rounded-full flex items-center justify-center text-lime-700 font-bold text-xl">
+              <div className="bg-white border-b px-5 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-lime-100 rounded-full flex items-center justify-center text-lime-700 font-bold text-lg">
                     {activeSession.userName?.[0]?.toUpperCase() || '?'}
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-gray-900">{activeSession.userName || 'مجهول'}</h3>
-                    <p className="text-sm text-gray-600 flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-gray-900">{activeSession.userName || 'مستخدم'}</h3>
+                    <p className="text-xs text-gray-600 flex items-center gap-1">
                       {isConnected ? (
                         <>
                           <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                          متصل الآن
+                          متصل
                         </>
-                      ) : 'جاري الاتصال...'}
+                      ) : 'غير متصل'}
                     </p>
                   </div>
                 </div>
+
                 {isTyping && (
-                  <p className="text-blue-600 animate-pulse flex items-center gap-2">
-                    <span className="flex">
-                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
-                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce mx-1 delay-100"></span>
-                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></span>
-                    </span>
+                  <div className="text-sm text-lime-600 flex items-center gap-2 animate-pulse">
+                    <div className="flex gap-1">
+                      <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></span>
+                      <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-100"></span>
+                      <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-200"></span>
+                    </div>
                     يكتب...
-                  </p>
+                  </div>
                 )}
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {isLoadingMessages ? (
-                  <div className="flex justify-center py-20">
-                    <div className="w-12 h-12 border-6 border-lime-600 border-t-transparent rounded-full animate-spin"></div>
+                  <div className="flex justify-center py-16">
+                    <div className="w-10 h-10 border-4 border-lime-600 border-t-transparent rounded-full animate-spin"></div>
                   </div>
                 ) : messages.length === 0 ? (
                   <div className="text-center py-20 text-gray-500">
-                    <FiMessageSquare className="w-20 h-20 mx-auto opacity-20 mb-4" />
-                    <p className="text-xl">ابدأ المحادثة!</p>
+                    <FiMessageSquare className="w-16 h-16 mx-auto opacity-20 mb-4" />
+                    <p className="text-base">ابدأ المحادثة!</p>
                   </div>
                 ) : (
                   messages.map(m => (
-                    <div key={m.id} className={`flex items-start gap-4 ${m.senderType === 'SHOP' ? 'flex-row-reverse' : ''}`}>
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg ${
+                    <div key={m.id} className={`flex items-start gap-3 ${m.senderType === 'SHOP' ? 'flex-row-reverse' : ''}`}>
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm ${
                         m.senderType === 'SHOP' ? 'bg-lime-600' : 'bg-gray-500'
                       }`}>
                         {m.senderName?.[0]?.toUpperCase() || '?'}
                       </div>
                       <div className={`max-w-lg ${m.senderType === 'SHOP' ? 'text-right' : ''}`}>
-                        <div className={`inline-block px-6 py-4 rounded-3xl shadow-md ${
+                        <div className={`inline-block px-5 py-3 rounded-2xl shadow ${
                           m.senderType === 'SHOP'
                             ? 'bg-lime-600 text-white'
                             : 'bg-white text-gray-900 border border-gray-200'
                         }`}>
-                          <p className="text-sm font-medium opacity-90 mb-2">{m.senderName}</p>
-                          <div className="text-base leading-relaxed" dangerouslySetInnerHTML={{ __html: m.content }} />
-                          <p className="text-xs opacity-70 mt-3 flex items-center gap-1 justify-end">
-                            <FiCheckCircle className="text-xs" />
+                          <div className="text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: m.content }} />
+                          <p className="text-xs opacity-70 mt-2 flex items-center gap-1 justify-end">
+                            {m.senderType === 'SHOP' && m.read && <FiCheckCircle className="text-white text-xs" />}
                             {new Date(m.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
                           </p>
                         </div>
@@ -449,26 +398,26 @@ const ShopChatModal = memo(({ open, onClose }) => {
                 <div ref={messagesEndRef} />
               </div>
 
-              <div className="bg-white border-t p-5">
-                <div className="flex items-center gap-4">
+              <div className="bg-white border-t p-4">
+                <div className="flex items-center gap-3">
                   <input
                     dir="rtl"
                     value={input}
-                    onChange={(e) => setInput(e.target.value)}
+                    onChange={handleInputChange}
                     onKeyDown={handleKeyDown}
-                    placeholder="اكتب رسالتك هنا..."
-                    className="flex-1 px-6 py-4 border border-gray-300 rounded-2xl focus:outline-none focus:ring-4 focus:ring-lime-100 focus:border-lime-500 bg-gray-50 text-lg"
+                    placeholder="اكتب رسالتك..."
+                    className="flex-1 px-5 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-lime-100 focus:border-lime-500 bg-gray-50 text-base"
                   />
                   <button
                     onClick={sendMessage}
                     disabled={!isConnected || !input.trim()}
-                    className={`px-8 py-4 rounded-2xl font-bold transition flex items-center gap-3 ${
+                    className={`px-6 py-3 rounded-2xl font-medium transition flex items-center gap-2 ${
                       isConnected && input.trim()
-                        ? 'bg-lime-600 hover:bg-lime-700 text-white shadow-lg'
+                        ? 'bg-lime-600 hover:bg-lime-700 text-white shadow'
                         : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     }`}
                   >
-                    <FiSend className="text-xl" />
+                    <FiSend className="text-lg" />
                     إرسال
                   </button>
                 </div>
@@ -477,8 +426,8 @@ const ShopChatModal = memo(({ open, onClose }) => {
           ) : (
             <div className="flex-1 flex items-center justify-center text-gray-500">
               <div className="text-center">
-                <FiMessageSquare className="w-24 h-24 mx-auto opacity-20 mb-6" />
-                <p className="text-2xl font-medium">اختر محادثة لبدء الدردشة</p>
+                <FiMessageSquare className="w-20 h-20 mx-auto opacity-20 mb-4" />
+                <p className="text-lg">اختر محادثة</p>
               </div>
             </div>
           )}

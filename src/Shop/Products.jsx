@@ -43,7 +43,6 @@ const Products = () => {
   const conditions = ['NEW', 'USED', 'REFURBISHED'];
   const conditionTranslations = { NEW: 'جديد', USED: 'مستعمل', REFURBISHED: 'مجدّد' };
 
-  
   const stats = useMemo(() => {
     const total = products.length;
     const inStock = products.filter(p => p.stock > 0).length;
@@ -199,7 +198,6 @@ const Products = () => {
       <div style={{marginTop:"-1225px",marginLeft:"-250px"}} className="min-h-screen bg-gray-50 font-cairo py-8">
         <div className="max-w-5xl mx-auto px-6">
 
-       
           <div className="mb-10 bg-white rounded-3xl shadow-sm border border-gray-200 p-8">
             <div className="flex items-center justify-between text-right gap-5">
               <div className="p-5 bg-lime-100 rounded-2xl">
@@ -212,7 +210,6 @@ const Products = () => {
             </div>
           </div>
 
-         
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
             <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
               <div className="flex items-center justify-between">
@@ -223,26 +220,6 @@ const Products = () => {
                 <FiPackage className="text-6xl opacity-40" />
               </div>
             </div>
-
-            {/* <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-lg opacity-90">متوفر في المخزون</p>
-                  <p className="text-4xl font-bold mt-3 text-green-600">{stats.inStock}</p>
-                </div>
-                <FiCheckCircle className="text-6xl opacity-40 text-green-600" />
-              </div>
-            </div>
-
-            <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-lg opacity-90">نفد المخزون</p>
-                  <p className="text-4xl font-bold mt-3 text-red-600">{stats.outOfStock}</p>
-                </div>
-                <FiAlertCircle className="text-6xl opacity-40 text-red-600" />
-              </div>
-            </div> */}
 
             <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
               <div className="flex items-center justify-between">
@@ -265,7 +242,6 @@ const Products = () => {
             </div>
           </div>
 
-        
           <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
             <div className="flex flex-col sm:flex-row-reverse gap-4 items-center justify-between">
               <div className="flex-1 relative max-w-md">
@@ -280,7 +256,7 @@ const Products = () => {
 
               <button
                 onClick={() => setShowAddModal(true)}
-                className="px-8 py-3.5 bg-transparent  text-teal-500 border border-teal-500 rounded-3xl font-semibold hover:bg-teal-500 hover:text-white shadow transition flex items-center gap-2"
+                className="px-8 py-3.5 bg-teal-500 text-white border border-teal-500 rounded-3xl font-semibold shadow transition flex items-center gap-2"
               >
                 <FiBox className="w-5 h-5" />
                 إضافة منتج جديد
@@ -288,7 +264,6 @@ const Products = () => {
             </div>
           </div>
 
-          
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
             {loading ? (
               <div className="p-20 text-center">
@@ -348,10 +323,10 @@ const Products = () => {
                             <button onClick={() => openEditModal(p)} className="px-3 py-2 flex gap-2 bg-transparent text-amber-500 border border-amber-500 rounded-3xl text-xs font-medium transition">
                               <FiEdit3 className="w-4 h-4 inline ml-1" /> تعديل
                             </button>
-                            <button onClick={() => openStockModal(p.id, p.stock)} className="px-3 py-2  flex gap-2 bg-transparent text-lime-500 border border-lime-500 rounded-3xl text-xs font-medium transition">
+                            <button onClick={() => openStockModal(p.id, p.stock)} className="px-3 py-2 flex gap-2 bg-transparent text-lime-500 border border-lime-500 rounded-3xl text-xs font-medium transition">
                               <FiInbox className="w-4 h-4 inline ml-1" /> مخزون
                             </button>
-                            <button onClick={() => deleteProduct(p.id)} className="px-3 py-2 bg-red-500 flex gap-2 bg-transparent text-red-500 border border-red-500 rounded-3xl text-xs font-medium transition">
+                            <button onClick={() => deleteProduct(p.id)} className="px-3 py-2 bg-transparent text-red-500 border border-red-500 rounded-3xl text-xs font-medium transition flex gap-2">
                               <FiTrash2 className="w-4 h-4 inline ml-1" /> حذف
                             </button>
                           </div>
@@ -364,7 +339,6 @@ const Products = () => {
             )}
           </div>
 
- 
           {totalPages > 1 && (
             <div className="flex justify-center items-center gap-3 mt-10">
               <button
@@ -402,184 +376,278 @@ const Products = () => {
           )}
 
           {showEditModal && editingProduct && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-            <div ref={modalRef} className="bg-white rounded-xl shadow-xl p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
-              <div className="flex justify-between flex-row-reverse items-center mb-6">
-                <h3 className="text-xl font-bold text-black">تعديل المنتج</h3>
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="p-1 hover:bg-gray-100 rounded-lg transition"
-                >
-                  <FiX className="w-5 h-5 text-gray-600" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {['name', 'description', 'price', 'imageUrl', 'stockQuantity'].map((field) => {
-                  const label = {
-                    name: 'اسم المنتج',
-                    description: 'وصف المنتج',
-                    price: 'السعر (ج.م)',
-                    imageUrl: 'رابط الصورة',
-                    stockQuantity: 'الكمية في المخزون'
-                  }[field];
-
-                  return (
-                    <div key={field} className="relative">
-                      <input
-                        type="text"
-                        value={editingProduct[field] || ''}
-                        onChange={(e) => setEditingProduct({ ...editingProduct, [field]: e.target.value })}
-                        className="peer w-full px-4 py-3 pt-6 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-lime-400 focus:border-lime-500 outline-none transition text-right text-black placeholder-gray-500"
-                        placeholder=" "
-                      />
-                      <label className="absolute right-4 top-1 text-sm text-gray-500 transition-all duration-300 peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-focus:top-1 peer-focus:text-sm peer-focus:text-lime-600">
-                        {label}
-                      </label>
-                    </div>
-                  );
-                })}
-
-             
-                <div className="relative" ref={editConditionRef}>
-                  <button
-                    onClick={() => setIsEditConditionOpen(!isEditConditionOpen)}
-                    className="w-full px-4 py-3 bg-gray-50 border rounded-lg flex justify-between items-center text-right text-black text-sm font-medium focus:ring-2 focus:ring-lime-400 focus:border-lime-500"
-                  >
-                    <span>{conditionTranslations[editingProduct.condition] || 'اختر الحالة'}</span>
-                    <FiChevronDown className={`transition-transform ${isEditConditionOpen ? 'rotate-180' : ''}`} />
+            <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+              <div ref={modalRef} className="bg-white rounded-xl shadow-xl p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
+                <div className="flex justify-between flex-row-reverse items-center mb-6">
+                  <h3 className="text-xl font-bold text-black">تعديل المنتج</h3>
+                  <button onClick={() => setShowEditModal(false)} className="p-1 hover:bg-gray-100 rounded-lg transition">
+                    <FiX className="w-5 h-5 text-gray-600" />
                   </button>
-                  {isEditConditionOpen && (
-                    <div className="absolute z-20 mt-2 w-full bg-white border border-lime-200 rounded-lg shadow-xl">
-                      {conditions.map((cond) => (
-                        <button
-                          key={cond}
-                          onClick={() => {
-                            setEditingProduct({ ...editingProduct, condition: cond });
-                            setIsEditConditionOpen(false);
-                          }}
-                          className="w-full px-4 py-2 text-right hover:bg-lime-50 transition text-sm font-medium text-black"
-                        >
-                          {conditionTranslations[cond]}
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
-         
-                <div className="relative" ref={editCategoryRef}>
-                  <button
-                    onClick={() => setIsEditCategoryOpen(!isEditCategoryOpen)}
-                    className="w-full px-4 py-3 bg-gray-50 border rounded-lg flex justify-between items-center text-right text-black text-sm font-medium focus:ring-2 focus:ring-lime-400 focus:border-lime-500"
-                  >
-                    <span>{editingProduct.category?.name || 'اختر الفئة'}</span>
-                    <FiChevronDown className={`transition-transform ${isEditCategoryOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                  {isEditCategoryOpen && (
-                    <div className="absolute z-20 mt-2 w-full bg-white border border-lime-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
-                      {categories.map((cat) => (
-                        <button
-                          key={cat.id}
-                          onClick={() => {
-                            setEditingProduct({ ...editingProduct, category: cat });
-                            setIsEditCategoryOpen(false);
-                          }}
-                          className="w-full px-4 py-2 text-right hover:bg-lime-50 transition text-sm font-medium text-black"
-                        >
-                          {cat.name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {['name', 'description', 'price', 'imageUrl', 'stockQuantity'].map((field) => {
+                    const label = {
+                      name: 'اسم المنتج',
+                      description: 'وصف المنتج',
+                      price: 'السعر (ج.م)',
+                      imageUrl: 'رابط الصورة',
+                      stockQuantity: 'الكمية في المخزون'
+                    }[field];
 
-              <div className="mt-6 flex justify-end gap-3">
-                <button
-                  onClick={updateProduct}
-                  className="px-6 py-2.5 bg-lime-500 text-white font-bold rounded-lg hover:bg-lime-600 transition shadow-sm"
-                >
-                  حفظ التعديلات
-                </button>
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="px-6 py-2.5 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
-                >
-                  إلغاء
-                </button>
+                    return (
+                      <div key={field} className="relative">
+                        <input
+                          type={field === 'price' || field === 'stockQuantity' ? 'number' : 'text'}
+                          value={editingProduct[field] || ''}
+                          onChange={(e) => setEditingProduct({ ...editingProduct, [field]: e.target.value })}
+                          className="peer w-full px-4 py-3 pt-6 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-lime-400 focus:border-lime-500 outline-none transition text-right text-black placeholder-gray-500"
+                          placeholder=" "
+                        />
+                        <label className="absolute right-4 top-1 text-sm text-gray-500 transition-all duration-300 peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-focus:top-1 peer-focus:text-sm peer-focus:text-lime-600">
+                          {label}
+                        </label>
+                      </div>
+                    );
+                  })}
+
+                  <div className="relative" ref={editConditionRef}>
+                    <button
+                      onClick={() => setIsEditConditionOpen(!isEditConditionOpen)}
+                      className="w-full px-4 py-3 bg-gray-50 border rounded-lg flex justify-between items-center text-right text-black text-sm font-medium focus:ring-2 focus:ring-lime-400 focus:border-lime-500"
+                    >
+                      <span>{conditionTranslations[editingProduct.condition] || 'اختر الحالة'}</span>
+                      <FiChevronDown className={`transition-transform ${isEditConditionOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isEditConditionOpen && (
+                      <div className="absolute z-20 mt-2 w-full bg-white border border-lime-200 rounded-lg shadow-xl">
+                        {conditions.map((cond) => (
+                          <button
+                            key={cond}
+                            onClick={() => {
+                              setEditingProduct({ ...editingProduct, condition: cond });
+                              setIsEditConditionOpen(false);
+                            }}
+                            className="w-full px-4 py-2 text-right hover:bg-lime-50 transition text-sm font-medium text-black"
+                          >
+                            {conditionTranslations[cond]}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="relative" ref={editCategoryRef}>
+                    <button
+                      onClick={() => setIsEditCategoryOpen(!isEditCategoryOpen)}
+                      className="w-full px-4 py-3 bg-gray-50 border rounded-lg flex justify-between items-center text-right text-black text-sm font-medium focus:ring-2 focus:ring-lime-400 focus:border-lime-500"
+                    >
+                      <span>{editingProduct.category?.name || 'اختر الفئة'}</span>
+                      <FiChevronDown className={`transition-transform ${isEditCategoryOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isEditCategoryOpen && (
+                      <div className="absolute z-20 mt-2 w-full bg-white border border-lime-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                        {categories.map((cat) => (
+                          <button
+                            key={cat.id}
+                            onClick={() => {
+                              setEditingProduct({ ...editingProduct, category: cat });
+                              setIsEditCategoryOpen(false);
+                            }}
+                            className="w-full px-4 py-2 text-right hover:bg-lime-50 transition text-sm font-medium text-black"
+                          >
+                            {cat.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    onClick={updateProduct}
+                    className="px-6 py-2.5 bg-lime-500 text-white font-bold rounded-lg hover:bg-lime-600 transition shadow-sm"
+                  >
+                    حفظ التعديلات
+                  </button>
+                  <button
+                    onClick={() => setShowEditModal(false)}
+                    className="px-6 py-2.5 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
+                  >
+                    إلغاء
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-       
-        {showStockModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-            <div ref={modalRef} className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-              <div className="flex justify-between flex-row-reverse items-center mb-6">
-                <h3 className="text-xl font-bold text-black">تحديث المخزون</h3>
-                <button
-                  onClick={() => setShowStockModal(false)}
-                  className="p-1 hover:bg-gray-100 rounded-lg transition"
-                >
-                  <FiX className="w-5 h-5 text-gray-600" />
-                </button>
+          {showAddModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+              <div ref={modalRef} className="bg-white rounded-xl shadow-xl p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
+                <div className="flex justify-between flex-row-reverse items-center mb-6">
+                  <h3 className="text-xl font-bold text-black">إضافة منتج جديد</h3>
+                  <button onClick={() => setShowAddModal(false)} className="p-1 hover:bg-gray-100 rounded-lg transition">
+                    <FiX className="w-5 h-5 text-gray-600" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {['name', 'description', 'price', 'imageUrl', 'stockQuantity'].map((field) => {
+                    const label = {
+                      name: 'اسم المنتج',
+                      description: 'وصف المنتج',
+                      price: 'السعر (ج.م)',
+                      imageUrl: 'رابط الصورة',
+                      stockQuantity: 'الكمية في المخزون'
+                    }[field];
+
+                    return (
+                      <div key={field} className="relative">
+                        <input
+                          type={field === 'price' || field === 'stockQuantity' ? 'number' : 'text'}
+                          value={newProduct[field] || ''}
+                          onChange={(e) => setNewProduct({ ...newProduct, [field]: e.target.value })}
+                          className="peer w-full px-4 py-3 pt-6 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-lime-400 focus:border-lime-500 outline-none transition text-right text-black placeholder-gray-500"
+                          placeholder=" "
+                        />
+                        <label className="absolute right-4 top-1 text-sm text-gray-500 transition-all duration-300 peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-focus:top-1 peer-focus:text-sm peer-focus:text-lime-600">
+                          {label}
+                        </label>
+                      </div>
+                    );
+                  })}
+
+                  <div className="relative" ref={addConditionRef}>
+                    <button
+                      onClick={() => setIsAddConditionOpen(!isAddConditionOpen)}
+                      className="w-full px-4 py-3 bg-gray-50 border rounded-lg flex justify-between items-center text-right text-black text-sm font-medium focus:ring-2 focus:ring-lime-400 focus:border-lime-500"
+                    >
+                      <span>{conditionTranslations[newProduct.condition] || 'اختر الحالة'}</span>
+                      <FiChevronDown className={`transition-transform ${isAddConditionOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isAddConditionOpen && (
+                      <div className="absolute z-20 mt-2 w-full bg-white border border-lime-200 rounded-lg shadow-xl">
+                        {conditions.map((cond) => (
+                          <button
+                            key={cond}
+                            onClick={() => {
+                              setNewProduct({ ...newProduct, condition: cond });
+                              setIsAddConditionOpen(false);
+                            }}
+                            className="w-full px-4 py-2 text-right hover:bg-lime-50 transition text-sm font-medium text-black"
+                          >
+                            {conditionTranslations[cond]}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="relative" ref={addCategoryRef}>
+                    <button
+                      onClick={() => setIsAddCategoryOpen(!isAddCategoryOpen)}
+                      className="w-full px-4 py-3 bg-gray-50 border rounded-lg flex justify-between items-center text-right text-black text-sm font-medium focus:ring-2 focus:ring-lime-400 focus:border-lime-500"
+                    >
+                      <span>{newProduct.category?.name || 'اختر الفئة'}</span>
+                      <FiChevronDown className={`transition-transform ${isAddCategoryOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isAddCategoryOpen && (
+                      <div className="absolute z-20 mt-2 w-full bg-white border border-lime-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                        {categories.map((cat) => (
+                          <button
+                            key={cat.id}
+                            onClick={() => {
+                              setNewProduct({ ...newProduct, category: cat });
+                              setIsAddCategoryOpen(false);
+                            }}
+                            className="w-full px-4 py-2 text-right hover:bg-lime-50 transition text-sm font-medium text-black"
+                          >
+                            {cat.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    onClick={addProduct}
+                    className="px-6 py-2.5 bg-lime-500 text-white font-bold rounded-lg hover:bg-lime-600 transition shadow-sm"
+                  >
+                    إضافة المنتج
+                  </button>
+                  <button
+                    onClick={() => setShowAddModal(false)}
+                    className="px-6 py-2.5 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
+                  >
+                    إلغاء
+                  </button>
+                </div>
               </div>
+            </div>
+          )}
 
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2 text-right">الكمية الجديدة</label>
-                <input
-                  type="number"
-                  value={newStockValue}
-                  onChange={(e) => setNewStockValue(e.target.value)}
-                  min="0"
-                  className="w-full px-4 py-3 text-right border rounded-lg bg-gray-50 focus:ring-2 focus:ring-lime-400 focus:border-lime-500 outline-none"
+          {showStockModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+              <div ref={modalRef} className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+                <div className="flex justify-between flex-row-reverse items-center mb-6">
+                  <h3 className="text-xl font-bold text-black">تحديث المخزون</h3>
+                  <button onClick={() => setShowStockModal(false)} className="p-1 hover:bg-gray-100 rounded-lg transition">
+                    <FiX className="w-5 h-5 text-gray-600" />
+                  </button>
+                </div>
+
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2 text-right">الكمية الجديدة</label>
+                  <input
+                    type="number"
+                    value={newStockValue}
+                    onChange={(e) => setNewStockValue(e.target.value)}
+                    min="0"
+                    className="w-full px-4 py-3 text-right border rounded-lg bg-gray-50 focus:ring-2 focus:ring-lime-400 focus:border-lime-500 outline-none"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={updateStock}
+                    className="px-6 py-2.5 bg-lime-500 text-white font-bold rounded-lg hover:bg-lime-600 transition shadow-sm"
+                  >
+                    تحديث
+                  </button>
+                  <button
+                    onClick={() => setShowStockModal(false)}
+                    className="px-6 py-2.5 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {selectedImage && (
+            <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4" onClick={() => setSelectedImage(null)}>
+              <div className="relative max-w-2xl w-full">
+                <img
+                  src={selectedImage}
+                  alt="Product"
+                  className="w-full h-auto rounded-lg shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
                 />
-              </div>
-
-              <div className="flex justify-end gap-3">
                 <button
-                  onClick={updateStock}
-                  className="px-6 py-2.5 bg-lime-500 text-white font-bold rounded-lg hover:bg-lime-600 transition shadow-sm"
+                  onClick={() => setSelectedImage(null)}
+                  className="absolute top-4 right-4 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100"
                 >
-                  تحديث
-                </button>
-                <button
-                  onClick={() => setShowStockModal(false)}
-                  className="px-6 py-2.5 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
-                >
-                  إلغاء
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
             </div>
-          </div>
-        )}
-
-       
-        {selectedImage && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4"
-            onClick={() => setSelectedImage(null)}
-          >
-            <div className="relative max-w-2xl w-full">
-              <img
-                src={selectedImage}
-                alt="Product"
-                className="w-full h-auto rounded-lg shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
-              />
-              <button
-                onClick={() => setSelectedImage(null)}
-                className="absolute top-4 right-4 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        )}
+          )}
 
         </div>
       </div>

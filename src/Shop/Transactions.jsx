@@ -1,32 +1,89 @@
-import React, { useState, useEffect, useCallback, useMemo, memo, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, memo, useRef } from 'react';
 import {
   FiDollarSign, FiSearch, FiTool, FiShoppingCart,
-  FiChevronRight,
-  FiChevronLeft
+  FiChevronRight, FiChevronLeft, FiCheckCircle, FiClock, FiXCircle
 } from 'react-icons/fi';
 import api from '../api';
 
 const ROWS_PER_PAGE = 10;
 
+const generateUUID = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
+
 const TransactionRow = memo(({ txn }) => {
-  const statusColor =
-    txn.status === 'مكتمل'
-      ? 'bg-green-100 text-green-800'
-      : 'bg-yellow-100 text-yellow-800';
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('ar-EG', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const getServiceType = () => {
+    if (txn.paymentType === 'ORDER_PAYMENT') return 'طلب بيع';
+    if (txn.paymentType === 'REPAIR_PAYMENT') return 'طلب إصلاح';
+    return txn.paymentType || '-';
+  };
+
+  const getItemName = () => {
+    return txn.details || 'غير محدد';
+  };
+
+  const getLocation = () => {
+    return 'المتجر الرئيسي';
+  };
+
+  const getPaymentMethod = () => {
+    if (txn.paymentMethod === 'CASH') return 'نقدي';
+    if (txn.paymentMethod === 'CARD') return 'بطاقة ائتمان';
+    return txn.paymentMethod || '-';
+  };
+
+  const getStatus = () => {
+    if (txn.paymentStatus === 'PAID') {
+      return (
+        <span className="flex items-center gap-2 text-green-700 font-medium">
+          <FiCheckCircle className="text-lg" />
+          مدفوع
+        </span>
+      );
+    }
+    if (txn.paymentStatus === 'PENDING') {
+      return (
+        <span className="flex items-center gap-2 text-amber-700 font-medium">
+          <FiClock className="text-lg" />
+          معلق
+        </span>
+      );
+    }
+    return (
+      <span className="flex items-center gap-2 text-red-700 font-medium">
+        <FiXCircle className="text-lg" />
+        {txn.paymentStatus || 'غير معروف'}
+      </span>
+    );
+  };
 
   return (
     <tr className="hover:bg-gray-50 transition">
-      <td className="px-5 py-4 text-sm text-gray-800 text-center">{txn.paidAt}</td>
-      <td className="px-5 py-4 text-sm text-gray-800 text-center">{txn.type}</td>
-      <td className="px-5 py-4 text-sm text-gray-800 text-center">{txn.item}</td>
-      <td className="px-5 py-4 text-sm text-gray-800 text-center">{txn.shop}</td>
-      <td className="px-5 py-4 text-sm text-gray-800 text-center">{txn.paymentMethod}</td>
-      <td className="px-5 py-4 text-center font-bold text-lg">{txn.amount.toFixed(2)} ج.م</td>
-      <td className="px-5 py-4 text-center">
-        <span className={`px-4 py-2 rounded-full text-xs font-bold ${statusColor}`}>
-          {txn.status}
-        </span>
+      <td className="px-5 py-4 text-sm text-gray-800 text-center">{formatDate(txn.paidAt)}</td>
+      <td className="px-5 py-4 text-sm text-gray-800 text-center">{getServiceType()}</td>
+      <td className="px-5 py-4 text-sm text-gray-800 text-center">{getItemName()}</td>
+      <td className="px-5 py-4 text-sm text-gray-800 text-center">{getLocation()}</td>
+      <td className="px-5 py-4 text-sm text-gray-800 text-center">{getPaymentMethod()}</td>
+      <td className="px-5 py-4 text-center font-bold text-lg text-lime-600">
+        {txn.amount.toLocaleString()} ج.م
       </td>
+      <td className="px-5 py-4 text-center">{getStatus()}</td>
     </tr>
   );
 });
@@ -51,9 +108,6 @@ const Transactions = () => {
 
   const abortCtrl = useRef(new AbortController());
 
-  const statusMap = { completed: 'مكتمل', pending: 'معلق' };
-  const typeMap = { repair: 'إصلاح', sale: 'بيع' };
-
   const fetchAll = useCallback(async () => {
     abortCtrl.current.abort();
     abortCtrl.current = new AbortController();
@@ -74,27 +128,23 @@ const Transactions = () => {
 
       setFinancialReport(reportRes.data);
 
-      const merged = [...repairRes.data, ...orderRes.data].map((t, idx) => ({
-        id: t.id ?? idx,
-        paidAt: t.paidAt
-          ? new Date(t.paidAt).toLocaleString('ar-EG', {
-              dateStyle: 'medium',
-              timeStyle: 'short',
-            })
-          : 'غير متوفر',
-        type: t.type?.toLowerCase().includes('repair') ? typeMap.repair : typeMap.sale,
-        item: t.item || (t.type?.includes('REPAIR') ? 'إصلاح جهاز' : 'طلب شراء'),
-        shop: t.shopName || 'متحرك',
-        paymentMethod: t.paymentMethod || 'غير محدد',
+      const merged = [...repairRes.data, ...orderRes.data].map((t) => ({
+        id: t.id || generateUUID(), // استخدام الدالة المحلية
         amount: Number(t.amount) || 0,
-        status: (t.status || 'completed').toLowerCase() === 'completed'
-          ? statusMap.completed
-          : statusMap.pending,
+        paymentType: t.paymentType || 'ORDER_PAYMENT',
+        paymentMethod: t.paymentMethod || 'CASH',
+        paymentStatus: t.paymentStatus || 'PENDING',
+        paidAt: t.paidAt,
+        details: t.details || 'غير محدد',
+        paymentReference: t.paymentReference || '-',
+        transactionId: t.transactionId || '-',
+        orderId: t.orderId,
+        repairRequestId: t.repairRequestId,
       }));
 
       setTransactions(merged);
     } catch (err) {
-
+      console.error('Error fetching data:', err);
     } finally {
       setLoading(false);
     }
@@ -112,12 +162,16 @@ const Transactions = () => {
 
   const repairEarnings = useMemo(() => {
     if (financialReport?.repairEarnings != null) return financialReport.repairEarnings;
-    return transactions.filter(t => t.type === typeMap.repair).reduce((s, t) => s + t.amount, 0);
+    return transactions
+      .filter(t => t.paymentType === 'REPAIR_PAYMENT')
+      .reduce((s, t) => s + t.amount, 0);
   }, [financialReport, transactions]);
 
   const salesEarnings = useMemo(() => {
     if (financialReport?.salesEarnings != null) return financialReport.salesEarnings;
-    return transactions.filter(t => t.type === typeMap.sale).reduce((s, t) => s + t.amount, 0);
+    return transactions
+      .filter(t => t.paymentType === 'ORDER_PAYMENT')
+      .reduce((s, t) => s + t.amount, 0);
   }, [financialReport, transactions]);
 
   const repairPct = totalEarnings > 0 ? Math.round((repairEarnings / totalEarnings) * 100) : 0;
@@ -125,7 +179,13 @@ const Transactions = () => {
 
   const filtered = useMemo(() =>
     transactions.filter(t =>
-      [t.paidAt, t.type, t.shop, t.item].join(' ').toLowerCase().includes(searchTerm.toLowerCase())
+      [
+        t.paidAt || '',
+        t.paymentType || '',
+        t.details || '',
+        t.paymentMethod || '',
+        t.paymentStatus || ''
+      ].join(' ').toLowerCase().includes(searchTerm.toLowerCase())
     ),
     [transactions, searchTerm]
   );
@@ -136,11 +196,17 @@ const Transactions = () => {
     return filtered.slice(start, start + ROWS_PER_PAGE);
   }, [filtered, currentPage]);
 
+  const formatNumber = (num) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+    return num.toLocaleString();
+  };
+
   return (
     <div dir="rtl" style={{ marginLeft: "-250px", marginTop: "-575px" }} className="min-h-screen bg-gray-50 font-cairo py-8">
       <div className="max-w-5xl mx-auto px-6">
 
-        
+      
         <div className="mb-10 bg-white rounded-3xl shadow-sm border border-gray-200 p-8">
           <div className="flex items-center justify-between flex-row-reverse text-right gap-5">
             <div className="p-5 bg-lime-100 rounded-2xl">
@@ -153,13 +219,13 @@ const Transactions = () => {
           </div>
         </div>
 
-       
+        
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
           <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-lg opacity-90">إجمالي الأرباح</p>
-                <p className="text-4xl font-bold mt-3">{totalEarnings.toFixed(2)} ج.م</p>
+                <p className="text-4xl font-bold mt-3">{formatNumber(totalEarnings)} ج.م</p>
               </div>
               <FiDollarSign className="text-6xl opacity-40 text-lime-600" />
             </div>
@@ -169,7 +235,7 @@ const Transactions = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-lg opacity-90">من الإصلاحات ({repairPct}%)</p>
-                <p className="text-4xl font-bold mt-3 text-emerald-600">{repairEarnings.toFixed(2)} ج.م</p>
+                <p className="text-4xl font-bold mt-3 text-emerald-600">{formatNumber(repairEarnings)} ج.م</p>
               </div>
               <FiTool className="text-6xl opacity-40 text-emerald-600" />
             </div>
@@ -179,20 +245,21 @@ const Transactions = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-lg opacity-90">من المبيعات ({salesPct}%)</p>
-                <p className="text-4xl font-bold mt-3 text-amber-600">{salesEarnings.toFixed(2)} ج.م</p>
+                <p className="text-4xl font-bold mt-3 text-amber-600">{formatNumber(salesEarnings)} ج.م</p>
               </div>
               <FiShoppingCart className="text-6xl opacity-40 text-amber-600" />
             </div>
           </div>
         </div>
 
-      
+        
         <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
           <div className="relative max-w-md mx-auto">
             <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-lg" />
             <input
               type="text"
               placeholder="ابحث في العمليات حسب التاريخ، النوع، المكان..."
+              value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pr-12 py-3.5 pl-4 rounded-xl border border-gray-300 focus:border-lime-500 focus:ring-4 focus:ring-lime-100 outline-none text-base transition bg-gray-50"
             />
@@ -235,7 +302,7 @@ const Transactions = () => {
           )}
         </div>
 
-    
+       
         {!loading && totalPages > 1 && (
           <div className="flex justify-center items-center gap-3 mt-10">
             <button

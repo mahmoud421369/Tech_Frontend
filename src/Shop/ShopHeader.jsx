@@ -177,9 +177,9 @@ const ShopHeader = ({ children }) => {
   return (
     <div dir="rtl" className="min-h-screen font-cairo bg-gradient-to-br from-lime-50 via-white to-lime-50 text-black">
      
-      <header className="fixed top-0 inset-x-0 h-16 flex items-center justify-between px-4 sm:px-6 z-40 bg-white shadow-md">
+      <header className="fixed top-0 inset-x-0 h-16 flex items-center justify-between flex-row-reverse px-4 sm:px-6 z-40 bg-white shadow-md">
         <Link to="/shop-dashboard" className="flex items-center gap-3">
-          <img src={logo} alt="Logo" className="h-10 w-auto" />
+          <img src={logo} alt="Logo" className="h-14 w-32 object-cover" />
         </Link>
 
         <div className="flex items-center gap-4">

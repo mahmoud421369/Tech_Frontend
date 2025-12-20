@@ -1,96 +1,132 @@
 import React from "react";
-import { FiTool, FiSmartphone, FiShoppingBag } from "react-icons/fi";
+import { FiTool, FiSmartphone, FiShoppingBag, FiCheckCircle, FiTruck, FiShield } from "react-icons/fi";
 import { motion } from "framer-motion";
 
-const GlassCard = ({ children, className = "" }) => (
-  <div
-    className={`backdrop-blur-xl bg-white/10 dark:bg-black/20 border border-gray-200/50 dark:border-gray-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-2 ${className}`}
-  >
-    {children}
+const GradientBorderCard = ({ children, className = "" }) => (
+  <div className={`relative group ${className}`}>
+    <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-lime-500 rounded-3xl blur opacity-40 group-hover:opacity-70 transition duration-700"></div>
+    <div className="relative bg-white dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/50 dark:border-gray-700/50 rounded-3xl p-8 shadow-xl hover:shadow-2xl hover:-translate-y-3 transition-all duration-500">
+      {children}
+    </div>
   </div>
 );
 
 const Service = ({ darkMode }) => {
+  const services = [
+    {
+      icon: <FiTool className="w-12 h-12" />,
+      title: "Expert Repairs",
+      desc: "Professional repairs by certified technicians using genuine parts for all device types.",
+    },
+    {
+      icon: <FiSmartphone className="w-12 h-12" />,
+      title: "Premium Devices",
+      desc: "Handpicked refurbished smartphones and laptops — fully tested and certified.",
+    },
+    {
+      icon: <FiShoppingBag className="w-12 h-12" />,
+      title: "Easy Purchase",
+      desc: "Buy new or refurbished devices with flexible payment options and warranty.",
+    },
+    {
+      icon: <FiTruck className="w-12 h-12" />,
+      title: "Fast Delivery",
+      desc: "Quick and secure nationwide delivery with real-time tracking.",
+    },
+    {
+      icon: <FiShield className="w-12 h-12" />,
+      title: "Warranty Included",
+      desc: "Up to 12 months warranty on repairs and refurbished devices.",
+    },
+    {
+      icon: <FiCheckCircle className="w-12 h-12" />,
+      title: "Quality Guaranteed",
+      desc: "100% satisfaction with rigorous testing and quality checks.",
+    },
+  ];
+
   return (
     <section
-      className={`relative py-16 sm:py-20 overflow-hidden ${
+      className={`relative py-20 overflow-hidden ${
         darkMode
-          ? "bg-gradient-to-b from-black via-gray-900 to-black"
-          : "bg-gradient-to-b from-white via-gray-50 to-white"
+          ? "bg-gradient-to-b from-gray-900 via-black to-gray-900"
+          : "bg-gradient-to-b from-gray-50 via-white to-gray-50"
       }`}
     >
-      
-      <div className="absolute inset-0 pointer-events-none opacity-20">
-        <div className={`absolute top-10 left-10 w-20 h-20 rounded-full animate-float ${darkMode ? 'bg-lime-400' : 'bg-gray-300'}`}></div>
-        <div className={`absolute top-20 right-12 w-28 h-28 rounded-full animate-float-slow ${darkMode ? 'bg-lime-500' : 'bg-gray-400'}`}></div>
-        <div className={`absolute bottom-10 left-1/4 w-16 h-16 rounded-full animate-float ${darkMode ? 'bg-lime-600' : 'bg-gray-200'}`}></div>
-        <div className={`absolute bottom-20 right-1/5 w-20 h-20 rounded-full animate-float-slow ${darkMode ? 'bg-lime-400' : 'bg-gray-300'}`}></div>
+      {/* Subtle Floating Orbs */}
+      <div className="absolute inset-0 pointer-events-none opacity-30">
+        <div className="absolute top-10 left-10 w-32 h-32 rounded-full bg-emerald-400/20 animate-float"></div>
+        <div className="absolute top-32 right-16 w-40 h-40 rounded-full bg-lime-400/20 animate-float-slow"></div>
+        <div className="absolute bottom-20 left-1/3 w-24 h-24 rounded-full bg-emerald-500/20 animate-float"></div>
+        <div className="absolute bottom-32 right-1/4 w-36 h-36 rounded-full bg-lime-500/20 animate-float-slow"></div>
       </div>
 
-      <div className="relative max-w-7xl mx-auto text-center px-4 sm:px-6 lg:px-8 z-10">
-     
+      <div className="relative max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 text-center z-10">
+        {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: 50 }}
+          initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
+          transition={{ duration: 0.8 }}
           viewport={{ once: true }}
         >
-          <h2 className={`text-3xl sm:text-4xl md:text-5xl font-extrabold ${
-            darkMode ? 'text-white' : 'text-gray-900'
-          }`}>
+          <h2 className={`text-4xl sm:text-5xl md:text-6xl font-extrabold bg-gradient-to-r from-emerald-600 to-lime-500 bg-clip-text text-transparent`}>
             Our Services
           </h2>
-          <p className={`mt-4 text-base sm:text-lg max-w-2xl mx-auto ${
-            darkMode ? 'text-gray-300' : 'text-gray-600'
+          <p className={`mt-6 text-lg sm:text-xl max-w-3xl mx-auto ${
+            darkMode ? "text-gray-300" : "text-gray-600"
           }`}>
-            Professional device repair and trusted services with fast turnaround.
+            Comprehensive solutions for device repair, sales, and support — all under one roof.
           </p>
         </motion.div>
 
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
-          {[
-            { icon: <FiTool />, title: 'Expert Repairs', desc: 'Certified technicians who handle devices with care.' },
-            { icon: <FiSmartphone />, title: 'Quality Devices', desc: 'Refurbished & tested devices ready for use.' },
-            { icon: <FiShoppingBag />, title: 'Fast Delivery', desc: 'Get your device repaired and delivered quickly.' },
-          ].map((service, i) => (
+        {/* Services Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10 mt-16">
+          {services.map((service, i) => (
             <motion.div
               key={i}
-              initial={{ opacity: 0, y: 50 }}
+              initial={{ opacity: 0, y: 60 }}
               whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 + i * 0.1 }}
+              transition={{ duration: 0.7, delay: i * 0.1 }}
               viewport={{ once: true }}
             >
-              <GlassCard className="text-center">
-                <div className={`p-4 rounded-full w-fit mx-auto mb-4 ${
-                  darkMode ? 'bg-lime-500/20 text-lime-400' : 'bg-lime-100 text-lime-600'
-                }`}>
-                  {React.cloneElement(service.icon, { className: 'w-8 h-8' })}
+              <GradientBorderCard>
+                <div className="flex flex-col items-center text-center">
+                  <div className="p-5 rounded-3xl bg-gradient-to-br from-emerald-500/20 to-lime-500/20 text-emerald-600 dark:text-emerald-400 mb-6">
+                    {service.icon}
+                  </div>
+                  <h3 className={`text-2xl font-bold mb-4 ${
+                    darkMode ? "text-white" : "text-gray-900"
+                  }`}>
+                    {service.title}
+                  </h3>
+                  <p className={`text-base leading-relaxed ${
+                    darkMode ? "text-gray-400" : "text-gray-600"
+                  }`}>
+                    {service.desc}
+                  </p>
                 </div>
-                <h3 className={`text-xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                  {service.title}
-                </h3>
-                <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                  {service.desc}
-                </p>
-              </GlassCard>
+              </GradientBorderCard>
             </motion.div>
           ))}
         </div>
       </div>
 
-    
+      {/* Custom Animations */}
       <style jsx>{`
         @keyframes float {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-15px); }
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-20px) rotate(5deg); }
         }
         @keyframes float-slow {
           0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-10px); }
+          50% { transform: translateY(-30px); }
         }
-        .animate-float { animation: float 6s ease-in-out infinite; }
-        .animate-float-slow { animation: float-slow 8s ease-in-out infinite; }
+        .animate-float {
+          animation: float 8s ease-in-out infinite;
+        }
+        .animate-float-slow {
+          animation: float-slow 12s ease-in-out infinite;
+        }
       `}</style>
     </section>
   );

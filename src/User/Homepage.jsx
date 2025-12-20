@@ -15,6 +15,9 @@ import {
   FiDollarSign,
   FiShield,
   FiCheckCircle,
+  FiBattery,
+  FiRewind,
+  FiRefreshCw,
 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import Service from './Service';
@@ -345,102 +348,126 @@ const Homepage = memo(({ darkMode }) => {
     </div>
   </div>
 </section>
-    {/* ==================== REPAIR & OFFERS CARDS ==================== */}
-<section className={`py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
-  <div className="max-w-6xl mx-auto px-6">
-    <motion.h1
-      initial={{ opacity: 0, y: 50 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      className={`text-4xl md:text-5xl font-extrabold text-center mb-12 ${darkMode ? 'text-lime-400' : 'text-lime-700'}`}
-    >
-      What would you like to repair today?
-    </motion.h1>
+  <section className={`py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+      <div className="max-w-6xl mx-auto px-6">
+        <motion.h1
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+          className={`text-3xl md:text-4xl font-bold text-center mb-12 ${
+            darkMode ? 'text-lime-400' : 'text-lime-700'
+          }`}
+        >
+          What would you like to repair today?
+        </motion.h1>
 
-    {/* Changed: Added flex properties for equal height */}
-    <div className="grid md:grid-cols-2 gap-8 md:flex">
-      {/* Repair Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 50 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="md:flex-1" // Ensures it takes equal share
-      >
-        <div className={`h-full rounded-2xl p-8 shadow-xl transition-all duration-500 transform hover:scale-105 ${darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
-          <Link to="/repair" className="block h-full flex flex-col">
-            <div className="bg-lime-500/20 p-5 rounded-full w-20 h-20 mx-auto mb-5 flex items-center justify-center">
-              <FiTool className="w-10 h-10 text-lime-500" />
-            </div>
-            <h2 className={`text-2xl font-bold mb-3 text-center ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              Repair Device
-            </h2>
-            <p className={`text-sm mb-6 text-center ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-              Get your device fixed by <strong>expert technicians</strong> quickly.
-            </p>
-
-            <div className="grid grid-cols-2 gap-3 text-sm mb-6">
-              {['Screen', 'Battery', 'Water Damage', 'Software'].map((s, i) => (
-                <div key={i} className="flex items-center justify-center gap-2">
-                  <div className="bg-lime-100 dark:bg-lime-900/30 p-2 rounded-full">
-                    {i === 0 && <FiMonitor className="w-4 h-4 text-lime-600 dark:text-lime-400" />}
-                    {i === 1 && <FiShield className="w-4 h-4 text-lime-600 dark:text-lime-400" />}
-                    {i === 2 && <FiDollarSign className="w-4 h-4 text-lime-600 dark:text-lime-400" />}
-                    {i === 3 && <FiSmartphone className="w-4 h-4 text-lime-600 dark:text-lime-400" />}
+        <div className="grid md:grid-cols-2 gap-8">
+          {/* Repair Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            viewport={{ once: true }}
+          >
+            <div className={`h-full rounded-2xl p-8 shadow-lg flex flex-col ${
+              darkMode ? 'bg-gray-800' : 'bg-white'
+            }`}>
+              <Link to="/repair" className="flex flex-col h-full">
+                <div className="text-center mb-6">
+                  <div className="inline-flex p-5 rounded-full bg-lime-100 dark:bg-lime-900/30 mb-4">
+                    <FiTool className="w-12 h-12 text-lime-600 dark:text-lime-400" />
                   </div>
-                  <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>{s}</span>
+                  <h2 className={`text-2xl font-bold mb-3 ${
+                    darkMode ? 'text-white' : 'text-gray-900'
+                  }`}>
+                    Repair Device
+                  </h2>
+                  <p className={`text-base text-center mb-8 ${
+                    darkMode ? 'text-gray-300' : 'text-gray-600'
+                  }`}>
+                    Fast and reliable repairs by expert technicians.
+                  </p>
                 </div>
-              ))}
+
+                {/* Repair Types */}
+                <div className="grid grid-cols-2 gap-4 mb-8">
+                  <div className=" flex justify-center items-center text-center">
+                    {/* Replace with actual images or keep icons */}
+                    <div className="w-16 h-16 mx-auto bg-gray-200 dark:bg-gray-700 rounded-xl mb-2"><FiSmartphone/></div>
+                    <p className="mt-3 text-sm font-medium">Screen</p>
+                  </div>
+                  <div className="flex justify-center items-center text-center">
+                    <div className="w-16 h-16 mx-auto bg-gray-200 dark:bg-gray-700 rounded-xl mb-2"><FiBattery/></div>
+                    <p className="mt-3 text-sm font-medium">Battery</p>
+                  </div>
+                  <div className=" flex justify-center items-center text-center">
+                    <div className="w-16 h-16 mx-auto bg-gray-200 dark:bg-gray-700 rounded-xl mb-2"><FiRewind/></div>
+                    <p className="mt-3 text-sm font-medium">Water Damage</p>
+                  </div>
+                  <div className=" flex justify-center items-center text-center">
+                    <div className="w-16 h-16 mx-auto bg-gray-200 dark:bg-gray-700 rounded-xl mb-2"><FiRefreshCw/></div>
+                    <p className="mt-3 text-sm font-medium">Software</p>
+                  </div>
+                </div>
+
+                <button className="mt-auto w-full bg-lime-600 hover:bg-lime-700 text-white font-bold py-3 rounded-xl transition">
+                  Book a Repair
+                </button>
+              </Link>
             </div>
+          </motion.div>
 
-            {/* Button stays at bottom thanks to flex-col + mt-auto */}
-            <button className="mt-auto w-full bg-lime-600 hover:bg-lime-700 text-white font-bold py-3 rounded-xl transition shadow-lg">
-              Book a Repair
-            </button>
-          </Link>
-        </div>
-      </motion.div>
-
-      {/* Offers Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 50 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="md:flex-1"
-      >
-        <div className={`h-full rounded-2xl p-8 shadow-xl ${darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
-          <div className="h-full flex flex-col">
-            <div className="text-center mb-6">
-              <div className="bg-lime-500/20 p-5 rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center">
-                <FiTag className="w-10 h-10 text-lime-500" />
+          {/* Offers Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            viewport={{ once: true }}
+          >
+            <div className={`h-full rounded-2xl p-8 shadow-lg flex flex-col ${
+              darkMode ? 'bg-gray-800' : 'bg-white'
+            }`}>
+              <div className="text-center mb-6">
+                <div className="inline-flex p-5 rounded-full bg-lime-100 dark:bg-lime-900/30 mb-4">
+                  <FiTag className="w-12 h-12 text-lime-600 dark:text-lime-400" />
+                </div>
+                <h2 className={`text-2xl font-bold mb-3 ${
+                  darkMode ? 'text-white' : 'text-gray-900'
+                }`}>
+                  Latest Offers
+                </h2>
+                <p className={`text-base ${
+                  darkMode ? 'text-gray-300' : 'text-gray-600'
+                }`}>
+                  Exclusive deals on repairs and devices.
+                </p>
               </div>
-              <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                Latest Offers
-              </h2>
-              <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                Exclusive discounts on devices & services.
-              </p>
+
+              <ul className="space-y-3 flex-1 mb-8">
+                {offers.map((offer, i) => (
+                  <li
+                    key={i}
+                    className={`p-3 rounded-lg text-sm font-medium ${
+                      darkMode ? 'bg-gray-700/50 text-gray-200' : 'bg-gray-100 text-gray-800'
+                    }`}
+                  >
+                    {offer.title}
+                  </li>
+                ))}
+              </ul>
+
+              <Link
+                to="/offers"
+                className="block text-center bg-lime-600 hover:bg-lime-700 text-white font-bold py-3 rounded-xl transition"
+              >
+                View All Offers
+              </Link>
             </div>
-
-            <ul className="space-y-3 mb-6 flex-1">
-              {offers.map((o, i) => (
-                <li key={i} className={`flex items-center gap-3 p-3 rounded-xl ${darkMode ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
-                  <div className="text-lime-500">{o.icon}</div>
-                  <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{o.title}</span>
-                </li>
-              ))}
-            </ul>
-
-            <Link
-              to="/offers"
-              className="mt-auto block text-center bg-lime-600 hover:bg-lime-700 text-white font-bold py-3 rounded-xl transition shadow-lg"
-            >
-              View Deals
-            </Link>
-          </div>
+          </motion.div>
         </div>
-      </motion.div>
-    </div>
-  </div>
-</section>
+      </div>
+    </section>
 
       {/* ==================== OTHER SECTIONS ==================== */}
       <Service darkMode={darkMode} />

@@ -41,7 +41,7 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
       if (token && refreshToken) {
         await api.post("/api/auth/logout", { refreshToken });
       }
-    } catch (err) { /* ignore */ }
+    } catch (err) {  }
     localStorage.clear();
     setToken(null);
     setIsAuthenticated(false);
@@ -143,36 +143,39 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
           : "bg-white/95 border-gray-200"
       }`}>
         
+    
         <Link to="/" className="flex items-center gap-4 group">
           <div className="relative">
-            <img src={logo} alt="Tech & Restore" className="h-14 w-auto rounded-2xl  group-hover:scale-110 transition-all duration-500" />
+            <img src={logo} alt="Tech & Restore" className="h-16 w-auto rounded-2xl group-hover:scale-110 transition-all duration-500" />
             {darkMode && <div className="absolute inset-0 bg-emerald-500/40 blur-3xl animate-pulse" />}
           </div>
         </Link>
 
-        
-        <div className="flex items-center justify-center gap-3">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.name}
-              to={item.path}
-              className={({ isActive }) => `
-                flex items-center justify-center gap-3 px-6 py-3.5 rounded-2xl font-semibold text-sm transition-all duration-300
-                ${isActive 
-                  ? "bg-gradient-to-r from-lime-500 to-lime-600 text-white rounded-3xl shadow-lg shadow-emerald-500/50" 
-                  : darkMode 
-                    ? "text-emerald-300 hover:bg-emerald-500/10" 
-                    : "text-gray-700 hover:bg-emerald-50"
-                }
-              `}
-            >
-              {item.icon}
-              <span>{item.name}</span>
-            </NavLink>
-          ))}
+     
+        <div className="flex-1 flex justify-center">
+          <div className="flex items-center gap-3">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.name}
+                to={item.path}
+                className={({ isActive }) => `
+                  flex items-center justify-center gap-3 px-6 py-3.5 rounded-2xl font-semibold text-sm transition-all duration-300
+                  ${isActive 
+                    ? "bg-gradient-to-r from-lime-500 to-lime-600 text-white rounded-3xl shadow-lg shadow-emerald-500/50" 
+                    : darkMode 
+                      ? "text-emerald-300 hover:bg-emerald-500/10" 
+                      : "text-gray-700 hover:bg-emerald-50"
+                  }
+                `}
+              >
+                {item.icon}
+                <span>{item.name}</span>
+              </NavLink>
+            ))}
+          </div>
         </div>
 
-        
+   
         <div className="flex items-center gap-4">
           
           {isAuthenticated && (
@@ -189,6 +192,7 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
                 )}
               </button>
 
+              
               {showNotifications && (
                 <div className={`absolute right-0 mt-4 w-96 rounded-3xl shadow-2xl overflow-hidden border ${
                   darkMode ? "bg-black/70 backdrop-blur-xl border-emerald-500/40" : "bg-white border-gray-200"
@@ -216,11 +220,6 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
                               </p>
                             </div>
                             <div className="flex gap-2 ml-3">
-                              {/* {!notif.read && (
-                                <button onClick={() => markAsRead(notif.id)} className="text-emerald-400 hover:text-emerald-300">
-                                  <FiCheckCircle size={18} />
-                                </button>
-                              )} */}
                               <button onClick={() => deleteNotification(notif.id)} className="text-red-400 hover:text-red-300">
                                 <FiX size={18} />
                               </button>
@@ -235,14 +234,12 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
             </div>
           )}
 
-          
           {isAuthenticated && (
             <button onClick={onCartClick} className="p-4 rounded-2xl hover:bg-emerald-500/10 transition-all">
               <FiShoppingCart size={22} className="text-lime-600 dark:text-emerald-400" />
             </button>
           )}
 
-          
           <button
             onClick={toggleDarkMode}
             className={`p-4 rounded-3xl transition-all ${darkMode ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30" : "bg-lime-100 text-lime-600 hover:bg-emerald-200"}`}
@@ -250,7 +247,6 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
             {darkMode ? <FiMoon size={22} /> : <FiSun size={22} />}
           </button>
 
-          
           {isAuthenticated && (
             <button
               onClick={handleLogout}
@@ -262,26 +258,26 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
         </div>
       </nav>
 
-      
+     
       <nav className={`md:hidden fixed top-0 left-0 right-0 z-50 backdrop-blur-2xl py-4 px-6 border-b ${
         darkMode ? "bg-black/50 border-emerald-500/20" : "bg-white/95 border-gray-200"
       }`}>
         <div className="flex justify-between items-center">
           <Link to="/" className="flex items-center gap-3">
-            <img src={logo} alt="Logo" className="h-12 rounded-xl shadow-lg" />
+            <img src={logo} alt="Logo" className="h-14 rounded-xl shadow-lg" /> {/* Bigger on mobile too */}
           </Link>
 
           <div className="flex items-center gap-4">
             {isAuthenticated && (
               <>
-                <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-3">
+                {/* <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-3">
                   <FiBell size={22} className="text-emerald-600 dark:text-emerald-400" />
                   {unreadCount > 0 && (
                     <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
                       {unreadCount}
                     </span>
                   )}
-                </button>
+                </button> */}
                 <button onClick={onCartClick} className="p-3">
                   <FiShoppingCart size={22} className="text-emerald-600 dark:text-emerald-400" />
                 </button>
@@ -294,7 +290,7 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
         </div>
       </nav>
 
-   
+     
       <div className={`md:hidden fixed bottom-0 left-0 right-0 z-50 backdrop-blur-2xl py-4 px-6 border-t ${
         darkMode ? "bg-black/50 border-emerald-500/20" : "bg-white/95 border-gray-200"
       }`}>
@@ -315,8 +311,8 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
         </div>
       </div>
 
-
-      {showNotifications && isAuthenticated && (
+    
+      {/* {showNotifications && isAuthenticated && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end justify-center md:hidden">
           <div className={`w-full max-w-md bg-white dark:bg-gray-900 rounded-t-3xl shadow-2xl overflow-hidden ${darkMode ? "border-t border-emerald-500/40" : ""}`}>
             <div className="p-6 border-b border-gray-200 dark:border-emerald-500/40 flex justify-between">
@@ -346,7 +342,7 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
             </div>
           </div>
         </div>
-      )}
+      )} */}
     </>
   );
 };
