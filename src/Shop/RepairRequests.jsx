@@ -90,7 +90,7 @@ const RepairRequests = () => {
   const itemsPerPage = 10;
 
   useEffect(() => {
-    document.title = 'طلبات التصليح | لوحة تحكم المتجر';
+    document.title = ' ادارة طلبات التصليح';
   }, []);
 
   useEffect(() => {

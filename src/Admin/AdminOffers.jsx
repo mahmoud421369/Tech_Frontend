@@ -15,6 +15,7 @@ import {
   FiDollarSign,
  
   FiClock,
+  FiCheckCircle,
 } from 'react-icons/fi';
 import { FaStore } from 'react-icons/fa';
 import Swal from 'sweetalert2';
@@ -280,25 +281,30 @@ const AdminOffers = ({ darkMode }) => {
 
           
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                
-                <div className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg border border-gray-200 dark:border-gray-600 text-center">
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Offers</p>
-                  <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{offers.length}</p>
-                </div>
+             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+  {[
+    { label: 'Total Offers', value: offers.length, color: 'emerald', icon: FiTag },
+    { label: 'Active Now', value: activeCount, color: 'green', icon: FiCheckCircle },
+    { label: 'Inactive / Expired', value: inactiveCount, color: 'red', icon: FiXCircle },
+  ].map((stat, i) => (
+    <div
+      key={i}
+      className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg border border-gray-200 dark:border-gray-600 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow"
+    >
+      <div className="text-left">
+        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
+        <p className={`text-3xl font-bold mt-2 text-${stat.color}-600 dark:text-${stat.color}-500`}>
+          {stat.value}
+        </p>
+      </div>
 
-              
-                <div className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg border border-gray-200 dark:border-gray-600 text-center">
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Active Now</p>
-                  <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{activeCount}</p>
-                </div>
-
-                
-                <div className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg border border-gray-200 dark:border-gray-600 text-center">
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Inactive / Expired</p>
-                  <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{inactiveCount}</p>
-                </div>
-              </div>
+     
+      <div className={`p-4 rounded-full bg-${stat.color}-100 dark:bg-${stat.color}-900/30`}>
+        <stat.icon className={`w-8 h-8 text-${stat.color}-600 dark:text-${stat.color}-400`} />
+      </div>
+    </div>
+  ))}
+</div>
             </div>
 
             
@@ -409,10 +415,10 @@ const AdminOffers = ({ darkMode }) => {
                       <td className="px-6 py-4 text-center">
                         <button
                           onClick={() => deleteOffer(offer.id)}
-                          className="px-3 py-1.5 text-xs bg-red-50 dark:bg-gray-950 dark:border-gray-900 border border-gray-200 font-semibold  text-red-700 dark:text-red-700 rounded  transition"
+                          className="px-3 py-1.5 text-xs flex gap-2 items-center bg-red-50 dark:bg-gray-950 dark:border-gray-900 border border-red-200 font-semibold  text-red-700 dark:text-red-700 rounded  transition"
                           title="Delete offer"
                         >
-                          Delete
+                         <FiTrash2/> Delete
                         </button>
                       </td>
                     </tr>

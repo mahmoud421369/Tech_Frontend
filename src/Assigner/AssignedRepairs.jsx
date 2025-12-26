@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  FiTool, FiSearch, FiUser, FiHome, FiDollarSign,
+  FiTool, FiSearch, FiUser, FiHome,
   FiCalendar, FiChevronLeft, FiChevronRight, FiMapPin
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
@@ -16,6 +16,11 @@ const AssignedRepairs = ({ darkMode }) => {
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
+
+useEffect(() => {
+    document.title = "Assigner - Assigned Repairs";
+
+},[]);
 
   const fetchRepairs = useCallback(async () => {
     if (!token) return navigate('/login');
@@ -34,22 +39,37 @@ const AssignedRepairs = ({ darkMode }) => {
         })
       ]);
 
-      const current = (repairsRes.data?.content || repairsRes.data || []);
+      
+      const current = (repairsRes.data?.content || repairsRes.data || []).map(repair => ({
+        id: repair.id || repair.repairRequestId,
+        userId: repair.userId,
+        userName: `${repair.firstName || ''} ${repair.lastName || ''}`.trim() || 'Unknown Customer',
+        userAddress: repair.userAddress || {},
+        shopId: repair.shopId,
+        shopName: repair.shopName || null,
+        shopAddress: repair.shopAddress || {},
+        price: repair.price || 0,
+        status: repair.status || 'PENDING',
+        createdAt: repair.createdAt,
+      }));
+
+      
       const assigned = (logsRes.data?.content || logsRes.data || []).map(log => ({
-        id: log.repairRequestId,
+        id: log.repairRequestId || log.id,
         userId: log.userId,
-        userName: log.userName,
-        userAddress: log.userAddress,
+        userName: `${log.firstName || ''} ${log.lastName || ''}`.trim() || 'Unknown Customer',
+        userAddress: log.userAddress || {},
         shopId: log.shopId,
-        shopName: log.shopName,
-        shopAddress: log.shopAddress,
-        price: log.price,
+        shopName: log.shopName || null,
+        shopAddress: log.shopAddress || {},
+        price: log.price || 0,
         status: log.status || 'ASSIGNED',
         createdAt: log.createdAt,
       }));
 
       const merged = [...current, ...assigned];
       const unique = Array.from(new Map(merged.map(r => [r.id, r])).values());
+
       setRepairs(unique);
       setCurrentPage(1);
     } catch (err) {
@@ -77,9 +97,9 @@ const AssignedRepairs = ({ darkMode }) => {
   const getStatusGradient = (status) => {
     const gradients = {
       PENDING: 'from-yellow-400 to-amber-500',
-      PENDING_PICKUP: 'from-orange-400 to-red-500',
       SUBMITTED: 'from-yellow-400 to-amber-500',
       QUOTE_PENDING: 'from-amber-400 to-orange-500',
+      PENDING_PICKUP: 'from-orange-400 to-red-500',
       IN_PROGRESS: 'from-indigo-500 to-purple-600',
       ASSIGNED: 'from-purple-500 to-pink-600',
       IN_TRANSIT: 'from-cyan-500 to-blue-600',
@@ -89,13 +109,12 @@ const AssignedRepairs = ({ darkMode }) => {
     return gradients[status] || gradients.default;
   };
 
-  const formatPrice = (price) => price ? `${price.toLocaleString()} EGP`: '0 EGP';
+  const formatPrice = (price) => price ? `${price.toLocaleString()} EGP` : '0 EGP';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-950 pt-6 lg:pl-72 transition-all duration-500">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
-      
         <div className="mb-12 text-center lg:text-left">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-800 dark:text-white flex items-center gap-5 justify-center lg:justify-start">
             <div className="p-5 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl text-white shadow-2xl">
@@ -108,7 +127,6 @@ const AssignedRepairs = ({ darkMode }) => {
           </p>
         </div>
 
-      
         <div className="mb-10 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
           <div className="relative max-w-md w-full">
             <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 text-xl" />
@@ -140,7 +158,6 @@ const AssignedRepairs = ({ darkMode }) => {
           </button>
         </div>
 
-      
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
@@ -166,14 +183,12 @@ const AssignedRepairs = ({ darkMode }) => {
           </div>
         ) : (
           <>
-            
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
               {currentRepairs.map((repair) => (
                 <div
                   key={repair.id}
                   className="group bg-white dark:bg-gray-900 rounded-3xl shadow-xl hover:shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-all duration-300 hover:-translate-y-3"
                 >
-                
                   <div className={`h-2 bg-gradient-to-r ${getStatusGradient(repair.status)}`} />
 
                   <div className="p-7">
@@ -194,29 +209,33 @@ const AssignedRepairs = ({ darkMode }) => {
                     </div>
 
                     <div className="space-y-4 text-sm">
-                      {repair.userName && (
-                        <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
-                          <FiUser className="text-emerald-600" size={18} />
-                          <span className="font-medium">{repair.userName}</span>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
+                        <FiUser className="text-emerald-600" size={18} />
+                        <span className="font-medium">{repair.userName}</span>
+                      </div>
 
-                      {repair.userAddress && (
+                      {repair.userAddress?.street && (
                         <div className="flex items-start gap-3 text-gray-600 dark:text-gray-400">
                           <FiHome className="text-teal-600 mt-1" size={18} />
                           <div>
                             <div className="font-medium text-gray-800 dark:text-gray-200">Customer Address</div>
-                            <div className="text-xs">{repair.userAddress.street}, {repair.userAddress.city}</div>
+                            <div className="text-xs">
+                              {repair.userAddress.street}, {repair.userAddress.city}
+                              {repair.userAddress.state ? `, ${repair.userAddress.state}` : ''}
+                            </div>
                           </div>
                         </div>
                       )}
 
-                      {repair.shopName && (
+                      {(repair.shopName || repair.shopAddress?.street) && (
                         <div className="flex items-start gap-3 text-gray-600 dark:text-gray-400">
                           <FiMapPin className="text-emerald-600 mt-1" size={18} />
                           <div>
                             <div className="font-medium text-gray-800 dark:text-gray-200">Repair Shop</div>
-                            <div className="text-xs">{repair.shopName}</div>
+                            <div className="text-xs">
+                              {repair.shopName || 'Service Center'}
+                              {repair.shopAddress?.street && ` – ${repair.shopAddress.street}, ${repair.shopAddress.city}`}
+                            </div>
                           </div>
                         </div>
                       )}
@@ -231,7 +250,6 @@ const AssignedRepairs = ({ darkMode }) => {
               ))}
             </div>
 
-            
             {totalPages > 1 && (
               <div className="flex justify-center gap-3 flex-wrap">
                 <button

@@ -10,6 +10,8 @@ import {
   FiUser,
   FiCalendar,
   FiDollarSign,
+  FiClock,
+  FiCheckCircle,
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import DOMPurify from 'dompurify';
@@ -297,28 +299,31 @@ const TransactionsPage = ({ darkMode }) => {
           <>
           
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 text-center">
-                <FiCreditCard className="text-3xl text-emerald-600 mx-auto mb-2" />
-                <p className="text-sm text-gray-600 dark:text-gray-400">Total Transactions</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-white">{stats.total}</p>
-              </div>
-              {/* <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 text-center">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Completed</p>
-                <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
-              </div>
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 text-center">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Pending</p>
-                <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
-              </div>
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 text-center">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Failed</p>
-                <p className="text-2xl font-bold text-red-600">{stats.failed}</p>
-              </div> */}
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 text-center">
-                <FiDollarSign className="text-3xl text-emerald-600 mx-auto mb-2" />
-                <p className="text-sm text-gray-600 dark:text-gray-400">Total Revenue</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-white">{stats.totalAmount.toFixed(2)} EGP</p>
-              </div>
+           <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-center justify-center flex-row-reverse gap-4">
+  <FiCheckCircle className="text-4xl text-green-600 flex-shrink-0" />
+  <div className="text-center">
+    <p className="text-sm text-gray-600 dark:text-gray-400">Completed</p>
+    <p className="text-2xl font-bold text-green-600 mt-1">{stats.completed}</p>
+  </div>
+</div>
+
+{/* Pending */}
+<div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-center justify-center flex-row-reverse gap-4">
+  <FiClock className="text-4xl text-yellow-600 flex-shrink-0" />
+  <div className="text-center">
+    <p className="text-sm text-gray-600 dark:text-gray-400">Pending</p>
+    <p className="text-2xl font-bold text-yellow-600 mt-1">{stats.pending}</p>
+  </div>
+</div>
+
+{/* Failed */}
+<div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-center justify-center flex-row-reverse gap-4">
+  <FiXCircle className="text-4xl text-red-600 flex-shrink-0" />
+  <div className="text-center">
+    <p className="text-sm text-gray-600 dark:text-gray-400">Failed</p>
+    <p className="text-2xl font-bold text-red-600 mt-1">{stats.failed}</p>
+  </div>
+</div>
             </div>
 
             

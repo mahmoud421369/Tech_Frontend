@@ -10,6 +10,14 @@ import {
   FiChevronRight,
   FiCopy,
   FiSearch,
+  FiCheck,
+  FiInfo,
+  FiX,
+  FiUser,
+  FiHash,
+  FiMail,
+  FiPhone,
+  FiBriefcase,
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import DOMPurify from 'dompurify';
@@ -348,7 +356,7 @@ const UsersPage = ({ darkMode }) => {
       Swal.fire({ title: 'Deleted!', text: 'User removed', icon: 'success', toast: true, position: 'top-end', timer: 1500 });
       fetchUsers();
     } catch (error) {
-      Swal.fire({ title: 'Error', text: 'Failed to delete', icon: 'error' });
+      Swal.fire({ title: 'Error', text: 'Failed to delete', icon: 'error', toast: true, position: 'top-end', timer: 1500 });
     }
   };
 
@@ -396,21 +404,30 @@ const UsersPage = ({ darkMode }) => {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
 
          
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 p-6 border-b border-gray-200 dark:border-gray-700">
-              {[
-                { label: 'Total Users', value: computedStats.totalUsers, color: 'emerald' },
-                { label: 'Active', value: computedStats.activeUsers, color: 'green' },
-                { label: 'Inactive', value: computedStats.inactiveUsers, color: 'red' },
-              ].map((stat, i) => (
-                <div
-                  key={i}
-                  className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg border border-gray-200 dark:border-gray-600 text-center"
-                >
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
-                  <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{stat.value}</p>
-                </div>
-              ))}
-            </div>
+         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 p-6 border-b border-gray-200 dark:border-gray-700">
+  {[
+    { label: 'Total Users', value: computedStats.totalUsers, color: 'emerald', icon: FiUsers },
+    { label: 'Active', value: computedStats.activeUsers, color: 'green', icon: FiCheckCircle },
+    { label: 'Inactive', value: computedStats.inactiveUsers, color: 'red', icon: FiXCircle },
+  ].map((stat, i) => (
+    <div
+      key={i}
+      className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg border border-gray-200 dark:border-gray-600 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow"
+    >
+      <div className="text-left">
+        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
+        <p className={`text-3xl font-bold mt-2 text-${stat.color}-600 dark:text-${stat.color}-500`}>
+          {stat.value}
+        </p>
+      </div>
+
+   
+      <div className={`p-4 rounded-full bg-${stat.color}-100 dark:bg-${stat.color}-900/30`}>
+        <stat.icon className={`w-8 h-8 text-${stat.color}-600 dark:text-${stat.color}-400`} />
+      </div>
+    </div>
+  ))}
+</div>
 
          
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
@@ -499,35 +516,35 @@ const UsersPage = ({ darkMode }) => {
                       <div className="flex justify-center gap-2">
                         <button
                           onClick={() => viewUser(user.id)}
-                          className="p-2  bg-blue-50 border border-gray-200 dark:bg-gray-950 dark:border-gray-900 font-semibold  text-xs rounded-lg text-blue-600   rounded-lg"
+                          className="p-2  bg-blue-50 border flex gap-2 items-center  border-blue-200 dark:bg-gray-950 dark:border-gray-900 font-semibold  text-xs rounded-lg text-blue-600   rounded-lg"
                           title="View"
                         >
-                           View
+                          <FiInfo/> View
                         </button>
                         {user.activate ? (
                           <button
                             onClick={() => deactivateUser(user.id)}
-                            className="p-2  bg-purple-50  text-xs border border-gray-200 dark:bg-gray-950 dark:border-gray-900 font-semibold  text-purple-600 rounded-lg  rounded-lg"
+                            className="p-2  bg-purple-50 flex gap-2 items-center   text-xs border border-purple-200 dark:bg-gray-950 dark:border-gray-900 font-semibold  text-purple-600 rounded-lg  rounded-lg"
                             title="Deactivate"
                           >
-                            Suspend
+                            <FiX/>Suspend
                           </button>
                         ) : (
                           <button
                             onClick={() => activateUser(user.id)}
-                            className="p-2  bg-green-50  text-xs rounded-lg border border-gray-200 dark:bg-gray-950 dark:border-gray-900 font-semibold text-green-600  rounded-lg"
+                            className="p-2  bg-green-50 flex gap-2 items-center  text-xs rounded-lg border border-green-200 dark:bg-gray-950 dark:border-gray-900 font-semibold text-green-600  rounded-lg"
                             title="Activate"
                           >
-                            Approve
+                            <FiCheck/> Approve
                           </button>
                         )}
-                        <button
+                        {/* <button
                           onClick={() => deleteUser(user.id)}
                           className="p-2  bg-red-50  text-xs rounded-lg border border-gray-200 dark:bg-gray-950 dark:border-gray-900 font-semibold text-red-600  rounded-lg"
                           title="Delete"
                         >
                        Delete
-                        </button>
+                        </button> */}
                       </div>
                     </td>
                   </tr>
@@ -539,34 +556,93 @@ const UsersPage = ({ darkMode }) => {
         )}
 
 
-        {selectedUser && (
-          <Modal onClose={() => setSelectedUser(null)} title="User Details" darkMode={darkMode}>
-            <div className="space-y-4 text-sm">
-              <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-semibold text-gray-900 dark:text-gray-100">User Info</h4>
-                  <button onClick={() => copyToClipboard(selectedUser.id)} className="text-gray-500 hover:text-emerald-600">
-                    <FiCopy className="w-4 h-4" />
-                  </button>
-                </div>
-                <p><strong>ID:</strong> {selectedUser.id}</p>
-                <p><strong>Name:</strong> {DOMPurify.sanitize(`${selectedUser.firstName} ${selectedUser.lastName}`)}</p>
-                <p><strong>Email:</strong> {DOMPurify.sanitize(selectedUser.email)}</p>
-                <p><strong>Phone:</strong> 0{selectedUser.phone || 'N/A'}</p>
-                <p><strong>Role:</strong> {selectedUser.role}</p>
-                <p><strong>Status:</strong> <span className={selectedUser.activate ? 'text-green-600' : 'text-red-600'}>{selectedUser.activate ? 'Active' : 'Inactive'}</span></p>
-              </div>
-              <div className="flex justify-end">
-                <button
-                  onClick={() => setSelectedUser(null)}
-                  className="px-5 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
-                >
-                  Close
-                </button>
-              </div>
+       {selectedUser && (
+  <Modal onClose={() => setSelectedUser(null)} title="User Details" darkMode={darkMode}>
+    <div className="space-y-6 text-sm">
+
+      <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg shadow-sm">
+        <div className="flex items-center justify-between mb-6">
+          <h4 className="font-semibold text-lg text-gray-900 dark:text-gray-100">User Information</h4>
+          <button
+            onClick={() => copyToClipboard(selectedUser.id)}
+            className="text-gray-500 hover:text-emerald-600 transition flex items-center gap-2"
+            title="Copy User ID"
+          >
+            <FiCopy className="w-5 h-5" />
+            <span className="text-xs">Copy ID</span>
+          </button>
+        </div>
+
+        
+        <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            <FiHash className="w-5 h-5 text-emerald-600" />
+            <div>
+              <p className="text-gray-500 dark:text-gray-400">ID</p>
+              <p className="font-medium">{selectedUser.id}</p>
             </div>
-          </Modal>
-        )}
+          </div>
+
+          <div className="flex items-center gap-4">
+            <FiUser className="w-5 h-5 text-emerald-600" />
+            <div>
+              <p className="text-gray-500 dark:text-gray-400">Name</p>
+              <p className="font-medium">{DOMPurify.sanitize(`${selectedUser.firstName} ${selectedUser.lastName}`)}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <FiMail className="w-5 h-5 text-emerald-600" />
+            <div>
+              <p className="text-gray-500 dark:text-gray-400">Email</p>
+              <p className="font-medium">{DOMPurify.sanitize(selectedUser.email)}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <FiPhone className="w-5 h-5 text-emerald-600" />
+            <div>
+              <p className="text-gray-500 dark:text-gray-400">Phone</p>
+              <p className="font-medium">0{selectedUser.phone || 'N/A'}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <FiBriefcase className="w-5 h-5 text-emerald-600" />
+            <div>
+              <p className="text-gray-500 dark:text-gray-400">Role</p>
+              <p className="font-medium capitalize">{selectedUser.role}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {selectedUser.activate ? (
+              <FiCheckCircle className="w-5 h-5 text-green-600" />
+            ) : (
+              <FiXCircle className="w-5 h-5 text-red-600" />
+            )}
+            <div>
+              <p className="text-gray-500 dark:text-gray-400">Status</p>
+              <p className={`font-medium ${selectedUser.activate ? 'text-green-600' : 'text-red-600'}`}>
+                {selectedUser.activate ? 'Active' : 'Inactive'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+   
+      <div className="flex justify-end gap-3">
+        <button
+          onClick={() => setSelectedUser(null)}
+          className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition shadow-md"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </Modal>
+)}
       </div>
     </div>
   );

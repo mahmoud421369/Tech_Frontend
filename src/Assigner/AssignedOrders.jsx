@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FiPackage, FiSearch, FiUser, FiHome, FiDollarSign,
@@ -17,6 +17,11 @@ const AssignedOrders = ({ darkMode }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
+useEffect(() => {
+    document.title = "Assigner - Assigned Orders";
+
+},[]);
+
   const fetchOrders = useCallback(async () => {
     if (!token) return navigate('/login');
     if (!deliveryId.trim()) {
@@ -34,22 +39,41 @@ const AssignedOrders = ({ darkMode }) => {
         })
       ]);
 
-      const current = ordersRes.data.content || ordersRes.data || [];
+      
+      const current = (ordersRes.data.content || ordersRes.data || []).map(order => ({
+        id: order.id,
+        userId: order.userId,
+        userName: `${order.firstName || ''} ${order.lastName || ''}`.trim() || 'Unknown User',
+        userAddress: order.userAddress || {},
+        shopId: order.shopId,
+        shopName: order.shopName || null,
+        shopAddress: order.shopAddress || {},
+        totalPrice: order.totalPrice || 0,
+        status: order.status || 'PENDING',
+        createdAt: order.createdAt,
+        paymentMethod: order.paymentMethod,
+        phone: order.phone,
+      }));
+
+      
       const assigned = (logsRes.data.content || logsRes.data || []).map(log => ({
-        id: log.orderId,
+        id: log.id || log.orderId,
         userId: log.userId,
-        userName: log.userName,
-        userAddress: log.userAddress,
+        userName: `${log.firstName || ''} ${log.lastName || ''}`.trim() || 'Unknown User',
+        userAddress: log.userAddress || {},
         shopId: log.shopId,
-        shopName: log.shopName,
-        shopAddress: log.shopAddress,
-        totalPrice: log.totalPrice,
+        shopName: log.shopName || null,
+        shopAddress: log.shopAddress || {},
+        totalPrice: log.totalPrice || 0,
         status: log.status || 'ASSIGNED',
         createdAt: log.createdAt,
+        paymentMethod: log.paymentMethod,
+        phone: log.phone,
       }));
 
       const merged = [...current, ...assigned];
       const unique = Array.from(new Map(merged.map(o => [o.id, o])).values());
+
       setOrders(unique);
     } catch (err) {
       if (err.response?.status === 401) {
@@ -70,9 +94,8 @@ const AssignedOrders = ({ darkMode }) => {
     }
   }, [token, deliveryId, navigate]);
 
-  const filteredOrders = orders;
-  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
-  const currentOrders = filteredOrders.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPages = Math.ceil(orders.length / itemsPerPage);
+  const currentOrders = orders.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const getStatusGradient = (status) => {
     const gradients = {
@@ -82,6 +105,7 @@ const AssignedOrders = ({ darkMode }) => {
       IN_TRANSIT: 'from-cyan-500 to-blue-600',
       IN_PROGRESS: 'from-indigo-500 to-purple-600',
       COMPLETED: 'from-emerald-500 to-teal-600',
+      SHIPPED: 'from-blue-500 to-indigo-600',
       default: 'from-gray-400 to-gray-600'
     };
     return gradients[status] || gradients.default;
@@ -93,7 +117,6 @@ const AssignedOrders = ({ darkMode }) => {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-950 pt-6 lg:pl-72 transition-all duration-500">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
-       
         <div className="mb-12 text-center lg:text-left">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-800 dark:text-white flex items-center gap-5 justify-center lg:justify-start">
             <div className="p-5 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl text-white shadow-2xl">
@@ -106,7 +129,6 @@ const AssignedOrders = ({ darkMode }) => {
           </p>
         </div>
 
-       
         <div className="mb-10 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
           <div className="relative max-w-md w-full">
             <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 text-xl" />
@@ -138,7 +160,6 @@ const AssignedOrders = ({ darkMode }) => {
           </button>
         </div>
 
-      
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
@@ -164,18 +185,16 @@ const AssignedOrders = ({ darkMode }) => {
           </div>
         ) : (
           <>
-            
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
               {currentOrders.map((order) => (
                 <div
                   key={order.id}
                   className="group bg-white dark:bg-gray-900 rounded-3xl shadow-xl hover:shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-all duration-300 hover:-translate-y-3"
                 >
-                 
                   <div className={`h-2 bg-gradient-to-r ${getStatusGradient(order.status)}`} />
 
                   <div className="p-7">
-                    <div className="flex justify-between items-start mb-5">
+                    <div className="flex justify-between items-start flex-wrap gap-2 mb-5">
                       <div>
                         <h3 className="text-2xl font-bold text-gray-800 dark:text-white">
                           #{order.id?.slice(-8)}
@@ -185,36 +204,39 @@ const AssignedOrders = ({ darkMode }) => {
                         </span>
                       </div>
                       <div className="text-right">
-                        <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                        <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
                           {formatPrice(order.totalPrice)}
                         </div>
                       </div>
                     </div>
 
                     <div className="space-y-4 text-sm">
-                      {order.userName && (
-                        <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
-                          <FiUser className="text-emerald-600" size={18} />
-                          <span className="font-medium">{order.userName}</span>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
+                        <FiUser className="text-emerald-600" size={18} />
+                        <span className="font-medium">{order.firstName} {order.lastName}</span>
+                      </div>
 
-                      {order.userAddress && (
+                      {order.userAddress?.street && (
                         <div className="flex items-start gap-3 text-gray-600 dark:text-gray-400">
                           <FiHome className="text-teal-600 mt-1" size={18} />
                           <div>
                             <div className="font-medium text-gray-800 dark:text-gray-200">Delivery Address</div>
-                            <div className="text-xs">{order.userAddress.street}, {order.userAddress.city}</div>
+                            <div className="text-xs">
+                              {order.userAddress.street}, {order.userAddress.city}
+                              {order.userAddress.state ? `, ${order.userAddress.state}` : ''}
+                            </div>
                           </div>
                         </div>
                       )}
 
-                      {order.shopAddress && (
+                      {order.shopAddress?.street && (
                         <div className="flex items-start gap-3 text-gray-600 dark:text-gray-400">
                           <FiMapPin className="text-emerald-600 mt-1" size={18} />
                           <div>
                             <div className="font-medium text-gray-800 dark:text-gray-200">Pickup from</div>
-                            <div className="text-xs">{order.shopName || 'Shop'}</div>
+                            <div className="text-xs">
+                              {order.shopName || 'Shop'} – {order.shopAddress.street}, {order.shopAddress.city}
+                            </div>
                           </div>
                         </div>
                       )}
@@ -229,7 +251,6 @@ const AssignedOrders = ({ darkMode }) => {
               ))}
             </div>
 
-           
             {totalPages > 1 && (
               <div className="flex justify-center gap-3 flex-wrap">
                 <button

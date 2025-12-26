@@ -10,6 +10,7 @@ import {
   FiXCircle,
   FiChevronLeft,
   FiChevronRight,
+  FiGrid,
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import api from '../api';
@@ -315,14 +316,24 @@ const Categories = ({ darkMode }) => {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
 
             
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <div className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg border border-gray-200 dark:border-gray-600 text-center">
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Categories</p>
-                  <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{categories.length}</p>
-                </div>
-              </div>
-            </div>
+           <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+  <div className="grid grid-cols-1 sm:grid-cols-5  gap-6">
+
+    <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg  border border-gray-200 dark:border-gray-600 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow col-span-1 sm:col-span-3 sm:col-start-2">
+      <div className="text-left sm:text-center">
+        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Categories</p>
+        <p className="text-3xl font-bold mt-2 text-emerald-600 dark:text-emerald-500">
+          {categories.length}
+        </p>
+      </div>
+
+      
+      <div className="p-4 rounded-full bg-emerald-100 dark:bg-emerald-900/30">
+        <FiGrid className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+      </div>
+    </div>
+  </div>
+</div>
 
             
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
@@ -396,7 +407,7 @@ const Categories = ({ darkMode }) => {
               setCategoryName(c.name || '');
               setIsModalOpen(true);
             }}
-            className="text-amber-600 dark:bg-gray-950 dark:text-white dark:border-gray-900 hover:text-amber-800 flex items-center gap-1 text-xs px-3 py-1.5 bg-amber-50 rounded-lg font-medium border"
+            className="text-amber-600 dark:bg-gray-950 dark:text-white dark:border-gray-900 hover:text-amber-800 flex items-center gap-1 text-xs px-3 py-1.5 bg-yellow-50 rounded-lg font-medium border border-yellow-200"
           >
             <FiEdit3 className="w-4 h-4 group-hover:scale-110 transition-transform" />
             Edit
@@ -404,7 +415,7 @@ const Categories = ({ darkMode }) => {
 
           <button
             onClick={() => deleteCategory(c.id)}
-            className="text-red-600 dark:bg-gray-950 dark:text-white dark:border-gray-900 hover:text-red-800 flex items-center gap-1 text-xs px-3 py-1.5 bg-red-50 rounded-lg font-medium border "
+            className="text-red-600 dark:bg-gray-950 dark:text-white dark:border-gray-900 hover:text-red-800 flex items-center gap-1 text-xs px-3 py-1.5 bg-red-50 rounded-lg font-medium border border-red-200 "
           >
             <FiTrash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
             Delete
@@ -448,7 +459,7 @@ const Categories = ({ darkMode }) => {
                     value={categoryName}
                     onChange={(e) => setCategoryName(e.target.value)}
                     placeholder="Enter category name"
-                    className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3 py-2 rounded-lg bg-white focus:outline-none dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
               </div>

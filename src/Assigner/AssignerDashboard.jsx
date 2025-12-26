@@ -36,6 +36,12 @@ const AssignerDashboard = ({ darkMode }) => {
     }
   }, []);
 
+useEffect(() =>{
+
+document.title = "Assigner - Dashboard";
+
+},[]);
+
   useEffect(() => {
     if (token && !isTokenExpired(token)) {
       setIsAuthenticated(true);

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import useAuthStore from "../store/Auth";
 import { jwtDecode } from "jwt-decode";
@@ -15,6 +15,11 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { setUserData } = useAuthStore();
+
+
+  useEffect(() => {
+    document.title = "Login";
+  }, []);
 
   const redirectMap = useMemo(
     () => ({
@@ -41,7 +46,6 @@ const Login = () => {
     setShowPassword((prev) => !prev);
   }, []);
 
-  
   const CURRENCY = "EGP";
   const PRICE_PER_MONTH = 1200;
   const DURATION = 1;
@@ -60,7 +64,6 @@ const Login = () => {
 
   const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-  
   const renewCard = async (shopEmail) => {
     if (!validateEmail(shopEmail)) {
       Swal.fire("Error", "Invalid email address", "error");
@@ -80,7 +83,7 @@ const Login = () => {
 
     if (!confirm.isConfirmed) return;
 
-    const { value: swalLoading } = await Swal.fire({
+    Swal.fire({
       title: "Processing...",
       text: "Creating card payment...",
       allowOutsideClick: false,
@@ -94,13 +97,13 @@ const Login = () => {
         getConfig()
       );
 
-      await Swal.fire({
+      Swal.fire({
         icon: "success",
         title: "Payment Created",
         text: `Payment ID: ${res.data.paymentId}`,
+        toast: true,
+        position: "top-end",
         timer: 3000,
-           toast:true,
-        position:"top-end",
         showConfirmButton: false,
       });
 
@@ -109,14 +112,13 @@ const Login = () => {
       Swal.fire({
         icon: "error",
         title: "Payment Failed",
-           toast:true,
-        position:"top-end",
+        toast: true,
+        position: "top-end",
         text: "Could not create card payment",
       });
     }
   };
 
- 
   const renewCash = async (shopEmail) => {
     if (!validateEmail(shopEmail)) {
       Swal.fire("Error", "Invalid email address", "error");
@@ -143,56 +145,50 @@ const Login = () => {
         getConfig()
       );
 
-      await Swal.fire({
+      Swal.fire({
         icon: "success",
         title: "Request Sent",
         text: "Cash payment request submitted successfully",
+        toast: true,
+        position: "top-end",
         timer: 2500,
-        toast:true,
-        position:"top-end",
         showConfirmButton: false,
       });
     } catch (err) {
       Swal.fire({
         icon: "error",
         title: "Request Failed",
-           toast:true,
-        position:"top-end",
+        toast: true,
+        position: "top-end",
         text: "Could not submit cash payment request",
       });
     }
   };
 
-  // --- RENEWAL POPUP ---
   const showRenewalPopup = (shopEmail) => {
     Swal.fire({
-      title: "Renew Subscription",
+      title: "Renew Your Subscription",
       html: `
-        <div class="bg-white p-6 rounded-2xl shadow-2xl text-center max-w-md mx-auto font-cairo">
-          <div class="bg-gradient-to-br from-lime-50 to-white p-5 rounded-xl border border-lime-200 mb-4">
-            <h3 class="text-2xl font-bold mb-3 text-lime-700">Choose a Paid Plan</h3>
-            <div class="mb-4">
-              <select id="duration" class="w-full p-3 rounded-lg bg-lime-50 text-lime-900 border border-lime-300 focus:ring-2 focus:ring-lime-500">
-                <option value="1">1 Month (1200 EGP)</option>
-              </select>
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-2xl text-center max-w-md mx-auto">
+          <div class="bg-gradient-to-br from-emerald-50 to-lime-50 dark:from-emerald-900/20 dark:to-lime-900/20 p-6 rounded-2xl border border-emerald-200 dark:border-emerald-700 mb-6">
+            <h3 class="text-2xl font-bold mb-4 text-emerald-800 dark:text-emerald-200">Premium Plan</h3>
+            <div class="text-4xl font-extrabold text-emerald-600 dark:text-emerald-300 mb-2">
+              1200 <span class="text-lg font-normal">EGP</span>
             </div>
-            <div class="text-3xl font-bold mb-4 text-lime-600">
-              1200 EGP
-              <p class="text-sm opacity-80">1 × 1200 EGP</p>
-            </div>
-            <div class="flex flex-col gap-3 text-sm text-lime-700">
-              <p class="flex items-center justify-center gap-2"><span class="text-lime-500">Check</span> Full Shop Management</p>
-              <p class="flex items-center justify-center gap-2"><span class="text-lime-500">Check</span> 24/7 Support</p>
-              <p class="flex items-center justify-center gap-2"><span class="text-lime-500">Check</span> Free Updates</p>
+            <p class="text-sm text-emerald-700 dark:text-emerald-300 mb-6">per month</p>
+            <div class="space-y-3 text-left text-emerald-800 dark:text-emerald-200 text-sm">
+              <p class="flex items-center gap-3"><span class="text-emerald-500 text-xl">✓</span> Full Shop Management</p>
+              <p class="flex items-center gap-3"><span class="text-emerald-500 text-xl">✓</span> 24/7 Priority Support</p>
+              <p class="flex items-center gap-3"><span class="text-emerald-500 text-xl">✓</span> Free Updates</p>
             </div>
           </div>
-          <div class="flex gap-2 mt-4">
-            <button id="pay-card" class="flex-1 bg-gradient-to-r from-lime-500 to-green-600 text-white font-bold py-3 rounded-lg shadow hover:shadow-lime-500/50 transition-all flex items-center justify-center gap-2 text-sm">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h10m-9 4h8m-8-8h8"></path></svg>
-              Credit Card
+          <div class="grid grid-cols-2 gap-4">
+            <button id="pay-card" class="bg-gradient-to-r from-emerald-500 to-green-600 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all flex items-center justify-center gap-2">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h10m-9 4h8m-8-8h8"></path></svg>
+              Pay with Card
             </button>
-            <button id="pay-cash" class="flex-1 bg-gradient-to-r from-green-600 to-teal-600 text-white font-bold py-3 rounded-lg shadow hover:shadow-teal-500/50 transition-all flex items-center justify-center gap-2 text-sm">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+            <button id="pay-cash" class="bg-gradient-to-r from-teal-500 to-cyan-600 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all flex items-center justify-center gap-2">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
               Cash Payment
             </button>
           </div>
@@ -200,7 +196,7 @@ const Login = () => {
       `,
       showConfirmButton: false,
       allowOutsideClick: false,
-      width: "600px",
+      width: "560px",
       background: "transparent",
       didOpen: () => {
         document.getElementById("pay-card").onclick = () => {
@@ -251,9 +247,7 @@ const Login = () => {
         const finalUserId = backendUserId ?? decodedToken?.sub ?? null;
         const finalEmail = backendEmail ?? formData.email;
 
-      
         localStorage.setItem("id", finalUserId);
-
         setUserData(accessToken, roles, finalUserId, finalEmail);
 
         let redirectPath = "/dashboard";
@@ -266,12 +260,12 @@ const Login = () => {
 
         await Swal.fire({
           icon: "success",
-          title: "Login Successful",
-          text: "Welcome back!",
-          toast:true,
-          position:'top-end',
-          timer: 1500,
+          title: "Welcome back!",
+          toast: true,
+          position: "top-end",
+          timer: 2000,
           showConfirmButton: false,
+          timerProgressBar: true,
         });
 
         if (requiresRenewal && roles.includes("ROLE_SHOP_OWNER") && shopEmail) {
@@ -285,15 +279,13 @@ const Login = () => {
           error.message ||
           "Login failed. Please try again.";
 
-        setErrors((prev) => ({
-          ...prev,
-          [errorMessage.includes("email") ? "email" : errorMessage.includes("password") ? "password" : "general"]: errorMessage,
-        }));
+        setErrors((prev) => ({ ...prev, general: errorMessage }));
 
-        await Swal.fire({
+        Swal.fire({
           icon: "error",
           title: "Login Failed",
           text: errorMessage,
+          confirmButtonColor: "#ef4444",
         });
       } finally {
         setLoading(false);
@@ -307,71 +299,66 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-gray-50 to-white p-4 relative overflow-hidden font-cairo">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-lime-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-700 relative overflow-hidden">
      
-      <RiComputerLine className="absolute top-10 left-10 text-lime-400 text-7xl animate-pulse opacity-20" />
-      <RiSmartphoneLine className="absolute bottom-16 right-12 text-lime-500 text-6xl animate-bounce opacity-20" />
-      <RiToolsLine className="absolute top-1/2 left-1/3 text-lime-600 text-8xl animate-spin-slow opacity-20" />
+      <RiComputerLine className="absolute top-10 left-10 text-emerald-200 dark:text-emerald-600 text-8xl opacity-20 animate-pulse" />
+      <RiSmartphoneLine className="absolute bottom-16 right-12 text-lime-200 dark:text-lime-600 text-7xl opacity-20 animate-bounce" />
+      <RiToolsLine className="absolute top-1/3 left-1/4 text-emerald-200 dark:text-emerald-600 text-9xl opacity-15 animate-spin-slow" />
 
-      <div className="w-full max-w-md relative z-10">
-        <div className="bg-white/90 backdrop-blur-xl border border-gray-200 rounded-3xl shadow-2xl p-8">
-          <h1 className="text-3xl font-bold text-lime-700 text-center mb-2">
-            Welcome Back
-          </h1>
-          <p className="text-lime-600 text-center mb-6 text-sm">
-            Log in to access your account
-          </p>
+     
+      <div className="w-full max-w-lg px-6">
+        <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/60 dark:border-gray-700 p-8">
+          <div className="text-center mb-6">
+            <h1 className="text-4xl font-extrabold text-emerald-800 dark:text-emerald-200 mb-2">Welcome Back</h1>
+            <p className="text-lg text-emerald-600 dark:text-emerald-300 font-medium">Sign in to your account</p>
+          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-lime-700 mb-1">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            
+            <div className="space-y-2">
+              <label htmlFor="email" className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">
                 Email Address
               </label>
               <input
                 type="email"
+                id="email"
                 name="email"
                 required
+                value={formData.email}
                 onChange={(e) => handleChange(e.target.name, e.target.value)}
-                className={`block w-full px-4 py-3 rounded-lg bg-gray-50 text-lime-900 placeholder-gray-400 border ${
-                  errors.email ? "border-red-400" : "border-gray-300"
-                } focus:ring-2 focus:ring-lime-500 focus:outline-none transition-all`}
-                placeholder="you@example.com"
+                className="w-full px-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all text-base"
+                placeholder="Enter your email"
               />
-              {errors.email && (
-                <p className="text-red-600 text-xs mt-1">{errors.email}</p>
-              )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-lime-700 mb-1">
+           
+            <div className="space-y-2">
+              <label htmlFor="password" className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">
                 Password
               </label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
+                  id="password"
                   name="password"
                   required
+                  value={formData.password}
                   onChange={(e) => handleChange(e.target.name, e.target.value)}
-                  className={`block w-full px-4 py-3 rounded-lg text-right placeholder:text-right bg-gray-50 text-lime-900 placeholder-gray-400 border ${
-                    errors.password ? "border-red-400" : "border-gray-300"
-                  } focus:ring-2 focus:ring-lime-500 focus:outline-none transition-all`}
-                  placeholder="••••••••"
+                  className="w-full px-5 py-4 pr-12 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all text-base"
+                  placeholder="Enter your password"
                 />
                 <button
                   type="button"
                   onClick={togglePasswordVisibility}
-                  className="absolute inset-y-0 left-0 pl-3 flex items-center text-lime-600 hover:text-lime-700"
+                  className="absolute inset-y-0 right-0 pr-5 flex items-center text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-200"
                 >
-                  {showPassword ? <RiEyeOffLine /> : <RiEyeLine />}
+                  {showPassword ? <RiEyeOffLine size={22} /> : <RiEyeLine size={22} />}
                 </button>
               </div>
-              {errors.password && (
-                <p className="text-red-600 text-xs mt-1">{errors.password}</p>
-              )}
             </div>
 
             {errors.general && (
-              <div className="text-red-600 text-sm text-center">
+              <div className="text-center text-red-600 dark:text-red-400 text-sm font-medium bg-red-50 dark:bg-red-900/20 py-2 rounded-lg">
                 {errors.general}
               </div>
             )}
@@ -379,39 +366,52 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-lime-500 to-green-600 text-white font-bold py-3 rounded-lg shadow-lg hover:shadow-lime-500/50 transform hover:scale-105 transition-all disabled:opacity-70 flex items-center justify-center"
+              className="w-full bg-gradient-to-r from-emerald-500 to-lime-600 text-white font-bold text-lg py-4 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 disabled:opacity-70 flex items-center justify-center gap-3"
             >
               {loading ? (
-                <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
+                <>
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Signing in...
+                </>
               ) : (
-                "Log In"
+                "Sign In"
               )}
             </button>
           </form>
 
-          <div className="mt-6 text-center text-sm text-lime-700">
-            <button className="underline hover:text-lime-800">
-              Forgot password?
+          <div className="mt-4 text-center">
+            <button className="text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 dark:hover:text-emerald-100 underline text-sm font-medium">
+              Forgot your password?
             </button>
+          </div>
+
+          <div className="my-6 flex items-center">
+            <div className="flex-1 border-t border-emerald-200 dark:border-gray-600"></div>
+            <span className="px-4 text-emerald-500 dark:text-emerald-400 text-sm font-medium bg-white dark:bg-gray-900">OR</span>
+            <div className="flex-1 border-t border-emerald-200 dark:border-gray-600"></div>
           </div>
 
           <button
             onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-300 text-lime-700 font-bold py-3 rounded-lg shadow hover:bg-lime-50 transition-all mt-4"
+            className="w-full flex items-center justify-center gap-3 bg-white dark:bg-gray-800 border-2 border-emerald-200 dark:border-gray-600 text-emerald-800 dark:text-gray-200 font-semibold py-4 rounded-xl shadow hover:shadow-md hover:border-emerald-400 dark:hover:border-emerald-500 transition-all text-base"
           >
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+            <img
+              src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+              alt="Google"
+              className="w-6 h-6"
+            />
             Continue with Google
           </button>
 
-          <div className="mt-6 text-center text-sm text-lime-700">
-            New user?{" "}
-            <Link to="/signup" className="font-medium text-lime-600 underline hover:text-lime-700">
+          <p className="mt-6 text-center text-emerald-700 dark:text-emerald-300 font-medium">
+            New here?{" "}
+            <Link to="/signup" className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline">
               Create an account
             </Link>
-          </div>
+          </p>
         </div>
       </div>
 
@@ -420,7 +420,7 @@ const Login = () => {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
-        .animate-spin-slow { animation: spin-slow 20s linear infinite; }
+        .animate-spin-slow { animation: spin-slow 35s linear infinite; }
       `}</style>
     </div>
   );

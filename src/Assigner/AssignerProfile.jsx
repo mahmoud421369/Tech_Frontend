@@ -16,6 +16,11 @@ const AssignerProfile = ({ darkMode }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+useEffect(() => {
+    document.title = "Assigner - Profile ";
+
+},[]);
+
   const fetchProfile = useCallback(async () => {
     if (!token) {
       navigate('/login');
@@ -149,7 +154,7 @@ const AssignerProfile = ({ darkMode }) => {
 
         
         <div className="mb-12 text-center lg:text-left">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-800 dark:text-white flex items-center gap-5 justify-center lg:justify-start">
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-800 dark:text-white flex items-center flex-wrap gap-5 justify-center lg:justify-start">
             <div className="p-5 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl text-white shadow-2xl">
               <FiUser size={40} />
             </div>

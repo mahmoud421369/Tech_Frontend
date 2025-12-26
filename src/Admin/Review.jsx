@@ -10,6 +10,8 @@ import {
   FiChevronRight,
   FiFlag,
   FiMessageCircle,
+  FiCheckCircle,
+  FiInfo,
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import DOMPurify from 'dompurify';
@@ -318,18 +320,29 @@ const Reviews = ({ darkMode }) => {
 
             
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {[
-                  { label: 'Total Reviews', value: stats.total, color: 'emerald' },
-                  { label: 'Approved', value: stats.approved, color: 'green' },
-                  { label: 'Flagged', value: stats.flagged, color: 'red' },
-                ].map((stat, i) => (
-                  <div key={i} className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg border border-gray-200 dark:border-gray-600 text-center">
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{stat.value}</p>
-                  </div>
-                ))}
-              </div>
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+  {[
+    { label: 'Total Reviews', value: stats.total, color: 'emerald', icon: FiMessageCircle },
+    { label: 'Approved', value: stats.approved, color: 'green', icon: FiCheckCircle },
+    { label: 'Flagged', value: stats.flagged, color: 'red', icon: FiFlag },
+  ].map((stat, i) => (
+    <div
+      key={i}
+      className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg border border-gray-200 dark:border-gray-600 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow"
+    >
+      <div className="text-left">
+        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
+        <p className={`text-3xl font-bold mt-2 text-${stat.color}-600 dark:text-${stat.color}-500`}>
+          {stat.value}
+        </p>
+      </div>
+
+      <div className={`p-4 rounded-full bg-${stat.color}-100 dark:bg-${stat.color}-900/30`}>
+        <stat.icon className={`w-8 h-8 text-${stat.color}-600 dark:text-${stat.color}-400`} />
+      </div>
+    </div>
+  ))}
+</div>
             </div>
 
       
@@ -387,15 +400,15 @@ const Reviews = ({ darkMode }) => {
                             setSelectedReview(review);
                             setIsModalOpen(true);
                           }}
-                          className="px-3 py-1.5 text-xs bg-emerald-50 border dark:bg-gray-950 dark:border-gray-900 text-emerald-700 dark:text-emerald-700 rounded"
+                          className="px-3 py-1.5 text-xs bg-emerald-50 flex gap-2 items-ceter border border-emerald-200 dark:bg-gray-950 dark:border-gray-900 text-emerald-700 dark:text-emerald-700 rounded"
                         >
-                          View
+                          <FiInfo/>View
                         </button>
                         <button
                           onClick={() => deleteReview(review.id)}
-                          className="px-3 py-1.5 text-xs bg-red-50 border dark:bg-gray-950 dark:border-gray-900 text-red-700 dark:text-red-700 rounded "
+                          className="px-3 py-1.5 text-xs flex gap-2 items-ceter bg-red-50 border border-red-200 dark:bg-gray-950 dark:border-gray-900 text-red-700 dark:text-red-700 rounded "
                         >
-                          Delete
+                         <FiTrash2/> Delete
                         </button>
                       </div>
                     </td>

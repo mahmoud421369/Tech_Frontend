@@ -33,6 +33,10 @@ const Orders = () => {
 
   const filterDropdownRef = useRef(null);
   const ordersPerPage = 10;
+useEffect(() => {
+document.title = "إدارة الطلبات";
+
+});
 
   useEffect(() => {
     const handleClickOutside = (e) => {

@@ -18,9 +18,7 @@ const Cart = ({ show, onClose, darkMode  }) => {
 
   const navigate = useNavigate();
 
-  /* ------------------------------------------------------------------ */
-  /*  SAFE JWT DECODE                                                   */
-  /* ------------------------------------------------------------------ */
+  
   const safeDecodeJwt = useCallback((token) => {
     if (!token || typeof token !== "string" || token.trim() === "") return null;
     try { return jwtDecode(token); } catch { return null; }
@@ -36,17 +34,13 @@ const Cart = ({ show, onClose, darkMode  }) => {
   const userId = decodedToken?.userId || null;
   const isAuthenticated = !!token && !isTokenExpired(token);
 
-  /* ------------------------------------------------------------------ */
-  /*  CALCULATE TOTAL                                                   */
-  /* ------------------------------------------------------------------ */
+
   const calculateTotal = useCallback((items) => {
     const total = items.reduce((sum, item) => sum + item.productPrice * item.quantity, 0);
     setCartTotal(total);
   }, []);
 
-  /* ------------------------------------------------------------------ */
-  /*  FETCH CART                                                        */
-  /* ------------------------------------------------------------------ */
+
   const fetchCart = useCallback(async () => {
     if (!token || !isAuthenticated) { setCartItems([]); return; }
 
@@ -73,9 +67,7 @@ const Cart = ({ show, onClose, darkMode  }) => {
     return () => controller.abort();
   }, [token, isAuthenticated, calculateTotal]);
 
-  /* ------------------------------------------------------------------ */
-  /*  ADD TO CART                                                       */
-  /* ------------------------------------------------------------------ */
+
   const addToCart = useCallback(async (productId, quantity = 1) => {
     if (!isAuthenticated) {
       Swal.fire({ icon: "info", title: "Login Required", text: "Please log in to add items to cart", confirmButtonText: "Go to Login" })
@@ -104,9 +96,7 @@ const Cart = ({ show, onClose, darkMode  }) => {
     }
   }, [token, isAuthenticated, darkMode, navigate, calculateTotal, fetchCart]);
 
-  /* ------------------------------------------------------------------ */
-  /*  UPDATE QUANTITY                                                   */
-  /* ------------------------------------------------------------------ */
+ 
   const updateQuantity = useCallback(async (itemId, newQuantity) => {
     if (newQuantity < 1) return removeFromCart(itemId);
     const prevItems = [...cartItems];
@@ -125,9 +115,7 @@ const Cart = ({ show, onClose, darkMode  }) => {
     }
   }, [token, cartItems, calculateTotal]);
 
-  /* ------------------------------------------------------------------ */
-  /*  REMOVE FROM CART                                                  */
-  /* ------------------------------------------------------------------ */
+ 
   const removeFromCart = useCallback(async (itemId) => {
     const prevItems = [...cartItems];
     setCartItems(prev => prev.filter(i => i.id !== itemId));
@@ -144,9 +132,7 @@ const Cart = ({ show, onClose, darkMode  }) => {
     }
   }, [token, cartItems, calculateTotal]);
 
-  /* ------------------------------------------------------------------ */
-  /*  CLEAR CART                                                        */
-  /* ------------------------------------------------------------------ */
+ 
   const clearCart = useCallback(async () => {
     const prevItems = [...cartItems];
     setCartItems([]);
@@ -163,9 +149,6 @@ const Cart = ({ show, onClose, darkMode  }) => {
     }
   }, [token, darkMode, cartItems, calculateTotal]);
 
-  /* ------------------------------------------------------------------ */
-  /*  FETCH ADDRESSES                                                   */
-  /* ------------------------------------------------------------------ */
   const fetchAddresses = useCallback(async () => {
     if (!token || !isAuthenticated) return;
 
@@ -187,9 +170,7 @@ const Cart = ({ show, onClose, darkMode  }) => {
     return () => controller.abort();
   }, [token, isAuthenticated]);
 
-  /* ------------------------------------------------------------------ */
-  /*  CREATE ORDER                                                      */
-  /* ------------------------------------------------------------------ */
+ 
  const createOrder = useCallback(async () => {
   if (!isAuthenticated) {
     Swal.fire({
@@ -252,7 +233,7 @@ const Cart = ({ show, onClose, darkMode  }) => {
         window.open(paymentRes.data.paymentURL, "_blank");
       }
     } else {
-      // Cash on Delivery success
+   
       await Swal.fire({
         icon: "success",
         title: "Order Confirmed!",
@@ -282,9 +263,7 @@ const Cart = ({ show, onClose, darkMode  }) => {
   }
 }, [token, isAuthenticated, selectedAddress, paymentMethod, darkMode, navigate, cartTotal]);
 
-  /* ------------------------------------------------------------------ */
-  /*  INITIAL FETCH                                                     */
-  /* ------------------------------------------------------------------ */
+ 
   useEffect(() => {
     if (show && isAuthenticated) {
       Promise.all([fetchCart(), fetchAddresses()]).catch(console.error);
@@ -298,22 +277,22 @@ const Cart = ({ show, onClose, darkMode  }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      {/* Backdrop */}
+      
       <div
         className="fixed inset-0 bg-black bg-opacity-50 transition-opacity duration-300"
         onClick={onClose}
       />
 
-      {/* Modal - Slides in from right */}
+      
       <div
         className={`relative w-full max-w-md h-full overflow-y-auto shadow-2xl transform transition-transform duration-300 ease-in-out ${
           darkMode ? "bg-gray-900 text-white" : "bg-white text-gray-900"
         } ${show ? "translate-x-0" : "translate-x-full"}`}
       >
-        {/* === MONOTREE HERO INSIDE MODAL === */}
+    
         <section className="relative overflow-hidden bg-gradient-to-br from-lime-50 to-teal-50 dark:from-lime-900/20 dark:to-teal-900/20 p-6">
           <div className="grid md:grid-cols-2 gap-8 items-center">
-            {/* Left: Text */}
+            
             <div className="space-y-4">
               <h1 className="text-3xl md:text-4xl font-bold leading-tight">
                 Your <span className="underline decoration-lime-500 decoration-4">Cart</span>
@@ -322,7 +301,7 @@ const Cart = ({ show, onClose, darkMode  }) => {
                 Review items, choose delivery, and checkout securely.
               </p>
 
-              {/* Stats */}
+              
               <div className="grid grid-cols-3 gap-4 pt-4">
                 <div>
                   <div className="text-xl font-bold text-lime-600 dark:text-lime-400 flex items-center gap-1">
@@ -340,7 +319,7 @@ const Cart = ({ show, onClose, darkMode  }) => {
               </div>
             </div>
 
-            {/* Right: 3D Mockup */}
+           
             <div className="relative hidden md:block h-48">
               <div className="absolute inset-0 bg-gradient-to-br from-lime-100 to-teal-100 dark:from-lime-900 dark:to-teal-900 rounded-3xl blur-3xl opacity-50"></div>
               <div className="absolute top-4 left-4 w-32 h-40 bg-white dark:bg-gray-800 rounded-3xl shadow-xl rotate-12 transform-gpu overflow-hidden">
@@ -362,7 +341,7 @@ const Cart = ({ show, onClose, darkMode  }) => {
           </div>
         </section>
 
-        {/* Close Button */}
+       
         <button
           onClick={onClose}
           className="absolute top-4 right-4 p-2 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm shadow-md hover:bg-white dark:hover:bg-gray-700 transition"
@@ -370,7 +349,7 @@ const Cart = ({ show, onClose, darkMode  }) => {
           <FiX className="w-5 h-5 text-gray-700 dark:text-gray-300" />
         </button>
 
-        {/* Cart Content */}
+      
         <div className="p-6 pt-2">
           {isLoading ? (
             <div className="flex justify-center items-center h-64">
@@ -443,7 +422,7 @@ const Cart = ({ show, onClose, darkMode  }) => {
                        
 {checkoutStep === "checkout" && (
   <div className="space-y-6">
-    {/* Back Button */}
+  
     <button
       onClick={() => setCheckoutStep("cart")}
       className="flex items-center gap-2 text-lime-600 dark:text-lime-400 hover:underline font-medium mb-4"
@@ -527,7 +506,7 @@ const Cart = ({ show, onClose, darkMode  }) => {
       </button>
     </div>
 
-    {/* Order Summary */}
+    
     <div className="p-4 bg-gradient-to-r from-lime-50 to-teal-50 dark:from-lime-900/20 dark:to-teal-900/20 rounded-2xl">
       <div className="flex justify-between text-lg font-bold">
         <span>Total Amount:</span>

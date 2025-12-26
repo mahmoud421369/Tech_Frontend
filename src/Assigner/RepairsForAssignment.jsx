@@ -2,7 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FiTool, FiSearch, FiCopy, FiXCircle, FiUser,
-  FiMapPin, FiDollarSign, FiChevronLeft, FiChevronRight
+  FiMapPin, FiDollarSign, FiChevronLeft, FiChevronRight,
+  FiCalendar, FiPackage, FiUserCheck, FiClock,
+  FiClipboard,
+  FiInfo
 } from 'react-icons/fi';
 import { FaStore } from 'react-icons/fa';
 import Swal from 'sweetalert2';
@@ -24,6 +27,10 @@ const RepairsForAssignment = ({ darkMode }) => {
 
   const itemsPerPage = 6;
 
+  useEffect(() => {
+      document.title = "Assigner - Repairs";
+  
+  },[]);
 
   useEffect(() => {
     const timer = setTimeout(() => setCurrentPage(1), 400);
@@ -84,7 +91,6 @@ const RepairsForAssignment = ({ darkMode }) => {
     }
   }, [token, navigate]);
 
-  
   const fetchDeliveryPersons = useCallback(async () => {
     if (!token) return;
     try {
@@ -100,7 +106,6 @@ const RepairsForAssignment = ({ darkMode }) => {
     fetchDeliveryPersons();
   }, [fetchRepairs, fetchDeliveryPersons]);
 
-  
   const assignRepair = async (deliveryId) => {
     if (!selectedRepair?.id || !deliveryId) return;
 
@@ -137,7 +142,6 @@ const RepairsForAssignment = ({ darkMode }) => {
     }
   };
 
- 
   const filteredRepairs = repairs.filter(repair =>
     JSON.stringify(repair).toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -160,12 +164,33 @@ const RepairsForAssignment = ({ darkMode }) => {
 
   const formatPrice = (price) => price ? `${price.toLocaleString()} EGP` : '0 EGP';
 
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    return new Date(dateStr).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const isAssigned = (status) => {
+    return ['ASSIGNED', 'IN_TRANSIT', 'IN_PROGRESS', 'COMPLETED'].includes(status);
+  };
+
+  const stats = {
+    total: repairs.length,
+    pending: repairs.filter(r => r.status === 'PENDING').length,
+    assigned: repairs.filter(r => ['ASSIGNED', 'IN_TRANSIT', 'IN_PROGRESS'].includes(r.status)).length,
+    completed: repairs.filter(r => r.status === 'COMPLETED').length,
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-950 pt-6 lg:pl-72 transition-all duration-500">
-      <div className="max-w-7xl mx-auto  px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-       
-        <div className="mb-10  text-center lg:text-left">
+        <div className="mb-10 text-center lg:text-left">
           <h1 className="text-4xl font-bold text-gray-800 dark:text-white flex items-center gap-4 justify-center lg:justify-start">
             <div className="p-4 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl text-white shadow-xl">
               <FiTool size={36} />
@@ -178,7 +203,31 @@ const RepairsForAssignment = ({ darkMode }) => {
         </div>
 
         
-        <div className="mb-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          {[
+            { label: 'Total Repair Requests', value: stats.total, color: 'emerald', icon: FiTool },
+            { label: 'Pending Assignment', value: stats.pending, color: 'amber', icon: FiClock },
+            { label: 'In Progress', value: stats.assigned, color: 'purple', icon: FiPackage },
+            { label: 'Completed', value: stats.completed, color: 'green', icon: FiUserCheck },
+          ].map((stat, index) => (
+            <div
+              key={index}
+              className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800 flex items-center justify-between hover:shadow-xl transition-shadow"
+            >
+              <div className="text-left">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
+                <p className={`text-3xl font-bold mt-2 text-${stat.color}-600 dark:text-${stat.color}-400`}>
+                  {stat.value}
+                </p>
+              </div>
+              <div className={`p-4 rounded-full bg-${stat.color}-100 dark:bg-${stat.color}-900/30`}>
+                <stat.icon className={`w-8 h-8 text-${stat.color}-600 dark:text-${stat.color}-400`} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mb-8 grid grid-cols-1 lg:grid-cols-1 gap-6">
           <div className="relative">
             <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 text-xl" />
             <input
@@ -195,7 +244,7 @@ const RepairsForAssignment = ({ darkMode }) => {
             )}
           </div>
 
-          <div className="flex gap-4 justify-center lg:justify-end">
+          {/* <div className="flex gap-4 justify-center lg:justify-end">
             <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg px-6 py-4 border border-gray-200 dark:border-gray-800">
               <p className="text-sm text-gray-600 dark:text-gray-400">Total Repairs</p>
               <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{repairs.length}</p>
@@ -204,10 +253,9 @@ const RepairsForAssignment = ({ darkMode }) => {
               <p className="text-sm text-gray-600 dark:text-gray-400">Filtered</p>
               <p className="text-3xl font-bold text-teal-600 dark:text-teal-400">{filteredRepairs.length}</p>
             </div>
-          </div>
+          </div> */}
         </div>
 
-      
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
@@ -233,14 +281,12 @@ const RepairsForAssignment = ({ darkMode }) => {
           </div>
         ) : (
           <>
-           
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
               {currentRepairs.map((repair) => (
                 <div
                   key={repair.id}
                   className="group bg-white dark:bg-gray-900 rounded-2xl shadow-lg hover:shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-all duration-300 hover:-translate-y-2"
                 >
-                 
                   <div className={`h-2 bg-gradient-to-r ${getStatusGradient(repair.status)}`} />
 
                   <div className="p-6">
@@ -266,38 +312,54 @@ const RepairsForAssignment = ({ darkMode }) => {
                     </div>
 
                     <div className="space-y-3 text-sm">
+                      {repair.createdAt && (
+                        <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
+                          <FiCalendar className="text-emerald-600" />
+                          <span>{formatDate(repair.createdAt)}</span>
+                        </div>
+                      )}
+
                       {repair.userName && (
                         <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
                           <FiUser className="text-emerald-600" />
                           <span>{repair.userName}</span>
                         </div>
                       )}
+
                       {repair.shopName && (
                         <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
                           <FaStore className="text-teal-600" />
                           <span>{repair.shopName}</span>
                         </div>
                       )}
+
                       {repair.userAddress && (
                         <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
                           <FiMapPin className="text-emerald-500" />
-                          <span className="truncate">{repair.userAddress.street}, {repair.userAddress.city}</span>
+                          <span className="truncate">
+                            {repair.userAddress.street}, {repair.userAddress.city}
+                          </span>
                         </div>
                       )}
                     </div>
 
                     <button
                       onClick={() => setSelectedRepair(repair)}
-                      className="mt-6 w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold py-4 rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg flex items-center justify-center gap-2"
+                      disabled={isAssigned(repair.status)}
+                      className={`mt-6 w-full font-semibold py-4 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 ${
+                        isAssigned(repair.status)
+                          ? 'bg-gray-400 dark:bg-gray-700 text-gray-300 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700'
+                      }`}
                     >
-                      <FiTool /> Assign Repair
+                      <FiTool />
+                      {isAssigned(repair.status) ? 'Already Assigned' : 'Assign Repair'}
                     </button>
                   </div>
                 </div>
               ))}
             </div>
 
-            
             {totalPages > 1 && (
               <div className="flex justify-center gap-3 flex-wrap">
                 <button
@@ -334,46 +396,112 @@ const RepairsForAssignment = ({ darkMode }) => {
           </>
         )}
 
-       
         {selectedRepair && (
           <Modal onClose={() => { setSelectedRepair(null); setNotes(''); }} title="Assign Repair Request" darkMode={darkMode}>
-            <div className="space-y-6">
-              <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-2xl p-6 border border-emerald-200 dark:border-emerald-800">
-                <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Repair Details</h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div><strong>ID:</strong> {selectedRepair.id}</div>
-                  <div><strong>Price:</strong> {formatPrice(selectedRepair.price)}</div>
-                  <div><strong>User:</strong> {selectedRepair.userName || 'N/A'}</div>
-                  <div><strong>Shop:</strong> {selectedRepair.shopName || 'N/A'}</div>
+            <div className="space-y-8 max-w-2xl mx-auto">
+              <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/40 dark:to-teal-900/40 rounded-2xl p-8 border border-emerald-200 dark:border-emerald-700 shadow-inner">
+                <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-3">
+                  <FiInfo className="text-emerald-600" />
+                  Repair Request Information
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-base">
+                  <div className="flex items-start gap-4">
+                    <FiTool className="w-6 h-6 text-emerald-600 mt-0.5" />
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">Repair ID</p>
+                      <p className="font-mono font-semibold text-gray-900 dark:text-white">{selectedRepair.id}</p>
+                    </div>
+                  </div>
+
+                  {selectedRepair.createdAt && (
+                    <div className="flex items-start gap-4">
+                      <FiCalendar className="w-6 h-6 text-emerald-600 mt-0.5" />
+                      <div>
+                        <p className="text-gray-500 dark:text-gray-400">Created At</p>
+                        <p className="font-semibold text-gray-900 dark:text-white">{formatDate(selectedRepair.createdAt)}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-start gap-4">
+                    <FiDollarSign className="w-6 h-6 text-emerald-600 mt-0.5" />
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">Repair Price</p>
+                      <p className="font-bold text-2xl text-emerald-600 dark:text-emerald-400">{formatPrice(selectedRepair.price)}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-4">
+                    <FiUser className="w-6 h-6 text-emerald-600 mt-0.5" />
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">Customer</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">{selectedRepair.userName || 'N/A'}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-4">
+                    <FaStore className="w-6 h-6 text-teal-600 mt-0.5" />
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">Shop</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">{selectedRepair.shopName || 'N/A'}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-4 md:col-span-2">
+                    <FiMapPin className="w-6 h-6 text-emerald-600 mt-0.5" />
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">Pickup Address (Customer)</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">
+                        {selectedRepair.userAddress
+                          ? `${selectedRepair.userAddress.street}, ${selectedRepair.userAddress.city}${selectedRepair.userAddress.state ? ', ' + selectedRepair.userAddress.state : ''}`
+                          : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               <div>
-                <label className="block font-medium mb-2 text-gray-700 dark:text-gray-300">Notes (Optional)</label>
+                <label className="block text-lg font-semibold mb-3 text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                  <FiClipboard className="w-5 h-5 text-emerald-600" />
+                  Delivery Notes (Optional)
+                </label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="e.g., Device is fragile, call before arrival..."
-                  rows={3}
-                  className="w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none"
+                  rows={4}
+                  className="w-full rounded-2xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-5 py-4 focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-gray-800 dark:text-white resize-none"
                 />
               </div>
 
               <div>
-                <h4 className="font-semibold mb-3">Select Delivery Person</h4>
-                <div className="max-h-64 overflow-y-auto space-y-2">
+                <h4 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white flex items-center gap-2">
+                  <FiUser className="w-5 h-5 text-emerald-600" />
+                  Select Delivery Agent
+                </h4>
+                <div className="max-h-80 overflow-y-auto space-y-3 pr-2">
                   {deliveryPersons.length === 0 ? (
-                    <p className="text-center text-gray-500 py-8">No agents available</p>
+                    <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-2xl">
+                      <FiUser className="mx-auto text-5xl text-gray-400 mb-4" />
+                      <p className="text-gray-500 dark:text-gray-400">No agents available</p>
+                    </div>
                   ) : (
                     deliveryPersons.map(person => (
                       <button
                         key={person.id}
                         onClick={() => assignRepair(person.id)}
                         disabled={isAssigning}
-                        className="w-full text-left p-4 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-800 rounded-xl border border-emerald-200 dark:border-emerald-700 transition-all"
+                        className="w-full text-left p-5 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30 hover:from-emerald-100 hover:to-teal-100 dark:hover:from-emerald-800/40 dark:hover:to-teal-800/40 rounded-2xl border border-emerald-200 dark:border-emerald-700 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-60"
                       >
-                        <div className="font-medium">{person.name}</div>
-                        <div className="text-sm text-emerald-600 dark:text-emerald-400">ID: {person.id}</div>
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <div className="font-bold text-lg text-gray-800 dark:text-white">{person.name}</div>
+                            <div className="text-sm text-emerald-600 dark:text-emerald-400 mt-1">ID: {person.id}</div>
+                          </div>
+                          <FiChevronRight className="w-6 h-6 text-emerald-600" />
+                        </div>
                       </button>
                     ))
                   )}
@@ -381,9 +509,9 @@ const RepairsForAssignment = ({ darkMode }) => {
               </div>
 
               {isAssigning && (
-                <div className="flex items-center justify-center gap-3 text-emerald-600">
-                  <div className="w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-                  <span>Assigning repair...</span>
+                <div className="flex items-center justify-center gap-4 py-6 text-emerald-600 text-lg font-medium">
+                  <div className="w-6 h-6 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                  <span>Assigning repair request...</span>
                 </div>
               )}
             </div>

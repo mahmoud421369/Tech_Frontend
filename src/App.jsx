@@ -7,7 +7,7 @@ import { Header, Shops, Users, Reviews, Category, Deliveries, Assigners, AdminOf
 import  Dashboard  from './Admin/Dashboard';
 import { AssignerDashboard, DeliveryPersons, AssignerProfile, AssignedOrders, AssignedRepairs, AssignmentLogs, ReassignRepairs, ReassignOrders, OrdersForAssignment, RepairsForAssignment } from './Assigner';
 import { DeliveryDashboard, DeliveryProfile, MyDeliveries, MyRepairs, AvailableOrders, AvailableRepairs } from './Delivery';
-import { ShopHeader, ShopDashboard, RepairRequests, Products, Transactions, Support, ShopOffers, ShopProfile, ShopSettings, Inventory, Chat, Orders, ShopNotifications, Subscriptions } from './Shop';
+import { ShopHeader, ShopDashboard, RepairRequests, Products, Transactions, ShopOffers, ShopProfile, Inventory, Chat, Orders, ShopNotifications, Subscriptions } from './Shop';
 import { useAuth } from './context/AuthContext';
 import Shop from './User/Shop';
 

@@ -19,6 +19,10 @@ const DeliveryPersons = ({ darkMode }) => {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const itemsPerPage = 6;
 
+useEffect(() => {
+    document.title = "Assigner - Deliveries";
+
+},[]);
 
   useEffect(() => {
     const timer = setTimeout(() => {

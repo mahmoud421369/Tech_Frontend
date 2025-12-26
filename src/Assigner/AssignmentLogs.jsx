@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FiClipboard, FiUser, FiMapPin, FiClock, FiPackage,
-  FiTool, FiChevronLeft, FiChevronRight
+  FiTool, FiChevronLeft, FiChevronRight, FiHome, FiPhone, FiStore,
+  FiCheck
 } from 'react-icons/fi';
 import { FaStore } from 'react-icons/fa';
 import Swal from 'sweetalert2';
@@ -17,6 +18,11 @@ const AssignmentLogs = ({ darkMode }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
+useEffect(() => {
+    document.title = "Assigner - Assignment Logs";
+
+},[]);
+
   const fetchLogs = useCallback(async () => {
     if (!token) return navigate('/login');
 
@@ -29,7 +35,6 @@ const AssignmentLogs = ({ darkMode }) => {
       const data = (res.data.content || res.data || []).sort((a, b) => 
         new Date(b.createdAt) - new Date(a.createdAt)
       );
-
       setLogs(data);
     } catch (err) {
       if (err.response?.status === 401) {
@@ -80,11 +85,16 @@ const AssignmentLogs = ({ darkMode }) => {
     minute: '2-digit'
   }) : 'N/A';
 
+  const formatAddress = (addr) => {
+    if (!addr) return 'N/A';
+    const parts = [addr.building, addr.street, addr.city, addr.state].filter(Boolean).join(', ');
+    return addr.notes ? `${parts} (${addr.notes})` : parts || 'N/A';
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-950 pt-6 lg:pl-72 transition-all duration-500">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
-        
         <div className="mb-12 text-center lg:text-left">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-800 dark:text-white flex items-center gap-5 justify-center lg:justify-start">
             <div className="p-5 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl text-white shadow-2xl">
@@ -97,7 +107,31 @@ const AssignmentLogs = ({ darkMode }) => {
           </p>
         </div>
 
-      
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          {[
+            { label: 'Total Assignments', value: logs.length, color: 'emerald', icon: FiClipboard },
+            { label: 'Orders', value: logs.filter(l => l.assignmentType === 'ORDER').length, color: 'blue', icon: FiPackage },
+            { label: 'Repairs', value: logs.filter(l => l.assignmentType === 'REPAIR').length, color: 'purple', icon: FiTool },
+            { label: 'Completed', value: logs.filter(l => l.status === 'COMPLETED').length, color: 'green', icon: FiCheck },
+          ].map((stat, index) => (
+            <div
+              key={index}
+              className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800 flex items-center justify-between hover:shadow-xl transition-shadow"
+            >
+              <div className="text-left">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
+                <p className={`text-3xl font-bold mt-2 text-${stat.color}-600 dark:text-${stat.color}-400`}>
+                  {stat.value}
+                </p>
+              </div>
+              <div className={`p-4 rounded-full bg-${stat.color}-100 dark:bg-${stat.color}-900/30`}>
+                <stat.icon className={`w-8 h-8 text-${stat.color}-600 dark:text-${stat.color}-400`} />
+              </div>
+            </div>
+          ))}
+        </div>
+
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
@@ -126,26 +160,24 @@ const AssignmentLogs = ({ darkMode }) => {
           </div>
         ) : (
           <>
-           
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
               {currentLogs.map((log) => (
                 <div
                   key={log.id}
                   className="group bg-white dark:bg-gray-900 rounded-3xl shadow-xl hover:shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-all duration-300 hover:-translate-y-3"
                 >
-                 
                   <div className={`h-2 bg-gradient-to-r ${getStatusGradient(log.status)}`} />
 
                   <div className="p-7">
                     <div className="flex items-center justify-between mb-5">
                       <div className="flex items-center gap-3">
                         {log.assignmentType === 'ORDER' ? (
-                          <div className="p-3 bg-emerald-100 dark:bg-emerald-900/40 rounded-2xl">
-                            <FiPackage className="text-emerald-600 dark:text-emerald-400" size={20} />
+                          <div className="p-3 bg-blue-100 dark:bg-blue-900/40 rounded-2xl">
+                            <FiPackage className="text-blue-600 dark:text-blue-400" size={20} />
                           </div>
                         ) : (
-                          <div className="p-3 bg-teal-100 dark:bg-teal-900/40 rounded-2xl">
-                            <FiTool className="text-teal-600 dark:text-teal-400" size={20} />
+                          <div className="p-3 bg-purple-100 dark:bg-purple-900/40 rounded-2xl">
+                            <FiTool className="text-purple-600 dark:text-purple-400" size={20} />
                           </div>
                         )}
                         <div>
@@ -162,7 +194,7 @@ const AssignmentLogs = ({ darkMode }) => {
                       </div>
                     </div>
 
-                    <div className="space-y-3 text-sm">
+                    <div className="space-y-4 text-sm">
                       <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
                         <FiUser className="text-emerald-600" size={16} />
                         <span><strong>Assigner:</strong> {log.assignerName || 'You'}</span>
@@ -170,36 +202,53 @@ const AssignmentLogs = ({ darkMode }) => {
 
                       <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
                         <FiUser className="text-teal-600" size={16} />
-                        <span><strong>Agent ID:</strong> {log.deliveryId}</span>
+                        <span><strong>Delivery Agent ID:</strong> {log.deliveryId}</span>
                       </div>
 
                       {log.userName && (
                         <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
                           <FiUser className="text-emerald-500" size={16} />
-                          <span>{log.userName}</span>
+                          <span><strong>Customer:</strong> {log.userName}</span>
+                        </div>
+                      )}
+
+                      {log.userPhone && (
+                        <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
+                          <FiPhone className="text-emerald-500" size={16} />
+                          <span>{log.userPhone}</span>
                         </div>
                       )}
 
                       {log.shopName && (
                         <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
                           <FaStore className="text-teal-600" size={16} />
-                          <span>{log.shopName}</span>
+                          <span><strong>Shop:</strong> {log.shopName}</span>
                         </div>
                       )}
 
-                      <div className="pt-3 border-t border-gray-200 dark:border-gray-800">
-                        <span className={`inline-block px-5 py-2 rounded-full text-white font-bold text-sm shadow-lg bg-gradient-to-r ${getStatusGradient(log.status)}`}>
-                          {log.status?.replace(/_/g, ' ') || 'UNKNOWN'}
-                        </span>
-                      </div>
+                      {log.userAddress && (
+                        <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
+                          <FiHome className="text-emerald-500" size={16} />
+                          <span className="truncate">{formatAddress(log.userAddress)}</span>
+                        </div>
+                      )}
 
-                      <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 pt-3">
+                      {/* <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
+                        <span className={`inline-block px-5 py-2 rounded-full text-white font-bold text-sm shadow-lg bg-gradient-to-r ${getStatusGradient(log.status)}`}>
+                          {log.status || 'UNKNOWN'}
+                        </span>
+                      </div> */}
+
+                      <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 pt-4">
                         <div className="flex items-center gap-2">
                           <FiClock size={14} />
                           <span>{formatDate(log.createdAt)}</span>
                         </div>
                         {log.updatedAt && log.updatedAt !== log.createdAt && (
-                          <span className="text-xs">Updated</span>
+                          <div className="flex items-center gap-2">
+                            <FiClock size={14} className="text-amber-600" />
+                            <span>{formatDate(log.updatedAt)}</span>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -208,37 +257,41 @@ const AssignmentLogs = ({ darkMode }) => {
               ))}
             </div>
 
-            
+            {/* Enhanced Pagination */}
             {totalPages > 1 && (
-              <div className="flex justify-center gap-3 flex-wrap">
+              <div className="flex justify-center items-center gap-4 mt-12">
                 <button
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="px-6 py-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-50 flex items-center gap-2 font-medium"
+                  className="px-6 py-4 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-2xl hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 font-medium shadow-lg transition-all"
                 >
-                  <FiChevronLeft /> Previous
+                  <FiChevronLeft size={20} />
+                  Previous
                 </button>
 
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`w-12 h-12 rounded-xl font-bold transition-all ${
-                      currentPage === page
-                        ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg'
-                        : 'bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30'
-                    }`}
-                  >
-                    {page}
-                  </button>
-                ))}
+                <div className="flex gap-2">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-14 h-14 rounded-2xl font-bold text-lg transition-all shadow-md ${
+                        currentPage === page
+                          ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white scale-110'
+                          : 'bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
 
                 <button
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className="px-6 py-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-50 flex items-center gap-2 font-medium"
+                  className="px-6 py-4 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-2xl hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 font-medium shadow-lg transition-all"
                 >
-                  Next <FiChevronRight />
+                  Next
+                  <FiChevronRight size={20} />
                 </button>
               </div>
             )}

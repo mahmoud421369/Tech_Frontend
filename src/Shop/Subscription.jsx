@@ -40,6 +40,11 @@ const Subscriptions = () => {
     });
   };
 
+useEffect(() => {
+document.title = "إدارة الاشتراكات";
+
+});
+
   const createPayload = useCallback(() => ({
     months: duration,
     type: type.toUpperCase(),

@@ -5,11 +5,18 @@ import {
   FiSearch,
   FiXCircle,
   FiCopy,
-  FiChevronLeft,
-  FiChevronRight,
   FiCheckCircle,
   FiInfo,
-  FiList,
+  FiUser,
+  FiMail,
+  FiPhone,
+  FiMapPin,
+  FiUserCheck,
+  FiUserX,
+  FiClock,
+  FiPackage,
+  FiTool,
+  FiCheckSquare,
   FiTrash2,
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
@@ -25,24 +32,19 @@ const LoadingSpinner = () => (
 
 const DeliveriesSkeleton = ({ darkMode }) => (
   <div className="animate-pulse p-6">
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-      {[...Array(3)].map((_, idx) => (
+    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8">
+      {[...Array(4)].map((_, idx) => (
         <div
           key={idx}
-          className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700"
+          className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700"
         >
           <div className="h-6 w-1/2 bg-gray-300 dark:bg-gray-600 rounded mb-2"></div>
           <div className="h-8 w-1/4 bg-gray-300 dark:bg-gray-600 rounded"></div>
         </div>
       ))}
     </div>
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-6 border border-gray-200 dark:border-gray-700">
       <div className="h-10 w-full md:w-80 bg-gray-300 dark:bg-gray-600 rounded-lg mb-6"></div>
-      <div className="flex flex-wrap gap-3 mb-6">
-        {[...Array(4)].map((_, idx) => (
-          <div key={idx} className="h-10 w-28 bg-gray-300 dark:bg-gray-600 rounded-lg"></div>
-        ))}
-      </div>
       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
         <thead className="bg-gray-100 dark:bg-gray-700">
           <tr>
@@ -66,7 +68,6 @@ const DeliveriesSkeleton = ({ darkMode }) => (
                 <div className="flex justify-center gap-2">
                   <div className="h-8 w-16 bg-gray-300 dark:bg-gray-600 rounded"></div>
                   <div className="h-8 w-16 bg-gray-300 dark:bg-gray-600 rounded"></div>
-                  <div className="h-8 w-16 bg-gray-300 dark:bg-gray-600 rounded"></div>
                 </div>
               </td>
             </tr>
@@ -77,134 +78,19 @@ const DeliveriesSkeleton = ({ darkMode }) => (
   </div>
 );
 
-const PaginatedTable = ({
-  data,
-  page,
-  setPage,
-  pageSize,
-  renderRow,
-  emptyMessage,
-  darkMode,
-}) => {
-  const totalPages = Math.ceil(data.length / pageSize);
-  const paginatedData = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return data.slice(start, start + pageSize);
-  }, [data, page, pageSize]);
-
-  const getPageNumbers = () => {
-    const pages = [];
-    const maxVisible = 5;
-    if (totalPages <= maxVisible) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i);
-    } else {
-      let start = Math.max(1, page - 2);
-      let end = Math.min(totalPages, start + maxVisible - 1);
-      if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1);
-      if (start > 1) { pages.push(1); if (start > 2) pages.push('...'); }
-      for (let i = start; i <= end; i++) pages.push(i);
-      if (end < totalPages) { if (end < totalPages - 1) pages.push('...'); pages.push(totalPages); }
-    }
-    return pages;
-  };
-
-  return (
-    <>
-      <style>
-        {`
-          .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
-          .custom-scrollbar::-webkit-scrollbar-track { background: ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}; border-radius: 10px; }
-          .custom-scrollbar::-webkit-scrollbar-thumb { background: ${darkMode ? '#34d399' : '#10b981'}; border-radius: 10px; }
-          .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: ${darkMode ? '#6ee7b7' : '#059669'}; }
-        `}
-      </style>
-
-      <div className="overflow-x-auto custom-scrollbar">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-gray-100 dark:bg-gray-700">
-            <tr>
-              {['ID', 'Name', 'Email', 'Phone', 'Status', 'Completed', 'Actions'].map((col, i) => (
-                <th
-                  key={i}
-                  className="px-6 py-3 text-center text-sm font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300"
-                >
-                  {col}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 text-gray-900 dark:text-gray-100">
-            {paginatedData.length > 0 ? (
-              paginatedData.map(renderRow)
-            ) : (
-              <tr>
-                <td colSpan={7} className="py-12 text-center text-gray-500 dark:text-gray-400">
-                  <div className="flex flex-col items-center gap-3">
-                    <FiTruck className="text-4xl text-gray-400 dark:text-gray-500" />
-                    <p className="text-lg font-medium">{emptyMessage}</p>
-                  </div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-
-        {totalPages > 1 && (
-          <div className="flex justify-center items-center space-x-2 mt-8">
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
-            >
-              <FiChevronLeft /> Prev
-            </button>
-            {getPageNumbers().map((num, i) => (
-              <button
-                key={i}
-                onClick={() => typeof num === 'number' && setPage(num)}
-                disabled={num === '...'}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  num === '...'
-                    ? 'cursor-default text-gray-500 dark:text-gray-400'
-                    : page === num
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-800'
-                }`}
-              >
-                {num}
-              </button>
-            ))}
-            <button
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
-            >
-              Next <FiChevronRight />
-            </button>
-          </div>
-        )}
-      </div>
-    </>
-  );
-};
-
 const Deliveries = ({ darkMode }) => {
   const navigate = useNavigate();
   const token = localStorage.getItem('authToken');
-  const [allDeliveries, setAllDeliveries] = useState([]); 
+  const [allDeliveries, setAllDeliveries] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedDelivery, setSelectedDelivery] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const pageSize = 5;
 
-  
   const sanitizedSearchTerm = useMemo(() => {
     return DOMPurify.sanitize(searchTerm.trim().toLowerCase());
   }, [searchTerm]);
 
-  
   const fetchAllDeliveries = useCallback(async () => {
     if (!token) {
       Swal.fire({ title: 'Error', text: 'Please log in.', icon: 'error' });
@@ -233,23 +119,19 @@ const Deliveries = ({ darkMode }) => {
     }
   }, [token, navigate]);
 
-  
   useEffect(() => {
     fetchAllDeliveries();
   }, [fetchAllDeliveries]);
 
- 
   const filteredDeliveries = useMemo(() => {
     let filtered = allDeliveries;
 
-  
     if (filterStatus !== 'all') {
       filtered = filtered.filter(d => 
         d.status?.toLowerCase() === filterStatus.toLowerCase()
       );
     }
 
- 
     if (sanitizedSearchTerm) {
       filtered = filtered.filter(d =>
         (d.name?.toLowerCase() || '').includes(sanitizedSearchTerm) ||
@@ -314,7 +196,6 @@ const Deliveries = ({ darkMode }) => {
         showConfirmButton: false
       });
 
-     
       fetchAllDeliveries();
     } catch (error) {
       Swal.fire({ title: 'Error', text: `Failed to ${actionText.toLowerCase()} delivery.`, icon: 'error' });
@@ -330,19 +211,26 @@ const Deliveries = ({ darkMode }) => {
 
   const getStatusBadge = (status) => {
     const map = {
-      APPROVED: { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-400', label: 'Approved' },
-      PENDING: { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-700 dark:text-yellow-400', label: 'Pending' },
-      SUSPENDED: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400', label: 'Suspended' },
+      APPROVED: { bg: 'bg-green-100 dark:bg-green-950', text: 'text-green-800 dark:text-green-400' },
+      PENDING: { bg: 'bg-yellow-100 dark:bg-yellow-950', text: 'text-yellow-800 dark:text-yellow-400' },
+      SUSPENDED: { bg: 'bg-red-100 dark:bg-red-950', text: 'text-red-800 dark:text-red-400' },
     };
     const s = map[status] || map.PENDING;
-    return <span className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full ${s.bg} ${s.text}`}>{s.label}</span>;
+    return <span className={`px-3 py-1 rounded-full text-xs font-bold ${s.bg} ${s.text}`}>{status || 'PENDING'}</span>;
   };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-16 ml-3">
+      <style>
+        {`
+          .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+          .custom-scrollbar::-webkit-scrollbar-track { background: ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}; border-radius: 10px; }
+          .custom-scrollbar::-webkit-scrollbar-thumb { background: ${darkMode ? '#34d399' : '#10b981'}; border-radius: 10px; }
+          .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: ${darkMode ? '#6ee7b7' : '#059669'}; }
+        `}
+      </style>
       <div className="max-w-7xl mx-auto space-y-8">
 
-        
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
           <h1 className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-3">
             <FiTruck /> Delivery Management
@@ -353,167 +241,227 @@ const Deliveries = ({ darkMode }) => {
         {loading ? (
           <DeliveriesSkeleton darkMode={darkMode} />
         ) : (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-
-            
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {[
-                  { label: 'Total Deliveries', value: stats.total, color: 'emerald' },
-                  { label: 'Pending', value: stats.pending, color: 'yellow' },
-                  { label: 'Approved', value: stats.approved, color: 'green' },
-                ].map((stat, i) => (
-                  <div key={i} className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg border border-gray-200 dark:border-gray-600 text-center">
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[
+                { label: 'Total Delivery Personnel', value: stats.total, color: 'emerald', icon: FiTruck },
+                { label: 'Active (Approved)', value: stats.approved, color: 'green', icon: FiUserCheck },
+                { label: 'Pending Approval', value: stats.pending, color: 'amber', icon: FiClock },
+                { label: 'Suspended', value: stats.suspended, color: 'red', icon: FiUserX },
+              ].map((stat, index) => (
+                <div
+                  key={index}
+                  className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-center justify-between hover:shadow-md transition-shadow"
+                >
+                  <div className="text-left">
                     <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{stat.value}</p>
+                    <p className={`text-3xl font-bold mt-2 text-${stat.color}-600 dark:text-${stat.color}-400`}>
+                      {stat.value}
+                    </p>
                   </div>
-                ))}
-              </div>
-            </div>
-
-         
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div className="relative max-w-md w-full">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
-                  <div className="relative">
-                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                    <input
-                      type="text"
-                      placeholder="Search by name, email, or phone..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                    />
-                    {searchTerm && (
-                      <button
-                        onClick={() => setSearchTerm('')}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-red-600 transition"
-                      >
-                        <FiXCircle />
-                      </button>
-                    )}
+                  <div className={`p-4 rounded-full bg-${stat.color}-100 dark:bg-${stat.color}-900/30`}>
+                    <stat.icon className={`w-8 h-8 text-${stat.color}-600 dark:text-${stat.color}-400`} />
                   </div>
                 </div>
+              ))}
+            </div>
 
-                <div className="flex flex-wrap gap-2">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-6 border border-gray-200 dark:border-gray-700">
+              <div className="flex flex-col md:flex-row gap-4 items-center mb-6">
+                <div className="flex-1 relative">
+                  <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <input
+                    type="text"
+                    placeholder="Search by name, email, or phone..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-10 py-3 rounded-lg dark:text-white border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  {searchTerm && (
+                    <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                      <FiXCircle size={20} />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap gap-3">
                   {[
-                    { key: 'all', label: 'All', icon: FiList },
-                    { key: 'PENDING', label: 'Pending', icon: FiXCircle },
-                    { key: 'APPROVED', label: 'Approved', icon: FiCheckCircle },
-                    { key: 'SUSPENDED', label: 'Suspended', icon: FiTrash2 },
-                  ].map(({ key, label, icon: Icon }) => (
+                    { key: 'all', label: 'All' },
+                    { key: 'pending', label: 'Pending' },
+                    { key: 'approved', label: 'Approved' },
+                    { key: 'suspended', label: 'Suspended' },
+                  ].map(({ key, label }) => (
                     <button
                       key={key}
-                      onClick={() => {
-                        setFilterStatus(key.toLowerCase());
-                        setPage(1);
-                      }}
-                      className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-all ${
-                        filterStatus === key.toLowerCase()
+                      onClick={() => setFilterStatus(key)}
+                      className={`px-5 py-3 rounded-lg font-medium transition ${
+                        filterStatus === key
                           ? 'bg-emerald-600 text-white'
-                          : 'bg-gray-100 dark:bg-gray-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-800'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
-                      <Icon className="w-4 h-4" /> {label}
+                      {label}
                     </button>
                   ))}
                 </div>
               </div>
-            </div>
 
-            
-            <div className="p-6">
-              <PaginatedTable
-                data={filteredDeliveries}
-                page={page}
-                setPage={setPage}
-                pageSize={pageSize}
-                darkMode={darkMode}
-                renderRow={(d) => (
-                  <tr key={d.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    <td className="px-6 py-4 text-sm font-medium text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <span className="truncate max-w-32">{d.id}</span>
-                        <button onClick={() => copyToClipboard(d.id)} className="text-gray-500 hover:text-emerald-600">
-                          <FiCopy className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(d.name || 'N/A')}</td>
-                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(d.email || 'N/A')}</td>
-                    <td className="px-6 py-4 text-sm">0{DOMPurify.sanitize(d.phone || 'N/A')}</td>
-                    <td className="px-6 py-4 text-center">{getStatusBadge(d.status)}</td>
-                    <td className="px-6 py-4 text-center">{d.totalCompletedDeliveries || 0}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex justify-center gap-2">
-                        <button
-                          onClick={() => fetchDeliveryById(d.id)}
-                          className="px-3 py-1.5 text-xs bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded hover:bg-emerald-200 dark:hover:bg-emerald-800 transition"
-                        >
-                          View
-                        </button>
-                        {d.status !== 'APPROVED' && (
-                          <button
-                            onClick={() => updateStatus(d.id, 'approve')}
-                            className="px-3 py-1.5 text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded hover:bg-green-200 dark:hover:bg-green-800 transition"
-                          >
-                            Approve
+              <div className="overflow-x-auto custom-scrollbar">
+                <table className="min-w-full">
+                  <thead className="bg-gray-100 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">ID</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Name</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Email</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Phone</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Completed</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                    {filteredDeliveries.map(d => (
+                      <tr key={d.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                        <td className="px-6 py-4 text-xs dark:text-white font-mono">
+                          {d.id}
+                          <button onClick={() => copyToClipboard(d.id)} className="ml-2 text-emerald-600 hover:text-emerald-800">
+                            <FiCopy className="inline" size={14} />
                           </button>
-                        )}
-                        {d.status !== 'SUSPENDED' && (
-                          <button
-                            onClick={() => updateStatus(d.id, 'suspend')}
-                            className="px-3 py-1.5 text-xs bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 rounded hover:bg-amber-200 dark:hover:bg-amber-800 transition"
-                          >
-                            Suspend
-                          </button>
-                        )}
-                        <button
-                          onClick={() => updateStatus(d.id, 'delete')}
-                          className="px-3 py-1.5 text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-800 transition"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-                emptyMessage={sanitizedSearchTerm || filterStatus !== 'all' 
-                  ? 'No deliveries match your filters' 
-                  : 'No deliveries available'}
-              />
+                        </td>
+                        <td className="px-6 py-4 text-md font-semibold dark:text-teal-300">{DOMPurify.sanitize(d.name || 'N/A')}</td>
+                        <td className="px-6 py-4 text-sm dark:text-gray-300">{DOMPurify.sanitize(d.email || 'N/A')}</td>
+                        <td className="px-6 py-4 text-sm dark:text-gray-300">0{DOMPurify.sanitize(d.phone || 'N/A')}</td>
+                        <td className="px-6 py-4">{getStatusBadge(d.status)}</td>
+                        <td className="px-6 py-4 text-center text-sm font-medium">{d.totalCompletedDeliveries || 0}</td>
+                        <td className="px-6 py-4 text-sm">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => fetchDeliveryById(d.id)}
+                              className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-xs px-3 py-1.5 bg-blue-50 dark:bg-blue-950 rounded-lg font-medium border border-blue-200 dark:border-blue-800"
+                            >
+                              <FiInfo size={16} /> View
+                            </button>
+                            {d.status !== 'APPROVED' && (
+                              <button
+                                onClick={() => updateStatus(d.id, 'approve')}
+                                className="text-green-600 hover:text-green-800 flex items-center gap-1 text-xs px-3 py-1.5 bg-green-50 dark:bg-green-950 rounded-lg font-medium border border-green-200 dark:border-green-800"
+                              >
+                                <FiCheckCircle size={16} /> Approve
+                              </button>
+                            )}
+                            {d.status !== 'SUSPENDED' && (
+                              <button
+                                onClick={() => updateStatus(d.id, 'suspend')}
+                                className="text-amber-600 hover:text-amber-800 flex items-center gap-1 text-xs px-3 py-1.5 bg-amber-50 dark:bg-amber-950 rounded-lg font-medium border border-amber-200 dark:border-amber-800"
+                              >
+                                <FiUserX size={16} /> Suspend
+                              </button>
+                            )}
+                            <button
+                              onClick={() => updateStatus(d.id, 'delete')}
+                              className="text-red-600 hover:text-red-800 flex items-center gap-1 text-xs px-3 py-1.5 bg-red-50 dark:bg-red-950 rounded-lg font-medium border border-red-200 dark:border-red-800"
+                            >
+                              <FiTrash2 size={16} /> Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {filteredDeliveries.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="text-center py-12 text-gray-500 text-lg">
+                          No delivery personnel found
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          </>
         )}
 
-      
         {selectedDelivery && (
-          <Modal onClose={() => setSelectedDelivery(null)} title="Delivery Details" darkMode={darkMode}>
-            <div className="space-y-5">
-              <div className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-semibold text-gray-900 dark:text-gray-100">Delivery Information</h4>
-                  <button onClick={() => copyToClipboard(selectedDelivery.id)} className="text-gray-500 hover:text-emerald-600">
-                    <FiCopy className="w-4 h-4" />
+          <Modal onClose={() => setSelectedDelivery(null)} title="Delivery Personnel Details" darkMode={darkMode}>
+            <div className="space-y-6">
+              <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-xl">
+                <div className="flex items-center justify-between mb-6">
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Personnel Information</h4>
+                  <button onClick={() => copyToClipboard(selectedDelivery.id)} className="text-gray-500 hover:text-emerald-600 transition">
+                    <FiCopy className="w-5 h-5" />
                   </button>
                 </div>
-                <div className="space-y-3 text-sm">
-                  <p><strong>ID:</strong> {selectedDelivery.id}</p>
-                  <p><strong>Name:</strong> {DOMPurify.sanitize(selectedDelivery.name || 'N/A')}</p>
-                  <p><strong>Email:</strong> {DOMPurify.sanitize(selectedDelivery.email || 'N/A')}</p>
-                  <p><strong>Phone:</strong> 0{DOMPurify.sanitize(selectedDelivery.phone || 'N/A')}</p>
-                  <p><strong>Address:</strong> {DOMPurify.sanitize(selectedDelivery.address || 'N/A')}</p>
-                  <p><strong>Status:</strong> {getStatusBadge(selectedDelivery.status)}</p>
-                  <p><strong>Active Orders:</strong> {selectedDelivery.activeOrderDeliveries || 0}</p>
-                  <p><strong>Active Repairs:</strong> {selectedDelivery.activeRepairDeliveries || 0}</p>
-                  <p><strong>Completed:</strong> {selectedDelivery.totalCompletedDeliveries || 0}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-sm">
+                  <div className="flex items-center gap-3">
+                    <FiUser className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">Name</p>
+                      <p className="font-medium">{DOMPurify.sanitize(selectedDelivery.name || 'N/A')}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <FiMail className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">Email</p>
+                      <p className="font-medium">{DOMPurify.sanitize(selectedDelivery.email || 'N/A')}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <FiPhone className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">Phone</p>
+                      <p className="font-medium">0{DOMPurify.sanitize(selectedDelivery.phone || 'N/A')}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <FiMapPin className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">Address</p>
+                      <p className="font-medium">{DOMPurify.sanitize(selectedDelivery.address || 'N/A')}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <FiInfo className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">Status</p>
+                      <div className="mt-1">{getStatusBadge(selectedDelivery.status)}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <FiPackage className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">Active Orders</p>
+                      <p className="font-medium text-lg">{selectedDelivery.activeOrderDeliveries || 0}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <FiTool className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">Active Repairs</p>
+                      <p className="font-medium text-lg">{selectedDelivery.activeRepairDeliveries || 0}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <FiCheckSquare className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">Total Completed</p>
+                      <p className="font-medium text-lg">{selectedDelivery.totalCompletedDeliveries || 0}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
+
               <div className="flex justify-end">
                 <button
                   onClick={() => setSelectedDelivery(null)}
-                  className="px-5 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
+                  className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-medium"
                 >
                   Close
                 </button>

@@ -7,6 +7,8 @@ import {
   FiCopy,
   FiSearch,
   FiXCircle,
+  FiClock,
+  FiCheckCircle,
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import DOMPurify from 'dompurify';
@@ -253,19 +255,30 @@ const RepairRequestsPage = ({ darkMode }) => {
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
 
-            {/* Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 p-6 border-b border-gray-200 dark:border-gray-700">
-              {[
-                { label: 'Total Repairs', value: stats.totalRepairs },
-                { label: 'Pending', value: stats.pendingRepairs },
-                { label: 'Completed', value: stats.completedRepairs },
-              ].map((stat, i) => (
-                <div key={i} className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg border border-gray-200 dark:border-gray-600 text-center">
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
-                  <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{stat.value}</p>
-                </div>
-              ))}
-            </div>
+  {[
+    { label: 'Total Repairs', value: stats.totalRepairs, color: 'emerald', icon: FiTool },
+    { label: 'Pending', value: stats.pendingRepairs, color: 'amber', icon: FiClock },
+    { label: 'Completed', value: stats.completedRepairs, color: 'green', icon: FiCheckCircle },
+  ].map((stat, i) => (
+    <div
+      key={i}
+      className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg border border-gray-200 dark:border-gray-600 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow"
+    >
+      <div className="text-left">
+        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
+        <p className={`text-3xl font-bold mt-2 text-${stat.color}-600 dark:text-${stat.color}-500`}>
+          {stat.value}
+        </p>
+      </div>
+
+  
+      <div className={`p-4 rounded-full bg-${stat.color}-100 dark:bg-${stat.color}-900/30`}>
+        <stat.icon className={`w-8 h-8 text-${stat.color}-600 dark:text-${stat.color}-400`} />
+      </div>
+    </div>
+  ))}
+</div>
 
             {/* Search Bar Only */}
             {/* <div className="p-6 border-b border-gray-200 dark:border-gray-700">

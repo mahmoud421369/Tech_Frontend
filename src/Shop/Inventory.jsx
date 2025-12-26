@@ -52,6 +52,12 @@ const Inventory = () => {
 
   const API_BASE = '/api/shop/inventory';
 
+
+useEffect(() => {
+document.title = "إدارة الجرد";
+
+});
+
   const fetchInventory = useCallback(async () => {
     abortCtrl.current.abort();
     abortCtrl.current = new AbortController();

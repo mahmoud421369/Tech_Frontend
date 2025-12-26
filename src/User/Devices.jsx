@@ -1,4 +1,4 @@
-// src/pages/Products.jsx
+
 import React, {
   useState,
   useEffect,
@@ -30,9 +30,7 @@ import api from '../api';
 import Swal from 'sweetalert2';
 import debounce from 'lodash/debounce';
 
-// ---------------------------------------------------------------------
-// Memoized ProductCard – no unnecessary re‑renders
-// ---------------------------------------------------------------------
+
 const ProductCard = memo(({ product, darkMode, onAddToCart }) => {
   const [imgLoaded, setImgLoaded] = useState(false);
 
@@ -125,13 +123,9 @@ const ProductCard = memo(({ product, darkMode, onAddToCart }) => {
 });
 ProductCard.displayName = 'ProductCard';
 
-// ---------------------------------------------------------------------
-// Main Component – MONOTREE STYLE
-// ---------------------------------------------------------------------
+
 const Products = ({ darkMode }) => {
-  // -----------------------------------------------------------------
-  // State
-  // -----------------------------------------------------------------
+
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState(['all']);
   const [searchTerm, setSearchTerm] = useState('');
@@ -146,9 +140,7 @@ const Products = ({ darkMode }) => {
 
   const pageSize = 12;
 
-  // -----------------------------------------------------------------
-  // AbortController
-  // -----------------------------------------------------------------
+ 
   const abortCtrlRef = useRef(new AbortController());
 
   // -----------------------------------------------------------------

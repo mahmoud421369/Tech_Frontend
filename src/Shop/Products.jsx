@@ -43,6 +43,11 @@ const Products = () => {
   const conditions = ['NEW', 'USED', 'REFURBISHED'];
   const conditionTranslations = { NEW: 'جديد', USED: 'مستعمل', REFURBISHED: 'مجدّد' };
 
+useEffect(() => {
+document.title = "إدارة المنتجات";
+
+});
+
   const stats = useMemo(() => {
     const total = products.length;
     const inStock = products.filter(p => p.stock > 0).length;

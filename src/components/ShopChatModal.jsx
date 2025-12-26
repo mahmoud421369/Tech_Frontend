@@ -88,7 +88,7 @@ const ShopChatModal = memo(({ open, onClose }) => {
       const sorted = formattedMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
       setMessages(sorted);
 
-      
+     
       await api.put(`/api/chats/${activeSession.userId}/shop/${activeSession.shopId}/mark-read`);
       fetchTotalUnreadCount();
     } catch (err) {
@@ -99,14 +99,16 @@ const ShopChatModal = memo(({ open, onClose }) => {
     }
   }, [activeSession, shopProfile.email]);
 
-  const closeChatSession = async (userId, shopId) => {
+  const closeChatSession = async () => {
+    if (!activeSession) return;
+
     try {
-      await api.post(`/api/chats/${userId}/shop/${shopId}/close`);
+      await api.delete(`/api/chats/${activeSession.userId}/shop/${activeSession.shopId}/close`);
       Swal.fire('تم', 'تم إغلاق المحادثة', 'success');
-      
+
       setMessages([]);
       setActiveSession(null);
-      setSessions(prev => prev.filter(s => !(s.userId === userId && s.shopId === shopId)));
+      setSessions(prev => prev.filter(s => s.id !== activeSession.id));
     } catch (err) {
       Swal.fire('خطأ', 'فشل إغلاق المحادثة', 'error');
     }
@@ -145,7 +147,6 @@ const ShopChatModal = memo(({ open, onClose }) => {
     };
   }, [open, fetchSessions]);
 
-  
   useEffect(() => {
     if (activeSession) {
       fetchMessages();
@@ -162,14 +163,6 @@ const ShopChatModal = memo(({ open, onClose }) => {
         setIsTyping(true);
         clearTimeout(typingTimeoutRef.current);
         typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 3000);
-        return;
-      }
-
-      if (body.type === "CHAT" && body.action === "CLOSED") {
-        Swal.fire('تم الإغلاق', 'أنهى المستخدم المحادثة', 'info');
-        setMessages([]);
-        setActiveSession(null);
-        setSessions(prev => prev.filter(s => s.id !== activeSession.id));
         return;
       }
 
@@ -194,17 +187,13 @@ const ShopChatModal = memo(({ open, onClose }) => {
 
     const topic = `/topic/chat/${activeSession.userId}/${activeSession.shopId}`;
     const subscription = stompClient.subscribe(topic, handleIncomingMessage);
-
     subscriptionRef.current = subscription;
-
-   
-    fetchMessages();
 
     return () => {
       if (subscriptionRef.current) subscriptionRef.current.unsubscribe();
       clearTimeout(typingTimeoutRef.current);
     };
-  }, [stompClient, isConnected, activeSession, fetchMessages]);
+  }, [stompClient, isConnected, activeSession, shopProfile.email]);
 
   const sendTypingIndicator = useCallback(() => {
     if (!stompClient || !isConnected || !activeSession || !input.trim()) return;
@@ -225,16 +214,22 @@ const ShopChatModal = memo(({ open, onClose }) => {
     const sanitizedInput = DOMPurify.sanitize(input.trim());
 
     stompClient.publish({
-      destination: `/app/chat/send`,
+      destination: `/app/chat/user/${activeSession.userId}/shop/${activeSession.shopId}`,
       headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` },
       body: JSON.stringify({
-        sessionId: activeSession.id,
-        content: sanitizedInput,
+        payload: sanitizedInput,
+        senderId: shopProfile.id,
+        senderType: "SHOP",
+        recipientId: activeSession.userId,
       }),
     });
 
     setInput('');
-  }, [input, activeSession, stompClient, isConnected]);
+  }, [input, activeSession, stompClient, isConnected, shopProfile.id]);
+
+
+
+
 
   const handleInputChange = (e) => {
     setInput(e.target.value);
@@ -257,7 +252,6 @@ const ShopChatModal = memo(({ open, onClose }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-5xl h-[85vh] rounded-3xl shadow-2xl flex overflow-hidden">
-      
         <div className="w-80 bg-gray-50 border-r border-gray-200 flex flex-col">
           <div className="p-4 border-b bg-white flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -317,7 +311,7 @@ const ShopChatModal = memo(({ open, onClose }) => {
           {activeSession && (
             <div className="p-3 border-t bg-gray-50">
               <button
-                onClick={() => closeChatSession(activeSession.userId, activeSession.shopId)}
+                onClick={closeChatSession}
                 className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-medium transition flex items-center justify-center gap-2"
               >
                 <FiXCircle className="text-base" />
@@ -327,7 +321,6 @@ const ShopChatModal = memo(({ open, onClose }) => {
           )}
         </div>
 
-     
         <div className="flex-1 flex flex-col bg-gray-50">
           {activeSession ? (
             <>
@@ -338,14 +331,6 @@ const ShopChatModal = memo(({ open, onClose }) => {
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-gray-900">{activeSession.userName || 'مستخدم'}</h3>
-                    <p className="text-xs text-gray-600 flex items-center gap-1">
-                      {isConnected ? (
-                        <>
-                          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                          متصل
-                        </>
-                      ) : 'غير متصل'}
-                    </p>
                   </div>
                 </div>
 

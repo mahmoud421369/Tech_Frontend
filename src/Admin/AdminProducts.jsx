@@ -10,6 +10,8 @@ import {
   FiSearch,
   FiXCircle,
   FiChevronDown,
+  FiPackage,
+  FiCheckCircle,
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import DOMPurify from 'dompurify';
@@ -390,18 +392,30 @@ const ProductsPage = ({ darkMode }) => {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
 
         
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 p-6 border-b border-gray-200 dark:border-gray-700">
-              {[
-                { label: 'Total Products', value: stats.totalProducts },
-                { label: 'In Stock', value: stats.inStockProducts },
-                { label: 'Out of Stock', value: stats.outOfStockProducts },
-              ].map((stat, i) => (
-                <div key={i} className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg border border-gray-200 dark:border-gray-600 text-center">
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
-                  <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{stat.value}</p>
-                </div>
-              ))}
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 p-6 border-b border-gray-200 dark:border-gray-700">
+  {[
+    { label: 'Total Products', value: stats.totalProducts, color: 'emerald', icon: FiPackage },
+    { label: 'In Stock', value: stats.inStockProducts, color: 'green', icon: FiCheckCircle },
+    { label: 'Out of Stock', value: stats.outOfStockProducts, color: 'red', icon: FiXCircle },
+  ].map((stat, i) => (
+    <div
+      key={i}
+      className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg border border-gray-200 dark:border-gray-600 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow"
+    >
+      <div className="text-left">
+        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
+        <p className={`text-3xl font-bold mt-2 text-${stat.color}-600 dark:text-${stat.color}-500`}>
+          {stat.value}
+        </p>
+      </div>
+
+      
+      <div className={`p-4 rounded-full bg-${stat.color}-100 dark:bg-${stat.color}-900/30`}>
+        <stat.icon className={`w-8 h-8 text-${stat.color}-600 dark:text-${stat.color}-400`} />
+      </div>
+    </div>
+  ))}
+</div>
 
            
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
@@ -497,7 +511,7 @@ const ProductsPage = ({ darkMode }) => {
                     <td className="px-6 py-4 text-sm max-w-xs truncate" title={p.name}>
                       {DOMPurify.sanitize(p.name || 'N/A')}
                     </td>
-                    <td className="px-6 py-4 text-sm">{p.price ? `${p.price} EGP` : 'N/A'}</td>
+                    <td className="px-6 py-4 text-sm text-teal-500 font-semibold">{p.price ? `${p.price} EGP` : 'N/A'}</td>
                     <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(p.condition || 'N/A')}</td>
                     <td className="px-6 py-4 text-sm text-center">
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -512,15 +526,15 @@ const ProductsPage = ({ darkMode }) => {
                       <div className="flex justify-center gap-2">
                         <button
                           onClick={() => updateProduct(p)}
-                          className="px-3 py-1.5 text-xs bg-amber-50 border border-gray-200 font-semibold dark:bg-amber-900 dark:bg-gray-950 dark:border-gray-900 text-amber-700 dark:text-amber-800 rounded   transition"
+                          className="px-3 py-1.5 text-xs flex gap-2 items-center bg-yellow-50 border border-yellow-200 font-semibold dark:bg-amber-900 dark:bg-gray-950 dark:border-gray-900 text-amber-700 dark:text-amber-800 rounded   transition "
                         >
-                          Edit
+                          <FiEdit3/>Edit
                         </button>
                         <button
                           onClick={() => deleteProduct(p.id)}
-                          className="px-3 py-1.5 text-xs bg-red-50 border border-gray-200 font-semibold dark:bg-gray-950 dark:border-gray-900 text-red-700 dark:text-red-700 rounded transition"
+                          className="px-3 py-1.5 text-xs flex gap-2 items-center bg-red-50 border border-red-200 font-semibold dark:bg-gray-950 dark:border-gray-900 text-red-700 dark:text-red-700 rounded transition"
                         >
-                          Delete
+                         <FiTrash2/> Delete
                         </button>
                       </div>
                     </td>

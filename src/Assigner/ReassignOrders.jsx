@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FiPackage, FiSearch, FiUser, FiMapPin, FiCopy,
-  FiClipboard, FiXCircle, FiChevronLeft, FiChevronRight
+  FiTruck, FiCalendar, FiXCircle, FiChevronLeft, FiChevronRight
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import api from '../api';
@@ -21,11 +21,13 @@ const ReassignOrders = ({ darkMode }) => {
   const itemsPerPage = 6;
   const [loading, setLoading] = useState(true);
 
- 
+useEffect(() => {
+    document.title = "Assigner - Reassign Orders";
+
+},[]);
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setCurrentPage(1);
-    }, 300);
+    const timer = setTimeout(() => setCurrentPage(1), 300);
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
@@ -56,15 +58,19 @@ const ReassignOrders = ({ darkMode }) => {
         api.get('/api/assigner/delivery-persons', { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
-      const currentOrders = (ordersRes.data.content || ordersRes.data || []);
+      const currentOrders = (ordersRes.data.content || ordersRes.data || []).map(order => ({
+        ...order,
+        userName: `${order.firstName || ''} ${order.lastName || ''}`.trim() || 'Unknown Customer',
+      }));
+
       const assignedOrders = (logsRes.data.content || logsRes.data || []).map(log => ({
-        id: log.orderId,
+        id: log.orderId || log.id,
         userId: log.userId,
-        userName: log.userName,
-        userAddress: log.userAddress,
+        userName: log.userName || `${log.firstName || ''} ${log.lastName || ''}`.trim(),
+        userAddress: log.userAddress || {},
         shopId: log.shopId,
         shopName: log.shopName,
-        shopAddress: log.shopAddress,
+        shopAddress: log.shopAddress || {},
         status: log.status || 'ASSIGNED',
         createdAt: log.createdAt,
         deliveryId: log.deliveryId
@@ -72,6 +78,7 @@ const ReassignOrders = ({ darkMode }) => {
 
       const merged = [...currentOrders, ...assignedOrders];
       const unique = Array.from(new Map(merged.map(o => [o.id, o])).values());
+
       setOrders(unique);
       setDeliveryPersons(deliveryRes.data.content || deliveryRes.data || []);
     } catch (err) {
@@ -102,8 +109,8 @@ const ReassignOrders = ({ darkMode }) => {
 
       Swal.fire({
         icon: 'success',
-        title: 'Reassigned!',
-        text: 'Order successfully reassigned',
+        title: 'Reassigned Successfully!',
+        text: 'The order has been transferred to the new agent',
         toast: true,
         position: 'top-end',
         timer: 2000
@@ -116,7 +123,7 @@ const ReassignOrders = ({ darkMode }) => {
       Swal.fire({
         icon: 'error',
         title: 'Reassignment Failed',
-        text: err.response?.data?.message || 'Please try again',
+        text: err.response?.data?.message || 'Please try again later',
         toast: true,
         position: 'top-end'
       });
@@ -128,10 +135,11 @@ const ReassignOrders = ({ darkMode }) => {
   }, [fetchData]);
 
   const filteredOrders = orders.filter(o =>
-    searchTerm === '' ||
-    o.id?.toString().includes(searchTerm) ||
+    !searchTerm ||
+    o.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    o.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     o.userAddress?.street?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    o.shopAddress?.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    o.shopName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     o.status?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -155,7 +163,6 @@ const ReassignOrders = ({ darkMode }) => {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-950 pt-6 lg:pl-72 transition-all duration-500">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
-        
         <div className="mb-12 text-center lg:text-left">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-800 dark:text-white flex items-center gap-5 justify-center lg:justify-start">
             <div className="p-5 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl text-white shadow-2xl">
@@ -168,7 +175,6 @@ const ReassignOrders = ({ darkMode }) => {
           </p>
         </div>
 
-       
         <div className="mb-10 flex justify-center lg:justify-start">
           <div className="relative max-w-md w-full">
             <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 text-xl" />
@@ -176,7 +182,7 @@ const ReassignOrders = ({ darkMode }) => {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search orders..."
+              placeholder="Search by ID, customer, address, shop..."
               className="w-full pl-14 pr-12 py-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-gray-800 dark:text-white text-lg"
             />
             {searchTerm && (
@@ -190,7 +196,6 @@ const ReassignOrders = ({ darkMode }) => {
           </div>
         </div>
 
-    
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
@@ -212,7 +217,6 @@ const ReassignOrders = ({ darkMode }) => {
           </div>
         ) : (
           <>
-          
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
               {currentOrders.map((order) => (
                 <div
@@ -247,26 +251,31 @@ const ReassignOrders = ({ darkMode }) => {
                       {order.userName && (
                         <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
                           <FiUser className="text-emerald-600" size={18} />
-                          <span>{order.userName}</span>
+                          <span className="font-medium">{order.userName}</span>
                         </div>
                       )}
 
-                      {order.userAddress && (
+                      {order.userAddress?.street && (
                         <div className="flex items-start gap-3 text-gray-600 dark:text-gray-400">
                           <FiMapPin className="text-teal-600 mt-1" size={18} />
-                          <div className="text-xs">
-                            <div className="font-medium text-gray-800 dark:text-gray-200">Delivery</div>
-                            <div>{order.userAddress.street}, {order.userAddress.city}</div>
+                          <div>
+                            <div className="text-xs font-medium text-gray-800 dark:text-gray-200">Delivery Address</div>
+                            <div className="text-xs">{order.userAddress.street}, {order.userAddress.city}</div>
                           </div>
                         </div>
                       )}
 
                       {order.shopName && (
                         <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
-                          <FiClipboard className="text-emerald-600" size={18} />
-                          <span>{order.shopName}</span>
+                          <FiPackage className="text-emerald-600" size={18} />
+                          <span className="font-medium">{order.shopName}</span>
                         </div>
                       )}
+
+                      <div className="flex items-center gap-3 text-gray-500 dark:text-gray-500 text-xs pt-2 border-t border-gray-200 dark:border-gray-800">
+                        <FiCalendar size={16} />
+                        <span>{new Date(order.createdAt).toLocaleDateString()}</span>
+                      </div>
                     </div>
 
                     <button className="mt-6 w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-2xl hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg">
@@ -277,7 +286,6 @@ const ReassignOrders = ({ darkMode }) => {
               ))}
             </div>
 
-          
             {totalPages > 1 && (
               <div className="flex justify-center gap-3 flex-wrap">
                 <button
@@ -314,62 +322,116 @@ const ReassignOrders = ({ darkMode }) => {
           </>
         )}
 
-       
+     
         {selectedOrder && (
           <Modal onClose={() => { setSelectedOrder(null); setNotes(''); }} title="Reassign Order" darkMode={darkMode}>
-            <div className="space-y-6">
-              <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-2xl p-6 border border-emerald-200 dark:border-emerald-800">
-                <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Order #{selectedOrder.id?.slice(-8)}</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div className="flex items-center gap-3">
-                    <FiUser className="text-emerald-600" />
-                    <span className="text-gray-700 dark:text-gray-300">{selectedOrder.userName || 'Customer'}</span>
+            <div className="space-y-7">
+
+             
+              <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-3xl p-7 border border-emerald-200 dark:border-emerald-800 shadow-inner">
+                <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-3">
+                  Order #{selectedOrder.id?.slice(-8)}
+                  <button
+                    onClick={() => copyToClipboard(selectedOrder.id)}
+                    className="text-emerald-600 hover:text-emerald-700"
+                  >
+                    <FiCopy size={20} />
+                  </button>
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-sm">
+                  <div className="flex items-center gap-4">
+                    <FiUser className="text-emerald-600" size={20} />
+                    <div>
+                      <div className="font-medium text-gray-700 dark:text-gray-300">Customer</div>
+                      <div className="text-gray-900 dark:text-white font-semibold">{selectedOrder.userName || 'N/A'}</div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <FiClipboard className="text-teal-600" />
-                    <span className="text-gray-700 dark:text-gray-300">{selectedOrder.shopName || 'Shop'}</span>
+
+                  <div className="flex items-center gap-4">
+                    <FiPackage className="text-teal-600" size={20} />
+                    <div>
+                      <div className="font-medium text-gray-700 dark:text-gray-300">Shop</div>
+                      <div className="text-gray-900 dark:text-white font-semibold">{selectedOrder.shopName || 'Unknown Shop'}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <FiTruck className="text-purple-600" size={20} />
+                    <div>
+                      <div className="font-medium text-gray-700 dark:text-gray-300">Current Agent</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        {selectedOrder.deliveryId ? `ID: ${selectedOrder.deliveryId.slice(-8)}` : 'Unassigned'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <FiCalendar className="text-amber-600" size={20} />
+                    <div>
+                      <div className="font-medium text-gray-700 dark:text-gray-300">Created</div>
+                      <div className="text-gray-900 dark:text-white">
+                        {new Date(selectedOrder.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </div>
+                    </div>
                   </div>
                 </div>
-                {selectedOrder.userAddress && (
-                  <div className="mt-4 flex items-start gap-3 text-sm">
-                    <FiMapPin className="text-emerald-600 mt-1" />
+
+                {selectedOrder.userAddress?.street && (
+                  <div className="mt-6 flex items-start gap-4 text-sm">
+                    <FiMapPin className="text-emerald-600 mt-1" size={20} />
                     <div>
-                      <div className="font-medium text-gray-800 dark:text-gray-200">Delivery Address</div>
-                      <div className="text-gray-600 dark:text-gray-400">
+                      <div className="font-semibold text-gray-800 dark:text-gray-200">Delivery Address</div>
+                      <div className="text-gray-700 dark:text-gray-300">
+                        {selectedOrder.userAddress.building && `Bldg ${selectedOrder.userAddress.building}, `}
                         {selectedOrder.userAddress.street}, {selectedOrder.userAddress.city}
+                        {selectedOrder.userAddress.state && `, ${selectedOrder.userAddress.state}`}
                       </div>
                     </div>
                   </div>
                 )}
               </div>
 
+              
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Notes (optional)
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                  Reassignment Notes (optional)
                 </label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  rows={3}
-                  placeholder="Reason for reassignment, special instructions..."
-                  className="w-full px-5 py-4 rounded-2xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-4 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all"
+                  rows={4}
+                  placeholder="e.g., Customer requested faster delivery, Agent unavailable, Route optimization..."
+                  className="w-full px-5 py-4 rounded-2xl border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-4 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all resize-none"
                 />
               </div>
 
+              
               <div>
-                <h4 className="font-semibold text-gray-800 dark:text-white mb-4">Select New Delivery Agent</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-96 overflow-y-auto">
+                <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-5">Select New Delivery Agent</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-96 overflow-y-auto pr-2">
                   {deliveryPersons.length === 0 ? (
-                    <p className="text-gray-500 text-center col-span-2 py-8">No delivery agents available</p>
+                    <p className="text-gray-500 dark:text-gray-400 text-center col-span-2 py-10">
+                      No delivery agents available
+                    </p>
                   ) : (
                     deliveryPersons.map((person) => (
                       <button
                         key={person.id}
                         onClick={() => reassignOrder(person.id)}
-                        className="p-5 bg-white dark:bg-gray-900 border-2 border-emerald-200 dark:border-emerald-800 rounded-2xl hover:border-emerald-500 dark:hover:border-emerald-600 hover:shadow-lg transition-all text-left"
+                        className="p-6 bg-gradient-to-r from-white to-emerald-50 dark:from-gray-900 dark:to-gray-800 border-2 border-emerald-200 dark:border-emerald-700 rounded-2xl hover:border-emerald-500 dark:hover:border-emerald-500 hover:shadow-xl transition-all text-left group"
                       >
-                        <div className="font-bold text-gray-800 dark:text-white">{person.name || 'Unnamed Agent'}</div>
-                        <div className="text-sm text-emerald-600 dark:text-emerald-400 mt-1">ID: {person.id}</div>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-bold text-gray-800 dark:text-white text-lg">
+                              {person.name || 'Delivery Agent'}
+                            </div>
+                            <div className="text-sm text-emerald-600 dark:text-emerald-400 mt-1">
+                              ID: {person.id.slice(-8)}
+                            </div>
+                          </div>
+                          <FiTruck className="text-emerald-600 group-hover:translate-x-2 transition-transform" size={24} />
+                        </div>
                       </button>
                     ))
                   )}

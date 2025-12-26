@@ -1,10 +1,13 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import ShopChatModal from "../components/ShopChatModal";
 import { FiMessageSquare, FiBell, FiClock, FiZap } from "react-icons/fi";
 
 const Chat = () => {
   const [openChat, setOpenChat] = useState(false);
+useEffect(() => {
+document.title = "إدارة المحادثات";
 
+});
   return (
     <div  style={{ marginTop: "-575px", marginLeft: "-250px" }} className="min-h-screen bg-gray-50 font-cairo py-8">
       <div className="max-w-5xl mx-auto px-6">

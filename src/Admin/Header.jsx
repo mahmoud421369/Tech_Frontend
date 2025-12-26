@@ -1,9 +1,9 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  FiSettings, FiLogOut, FiBell, FiUser, FiChevronDown,
+  FiSettings, FiLogOut, FiUser, FiChevronDown,
   FiHome, FiUsers, FiStar, FiTag, FiList, FiMoon, FiSun,
-  FiBox, FiTool, FiClipboard, FiMenu, FiSearch, FiX, FiDollarSign, FiCheckCircle
+  FiBox, FiTool, FiClipboard, FiMenu, FiSearch, FiX, FiDollarSign
 } from "react-icons/fi";
 import {
   RiAccountBox2Line, RiGift2Line, RiStore2Line, RiStore3Line, RiTruckLine
@@ -17,14 +17,10 @@ import { jwtDecode } from "jwt-decode";
 const Header = () => {
   
   const [darkMode, setDarkMode] = useState(false);
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfileMenu] = useState(false); // unused now but kept in case
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [shopDropdownOpen, setShopDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [loadingNotifs, setLoadingNotifs] = useState(true);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -62,42 +58,6 @@ const Header = () => {
     ],
     []
   );
-
-  /* ------------------------------------------------------------------ */
-  /*  FETCH NOTIFICATIONS                                               */
-  /* ------------------------------------------------------------------ */
-  const fetchNotifications = useCallback(async () => {
-    if (!token) return;
-    setLoadingNotifs(true);
-    try {
-      const res = await api.get("/api/admin/notifications");
-      const notifs = res.data || [];
-      setNotifications(notifs);
-      setUnreadCount(notifs.filter(n => !n.read).length);
-    } catch (err) {
-      console.warn("Failed to load notifications:", err);
-    } finally {
-      setLoadingNotifs(false);
-    }
-  }, [token]);
-
-  const markAsRead = async (notifId) => {
-    try {
-      await api.delete(`/api/admin/notifications/${notifId}`);
-      setNotifications(prev => prev.map(n => n.id === notifId ? { ...n, read: true } : n));
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch (err) {
-      console.warn("Failed to mark notification as read");
-    }
-  };
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchNotifications();
-      const interval = setInterval(fetchNotifications, 30000); // every 30s
-      return () => clearInterval(interval);
-    }
-  }, [isAuthenticated, fetchNotifications]);
 
   /* ------------------------------------------------------------------ */
   /*  AUTH & JWT                                                        */
@@ -179,63 +139,52 @@ const Header = () => {
       .filter(Boolean);
   }, [menuItems, searchQuery]);
 
-  /* ------------------------------------------------------------------ */
-  /*  CLOSE MENUS ON OUTSIDE CLICK                                      */
-  /* ------------------------------------------------------------------ */
-  useEffect(() => {
-    const handler = (e) => {
-      if (!e.target.closest(".notif-btn")) setShowNotifications(false);
-      if (!e.target.closest(".profile-btn")) setShowProfileMenu(false);
-    };
-    document.addEventListener("click", handler);
-    return () => document.removeEventListener("click", handler);
-  }, []);
-
   return (
     <>
-      
+   
       {isSidebarOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden" onClick={() => setIsSidebarOpen(false)} />
       )}
 
-     
-      <nav className={`fixed inset-y-0 left-0 z-50 w-72 bg-white/95 dark:bg-black/40 backdrop-blur-2xl border-r border-gray-200 dark:border-emerald-500/30 shadow-2xl transition-all duration-500 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
+      
+      <nav className={`fixed inset-y-0 left-0 z-50 w-64 bg-white/95 dark:bg-black/40 backdrop-blur-2xl border-r border-gray-200 dark:border-emerald-500/30 shadow-2xl transition-all duration-500 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
         <div className="flex flex-col h-full">
-          <div className="p-8 border-b border-gray-200 dark:border-emerald-500/30">
+          <div className="p-6 border-b border-gray-200 dark:border-emerald-500/30">
             <div className="flex items-center justify-center relative group">
-              <img src={logo} alt="Tech & Bazaar" className="h-32 object-contain drop-shadow-2xl group-hover:scale-105 transition-all duration-500" />
+              <img src={logo} alt="Tech & Bazaar" className="h-28 object-contain drop-shadow-2xl group-hover:scale-105 transition-all duration-500" />
               {darkMode && <div className="absolute inset-0 bg-emerald-500/30 blur-3xl animate-pulse" />}
             </div>
-            <button onClick={() => setIsSidebarOpen(false)} className="absolute top-6 right-6 lg:hidden text-gray-500 hover:text-emerald-500">
-              <FiX size={28} />
+            <button onClick={() => setIsSidebarOpen(false)} className="absolute top-4 right-4 lg:hidden text-gray-500 hover:text-emerald-500">
+              <FiX size={24} />
             </button>
           </div>
 
-          <ul className="flex-1 py-6 px-4 space-y-2 overflow-y-auto">
+          <ul className="flex-1 py-4 px-3 space-y-4 overflow-y-auto">
             {filteredMenuItems.map(item => (
               <li key={item.name}>
                 {item.subMenu ? (
                   <div>
                     <button
                       onClick={() => setShopDropdownOpen(prev => prev === item.name ? null : item.name)}
-                      className={`w-full flex items-center justify-between px-6 py-4 rounded-2xl font-medium transition-all ${darkMode ? "text-emerald-400 hover:bg-emerald-500/10" : "text-gray-700 hover:bg-emerald-50"}`}
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-medium text-sm transition-all ${darkMode ? "text-emerald-400 hover:bg-emerald-500/10" : "text-gray-700 hover:bg-emerald-50"}`}
                     >
-                      <div className="flex items-center gap-4">
-                        <span className="text-emerald-600 dark:text-emerald-400 text-xl">{item.icon}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-emerald-600 dark:text-emerald-400 text-lg">{item.icon}</span>
                         <span>{item.label}</span>
                       </div>
                       <FiChevronDown className={`transition-transform ${shopDropdownOpen === item.name ? "rotate-180" : ""}`} />
                     </button>
                     {shopDropdownOpen === item.name && (
-                      <ul className="mt-2 ml-12 space-y-1">
+                      <ul className="mt-2 ml-10 space-y-4">
                         {item.subMenu.map(sub => (
                           <li key={sub.name}>
                             <Link
                               to={sub.path}
                               onClick={() => setIsSidebarOpen(false)}
-                              className={`flex items-center gap-4 px-6 py-3 rounded-xl text-sm transition-all ${darkMode ? "text-emerald-300 hover:bg-emerald-500/10" : "text-gray-600 hover:bg-emerald-50"}`}
+                              className={`flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all ${darkMode ? "text-emerald-300 hover:bg-emerald-500/10" : "text-gray-600 hover:bg-emerald-50"}`}
                             >
-                              {sub.icon} {sub.label}
+                              <span className="text-emerald-600 dark:text-emerald-400 text-base">{sub.icon}</span>
+                              {sub.label}
                             </Link>
                           </li>
                         ))}
@@ -246,9 +195,9 @@ const Header = () => {
                   <Link
                     to={item.path}
                     onClick={() => setIsSidebarOpen(false)}
-                    className={`flex items-center gap-4 px-6 py-4 rounded-2xl font-medium transition-all ${darkMode ? "text-emerald-400 hover:bg-emerald-500/10" : "text-gray-700 hover:bg-emerald-50"}`}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all ${darkMode ? "text-emerald-400 hover:bg-emerald-500/10" : "text-gray-700 hover:bg-emerald-50"}`}
                   >
-                    <span className="text-emerald-600 dark:text-emerald-400 text-xl">{item.icon}</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 text-lg">{item.icon}</span>
                     <span>{item.label}</span>
                   </Link>
                 )}
@@ -259,81 +208,41 @@ const Header = () => {
       </nav>
 
       
-      <header className={`fixed top-0 text-right left-0 right-0 h-20 z-40 flex items-center justify-end px-6 shadow-lg lg:pl-72 transition-all duration-500 ${darkMode ? "bg-black/50 backdrop-blur-2xl border-b border-emerald-500/30" : "bg-white/95 border-b border-gray-200"}`}>
+      <header className={`fixed top-0 left-0 right-0 h-20 z-40 flex items-center justify-between px-6 shadow-lg lg:pl-64 transition-all duration-500 ${
+        darkMode 
+          ? "bg-gray-950/95 backdrop-blur-2xl border-b border-emerald-500/30" 
+          : "bg-white/95 border-b border-gray-200"
+      }`}>
+        
         <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-3 rounded-2xl bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition">
           <FiMenu size={24} />
         </button>
 
-        <div className="flex items-center justify-start gap-6">
-       
+        <div className="flex items-center gap-6 ml-auto">
+          
           <div className="relative hidden lg:block">
             <input
               type="text"
               placeholder="Search anything..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-80 pl-12 pr-6 py-4 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/30 transition-all ${darkMode ? "bg-emerald-950/50 border border-emerald-500/40 text-white placeholder-emerald-400" : "bg-gray-100 border border-gray-300 text-gray-900"}`}
+              className={`w-80 pl-12 pr-6 py-4 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/30 transition-all ${
+                darkMode 
+                  ? "bg-emerald-950/50 border border-emerald-500/40 text-white placeholder-emerald-400" 
+                  : "bg-gray-100 border border-gray-300 text-gray-900"
+              }`}
             />
             <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500" size={20} />
           </div>
 
         
-          <button onClick={toggleDarkMode} className={`p-4 rounded-2xl transition-all ${darkMode ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 shadow-lg shadow-emerald-500/50" : "bg-emerald-100 text-emerald-600 hover:bg-emerald-200"}`}>
+          <button onClick={toggleDarkMode} className={`p-4 rounded-2xl transition-all ${
+            darkMode 
+              ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 shadow-lg shadow-emerald-500/50" 
+              : "bg-emerald-100 text-emerald-600 hover:bg-emerald-200"
+          }`}>
             {darkMode ? <FiMoon size={22} /> : <FiSun size={22} />}
           </button>
-
-         
-          <div className="relative notif-btn">
-            <button
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-4 rounded-2xl hover:bg-emerald-500/10 transition"
-            >
-              <FiBell size={22} className="text-emerald-600 dark:text-emerald-400" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-rose-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center animate-pulse shadow-lg">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
-
-            {showNotifications && (
-              <div className={`absolute right-0 mt-4 w-96 rounded-3xl shadow-2xl overflow-hidden border ${darkMode ? "bg-black/70 backdrop-blur-xl border-emerald-500/40" : "bg-white border-gray-200"}`}>
-                <div className="p-6 border-b border-emerald-500/20">
-                  <h3 className="text-xl font-bold text-emerald-500">Notifications</h3>
-                </div>
-                <div className="max-h-96 overflow-y-auto">
-                  {loadingNotifs ? (
-                    <div className="p-8 text-center text-gray-500">Loading...</div>
-                  ) : notifications.length === 0 ? (
-                    <div className="p-8 text-center text-gray-500">No notifications</div>
-                  ) : (
-                    notifications.map(notif => (
-                      <div
-                        key={notif.id}
-                        className={`p-5 border-b border-emerald-500/10 hover:bg-emerald-500/10 transition ${!notif.read ? "bg-emerald-500/10" : ""}`}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <p className="font-semibold text-white">{notif.title}</p>
-                            <p className="text-sm text-emerald-300 mt-1">{notif.message}</p>
-                            <p className="text-xs text-emerald-500 mt-2">{new Date(notif.createdAt).toLocaleString()}</p>
-                          </div>
-                          {!notif.read && (
-                            <button
-                              onClick={() => markAsRead(notif.id)}
-                              className="ml-4 text-emerald-400 hover:text-emerald-300"
-                            >
-                              <FiCheckCircle size={18} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
 
           
           <button

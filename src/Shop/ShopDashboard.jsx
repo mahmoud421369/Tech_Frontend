@@ -222,9 +222,9 @@ useEffect(()=>{
               <FiCalendar className="text-2xl text-lime-600" />
               فلتر حسب الفترة الزمنية
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end text-right">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">من تاريخ ووقت</label>
+                <label className="block text-sm font-medium text-gray-700  mb-2">من تاريخ ووقت</label>
                 <input
                   type="datetime-local"
                   value={startDate}

@@ -7,6 +7,7 @@ import api from '../api';
 
 const ROWS_PER_PAGE = 10;
 
+
 const generateUUID = () => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
     const r = Math.random() * 16 | 0;
@@ -107,7 +108,10 @@ const Transactions = () => {
   const [currentPage, setCurrentPage] = useState(1);
 
   const abortCtrl = useRef(new AbortController());
+useEffect(() => {
+document.title = "إدارة الفواتير";
 
+});
   const fetchAll = useCallback(async () => {
     abortCtrl.current.abort();
     abortCtrl.current = new AbortController();

@@ -13,7 +13,12 @@ import {
   FiChevronDown,
      FiHash, FiUser, FiMail, FiPhone,
   FiTag, FiFileText, FiMapPin,  FiStar,
-  FiToggleLeft, FiToggleRight, FiExternalLink
+  FiToggleLeft, FiToggleRight, FiExternalLink,
+  FiAlertCircle,
+  FiShoppingBag,
+  FiInfo,
+  FiX,
+  FiCheck
 } from 'react-icons/fi';
 import { FaStore } from 'react-icons/fa';
 
@@ -356,18 +361,30 @@ const Shops = ({ darkMode }) => {
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 p-6 border-b border-gray-200 dark:border-gray-700">
-              {[
-                { label: 'Total Shops', value: stats.total },
-                { label: 'Approved', value: stats.approved },
-                { label: 'Suspended', value: stats.suspended },
-              ].map((stat, i) => (
-                <div key={i} className="bg-gray-50 dark:bg-gray-700 p-5 rounded-lg border border-gray-200 dark:border-gray-600 text-center">
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
-                  <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{stat.value}</p>
-                </div>
-              ))}
-            </div>
+           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 p-6 border-b border-gray-200 dark:border-gray-700">
+  {[
+    { label: 'Total Shops', value: stats.total, color: 'emerald', icon: FiShoppingBag },
+    { label: 'Approved', value: stats.approved, color: 'green', icon: FiCheckCircle },
+    { label: 'Suspended', value: stats.suspended, color: 'red', icon: FiAlertCircle },
+  ].map((stat, i) => (
+    <div
+      key={i}
+      className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg border border-gray-200 dark:border-gray-600 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow"
+    >
+      <div className="text-left">
+        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
+        <p className={`text-3xl font-bold mt-2 text-${stat.color}-600 dark:text-${stat.color}-500`}>
+          {stat.value}
+        </p>
+      </div>
+
+ 
+      <div className={`p-4 rounded-full bg-${stat.color}-100 dark:bg-${stat.color}-900/30`}>
+        <stat.icon className={`w-8 h-8 text-${stat.color}-600 dark:text-${stat.color}-400`} />
+      </div>
+    </div>
+  ))}
+</div>
 
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
@@ -468,20 +485,20 @@ const Shops = ({ darkMode }) => {
                     <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(shop.shopType || 'N/A')}</td>
                     <td className="px-6 py-4">
                       <div className="flex justify-center gap-2">
-                        <button onClick={() => viewShop(shop.id)} className="px-3 py-1.5 text-xs bg-emerald-50 border border-gray-200 font-semibold dark:bg-gray-950 dark:border-gray-900 text-blue-700 dark:text-blue-700 rounded   transition">
-                          View
+                        <button onClick={() => viewShop(shop.id)} className="px-3 py-1.5 text-xs flex gap-2 items-center bg-emerald-50 border border-emerald-200 font-semibold dark:bg-gray-950 dark:border-gray-900 text-blue-700 dark:text-blue-700 rounded   transition">
+                        <FiInfo/>  View
                         </button>
                         {!shop.verified ? (
-                          <button onClick={() => approveShop(shop.id)} className="px-3 py-1.5 text-xs border border-gray-200 font-semibold bg-green-50 dark:bg-gray-950 dark:border-gray-900 text-green-700 dark:text-green-300 rounded   transition">
-                            Approve
+                          <button onClick={() => approveShop(shop.id)} className="px-3 py-1.5 text-xs flex gap-2 items-center border border-green-200 font-semibold bg-green-50 dark:bg-gray-950 dark:border-gray-900 text-green-700 dark:text-green-300 rounded   transition">
+                           <FiCheck/> Approve
                           </button>
                         ) : (
                           <>
-                            <button onClick={() => suspendShop(shop.id)} className="px-3 py-1.5 text-xs border border-gray-200 font-semibold bg-yellow-50 dark:bg-gray-950 dark:border-gray-900 text-yellow-700 dark:text-yellow-300 rounded  transition">
-                              Suspend
+                            <button onClick={() => suspendShop(shop.id)} className="px-3 py-1.5 text-xs flex gap-2 items-center border border-yellow-200 font-semibold bg-yellow-50 dark:bg-gray-950 dark:border-gray-900 text-yellow-700 dark:text-yellow-300 rounded  transition">
+                            <FiX/>  Suspend
                             </button>
-                            <button onClick={() => deleteShop(shop.id)} className="px-3 py-1.5 text-xs border border-gray-200 font-semibold bg-red-50 dark:bg-gray-950 dark:border-gray-900 text-red-700 dark:text-red-300 rounded  transition">
-                              Delete
+                            <button onClick={() => deleteShop(shop.id)} className="px-3 py-1.5 text-xs flex gap-2 items-center border border-red-200 font-semibold bg-red-50 dark:bg-gray-950 dark:border-gray-900 text-red-700 dark:text-red-300 rounded  transition">
+                              <FiTrash2/>Delete
                             </button>
                           </>
                         )}

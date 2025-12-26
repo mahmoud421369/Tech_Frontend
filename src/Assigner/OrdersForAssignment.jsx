@@ -1,10 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FiPackage, FiSearch, FiCopy, FiXCircle, FiUser, FiMapPin, FiDollarSign, FiClock, FiHome, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
+import {
+  FiPackage, FiSearch, FiCopy, FiXCircle, FiUser,
+  FiMapPin, FiDollarSign, FiChevronLeft, FiChevronRight,
+  FiCalendar, FiPhone, FiCreditCard, FiInfo, FiUserCheck, FiClock,
+  FiClipboard,
+  FiHome
+} from 'react-icons/fi';
 import { FaStore } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 import api from '../api';
 import Modal from '../components/Modal';
-import { useNavigate } from 'react-router-dom';
 
 const OrdersForAssignment = ({ darkMode }) => {
   const navigate = useNavigate();
@@ -19,7 +25,11 @@ const OrdersForAssignment = ({ darkMode }) => {
   const [isAssigning, setIsAssigning] = useState(false);
   const itemsPerPage = 6;
 
- 
+useEffect(() => {
+    document.title = "Assigner - Orders";
+
+},[]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setCurrentPage(1);
@@ -40,7 +50,6 @@ const OrdersForAssignment = ({ darkMode }) => {
     });
   };
 
- 
   const fetchOrders = useCallback(async () => {
     if (!token) return navigate('/login');
     setIsLoading(true);
@@ -75,7 +84,6 @@ const OrdersForAssignment = ({ darkMode }) => {
     }
   }, [token, navigate]);
 
-  
   const fetchDeliveryPersons = useCallback(async () => {
     if (!token) return;
     try {
@@ -91,7 +99,6 @@ const OrdersForAssignment = ({ darkMode }) => {
     fetchDeliveryPersons();
   }, [fetchOrders, fetchDeliveryPersons]);
 
-  
   const assignOrder = async (deliveryId) => {
     if (!selectedOrder?.id || !deliveryId) return;
 
@@ -128,7 +135,6 @@ const OrdersForAssignment = ({ darkMode }) => {
     }
   };
 
-
   const filteredOrders = orders.filter(order =>
     JSON.stringify(order).toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -144,6 +150,7 @@ const OrdersForAssignment = ({ darkMode }) => {
       IN_TRANSIT: 'from-blue-500 to-cyan-500',
       IN_PROGRESS: 'from-indigo-500 to-blue-600',
       COMPLETED: 'from-emerald-500 to-teal-600',
+      FINISHPROCESSING: 'from-emerald-500 to-teal-600',
       default: 'from-gray-400 to-gray-600'
     };
     return colors[status] || colors.default;
@@ -151,11 +158,39 @@ const OrdersForAssignment = ({ darkMode }) => {
 
   const formatPrice = (price) => price ? `${price.toLocaleString()} EGP` : '0 EGP';
 
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    return new Date(dateStr).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getUserName = (order) => {
+    if (order.firstName || order.lastName) {
+      return `${order.firstName || ''} ${order.lastName || ''}`.trim();
+    }
+    return order.userName || 'N/A';
+  };
+
+  const isAssigned = (status) => {
+    return ['ASSIGNED', 'IN_TRANSIT', 'IN_PROGRESS', 'COMPLETED', 'FINISHPROCESSING'].includes(status);
+  };
+
+  const stats = {
+    total: orders.length,
+    pending: orders.filter(o => o.status === 'PENDING' || o.status === 'FINISHPROCESSING').length,
+    assigned: orders.filter(o => ['ASSIGNED', 'IN_TRANSIT', 'IN_PROGRESS'].includes(o.status)).length,
+    completed: orders.filter(o => o.status === 'COMPLETED').length,
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-950 pt-6 lg:pl-72 transition-all duration-500">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-        
         <div className="mb-10 text-center lg:text-left">
           <h1 className="text-4xl font-bold text-gray-800 dark:text-white flex items-center gap-4 justify-center lg:justify-start">
             <div className="p-4 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl text-white shadow-xl">
@@ -168,8 +203,32 @@ const OrdersForAssignment = ({ darkMode }) => {
           </p>
         </div>
 
-        
-        <div className="mb-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+      
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          {[
+            { label: 'Total Orders', value: stats.total, color: 'emerald', icon: FiPackage },
+            { label: 'Pending Assignment', value: stats.pending, color: 'amber', icon: FiClock },
+            { label: 'In Progress', value: stats.assigned, color: 'purple', icon: FiPackage },
+            { label: 'Completed', value: stats.completed, color: 'green', icon: FiUserCheck },
+          ].map((stat, index) => (
+            <div
+              key={index}
+              className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800 flex items-center justify-between hover:shadow-xl transition-shadow"
+            >
+              <div className="text-left">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
+                <p className={`text-3xl font-bold mt-2 text-${stat.color}-600 dark:text-${stat.color}-400`}>
+                  {stat.value}
+                </p>
+              </div>
+              <div className={`p-4 rounded-full bg-${stat.color}-100 dark:bg-${stat.color}-900/30`}>
+                <stat.icon className={`w-8 h-8 text-${stat.color}-600 dark:text-${stat.color}-400`} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mb-8 grid grid-cols-1 lg:grid-cols-1 gap-6">
           <div className="relative">
             <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 text-xl" />
             <input
@@ -186,7 +245,7 @@ const OrdersForAssignment = ({ darkMode }) => {
             )}
           </div>
 
-          <div className="flex gap-4 justify-center lg:justify-end">
+          {/* <div className="flex gap-4 justify-center lg:justify-end">
             <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg px-6 py-4 border border-gray-200 dark:border-gray-800">
               <p className="text-sm text-gray-600 dark:text-gray-400">Total Orders</p>
               <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{orders.length}</p>
@@ -195,10 +254,9 @@ const OrdersForAssignment = ({ darkMode }) => {
               <p className="text-sm text-gray-600 dark:text-gray-400">Filtered</p>
               <p className="text-3xl font-bold text-teal-600 dark:text-teal-400">{filteredOrders.length}</p>
             </div>
-          </div>
+          </div> */}
         </div>
 
-        
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
@@ -224,14 +282,12 @@ const OrdersForAssignment = ({ darkMode }) => {
           </div>
         ) : (
           <>
-           
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
               {currentOrders.map((order) => (
                 <div
                   key={order.id}
                   className="group bg-white dark:bg-gray-900 rounded-2xl shadow-lg hover:shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-all duration-300 hover:-translate-y-2"
                 >
-                 
                   <div className={`h-2 bg-gradient-to-r ${getStatusColor(order.status)}`} />
 
                   <div className="p-6">
@@ -257,38 +313,52 @@ const OrdersForAssignment = ({ darkMode }) => {
                     </div>
 
                     <div className="space-y-3 text-sm">
-                      {order.userName && (
+                      {order.createdAt && (
                         <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
-                          <FiUser className="text-emerald-600" />
-                          <span>{order.userName}</span>
+                          <FiCalendar className="text-emerald-600" />
+                          <span>{formatDate(order.createdAt)}</span>
                         </div>
                       )}
+
+                      <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
+                        <FiUser className="text-emerald-600" />
+                        <span>{getUserName(order)}</span>
+                      </div>
+
                       {order.shopName && (
                         <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
                           <FaStore className="text-teal-600" />
                           <span>{order.shopName}</span>
                         </div>
                       )}
+
                       {order.userAddress && (
                         <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
                           <FiHome className="text-emerald-500" />
-                          <span className="truncate">{order.userAddress.street}, {order.userAddress.city}</span>
+                          <span className="truncate">
+                            {order.userAddress.street}, {order.userAddress.city}
+                          </span>
                         </div>
                       )}
                     </div>
 
                     <button
                       onClick={() => setSelectedOrder(order)}
-                      className="mt-6 w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold py-4 rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg flex items-center justify-center gap-2"
+                      disabled={isAssigned(order.status)}
+                      className={`mt-6 w-full font-semibold py-4 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 ${
+                        isAssigned(order.status)
+                          ? 'bg-gray-400 dark:bg-gray-700 text-gray-300 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700'
+                      }`}
                     >
-                      <FiPackage /> Assign Order
+                      <FiPackage />
+                      {isAssigned(order.status) ? 'Already Assigned' : 'Assign Order'}
                     </button>
                   </div>
                 </div>
               ))}
             </div>
 
-           
             {totalPages > 1 && (
               <div className="flex justify-center gap-3 flex-wrap">
                 <button
@@ -323,46 +393,134 @@ const OrdersForAssignment = ({ darkMode }) => {
           </>
         )}
 
-        
         {selectedOrder && (
           <Modal onClose={() => { setSelectedOrder(null); setNotes(''); }} title="Assign Order" darkMode={darkMode}>
-            <div className="space-y-6">
-              <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-2xl p-6 border border-emerald-200 dark:border-emerald-800">
-                <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Order Details</h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div><strong>ID:</strong> {selectedOrder.id}</div>
-                  <div><strong>Price:</strong> {formatPrice(selectedOrder.totalPrice)}</div>
-                  <div><strong>User:</strong> {selectedOrder.userName || 'N/A'}</div>
-                  <div><strong>Shop:</strong> {selectedOrder.shopName || 'N/A'}</div>
+            <div className="space-y-8 max-w-2xl mx-auto">
+              <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/40 dark:to-teal-900/40 rounded-2xl p-8 border border-emerald-200 dark:border-emerald-700 shadow-inner">
+                <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-3">
+                  <FiInfo className="text-emerald-600" />
+                  Order Information
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-base">
+                  <div className="flex items-start gap-4">
+                    <FiPackage className="w-6 h-6 text-emerald-600 mt-0.5" />
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">Order ID</p>
+                      <p className="font-mono font-semibold text-gray-900 dark:text-white">{selectedOrder.id}</p>
+                    </div>
+                  </div>
+
+                  {selectedOrder.createdAt && (
+                    <div className="flex items-start gap-4">
+                      <FiCalendar className="w-6 h-6 text-emerald-600 mt-0.5" />
+                      <div>
+                        <p className="text-gray-500 dark:text-gray-400">Created At</p>
+                        <p className="font-semibold text-gray-900 dark:text-white">{formatDate(selectedOrder.createdAt)}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-start gap-4">
+                    <FiDollarSign className="w-6 h-6 text-emerald-600 mt-0.5" />
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">Total Price</p>
+                      <p className="font-bold text-2xl text-emerald-600 dark:text-emerald-400">{formatPrice(selectedOrder.totalPrice)}</p>
+                    </div>
+                  </div>
+
+                  {selectedOrder.paymentMethod && (
+                    <div className="flex items-start gap-4">
+                      <FiCreditCard className="w-6 h-6 text-emerald-600 mt-0.5" />
+                      <div>
+                        <p className="text-gray-500 dark:text-gray-400">Payment Method</p>
+                        <p className="font-semibold capitalize text-gray-900 dark:text-white">
+                          {selectedOrder.paymentMethod.toLowerCase().replace('_', ' ')}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-start gap-4">
+                    <FiUser className="w-6 h-6 text-emerald-600 mt-0.5" />
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">Customer</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">{getUserName(selectedOrder)}</p>
+                    </div>
+                  </div>
+
+                  {selectedOrder.phone && (
+                    <div className="flex items-start gap-4">
+                      <FiPhone className="w-6 h-6 text-emerald-600 mt-0.5" />
+                      <div>
+                        <p className="text-gray-500 dark:text-gray-400">Phone</p>
+                        <p className="font-semibold text-gray-900 dark:text-white">{selectedOrder.phone}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-start gap-4">
+                    <FaStore className="w-6 h-6 text-teal-600 mt-0.5" />
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">Shop</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">{selectedOrder.shopName || 'N/A'}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-4 md:col-span-2">
+                    <FiMapPin className="w-6 h-6 text-emerald-600 mt-0.5" />
+                    <div>
+                      <p className="text-gray-500 dark:text-gray-400">Delivery Address</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">
+                        {selectedOrder.userAddress
+                          ? `${selectedOrder.userAddress.street}, ${selectedOrder.userAddress.city}${selectedOrder.userAddress.state ? ', ' + selectedOrder.userAddress.state : ''}`
+                          : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               <div>
-                <label className="block font-medium mb-2 text-gray-700 dark:text-gray-300">Notes (Optional)</label>
+                <label className="block text-lg font-semibold mb-3 text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                  <FiClipboard className="w-5 h-5 text-emerald-600" />
+                  Delivery Notes (Optional)
+                </label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Add delivery instructions..."
-                  rows={3}
-                  className="w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none"
+                  placeholder="Add any special instructions for the delivery person..."
+                  rows={4}
+                  className="w-full rounded-2xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-5 py-4 focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-gray-800 dark:text-white resize-none"
                 />
               </div>
 
               <div>
-                <h4 className="font-semibold mb-3">Select Delivery Person</h4>
-                <div className="max-h-64 overflow-y-auto space-y-2">
+                <h4 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white flex items-center gap-2">
+                  <FiUser className="w-5 h-5 text-emerald-600" />
+                  Select Delivery Person
+                </h4>
+                <div className="max-h-80 overflow-y-auto space-y-3 pr-2">
                   {deliveryPersons.length === 0 ? (
-                    <p className="text-center text-gray-500 py-8">No delivery persons available</p>
+                    <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-2xl">
+                      <FiUser className="mx-auto text-5xl text-gray-400 mb-4" />
+                      <p className="text-gray-500 dark:text-gray-400">No delivery persons available</p>
+                    </div>
                   ) : (
                     deliveryPersons.map(person => (
                       <button
                         key={person.id}
                         onClick={() => assignOrder(person.id)}
                         disabled={isAssigning}
-                        className="w-full text-left p-4 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-800 rounded-xl border border-emerald-200 dark:border-emerald-700 transition-all"
+                        className="w-full text-left p-5 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30 hover:from-emerald-100 hover:to-teal-100 dark:hover:from-emerald-800/40 dark:hover:to-teal-800/40 rounded-2xl border border-emerald-200 dark:border-emerald-700 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-60"
                       >
-                        <div className="font-medium">{person.name}</div>
-                        <div className="text-sm text-emerald-600 dark:text-emerald-400">ID: {person.id}</div>
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <div className="font-bold text-lg text-gray-800 dark:text-white">{person.name}</div>
+                            <div className="text-sm text-emerald-600 dark:text-emerald-400 mt-1">ID: {person.id}</div>
+                          </div>
+                          <FiChevronRight className="w-6 h-6 text-emerald-600" />
+                        </div>
                       </button>
                     ))
                   )}
@@ -370,9 +528,9 @@ const OrdersForAssignment = ({ darkMode }) => {
               </div>
 
               {isAssigning && (
-                <div className="flex items-center justify-center gap-3 text-emerald-600">
-                  <div className="w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-                  <span>Assigning order...</span>
+                <div className="flex items-center justify-center gap-4 py-6 text-emerald-600 text-lg font-medium">
+                  <div className="w-6 h-6 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                  <span>Assigning order to delivery person...</span>
                 </div>
               )}
             </div>

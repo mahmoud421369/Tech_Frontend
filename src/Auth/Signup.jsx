@@ -1,13 +1,12 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { debounce } from "lodash";
 import api from "../api";
 import {
   RiUserLine, RiLockPasswordLine, RiMailLine, RiPhoneLine,
-  RiHome4Line, RiMapPinLine, RiBuilding4Line, RiStore2Line,
-  RiFileListLine, RiComputerLine, RiSmartphoneLine, RiToolsLine,
-  RiTruckLine, RiUserSettingsLine
+  RiHome4Line, RiMapPinLine, RiStore2Line,
+  RiFileListLine, RiTruckLine, RiUserSettingsLine
 } from "react-icons/ri";
 
 const Signup = () => {
@@ -35,6 +34,10 @@ const Signup = () => {
   const [assignerData, setAssignerData] = useState({
     name: "", email: "", phone: "", password: "", department: ""
   });
+
+  useEffect(() => {
+    document.title = "Sign Up | FixShop Pro";
+  }, []);
 
   const validateEmail = useCallback((email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email), []);
   const validatePhone = useCallback((phone) => {
@@ -77,203 +80,218 @@ const Signup = () => {
 
   const verifyEmail = useCallback(async (email) => {
     const { value: form } = await Swal.fire({
-      title: "Verify Email",
+      title: "Verify Your Email",
       html: `
         <input id="swal-email" class="swal2-input" value="${email}" readonly>
         <input id="otp-code" type="text" inputmode="numeric" maxlength="6"
-          class="swal2-input" style="text-align:center;font-size:20px;letter-spacing:5px;" 
-          placeholder="Enter 6-digit OTP">
-        <button id="resend-otp-btn" type="button" class="swal2-confirm swal2-styled mt-3">Resend OTP</button>
+          class="swal2-input" style="text-align:center;font-size:20px;letter-spacing:8px;" 
+          placeholder="••••••">
+        <button id="resend-otp-btn" type="button" class="swal2-confirm swal2-styled mt-4" style="background:#10b981;">Resend OTP</button>
       `,
       didOpen: () => {
         const otpInput = Swal.getPopup().querySelector("#otp-code");
-        setTimeout(() => otpInput.focus(), 50);
-        otpInput.addEventListener("input", () => {
-          otpInput.value = otpInput.value.replace(/\D/g, "");
+        setTimeout(() => otpInput.focus(), 100);
+        otpInput.addEventListener("input", (e) => {
+          e.target.value = e.target.value.replace(/\D/g, "");
         });
         Swal.getPopup().querySelector("#resend-otp-btn").addEventListener("click", async () => {
           try {
             await api.post("/api/auth/resend-otp", { email });
-            Swal.fire({ icon: "success", title: "OTP Resent", toast: true, position: "top-end", timer: 1500, showConfirmButton: false });
+            Swal.fire("OTP Resent", "", "success");
           } catch (err) {
-            Swal.fire({ icon: "error", title: "Error", text: err.response?.data?.message || "Failed to resend OTP" });
+            Swal.fire("Failed", err.response?.data?.message || "Could not resend OTP", "error");
           }
         });
       },
       focusConfirm: false,
       preConfirm: () => {
         const otpCode = Swal.getPopup().querySelector("#otp-code").value.trim();
-        if (!otpCode || otpCode.length !== 6 || !/^\d{6}$/.test(otpCode)) {
-          Swal.showValidationMessage("Enter a valid 6-digit OTP!");
+        if (!/^\d{6}$/.test(otpCode)) {
+          Swal.showValidationMessage("Please enter a valid 6-digit code");
           return false;
         }
         return { email, otpCode };
       },
-      confirmButtonText: "Verify",
+      confirmButtonText: "Verify Email",
       confirmButtonColor: "#10b981",
       showCancelButton: true,
-      cancelButtonColor: "#ef4444",
     });
 
     if (!form) return;
 
     try {
       await api.post("/api/auth/verify-email", form);
-      Swal.fire({ icon: "success", title: "Verified", toast: true, text: "Email verified successfully.", position: "top-end", timer: 1500, showConfirmButton: false });
+      await Swal.fire({
+        icon: "success",
+        title: "Email Verified!",
+        toast: true,
+        position: "top-end",
+        timer: 2000,
+        showConfirmButton: false
+      });
     } catch (err) {
-      Swal.fire({ icon: "error", title: "Error", text: err.response?.data?.message || "Verification failed" });
+      Swal.fire("Verification Failed", err.response?.data?.message || "Invalid OTP", "error");
     }
   }, []);
 
   const handleUserSignup = useCallback(async (e) => {
-    e.preventDefault(); setLoading(true); setErrors(prev => ({ ...prev, user: {} }));
+    e.preventDefault();
+    setLoading(true);
+    setErrors(prev => ({ ...prev, user: {} }));
     const newErrors = {};
-    if (!userData.first_name) newErrors.first_name = "First name is required";
-    if (!userData.last_name) newErrors.last_name = "Last name is required";
-    if (!userData.email) newErrors.email = "Email is required";
-    else if (!validateEmail(userData.email)) newErrors.email = "Invalid email format";
-    if (!userData.phone) newErrors.phone = "Phone is required";
-    else if (!validatePhone(userData.phone)) newErrors.phone = "Phone must be 10-15 digits";
-    if (!userData.password) newErrors.password = "Password is required";
-    else if (!validatePassword(userData.password)) newErrors.password = "Password must be at least 6 characters";
+    if (!userData.first_name) newErrors.first_name = "Required";
+    if (!userData.last_name) newErrors.last_name = "Required";
+    if (!userData.email || !validateEmail(userData.email)) newErrors.email = "Valid email required";
+    if (!userData.phone || !validatePhone(userData.phone)) newErrors.phone = "Valid phone required";
+    if (!userData.password || !validatePassword(userData.password)) newErrors.password = "Min 6 characters";
 
     if (Object.keys(newErrors).length > 0) {
-      setErrors(prev => ({ ...prev, user: newErrors })); setLoading(false); return;
+      setErrors(prev => ({ ...prev, user: newErrors }));
+      setLoading(false);
+      return;
     }
 
     try {
       await api.post("/api/auth/register/user", userData);
-      await Swal.fire({ icon: "success", title: "Success", text: "User registered! Verify your email.",   toast:true,
-        position:"top-end", timer: 2000, showConfirmButton: false });
+      await Swal.fire({ icon: "success", title: "Account Created!", text: "Please verify your email.", toast: true, position: "top-end", timer: 2000 });
       verifyEmail(userData.email);
       navigate("/login");
     } catch (err) {
       const msg = err.response?.data?.message || "Registration failed";
       setErrors(prev => ({ ...prev, user: { general: msg } }));
-      Swal.fire({ icon: "error", title: "Error", text: msg });
-    } finally { setLoading(false); }
+      Swal.fire("Error", msg, "error");
+    } finally {
+      setLoading(false);
+    }
   }, [userData, validateEmail, validatePhone, validatePassword, verifyEmail, navigate]);
 
   const handleShopSignup = useCallback(async (e) => {
-    e.preventDefault(); setLoading(true); setErrors(prev => ({ ...prev, shop: {} }));
+    e.preventDefault();
+    setLoading(true);
+    setErrors(prev => ({ ...prev, shop: {} }));
     const newErrors = {};
-    if (!shopData.name) newErrors.name = "Shop name is required";
-    if (!shopData.email) newErrors.email = "Email is required";
-    else if (!validateEmail(shopData.email)) newErrors.email = "Invalid email format";
-    if (!shopData.password) newErrors.password = "Password is required";
-    else if (!validatePassword(shopData.password)) newErrors.password = "Password must be at least 6 characters";
-    if (!shopData.phone) newErrors.phone = "Phone is required";
-    else if (!validatePhone(shopData.phone)) newErrors.phone = "Phone must be 10-15 digits";
-    if (!shopData.description) newErrors.description = "Description is required";
-    if (!shopData.shopType) newErrors.shopType = "Shop type is required";
-    if (!shopData.shopAddress.state) newErrors.state = "State is required";
-    if (!shopData.shopAddress.city) newErrors.city = "City is required";
-    if (!shopData.shopAddress.street) newErrors.street = "Street is required";
-    if (!shopData.shopAddress.building) newErrors.building = "Building is required";
+    if (!shopData.name) newErrors.name = "Required";
+    if (!shopData.email || !validateEmail(shopData.email)) newErrors.email = "Valid email required";
+    if (!shopData.password || !validatePassword(shopData.password)) newErrors.password = "Min 6 characters";
+    if (!shopData.phone || !validatePhone(shopData.phone)) newErrors.phone = "Valid phone required";
+    if (!shopData.description) newErrors.description = "Required";
+    if (!shopData.shopType) newErrors.shopType = "Required";
+    if (!shopData.shopAddress.state) newErrors.state = "Required";
+    if (!shopData.shopAddress.city) newErrors.city = "Required";
+    if (!shopData.shopAddress.street) newErrors.street = "Required";
+    if (!shopData.shopAddress.building) newErrors.building = "Required";
 
     if (Object.keys(newErrors).length > 0) {
-      setErrors(prev => ({ ...prev, shop: newErrors })); setLoading(false); return;
+      setErrors(prev => ({ ...prev, shop: newErrors }));
+      setLoading(false);
+      return;
     }
 
     try {
       await api.post("/api/auth/register/shop", shopData);
-      await Swal.fire({ icon: "success", title: "Success", text: "Shop registered! Verify your email.", timer: 2000, showConfirmButton: false });
+      await Swal.fire({ icon: "success", title: "Shop Created!", text: "Please verify your email.", toast: true, position: "top-end", timer: 2000 });
       verifyEmail(shopData.email);
       navigate("/login");
     } catch (err) {
       const msg = err.response?.data?.message || "Registration failed";
       setErrors(prev => ({ ...prev, shop: { general: msg } }));
-      Swal.fire({ icon: "error", title: "Error", text: msg });
-    } finally { setLoading(false); }
+      Swal.fire("Error", msg, "error");
+    } finally {
+      setLoading(false);
+    }
   }, [shopData, validateEmail, validatePhone, validatePassword, verifyEmail, navigate]);
 
   const handleDeliverySignup = useCallback(async (e) => {
-    e.preventDefault(); setLoading(true); setErrors(prev => ({ ...prev, delivery: {} }));
+    e.preventDefault();
+    setLoading(true);
+    setErrors(prev => ({ ...prev, delivery: {} }));
     const newErrors = {};
-    if (!deliveryData.name) newErrors.name = "Name is required";
-    if (!deliveryData.email) newErrors.email = "Email is required";
-    else if (!validateEmail(deliveryData.email)) newErrors.email = "Invalid email format";
-    if (!deliveryData.phone) newErrors.phone = "Phone is required";
-    else if (!validatePhone(deliveryData.phone)) newErrors.phone = "Phone must be 10-15 digits";
-    if (!deliveryData.password) newErrors.password = "Password is required";
-    else if (!validatePassword(deliveryData.password)) newErrors.password = "Password must be at least 6 characters";
-    if (!deliveryData.address) newErrors.address = "Address is required";
+    if (!deliveryData.name) newErrors.name = "Required";
+    if (!deliveryData.email || !validateEmail(deliveryData.email)) newErrors.email = "Valid email required";
+    if (!deliveryData.phone || !validatePhone(deliveryData.phone)) newErrors.phone = "Valid phone required";
+    if (!deliveryData.password || !validatePassword(deliveryData.password)) newErrors.password = "Min 6 characters";
+    if (!deliveryData.address) newErrors.address = "Required";
 
     if (Object.keys(newErrors).length > 0) {
-      setErrors(prev => ({ ...prev, delivery: newErrors })); setLoading(false); return;
+      setErrors(prev => ({ ...prev, delivery: newErrors }));
+      setLoading(false);
+      return;
     }
 
     try {
       await api.post("/api/auth/register/delivery", deliveryData);
-      await Swal.fire({ icon: "success", title: "Success", text: "Delivery registered! Verify your email.", timer: 2000, showConfirmButton: false });
+      await Swal.fire({ icon: "success", title: "Account Created!", text: "Please verify your email.", toast: true, position: "top-end", timer: 2000 });
       verifyEmail(deliveryData.email);
       navigate("/login");
     } catch (err) {
       const msg = err.response?.data?.message || "Registration failed";
       setErrors(prev => ({ ...prev, delivery: { general: msg } }));
-      Swal.fire({ icon: "error", title: "Error", text: msg });
-    } finally { setLoading(false); }
+      Swal.fire("Error", msg, "error");
+    } finally {
+      setLoading(false);
+    }
   }, [deliveryData, validateEmail, validatePhone, validatePassword, verifyEmail, navigate]);
 
   const handleAssignerSignup = useCallback(async (e) => {
-    e.preventDefault(); setLoading(true); setErrors(prev => ({ ...prev, assigner: {} }));
+    e.preventDefault();
+    setLoading(true);
+    setErrors(prev => ({ ...prev, assigner: {} }));
     const newErrors = {};
-    if (!assignerData.name) newErrors.name = "Name is required";
-    if (!assignerData.email) newErrors.email = "Email is required";
-    else if (!validateEmail(assignerData.email)) newErrors.email = "Invalid email format";
-    if (!assignerData.phone) newErrors.phone = "Phone is required";
-    else if (!validatePhone(assignerData.phone)) newErrors.phone = "Phone must be 10-15 digits";
-    if (!assignerData.password) newErrors.password = "Password is required";
-    else if (!validatePassword(assignerData.password)) newErrors.password = "Password must be at least 6 characters";
-    if (!assignerData.department) newErrors.department = "Department is required";
+    if (!assignerData.name) newErrors.name = "Required";
+    if (!assignerData.email || !validateEmail(assignerData.email)) newErrors.email = "Valid email required";
+    if (!assignerData.phone || !validatePhone(assignerData.phone)) newErrors.phone = "Valid phone required";
+    if (!assignerData.password || !validatePassword(assignerData.password)) newErrors.password = "Min 6 characters";
+    if (!assignerData.department) newErrors.department = "Required";
 
     if (Object.keys(newErrors).length > 0) {
-      setErrors(prev => ({ ...prev, assigner: newErrors })); setLoading(false); return;
+      setErrors(prev => ({ ...prev, assigner: newErrors }));
+      setLoading(false);
+      return;
     }
 
     try {
       await api.post("/api/auth/register/assigner", assignerData);
-      await Swal.fire({ icon: "success", title: "Success", text: "Assigner registered! Verify your email.", timer: 2000, showConfirmButton: false });
+      await Swal.fire({ icon: "success", title: "Account Created!", text: "Please verify your email.", toast: true, position: "top-end", timer: 2000 });
       verifyEmail(assignerData.email);
       navigate("/login");
     } catch (err) {
       const msg = err.response?.data?.message || "Registration failed";
       setErrors(prev => ({ ...prev, assigner: { general: msg } }));
-      Swal.fire({ icon: "error", title: "Error", text: msg });
-    } finally { setLoading(false); }
+      Swal.fire("Error", msg, "error");
+    } finally {
+      setLoading(false);
+    }
   }, [assignerData, validateEmail, validatePhone, validatePassword, verifyEmail, navigate]);
 
+  const tabConfig = [
+    { key: "user", label: "User", icon: <RiUserLine size={20} /> },
+    { key: "shop", label: "Shop Owner", icon: <RiStore2Line size={20} /> },
+    { key: "delivery", label: "Delivery", icon: <RiTruckLine size={20} /> },
+    { key: "assigner", label: "Assigner", icon: <RiUserSettingsLine size={20} /> }
+  ];
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-lime-50 to-white p-4 overflow-hidden font-cairo">
-      {/* Floating Icons */}
-      <RiComputerLine className="absolute top-10 left-10 text-lime-400 text-7xl animate-pulse opacity-20" />
-      <RiSmartphoneLine className="absolute bottom-16 right-12 text-lime-500 text-6xl animate-bounce opacity-20" />
-      <RiToolsLine className="absolute top-1/2 left-1/3 text-lime-600 text-8xl animate-spin-slow opacity-20" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-lime-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-700 relative overflow-hidden">
+      <RiUserLine className="absolute top-10 left-10 text-emerald-200 dark:text-emerald-600 text-8xl opacity-20 animate-pulse" />
+      <RiStore2Line className="absolute bottom-16 right-12 text-lime-200 dark:text-lime-600 text-9xl opacity-20 animate-bounce" />
+      <RiTruckLine className="absolute top-1/3 left-1/4 text-emerald-200 dark:text-emerald-600 text-8xl opacity-15 animate-spin-slow" />
 
-      <div className="w-full max-w-4xl relative z-10">
-        <div className="bg-white/90 backdrop-blur-xl border border-gray-200 rounded-3xl shadow-2xl p-8">
-          <h1 className="text-3xl font-bold text-lime-700 text-center mb-2">
-            Create an Account
-          </h1>
-          <p className="text-lime-600 text-center mb-6">
-            Choose your role to get started
-          </p>
+      <div className="w-full max-w-3xl px-6">
+        <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/60 dark:border-gray-700 p-8">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-extrabold text-emerald-800 dark:text-emerald-200 mb-2">Create Account</h1>
+            <p className="text-lg text-emerald-600 dark:text-emerald-300 font-medium">Choose your role to get started</p>
+          </div>
 
-          {/* Tabs */}
-          <div className="flex flex-wrap justify-center gap-2 mb-8">
-            {[
-              { key: "user", label: "User", icon: <RiUserLine /> },
-              { key: "shop", label: "Shop Owner", icon: <RiStore2Line /> },
-              { key: "delivery", label: "Delivery", icon: <RiTruckLine /> },
-              { key: "assigner", label: "Assigner", icon: <RiUserSettingsLine /> }
-            ].map(({ key, label, icon }) => (
+          <div className="flex flex-wrap justify-center gap-3 mb-10">
+            {tabConfig.map(({ key, label, icon }) => (
               <button
                 key={key}
                 onClick={() => setActiveTab(key)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                className={`flex items-center gap-3 px-6 py-3 rounded-xl font-semibold transition-all shadow-sm ${
                   activeTab === key
-                    ? "bg-lime-600 text-white shadow-md"
-                    : "bg-gray-100 text-lime-700 hover:bg-gray-200"
+                    ? "bg-gradient-to-r from-emerald-500 to-lime-600 text-white shadow-md"
+                    : "bg-emerald-50 dark:bg-gray-800 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-gray-700 border border-emerald-200 dark:border-gray-600"
                 }`}
               >
                 {icon}
@@ -282,218 +300,486 @@ const Signup = () => {
             ))}
           </div>
 
-          {/* ==== USER TAB ==== */}
           {activeTab === "user" && (
-            <form onSubmit={handleUserSignup} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {["first_name", "last_name", "email", "phone"].map((field) => (
-                  <div key={field} className="relative">
-                    <input
-                      type={field === "email" ? "email" : field === "phone" ? "tel" : "text"}
-                      name={field}
-                      placeholder={field.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
-                      onChange={(e) => { e.persist(); handleUserChange(e); }}
-                      className={`w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 text-lime-900 placeholder-lime-400 border ${
-                        errors.user[field] ? "border-red-400" : "border-gray-300"
-                      } focus:ring-2 focus:ring-lime-500 focus:outline-none transition-all`}
-                    />
-                    {field === "first_name" || field === "last_name" ? (
-                      <RiUserLine className="absolute top-3.5 left-3 text-lime-600" />
-                    ) : field === "email" ? (
-                      <RiMailLine className="absolute top-3.5 left-3 text-lime-600" />
-                    ) : (
-                      <RiPhoneLine className="absolute top-3.5 left-3 text-lime-600" />
-                    )}
-                    {errors.user[field] && <p className="text-red-600 text-xs mt-1">{errors.user[field]}</p>}
-                  </div>
-                ))}
-                <div className="relative sm:col-span-2">
-                  <input
-                    type="password"
-                    name="password"
-                    placeholder="Password"
-                    onChange={(e) => { e.persist(); handleUserChange(e); }}
-                    className={`w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 text-lime-900 placeholder-lime-400 border ${
-                      errors.user.password ? "border-red-400" : "border-gray-300"
-                    } focus:ring-2 focus:ring-lime-500 focus:outline-none transition-all`}
-                  />
-                  <RiLockPasswordLine className="absolute top-3.5 left-3 text-lime-600" />
-                  {errors.user.password && <p className="text-red-600 text-xs mt-1">{errors.user.password}</p>}
-                </div>
-              </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-lime-500 to-green-600 text-white font-bold py-3 rounded-lg shadow hover:shadow-lime-500/50 transition-all disabled:opacity-70 flex items-center justify-center"
-              >
-                {loading ? "Signing up..." : "Sign up as User"}
-              </button>
-            </form>
-          )}
-
-          {/* ==== SHOP OWNER TAB ==== */}
-          {activeTab === "shop" && (
-            <form onSubmit={handleShopSignup} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {["name", "email", "password", "description", "phone"].map((field) => (
-                  <div key={field} className="relative">
-                    <input
-                      type={field === "email" ? "email" : field === "password" ? "password" : "text"}
-                      name={field}
-                      placeholder={field.charAt(0).toUpperCase() + field.slice(1)}
-                      onChange={(e) => { e.persist(); handleShopChange(e); }}
-                      className={`w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 text-lime-900 placeholder-lime-400 border ${
-                        errors.shop[field] ? "border-red-400" : "border-gray-300"
-                      } focus:ring-2 focus:ring-lime-500 focus:outline-none transition-all`}
-                    />
-                    {field === "name" && <RiStore2Line className="absolute top-3.5 left-3 text-lime-600" />}
-                    {field === "email" && <RiMailLine className="absolute top-3.5 left-3 text-lime-600" />}
-                    {field === "password" && <RiLockPasswordLine className="absolute top-3.5 left-3 text-lime-600" />}
-                    {field === "description" && <RiFileListLine className="absolute top-3.5 left-3 text-lime-600" />}
-                    {field === "phone" && <RiPhoneLine className="absolute top-3.5 left-3 text-lime-600" />}
-                    {errors.shop[field] && <p className="text-red-600 text-xs mt-1">{errors.shop[field]}</p>}
-                  </div>
-                ))}
-                <div className="relative">
-                  <select
-                    name="shopType"
-                    onChange={(e) => { e.persist(); handleShopChange(e); }}
-                    className={`w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 text-lime-900 border ${
-                      errors.shop.shopType ? "border-red-400" : "border-gray-300"
-                    } focus:ring-2 focus:ring-lime-500 focus:outline-none transition-all appearance-none`}
-                  >
-                    <option value="">Select Shop Type</option>
-                    <option value="REPAIRER">Repairer</option>
-                    <option value="SELLER">Seller</option>
-                    <option value="BOTH">Both</option>
-                  </select>
-                  <RiStore2Line className="absolute top-3.5 left-3 text-lime-600 pointer-events-none" />
-                  {errors.shop.shopType && <p className="text-red-600 text-xs mt-1">{errors.shop.shopType}</p>}
-                </div>
-                {["state", "city", "street", "building"].map((field) => (
-                  <div key={field} className="relative">
+            <form onSubmit={handleUserSignup} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">First Name</label>
+                  <div className="relative">
+                    <RiUserLine className="absolute left-4 top-4 text-emerald-600 dark:text-emerald-400" size={22} />
                     <input
                       type="text"
-                      name={field}
-                      placeholder={field.charAt(0).toUpperCase() + field.slice(1)}
-                      onChange={(e) => { e.persist(); handleShopChange(e); }}
-                      className={`w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 text-lime-900 placeholder-lime-400 border ${
-                        errors.shop[field] ? "border-red-400" : "border-gray-300"
-                      } focus:ring-2 focus:ring-lime-500 focus:outline-none transition-all`}
+                      name="first_name"
+                      onChange={handleUserChange}
+                      className="w-full pl-12 pr-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      placeholder="Enter first name"
                     />
-                    <RiMapPinLine className="absolute top-3.5 left-3 text-lime-600" />
-                    {errors.shop[field] && <p className="text-red-600 text-xs mt-1">{errors.shop[field]}</p>}
                   </div>
-                ))}
+                  {errors.user.first_name && <p className="text-red-500 dark:text-red-400 text-xs">{errors.user.first_name}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">Last Name</label>
+                  <div className="relative">
+                    <RiUserLine className="absolute left-4 top-4 text-emerald-600 dark:text-emerald-400" size={22} />
+                    <input
+                      type="text"
+                      name="last_name"
+                      onChange={handleUserChange}
+                      className="w-full pl-12 pr-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      placeholder="Enter last name"
+                    />
+                  </div>
+                  {errors.user.last_name && <p className="text-red-500 dark:text-red-400 text-xs">{errors.user.last_name}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">Email Address</label>
+                  <div className="relative">
+                    <RiMailLine className="absolute left-4 top-4 text-emerald-600 dark:text-emerald-400" size={22} />
+                    <input
+                      type="email"
+                      name="email"
+                      onChange={handleUserChange}
+                      className="w-full pl-12 pr-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      placeholder="Enter email"
+                    />
+                  </div>
+                  {errors.user.email && <p className="text-red-500 dark:text-red-400 text-xs">{errors.user.email}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">Phone Number</label>
+                  <div className="relative">
+                    <RiPhoneLine className="absolute left-4 top-4 text-emerald-600 dark:text-emerald-400" size={22} />
+                    <input
+                      type="tel"
+                      name="phone"
+                      onChange={handleUserChange}
+                      className="w-full pl-12 pr-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      placeholder="Enter phone number"
+                    />
+                  </div>
+                  {errors.user.phone && <p className="text-red-500 dark:text-red-400 text-xs">{errors.user.phone}</p>}
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">Password (min 6 characters)</label>
+                  <div className="relative">
+                    <RiLockPasswordLine className="absolute left-4 top-4 text-emerald-600 dark:text-emerald-400" size={22} />
+                    <input
+                      type="password"
+                      name="password"
+                      onChange={handleUserChange}
+                      className="w-full pl-12 pr-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      placeholder="Enter password"
+                    />
+                  </div>
+                  {errors.user.password && <p className="text-red-500 dark:text-red-400 text-xs">{errors.user.password}</p>}
+                </div>
               </div>
+
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-lime-500 to-green-600 text-white font-bold py-3 rounded-lg shadow hover:shadow-lime-500/50 transition-all disabled:opacity-70"
+                className="w-full bg-gradient-to-r from-emerald-500 to-lime-600 text-white font-bold text-lg py-4 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 disabled:opacity-70 flex items-center justify-center gap-3"
               >
-                {loading ? "Signing up..." : "Sign up as Shop Owner"}
+                {loading ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Creating Account...
+                  </>
+                ) : (
+                  "Sign Up as User"
+                )}
               </button>
             </form>
           )}
 
-          {/* ==== DELIVERY TAB ==== */}
+          {activeTab === "shop" && (
+            <form onSubmit={handleShopSignup} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">Shop Name</label>
+                  <div className="relative">
+                    <RiStore2Line className="absolute left-4 top-4 text-emerald-600 dark:text-emerald-400" size={22} />
+                    <input
+                      type="text"
+                      name="name"
+                      onChange={handleShopChange}
+                      className="w-full pl-12 pr-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      placeholder="Enter shop name"
+                    />
+                  </div>
+                  {errors.shop.name && <p className="text-red-500 dark:text-red-400 text-xs">{errors.shop.name}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">Email Address</label>
+                  <div className="relative">
+                    <RiMailLine className="absolute left-4 top-4 text-emerald-600 dark:text-emerald-400" size={22} />
+                    <input
+                      type="email"
+                      name="email"
+                      onChange={handleShopChange}
+                      className="w-full pl-12 pr-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      placeholder="Enter email"
+                    />
+                  </div>
+                  {errors.shop.email && <p className="text-red-500 dark:text-red-400 text-xs">{errors.shop.email}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">Phone Number</label>
+                  <div className="relative">
+                    <RiPhoneLine className="absolute left-4 top-4 text-emerald-600 dark:text-emerald-400" size={22} />
+                    <input
+                      type="tel"
+                      name="phone"
+                      onChange={handleShopChange}
+                      className="w-full pl-12 pr-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      placeholder="Enter phone"
+                    />
+                  </div>
+                  {errors.shop.phone && <p className="text-red-500 dark:text-red-400 text-xs">{errors.shop.phone}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">Shop Description</label>
+                  <div className="relative">
+                    <RiFileListLine className="absolute left-4 top-4 text-emerald-600 dark:text-emerald-400" size={22} />
+                    <input
+                      type="text"
+                      name="description"
+                      onChange={handleShopChange}
+                      className="w-full pl-12 pr-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      placeholder="Brief description"
+                    />
+                  </div>
+                  {errors.shop.description && <p className="text-red-500 dark:text-red-400 text-xs">{errors.shop.description}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">Shop Type</label>
+                  <div className="relative">
+                    <RiStore2Line className="absolute left-4 top-4 text-emerald-600 dark:text-emerald-400 pointer-events-none" size={22} />
+                    <select
+                      name="shopType"
+                      onChange={handleShopChange}
+                      className="w-full pl-12 pr-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all appearance-none"
+                    >
+                      <option value="">Select type</option>
+                      <option value="REPAIRER">Repairer</option>
+                      <option value="SELLER">Seller</option>
+                      <option value="BOTH">Both</option>
+                    </select>
+                  </div>
+                  {errors.shop.shopType && <p className="text-red-500 dark:text-red-400 text-xs">{errors.shop.shopType}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">State</label>
+                  <div className="relative">
+                    <RiMapPinLine className="absolute left-4 top-4 text-emerald-600 dark:text-emerald-400" size={22} />
+                    <input
+                      type="text"
+                      name="state"
+                      onChange={handleShopChange}
+                      className="w-full pl-12 pr-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      placeholder="e.g. Cairo"
+                    />
+                  </div>
+                  {errors.shop.state && <p className="text-red-500 dark:text-red-400 text-xs">{errors.shop.state}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">City</label>
+                  <div className="relative">
+                    <RiMapPinLine className="absolute left-4 top-4 text-emerald-600 dark:text-emerald-400" size={22} />
+                    <input
+                      type="text"
+                      name="city"
+                      onChange={handleShopChange}
+                      className="w-full pl-12 pr-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      placeholder="e.g. Giza"
+                    />
+                  </div>
+                  {errors.shop.city && <p className="text-red-500 dark:text-red-400 text-xs">{errors.shop.city}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">Street</label>
+                  <div className="relative">
+                    <RiMapPinLine className="absolute left-4 top-4 text-emerald-600 dark:text-emerald-400" size={22} />
+                    <input
+                      type="text"
+                      name="street"
+                      onChange={handleShopChange}
+                      className="w-full pl-12 pr-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      placeholder="Street name"
+                    />
+                  </div>
+                  {errors.shop.street && <p className="text-red-500 dark:text-red-400 text-xs">{errors.shop.street}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">Building</label>
+                  <div className="relative">
+                    <RiMapPinLine className="absolute left-4 top-4 text-emerald-600 dark:text-emerald-400" size={22} />
+                    <input
+                      type="text"
+                      name="building"
+                      onChange={handleShopChange}
+                      className="w-full pl-12 pr-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      placeholder="Building number"
+                    />
+                  </div>
+                  {errors.shop.building && <p className="text-red-500 dark:text-red-400 text-xs">{errors.shop.building}</p>}
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">Password (min 6 characters)</label>
+                  <div className="relative">
+                    <RiLockPasswordLine className="absolute left-4 top-4 text-emerald-600 dark:text-emerald-400" size={22} />
+                    <input
+                      type="password"
+                      name="password"
+                      onChange={handleShopChange}
+                      className="w-full pl-12 pr-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      placeholder="Enter password"
+                    />
+                  </div>
+                  {errors.shop.password && <p className="text-red-500 dark:text-red-400 text-xs">{errors.shop.password}</p>}
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-emerald-500 to-lime-600 text-white font-bold text-lg py-4 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 disabled:opacity-70 flex items-center justify-center gap-3"
+              >
+                {loading ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Creating Shop...
+                  </>
+                ) : (
+                  "Sign Up as Shop Owner"
+                )}
+              </button>
+            </form>
+          )}
+
           {activeTab === "delivery" && (
-            <form onSubmit={handleDeliverySignup} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {["name", "address", "email", "phone"].map((field) => (
-                  <div key={field} className="relative">
+            <form onSubmit={handleDeliverySignup} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">Full Name</label>
+                  <div className="relative">
+                    <RiUserLine className="absolute left-4 top-4 text-emerald-600 dark:text-emerald-400" size={22} />
                     <input
-                      type={field === "email" ? "email" : field === "phone" ? "tel" : "text"}
-                      name={field}
-                      placeholder={field.charAt(0).toUpperCase() + field.slice(1)}
-                      onChange={(e) => { e.persist(); handleDeliveryChange(e); }}
-                      className={`w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 text-lime-900 placeholder-lime-400 border ${
-                        errors.delivery[field] ? "border-red-400" : "border-gray-300"
-                      } focus:ring-2 focus:ring-lime-500 focus:outline-none transition-all`}
+                      type="text"
+                      name="name"
+                      onChange={handleDeliveryChange}
+                      className="w-full pl-12 pr-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      placeholder="Enter full name"
                     />
-                    {field === "name" && <RiUserLine className="absolute top-3.5 left-3 text-lime-600" />}
-                    {field === "address" && <RiHome4Line className="absolute top-3.5 left-3 text-lime-600" />}
-                    {field === "email" && <RiMailLine className="absolute top-3.5 left-3 text-lime-600" />}
-                    {field === "phone" && <RiPhoneLine className="absolute top-3.5 left-3 text-lime-600" />}
-                    {errors.delivery[field] && <p className="text-red-600 text-xs mt-1">{errors.delivery[field]}</p>}
                   </div>
-                ))}
-                <div className="relative sm:col-span-2">
-                  <input
-                    type="password"
-                    name="password"
-                    placeholder="Password"
-                    onChange={(e) => { e.persist(); handleDeliveryChange(e); }}
-                    className={`w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 text-lime-900 placeholder-lime-400 border ${
-                      errors.delivery.password ? "border-red-400" : "border-gray-300"
-                    } focus:ring-2 focus:ring-lime-500 focus:outline-none transition-all`}
-                  />
-                  <RiLockPasswordLine className="absolute top-3.5 left-3 text-lime-600" />
-                  {errors.delivery.password && <p className="text-red-600 text-xs mt-1">{errors.delivery.password}</p>}
+                  {errors.delivery.name && <p className="text-red-500 dark:text-red-400 text-xs">{errors.delivery.name}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">Email Address</label>
+                  <div className="relative">
+                    <RiMailLine className="absolute left-4 top-4 text-emerald-600 dark:text-emerald-400" size={22} />
+                    <input
+                      type="email"
+                      name="email"
+                      onChange={handleDeliveryChange}
+                      className="w-full pl-12 pr-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      placeholder="Enter email"
+                    />
+                  </div>
+                  {errors.delivery.email && <p className="text-red-500 dark:text-red-400 text-xs">{errors.delivery.email}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">Phone Number</label>
+                  <div className="relative">
+                    <RiPhoneLine className="absolute left-4 top-4 text-emerald-600 dark:text-emerald-400" size={22} />
+                    <input
+                      type="tel"
+                      name="phone"
+                      onChange={handleDeliveryChange}
+                      className="w-full pl-12 pr-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      placeholder="Enter phone"
+                    />
+                  </div>
+                  {errors.delivery.phone && <p className="text-red-500 dark:text-red-400 text-xs">{errors.delivery.phone}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">Delivery Address</label>
+                  <div className="relative">
+                    <RiHome4Line className="absolute left-4 top-4 text-emerald-600 dark:text-emerald-400" size={22} />
+                    <input
+                      type="text"
+                      name="address"
+                      onChange={handleDeliveryChange}
+                      className="w-full pl-12 pr-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      placeholder="Enter address"
+                    />
+                  </div>
+                  {errors.delivery.address && <p className="text-red-500 dark:text-red-400 text-xs">{errors.delivery.address}</p>}
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">Password (min 6 characters)</label>
+                  <div className="relative">
+                    <RiLockPasswordLine className="absolute left-4 top-4 text-emerald-600 dark:text-emerald-400" size={22} />
+                    <input
+                      type="password"
+                      name="password"
+                      onChange={handleDeliveryChange}
+                      className="w-full pl-12 pr-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      placeholder="Enter password"
+                    />
+                  </div>
+                  {errors.delivery.password && <p className="text-red-500 dark:text-red-400 text-xs">{errors.delivery.password}</p>}
                 </div>
               </div>
+
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-lime-500 to-green-600 text-white font-bold py-3 rounded-lg shadow hover:shadow-lime-500/50 transition-all disabled:opacity-70"
+                className="w-full bg-gradient-to-r from-emerald-500 to-lime-600 text-white font-bold text-lg py-4 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 disabled:opacity-70 flex items-center justify-center gap-3"
               >
-                {loading ? "Signing up..." : "Sign up as Delivery"}
+                {loading ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Creating Account...
+                  </>
+                ) : (
+                  "Sign Up as Delivery"
+                )}
               </button>
             </form>
           )}
 
-          {/* ==== ASSIGNER TAB ==== */}
           {activeTab === "assigner" && (
-            <form onSubmit={handleAssignerSignup} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {["name", "department", "email", "phone"].map((field) => (
-                  <div key={field} className="relative">
+            <form onSubmit={handleAssignerSignup} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">Full Name</label>
+                  <div className="relative">
+                    <RiUserLine className="absolute left-4 top-4 text-emerald-600 dark:text-emerald-400" size={22} />
                     <input
-                      type={field === "email" ? "email" : field === "phone" ? "tel" : "text"}
-                      name={field}
-                      placeholder={field.charAt(0).toUpperCase() + field.slice(1)}
-                      onChange={(e) => { e.persist(); handleAssignerChange(e); }}
-                      className={`w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 text-lime-900 placeholder-lime-400 border ${
-                        errors.assigner[field] ? "border-red-400" : "border-gray-300"
-                      } focus:ring-2 focus:ring-lime-500 focus:outline-none transition-all`}
+                      type="text"
+                      name="name"
+                      onChange={handleAssignerChange}
+                      className="w-full pl-12 pr-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      placeholder="Enter full name"
                     />
-                    {field === "name" && <RiUserLine className="absolute top-3.5 left-3 text-lime-600" />}
-                    {field === "department" && <RiUserSettingsLine className="absolute top-3.5 left-3 text-lime-600" />}
-                    {field === "email" && <RiMailLine className="absolute top-3.5 left-3 text-lime-600" />}
-                    {field === "phone" && <RiPhoneLine className="absolute top-3.5 left-3 text-lime-600" />}
-                    {errors.assigner[field] && <p className="text-red-600 text-xs mt-1">{errors.assigner[field]}</p>}
                   </div>
-                ))}
-                <div className="relative sm:col-span-2">
-                  <input
-                    type="password"
-                    name="password"
-                    placeholder="Password"
-                    onChange={(e) => { e.persist(); handleAssignerChange(e); }}
-                    className={`w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 text-lime-900 placeholder-lime-400 border ${
-                      errors.assigner.password ? "border-red-400" : "border-gray-300"
-                    } focus:ring-2 focus:ring-lime-500 focus:outline-none transition-all`}
-                  />
-                  <RiLockPasswordLine className="absolute top-3.5 left-3 text-lime-600" />
-                  {errors.assigner.password && <p className="text-red-600 text-xs mt-1">{errors.assigner.password}</p>}
+                  {errors.assigner.name && <p className="text-red-500 dark:text-red-400 text-xs">{errors.assigner.name}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">Department</label>
+                  <div className="relative">
+                    <RiUserSettingsLine className="absolute left-4 top-4 text-emerald-600 dark:text-emerald-400" size={22} />
+                    <input
+                      type="text"
+                      name="department"
+                      onChange={handleAssignerChange}
+                      className="w-full pl-12 pr-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      placeholder="Enter department"
+                    />
+                  </div>
+                  {errors.assigner.department && <p className="text-red-500 dark:text-red-400 text-xs">{errors.assigner.department}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">Email Address</label>
+                  <div className="relative">
+                    <RiMailLine className="absolute left-4 top-4 text-emerald-600 dark:text-emerald-400" size={22} />
+                    <input
+                      type="email"
+                      name="email"
+                      onChange={handleAssignerChange}
+                      className="w-full pl-12 pr-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      placeholder="Enter email"
+                    />
+                  </div>
+                  {errors.assigner.email && <p className="text-red-500 dark:text-red-400 text-xs">{errors.assigner.email}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">Phone Number</label>
+                  <div className="relative">
+                    <RiPhoneLine className="absolute left-4 top-4 text-emerald-600 dark:text-emerald-400" size={22} />
+                    <input
+                      type="tel"
+                      name="phone"
+                      onChange={handleAssignerChange}
+                      className="w-full pl-12 pr-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      placeholder="Enter phone"
+                    />
+                  </div>
+                  {errors.assigner.phone && <p className="text-red-500 dark:text-red-400 text-xs">{errors.assigner.phone}</p>}
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">Password (min 6 characters)</label>
+                  <div className="relative">
+                    <RiLockPasswordLine className="absolute left-4 top-4 text-emerald-600 dark:text-emerald-400" size={22} />
+                    <input
+                      type="password"
+                      name="password"
+                      onChange={handleAssignerChange}
+                      className="w-full pl-12 pr-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                      placeholder="Enter password"
+                    />
+                  </div>
+                  {errors.assigner.password && <p className="text-red-500 dark:text-red-400 text-xs">{errors.assigner.password}</p>}
                 </div>
               </div>
+
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-lime-500 to-green-600 text-white font-bold py-3 rounded-lg shadow hover:shadow-lime-500/50 transition-all disabled:opacity-70"
+                className="w-full bg-gradient-to-r from-emerald-500 to-lime-600 text-white font-bold text-lg py-4 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 disabled:opacity-70 flex items-center justify-center gap-3"
               >
-                {loading ? "Signing up..." : "Sign up as Assigner"}
+                {loading ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Creating Account...
+                  </>
+                ) : (
+                  "Sign Up as Assigner"
+                )}
               </button>
             </form>
           )}
 
-          <div className="mt-6 text-center text-sm text-lime-700">
+          <p className="mt-8 text-center text-emerald-700 dark:text-emerald-300 font-medium">
             Already have an account?{" "}
-            <Link to="/login" className="font-medium text-lime-600 underline hover:text-lime-700">
-              Log in
+            <Link to="/login" className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline">
+              Log in here
             </Link>
-          </div>
+          </p>
         </div>
       </div>
 
@@ -502,7 +788,7 @@ const Signup = () => {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
-        .animate-spin-slow { animation: spin-slow 20s linear infinite; }
+        .animate-spin-slow { animation: spin-slow 35s linear infinite; }
       `}</style>
     </div>
   );

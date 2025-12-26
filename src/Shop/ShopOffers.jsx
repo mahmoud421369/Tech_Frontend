@@ -41,6 +41,10 @@ const ShopOffers = () => {
     PERCENTAGE: 'نسبة مئوية',
     FIXED_AMOUNT: 'مبلغ ثابت',
   };
+useEffect(() => {
+document.title = "إدارة العروض";
+
+});
 
   const fetchOffers = useCallback(async () => {
     setLoading(true);

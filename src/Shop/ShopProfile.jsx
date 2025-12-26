@@ -64,6 +64,10 @@ const ShopProfile = ({ darkMode }) => {
   const [editingAddress, setEditingAddress] = useState({});
   const [loading, setLoading] = useState(false);
 
+useEffect(() => {
+document.title = "إدارة الحساب الشخصي";
+
+});
 
   const fetchAllData = useCallback(async () => {
     if (!accessToken || !shopId || hasFetched.current) return;

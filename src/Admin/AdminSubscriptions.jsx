@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiRefreshCw, FiCopy, FiSearch, FiXCircle, FiInfo, FiFileText, FiChevronDown, FiCheckCircle, FiXCircle as FiReject, FiClock } from 'react-icons/fi';
+import { FiRefreshCw, FiCopy, FiSearch, FiXCircle, FiInfo, FiFileText, FiChevronDown, FiCheckCircle, FiXCircle as FiReject, FiClock, FiDollarSign } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import api from '../api';
 
@@ -8,17 +8,15 @@ const AdminSubscriptions = ({ darkMode }) => {
   const navigate = useNavigate();
   const token = localStorage.getItem('authToken');
 
- 
   const [subscriptions, setSubscriptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all'); 
+  const [filter, setFilter] = useState('all');
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const pageSize = 10;
-
 
   const fetchAllSubscriptions = useCallback(async (pageNum = 0) => {
     if (!token) return navigate('/login');
@@ -57,7 +55,6 @@ const AdminSubscriptions = ({ darkMode }) => {
       setLoading(false);
     }
   }, [token, navigate]);
-
 
   const fetchPendingCashPayments = useCallback(async () => {
     if (!token) return navigate('/login');
@@ -116,7 +113,6 @@ const AdminSubscriptions = ({ darkMode }) => {
     }
   }, [filter, page, fetchAllSubscriptions, fetchPendingCashPayments]);
 
-
   useEffect(() => {
     setPage(0);
     loadData();
@@ -132,7 +128,6 @@ const AdminSubscriptions = ({ darkMode }) => {
     loadData();
   }, []);
 
-  
   const confirmCash = async (paymentId) => {
     const result = await Swal.fire({
       title: 'Confirm Cash Payment?',
@@ -253,7 +248,6 @@ const AdminSubscriptions = ({ darkMode }) => {
     }
   };
 
-
   const filtered = useMemo(() => {
     return subscriptions.filter(s =>
       !search ||
@@ -266,8 +260,12 @@ const AdminSubscriptions = ({ darkMode }) => {
   const stats = useMemo(() => ({
     total: totalElements,
     active: subscriptions.filter(s => s.status === 'ACTIVE').length,
-    pending: subscriptions.filter(s => s.paymentStatus === 'PENDING' || s.status === 'PENDING').length,
-    cashPending: subscriptions.filter(s => s.paymentMethod === 'CASH' && s.paymentStatus === 'PENDING').length,
+    pending: subscriptions.filter(s => 
+      s.paymentStatus === 'PENDING' || s.status === 'PENDING'
+    ).length,
+    cashPending: subscriptions.filter(s => 
+      s.paymentMethod === 'CASH' && s.paymentStatus === 'PENDING'
+    ).length,
   }), [subscriptions, totalElements]);
 
   const isCashPendingMode = filter === 'CASH_PENDING';
@@ -276,7 +274,6 @@ const AdminSubscriptions = ({ darkMode }) => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-16 ml-3">
       <div className="max-w-7xl mx-auto space-y-8">
 
-       
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
           <h1 className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-3">
             <FiFileText /> Subscriptions
@@ -290,17 +287,51 @@ const AdminSubscriptions = ({ darkMode }) => {
           </div>
         ) : (
           <>
-            
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {Object.entries(stats).map(([key, value]) => (
-                <div key={key} className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow text-center border border-gray-200 dark:border-gray-700">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</p>
-                  <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">{value}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[
+                { 
+                  label: 'Total Subscriptions', 
+                  value: stats.total, 
+                  color: 'emerald', 
+                  icon: FiFileText 
+                },
+                { 
+                  label: 'Active Subscriptions', 
+                  value: stats.active, 
+                  color: 'green', 
+                  icon: FiCheckCircle 
+                },
+                { 
+                  label: 'Pending Payments', 
+                  value: stats.pending, 
+                  color: 'amber', 
+                  icon: FiClock 
+                },
+                { 
+                  label: 'Pending Cash Payments', 
+                  value: stats.cashPending, 
+                  color: 'orange', 
+                  icon: FiDollarSign 
+                },
+              ].map((stat, index) => (
+                <div
+                  key={index}
+                  className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-center justify-between hover:shadow-md transition-shadow"
+                >
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
+                    <p className={`text-3xl font-bold mt-2 text-${stat.color}-600 dark:text-${stat.color}-400`}>
+                      {stat.value}
+                    </p>
+                  </div>
+
+                  <div className={`p-4 rounded-full bg-${stat.color}-100 dark:bg-${stat.color}-900/30`}>
+                    <stat.icon className={`w-8 h-8 text-${stat.color}-600 dark:text-${stat.color}-400`} />
+                  </div>
                 </div>
               ))}
             </div>
 
-          
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-6 border border-gray-200 dark:border-gray-700">
               <div className="flex flex-col md:flex-row gap-4 items-center">
                 <div className="relative">
@@ -346,7 +377,6 @@ const AdminSubscriptions = ({ darkMode }) => {
               </div>
             </div>
 
-          
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow overflow-hidden border border-gray-200 dark:border-gray-700">
               <div className="overflow-x-auto">
                 <table className="min-w-full">
@@ -406,7 +436,7 @@ const AdminSubscriptions = ({ darkMode }) => {
                             {!isCashPendingMode && (
                               <button
                                 onClick={() => viewDetails(sub.subscriptionId || sub.id)}
-                                className="text-blue-600 dark:bg-gray-950 dark:text-blue-700 dark:border-gray-900 hover:text-blue-800 flex items-center gap-1 text-xs px-3 py-1.5 bg-blue-50 rounded-lg font-medium border "
+                                className="text-blue-600 dark:bg-gray-950 dark:text-blue-700 dark:border-gray-900 hover:text-blue-800 flex items-center gap-1 text-xs px-3 py-1.5 bg-blue-50 rounded-lg font-medium border border-blue-200 "
                               >
                                 <FiInfo size={16} /> View
                               </button>
@@ -416,13 +446,13 @@ const AdminSubscriptions = ({ darkMode }) => {
                               <>
                                 <button
                                   onClick={() => confirmCash(sub.paymentId || sub.id)}
-                                  className="text-green-600 dark:bg-gray-950 dark:text-green-700 dark:border-gray-900 hover:text-green-800 flex items-center gap-1 text-xs px-3 py-1.5 bg-green-50 rounded-lg font-medium border"
+                                  className="text-green-600 dark:bg-gray-950 dark:text-green-700 dark:border-gray-900 hover:text-green-800 flex items-center gap-1 text-xs px-3 py-1.5 bg-green-50 rounded-lg font-medium border border-green-200"
                                 >
                                   <FiCheckCircle size={16} /> Confirm
                                 </button>
                                 <button
                                   onClick={() => rejectCash(sub.paymentId || sub.id)}
-                                  className="text-red-600 dark:bg-gray-950 dark:text-red-700 dark:border-gray-900 hover:text-red-800 flex items-center gap-1 text-xs px-3 py-1.5 bg-red-50 rounded-lg font-medium border"
+                                  className="text-red-600 dark:bg-gray-950 dark:text-red-700 dark:border-gray-900 hover:text-red-800 flex items-center gap-1 text-xs px-3 py-1.5 bg-red-50 rounded-lg font-medium border border-red-200"
                                 >
                                   <FiReject size={16} /> Reject
                                 </button>
@@ -442,7 +472,6 @@ const AdminSubscriptions = ({ darkMode }) => {
                   </tbody>
                 </table>
 
-                
                 {!isCashPendingMode && totalPages > 1 && (
                   <div className="flex justify-center items-center gap-6 p-6 border-t border-gray-200 dark:border-gray-700">
                     <button
