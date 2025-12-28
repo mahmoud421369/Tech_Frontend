@@ -53,7 +53,7 @@ const Service = ({ darkMode }) => {
           : "bg-gradient-to-b from-gray-50 via-white to-gray-50"
       }`}
     >
-      {/* Subtle Floating Orbs */}
+    
       <div className="absolute inset-0 pointer-events-none opacity-30">
         <div className="absolute top-10 left-10 w-32 h-32 rounded-full bg-emerald-400/20 animate-float"></div>
         <div className="absolute top-32 right-16 w-40 h-40 rounded-full bg-lime-400/20 animate-float-slow"></div>
@@ -62,7 +62,7 @@ const Service = ({ darkMode }) => {
       </div>
 
       <div className="relative max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 text-center z-10">
-        {/* Header */}
+       
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -79,7 +79,7 @@ const Service = ({ darkMode }) => {
           </p>
         </motion.div>
 
-        {/* Services Grid */}
+       
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10 mt-16">
           {services.map((service, i) => (
             <motion.div
@@ -111,7 +111,7 @@ const Service = ({ darkMode }) => {
         </div>
       </div>
 
-      {/* Custom Animations */}
+      
       <style jsx>{`
         @keyframes float {
           0%, 100% { transform: translateY(0) rotate(0deg); }

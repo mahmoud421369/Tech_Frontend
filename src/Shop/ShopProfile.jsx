@@ -1,53 +1,44 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Swal from 'sweetalert2';
 import {
-  FiUser, FiInfo, FiLock, FiMapPin, FiTrash2, FiEdit3,
-  FiCheckSquare, FiX, FiMail, FiPhone, FiStar, FiCalendar, FiTag,
-  FiPackage, FiShield, FiGlobe
+  FiEdit3, FiMapPin, FiTrash2, FiCheckSquare, FiX,
+  FiMail, FiPhone, FiStar, FiCalendar, FiTag, FiCheckCircle, FiShield,
+  FiLock
 } from 'react-icons/fi';
+import { FaStore } from 'react-icons/fa';
 import api from '../api';
 import useAuthStore from '../store/Auth';
 
 const LoadingSpinner = () => (
-  <div className="flex justify-center items-center h-64">
-    <div className="w-12 h-12 border-4 border-lime-500 border-t-transparent rounded-full animate-spin"></div>
+  <div className="flex justify-center items-center py-12">
+    <div className="w-10 h-10 border-4 border-lime-600 border-t-transparent rounded-full animate-spin"></div>
   </div>
 );
 
 const ShopProfileSkeleton = () => (
-  <div className="animate-pulse p-6 space-y-6">
+  <div className="animate-pulse space-y-10">
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div className="md:col-span-2 bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-lime-100">
-        <div className="h-8 bg-lime-200 rounded w-1/3 mb-6"></div>
-        <div className="space-y-4">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-12 bg-lime-100 rounded"></div>
-          ))}
+      {[...Array(3)].map((_, i) => (
+        <div key={i} className="bg-white rounded-3xl p-8 shadow-lg">
+          <div className="h-8 bg-gray-200 rounded w-2/3 mb-4 mx-auto"></div>
+          <div className="h-16 bg-gray-100 rounded-2xl"></div>
         </div>
-      </div>
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-lime-100">
-        <div className="h-8 bg-lime-200 rounded w-1/3 mb-6"></div>
-        <div className="space-y-3">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-6 bg-lime-100 rounded"></div>
-          ))}
-        </div>
+      ))}
+    </div>
+    <div className="bg-white rounded-3xl p-10 shadow-lg">
+      <div className="h-10 bg-gray-200 rounded w-1/2 mb-8"></div>
+      <div className="space-y-6">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="h-14 bg-gray-100 rounded-2xl"></div>
+        ))}
       </div>
     </div>
   </div>
 );
 
-const ShopProfile = ({ darkMode }) => {
+const ShopProfile = () => {
   const { accessToken, user } = useAuthStore();
-
-
-  const getShopId = () => {
-    const stored = localStorage.getItem('id');
-    if (stored && !isNaN(stored)) return parseInt(stored);
-    return user?.shopId || user?.id || null;
-  };
-
-  const shopId = localStorage.getItem('id');
+  const shopId = localStorage.getItem('id') || user?.id || user?.shopId;
   const hasFetched = useRef(false);
 
   const [shop, setShop] = useState({
@@ -62,30 +53,21 @@ const ShopProfile = ({ darkMode }) => {
   });
   const [editingAddressId, setEditingAddressId] = useState(null);
   const [editingAddress, setEditingAddress] = useState({});
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-useEffect(() => {
-document.title = "إدارة الحساب الشخصي";
-
-});
+  useEffect(() => {
+    document.title = "إدارة الملف الشخصي - المتجر";
+  }, []);
 
   const fetchAllData = useCallback(async () => {
     if (!accessToken || !shopId || hasFetched.current) return;
     hasFetched.current = true;
     setLoading(true);
 
-    const controller = new AbortController();
-
     try {
       const [shopRes, addrRes] = await Promise.all([
-        api.get(`/api/shops/${shopId}`, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-          signal: controller.signal
-        }),
-        api.get('/api/shops/address', {
-          headers: { Authorization: `Bearer ${accessToken}` },
-          signal: controller.signal
-        })
+        api.get(`/api/shops/${shopId}`, { headers: { Authorization: `Bearer ${accessToken}` } }),
+        api.get('/api/shops/address', { headers: { Authorization: `Bearer ${accessToken}` } })
       ]);
 
       const data = shopRes.data || {};
@@ -104,337 +86,362 @@ document.title = "إدارة الحساب الشخصي";
         activate: data.activate || false,
       });
 
-      let addrList = addrRes.data.content || [];
-      if (data.shopAddress?.id) {
-        const exists = addrList.some(a => a.id === data.shopAddress.id);
-        if (!exists) addrList = [data.shopAddress, ...addrList];
+      let addrList = addrRes.data.content || addrRes.data || [];
+      if (data.shopAddress?.id && !addrList.some(a => a.id === data.shopAddress.id)) {
+        addrList = [data.shopAddress, ...addrList];
       }
       setAddresses(addrList);
 
     } catch (err) {
-      if (err.name !== 'AbortError') {
-        console.error(err);
-        Swal.fire({ title: 'خطأ', text: 'فشل في تحميل البيانات', icon: 'error' });
-      }
+      console.error(err);
+      Swal.fire('خطأ', 'فشل تحميل بيانات المتجر', 'error');
     } finally {
       setLoading(false);
     }
-
-    return () => controller.abort();
   }, [accessToken, shopId]);
 
- 
   const updateShop = useCallback(async () => {
-    if (!accessToken || !shopId) return;
+    if (!shop.name.trim()) return Swal.fire('خطأ', 'اسم المتجر مطلوب', 'warning');
     setLoading(true);
 
     try {
-      const payload = { name: shop.name, description: shop.description };
-      if (shop.password?.trim()) payload.password = shop.password;
+      const payload = { name: shop.name.trim(), description: shop.description.trim() };
+      if (shop.password?.trim()) payload.password = shop.password.trim();
 
       await api.put(`/api/shops/${shopId}`, payload, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
 
-      Swal.fire({ title: 'تم', text: 'تم التحديث بنجاح', icon: 'success', timer: 1500, showConfirmButton: false });
+      Swal.fire({ title: 'تم التحديث بنجاح!', icon: 'success', timer: 1500, showConfirmButton: false });
       setShop(prev => ({ ...prev, password: '' }));
       hasFetched.current = false;
       fetchAllData();
     } catch (err) {
-      Swal.fire({ title: 'خطأ', text: err.response?.data?.message || 'فشل في التحديث', icon: 'error' });
+      Swal.fire('خطأ', err.response?.data?.message || 'فشل التحديث', 'error');
     } finally {
       setLoading(false);
     }
   }, [shop, accessToken, shopId, fetchAllData]);
 
-  
   const addAddress = useCallback(async () => {
-    if (!accessToken) return;
     if (!newAddress.state || !newAddress.city || !newAddress.street) {
-      return Swal.fire({ title: 'خطأ', text: 'يرجى ملء جميع الحقول', icon: 'warning' });
+      return Swal.fire('تنبيه', 'يرجى ملء الحقول المطلوبة', 'warning');
     }
 
     try {
       await api.post('/api/shops/address', newAddress, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
-      Swal.fire({ title: 'تم', text: 'تمت الإضافة', icon: 'success', timer: 1500, showConfirmButton: false });
+      Swal.fire({ title: 'تمت الإضافة!', icon: 'success', timer: 1500 });
       setNewAddress({ state: '', city: '', street: '', building: '', isDefault: false });
       hasFetched.current = false;
       fetchAllData();
     } catch (err) {
-      Swal.fire({ title: 'خطأ', text: 'فشل في الإضافة', icon: 'error' });
+      Swal.fire('خطأ', 'فشل إضافة العنوان', 'error');
     }
   }, [newAddress, accessToken, fetchAllData]);
 
-
   const updateAddress = useCallback(async () => {
-    if (!accessToken || !editingAddressId) return;
     try {
       await api.put(`/api/shops/address/${editingAddressId}`, editingAddress, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
-      Swal.fire({ title: 'تم', text: 'تم التحديث', icon: 'success', timer: 1500, showConfirmButton: false });
+      Swal.fire({ title: 'تم التحديث!', icon: 'success', timer: 1500 });
       setEditingAddressId(null);
       setEditingAddress({});
       hasFetched.current = false;
       fetchAllData();
     } catch (err) {
-      Swal.fire({ title: 'خطأ', text: 'فشل في التحديث', icon: 'error' });
+      Swal.fire('خطأ', 'فشل تحديث العنوان', 'error');
     }
   }, [editingAddressId, editingAddress, accessToken, fetchAllData]);
 
-
   const deleteAddress = useCallback(async (id) => {
-    if (!accessToken) return;
-    const res = await Swal.fire({
-      title: 'تأكيد الحذف', text: 'لا يمكن التراجع!', icon: 'warning',
-      showCancelButton: true, confirmButtonText: 'احذف', cancelButtonText: 'إلغاء',
+    const result = await Swal.fire({
+      title: 'هل أنت متأكد؟',
+      text: 'سيتم حذف العنوان نهائياً!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'نعم، احذف',
+      cancelButtonText: 'إلغاء',
       confirmButtonColor: '#dc2626'
     });
-    if (!res.isConfirmed) return;
+
+    if (!result.isConfirmed) return;
 
     try {
       await api.delete(`/api/shops/address/${id}`, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
-      Swal.fire({ title: 'تم', text: 'تم الحذف', icon: 'success', timer: 1500, showConfirmButton: false });
+      Swal.fire({ title: 'تم الحذف!', icon: 'success', timer: 1500 });
       hasFetched.current = false;
       fetchAllData();
     } catch (err) {
-      Swal.fire({ title: 'خطأ', text: 'فشل في الحذف', icon: 'error' });
+      Swal.fire('خطأ', 'فشل حذف العنوان', 'error');
     }
   }, [accessToken, fetchAllData]);
 
-  
   useEffect(() => {
-    if (accessToken && shopId && !hasFetched.current) {
+    if (accessToken && shopId) {
       fetchAllData();
     }
-    return () => { hasFetched.current = false; };
   }, [accessToken, shopId, fetchAllData]);
-
 
   if (!accessToken || !shopId) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-lime-50 to-white flex items-center justify-center p-4">
-        <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-8 text-center shadow-xl border">
-          <h2 className="text-2xl font-bold text-lime-700">يرجى تسجيل الدخول</h2>
-          <p className="mt-2 text-gray-600">لعرض بيانات المتجر</p>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6 font-cairo">
+        <div className="bg-white rounded-3xl shadow-2xl p-12 text-center max-w-md">
+          <FaStore className="w-16 h-16 text-lime-600 mx-auto mb-4" />
+          <h2 className="text-3xl font-bold text-gray-800 mb-2">يرجى تسجيل الدخول</h2>
+          <p className="text-lg text-gray-600">للوصول إلى إعدادات متجرك</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{marginTop:"-575px",marginLeft:"-300px"}} className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-lime-50 p-4 sm:p-6 md:p-8 font-cairo">
-      <div className="max-w-7xl mx-auto  lg:ml-72 md:ml-64 sm:ml-20 ml-4 space-y-8">
+    <div style={{marginTop:"-575px",marginLeft:"-250px"}} className="min-h-screen bg-gray-50 font-cairo py-8">
+      <div className="max-w-5xl mx-auto px-6">
 
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl gap-6">
-          <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 border  shadow-lg hover:shadow-xl transition-shadow">
-            <div className="flex items-center text-right gap-3 mb-3">
-              <div className="p-3 bg-lime-100 rounded-xl">
-                <FiPackage className="w-6 h-6 text-lime-700" />
-              </div>
-              <h3 className="font-bold text-lime-800">إدارة المنتجات</h3>
+        {/* Hero Section */}
+        <div className="mb-10 bg-white rounded-3xl shadow-lg border border-gray-200 p-8">
+          <div className="flex items-center justify-between text-right gap-6">
+            <div className="p-5 bg-lime-100 rounded-3xl">
+              <FaStore className="text-5xl text-lime-600" />
             </div>
-            <p className="text-sm text-lime-600">أضف، عدّل، أو احذف منتجاتك بسهولة</p>
-          </div>
-
-          <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 border  shadow-lg hover:shadow-xl transition-shadow">
-            <div className="flex items-center text-right gap-3 mb-3">
-              <div className="p-3 bg-lime-100 rounded-xl">
-                <FiShield className="w-6 h-6 text-lime-700" />
-              </div>
-              <h3 className="font-bold text-lime-800">أمان عالي</h3>
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900">إدارة الملف الشخصي</h1>
+              <p className="text-xl text-gray-600 mt-2">تحديث بيانات متجرك وإدارة العناوين بسهولة</p>
             </div>
-            <p className="text-sm text-lime-600">بياناتك محمية بأحدث تقنيات التشفير</p>
-          </div>
-
-          <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 border  shadow-lg hover:shadow-xl transition-shadow">
-            <div className="flex items-center gap-3 text-right mb-3">
-              <div className="p-3 bg-lime-100 rounded-xl">
-                <FiGlobe className="w-6 h-6 text-lime-700" />
-              </div>
-              <h3 className="font-bold text-lime-800">توصيل سريع</h3>
-            </div>
-            <p className="text-sm text-lime-600">شحن إلى جميع المحافظات في مصر</p>
           </div>
         </div>
 
-        
-        {loading ? <ShopProfileSkeleton /> : (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Feature Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-10">
+          <div className="bg-white border border-gray-200 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xl font-semibold text-gray-800">تحديث سريع</p>
+              </div>
+              <FiEdit3 className="text-6xl opacity-40 text-lime-600" />
+            </div>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xl font-semibold text-gray-800">عناوين متعددة</p>
+              </div>
+              <FiMapPin className="text-6xl opacity-40 text-blue-600" />
+            </div>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xl font-semibold text-gray-800">أمان عالي</p>
+              </div>
+              <FiShield className="text-6xl opacity-40 text-green-600" />
+            </div>
+          </div>
+        </div>
 
-        
-            <div className="lg:col-span-6 bg-white/90 backdrop-blur-sm rounded-2xl p-6 border shadow-lg">
-              <h1 className="text-2xl font-bold text-lime-700 text-right justify-end mb-6 flex items-center gap-2">
-                <FiUser /> تحديث بيانات المتجر
-              </h1>
-              <div className="space-y-4">
-                <div className="relative">
-                  <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-lime-600" />
+        {loading ? <ShopProfileSkeleton /> : (
+          <>
+            {/* Main Profile Card: Update Form + Details Below */}
+            <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-10 mb-10">
+              <h2 className="text-3xl font-bold text-gray-900 mb-8 text-right flex items-center gap-4 justify-end">
+                <FiEdit3 className="text-3xl text-lime-600" />
+                تحديث بيانات المتجر
+              </h2>
+
+              {/* Update Form */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-lg font-medium text-gray-700 mb-2 text-right">اسم المتجر</label>
+                    <div className="relative">
+                      <FaStore className="absolute left-5 top-1/2 -translate-y-1/2 text-lime-600 text-xl" />
+                      <input
+                        type="text"
+                        value={shop.name}
+                        onChange={e => setShop({ ...shop, name: e.target.value })}
+                        className="w-full pl-14 pr-6 py-4 bg-gray-50 border border-gray-300 rounded-2xl focus:ring-4 focus:ring-lime-200 focus:border-lime-500 outline-none text-lg"
+                        placeholder="اسم متجرك"
+                        dir="rtl"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-lg font-medium text-gray-700 mb-2 text-right">وصف المتجر</label>
+                    <div className="relative">
+                      <FiEdit3 className="absolute left-5 top-5 text-lime-600 text-xl" />
+                      <textarea
+                        value={shop.description}
+                        onChange={e => setShop({ ...shop, description: e.target.value })}
+                        rows="4"
+                        className="w-full pl-14 pr-6 py-4 bg-gray-50 border border-gray-300 rounded-2xl focus:ring-4 focus:ring-lime-200 focus:border-lime-500 outline-none resize-none text-lg"
+                        placeholder="وصف مختصر..."
+                        dir="rtl"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-lg font-medium text-gray-700 mb-2 text-right">كلمة مرور جديدة (اختياري)</label>
+                    <div className="relative">
+                      <FiLock className="absolute left-5 top-1/2 -translate-y-1/2 text-lime-600 text-xl" />
+                      <input
+                        type="password"
+                        value={shop.password}
+                        onChange={e => setShop({ ...shop, password: e.target.value })}
+                        className="w-full pl-14 pr-6 py-4 bg-gray-50 border border-gray-300 rounded-2xl focus:ring-4 focus:ring-lime-200 focus:border-lime-500 outline-none text-lg"
+                        placeholder="اتركه فارغاً إذا لا تريد التغيير"
+                        dir="rtl"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={updateShop}
+                    disabled={loading}
+                    className="w-full py-5 bg-lime-600 hover:bg-lime-700 text-white font-bold text-xl rounded-2xl shadow-xl transition transform hover:scale-105 flex items-center justify-center gap-3"
+                  >
+                    <FiCheckCircle className="text-2xl" />
+                    {loading ? 'جاري التحديث...' : 'تحديث البيانات'}
+                  </button>
+                </div>
+
+                {/* Shop Details - Right Side on Large Screens, Below on Mobile */}
+                <div className="space-y-5">
+                  <div className="flex justify-center mb-6">
+                    <div className="w-28 h-28 bg-lime-100 rounded-full flex items-center justify-center text-5xl font-bold text-lime-700 border-4 border-lime-300">
+                      {shop.name?.[0]?.toUpperCase() || <FaStore className="text-4xl" />}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4">
+                    {[
+                      { icon: FiTag, label: 'معرف المتجر', value: `#${shop.id}` },
+                      { icon: FiMail, label: 'البريد', value: shop.email },
+                      { icon: FiPhone, label: 'الهاتف', value: shop.phone || 'غير محدد' },
+                      { icon: FiCheckSquare, label: 'الحالة', value: shop.activate ? 'نشط' : 'معطل', good: shop.activate },
+                      { icon: FiCheckCircle, label: 'التحقق', value: shop.verified ? 'تم التحقق' : 'غير متحقق', good: shop.verified },
+                      { icon: FiStar, label: 'التقييم', value: shop.rating > 0 ? `${shop.rating.toFixed(1)} ★` : 'لا تقييمات' },
+                      { icon: FiCalendar, label: 'تاريخ الإنشاء', value: shop.createdAt ? new Date(shop.createdAt).toLocaleDateString('ar-EG') : '—' },
+                      { icon: FiTag, label: 'نوع المتجر', value: shop.shopType || 'غير محدد' },
+                    ].map(({ icon: Icon, label, value, good }, i) => (
+                      <div key={i} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl">
+                        <Icon className="text-2xl text-lime-600 flex-shrink-0" />
+                        <div className="flex-1 text-right">
+                          <p className="text-sm text-gray-500">{label}</p>
+                          <p className={`text-lg font-bold ${good !== undefined ? (good ? 'text-green-600' : 'text-red-600') : 'text-gray-800'}`}>
+                            {value}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Addresses Section - More Compact */}
+            <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-8 text-right flex items-center gap-4 justify-end">
+                <FiMapPin className="text-3xl text-lime-600" />
+                عناوين التوصيل
+              </h2>
+
+              <div className="space-y-5 mb-10">
+                {addresses.length === 0 ? (
+                  <p className="text-center text-gray-500 py-10 text-lg">لم تُضف أي عناوين بعد</p>
+                ) : (
+                  addresses.map(addr => (
+                    <div key={addr.id} className={`p-6 rounded-2xl border-2 ${addr.isDefault ? 'border-lime-500 bg-lime-50' : 'border-gray-200 bg-gray-50'}`}>
+                      {editingAddressId === addr.id ? (
+                        <div className="space-y-4">
+                          {['state', 'city', 'street', 'building'].map(field => (
+                            <input
+                              key={field}
+                              type="text"
+                              value={editingAddress[field] || ''}
+                              onChange={e => setEditingAddress({ ...editingAddress, [field]: e.target.value })}
+                              placeholder={field === 'state' ? 'المحافظة' : field === 'city' ? 'المدينة' : field === 'street' ? 'الشارع' : 'المبنى (اختياري)'}
+                              className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-lime-500 text-lg"
+                              dir="rtl"
+                            />
+                          ))}
+                          <div className="flex gap-3">
+                            <button onClick={updateAddress} className="flex-1 py-3 bg-lime-600 text-white rounded-xl hover:bg-lime-700 flex items-center justify-center gap-2">
+                              <FiCheckSquare /> حفظ
+                            </button>
+                            <button onClick={() => { setEditingAddressId(null); setEditingAddress({}); }} className="flex-1 py-3 bg-gray-500 text-white rounded-xl hover:bg-gray-600 flex items-center justify-center gap-2">
+                              <FiX /> إلغاء
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                              <FiMapPin className="text-lime-600" />
+                              {addr.state} - {addr.city}
+                            </p>
+                            <p className="text-gray-600 mt-1">{addr.street} {addr.building && `– ${addr.building}`}</p>
+                            {addr.isDefault && <span className="inline-block mt-2 px-4 py-1 bg-lime-600 text-white rounded-full text-sm">الأساسي</span>}
+                          </div>
+                          <div className="flex gap-2">
+                            <button onClick={() => { setEditingAddressId(addr.id); setEditingAddress({ ...addr }); }} className="p-3 bg-lime-100 text-lime-700 rounded-xl hover:bg-lime-200">
+                              <FiEdit3 className="w-5 h-5" />
+                            </button>
+                            <button onClick={() => deleteAddress(addr.id)} className="p-3 bg-red-100 text-red-700 rounded-xl hover:bg-red-200">
+                              <FiTrash2 className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Add New Address */}
+              <div className="border-t-2 border-dashed border-gray-300 pt-8">
+                <h3 className="text-2xl font-bold text-gray-900 mb-6 text-right">إضافة عنوان جديد</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {['state', 'city', 'street', 'building'].map(field => (
+                    <input
+                      key={field}
+                      type="text"
+                      value={newAddress[field]}
+                      onChange={e => setNewAddress({ ...newAddress, [field]: e.target.value })}
+                      placeholder={field === 'state' ? 'المحافظة' : field === 'city' ? 'المدينة' : field === 'street' ? 'الشارع' : 'المبنى (اختياري)'}
+                      className="px-5 py-4 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-lime-500 text-lg"
+                      dir="rtl"
+                    />
+                  ))}
+                </div>
+                <label className="flex items-center gap-3 mt-4 text-lg">
                   <input
-                    type="text" value={shop.name}
-                    onChange={e => setShop({ ...shop, name: e.target.value })}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 text-lime-900 placeholder-lime-400 border  rounded-lg focus:ring-2 focus:ring-lime-500 focus:border-lime-500 outline-none transition-all"
-                    placeholder="اسم المحل" dir="rtl"
+                    type="checkbox"
+                    checked={newAddress.isDefault}
+                    onChange={e => setNewAddress({ ...newAddress, isDefault: e.target.checked })}
+                    className="w-6 h-6 text-lime-600 rounded"
                   />
-                </div>
-                <div className="relative">
-                  <FiInfo className="absolute left-3 top-3 text-lime-600" />
-                  <textarea
-                    value={shop.description}
-                    onChange={e => setShop({ ...shop, description: e.target.value })}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 text-lime-900 placeholder-lime-400 border  rounded-lg focus:ring-2 focus:ring-lime-500 focus:border-lime-500 outline-none transition-all resize-none"
-                    placeholder="الوصف" rows="4" dir="rtl"
-                  />
-                </div>
-                <div className="relative">
-                  <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-lime-600" />
-                  <input
-                    type="password" value={shop.password}
-                    onChange={e => setShop({ ...shop, password: e.target.value })}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 text-lime-900 placeholder-lime-400 border  rounded-lg focus:ring-2 focus:ring-lime-500 focus:border-lime-500 outline-none transition-all"
-                    placeholder="كلمة مرور جديدة (اختياري)" dir="rtl"
-                  />
-                </div>
+                  <span>تعيين كعنوان أساسي</span>
+                </label>
                 <button
-                  onClick={updateShop} disabled={loading}
-                  className="w-full py-3 bg-gradient-to-r from-lime-500 to-green-600 text-white font-bold rounded-lg shadow-md hover:shadow-lime-500/50 transition-all disabled:opacity-70"
+                  onClick={addAddress}
+                  disabled={loading}
+                  className="w-full mt-6 py-4 bg-lime-600 hover:bg-lime-700 text-white font-bold text-xl rounded-xl shadow-xl transition transform hover:scale-105 flex items-center justify-center gap-3"
                 >
-                  {loading ? 'جارٍ التحديث...' : 'تحديث الحساب'}
+                  <FiMapPin className="text-2xl" />
+                  إضافة العنوان
                 </button>
               </div>
             </div>
-
-            
-            <div className="lg:col-span-4 bg-white/90 backdrop-blur-sm rounded-2xl p-6 border  shadow-lg">
-              <h2 className="text-xl font-bold text-lime-700 mb-6 flex items-center justify-end gap-2">
-                <FiInfo /> تفاصيل المتجر
-              </h2>
-              <div className="space-y-3 text-lime-800 text-sm">
-                {[
-                  { icon: FiTag, label: 'المعرف', value: shop.id },
-                  { icon: FiMail, label: 'البريد', value: shop.email },
-                  { icon: FiPhone, label: 'الهاتف', value: shop.phone || 'غير متوفر' },
-                  { icon: FiCheckSquare, label: 'الحالة', value: shop.activate ? 'نشط' : 'غير نشط', badge: true },
-                  { icon: FiCheckSquare, label: 'التحقق', value: shop.verified ? 'تم التحقق' : 'غير متحقق', badge: true },
-                  { icon: FiStar, label: 'التقييم', value: shop.rating ? `${shop.rating.toFixed(1)}/5` : '—' },
-                  { icon: FiCalendar, label: 'الإنشاء', value: shop.createdAt ? new Date(shop.createdAt).toLocaleDateString('ar-EG') : '—' },
-                  { icon: FiCalendar, label: 'التحديث', value: shop.updatedAt ? new Date(shop.updatedAt).toLocaleDateString('ar-EG') : '—' },
-                  { icon: FiTag, label: 'النوع', value: shop.shopType || 'غير محدد' },
-                ].map(({ icon: Icon, label, value, badge }, i) => (
-                  <div key={i} className="flex items-center  gap-2">
-                    <Icon className="text-lime-600" />
-                    <p className='flex flex-row-reverse justify-between'><strong>{}</strong>{' '}
-                      {badge ? (
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          value.includes('نشط') || value.includes('تم') ? 'bg-lime-100 text-lime-700' : 'bg-red-100 text-red-700'
-                        }`}>
-                          {value}
-                        </span>
-                      ) : <span className="text-gray-600">{value}</span>}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          </>
         )}
-
-        
-        <div className="bg-white/90 max-w-4xl backdrop-blur-sm rounded-2xl p-6 border  shadow-lg">
-          <h2 className="text-xl font-bold text-lime-700 mb-6 flex items-center gap-2">
-            <FiMapPin /> الفروع والعناوين
-          </h2>
-
-          <div className="space-y-3 max-h-96 overflow-y-auto mb-6">
-            {addresses.length === 0 ? (
-              <p className="text-lime-500 text-center py-6 text-sm">لا توجد عناوين مضافة</p>
-            ) : (
-              addresses.map(addr => (
-                <div key={addr.id} className="bg-gray-50 p-4 rounded-lg border ">
-                  {editingAddressId === addr.id ? (
-                    <div className="space-y-2">
-                      {['state', 'city', 'street', 'building'].map(f => (
-                        <input
-                          key={f} type="text" value={editingAddress[f] || ''}
-                          onChange={e => setEditingAddress({ ...editingAddress, [f]: e.target.value })}
-                          placeholder={f === 'state' ? 'المحافظة' : f === 'city' ? 'المدينة' : f === 'street' ? 'الشارع' : 'رقم المبنى'}
-                          className="w-full px-3 py-2 bg-white text-lime-900 rounded border border-lime-300 focus:ring-2 focus:ring-lime-500"
-                          dir="rtl"
-                        />
-                      ))}
-                      <div className="flex gap-2">
-                        <button onClick={updateAddress} className="flex-1 bg-lime-600 text-white py-2 rounded hover:bg-lime-700 transition flex items-center justify-center gap-1 text-sm">
-                          <FiCheckSquare /> حفظ
-                        </button>
-                        <button onClick={() => { setEditingAddressId(null); setEditingAddress({}); }} className="flex-1 bg-gray-500 text-white py-2 rounded hover:bg-gray-600 transition flex items-center justify-center gap-1 text-sm">
-                          <FiX /> إلغاء
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex justify-between items-start">
-                      <p className="text-lime-700 text-sm leading-relaxed">
-                        <FiMapPin className="inline text-lime-600 ml-1" />
-                        {addr.state}, {addr.city}, {addr.street}, {addr.building || ''}
-                        {addr.isDefault && <span className="mr-2 text-xs bg-lime-600 text-white px-2 py-1 rounded-full">أساسي</span>}
-                      </p>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => { setEditingAddressId(addr.id); setEditingAddress(addr); }}
-                          className="p-2 bg-lime-100 text-lime-700 rounded hover:bg-lime-200 transition"
-                          title="تعديل"
-                        >
-                          <FiEdit3 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => deleteAddress(addr.id)}
-                          className="p-2 bg-red-100 text-red-700 rounded hover:bg-red-200 transition"
-                          title="حذف"
-                        >
-                          <FiTrash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-
-          <div className="bg-gray-50 p-4 rounded-lg  border ">
-            <h3 className="text-lime-700 font-bold mb-3 text-sm text-right">إضافة عنوان جديد</h3>
-            {['state', 'city', 'street', 'building'].map(f => (
-              <input
-                key={f} type="text" value={newAddress[f]}
-                onChange={e => setNewAddress({ ...newAddress, [f]: e.target.value })}
-                placeholder={f === 'state' ? 'المحافظة' : f === 'city' ? 'المدينة' : f === 'street' ? 'الشارع' : 'رقم المبنى (اختياري)'}
-                className="w-full mb-2 px-3 py-2 bg-white text-lime-900 rounded focus:outline-none cursor-pointer border  focus:ring-2 focus:ring-lime-500 text-sm"
-                dir="rtl"
-              />
-            ))}
-            <label className="flex items-center gap-2 text-lime-700 text-sm mb-3">
-              <input
-                type="checkbox"
-                checked={newAddress.isDefault}
-                onChange={e => setNewAddress({ ...newAddress, isDefault: e.target.checked })}
-                className="w-4 h-4 text-lime-600 rounded focus:ring-lime-500"
-              />
-              تعيين كعنوان أساسي
-            </label>
-            <button
-              onClick={addAddress}
-              disabled={loading}
-              className="w-full py-2 bg-gradient-to-r from-lime-500 to-green-600 text-white font-medium rounded-lg shadow hover:shadow-lime-500/50 transition-all text-sm disabled:opacity-70"
-            >
-              {loading ? 'جارٍ الإضافة...' : 'إضافة العنوان'}
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
