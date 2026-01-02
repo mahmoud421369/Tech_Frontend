@@ -86,11 +86,11 @@ const DeviceDetail = ({ addToCart, darkMode }) => {
     fetchProduct();
   }, [fetchProduct]);
 
-  // === SKELETON LOADER ===
+
   if (loading) {
     return (
       <div className={`min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"} pt-16`}>
-        {/* Hero Skeleton */}
+        
         <section className="relative overflow-hidden">
           <div className="max-w-7xl mx-auto px-6 py-16 md:py-24">
             <div className="grid md:grid-cols-2 gap-12 items-center">
@@ -118,7 +118,7 @@ const DeviceDetail = ({ addToCart, darkMode }) => {
           </div>
         </section>
 
-        {/* Product Skeleton */}
+      
         <div className="max-w-6xl mx-auto px-6 py-12">
           <div className="bg-white/30 dark:bg-gray-800/30 backdrop-blur-md rounded-3xl p-8 shadow-xl animate-pulse">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -159,11 +159,11 @@ const DeviceDetail = ({ addToCart, darkMode }) => {
 
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'} pt-16`}>
-      {/* === HERO SECTION - MONOTREE STYLE === */}
+  
       <section className="relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-6 py-16 md:py-24">
           <div className="grid md:grid-cols-2 gap-12 items-center">
-            {/* Left: Text */}
+          
             <div className="space-y-6">
               <h1 className="text-5xl md:text-6xl font-bold leading-tight">
                 Discover <span className="underline decoration-lime-500 decoration-4">your device</span>
@@ -172,7 +172,7 @@ const DeviceDetail = ({ addToCart, darkMode }) => {
                 Premium quality, certified pre-owned devices at unbeatable prices. Shop with confidence.
               </p>
 
-              {/* CTA */}
+            
               {/* <div className="flex flex-col sm:flex-row gap-3 max-w-md">
                 <input
                   type="text"
@@ -184,7 +184,7 @@ const DeviceDetail = ({ addToCart, darkMode }) => {
                 </button>
               </div> */}
 
-              {/* Stats */}
+              
               <div className="grid grid-cols-3 gap-6 pt-8">
                 <div>
                   <div className="text-3xl font-bold text-lime-600 dark:text-lime-400 flex items-center gap-1">
@@ -207,7 +207,7 @@ const DeviceDetail = ({ addToCart, darkMode }) => {
               </div>
             </div>
 
-            {/* Right: 3D Illustration */}
+         
             <div className="relative hidden md:block">
               <div className="relative w-full h-96">
                 <div className="absolute inset-0 bg-gradient-to-br from-lime-100 to-teal-100 dark:from-lime-900 dark:to-teal-900 rounded-3xl blur-3xl opacity-50"></div>
@@ -249,7 +249,7 @@ const DeviceDetail = ({ addToCart, darkMode }) => {
         </div>
       </section>
 
-      {/* === PRODUCT DETAIL (Mono-tree Style) === */}
+     
       <div className="max-w-6xl mx-auto px-6 py-12">
         <button
           onClick={() => navigate(-1)}
@@ -260,7 +260,7 @@ const DeviceDetail = ({ addToCart, darkMode }) => {
 
         <div className="bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 overflow-hidden">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-6 lg:p-10">
-            {/* Image Gallery */}
+            
             <div className="space-y-4">
               <div className="flex items-center justify-center bg-gray-50 dark:bg-gray-900 rounded-xl p-6 h-[400px] lg:h-[500px] overflow-hidden">
                 <img
@@ -270,7 +270,7 @@ const DeviceDetail = ({ addToCart, darkMode }) => {
                 />
               </div>
 
-              {/* Thumbnails */}
+             
               {product.imageUrls && product.imageUrls.length > 1 && (
                 <div className="flex gap-2 overflow-x-auto pb-2">
                   {product.imageUrls.map((img, i) => (
@@ -288,7 +288,7 @@ const DeviceDetail = ({ addToCart, darkMode }) => {
               )}
             </div>
 
-            {/* Details */}
+        
             <div className="flex flex-col justify-center space-y-6">
               <div>
                 <h1 className="text-3xl lg:text-4xl font-extrabold text-gray-900 dark:text-white">{product.name}</h1>
@@ -312,7 +312,7 @@ const DeviceDetail = ({ addToCart, darkMode }) => {
 
               <p className="text-gray-600 dark:text-gray-300 leading-relaxed">{product.description}</p>
 
-              {/* Quantity & Add to Cart */}
+              
               <div className="flex items-center flex-wrap gap-4">
                 <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-lg">
                   <button

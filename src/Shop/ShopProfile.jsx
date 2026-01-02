@@ -203,7 +203,7 @@ const ShopProfile = () => {
     <div style={{marginTop:"-575px",marginLeft:"-250px"}} className="min-h-screen bg-gray-50 font-cairo py-8">
       <div className="max-w-5xl mx-auto px-6">
 
-        {/* Hero Section */}
+     
         <div className="mb-10 bg-white rounded-3xl shadow-lg border border-gray-200 p-8">
           <div className="flex items-center justify-between text-right gap-6">
             <div className="p-5 bg-lime-100 rounded-3xl">
@@ -216,7 +216,7 @@ const ShopProfile = () => {
           </div>
         </div>
 
-        {/* Feature Cards */}
+        
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-10">
           <div className="bg-white border border-gray-200 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
             <div className="flex items-center justify-between">
@@ -246,14 +246,14 @@ const ShopProfile = () => {
 
         {loading ? <ShopProfileSkeleton /> : (
           <>
-            {/* Main Profile Card: Update Form + Details Below */}
+            
             <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-10 mb-10">
               <h2 className="text-3xl font-bold text-gray-900 mb-8 text-right flex items-center gap-4 justify-end">
                 <FiEdit3 className="text-3xl text-lime-600" />
                 تحديث بيانات المتجر
               </h2>
 
-              {/* Update Form */}
+             
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
                 <div className="space-y-6">
                   <div>
@@ -311,7 +311,7 @@ const ShopProfile = () => {
                   </button>
                 </div>
 
-                {/* Shop Details - Right Side on Large Screens, Below on Mobile */}
+                
                 <div className="space-y-5">
                   <div className="flex justify-center mb-6">
                     <div className="w-28 h-28 bg-lime-100 rounded-full flex items-center justify-center text-5xl font-bold text-lime-700 border-4 border-lime-300">
@@ -345,7 +345,7 @@ const ShopProfile = () => {
               </div>
             </div>
 
-            {/* Addresses Section - More Compact */}
+          
             <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-8">
               <h2 className="text-3xl font-bold text-gray-900 mb-8 text-right flex items-center gap-4 justify-end">
                 <FiMapPin className="text-3xl text-lime-600" />
@@ -367,7 +367,7 @@ const ShopProfile = () => {
                               value={editingAddress[field] || ''}
                               onChange={e => setEditingAddress({ ...editingAddress, [field]: e.target.value })}
                               placeholder={field === 'state' ? 'المحافظة' : field === 'city' ? 'المدينة' : field === 'street' ? 'الشارع' : 'المبنى (اختياري)'}
-                              className="w-full px-5 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-lime-500 text-lg"
+                              className="w-full px-5 py-3 rounded-xl border border-gray-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-lime-500 text-lg"
                               dir="rtl"
                             />
                           ))}
@@ -405,7 +405,7 @@ const ShopProfile = () => {
                 )}
               </div>
 
-              {/* Add New Address */}
+           
               <div className="border-t-2 border-dashed border-gray-300 pt-8">
                 <h3 className="text-2xl font-bold text-gray-900 mb-6 text-right">إضافة عنوان جديد</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -416,7 +416,7 @@ const ShopProfile = () => {
                       value={newAddress[field]}
                       onChange={e => setNewAddress({ ...newAddress, [field]: e.target.value })}
                       placeholder={field === 'state' ? 'المحافظة' : field === 'city' ? 'المدينة' : field === 'street' ? 'الشارع' : 'المبنى (اختياري)'}
-                      className="px-5 py-4 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-lime-500 text-lg"
+                      className="px-5 py-4 bg-gray-50 border border-gray-300 cursor-pointer focus:outline-none rounded-xl focus:ring-2 focus:ring-lime-500 text-lg"
                       dir="rtl"
                     />
                   ))}

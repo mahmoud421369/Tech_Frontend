@@ -18,6 +18,10 @@ const AdminSubscriptions = ({ darkMode }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const pageSize = 10;
 
+ useEffect(() => {
+    document.title = "Subscriptions - TechRepair";
+  }, []);
+
   const fetchAllSubscriptions = useCallback(async (pageNum = 0) => {
     if (!token) return navigate('/login');
 

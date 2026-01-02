@@ -36,7 +36,7 @@ const Explore = memo(({ darkMode, addToCart }) => {
   const dropdownRef = useRef(null);
   const [isOpen, setIsOpen] = useState(false);
 
-  // Close dropdown on outside click
+ 
   useEffect(() => {
     const handleClick = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -48,7 +48,7 @@ const Explore = memo(({ darkMode, addToCart }) => {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Fetchers
+  
   const fetchProducts = useCallback(async () => {
     setProductsLoading(true);
     const ctrl = new AbortController();
@@ -151,7 +151,7 @@ const Explore = memo(({ darkMode, addToCart }) => {
 
   const debouncedSetSearch = useCallback(debounce(setSearch, 400), []);
 
-  // Toast helpers
+ 
   const showError = (msg) => {
     Swal.fire({
       icon: "error",
@@ -178,7 +178,7 @@ const Explore = memo(({ darkMode, addToCart }) => {
     });
   };
 
-  // Initial load
+ 
   useEffect(() => {
     if (!token) {
       Swal.fire({
@@ -192,7 +192,7 @@ const Explore = memo(({ darkMode, addToCart }) => {
     Promise.all([fetchProducts(), fetchShops(), fetchCategories()]);
   }, [token, navigate, fetchProducts, fetchShops, fetchCategories]);
 
-  // Filtering
+ 
   const filteredProducts = products.filter((p) => {
     const matchSearch =
       !search ||
@@ -215,9 +215,9 @@ const Explore = memo(({ darkMode, addToCart }) => {
 
   return (
     <div className={`min-h-screen mt-10 ${darkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"}`}>
-      {/* HERO SECTION WITH CURVED BG + DOTS PATTERN */}
+     
       <section className="relative overflow-hidden">
-        {/* Curved Background */}
+        
         <div
           className={`absolute inset-0 ${darkMode ? "bg-gradient-to-br from-indigo-900 via-gray-900 to-purple-900" : "bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500"}`}
         >
@@ -234,7 +234,7 @@ const Explore = memo(({ darkMode, addToCart }) => {
           </svg>
         </div>
 
-        {/* Animated Dots Pattern */}
+      
         <div className="absolute inset-0 opacity-20 pointer-events-none">
           {[...Array(50)].map((_, i) => (
             <div
@@ -250,14 +250,14 @@ const Explore = memo(({ darkMode, addToCart }) => {
           ))}
         </div>
 
-        {/* Floating Icons */}
+     
         <div className="absolute inset-0 opacity-30 pointer-events-none">
           <FiShoppingBag className="absolute top-20 left-10 w-16 h-16 text-white animate-bounce" />
           <FiSmartphone className="absolute bottom-20 right-20 w-20 h-20 text-white animate-pulse" />
           <FiShoppingCart className="absolute top-1/3 right-1/4 w-14 h-14 text-white animate-ping" />
         </div>
 
-        {/* Hero Content */}
+       
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-32 text-center">
           <h1 className="text-5xl sm:text-6xl font-extrabold text-white drop-shadow-lg">
             Shop Smart, Shop Easy
@@ -274,7 +274,7 @@ const Explore = memo(({ darkMode, addToCart }) => {
         </div>
       </section>
 
-      {/* FILTERS */}
+    
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 relative z-10">
         <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl border border-gray-200 dark:border-gray-700">
           <h3 className="flex items-center gap-3 text-2xl font-bold text-indigo-600 dark:text-indigo-400 mb-6">
@@ -282,7 +282,7 @@ const Explore = memo(({ darkMode, addToCart }) => {
           </h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Search */}
+            
             <div className="relative group">
               <input
                 type="text"
@@ -304,7 +304,7 @@ const Explore = memo(({ darkMode, addToCart }) => {
               )}
             </div>
 
-            {/* Price Range */}
+            
             {["Min Price", "Max Price"].map((label, i) => {
               const value = i === 0 ? minPrice : maxPrice;
               const setter = i === 0 ? setMinPrice : setMaxPrice;
@@ -329,7 +329,7 @@ const Explore = memo(({ darkMode, addToCart }) => {
               );
             })}
 
-            {/* Category */}
+           
             <div ref={dropdownRef} className="relative">
               <button
                 onClick={() => setIsOpen(!isOpen)}
@@ -376,7 +376,7 @@ const Explore = memo(({ darkMode, addToCart }) => {
         </div>
       </div>
 
-      {/* PRODUCTS */}
+     
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <h2 className="flex items-center gap-3 text-3xl font-bold text-indigo-600 dark:text-indigo-400 mb-8">
           <FiShoppingCart className="text-3xl" /> Featured Products
@@ -468,7 +468,7 @@ const Explore = memo(({ darkMode, addToCart }) => {
               })}
             </div>
 
-            {/* Pagination */}
+            
             <div className="flex justify-center gap-4 mt-12">
               <button
                 disabled={productPage === 1 || productsLoading}
@@ -489,7 +489,7 @@ const Explore = memo(({ darkMode, addToCart }) => {
         )}
       </section>
 
-      {/* SHOPS */}
+      
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 bg-gradient-to-b from-transparent to-gray-100 dark:to-gray-900">
         <h2 className="flex items-center gap-3 text-3xl font-bold text-indigo-600 dark:text-indigo-400 mb-8">
           <RiStore2Line className="text-3xl" /> Verified Shops

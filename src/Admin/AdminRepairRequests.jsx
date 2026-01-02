@@ -184,6 +184,10 @@ const RepairRequestsPage = ({ darkMode }) => {
   const [page, setPage] = useState(1);
   const pageSize = 6;
 
+   useEffect(() => {
+      document.title = "Repair Requests - TechRepair";
+    }, []);
+
   const fetchRepairRequests = useCallback(async () => {
     if (!token) {
       Swal.fire({ title: 'Error', text: 'Please log in.', icon: 'error' });

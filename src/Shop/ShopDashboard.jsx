@@ -9,7 +9,12 @@ import api from '../api';
 import useAuthStore from '../store/Auth';
 import debounce from 'lodash/debounce';
 import { toast } from 'react-toastify';
-
+import {DatePicker} from '@mui/x-date-pickers/DatePicker'
+import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import {LocalizationProvider} from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { arSA } from 'date-fns/locale';
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler);
 
 const DashboardSkeleton = () => (
@@ -223,22 +228,24 @@ useEffect(()=>{
               فلتر حسب الفترة الزمنية
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end text-right">
-              <div>
-                <label className="block text-sm font-medium text-gray-700  mb-2">من تاريخ ووقت</label>
+              <div >
+                {/* <label className="block text-sm font-medium text-gray-700  mb-2">من تاريخ ووقت</label> */}
                 <input
+              
                   type="datetime-local"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   className="w-full px-5 py-4 border border-gray-300 rounded-2xl focus:ring-4 focus:ring-lime-200 focus:border-lime-500 transition bg-gray-50 text-base"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">إلى تاريخ ووقت</label>
+              <div >
+                {/* <label className="block text-sm font-medium text-gray-700 mb-2">إلى تاريخ ووقت</label> */}
                 <input
+            
                   type="datetime-local"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full px-5 py-4 border border-gray-300 rounded-2xl focus:ring-4 focus:ring-lime-200 focus:border-lime-500 transition bg-gray-50 text-base"
+                  className="w-full px-5 py-4 border-none rounded-2xl focus:ring-4 focus:ring-lime-200 focus:border-lime-500 transition bg-gray-50 text-base"
                 />
               </div>
               <button

@@ -8,6 +8,7 @@ import { RiEyeLine, RiEyeOffLine } from "@remixicon/react";
 import api from "../api";
 import { debounce } from "lodash";
 
+import TextField from "@mui/material/TextField";  
 const Login = () => {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
@@ -34,13 +35,11 @@ const Login = () => {
     []
   );
 
-  const handleChange = useCallback(
-    debounce((name, value) => {
-      setFormData((prev) => ({ ...prev, [name]: value }));
-      setErrors((prev) => ({ ...prev, [name]: "" }));
-    }, 300),
-    []
-  );
+const handleChange = useCallback((e) => {
+  const { name, value } = e.target;
+  setFormData((prev) => ({ ...prev, [name]: value }));
+  setErrors((prev) => ({ ...prev, [name]: "" }));
+}, []);
 
   const togglePasswordVisibility = useCallback(() => {
     setShowPassword((prev) => !prev);
@@ -316,34 +315,38 @@ const Login = () => {
           <form onSubmit={handleSubmit} className="space-y-5">
             
             <div className="space-y-2">
-              <label htmlFor="email" className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">
+              {/* <label htmlFor="email" className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">
                 Email Address
-              </label>
-              <input
+              </label> */}
+              <TextField
                 type="email"
-                id="email"
+                id="outlined-basic"
+                label="Email"
+                variant="outlined"
                 name="email"
                 required
                 value={formData.email}
-                onChange={(e) => handleChange(e.target.name, e.target.value)}
-                className="w-full px-5 py-4 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all text-base"
+                onChange={handleChange}
+                className="w-full px-5 py-4 rounded-xl bg-emerald-50/60 focus:outline-none dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all text-base"
                 placeholder="Enter your email"
               />
             </div>
 
            
             <div className="space-y-2">
-              <label htmlFor="password" className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">
+              {/* <label htmlFor="password" className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">
                 Password
-              </label>
+              </label> */}
               <div className="relative">
-                <input
+                <TextField
                   type={showPassword ? "text" : "password"}
-                  id="password"
+                  id="outlined-basic"
+                  label="Password"
+                  variant="outlined"
                   name="password"
                   required
                   value={formData.password}
-                  onChange={(e) => handleChange(e.target.name, e.target.value)}
+                  onChange={handleChange}
                   className="w-full px-5 py-4 pr-12 rounded-xl bg-emerald-50/60 dark:bg-gray-800 border border-emerald-200 dark:border-gray-600 text-emerald-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-500/30 focus:border-emerald-500 transition-all text-base"
                   placeholder="Enter your password"
                 />

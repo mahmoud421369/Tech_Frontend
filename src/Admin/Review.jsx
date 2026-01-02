@@ -191,6 +191,10 @@ const Reviews = ({ darkMode }) => {
   const [page, setPage] = useState(1);
   const pageSize = 5;
 
+ useEffect(() => {
+    document.title = "Reviews - TechRepair";
+  }, []);
+
   const stats = useMemo(() => {
     const total = reviews.length;
     const approved = reviews.filter(r => r.status === 'APPROVED').length;

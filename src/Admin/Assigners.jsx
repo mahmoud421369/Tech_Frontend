@@ -90,6 +90,11 @@ const Assigners = ({ darkMode }) => {
     return DOMPurify.sanitize(searchTerm.trim().toLowerCase());
   }, [searchTerm]);
 
+
+   useEffect(() => {
+      document.title = "Assigners - TechRepair";
+    }, []);
+
   const stats = useMemo(() => {
     const totalHandled = assigners.reduce((sum, a) => sum + (a.totalAssignmentsHandled || 0), 0);
     const pending = assigners.reduce((sum, a) => sum + (a.pendingAssignments || 0), 0);

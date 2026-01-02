@@ -143,9 +143,7 @@ const Products = ({ darkMode }) => {
  
   const abortCtrlRef = useRef(new AbortController());
 
-  // -----------------------------------------------------------------
-  // Fetch Products
-  // -----------------------------------------------------------------
+
   const fetchProducts = useCallback(
     async (category) => {
       abortCtrlRef.current.abort();
@@ -172,9 +170,7 @@ const Products = ({ darkMode }) => {
     []
   );
 
-  // -----------------------------------------------------------------
-  // Debounced Search
-  // -----------------------------------------------------------------
+
   const debouncedSearch = useMemo(
     () => debounce((term) => {}, 300),
     []
@@ -186,9 +182,7 @@ const Products = ({ darkMode }) => {
     debouncedSearch(val);
   };
 
-  // -----------------------------------------------------------------
-  // Load Categories
-  // -----------------------------------------------------------------
+ 
   useEffect(() => {
     const ctrl = new AbortController();
     const load = async () => {
@@ -209,17 +203,13 @@ const Products = ({ darkMode }) => {
     return () => ctrl.abort();
   }, [token]);
 
-  // -----------------------------------------------------------------
-  // Fetch on Category Change
-  // -----------------------------------------------------------------
+
   useEffect(() => {
     fetchProducts(selectedCategory);
     setCurrentPage(1);
   }, [selectedCategory, fetchProducts]);
 
-  // -----------------------------------------------------------------
-  // Add to Cart
-  // -----------------------------------------------------------------
+
   const handleAddToCart = useCallback(
     async (product) => {
       try {
@@ -257,18 +247,14 @@ const Products = ({ darkMode }) => {
     [token]
   );
 
-  // -----------------------------------------------------------------
-  // Latest Products
-  // -----------------------------------------------------------------
+ 
   const latestProducts = useMemo(() => {
     return [...products]
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .slice(0, 8);
   }, [products]);
 
-  // -----------------------------------------------------------------
-  // Filtered Products
-  // -----------------------------------------------------------------
+
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
       const matchesSearch = p.name
@@ -280,9 +266,7 @@ const Products = ({ darkMode }) => {
     });
   }, [products, searchTerm, priceRange]);
 
-  // -----------------------------------------------------------------
-  // Pagination
-  // -----------------------------------------------------------------
+
   const paginatedProducts = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredProducts.slice(start, start + pageSize);
@@ -290,9 +274,7 @@ const Products = ({ darkMode }) => {
 
   const totalPages = Math.ceil(filteredProducts.length / pageSize);
 
-  // -----------------------------------------------------------------
-  // Slider Navigation
-  // -----------------------------------------------------------------
+
   const scrollSlider = (dir) => {
     if (!sliderRef.current) return;
     const amount = 320;
@@ -308,9 +290,7 @@ const Products = ({ darkMode }) => {
     return Math.round(scroll / 320);
   };
 
-  // -----------------------------------------------------------------
-  // Clear Filters
-  // -----------------------------------------------------------------
+
   const clearFilters = () => {
     setSearchTerm('');
     setPriceRange([0, 50000]);
@@ -318,18 +298,16 @@ const Products = ({ darkMode }) => {
     setCurrentPage(1);
   };
 
-  // -----------------------------------------------------------------
-  // Render
-  // -----------------------------------------------------------------
+
   return (
-    <div className={`min-h-screen transition-all duration-500 ${darkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
+    <div className={`min-h-screen transition-all duration-500 ${darkMode ? 'bg-gray-900' : 'bg-gradient-to-br from-white via-lime-50 to-gray-100'} mt-5`}>
      <section className="relative overflow-hidden">
   <div className="max-w-7xl mx-auto px-6 py-16 md:py-24">
     <div className="grid md:grid-cols-2 gap-12 items-center">
 
-      {/* Left: Text & Stats – same layout as first section */}
-      <div className="space-y-6">
-        <h1 className="text-5xl md:text-6xl font-extrabold drop-shadow-md text-lime-700 dark:text-lime-400 leading-tight">
+
+      <div className="space-y-4">
+        <h1 className="text-4xl md:text-6xl font-extrabold drop-shadow-md text-lime-700 dark:text-lime-400 leading-tight">
           Shop Premium <span className="underline decoration-lime-500 decoration-4">Devices</span>
         </h1>
 
@@ -337,49 +315,49 @@ const Products = ({ darkMode }) => {
           Discover new & refurbished phones, laptops, tablets, and accessories at unbeatable prices.
         </p>
 
-        {/* Stats – identical 3-column grid from first section */}
+    
         <div className="grid grid-cols-3 gap-6 pt-8">
-          <div>
+          <div className=' p-4 rounded-xl bg-white dark:bg-gray-950'>
             <div className="text-3xl font-bold text-lime-600 dark:text-lime-400 flex items-center gap-1">
               <FiPackage /> 1,200+
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400">Products in stock</p>
           </div>
 
-          <div>
+          <div className=' p-4 rounded-xl bg-white dark:bg-gray-950'>
             <div className="text-3xl font-bold text-lime-600 dark:text-lime-400 flex items-center gap-1">
               <FiStar className="text-yellow-500" fill="currentColor" /> 4.8
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400">Average rating</p>
           </div>
 
-          <div>
+          <div className=' p-4 rounded-xl bg-white dark:bg-gray-950'>
             <div className="text-3xl font-bold text-lime-600 dark:text-lime-400 flex items-center gap-1">
-              <FiDollarSign /> 50% OFF
+              <FiDollarSign /> 50% 
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400">Limited deals</p>
           </div>
         </div>
       </div>
 
-      {/* Right: Your full 3D animation + floating icons preserved */}
+     
       <div className="relative">
-        {/* Floating Icons – 100% kept from your version */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10">
+       
+        {/* <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10">
           <FiSmartphone className={`absolute top-16 left-12 w-14 h-14 ${darkMode ? 'text-lime-400' : 'text-lime-600'} animate-float-slow opacity-70`} />
           <FiMonitor className={`absolute top-24 right-16 w-12 h-12 ${darkMode ? 'text-lime-500' : 'text-lime-700'} animate-float-medium opacity-60`} />
           <FiTablet className={`absolute bottom-32 left-20 w-10 h-10 ${darkMode ? 'text-gray-400' : 'text-gray-700'} animate-float-fast opacity-60`} />
           <FiHeadphones className={`absolute bottom-24 right-20 w-16 h-16 ${darkMode ? 'text-lime-400' : 'text-lime-600'} animate-float-slow opacity-70`} />
           <FiWatch className={`absolute top-1/3 left-1/4 w-11 h-11 ${darkMode ? 'text-gray-300' : 'text-gray-600'} animate-float-medium opacity-60`} />
           <FiTool className={`absolute top-10 right-1/3 w-10 h-10 ${darkMode ? 'text-lime-300' : 'text-lime-500'} animate-spin-slow opacity-60`} />
-        </div>
+        </div> */}
 
-        {/* 3D Product Scene – unchanged */}
+        
         <div className="relative w-full h-96">
-          {/* Background glow */}
+     
           <div className="absolute inset-0 bg-gradient-to-br from-lime-100 to-teal-100 dark:from-lime-900 dark:to-teal-900 rounded-3xl blur-3xl opacity-50"></div>
 
-          {/* Main Phone */}
+     
           <div className="absolute top-12 left-16 w-48 h-80 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-3xl shadow-2xl transform rotate-y-12 rotate-x-6 animate-float-3d border border-gray-300 dark:border-gray-600">
             <div className="p-6 h-full flex flex-col justify-between">
               <div>
@@ -393,7 +371,7 @@ const Products = ({ darkMode }) => {
             </div>
           </div>
 
-          {/* Tablet */}
+     
           <div className="absolute bottom-10 right-10 w-56 h-44 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-xl transform -rotate-6 animate-float-3d-delay border border-gray-200 dark:border-gray-700">
             <div className="p-5">
               <div className="bg-gray-200 dark:bg-gray-700 h-4 rounded mb-2"></div>
@@ -401,7 +379,7 @@ const Products = ({ darkMode }) => {
             </div>
           </div>
 
-          {/* Discount Badge */}
+          
           <div className="absolute top-32 left-4 w-32 h-28 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl transform -rotate-12 animate-float-3d-fast border-2 border-lime-500">
             <div className="p-4 text-center">
               <FiTag className="text-lime-600 text-3xl mx-auto mb-1" />
@@ -409,7 +387,7 @@ const Products = ({ darkMode }) => {
             </div>
           </div>
 
-          {/* Spinning Dollar */}
+       
           <div className="absolute top-20 right-20 w-12 h-12 animate-spin-slow opacity-70">
             <FiDollarSign className="text-lime-500 text-5xl drop-shadow-lg" />
           </div>
@@ -419,7 +397,7 @@ const Products = ({ darkMode }) => {
   </div>
 </section>
 
-      {/* ────── FILTER PANEL ────── */}
+      
       <div className="max-w-7xl mx-auto px-6 py-8 -mt-20 relative z-10">
         <div
           className={`rounded-3xl shadow-2xl p-6 transition-all duration-300 ${
@@ -525,7 +503,7 @@ const Products = ({ darkMode }) => {
         </div>
       </div>
 
-      {/* ────── LATEST ARRIVALS SLIDER ────── */}
+
       {!isLoading && latestProducts.length > 0 && (
         <div className="max-w-7xl mx-auto px-6 mb-16">
           <h2 className={`text-3xl font-bold mb-8 ${darkMode ? 'text-lime-400' : 'text-lime-600'}`}>
@@ -586,7 +564,7 @@ const Products = ({ darkMode }) => {
         </div>
       )}
 
-      {/* ────── MAIN GRID ────── */}
+      
       <div className="max-w-7xl mx-auto px-6 pb-16">
         {isLoading ? (
           <div className="flex justify-center items-center h-64">

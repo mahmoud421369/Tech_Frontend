@@ -218,6 +218,9 @@ const ProductsPage = ({ darkMode }) => {
     condition: '',
   });
 
+   useEffect(() => {
+      document.title = "Products - TechRepair";
+    }, []);
   
   useEffect(() => {
     const handleClickOutside = (event) => {

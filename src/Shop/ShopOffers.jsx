@@ -1,9 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   FiSearch, FiPlus, FiInfo, FiEdit3, FiTrash2, FiX, FiCalendar, FiTag,
-  FiPercent, FiDollarSign, FiClock, FiCheckCircle, FiAlertCircle,
-  FiChevronRight,
-  FiChevronLeft
+  FiPercent, FiDollarSign, FiChevronRight, FiChevronLeft, FiCheckCircle
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import DatePicker from 'react-datepicker';
@@ -12,8 +10,19 @@ import { ar } from 'date-fns/locale';
 import api from '../api';
 import debounce from 'lodash/debounce';
 
+const formatNumber = (num) => {
+  if (num === undefined || num === null) return '0';
+  return num.toLocaleString('ar-EG');
+};
+
 const ShopOffers = () => {
   const [offers, setOffers] = useState([]);
+  const [stats, setStats] = useState({
+    totalOffers: 0,
+    activeOffers: 0,
+    percentageOffers: 0,
+    fixedOffers: 0,
+  });
   const [loading, setLoading] = useState(false);
   const [editingOffer, setEditingOffer] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -37,20 +46,28 @@ const ShopOffers = () => {
     EXPIRED: 'منتهي',
   };
 
-  const discountTypeTranslations = {
-    PERCENTAGE: 'نسبة مئوية',
-    FIXED_AMOUNT: 'مبلغ ثابت',
-  };
-useEffect(() => {
-document.title = "إدارة العروض";
-
-});
+  useEffect(() => {
+    document.title = "إدارة العروض";
+  }, []);
 
   const fetchOffers = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get('/api/shop/offers');
-      setOffers(Array.isArray(res.data) ? res.data : res.data.content || []);
+      const offersData = Array.isArray(res.data) ? res.data : res.data.content || [];
+      setOffers(offersData);
+
+      const total = offersData.length;
+      const active = offersData.filter(o => o.status === 'ACTIVE').length;
+      const percentage = offersData.filter(o => o.discountType === 'PERCENTAGE').length;
+      const fixed = offersData.filter(o => o.discountType === 'FIXED_AMOUNT').length;
+
+      setStats({
+        totalOffers: total,
+        activeOffers: active,
+        percentageOffers: percentage,
+        fixedOffers: fixed,
+      });
     } catch (err) {
       Swal.fire({
         title: 'خطأ',
@@ -69,105 +86,88 @@ document.title = "إدارة العروض";
     fetchOffers();
   }, [fetchOffers]);
 
-const viewOfferDetails = useCallback(async (offerId) => {
-  try {
-    const res = await api.get(`/api/shop/offers/${offerId}`);
-    const offer = res.data;
+  const viewOfferDetails = useCallback(async (offerId) => {
+    try {
+      const res = await api.get(`/api/shop/offers/${offerId}`);
+      const offer = res.data;
 
-    const startFormatted = offer.startDate
-      ? new Date(offer.startDate).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })
-      : 'غير محدد';
+      const startFormatted = offer.startDate
+        ? new Date(offer.startDate).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })
+        : 'غير محدد';
 
-    const endFormatted = offer.endDate
-      ? new Date(offer.endDate).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })
-      : 'غير محدد';
+      const endFormatted = offer.endDate
+        ? new Date(offer.endDate).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })
+        : 'غير محدد';
 
-    const statusColor = 
-      offer.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
-      offer.status === 'SCHEDULED' ? 'bg-yellow-100 text-yellow-800' :
-      'bg-red-100 text-red-800';
+      const statusColor = 
+        offer.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
+        offer.status === 'SCHEDULED' ? 'bg-yellow-100 text-yellow-800' :
+        'bg-red-100 text-red-800';
 
-    const discountIcon = offer.discountType === 'PERCENTAGE' 
-      ? '<FiPercent class="w-6 h-6 text-lime-600 inline" />' 
-      : '<FiDollarSign class="w-6 h-6 text-lime-600 inline" />';
+      const discountText = offer.discountType === 'PERCENTAGE' ? '%' : 'ج.م';
 
-    Swal.fire({
-      title: `<div class="flex items-center gap-4 justify-center mb-6">
-                <FiTag class="text-4xl text-lime-600" />
-                <p class="text-3xl font-bold text-center mb-3 bg-lime-500 text-white px-3 py-2 rounded-lg flex justify-center items-center">تفاصيل العرض</p>
-                <span class="text-3xl font-bold">#${offer.id}   </span>
-              </div>`,
-      html: `
-        <div class="text-right space-y-6 text-lg font-medium max-w-2xl mx-auto">
-          <div class="bg-gray-50 rounded-2xl p-6 shadow-sm">
-            <p class="flex items-center justify-between flex-row-reverse gap-4">
-              <span class="text-gray-600">اسم العرض</span>
-              <span class="font-bold text-xl">${offer.name || '-'}</span>
-            </p>
-          </div>
-
-          <div class="bg-gray-50 rounded-2xl p-6 shadow-sm">
-            <p class="flex items-start justify-between flex-row-reverse gap-4">
-              <span class="text-gray-600">الوصف</span>
-              <span class="font-semibold max-w-md text-right">${offer.description || 'لا يوجد وصف'}</span>
-            </p>
-          </div>
-
-          <div class="bg-gradient-to-r from-lime-50 to-emerald-50 rounded-2xl p-6 shadow-sm">
-            <p class="flex items-center justify-between flex-row-reverse gap-4">
-              <span class="text-gray-700 font-medium">قيمة الخصم</span>
-              <span class="text-3xl font-bold text-lime-600 flex items-center gap-2">
-                ${offer.discountValue}
-                ${offer.discountType === 'PERCENTAGE' ? '<span class="text-2xl">%</span>' : 'ج.م'}
-              </span>
-            </p>
-           
-          </div>
-
-          <div class="bg-gray-50 rounded-2xl p-6 shadow-sm">
-            <p class="flex items-center justify-between flex-row-reverse gap-4">
-              <span class="text-gray-600">الحالة</span>
-              <span class="px-6 py-3 rounded-full text-lg font-bold ${statusColor}">
-                ${statusTranslations[offer.status]}
-              </span>
-            </p>
-          </div>
-
-          <div class="grid grid-cols-2 gap-6">
-            <div class="bg-blue-50 rounded-2xl p-6 text-center">
-              <p class="text-gray-600 mb-2">تاريخ البداية</p>
-              <p class="text-xl font-bold text-blue-700">${startFormatted}</p>
+      Swal.fire({
+        title: `<div class="text-center mb-4">
+                  <FiTag class="inline text-4xl text-lime-600 mb-2" />
+                  <p class="text-2xl font-bold">#${offer.id} - ${offer.name}</p>
+                </div>`,
+        html: `
+          <div class="text-right space-y-4 text-base">
+            <div class="bg-gray-50 rounded-xl p-4">
+              <p class="text-gray-600 mb-1">الوصف</p>
+              <p class="font-semibold">${offer.description || 'لا يوجد وصف'}</p>
             </div>
-            <div class="bg-purple-50 rounded-2xl p-6 text-center">
-              <p class="text-gray-600 mb-2">تاريخ النهاية</p>
-              <p class="text-xl font-bold text-purple-700">${endFormatted}</p>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div class="bg-gradient-to-br from-lime-50 to-emerald-50 rounded-xl p-4 text-center">
+                <p class="text-gray-700">قيمة الخصم</p>
+                <p class="text-2xl font-bold text-lime-600 mt-1">
+                  ${offer.discountValue} ${discountText}
+                </p>
+              </div>
+
+              <div class="bg-gray-50 rounded-xl p-4 text-center">
+                <p class="text-gray-700">الحالة</p>
+                <span class="inline-block mt-1 px-4 py-2 rounded-full font-bold text-sm ${statusColor}">
+                  ${statusTranslations[offer.status]}
+                </span>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div class="bg-blue-50 rounded-xl p-4 text-center">
+                <p class="text-gray-600 text-sm">البداية</p>
+                <p class="font-bold text-blue-700">${startFormatted}</p>
+              </div>
+              <div class="bg-purple-50 rounded-xl p-4 text-center">
+                <p class="text-gray-600 text-sm">النهاية</p>
+                <p class="font-bold text-purple-700">${endFormatted}</p>
+              </div>
             </div>
           </div>
-        </div>
-      `,
-      width: 900,
-      showConfirmButton: true,
-      confirmButtonText: 'إغلاق',
-      confirmButtonColor: '#94a3b8',
-      customClass: {
-        popup: 'rounded-3xl',
-        title: 'mb-0',
-        htmlContainer: 'mt-6',
-      },
-      buttonsStyling: false,
-    });
-  } catch (err) {
-    Swal.fire({
-      title: 'خطأ',
-      text: 'فشل تحميل تفاصيل العرض',
-      icon: 'error',
-      toast: true,
-      position: 'top-end',
-      timer: 2000,
-      timerProgressBar: true,
-    });
-  }
-}, [discountTypeTranslations, statusTranslations]);
+        `,
+        width: 600,
+        showConfirmButton: true,
+        confirmButtonText: 'إغلاق',
+        confirmButtonColor: '#94a3b8',
+        customClass: {
+          popup: 'rounded-3xl',
+          title: 'mb-0',
+          htmlContainer: 'pt-4',
+        },
+        buttonsStyling: false,
+      });
+    } catch (err) {
+      Swal.fire({
+        title: 'خطأ',
+        text: 'فشل تحميل تفاصيل العرض',
+        icon: 'error',
+        toast: true,
+        position: 'top-end',
+        timer: 2000,
+      });
+    }
+  }, [statusTranslations]);
 
   const openModalForAdd = () => {
     setEditingOffer(null);
@@ -258,11 +258,13 @@ const viewOfferDetails = useCallback(async (offerId) => {
   const totalPages = Math.ceil(filteredOffers.length / offersPerPage);
   const pageOffers = filteredOffers.slice((currentPage - 1) * offersPerPage, currentPage * offersPerPage);
 
+  const percentagePct = stats.totalOffers > 0 ? Math.round((stats.percentageOffers / stats.totalOffers) * 100) : 0;
+  const fixedPct = stats.totalOffers > 0 ? Math.round((stats.fixedOffers / stats.totalOffers) * 100) : 0;
+
   return (
-    <div  style={{ marginTop: "-575px", marginLeft: "-250px" }} className="min-h-screen bg-gray-50 font-cairo py-8">
+    <div style={{ marginTop: "-575px", marginLeft: "-250px" }} className="min-h-screen bg-gray-50 font-cairo py-8">
       <div className="max-w-5xl mx-auto px-6">
 
-        
         <div className="mb-10 bg-white rounded-3xl shadow-sm border border-gray-200 p-8">
           <div className="flex items-center justify-between text-right gap-5">
             <div className="p-5 bg-lime-100 rounded-2xl">
@@ -273,9 +275,54 @@ const viewOfferDetails = useCallback(async (offerId) => {
               <p className="text-lg text-gray-600 mt-2">إنشاء وإدارة العروض والخصومات بسهولة تامة</p>
             </div>
           </div>
+
+        
         </div>
 
-      
+
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-8 mb-6">
+            <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-6 transform hover:scale-105 transition">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-base opacity-90">إجمالي العروض</p>
+                  <p className="text-3xl font-bold mt-2">{formatNumber(stats.totalOffers)}</p>
+                </div>
+                <FiTag className="text-5xl opacity-40 text-lime-600" />
+              </div>
+            </div>
+
+            <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-6 transform hover:scale-105 transition">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-base opacity-90">العروض النشطة</p>
+                  <p className="text-3xl font-bold mt-2 text-emerald-600">{formatNumber(stats.activeOffers)}</p>
+                </div>
+                <FiCheckCircle className="text-5xl opacity-40 text-emerald-600" />
+              </div>
+            </div>
+
+            <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-6 transform hover:scale-105 transition">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-base opacity-90">بالنسبة المئوية ({percentagePct}%)</p>
+                  <p className="text-3xl font-bold mt-2 text-amber-600">{formatNumber(stats.percentageOffers)}</p>
+                </div>
+                <FiPercent className="text-5xl opacity-40 text-amber-600" />
+              </div>
+            </div>
+
+            <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-6 transform hover:scale-105 transition">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-base opacity-90">مبلغ ثابت ({fixedPct}%)</p>
+                  <p className="text-3xl font-bold mt-2 text-purple-600">{formatNumber(stats.fixedOffers)}</p>
+                </div>
+                <FiDollarSign className="text-5xl opacity-40 text-purple-600" />
+              </div>
+            </div>
+          </div>
+
         <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
           <div className="flex flex-col sm:flex-row-reverse gap-4 items-center justify-between">
             <div className="flex-1 relative max-w-md">
@@ -290,7 +337,7 @@ const viewOfferDetails = useCallback(async (offerId) => {
 
             <button
               onClick={openModalForAdd}
-              className="px-8 py-3.5 bg-teal-500  text-white border border-teal-500 rounded-3xl font-semibold hover:bg-teal-500 hover:text-white shadow transition flex items-center gap-2"
+              className="px-8 py-3.5 bg-teal-500 text-white border border-teal-500 rounded-3xl font-semibold hover:bg-teal-600 shadow transition flex items-center gap-2"
             >
               <FiPlus className="w-5 h-5" />
               إضافة عرض جديد
@@ -298,7 +345,6 @@ const viewOfferDetails = useCallback(async (offerId) => {
           </div>
         </div>
 
-      
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
           {loading ? (
             <div className="p-20 text-center">
@@ -376,7 +422,6 @@ const viewOfferDetails = useCallback(async (offerId) => {
           )}
         </div>
 
-   
         {totalPages > 1 && (
           <div className="flex justify-center items-center gap-3 mt-10">
             <button
@@ -413,7 +458,6 @@ const viewOfferDetails = useCallback(async (offerId) => {
           </div>
         )}
 
-       
         {isModalOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-6 text-right">
             <div className="bg-white rounded-3xl shadow-2xl p-10 w-full max-w-3xl max-h-[90vh] overflow-y-auto">

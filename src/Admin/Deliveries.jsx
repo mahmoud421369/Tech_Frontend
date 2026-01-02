@@ -91,6 +91,11 @@ const Deliveries = ({ darkMode }) => {
     return DOMPurify.sanitize(searchTerm.trim().toLowerCase());
   }, [searchTerm]);
 
+
+   useEffect(() => {
+      document.title = "Deliveries - TechRepair";
+    }, []);
+
   const fetchAllDeliveries = useCallback(async () => {
     if (!token) {
       Swal.fire({ title: 'Error', text: 'Please log in.', icon: 'error' });

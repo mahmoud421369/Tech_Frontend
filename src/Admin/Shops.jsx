@@ -210,6 +210,10 @@ const Shops = ({ darkMode }) => {
   const dropdownRef = useRef(null);
   const pageSize = 5;
 
+   useEffect(() => {
+      document.title = "Shops - TechRepair";
+    }, []);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {

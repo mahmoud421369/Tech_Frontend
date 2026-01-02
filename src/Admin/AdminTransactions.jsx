@@ -177,6 +177,10 @@ const TransactionsPage = ({ darkMode }) => {
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
+
+   useEffect(() => {
+      document.title = "Transactions - TechRepair";
+    }, []); 
   const fetchAllTransactions = useCallback(async () => {
     if (!token) {
       Swal.fire({ title: 'Error', text: 'Please log in.', icon: 'error' });
@@ -307,7 +311,7 @@ const TransactionsPage = ({ darkMode }) => {
   </div>
 </div>
 
-{/* Pending */}
+
 <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-center justify-center flex-row-reverse gap-4">
   <FiClock className="text-4xl text-yellow-600 flex-shrink-0" />
   <div className="text-center">
@@ -316,7 +320,7 @@ const TransactionsPage = ({ darkMode }) => {
   </div>
 </div>
 
-{/* Failed */}
+
 <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-center justify-center flex-row-reverse gap-4">
   <FiXCircle className="text-4xl text-red-600 flex-shrink-0" />
   <div className="text-center">

@@ -235,6 +235,11 @@ const UsersPage = ({ darkMode }) => {
   const [itemsPerPage] = useState(5);
   const [roleUpdates, setRoleUpdates] = useState({});
 
+
+ useEffect(() => {
+    document.title = "Users - TechRepair";
+  }, []);
+
   const computedStats = useMemo(() => {
     const totalUsers = users.length;
     const activeUsers = users.filter((u) => u.activate).length;

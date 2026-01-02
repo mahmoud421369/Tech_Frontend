@@ -8,6 +8,7 @@ import {
 import ShopLayout from '../components/ShopLayout';
 import api from '../api';
 import debounce from 'lodash/debounce';
+import TextField from '@mui/material/TextField';
 
 const Products = () => {
   const [products, setProducts] = useState([]);
@@ -215,37 +216,40 @@ document.title = "إدارة المنتجات";
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-            <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-lg opacity-90">إجمالي المنتجات</p>
-                  <p className="text-4xl font-bold mt-3">{stats.total}</p>
-                </div>
-                <FiPackage className="text-6xl opacity-40" />
-              </div>
-            </div>
+       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+  
+  <div className="bg-white border rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-105 transition-transform duration-300">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">إجمالي المنتجات</p>
+        <p className="text-3xl font-bold text-gray-800 mt-2">{stats.total}</p>
+      </div>
+      <FiPackage className="text-5xl text-gray-300" />
+    </div>
+  </div>
 
-            <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-lg opacity-90">جديد</p>
-                  <p className="text-4xl font-bold mt-3">{stats.newCondition}</p>
-                </div>
-                <FiTool className="text-6xl opacity-40" />
-              </div>
-            </div>
+  
+  <div className="bg-white border rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-105 transition-transform duration-300">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">جديد</p>
+        <p className="text-3xl font-bold text-gray-800 mt-2">{stats.newCondition}</p>
+      </div>
+      <FiTool className="text-5xl text-gray-300" />
+    </div>
+  </div>
 
-            <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-lg opacity-90">مستعمل / مجدد</p>
-                  <p className="text-4xl font-bold mt-3">{stats.usedOrRefurb}</p>
-                </div>
-                <FiBox className="text-6xl opacity-40" />
-              </div>
-            </div>
-          </div>
+  
+  <div className="bg-white border rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-105 transition-transform duration-300">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">مستعمل / مجدد</p>
+        <p className="text-3xl font-bold text-gray-800 mt-2">{stats.usedOrRefurb}</p>
+      </div>
+      <FiBox className="text-5xl text-gray-300" />
+    </div>
+  </div>
+</div>
 
           <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
             <div className="flex flex-col sm:flex-row-reverse gap-4 items-center justify-between">
@@ -509,16 +513,19 @@ document.title = "إدارة المنتجات";
 
                     return (
                       <div key={field} className="relative">
-                        <input
+                        <TextField
+                        id="outlined-basic"
+                  label={label}
+                  variant="outlined"
                           type={field === 'price' || field === 'stockQuantity' ? 'number' : 'text'}
                           value={newProduct[field] || ''}
                           onChange={(e) => setNewProduct({ ...newProduct, [field]: e.target.value })}
                           className="peer w-full px-4 py-3 pt-6 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-lime-400 focus:border-lime-500 outline-none transition text-right text-black placeholder-gray-500"
                           placeholder=" "
                         />
-                        <label className="absolute right-4 top-1 text-sm text-gray-500 transition-all duration-300 peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-focus:top-1 peer-focus:text-sm peer-focus:text-lime-600">
+                        {/* <label className="absolute right-4 top-1 text-sm text-gray-500 transition-all duration-300 peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-focus:top-1 peer-focus:text-sm peer-focus:text-lime-600">
                           {label}
-                        </label>
+                        </label> */}
                       </div>
                     );
                   })}

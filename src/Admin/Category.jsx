@@ -184,6 +184,10 @@ const Categories = ({ darkMode }) => {
   const [page, setPage] = useState(1);
   const pageSize = 5;
 
+ useEffect(() => {
+    document.title = "Categories - TechRepair";
+  }, []);
+
   const fetchCategories = useCallback(async () => {
     if (!token) {
       Swal.fire({ title: 'Error', text: 'Please log in.', icon: 'error' });

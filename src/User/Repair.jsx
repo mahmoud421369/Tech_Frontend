@@ -9,16 +9,11 @@ import {
   FaTv,
   FaGamepad,
   FaTabletAlt,
-  FaArrowLeft,
   FaStar,
   FaStore,
   FaPhone,
-  FaMapMarkedAlt,
-  FaWrench,
-  FaTools,
-  FaCheckCircle,
 } from "react-icons/fa";
-import { FiChevronRight, FiSmartphone, FiMonitor } from "react-icons/fi";
+import { FiChevronRight, FiSmartphone, FiMapPin, FiPhone as FiPhoneIcon, FiTool } from "react-icons/fi";
 import api from "../api";
 
 const LoadingSpinner = ({ darkMode }) => (
@@ -43,15 +38,18 @@ const RepairRequest = ({ darkMode }) => {
   const [shops, setShops] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const textPrimary = darkMode ? "text-gray-100" : "text-gray-800";
-  const textSecondary = darkMode ? "text-gray-300" : "text-gray-600";
-  const bgCard = darkMode ? "bg-gray-800" : "bg-white";
+  const textPrimary = darkMode ? "text-white" : "text-gray-900";
+  const textSecondary = darkMode ? "text-gray-400" : "text-gray-600";
+  const bgCard = darkMode ? "bg-gray-800/90" : "bg-white";
   const border = darkMode ? "border-gray-700" : "border-gray-200";
+
+  useEffect(() => {
+    document.title = "Request Repair | TechRestore";
+  }, []);
 
   const sanitizeDescription = (input) =>
     sanitizeHtml(input, { allowedTags: [], allowedAttributes: {} }).trim();
 
-  // Fetch Categories
   useEffect(() => {
     const fetchCategories = async () => {
       setIsLoading(true);
@@ -73,7 +71,6 @@ const RepairRequest = ({ darkMode }) => {
     fetchCategories();
   }, [token]);
 
-  // Fetch Shops when category selected
   useEffect(() => {
     if (!selectedCategory || step !== 2) return;
 
@@ -96,32 +93,31 @@ const RepairRequest = ({ darkMode }) => {
 
   const getCategoryIcon = (name) => {
     const map = {
-      Phone: <FiSmartphone />,
-      Laptop: <FaLaptop />,
-      Tablet: <FaTabletAlt />,
-      TV: <FaTv />,
-      Desktop: <FaDesktop />,
-      Gaming: <FaGamepad />,
+      Phone: <FiSmartphone className="w-12 h-12" />,
+      Laptop: <FaLaptop className="w-12 h-12" />,
+      Tablet: <FaTabletAlt className="w-12 h-12" />,
+      TV: <FaTv className="w-12 h-12" />,
+      Desktop: <FaDesktop className="w-12 h-12" />,
+      Gaming: <FaGamepad className="w-12 h-12" />,
     };
-    return map[name] || <FaMobileAlt />;
+    return map[name] || <FaMobileAlt className="w-12 h-12" />;
   };
 
   const fallbackCategories = [
-    { id: "1", name: "Phone", icon: <FiSmartphone /> },
-    { id: "2", name: "Laptop", icon: <FaLaptop /> },
-    { id: "3", name: "Tablet", icon: <FaTabletAlt /> },
-    { id: "4", name: "TV", icon: <FaTv /> },
-    { id: "5", name: "Desktop", icon: <FaDesktop /> },
-    { id: "6", name: "Gaming", icon: <FaGamepad /> },
+    { id: "1", name: "Phone", icon: <FiSmartphone className="w-12 h-12" /> },
+    { id: "2", name: "Laptop", icon: <FaLaptop className="w-12 h-12" /> },
+    { id: "3", name: "Tablet", icon: <FaTabletAlt className="w-12 h-12" /> },
+    { id: "4", name: "TV", icon: <FaTv className="w-12 h-12" /> },
+    { id: "5", name: "Desktop", icon: <FaDesktop className="w-12 h-12" /> },
+    { id: "6", name: "Gaming", icon: <FaGamepad className="w-12 h-12" /> },
   ];
 
   const fallbackShops = [
-    { id: 1, name: "TechFix Pro", rating: 4.8, address: "Nasr City, Cairo", phone: "+20 100 123 4567" },
-    { id: 2, name: "Mobile Clinic", rating: 4.7, address: "Mohandessin, Giza", phone: "+20 111 222 3334" },
-    { id: 3, name: "FixZone", rating: 4.9, address: "Maadi, Cairo", phone: "+20 155 789 0123" },
+    { id: 1, name: "TechFix Pro", rating: 4.8, shopAddress: { city: "Nasr City", state: "Cairo" }, phone: "+20 100 123 4567" },
+    { id: 2, name: "Mobile Clinic", rating: 4.7, shopAddress: { city: "Mohandessin", state: "Giza" }, phone: "+20 111 222 3334" },
+    { id: 3, name: "FixZone", rating: 4.9, shopAddress: { city: "Maadi", state: "Cairo" }, phone: "+20 155 789 0123" },
   ];
 
-  // Send Repair Request to Specific Shop
   const sendRepairRequest = async () => {
     if (!description.trim()) {
       Swal.fire({
@@ -137,7 +133,6 @@ const RepairRequest = ({ darkMode }) => {
 
     try {
       const payload = {
-        // categoryId: selectedCategory.id,
         description: sanitizeDescription(description),
         deviceCategory: selectedCategory.id,
       };
@@ -157,7 +152,7 @@ const RepairRequest = ({ darkMode }) => {
             <p>Your repair request has been sent to:</p>
             <div class="bg-lime-100 dark:bg-lime-900/50 rounded-xl p-4 inline-block">
               <p class="font-bold text-lg">${selectedShop.name}</p>
-              <p class="text-sm text-gray-600 dark:text-gray-400">${selectedShop.address || "Cairo"}</p>
+              <p class="text-sm text-gray-600 dark:text-gray-400">${selectedShop.shopAddress?.city || "Cairo"}</p>
             </div>
             <p class="text-sm">They will contact you soon with a quote</p>
           </div>
@@ -166,10 +161,9 @@ const RepairRequest = ({ darkMode }) => {
         cancelButtonText: "New Request",
         showCancelButton: true,
         confirmButtonColor: "#84cc16",
-        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" },
       }).then((result) => {
         if (result.isConfirmed) {
-          navigate("/profile?tab=repairs");
+          navigate("/account");
         } else {
           setStep(1);
           setSelectedCategory(null);
@@ -208,164 +202,127 @@ const RepairRequest = ({ darkMode }) => {
   const handleBack = () => setStep(Math.max(1, step - 1));
 
   return (
-    <div className={`min-h-screen transition-all duration-500 ${darkMode ? "bg-gray-900" : "bg-gray-100"}`}>
-      {/* HERO SECTION - Exactly as your original */}
-      <section className="relative overflow-hidden py-32">
-        <div
-          className={`absolute inset-0 ${
-            darkMode
-              ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700"
-              : "bg-gradient-to-br from-white via-lime-50 to-gray-100"
-          }`}
-        />
+    <div className={`min-h-screen overflow-hidden ${darkMode ? "bg-gray-900" : "bg-gray-50"} pt-20`}>
+      <section className={`py-16 lg:py-24 ${darkMode ? "bg-gray-900" : "bg-gray-100"}`}>
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="text-center lg:text-left">
+              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold bg-gradient-to-r from-lime-500 to-emerald-600 bg-clip-text text-transparent">
+                Put Your Device First
+              </h1>
+              <p className={`mt-6 text-xl ${textSecondary} max-w-2xl mx-auto lg:mx-0`}>
+                Fast, reliable repairs from trusted local shops. Describe your issue and get connected instantly.
+              </p>
 
-        {/* Floating Icons */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <FiSmartphone className={`absolute top-16 left-12 w-14 h-14 ${darkMode ? "text-lime-400" : "text-lime-600"} animate-float-slow opacity-70`} />
-          <FaWrench className={`absolute top-24 right-16 w-12 h-12 ${darkMode ? "text-lime-500" : "text-lime-700"} animate-float-medium opacity-60`} />
-          <FaTools className={`absolute bottom-32 left-20 w-10 h-10 ${darkMode ? "text-gray-400" : "text-gray-700"} animate-float-fast opacity-60`} />
-          <FiMonitor className={`absolute bottom-24 right-20 w-16 h-16 ${darkMode ? "text-lime-400" : "text-lime-600"} animate-float-slow opacity-70`} />
-        </div>
-
-        {/* Content */}
-        <div className="relative max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center z-10">
-          {/* Left: Text */}
-          <div>
-            <h1 className={`text-5xl sm:text-6xl font-extrabold drop-shadow.Parent ${darkMode ? "text-lime-400" : "text-lime-700"}`}>
-              Put your device first
-            </h1>
-            <p className={`mt-6 text-xl max-w-xl ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-              Fast, user-friendly and engaging - turn your repair request into a seamless experience with your trusted local shop.
-            </p>
-
-            {/* Stats */}
-            <div className="mt-12 grid grid-cols-2 gap-8 text-center">
-              <div>
-                <h3 className={`text-4xl font-bold ${darkMode ? "text-lime-400" : "text-lime-600"}`}>75.2%</h3>
-                <p className={`text-sm ${textSecondary}`}>Average repair success rate</p>
+              <div className="mt-12 grid grid-cols-2 gap-8">
+                <div className="p-6 rounded-2xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm text-center shadow-lg">
+                  <h3 className={`text-4xl font-bold ${darkMode ? "text-lime-400" : "text-lime-600"}`}>75.2%</h3>
+                  <p className={`text-sm mt-2 ${textSecondary}`}>Average repair success rate</p>
+                </div>
+                <div className="p-6 rounded-2xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm text-center shadow-lg">
+                  <h3 className={`text-4xl font-bold ${darkMode ? "text-lime-400" : "text-lime-600"}`}>~20k</h3>
+                  <p className={`text-sm mt-2 ${textSecondary}`}>Repairs completed monthly</p>
+                </div>
               </div>
-              <div>
-                <h3 className={`text-4xl font-bold ${darkMode ? "text-lime-400" : "text-lime-600"}`}>~20k</h3>
-                <p className={`text-sm ${textSecondary}`}>Repairs completed monthly</p>
+
+              <div className="mt-8 flex items-center justify-center lg:justify-start gap-2">
+                {[...Array(5)].map((_, i) => (
+                  <FaStar
+                    key={i}
+                    className={i < 4 ? "text-yellow-500" : "text-gray-400"}
+                    size={24}
+                  />
+                ))}
+                <span className={`ml-3 text-lg ${textSecondary}`}>4.5 Average rating</span>
               </div>
             </div>
 
-            <div className="mt-6 flex items-center gap-2">
-              {[...Array(5)].map((_, i) => (
-                <FaStar
-                  key={i}
-                  className={i < 4 ? (darkMode ? "text-lime-400" : "text-lime-600") : "text-gray-400"}
-                />
-              ))}
-              <span className={`ml-2 text-sm ${textSecondary}`}>4.5 Average user rating</span>
-            </div>
-          </div>
+            <div className="relative h-96 lg:h-[600px] flex items-center justify-center">
+              <div className="absolute inset-0 bg-gradient-to-br from-lime-200/30 to-emerald-200/30 dark:from-lime-900/20 dark:to-emerald-900/20 rounded-full blur-3xl scale-150" />
 
-          {/* Right: 3D Animation */}
-          <div className="relative h-96 lg:h-full flex justify-center items-center">
-            <div className="relative w-80 h-96 perspective-1000">
-              <div
-                className="absolute top-12 left-16 w-48 h-80 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-3xl shadow-2xl transform rotate-y-12 rotate-x-6 animate-float-3d border border-gray-300 dark:border-gray-600"
-                style={{ transformStyle: "preserve-3d" }}
-              >
-                <div className="p-6 h-full flex flex-col justify-between" style={{ transform: "translateZ(20px)" }}>
-                  <div>
-                    <div className="bg-gray-300 dark:bg-gray-600 h-6 rounded mb-3 w-3/4"></div>
-                    <div className="bg-gray-300 dark:bg-gray-600 h-4 rounded w-full mb-2"></div>
-                    <div className="bg-gray-300 dark:bg-gray-600 h-4 rounded w-2/3"></div>
-                  </div>
-                  <div className="bg-lime-500 h-12 rounded-xl flex items-center justify-center text-white font-bold shadow-md">
-                    Repair Now
+              <div className="relative w-full h-full">
+                <div className="absolute top-10 left-10 w-48 h-64 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl rotate-12 hover:rotate-6 transition-transform duration-700 overflow-hidden border border-gray-200 dark:border-gray-700">
+                  <div className="p-4 space-y-3">
+                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
+                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-32"></div>
+                    <div className="h-8 bg-lime-500 rounded w-16"></div>
+                    <div className="flex gap-2">
+                      <div className="w-8 h-8 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
+                      <div className="w-8 h-8 bg-lime-500 rounded-full"></div>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div
-                className="absolute bottom-10 right-10 w-56 h-44 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-xl transform rotate-y--15 rotate-x-8 animate-float-3d-delay border border-gray-200 dark:border-gray-700"
-                style={{ transformStyle: "preserve-3d" }}
-              >
-                <div className="p-5" style={{ transform: "translateZ(15px)" }}>
-                  <div className="bg-gray-200 dark:bg-gray-700 h-4 rounded mb-2"></div>
-                  <div className="bg-gray-200 dark:bg-gray-700 h-3 rounded w-4/5"></div>
+                <div className="absolute bottom-10 right-10 w-56 h-72 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl -rotate-6 hover:-rotate-3 transition-transform duration-700 overflow-hidden border border-gray-200 dark:border-gray-700">
+                  <div className="p-5 space-y-4">
+                    <div className="flex justify-between items-center">
+                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24"></div>
+                      <div className="w-10 h-10 bg-lime-500 rounded-full flex items-center justify-center">
+                        <FiTool className="text-white text-lg" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
+                      <div className="h-3 bg-lime-500 rounded w-1/2"></div>
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              <div
-                className="absolute top-32 left-4 w-32 h-28 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl transform rotate-y-20 rotate-x-10 animate-float-3d-fast border-2 border-lime-500"
-                style={{ transformStyle: "preserve-3d" }}
-              >
-                <div className="p-4 text-center" style={{ transform: "translateZ(10px)" }}>
-                  <FaCheckCircle className="text-lime-600 text-3xl mx-auto mb-1" />
-                  <p className="text-sm font-bold text-lime-600">Fixed!</p>
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-40 h-56 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl z-10 hover:scale-110 transition-all duration-700 overflow-hidden border border-gray-200 dark:border-gray-700">
+                  <div className="p-4">
+                    <div className="w-16 h-16 bg-lime-500 rounded-2xl mx-auto mb-3 flex items-center justify-center">
+                      <FaStore className="text-white text-2xl" />
+                    </div>
+                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mt-2"></div>
+                  </div>
                 </div>
-              </div>
-
-              <div className="absolute top-20 right-20 w-12 h-12 animate-spin-slow opacity-70">
-                <FaWrench className="text-lime-500 text-5xl" style={{ filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.3))" }} />
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* STEPS INDICATOR */}
-      <div className={`flex justify-center items-center mb-12 max-w-4xl mx-auto p-6 rounded-2xl shadow-md ${bgCard}`}>
+      <div className={`flex justify-center items-center my-12 max-w-2xl mx-auto p-6 rounded-2xl shadow-lg ${bgCard}`}>
         {["Device Type", "Select Shop"].map((s, i) => (
           <div key={i} className="flex-1 text-center relative">
             <div
-              className={`w-12 h-12 mx-auto rounded-full flex items-center justify-center font-bold text-lg transition-all shadow-md ${
+              className={`w-14 h-14 mx-auto rounded-full flex items-center justify-center text-xl font-bold shadow-md transition-all ${
                 step >= i + 1
-                  ? darkMode
-                    ? "bg-lime-500 text-white"
-                    : "bg-lime-600 text-white"
-                  : darkMode
-                  ? "bg-gray-700 text-gray-400"
-                  : "bg-gray-200 text-gray-600"
+                  ? "bg-lime-600 text-white"
+                  : "bg-gray-300 dark:bg-gray-700 text-gray-600"
               }`}
             >
               {i + 1}
             </div>
-            <p
-              className={`text-sm mt-3 font-semibold ${
-                step >= i + 1 ? (darkMode ? "text-lime-400" : "text-lime-600") : textSecondary
-              }`}
-            >
+            <p className={`text-sm mt-3 font-semibold ${step >= i + 1 ? "text-lime-600 dark:text-lime-400" : textSecondary}`}>
               {s}
             </p>
             {i < 1 && (
               <div
-                className={`absolute top-6 left-1/2 w-1/2 h-1 transition-all ${
-                  step > i + 1
-                    ? darkMode
-                      ? "bg-lime-500"
-                      : "bg-lime-600"
-                    : darkMode
-                    ? "bg-gray-700"
-                    : "bg-gray-300"
-                }`}
+                className={`absolute top-7 left-1/2 w-full h-1 ${step > i + 1 ? "bg-lime-600" : "bg-gray-300 dark:bg-gray-700"}`}
                 style={{ transform: "translateX(50%)" }}
-              ></div>
+              />
             )}
           </div>
         ))}
       </div>
 
-      {/* MAIN CONTENT */}
       <div className="max-w-6xl mx-auto px-6 py-12">
-        {/* Step 1: Device Type */}
         {step === 1 && (
-          <div className="animate-fadeIn">
+          <div>
             <h2 className={`text-3xl font-bold text-center mb-8 ${darkMode ? "text-lime-400" : "text-lime-600"}`}>
               Step 1: Select Device Type
             </h2>
 
-            <label className={`block font-semibold mb-3 ${darkMode ? "text-lime-400" : "text-lime-600"}`}>
-              Problem Description
+            <label className={`block font-semibold mb-3 text-center ${darkMode ? "text-lime-400" : "text-lime-600"}`}>
+              Describe the Problem
             </label>
             <textarea
-              className={`w-full px-4 py-3 rounded-xl ${bgCard} ${textPrimary} border ${border} focus:ring-2 focus:ring-lime-500 focus:outline-none transition mb-8 resize-none`}
+              className={`w-full max-w-2xl mx-auto block dark:text-white px-6 py-4 rounded-2xl ${bgCard} border ${border} focus:ring-4 focus:ring-lime-500/50 focus:outline-none transition resize-none`}
               rows="5"
-              placeholder="Describe the issue with your device..."
+              placeholder="e.g., Screen cracked, battery draining fast, not charging..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               maxLength={1000}
@@ -374,99 +331,98 @@ const RepairRequest = ({ darkMode }) => {
             {isLoading ? (
               <LoadingSpinner darkMode={darkMode} />
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
-                {categories.map((cat, index) => (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-8 mt-12">
+                {categories.map((cat) => (
                   <div
                     key={cat.id}
-                    onClick={() => {
-                      setSelectedCategory(cat);
-                      setStep(2);
-                    }}
-                    className={`group cursor-pointer rounded-2xl p-6 shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-3 hover:scale-105 ${
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`group cursor-pointer rounded-3xl flex flex-col justify-center items-center p-8 shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-4 ${
                       selectedCategory?.id === cat.id
-                        ? darkMode
-                          ? "bg-lime-600 text-white ring-4 ring-lime-400"
-                          : "bg-lime-600 text-white ring-4 ring-lime-500"
+                        ? "bg-gradient-to-br from-lime-500 to-emerald-600 text-white ring-4 ring-lime-400"
                         : `${bgCard} border ${border}`
-                    } animate-slideIn`}
-                    style={{ animationDelay: `${index * 100}ms`}}
+                    }`}
                   >
-                    <div className={`text-5xl mb-4 flex justify-center items-center transition-transform duration-300 group-hover:scale-110 ${darkMode ? "text-lime-400" : "text-lime-600"}`}>
+                    <div className={`mx-auto mb-6 transition-transform group-hover:scale-110 ${selectedCategory?.id === cat.id ? "text-white" : "text-lime-600 dark:text-lime-400"}`}>
                       {cat.icon}
                     </div>
-                    <p className={`font-bold text-center text-lg ${selectedCategory?.id === cat.id ? "text-white" : textPrimary}`}>
+                    <p className={`text-center text-xl font-bold ${selectedCategory?.id === cat.id ? "text-white" : textPrimary}`}>
                       {cat.name}
                     </p>
                   </div>
                 ))}
               </div>
             )}
+
+            <div className="text-center mt-12">
+              <button
+                onClick={() => selectedCategory && setStep(2)}
+                disabled={!selectedCategory}
+                className="px-10 py-4 bg-lime-600 text-white font-bold rounded-full hover:bg-lime-700 transition shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Continue to Shop Selection <FiChevronRight className="inline ml-2" />
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Step 2: Select Shop */}
         {step === 2 && (
-          <div className="animate-fadeIn">
+          <div>
             <h2 className={`text-3xl font-bold text-center mb-8 ${darkMode ? "text-lime-400" : "text-lime-600"}`}>
-              Step 2: Select Repair Shop
+              Step 2: Choose Your Repair Shop
             </h2>
 
             {isLoading ? (
               <LoadingSpinner darkMode={darkMode} />
-            ) : shops.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {shops.map((shop, i) => (
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {shops.map((shop) => (
                   <div
                     key={shop.id}
                     onClick={() => setSelectedShop(shop)}
-                    className={`p-6 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 hover:shadow-xl ${
+                    className={`p-8 rounded-3xl shadow-xl cursor-pointer transition-all hover:shadow-2xl hover:-translate-y-2 ${
                       selectedShop?.id === shop.id
-                        ? darkMode
-                          ? "bg-lime-600 text-white ring-4 ring-lime-400"
-                          : "bg-lime-600 text-white ring-4 ring-lime-500"
+                        ? "bg-gradient-to-br from-lime-500 to-emerald-600 text-white ring-4 ring-lime-400"
                         : `${bgCard} border ${border}`
-                    } animate-slideIn`}
-                    style={{ animationDelay: `${i * 100}ms` }}
+                    }`}
                   >
-                    <div className="flex justify-between items-start mb-3">
-                      <h3 className={`font-bold text-xl ${selectedShop?.id === shop.id ? "text-white" : textPrimary}`}>
-                        {shop.name}
+                    <div className="flex justify-between items-start mb-6">
+                      <h3 className={`text-2xl font-bold flex items-center gap-3 ${selectedShop?.id === shop.id ? "text-white" : textPrimary}`}>
+                        <FaStore /> {shop.name}
                       </h3>
                       <div className="flex items-center gap-1">
-                        <FaStar className="text-yellow-500 text-sm" />
-                        <span className={`text-sm ${selectedShop?.id === shop.id ? "text-white" : textSecondary}`}>
-                          {shop.rating || 4.5}
+                        <FaStar className="text-yellow-500" />
+                        <span className={selectedShop?.id === shop.id ? "text-white" : textSecondary}>
+                          {shop.rating || "N/A"}
                         </span>
                       </div>
                     </div>
-                    <p className={`text-sm ${selectedShop?.id === shop.id ? "text-lime-100" : textSecondary} mb-1`}>
-                      {shop.address || "Cairo, Egypt"}
-                    </p>
-                    <p className={`text-sm ${selectedShop?.id === shop.id ? "text-lime-100" : textSecondary}`}>
-                      {shop.phone || "+20 123 456 7890"}
-                    </p>
+
+                    <div className={`space-y-4 text-lg ${selectedShop?.id === shop.id ? "text-lime-100" : textSecondary}`}>
+                      <p className="flex items-center gap-3">
+                        <FiMapPin /> {shop.shopAddress?.city}, {shop.shopAddress?.state || "Egypt"}
+                      </p>
+                      <p className="flex items-center gap-3">
+                        <FiPhoneIcon /> {shop.phone}
+                      </p>
+                    </div>
                   </div>
                 ))}
               </div>
-            ) : (
-              <p className="text-center text-gray-500 dark:text-gray-400 text-lg">
-                No shops found.
-              </p>
             )}
 
-            <div className="mt-12 flex justify-between">
+            <div className="mt-12 flex justify-between max-w-2xl mx-auto">
               <button
                 onClick={handleBack}
-                className={`px-6 py-3 rounded-full ${darkMode ? "bg-gray-700 text-gray-300 hover:bg-gray-600" : "bg-gray-200 text-gray-700 hover:bg-gray-300"} transition flex items-center gap-2`}
+                className="px-8 py-4 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition"
               >
-                Back
+                ← Back
               </button>
               <button
                 onClick={handleNext}
                 disabled={!selectedShop || isLoading}
-                className="px-8 py-3 bg-lime-600 text-white font-bold rounded-full hover:bg-lime-700 transition shadow-lg flex items-center gap-2 disabled:opacity-50"
+                className="px-10 py-4 bg-lime-600 text-white font-bold rounded-full hover:bg-lime-700 transition shadow-xl disabled:opacity-50"
               >
-                {isLoading ? "Sending Request..." : "Send Request"} <FiChevronRight />
+                {isLoading ? "Sending..." : "Send Repair Request"} <FiChevronRight className="inline ml-2" />
               </button>
             </div>
           </div>

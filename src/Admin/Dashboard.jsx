@@ -59,7 +59,11 @@ const Dashboard = ({ darkMode }) => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
+ useEffect(() => {
+    document.title = "Dashboard - TechRepair";
+  }, []); 
 
+  
   const copyToClipboard = useCallback((value, label) => {
     navigator.clipboard.writeText(value).then(
       () => {

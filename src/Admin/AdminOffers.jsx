@@ -187,6 +187,10 @@ const AdminOffers = ({ darkMode }) => {
   const [page, setPage] = useState(1);
   const pageSize = 8;
 
+   useEffect(() => {
+      document.title = "Offers - TechRepair";
+    }, []);
+
   const fetchOffers = useCallback(async () => {
     if (!token) {
       Swal.fire('Error', 'Please log in.', 'error');

@@ -3,14 +3,8 @@ import {
   FiChevronDown, FiSearch, FiInfo, FiCheckSquare, FiXCircle,
   FiChevronLeft, FiChevronRight, FiX, FiPackage, FiClock,
   FiTruck, FiCheckCircle, FiAlertCircle,
-  FiCalendar,
-  FiUser,
-  FiPhone,
-  FiCreditCard,
-  FiDollarSign,
-  FiTag,
-  FiShoppingBag,
-  FiHash
+  FiCalendar, FiUser, FiPhone, FiCreditCard, FiDollarSign,
+  FiTag, FiShoppingBag, FiHash
 } from 'react-icons/fi';
 import { RiShoppingBag3Line } from 'react-icons/ri';
 import Swal from 'sweetalert2';
@@ -33,10 +27,10 @@ const Orders = () => {
 
   const filterDropdownRef = useRef(null);
   const ordersPerPage = 10;
-useEffect(() => {
-document.title = "إدارة الطلبات";
 
-});
+  useEffect(() => {
+    document.title = "إدارة الطلبات";
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -83,7 +77,6 @@ document.title = "إدارة الطلبات";
     };
     return map[status] || 'bg-gray-100 text-gray-700';
   };
-
 
   const stats = useMemo(() => {
     const total = orders.length;
@@ -139,17 +132,38 @@ document.title = "إدارة الطلبات";
 
     try {
       await api.post(`/api/shops/orders/control/${orderId}/accept`);
-   Swal.fire('نجاح', 'تم قبول الطلب', 'success');
+      Swal.fire({
+        title: 'نجاح',
+        text: 'تم قبول الطلب',
+        icon: 'success',
+        toast: true,
+        position: 'top-end',
+        timer: 2000,
+        timerProgressBar: true,
+        showConfirmButton: false,
+      });
     } catch {
       setOrders(prev);
- Swal.fire('فشل', 'فشل قبول الطلب', 'error');
+      Swal.fire({
+        title: 'فشل',
+        text: 'فشل قبول الطلب',
+        icon: 'error',
+        toast: true,
+        position: 'top-end',
+        timer: 2000,
+        timerProgressBar: true,
+        showConfirmButton: false,
+      });
     }
   };
 
   const rejectOrder = async (orderId) => {
     const { isConfirmed } = await Swal.fire({
-      title: 'رفض الطلب؟', icon: 'warning',
-      showCancelButton: true, confirmButtonText: 'رفض', cancelButtonText: 'إلغاء',
+      title: 'رفض الطلب؟',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'رفض',
+      cancelButtonText: 'إلغاء',
       confirmButtonColor: '#ef4444',
     });
     if (!isConfirmed) return;
@@ -159,10 +173,28 @@ document.title = "إدارة الطلبات";
 
     try {
       await api.post(`/api/shops/orders/control/${orderId}/reject`);
-      Swal.fire('نجاح', 'تم رفص الطلب ', 'success');
+      Swal.fire({
+        title: 'نجاح',
+        text: 'تم رفض الطلب',
+        icon: 'success',
+        toast: true,
+        position: 'top-end',
+        timer: 2000,
+        timerProgressBar: true,
+        showConfirmButton: false,
+      });
     } catch {
       setOrders(prev);
-       Swal.fire('فشل', ' فشل في رفض الطلب', 'error');
+      Swal.fire({
+        title: 'فشل',
+        text: 'فشل في رفض الطلب',
+        icon: 'error',
+        toast: true,
+        position: 'top-end',
+        timer: 2000,
+        timerProgressBar: true,
+        showConfirmButton: false,
+      });
     }
   };
 
@@ -179,11 +211,29 @@ document.title = "إدارة الطلبات";
 
     try {
       await api.put(`/api/shops/orders/control/${statusModalOrder.id}/status`, { status: selectedNewStatus });
-      Swal.fire(`تم تحديث الحالة إلى ${statusTranslations[selectedNewStatus]}`);
+      Swal.fire({
+        title: 'تم!',
+        text: `تم تحديث الحالة إلى ${statusTranslations[selectedNewStatus]}`,
+        icon: 'success',
+        toast: true,
+        position: 'top-end',
+        timer: 2000,
+        timerProgressBar: true,
+        showConfirmButton: false,
+      });
       setShowStatusModal(false);
     } catch {
       setOrders(prev);
-      toast.error('فشل تحديث الحالة');
+      Swal.fire({
+        title: 'خطأ',
+        text: 'فشل تحديث الحالة',
+        icon: 'error',
+        toast: true,
+        position: 'top-end',
+        timer: 2000,
+        timerProgressBar: true,
+        showConfirmButton: false,
+      });
     }
   };
 
@@ -205,10 +255,9 @@ document.title = "إدارة الطلبات";
   const pageOrders = filteredOrders.slice((currentPage - 1) * ordersPerPage, currentPage * ordersPerPage);
 
   return (
-    <div style={{marginTop:"-575px",marginLeft:"-250px"}} className="min-h-screen bg-gray-50 font-cairo py-8">
+    <div style={{ marginTop: "-575px", marginLeft: "-250px" }} className="min-h-screen bg-gray-50 font-cairo py-8">
       <div className="max-w-5xl mx-auto px-6">
 
-       
         <div className="mb-10 bg-white rounded-3xl shadow-sm border border-gray-200 p-8">
           <div className="flex items-center justify-between text-right gap-5">
             <div className="p-5 bg-lime-100 rounded-2xl">
@@ -219,62 +268,53 @@ document.title = "إدارة الطلبات";
               <p className="text-lg text-gray-600 mt-2">إدارة ومتابعة جميع طلبات العملاء بسهولة وسرعة</p>
             </div>
           </div>
-        </div>
-
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
-          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg opacity-90">إجمالي الطلبات</p>
-                <p className="text-4xl font-bold mt-3">{stats.total}</p>
-              </div>
-              <FiPackage className="text-6xl opacity-40" />
-            </div>
-          </div>
-
-          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg opacity-90">معلقة</p>
-                <p className="text-4xl font-bold mt-3 text-blue-600">{stats.pending}</p>
-              </div>
-              <FiClock className="text-6xl opacity-40 text-blue-600" />
-            </div>
-          </div>
-
-          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg opacity-90">مؤكدة</p>
-                <p className="text-4xl font-bold mt-3 text-lime-600">{stats.confirmed}</p>
-              </div>
-              <FiCheckCircle className="text-6xl opacity-40 text-lime-600" />
-            </div>
-          </div>
-
-          {/* <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg opacity-90">قيد المعالجة</p>
-                <p className="text-4xl font-bold mt-3 text-yellow-600">{stats.processing}</p>
-              </div>
-              <FiTruck className="text-6xl opacity-40 text-yellow-600" />
-            </div>
-          </div> */}
-
-          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg opacity-90">تم التسليم</p>
-                <p className="text-4xl font-bold mt-3 text-green-600">{stats.delivered}</p>
-              </div>
-              <FiCheckCircle className="text-6xl opacity-40 text-green-600" />
-            </div>
-          </div>
-        </div>
 
        
+        </div>
+
+           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-8 mb-6
+           ">
+            <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-6 transform hover:scale-105 transition">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-base opacity-90">إجمالي الطلبات</p>
+                  <p className="text-3xl font-bold mt-2">{stats.total}</p>
+                </div>
+                <FiPackage className="text-5xl opacity-40" />
+              </div>
+            </div>
+
+            <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-6 transform hover:scale-105 transition">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-base opacity-90">معلقة</p>
+                  <p className="text-3xl font-bold mt-2 text-blue-600">{stats.pending}</p>
+                </div>
+                <FiClock className="text-5xl opacity-40 text-blue-600" />
+              </div>
+            </div>
+
+            <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-6 transform hover:scale-105 transition">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-base opacity-90">مؤكدة</p>
+                  <p className="text-3xl font-bold mt-2 text-lime-600">{stats.confirmed}</p>
+                </div>
+                <FiCheckCircle className="text-5xl opacity-40 text-lime-600" />
+              </div>
+            </div>
+
+            <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-6 transform hover:scale-105 transition">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-base opacity-90">تم التسليم</p>
+                  <p className="text-3xl font-bold mt-2 text-green-600">{stats.delivered}</p>
+                </div>
+                <FiCheckCircle className="text-5xl opacity-40 text-green-600" />
+              </div>
+            </div>
+          </div>
+
         <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
           <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
             <div className="flex-1 relative max-w-md">
@@ -291,7 +331,7 @@ document.title = "إدارة الطلبات";
             <div className="relative" ref={filterDropdownRef}>
               <button
                 onClick={() => setOpenFilterDropdown(prev => !prev)}
-                className="px-8 py-3.5 bg-gray-50 border   text-gray-600 rounded-xl flex items-center justify-between gap-4 min-w-48 font-medium shadow transition"
+                className="px-8 py-3.5 bg-gray-50 border text-gray-600 rounded-xl flex items-center justify-between gap-4 min-w-48 font-medium shadow transition"
               >
                 <span>{statusTranslations[statusFilter]}</span>
                 <FiChevronDown className={`text-xl transition ${openFilterDropdown ? 'rotate-180' : ''}`} />
@@ -318,7 +358,6 @@ document.title = "إدارة الطلبات";
           </div>
         </div>
 
-       
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
           {loading ? (
             <div className="p-20 text-center">
@@ -369,7 +408,7 @@ document.title = "إدارة الطلبات";
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex justify-center gap-2">
-                            <button onClick={() => openDetailsModal(o)} className="px-3 py-2 flex justify-center items-center gap-2 bg-transparent text-amber-500 border border-amber-500 rounded-3xl  text-xs font-medium transition">
+                            <button onClick={() => openDetailsModal(o)} className="px-3 py-2 flex justify-center items-center gap-2 bg-transparent text-amber-500 border border-amber-500 rounded-3xl text-xs font-medium transition">
                               <FiInfo className="w-4 h-4 inline ml-1" /> تفاصيل
                             </button>
                             {o.status === 'PENDING' && (
@@ -393,7 +432,6 @@ document.title = "إدارة الطلبات";
           )}
         </div>
 
-     
         {totalPages > 1 && (
           <div className="flex justify-center items-center gap-3 mt-10">
             <button
@@ -430,194 +468,186 @@ document.title = "إدارة الطلبات";
           </div>
         )}
 
-        
-      {showDetailsModal && selectedOrder && (
-  <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-6">
-    <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-lime-500 to-emerald-600 text-white p-8  relative">
-        <button
-          onClick={() => setShowDetailsModal(false)}
-          className="absolute top-6 left-6 p-3 bg-white/20 hover:bg-white/30 rounded-full transition"
-        >
-          <FiX className="w-7 h-7" />
-        </button>
-        <div className="text-center flex flex-col justify-center items-center gap-3">
-          <p className='text-xl px-3 py-3 bg-white rounded-3xl text-gray-600'>تفاصيل الطلب</p>
-          <h3 className="text-xl font-bold mb-2">{selectedOrder.id}</h3>
-          <p className="text-lg opacity-90 flex items-center justify-center gap-3">
-            <FiCalendar className="text-2xl" />
-            {new Date(selectedOrder.createdAt).toLocaleString('ar-EG', {
-              dateStyle: 'full',
-              timeStyle: 'short',
-            })}
-          </p>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="p-8 space-y-8 text-right">
-        {/* Customer Info Card */}
-        <div className="bg-gray-50 border rounded-2xl p-6 shadow-md text-right">
-          <h4 className="text-2xl font-bold text-gray-800 mb-7 flex items-center justify-end gap-3">
-            <FiUser className="text-3xl text-blue-600" />
-            معلومات العميل
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-lg">
-            <div className="flex items-center justify-center gap-3">
-              <FiUser className="text-xl text-blue-600" />
-              <div>
-                <p className="text-gray-600">الاسم</p>
-                <p className="font-bold text-xl">{selectedOrder.firstName} {selectedOrder.lastName}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <FiPhone className="text-xl text-blue-600" />
-              <div>
-                <p className="text-gray-600">رقم الهاتف</p>
-                <p className="font-bold text-xl dir-ltr text-left">{selectedOrder.phoneNumber}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Payment Summary Card */}
-        <div className="bg-gray-50 border rounded-2xl p-6 shadow-md">
-          <h4 className="text-2xl font-bold text-gray-800 mb-5 flex items-center justify-end gap-3">
-            <FiCreditCard className="text-3xl text-lime-600" />
-            ملخص الدفع
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-lg">
-            <div className="flex items-center justify-center gap-3">
-    
-              <div>
-                <p className="text-gray-600 mb-4">الإجمالي</p>
-                <p className="font-bold text-3xl text-lime-700">{selectedOrder.totalPrice} ج.م</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-      
-              <div>
-                <p className="text-gray-600 mb-4">طريقة الدفع</p>
-                <p className="font-bold text-xl">{selectedOrder.paymentMethod || '—'}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-           
-              <div>
-                <p className="text-gray-600 mb-4">حالة الطلب</p>
-                <span className={`px-3 py-2 rounded-full font-bold text-md ${getStatusColor(selectedOrder.status)}`}>
-                  {statusTranslations[selectedOrder.status]}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Products List */}
-        <div className="bg-gray-50 border rounded-2xl p-6 shadow-md">
-          <h4 className="text-2xl font-bold text-gray-800 mb-6 flex items-center justify-end gap-3">
-            <FiShoppingBag className="text-3xl text-purple-600" />
-            المنتجات المطلوبة ({selectedOrder.orderItems?.length || 0})
-          </h4>
-          <div className="space-y-4">
-            {selectedOrder.orderItems?.map((item, i) => (
-              <div key={i} className="bg-white rounded-xl p-5 shadow hover:shadow-lg transition">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-lg">
-                  <div className="md:col-span-2">
-                    <p className="text-gray-600 mb-1 font-semibold text-left">المنتج</p>
-                    <p className="font-bold text-xl flex items-center gap-2">
-                      <FiPackage className="text-purple-600" />
-                      {item.productName}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600 mb-1 text-center">الكمية</p>
-                    <p className="font-bold text-xl ml-14 flex items-center gap-2">
-                      <FiHash className="text-blue-600" />
-                      {item.quantity}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600 mb-1">السعر الإجمالي</p>
-                    <p className="font-bold text-2xl text-lime-600 ml-8 flex items-center gap-2">
-                      <FiDollarSign className="text-xl" />
-                      {item.subtotal} ج.م
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-3 text-sm text-gray-500">
-                  سعر الوحدة: {item.priceAtCheckout} ج.م
+        {showDetailsModal && selectedOrder && (
+          <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-6">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="bg-gradient-to-r from-lime-500 to-emerald-600 text-white p-8 relative">
+                <button
+                  onClick={() => setShowDetailsModal(false)}
+                  className="absolute top-6 left-6 p-3 bg-white/20 hover:bg-white/30 rounded-full transition"
+                >
+                  <FiX className="w-7 h-7" />
+                </button>
+                <div className="text-center flex flex-col justify-center items-center gap-3">
+                  <p className='text-xl px-3 py-3 bg-white rounded-3xl text-gray-600'>تفاصيل الطلب</p>
+                  <h3 className="text-xl font-bold mb-2">{selectedOrder.id}</h3>
+                  <p className="text-lg opacity-90 flex items-center justify-center gap-3">
+                    <FiCalendar className="text-2xl" />
+                    {new Date(selectedOrder.createdAt).toLocaleString('ar-EG', {
+                      dateStyle: 'full',
+                      timeStyle: 'short',
+                    })}
+                  </p>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Footer Actions (optional) */}
-        <div className="flex justify-center pt-6">
-          <button
-            onClick={() => setShowDetailsModal(false)}
-            className="px-10 py-4 bg-lime-600 hover:bg-lime-700 text-white font-bold text-xl rounded-2xl shadow-xl transition flex items-center gap-3"
-          >
-            <FiCheckCircle className="text-2xl" />
-            إغلاق التفاصيل
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
+              <div className="p-8 space-y-8 text-right">
+                <div className="bg-gray-50 border rounded-2xl p-6 shadow-md text-right">
+                  <h4 className="text-2xl font-bold text-gray-800 mb-7 flex items-center justify-end gap-3">
+                    <FiUser className="text-3xl text-blue-600" />
+                    معلومات العميل
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-lg">
+                    <div className="flex items-center justify-center gap-3">
+                      <FiUser className="text-xl text-blue-600" />
+                      <div>
+                        <p className="text-gray-600">الاسم</p>
+                        <p className="font-bold text-xl">{selectedOrder.firstName} {selectedOrder.lastName}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <FiPhone className="text-xl text-blue-600" />
+                      <div>
+                        <p className="text-gray-600">رقم الهاتف</p>
+                        <p className="font-bold text-xl dir-ltr text-left">{selectedOrder.phoneNumber}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 border rounded-2xl p-6 shadow-md">
+                  <h4 className="text-2xl font-bold text-gray-800 mb-5 flex items-center justify-end gap-3">
+                    <FiCreditCard className="text-3xl text-lime-600" />
+                    ملخص الدفع
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-lg">
+                    <div className="flex items-center justify-center gap-3">
+                      <div>
+                        <p className="text-gray-600 mb-4">الإجمالي</p>
+                        <p className="font-bold text-3xl text-lime-700">{selectedOrder.totalPrice} ج.م</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <p className="text-gray-600 mb-4">طريقة الدفع</p>
+                        <p className="font-bold text-xl">{selectedOrder.paymentMethod || '—'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <p className="text-gray-600 mb-4">حالة الطلب</p>
+                        <span className={`px-3 py-2 rounded-full font-bold text-md ${getStatusColor(selectedOrder.status)}`}>
+                          {statusTranslations[selectedOrder.status]}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 border rounded-2xl p-6 shadow-md">
+                  <h4 className="text-2xl font-bold text-gray-800 mb-6 flex items-center justify-end gap-3">
+                    <FiShoppingBag className="text-3xl text-purple-600" />
+                    المنتجات المطلوبة ({selectedOrder.orderItems?.length || 0})
+                  </h4>
+                  <div className="space-y-4">
+                    {selectedOrder.orderItems?.map((item, i) => (
+                      <div key={i} className="bg-white rounded-xl p-5 shadow hover:shadow-lg transition">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-lg">
+                          <div className="md:col-span-2">
+                            <p className="text-gray-600 mb-1 font-semibold text-left">المنتج</p>
+                            <p className="font-bold text-xl flex items-center gap-2">
+                              <FiPackage className="text-purple-600" />
+                              {item.productName}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600 mb-1 text-center">الكمية</p>
+                            <p className="font-bold text-xl ml-14 flex items-center gap-2">
+                              <FiHash className="text-blue-600" />
+                              {item.quantity}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600 mb-1">السعر الإجمالي</p>
+                            <p className="font-bold text-2xl text-lime-600 ml-8 flex items-center gap-2">
+                              <FiDollarSign className="text-xl" />
+                              {item.subtotal} ج.م
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-3 text-sm text-gray-500">
+                          سعر الوحدة: {item.priceAtCheckout} ج.م
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex justify-center pt-6">
+                  <button
+                    onClick={() => setShowDetailsModal(false)}
+                    className="px-10 py-4 bg-lime-600 hover:bg-lime-700 text-white font-bold text-xl rounded-2xl shadow-xl transition flex items-center gap-3"
+                  >
+                    <FiCheckCircle className="text-2xl" />
+                    إغلاق التفاصيل
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {showStatusModal && statusModalOrder && (
           <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-6">
-            <div className="bg-white rounded-3xl shadow-2xl p-10 max-w-2xl w-full">
-              <div className="flex justify-between items-center mb-10">
-                <h3 className="text-3xl font-bold text-gray-900">تحديث حالة الطلب #{statusModalOrder.id}</h3>
-                <button onClick={() => setShowStatusModal(false)} className="p-4 hover:bg-gray-100 rounded-full transition">
-                  <FiX className="w-8 h-8" />
+            <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold text-gray-900">تحديث الحالة #{statusModalOrder.id}</h3>
+                <button onClick={() => setShowStatusModal(false)} className="p-3 hover:bg-gray-100 rounded-full transition">
+                  <FiX className="w-6 h-6" />
                 </button>
               </div>
 
-              <div className="text-center mb-12">
-                <p className="text-xl text-gray-700 mb-6">الحالة الحالية</p>
-                <span className={`inline-block px-8 py-4 rounded-2xl text-2xl font-bold ${getStatusColor(statusModalOrder.status)}`}>
+              <div className="text-center mb-6">
+                <p className="text-base text-gray-700 mb-3">الحالة الحالية</p>
+                <span className={`inline-block px-5 py-2 rounded-full text-sm font-bold ${getStatusColor(statusModalOrder.status)}`}>
                   {statusTranslations[statusModalOrder.status]}
                 </span>
               </div>
 
               <div>
-                <p className="text-2xl font-bold text-center mb-10">اختر الحالة الجديدة</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <p className="text-lg font-bold text-center mb-6">اختر الحالة الجديدة</p>
+                <div className="grid grid-cols-1 gap-4">
                   {nextStatuses[statusModalOrder.status]?.map((status) => (
                     <button
                       key={status}
                       onClick={() => setSelectedNewStatus(status)}
-                      className={`p-10 rounded-3xl border-4 transition-all shadow-lg ${
+                      className={`p-4 rounded-2xl border-4 transition-all ${
                         selectedNewStatus === status
-                          ? 'border-lime-600 bg-lime-50 scale-105'
+                          ? 'border-lime-600 bg-lime-50'
                           : 'border-gray-300 hover:border-lime-400 hover:bg-lime-50'
                       }`}
                     >
-                      <p className="text-2xl font-bold mb-4">{statusTranslations[status]}</p>
-                      <span className={`inline-block px-6 py-3 rounded-full text-lg font-bold ${getStatusColor(status)}`}>
-                        معاينة
-                      </span>
+                      <p className="text-lg font-bold">{statusTranslations[status]}</p>
                     </button>
                   ))}
                 </div>
+                {nextStatuses[statusModalOrder.status]?.length === 0 && (
+                  <p className="text-center text-base text-gray-600 mt-6">
+                    لا توجد حالات متاحة للتحديث
+                  </p>
+                )}
               </div>
 
-              <div className="flex justify-center gap-8 mt-16">
-                <button onClick={() => setShowStatusModal(false)} className="px-12 py-5 border-4 border-gray-400 rounded-2xl text-xl font-bold hover:bg-gray-100 transition">
+              <div className="flex justify-center gap-4 mt-8">
+                <button onClick={() => setShowStatusModal(false)} className="px-8 py-3 border-2 border-gray-400 rounded-2xl text-base font-bold hover:bg-gray-100 transition">
                   إلغاء
                 </button>
                 <button
                   onClick={confirmStatusUpdate}
                   disabled={!selectedNewStatus}
-                  className="px-16 py-6 bg-lime-600 text-white rounded-2xl text-2xl font-bold hover:bg-lime-700 disabled:opacity-50 transition shadow-2xl"
+                  className="px-10 py-3 bg-lime-600 text-white rounded-2xl text-base font-bold hover:bg-lime-700 disabled:opacity-50 transition shadow-lg"
                 >
-                  تأكيد التحديث
+                  تأكيد
                 </button>
               </div>
             </div>

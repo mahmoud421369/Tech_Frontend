@@ -149,19 +149,19 @@ const Shops = ({ darkMode }) => {
               </p>
 
               <div className="grid grid-cols-3 gap-6 pt-8">
-                <div>
+                <div className=' p-4 rounded-xl bg-white dark:bg-gray-950'>
                   <div className="text-3xl font-bold text-lime-600 dark:text-lime-400 flex items-center gap-1">
                     <FiZap /> 98.9%
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Customer satisfaction</p>
                 </div>
-                <div>
+                <div className=' p-4 rounded-xl bg-white dark:bg-gray-950'>
                   <div className="text-3xl font-bold text-lime-600 dark:text-lime-400 flex items-center gap-1">
                     <FiUsers /> 500+
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Verified shops</p>
                 </div>
-                <div>
+                <div className=' p-4 rounded-xl bg-white dark:bg-gray-950'>
                   <div className="flex items-center gap-1 text-yellow-500">
                     {[...Array(5)].map((_, i) => (
                       <FiStar key={i} fill="currentColor" />
