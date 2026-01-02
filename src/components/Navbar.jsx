@@ -101,9 +101,7 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
     }
   }, [isAuthenticated, fetchNotifications]);
 
-  /* ------------------------------------------------------------------ */
-  /*  NAV ITEMS                                                         */
-  /* ------------------------------------------------------------------ */
+  
   const navItems = useMemo(() =>
     isAuthenticated
       ? [
@@ -125,20 +123,20 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
     <>
       <ToastContainer position="top-right" theme={darkMode ? "dark" : "light"} />
 
-      {/* ====================== DESKTOP NAV ====================== */}
+      
       <nav className={`hidden md:flex items-center justify-between px-8 py-5 fixed top-0 left-0 right-0 z-50 backdrop-blur-2xl border-b ${
         darkMode 
           ? "bg-black/60 border-emerald-500/20 shadow-2xl shadow-emerald-900/50" 
           : "bg-white/95 border-gray-200 shadow-lg"
       }`}>
         
-        {/* Logo - Left */}
+    
         <Link to="/" className="flex items-center group">
           <div className="relative">
             <img 
               src={logo} 
               alt="Tech & Restore" 
-              className="h-16 w-auto rounded-2xl object-contain group-hover:scale-110 transition-transform duration-500 shadow-xl" 
+              className="h-16 w-auto rounded-2xl object-contain group-hover:scale-110 transition-transform duration-500" 
             />
             {darkMode && (
               <div className="absolute inset-0 bg-emerald-500/30 blur-3xl animate-pulse -z-10" />
@@ -146,7 +144,7 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
           </div>
         </Link>
 
-        {/* Center Navigation Links - Takes maximum space, perfectly centered */}
+      
         <div className="flex-1 flex justify-center px-8">
           <div className="flex items-center gap-4 bg-black/5 dark:bg-white/5 backdrop-blur-sm px-6 py-3 rounded-full border border-emerald-500/20">
             {navItems.map((item) => (
@@ -170,7 +168,7 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
           </div>
         </div>
 
-        {/* Right Actions */}
+       
         <div className="flex items-center gap-5">
           {isAuthenticated && (
             <>
@@ -187,7 +185,7 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
                   )}
                 </button>
 
-                {/* Notifications Dropdown */}
+                
                 {showNotifications && (
                   <div className={`absolute right-0 mt-4 w-96 rounded-3xl shadow-2xl overflow-hidden border ${
                     darkMode ? "bg-black/80 backdrop-blur-xl border-emerald-500/40" : "bg-white/95 border-gray-200"
@@ -255,7 +253,7 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
         </div>
       </nav>
 
-      {/* ====================== MOBILE NAV ====================== */}
+      
       <nav className={`md:hidden fixed top-0 left-0 right-0 z-50 backdrop-blur-2xl py-4 px-6 border-b ${
         darkMode ? "bg-black/60 border-emerald-500/20" : "bg-white/95 border-gray-200"
       }`}>
@@ -279,7 +277,7 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
         </div>
       </nav>
 
-      {/* Mobile Bottom Navigation */}
+    
       <div className={`md:hidden fixed bottom-0 left-0 right-0 z-50 backdrop-blur-2xl py-4 px-6 border-t ${
         darkMode ? "bg-black/60 border-emerald-500/20" : "bg-white/95 border-gray-200"
       }`}>

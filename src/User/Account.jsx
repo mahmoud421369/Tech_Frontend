@@ -1060,7 +1060,7 @@ const Account = ({ darkMode }) => {
             <button
               key={tab.id}
               onClick={() => setActiveSection(tab.id)}
-              className={`flex flex-col items-center gap-3 px-8 py-6 rounded-3xl font-bold text-lg transition-all shadow-xl ${
+              className={`flex  items-center gap-3 px-8 py-6 rounded-3xl font-bold text-lg transition-all shadow-xl ${
                 activeSection === tab.id
                   ? "bg-gradient-to-br from-lime-500 to-emerald-600 text-white scale-105"
                   : "bg-white/40 dark:bg-gray-800/40 text-gray-700 dark:text-gray-300 hover:bg-lime-100 dark:hover:bg-lime-900"
