@@ -26,7 +26,11 @@ import {
   FiCheckCircle,
   FiCreditCard,
   FiTruck,
+  FiCamera,
+  FiCheck,
+  FiGlobe
 } from "react-icons/fi";
+
 import api from "../api";
 
 const LoadingSpinner = () => (
@@ -48,14 +52,16 @@ const Account = ({ darkMode }) => {
   const [isAddingAddress, setIsAddingAddress] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState(null);
   const [profileForm, setProfileForm] = useState({ first_name: "", last_name: "", phone: "" });
-  const [addressForm, setAddressForm] = useState({
-    state: "",
-    city: "",
-    street: "",
-    building: "",
-    notes: "",
-    isDefault: false,
-  });
+ const [addressForm, setAddressForm] = useState({
+  state: "",
+  city: "",
+  street: "",
+  building: "",
+  notes: "",
+  latitude: 0,
+  longitude: 0,
+  isDefault: false,
+});
   const [ordersPage, setOrdersPage] = useState(1);
   const [repairsPage, setRepairsPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
@@ -531,227 +537,415 @@ const Account = ({ darkMode }) => {
     }
   };
 
-  const renderProfile = () => {
-    if (isEditingProfile) {
-      return (
-        <div className="bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50">
-          <h3 className="text-2xl font-bold text-lime-600 dark:text-lime-400 mb-6 flex items-center gap-3">
-            <FiEdit2 className="text-3xl" /> Edit Profile
-          </h3>
-          <form onSubmit={handleUpdateProfile} className="space-y-5">
-            <input
-              placeholder="First Name"
-              value={profileForm.first_name}
-              onChange={(e) => setProfileForm({ ...profileForm, first_name: e.target.value })}
-              className="w-full px-6 py-4 bg-white dark:bg-gray-700 rounded-2xl border border-gray-300 dark:border-gray-600 focus:ring-4 focus:ring-lime-500/50 transition"
-              required
-            />
-            <input
-              placeholder="Last Name"
-              value={profileForm.last_name}
-              onChange={(e) => setProfileForm({ ...profileForm, last_name: e.target.value })}
-              className="w-full px-6 py-4 bg-white dark:bg-gray-700 rounded-2xl border border-gray-300 dark:border-gray-600 focus:ring-4 focus:ring-lime-500/50 transition"
-              required
-            />
-            <input
-              placeholder="Phone"
-              value={profileForm.phone}
-              onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
-              className="w-full px-6 py-4 bg-white dark:bg-gray-700 rounded-2xl border border-gray-300 dark:border-gray-600 focus:ring-4 focus:ring-lime-500/50 transition"
-              required
-            />
-            <div className="flex gap-4">
-              <button type="submit" className="px-8 py-4 bg-lime-600 text-white rounded-2xl hover:bg-lime-700 transition shadow-xl font-semibold">
-                Save Changes
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsEditingProfile(false)}
-                className="px-8 py-4 bg-gray-500 text-white rounded-2xl hover:bg-gray-600 transition shadow-xl flex items-center gap-2"
-              >
-                <FiX /> Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      );
-    }
-    return (
-      <div className="bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50">
-        <div className="flex justify-between items-start mb-8">
-          <h3 className="text-2xl font-bold text-lime-600 dark:text-lime-400 flex items-center gap-3">
-            <FiUser className="text-3xl" /> My Profile
-          </h3>
-          <div className="flex gap-3">
-            <button
-              onClick={() => setIsEditingProfile(true)}
-              className="p-3 bg-white/50 dark:bg-black/30 text-lime-600 rounded-2xl hover:bg-lime-100 dark:hover:bg-lime-900 transition shadow-md"
-            >
-              <FiEdit2 className="text-xl" />
-            </button>
-            <button
-              onClick={handleDeleteAccount}
-              className="p-3 bg-white/50 dark:bg-black/30 text-red-600 rounded-2xl hover:bg-red-100 dark:hover:bg-red-900 transition shadow-md"
-            >
-              <FiTrash2 className="text-xl" />
-            </button>
-          </div>
-        </div>
-        <div className="space-y-5 text-lg">
-          <p className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
-            <FiUser /> {userProfile?.first_name} {userProfile?.last_name}
-          </p>
-          <p className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
-            <FiMail /> {userProfile?.email}
-          </p>
-          <p className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
-            <FiPhone /> {userProfile?.phone || "—"}
-          </p>
-          <p className="flex items-center gap-3">
-            Status:
-            <span
-              className={`ml-3 px-4 py-2 rounded-full text-sm font-bold ${
-                userProfile?.activate
-                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300"
-                  : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
-              }`}
-            >
-              {userProfile?.activate ? "Active" : "Inactive"}
-            </span>
-          </p>
-        </div>
-      </div>
-    );
-  };
+ 
 
-  const renderAddresses = () => {
-    if (isAddingAddress || editingAddressId) {
-      return (
-        <div className="bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50">
-          <h3 className="text-2xl font-bold text-lime-600 dark:text-lime-400 mb-6 flex items-center gap-3">
-            <FiMapPin className="text-3xl" /> {editingAddressId ? "Edit" : "Add New"} Address
-          </h3>
-          <form onSubmit={editingAddressId ? handleUpdateAddress : handleAddAddress} className="space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <input
-                placeholder="State / Governorate"
-                value={addressForm.state}
-                onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })}
-                className="px-6 py-4 bg-white dark:bg-gray-700 rounded-2xl border border-gray-300 dark:border-gray-600 focus:ring-4 focus:ring-lime-500/50 transition"
-                required
-              />
-              <input
-                placeholder="City"
-                value={addressForm.city}
-                onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
-                className="px-6 py-4 bg-white dark:bg-gray-700 rounded-2xl border border-gray-300 dark:border-gray-600 focus:ring-4 focus:ring-lime-500/50 transition"
-                required
-              />
-              <input
-                placeholder="Street"
-                value={addressForm.street}
-                onChange={(e) => setAddressForm({ ...addressForm, street: e.target.value })}
-                className="px-6 py-4 bg-white dark:bg-gray-700 rounded-2xl border border-gray-300 dark:border-gray-600 focus:ring-4 focus:ring-lime-500/50 transition"
-                required
-              />
-              <input
-                placeholder="Building / Apartment"
-                value={addressForm.building}
-                onChange={(e) => setAddressForm({ ...addressForm, building: e.target.value })}
-                className="px-6 py-4 bg-white dark:bg-gray-700 rounded-2xl border border-gray-300 dark:border-gray-600 focus:ring-4 focus:ring-lime-500/50 transition"
-                required
-              />
-            </div>
-            <textarea
-              placeholder="Additional notes (floor, landmark, etc.)"
-              value={addressForm.notes}
-              onChange={(e) => setAddressForm({ ...addressForm, notes: e.target.value })}
-              className="w-full px-6 py-4 bg-white dark:bg-gray-700 rounded-2xl border border-gray-300 dark:border-gray-600 focus:ring-4 focus:ring-lime-500/50 transition resize-none"
-              rows={3}
-            />
-            <label className="flex items-center gap-3 text-lg">
-              <input
-                type="checkbox"
-                checked={addressForm.isDefault}
-                onChange={(e) => setAddressForm({ ...addressForm, isDefault: e.target.checked })}
-                className="w-6 h-6 text-lime-600 rounded focus:ring-lime-500"
-              />
-              <span className="text-gray-700 dark:text-gray-300">Set as default address</span>
-            </label>
-            <div className="flex gap-4">
-              <button type="submit" className="px-8 py-4 bg-lime-600 text-white rounded-2xl hover:bg-lime-700 transition shadow-xl font-semibold">
-                {editingAddressId ? "Update Address" : "Add Address"}
-              </button>
-              <button type="button" onClick={resetAddressForm} className="px-8 py-4 bg-gray-500 text-white rounded-2xl hover:bg-gray-600 transition shadow-xl">
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      );
-    }
+const renderProfile = () => {
+  if (isEditingProfile) {
     return (
-      <>
-        <div className="flex justify-between items-center mb-8">
-          <h3 className="text-2xl font-bold text-lime-600 dark:text-lime-400 flex items-center gap-3">
-            <FiMapPin className="text-3xl" /> My Addresses
-          </h3>
-          <button
-            onClick={() => setIsAddingAddress(true)}
-            className="flex items-center gap-3 px-6 py-3 bg-lime-600 text-white rounded-2xl hover:bg-lime-700 transition shadow-xl font-semibold"
-          >
-            <FiPlus className="text-xl" /> Add New Address
-          </button>
-        </div>
-        {addresses.length === 0 ? (
-          <div className="text-center py-16 bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl rounded-3xl border border-gray-200/50 dark:border-gray-700/50">
-            <FiMapPin className="mx-auto text-8xl text-gray-400 mb-4" />
-            <p className="text-xl text-gray-600 dark:text-gray-400">No saved addresses yet</p>
-          </div>
-        ) : (
-          addresses.map((addr) => (
-            <div
-              key={addr.id}
-              className={`bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border-2 ${
-                addr.isDefault ? "border-lime-500" : "border-gray-200/50 dark:border-gray-700/50"
-              } mb-6 transition hover:shadow-3xl hover:-translate-y-2 relative`}
-            >
-              {addr.isDefault && (
-                <span className="absolute top-4 right-6 bg-lime-600 text-white text-sm px-4 py-2 rounded-full font-bold flex items-center gap-2">
-                  <FiCheckCircle /> Default
-                </span>
-              )}
-              <div className="flex justify-between items-start">
-                <div className="space-y-2">
-                  <p className="text-xl font-bold text-gray-900 dark:text-white">
-                    {addr.street}, {addr.building}
-                  </p>
-                  <p className="text-lg text-gray-600 dark:text-gray-400">
-                    {addr.city}, {addr.state}
-                  </p>
-                  {addr.notes && <p className="text-sm italic text-gray-500 dark:text-gray-400">"{addr.notes}"</p>}
-                </div>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => startEditAddress(addr)}
-                    className="p-3 bg-white/50 dark:bg-black/30 text-lime-600 rounded-2xl hover:bg-lime-100 dark:hover:bg-lime-900 transition shadow-md"
-                  >
-                    <FiEdit2 className="text-xl" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteAddress(addr.id)}
-                    className="p-3 bg-white/50 dark:bg-black/30 text-red-600 rounded-2xl hover:bg-red-100 dark:hover:bg-red-900 transition shadow-md"
-                  >
-                    <FiTrash2 className="text-xl" />
-                  </button>
-                </div>
+      <div className="bg-white/40 dark:bg-gray-800/40 backdrop-blur-2xl p-10 rounded-3xl shadow-2xl border border-gray-200/60 dark:border-gray-700/60 max-w-2xl mx-auto">
+        <h3 className="text-3xl font-extrabold text-lime-600 dark:text-lime-400 mb-8 flex items-center gap-4">
+          <FiEdit2 className="text-3xl" />
+          Edit Profile
+        </h3>
+
+       
+        <div className="flex justify-center mb-8">
+          <div className="relative">
+            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-lime-400 to-emerald-500 p-1">
+              <div className="w-full h-full rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                <FiUser className="text-5xl text-gray-500 dark:text-gray-400" />
               </div>
             </div>
-          ))
-        )}
-      </>
+            <button className="absolute bottom-0 right-0 p-3 bg-lime-600 text-white rounded-full shadow-lg hover:bg-lime-700 transition transform hover:scale-110">
+              <FiCamera className="text-lg" />
+            </button>
+          </div>
+        </div>
+
+        <form onSubmit={handleUpdateProfile} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="relative">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <FiUser className="inline mr-2" /> First Name
+              </label>
+              <input
+                type="text"
+                placeholder="Enter first name"
+                value={profileForm.first_name}
+                onChange={(e) => setProfileForm({ ...profileForm, first_name: e.target.value })}
+                className="w-full px-5 py-4 bg-white/70 dark:bg-gray-700/70 rounded-2xl border border-gray-300 dark:border-gray-600 focus:ring-4 focus:ring-lime-500/50 focus:border-lime-500 transition-all outline-none shadow-inner"
+                required
+              />
+            </div>
+
+            <div className="relative">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <FiUser className="inline mr-2" /> Last Name
+              </label>
+              <input
+                type="text"
+                placeholder="Enter last name"
+                value={profileForm.last_name}
+                onChange={(e) => setProfileForm({ ...profileForm, last_name: e.target.value })}
+                className="w-full px-5 py-4 bg-white/70 dark:bg-gray-700/70 rounded-2xl border border-gray-300 dark:border-gray-600 focus:ring-4 focus:ring-lime-500/50 focus:border-lime-500 transition-all outline-none shadow-inner"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="relative">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <FiPhone className="inline mr-2" /> Phone Number
+            </label>
+            <input
+              type="tel"
+              placeholder="Enter phone number"
+              value={profileForm.phone}
+              onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+              className="w-full px-5 py-4 bg-white/70 dark:bg-gray-700/70 rounded-2xl border border-gray-300 dark:border-gray-600 focus:ring-4 focus:ring-lime-500/50 focus:border-lime-500 transition-all outline-none shadow-inner"
+              required
+            />
+          </div>
+
+          <div className="flex justify-center gap-5 pt-6">
+            <button
+              type="submit"
+              className="px-10 py-4 bg-lime-600 text-white font-bold rounded-2xl hover:bg-lime-700 focus:ring-4 focus:ring-lime-500/50 transition shadow-xl flex items-center gap-3 transform hover:-translate-y-1"
+            >
+              <FiCheck className="text-xl" />
+              Save Changes
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsEditingProfile(false)}
+              className="px-10 py-4 bg-gray-500 hover:bg-gray-600 text-white font-bold rounded-2xl transition shadow-xl flex items-center gap-3 transform hover:-translate-y-1"
+            >
+              <FiX className="text-xl" />
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
     );
-  };
+  }
+
+  
+  return (
+    <div className="bg-white/40 dark:bg-gray-800/40 backdrop-blur-2xl p-10 rounded-3xl shadow-2xl border border-gray-200/60 dark:border-gray-700/60 max-w-2xl mx-auto">
+      <div className="flex justify-between items-start mb-10">
+        <h3 className="text-3xl font-extrabold text-lime-600 dark:text-lime-400 flex items-center gap-4">
+          <FiUser className="text-3xl" />
+          My Profile
+        </h3>
+        <div className="flex gap-4">
+          <button
+            onClick={() => setIsEditingProfile(true)}
+            className="p-4 bg-white/60 dark:bg-gray-700/60 backdrop-blur rounded-2xl text-lime-600 hover:bg-lime-100 dark:hover:bg-lime-900/50 transition shadow-lg transform hover:scale-110"
+            aria-label="Edit profile"
+          >
+            <FiEdit2 className="text-2xl" />
+          </button>
+          <button
+            onClick={handleDeleteAccount}
+            className="p-4 bg-white/60 dark:bg-gray-700/60 backdrop-blur rounded-2xl text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50 transition shadow-lg transform hover:scale-110"
+            aria-label="Delete account"
+          >
+            <FiTrash2 className="text-2xl" />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex justify-center mb-10">
+        <div className="w-40 h-40 rounded-full bg-gradient-to-br from-lime-400 to-emerald-500 p-1.5 shadow-2xl">
+          <div className="w-full h-full rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+            <FiUser className="text-7xl text-gray-400 dark:text-gray-500" />
+          </div>
+        </div>
+      </div>
+
+      
+      <div className="space-y-6 text-lg">
+        <div className="flex items-center gap-4 p-4 bg-white/50 dark:bg-gray-700/30 rounded-2xl">
+          <FiUser className="text-2xl text-lime-600" />
+          <span className="font-medium text-gray-800 dark:text-gray-200">
+            {userProfile?.first_name} {userProfile?.last_name}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-4 p-4 bg-white/50 dark:bg-gray-700/30 rounded-2xl">
+          <FiMail className="text-2xl text-lime-600" />
+          <span className="text-gray-700 dark:text-gray-300">{userProfile?.email}</span>
+        </div>
+
+        <div className="flex items-center gap-4 p-4 bg-white/50 dark:bg-gray-700/30 rounded-2xl">
+          <FiPhone className="text-2xl text-lime-600" />
+          <span className="text-gray-700 dark:text-gray-300">{userProfile?.phone || "— Not provided"}</span>
+        </div>
+
+        <div className="flex items-center justify-between p-4 bg-white/50 dark:bg-gray-700/30 rounded-2xl">
+          <div className="flex items-center gap-4">
+            <span className="text-lg font-medium text-gray-800 dark:text-gray-200">Account Status</span>
+          </div>
+          <span
+            className={`px-6 py-3 rounded-full text-sm font-bold shadow-md ${
+              userProfile?.activate
+                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300"
+                : "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300"
+            }`}
+          >
+            {userProfile?.activate ? "Active" : "Inactive"}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+ 
+
+
+
+const renderAddresses = () => {
+  if (isAddingAddress || editingAddressId) {
+    return (
+      <div className="bg-white/40 dark:bg-gray-800/40 backdrop-blur-2xl p-10 rounded-3xl shadow-2xl border border-gray-200/60 dark:border-gray-700/60 max-w-4xl mx-auto">
+        <h3 className="text-3xl font-extrabold text-lime-600 dark:text-lime-400 mb-8 flex items-center gap-4">
+          <FiMapPin className="text-3xl" />
+          {editingAddressId ? "Edit" : "Add New"} Address
+        </h3>
+
+        <form onSubmit={editingAddressId ? handleUpdateAddress : handleAddAddress} className="space-y-7">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="relative">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <FiMapPin className="inline mr-2" /> State / Governorate
+              </label>
+              <input
+                type="text"
+                placeholder="e.g., Cairo, California"
+                value={addressForm.state}
+                onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })}
+                className="w-full px-5 py-4 bg-white/70 dark:bg-gray-700/70 rounded-2xl border border-gray-300 dark:border-gray-600 focus:ring-4 focus:ring-lime-500/50 focus:border-lime-500 transition-all outline-none shadow-inner"
+                required
+              />
+            </div>
+
+            <div className="relative">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <FiMapPin className="inline mr-2" /> City
+              </label>
+              <input
+                type="text"
+                placeholder="e.g., Giza, Los Angeles"
+                value={addressForm.city}
+                onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
+                className="w-full px-5 py-4 bg-white/70 dark:bg-gray-700/70 rounded-2xl border border-gray-300 dark:border-gray-600 focus:ring-4 focus:ring-lime-500/50 focus:border-lime-500 transition-all outline-none shadow-inner"
+                required
+              />
+            </div>
+
+            <div className="relative">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <FiMapPin className="inline mr-2" /> Street
+              </label>
+              <input
+                type="text"
+                placeholder="e.g., Tahrir Street, Sunset Blvd"
+                value={addressForm.street}
+                onChange={(e) => setAddressForm({ ...addressForm, street: e.target.value })}
+                className="w-full px-5 py-4 bg-white/70 dark:bg-gray-700/70 rounded-2xl border border-gray-300 dark:border-gray-600 focus:ring-4 focus:ring-lime-500/50 focus:border-lime-500 transition-all outline-none shadow-inner"
+                required
+              />
+            </div>
+
+            <div className="relative">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <FiMapPin className="inline mr-2" /> Building / Apartment
+              </label>
+              <input
+                type="text"
+                placeholder="e.g., Bldg 12, Apt 5B"
+                value={addressForm.building}
+                onChange={(e) => setAddressForm({ ...addressForm, building: e.target.value })}
+                className="w-full px-5 py-4 bg-white/70 dark:bg-gray-700/70 rounded-2xl border border-gray-300 dark:border-gray-600 focus:ring-4 focus:ring-lime-500/50 focus:border-lime-500 transition-all outline-none shadow-inner"
+                required
+              />
+            </div>
+          </div>
+
+      
+          {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="relative">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <FiGlobe className="inline mr-2" /> Latitude
+              </label>
+              <input
+                type="number"
+                step="any"
+                placeholder="e.g., 30.0444"
+                value={addressForm.latitude || ""}
+                onChange={(e) => setAddressForm({ ...addressForm, latitude: parseFloat(e.target.value) || 0 })}
+                className="w-full px-5 py-4 bg-white/70 dark:bg-gray-700/70 rounded-2xl border border-gray-300 dark:border-gray-600 focus:ring-4 focus:ring-lime-500/50 focus:border-lime-500 transition-all outline-none shadow-inner"
+                required
+              />
+            </div>
+
+            <div className="relative">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <FiGlobe className="inline mr-2" /> Longitude
+              </label>
+              <input
+                type="number"
+                step="any"
+                placeholder="e.g., 31.2357"
+                value={addressForm.longitude || ""}
+                onChange={(e) => setAddressForm({ ...addressForm, longitude: parseFloat(e.target.value) || 0 })}
+                className="w-full px-5 py-4 bg-white/70 dark:bg-gray-700/70 rounded-2xl border border-gray-300 dark:border-gray-600 focus:ring-4 focus:ring-lime-500/50 focus:border-lime-500 transition-all outline-none shadow-inner"
+                required
+              />
+            </div>
+          </div>
+
+        
+          <div className="p-5 bg-lime-50 dark:bg-lime-900/30 rounded-2xl border border-lime-200 dark:border-lime-800 flex items-center gap-4">
+            <FiGlobe className="text-2xl text-lime-600" />
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              <strong>Tip:</strong> Click "Pick on Map" (coming soon) or use{" "}
+              <a href="https://www.latlong.net/" target="_blank" rel="noopener noreferrer" className="text-lime-600 underline">
+                latlong.net
+              </a>{" "}
+              to get precise coordinates.
+            </p>
+          </div> */}
+
+          <div className="relative">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Additional Notes (optional)
+            </label>
+            <textarea
+              placeholder="e.g., 3rd floor, near the pharmacy, ring bell #2"
+              value={addressForm.notes}
+              onChange={(e) => setAddressForm({ ...addressForm, notes: e.target.value })}
+              className="w-full px-5 py-4 bg-white/70 dark:bg-gray-700/70 rounded-2xl border border-gray-300 dark:border-gray-600 focus:ring-4 focus:ring-lime-500/50 focus:border-lime-500 transition-all outline-none shadow-inner resize-none"
+              rows={3}
+            />
+          </div>
+
+          <label className="flex items-center gap-4 text-lg cursor-pointer">
+            <input
+              type="checkbox"
+              checked={addressForm.isDefault}
+              onChange={(e) => setAddressForm({ ...addressForm, isDefault: e.target.checked })}
+              className="w-6 h-6 text-lime-600 rounded focus:ring-lime-500 accent-lime-600"
+            />
+            <span className="text-gray-700 dark:text-gray-300 font-medium">Set as default address</span>
+          </label>
+
+          <div className="flex justify-center gap-6 pt-6">
+            <button
+              type="submit"
+              className="px-10 py-4 bg-lime-600 text-white font-bold rounded-2xl hover:bg-lime-700 focus:ring-4 focus:ring-lime-500/50 transition shadow-xl flex items-center gap-3 transform hover:-translate-y-1"
+            >
+              <FiCheck className="text-xl" />
+              {editingAddressId ? "Update Address" : "Save Address"}
+            </button>
+            <button
+              type="button"
+              onClick={resetAddressForm}
+              className="px-10 py-4 bg-gray-500 hover:bg-gray-600 text-white font-bold rounded-2xl transition shadow-xl flex items-center gap-3 transform hover:-translate-y-1"
+            >
+              <FiX className="text-xl" />
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  // View Mode - List of Addresses
+  return (
+    <div className="max-w-5xl mx-auto">
+      <div className="flex justify-between items-center mb-10">
+        <h3 className="text-3xl font-extrabold text-lime-600 dark:text-lime-400 flex items-center gap-4">
+          <FiMapPin className="text-3xl" />
+          My Addresses
+        </h3>
+        <button
+          onClick={() => setIsAddingAddress(true)}
+          className="flex items-center gap-3 px-8 py-4 bg-lime-600 text-white rounded-2xl hover:bg-lime-700 transition shadow-2xl font-bold transform hover:-translate-y-1"
+        >
+          <FiPlus className="text-xl" />
+          Add New Address
+        </button>
+      </div>
+
+      {addresses.length === 0 ? (
+        <div className="text-center py-20 bg-white/40 dark:bg-gray-800/40 backdrop-blur-2xl rounded-3xl border border-gray-200/60 dark:border-gray-700/60">
+          <FiMapPin className="mx-auto text-9xl text-gray-400 dark:text-gray-600 mb-6" />
+          <p className="text-2xl text-gray-600 dark:text-gray-400 font-medium">No saved addresses yet</p>
+          <p className="text-lg text-gray-500 dark:text-gray-500 mt-2">Add your first delivery address to get started!</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {addresses.map((addr) => (
+            <div
+              key={addr.id}
+              className={`relative bg-white/40 dark:bg-gray-800/40 backdrop-blur-2xl p-8 rounded-3xl shadow-xl border-2 transition-all hover:shadow-2xl hover:-translate-y-3 ${
+                addr.isDefault
+                  ? "border-lime-500 shadow-lime-500/20"
+                  : "border-gray-200/60 dark:border-gray-700/60"
+              }`}
+            >
+              {addr.isDefault && (
+                <span className="absolute -top-4 left-8 bg-lime-600 text-white text-sm px-5 py-2 rounded-full font-bold flex items-center gap-2 shadow-lg">
+                  <FiCheckCircle className="text-lg" /> Default Address
+                </span>
+              )}
+
+              <div className="pr-16">
+                <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-3">
+                  {addr.street}, {addr.building}
+                </h4>
+                <p className="text-lg text-gray-700 dark:text-gray-300">
+                  {addr.city}, {addr.state}
+                </p>
+                {(addr.latitude || addr.longitude) && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 flex items-center gap-2">
+                    <FiGlobe className="text-base" />
+                    {addr.latitude.toFixed(4)}, {addr.longitude.toFixed(4)}
+                  </p>
+                )}
+                {addr.notes && (
+                  <p className="text-sm italic text-gray-600 dark:text-gray-400 mt-4 bg-gray-100 dark:bg-gray-700/50 px-4 py-3 rounded-xl">
+                    "{addr.notes}"
+                  </p>
+                )}
+              </div>
+
+              <div className="absolute top-8 right-8 flex gap-4">
+                <button
+                  onClick={() => startEditAddress(addr)}
+                  className="p-4 bg-white/60 dark:bg-gray-700/60 backdrop-blur rounded-2xl text-lime-600 hover:bg-lime-100 dark:hover:bg-lime-900/50 transition shadow-lg transform hover:scale-110"
+                  aria-label="Edit address"
+                >
+                  <FiEdit2 className="text-2xl" />
+                </button>
+                <button
+                  onClick={() => handleDeleteAddress(addr.id)}
+                  className="p-4 bg-white/60 dark:bg-gray-700/60 backdrop-blur rounded-2xl text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50 transition shadow-lg transform hover:scale-110"
+                  aria-label="Delete address"
+                >
+                  <FiTrash2 className="text-2xl" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
   const renderOrders = () => {
     const itemsPerPage = 3;

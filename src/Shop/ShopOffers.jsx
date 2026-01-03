@@ -15,7 +15,7 @@ const formatNumber = (num) => {
   return num.toLocaleString('ar-EG');
 };
 
-const ShopOffers = () => {
+const ShopOffers = ({darkMode}) => {
   const [offers, setOffers] = useState([]);
   const [stats, setStats] = useState({
     totalOffers: 0,
@@ -106,57 +106,68 @@ const ShopOffers = () => {
 
       const discountText = offer.discountType === 'PERCENTAGE' ? '%' : 'ج.م';
 
-      Swal.fire({
-        title: `<div class="text-center mb-4">
-                  <FiTag class="inline text-4xl text-lime-600 mb-2" />
-                  <p class="text-2xl font-bold">#${offer.id} - ${offer.name}</p>
-                </div>`,
-        html: `
-          <div class="text-right space-y-4 text-base">
-            <div class="bg-gray-50 rounded-xl p-4">
-              <p class="text-gray-600 mb-1">الوصف</p>
-              <p class="font-semibold">${offer.description || 'لا يوجد وصف'}</p>
-            </div>
+     Swal.fire({
+  title: `
+    <div class="flex flex-col items-center gap-3 mb-4">
+   
+      <div class="text-center">
+        <p class="text-sm text-gray-500">عرض رقم</p>
+        <p class="text-2xl font-bold text-gray-900">#${offer.id}</p>
+        <p class="text-lg font-semibold text-emerald-700 mt-1">${offer.name}</p>
+      </div>
+    </div>
+  `,
+  html: `
+    <div class="space-y-4 text-sm">
+      <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+        <p class="text-gray-600 dark:text-gray-400 font-medium mb-2">الوصف</p>
+        <p class="text-gray-900 dark:text-gray-100 leading-relaxed">
+          ${offer.description || 'لا يوجد وصف متاح'}
+        </p>
+      </div>
 
-            <div class="grid grid-cols-2 gap-4">
-              <div class="bg-gradient-to-br from-lime-50 to-emerald-50 rounded-xl p-4 text-center">
-                <p class="text-gray-700">قيمة الخصم</p>
-                <p class="text-2xl font-bold text-lime-600 mt-1">
-                  ${offer.discountValue} ${discountText}
-                </p>
-              </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-gradient-to-br from-lime-50 to-emerald-50 dark:from-lime-900/30 dark:to-emerald-900/30 rounded-xl p-4 text-center">
+          <p class="text-gray-600 dark:text-gray-400 text-xs mb-1">قيمة الخصم</p>
+          <p class="text-xl font-bold text-lime-600 dark:text-lime-400">
+            ${offer.discountValue} ${discountText}
+          </p>
+        </div>
 
-              <div class="bg-gray-50 rounded-xl p-4 text-center">
-                <p class="text-gray-700">الحالة</p>
-                <span class="inline-block mt-1 px-4 py-2 rounded-full font-bold text-sm ${statusColor}">
-                  ${statusTranslations[offer.status]}
-                </span>
-              </div>
-            </div>
+        <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 text-center">
+          <p class="text-gray-600 dark:text-gray-400 text-xs mb-1">الحالة</p>
+          <span class="inline-block px-4 py-1.5 rounded-full text-xs font-bold ${statusColor}">
+            ${statusTranslations[offer.status]}
+          </span>
+        </div>
+      </div>
 
-            <div class="grid grid-cols-2 gap-4">
-              <div class="bg-blue-50 rounded-xl p-4 text-center">
-                <p class="text-gray-600 text-sm">البداية</p>
-                <p class="font-bold text-blue-700">${startFormatted}</p>
-              </div>
-              <div class="bg-purple-50 rounded-xl p-4 text-center">
-                <p class="text-gray-600 text-sm">النهاية</p>
-                <p class="font-bold text-purple-700">${endFormatted}</p>
-              </div>
-            </div>
-          </div>
-        `,
-        width: 600,
-        showConfirmButton: true,
-        confirmButtonText: 'إغلاق',
-        confirmButtonColor: '#94a3b8',
-        customClass: {
-          popup: 'rounded-3xl',
-          title: 'mb-0',
-          htmlContainer: 'pt-4',
-        },
-        buttonsStyling: false,
-      });
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 text-center">
+          <p class="text-gray-600 dark:text-gray-400 text-xs mb-1">يبدأ</p>
+          <p class="font-semibold text-blue-700 dark:text-blue-400">${startFormatted}</p>
+        </div>
+        <div class="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4 text-center">
+          <p class="text-gray-600 dark:text-gray-400 text-xs mb-1">ينتهي</p>
+          <p class="font-semibold text-purple-700 dark:text-purple-400">${endFormatted}</p>
+        </div>
+      </div>
+    </div>
+  `,
+  width: 480,
+  padding: '2rem',
+  showConfirmButton: true,
+  confirmButtonText: 'إغلاق',
+  confirmButtonColor: '#94a3b8',
+  customClass: {
+    popup: 'rounded-3xl shadow-2xl',
+    title: 'mb-0',
+    htmlContainer: 'pt-2',
+    confirmButton: 'px-8 py-3 rounded-xl font-medium hover:scale-105 transition',
+  },
+  buttonsStyling: false,
+  background: darkMode ? '#111827' : '#ffffff',
+});
     } catch (err) {
       Swal.fire({
         title: 'خطأ',

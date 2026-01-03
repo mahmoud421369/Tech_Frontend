@@ -276,7 +276,7 @@ const Signup = () => {
       <RiStore2Line className="absolute bottom-16 right-12 text-lime-200 dark:text-lime-600 text-9xl opacity-20 animate-bounce" />
       <RiTruckLine className="absolute top-1/3 left-1/4 text-emerald-200 dark:text-emerald-600 text-8xl opacity-15 animate-spin-slow" />
 
-      <div className="w-full max-w-3xl px-6">
+      <div className="w-full max-w-3xl px-6 mt-5">
         <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/60 dark:border-gray-700 p-8">
           <div className="text-center mb-8">
             <h1 className="text-4xl font-extrabold text-emerald-800 dark:text-emerald-200 mb-2">Create Account</h1>

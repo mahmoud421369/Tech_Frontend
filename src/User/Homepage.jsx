@@ -250,81 +250,77 @@ const Homepage = memo(({ darkMode }) => {
   return (
     <>
  
-     <section className={`relative overflow-hidden ${darkMode ? 'dark:bg-gray-900' : 'bg-gradient-to-br from-white via-lime-50 to-gray-100'} mt-5 dark:text-white`}>
-  <div className="max-w-7xl mx-auto px-6 py-20 mt-6 md:py-24">
-    <div className="grid md:grid-cols-2 gap-12 mt-5 items-center">
-
-     
-      <div className="space-y-6 mb-6">
-        <h1 className="text-5xl md:text-6xl font-extrabold drop-shadow-md text-lime-700 dark:text-lime-400 font-bold leading-tight">
-          Repair & Buy Devices with <span className="underline decoration-lime-500 decoration-4">Confidence</span>
+     <section className={`relative overflow-hidden py-16 md:py-24 ${darkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
+  <div className="max-w-7xl mx-auto px-6">
+    <div className="grid md:grid-cols-2 gap-12 items-center">
+      <div className="space-y-8">
+        <h1 className="text-5xl md:text-7xl font-extrabold bg-gradient-to-r from-lime-600 to-emerald-600 bg-clip-text text-transparent">
+          Repair & Buy Devices with Confidence
         </h1>
-
-        <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300">
+        <p className="text-xl text-gray-600 dark:text-gray-300">
           Find trusted repair shops and purchase refurbished devices at great prices.
         </p>
-
-
-        <div className="grid grid-cols-3 gap-6 pt-8">
-          <div className=' p-4 rounded-xl bg-white dark:bg-gray-950'>
-            <div className="text-3xl font-bold text-lime-600 text-center dark:text-lime-400 flex items-center justify-center gap-1">
+        <div className="grid grid-cols-3 gap-6">
+          <div className="p-6 rounded-3xl bg-white dark:bg-gray-800 shadow-xl text-center">
+            <div className="text-4xl font-bold text-lime-600 dark:text-lime-400 flex items-center justify-center gap-2">
               <FiTool /> 75.2%
             </div>
-            <p className="text-sm text-gray-600 text-center dark:text-gray-400">Average repair success rate</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Average repair success rate</p>
           </div>
-
-          <div className=' p-4 rounded-xl bg-white dark:bg-gray-950'>
-            <div className="text-3xl font-bold text-lime-600 dark:text-lime-400 flex items-center justify-center gap-1">
+          <div className="p-6 rounded-3xl bg-white dark:bg-gray-800 shadow-xl text-center">
+            <div className="text-4xl font-bold text-lime-600 dark:text-lime-400 flex items-center justify-center gap-2">
               <FiCheckCircle /> ~20k
             </div>
-            <p className="text-sm text-gray-600 text-center dark:text-gray-400">Repairs completed monthly</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Repairs completed monthly</p>
           </div>
-
-          <div className=' p-4 rounded-xl bg-white dark:bg-gray-950'>
-            <div className="flex items-center justify-center gap-3 text-yellow-500">
+          <div className="p-6 rounded-3xl bg-white dark:bg-gray-800 shadow-xl text-center">
+            <div className="flex items-center justify-center gap-1 text-yellow-500 text-4xl">
               {[...Array(5)].map((_, i) => (
-                <FiStar 
-                  key={i} 
-                  fill={i < 4.5 ? "currentColor" : "none"} 
-                  className={i < 4.5 ? "text-yellow-500" : "text-gray-400"}
-                />
+                <FiStar key={i} fill={i < 4 ? "currentColor" : "none"} />
               ))}
+              <span className="text-2xl text-gray-500 dark:text-gray-400 ml-1">.5</span>
             </div>
-            <p className="text-sm text-gray-600 text-center dark:text-gray-400">4.5 Average user rating</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">4.5 Average user rating</p>
           </div>
         </div>
       </div>
 
-      
-      <div className="relative hidden md:block">
-        <div className="relative w-full h-96">
-         
-          <div className="absolute inset-0 bg-gradient-to-br from-lime-100 to-teal-100 dark:from-lime-900 dark:to-teal-900 rounded-3xl blur-3xl opacity-50"></div>
-
-          
-          <div className="absolute top-10 left-12 w-44 h-80 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-3xl shadow-2xl transform rotate-12 animate-float-slow border border-gray-300 dark:border-gray-600">
-            <div className="p-5">
-              <div className="bg-gray-300 dark:bg-gray-600 h-5 rounded mb-3"></div>
-              <div className="bg-gray-300 dark:bg-gray-600 h-4 rounded w-4/5 mb-2"></div>
-              <div className="bg-lime-500 h-10 rounded-lg mt-6 flex items-center justify-center text-white font-bold text-sm">
-                Repair Now
+      <div className="relative h-96 lg:h-[600px] flex items-center justify-center">
+        <div className="absolute inset-0 bg-gradient-to-br from-lime-200/30 to-emerald-200/30 dark:from-lime-900/20 dark:to-emerald-900/20 rounded-full blur-3xl scale-150" />
+        <div className="relative w-full h-full">
+          <div className="absolute top-10 left-10 w-48 h-64 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl rotate-12 hover:rotate-6 transition-transform duration-700 overflow-hidden border border-gray-200 dark:border-gray-700">
+            <div className="p-4 space-y-3">
+              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
+              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-32"></div>
+              <div className="h-8 bg-lime-500 rounded w-16"></div>
+              <div className="flex gap-2">
+                <div className="w-8 h-8 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
+                <div className="w-8 h-8 bg-lime-500 rounded-full"></div>
               </div>
             </div>
           </div>
-
-         
-          <div className="absolute bottom-8 right-8 w-52 h-40 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-xl transform -rotate-6 animate-float-medium border border-gray-200 dark:border-gray-700">
-            <div className="p-4 text-xs text-gray-600 dark:text-gray-300">
-              <div className="bg-gray-200 dark:bg-gray-700 h-3 rounded mb-1"></div>
-              <div className="bg-gray-200 dark:bg-gray-700 h-2 rounded w-1/2"></div>
+          <div className="absolute bottom-10 right-10 w-56 h-72 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl -rotate-6 hover:-rotate-3 transition-transform duration-700 overflow-hidden border border-gray-200 dark:border-gray-700">
+            <div className="p-5 space-y-4">
+              <div className="flex justify-between items-center">
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24"></div>
+                <div className="w-10 h-10 bg-lime-500 rounded-full flex items-center justify-center">
+                  <FiTool className="text-white text-lg" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
+                <div className="h-3 bg-lime-500 rounded w-1/2"></div>
+              </div>
             </div>
           </div>
-
-          
-          <div className="absolute top-32 left-0 w-28 h-24 bg-white dark:bg-gray-800 rounded-xl shadow-lg transform -rotate-12 animate-float-fast border border-lime-500">
-            <div className="p-3 text-center">
-              <FiTool className="text-lime-600 mx-auto mb-1 text-xl" />
-              <p className="text-xs font-bold text-lime-600">Fixed!</p>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-40 h-56 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl z-10 hover:scale-110 transition-all duration-700 overflow-hidden border border-gray-200 dark:border-gray-700">
+            <div className="p-4">
+              <div className="w-16 h-16 bg-lime-500 rounded-2xl mx-auto mb-3 flex items-center justify-center">
+                <FiCheckCircle className="text-white text-2xl" />
+              </div>
+              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mt-2"></div>
             </div>
           </div>
         </div>
@@ -332,6 +328,8 @@ const Homepage = memo(({ darkMode }) => {
     </div>
   </div>
 </section>
+
+
   <section className={`py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
       <div className="max-w-6xl mx-auto px-6">
         <motion.h1

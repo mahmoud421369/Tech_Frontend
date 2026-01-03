@@ -1,11 +1,9 @@
-
 import React, {
   useState,
   useEffect,
   useCallback,
   useRef,
   useMemo,
-  memo,
 } from 'react';
 import {
   FiSearch,
@@ -15,33 +13,23 @@ import {
   FiChevronRight,
   FiX,
   FiChevronDown,
-  FiSmartphone,
-  FiMonitor,
-  FiTablet,
-  FiHeadphones,
-  FiWatch,
-  FiTool,
-  FiTag,
-  FiDollarSign,
   FiPackage,
   FiStar,
+  FiUsers,
+  FiZap,
 } from 'react-icons/fi';
 import api from '../api';
 import Swal from 'sweetalert2';
-import debounce from 'lodash/debounce';
 
-
-const ProductCard = memo(({ product, darkMode, onAddToCart }) => {
+const ProductCard = ({ product, darkMode, onAddToCart }) => {
   const [imgLoaded, setImgLoaded] = useState(false);
 
   return (
     <div
-    onClick={() => window.location.href = `/device/${product.id}`}
-      className={`group p-6 rounded-2xl shadow-lg transition-all duration-500 transform hover:-translate-y-3 hover:shadow-2xl ${
-        darkMode
-          ? 'bg-gray-800 border border-gray-700'
-          : 'bg-white border border-gray-200'
-      } animate-slideIn`}
+      onClick={() => window.location.href = `/device/${product.id}`}
+      className={`group p-6 rounded-2xl shadow-lg transition-all duration-500 transform hover:-translate-y-3 hover:shadow-2xl cursor-pointer ${
+        darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+      }`}
     >
       <div className="relative">
         {!imgLoaded && (
@@ -111,7 +99,10 @@ const ProductCard = memo(({ product, darkMode, onAddToCart }) => {
             )}
           </div>
           <button
-            onClick={() => onAddToCart(product)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddToCart(product);
+            }}
             className="p-3 bg-lime-600 text-white rounded-xl hover:bg-lime-700 transition transform hover:scale-110 shadow-md"
           >
             <FiShoppingCart className="w-5 h-5" />
@@ -120,12 +111,9 @@ const ProductCard = memo(({ product, darkMode, onAddToCart }) => {
       </div>
     </div>
   );
-});
-ProductCard.displayName = 'ProductCard';
-
+};
 
 const Products = ({ darkMode }) => {
-
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState(['all']);
   const [searchTerm, setSearchTerm] = useState('');
@@ -139,10 +127,7 @@ const Products = ({ darkMode }) => {
   const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
 
   const pageSize = 12;
-
- 
   const abortCtrlRef = useRef(new AbortController());
-
 
   const fetchProducts = useCallback(
     async (category) => {
@@ -170,19 +155,10 @@ const Products = ({ darkMode }) => {
     []
   );
 
-
-  const debouncedSearch = useMemo(
-    () => debounce((term) => {}, 300),
-    []
-  );
-
   const handleSearchChange = (e) => {
-    const val = e.target.value;
-    setSearchTerm(val);
-    debouncedSearch(val);
+    setSearchTerm(e.target.value);
   };
 
- 
   useEffect(() => {
     const ctrl = new AbortController();
     const load = async () => {
@@ -203,12 +179,10 @@ const Products = ({ darkMode }) => {
     return () => ctrl.abort();
   }, [token]);
 
-
   useEffect(() => {
     fetchProducts(selectedCategory);
     setCurrentPage(1);
   }, [selectedCategory, fetchProducts]);
-
 
   const handleAddToCart = useCallback(
     async (product) => {
@@ -247,13 +221,11 @@ const Products = ({ darkMode }) => {
     [token]
   );
 
- 
   const latestProducts = useMemo(() => {
     return [...products]
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .slice(0, 8);
   }, [products]);
-
 
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
@@ -266,14 +238,12 @@ const Products = ({ darkMode }) => {
     });
   }, [products, searchTerm, priceRange]);
 
-
   const paginatedProducts = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredProducts.slice(start, start + pageSize);
   }, [filteredProducts, currentPage]);
 
   const totalPages = Math.ceil(filteredProducts.length / pageSize);
-
 
   const scrollSlider = (dir) => {
     if (!sliderRef.current) return;
@@ -290,7 +260,6 @@ const Products = ({ darkMode }) => {
     return Math.round(scroll / 320);
   };
 
-
   const clearFilters = () => {
     setSearchTerm('');
     setPriceRange([0, 50000]);
@@ -298,318 +267,264 @@ const Products = ({ darkMode }) => {
     setCurrentPage(1);
   };
 
-
   return (
-    <div className={`min-h-screen transition-all duration-500 ${darkMode ? 'bg-gray-900' : 'bg-gradient-to-br from-white via-lime-50 to-gray-100'} mt-5`}>
-     <section className="relative overflow-hidden">
-  <div className="max-w-7xl mx-auto px-6 py-16 md:py-24">
-    <div className="grid md:grid-cols-2 gap-12 items-center">
-
-
-      <div className="space-y-4">
-        <h1 className="text-4xl md:text-6xl font-extrabold drop-shadow-md text-lime-700 dark:text-lime-400 leading-tight">
-          Shop Premium <span className="underline decoration-lime-500 decoration-4">Devices</span>
-        </h1>
-
-        <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300">
-          Discover new & refurbished phones, laptops, tablets, and accessories at unbeatable prices.
-        </p>
-
-    
-        <div className="grid grid-cols-3 gap-6 pt-8">
-          <div className=' p-4 rounded-xl bg-white dark:bg-gray-950'>
-            <div className="text-3xl font-bold text-lime-600 dark:text-lime-400 flex items-center gap-1">
-              <FiPackage /> 1,200+
-            </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Products in stock</p>
-          </div>
-
-          <div className=' p-4 rounded-xl bg-white dark:bg-gray-950'>
-            <div className="text-3xl font-bold text-lime-600 dark:text-lime-400 flex items-center gap-1">
-              <FiStar className="text-yellow-500" fill="currentColor" /> 4.8
-            </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Average rating</p>
-          </div>
-
-          <div className=' p-4 rounded-xl bg-white dark:bg-gray-950'>
-            <div className="text-3xl font-bold text-lime-600 dark:text-lime-400 flex items-center gap-1">
-              <FiDollarSign /> 50% 
-            </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Limited deals</p>
-          </div>
-        </div>
-      </div>
-
-     
-      <div className="relative">
-       
-        {/* <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10">
-          <FiSmartphone className={`absolute top-16 left-12 w-14 h-14 ${darkMode ? 'text-lime-400' : 'text-lime-600'} animate-float-slow opacity-70`} />
-          <FiMonitor className={`absolute top-24 right-16 w-12 h-12 ${darkMode ? 'text-lime-500' : 'text-lime-700'} animate-float-medium opacity-60`} />
-          <FiTablet className={`absolute bottom-32 left-20 w-10 h-10 ${darkMode ? 'text-gray-400' : 'text-gray-700'} animate-float-fast opacity-60`} />
-          <FiHeadphones className={`absolute bottom-24 right-20 w-16 h-16 ${darkMode ? 'text-lime-400' : 'text-lime-600'} animate-float-slow opacity-70`} />
-          <FiWatch className={`absolute top-1/3 left-1/4 w-11 h-11 ${darkMode ? 'text-gray-300' : 'text-gray-600'} animate-float-medium opacity-60`} />
-          <FiTool className={`absolute top-10 right-1/3 w-10 h-10 ${darkMode ? 'text-lime-300' : 'text-lime-500'} animate-spin-slow opacity-60`} />
-        </div> */}
-
-        
-        <div className="relative w-full h-96">
-     
-          <div className="absolute inset-0 bg-gradient-to-br from-lime-100 to-teal-100 dark:from-lime-900 dark:to-teal-900 rounded-3xl blur-3xl opacity-50"></div>
-
-     
-          <div className="absolute top-12 left-16 w-48 h-80 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-3xl shadow-2xl transform rotate-y-12 rotate-x-6 animate-float-3d border border-gray-300 dark:border-gray-600">
-            <div className="p-6 h-full flex flex-col justify-between">
-              <div>
-                <div className="bg-gray-300 dark:bg-gray-600 h-6 rounded mb-3 w-3/4"></div>
-                <div className="bg-gray-300 dark:bg-gray-600 h-4 rounded w-full mb-2"></div>
-                <div className="bg-gray-300 dark:bg-gray-600 h-4 rounded w-2/3"></div>
+    <>
+      <div className={`min-h-screen ${darkMode ? 'bg-gray-900 text-white' : 'bg-gradient-to-br from-white via-lime-50 to-gray-100'} pt-16`}>
+        <section className={`relative overflow-hidden py-16 md:py-24 ${darkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="grid md:grid-cols-2 gap-12 items-center">
+              <div className="space-y-8">
+                <h1 className="text-5xl md:text-7xl font-extrabold bg-gradient-to-r from-lime-600 to-emerald-600 bg-clip-text text-transparent">
+                  Shop Premium Devices
+                </h1>
+                <p className="text-xl text-gray-600 dark:text-gray-300">
+                  Discover new & refurbished phones, laptops, tablets, and accessories at unbeatable prices.
+                </p>
+                <div className="grid grid-cols-3 gap-6">
+                  <div className="p-6 rounded-3xl bg-white dark:bg-gray-800 shadow-xl text-center">
+                    <div className="text-4xl font-bold text-lime-600 dark:text-lime-400 flex items-center justify-center gap-2">
+                      <FiPackage /> 1,200+
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Products in stock</p>
+                  </div>
+                  <div className="p-6 rounded-3xl bg-white dark:bg-gray-800 shadow-xl text-center">
+                    <div className="text-4xl font-bold text-lime-600 dark:text-lime-400 flex items-center justify-center gap-2">
+                      <FiUsers /> ~50K
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Happy customers</p>
+                  </div>
+                  <div className="p-6 rounded-3xl bg-white dark:bg-gray-800 shadow-xl text-center">
+                    <div className="flex items-center justify-center gap-1 text-yellow-500 text-4xl">
+                      {[...Array(5)].map((_, i) => (
+                        <FiStar key={i} fill="currentColor" />
+                      ))}
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">4.9 Average rating</p>
+                  </div>
+                </div>
               </div>
-              <div className="bg-lime-500 h-12 rounded-xl flex items-center justify-center text-white font-bold shadow-md">
-                Buy Now
+              <div className="relative h-96 lg:h-[600px] flex items-center justify-center">
+                <div className="absolute inset-0 bg-gradient-to-br from-lime-200/30 to-emerald-200/30 dark:from-lime-900/20 dark:to-emerald-900/20 rounded-full blur-3xl scale-150" />
+                <div className="relative w-full h-full">
+                  <div className="absolute top-10 left-10 w-48 h-64 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl rotate-12 hover:rotate-6 transition-transform duration-700 overflow-hidden border border-gray-200 dark:border-gray-700">
+                    <div className="p-4 space-y-3">
+                      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
+                      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-32"></div>
+                      <div className="h-8 bg-lime-500 rounded w-16"></div>
+                      <div className="flex gap-2">
+                        <div className="w-8 h-8 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
+                        <div className="w-8 h-8 bg-lime-500 rounded-full"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="absolute bottom-10 right-10 w-56 h-72 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl -rotate-6 hover:-rotate-3 transition-transform duration-700 overflow-hidden border border-gray-200 dark:border-gray-700">
+                    <div className="p-5 space-y-4">
+                      <div className="flex justify-between items-center">
+                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24"></div>
+                        <div className="w-10 h-10 bg-lime-500 rounded-full flex items-center justify-center">
+                          <FiPackage className="text-white text-lg" />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
+                        <div className="h-3 bg-lime-500 rounded w-1/2"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-40 h-56 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl z-10 hover:scale-110 transition-all duration-700 overflow-hidden border border-gray-200 dark:border-gray-700">
+                    <div className="p-4">
+                      <div className="w-16 h-16 bg-lime-500 rounded-2xl mx-auto mb-3 flex items-center justify-center">
+                        <FiZap className="text-white text-2xl" />
+                      </div>
+                      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+                      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mt-2"></div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
+        </section>
 
-     
-          <div className="absolute bottom-10 right-10 w-56 h-44 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-xl transform -rotate-6 animate-float-3d-delay border border-gray-200 dark:border-gray-700">
-            <div className="p-5">
-              <div className="bg-gray-200 dark:bg-gray-700 h-4 rounded mb-2"></div>
-              <div className="bg-gray-200 dark:bg-gray-700 h-3 rounded w-4/5"></div>
-            </div>
-          </div>
+        <div className="max-w-7xl mx-auto px-6 py-8 -mt-20 relative z-10">
+          <div className={`rounded-3xl shadow-2xl p-6 ${darkMode ? 'bg-gray-800/80 border border-gray-700' : 'bg-white/90 border border-gray-200'} backdrop-blur-md`}>
+            <button
+              onClick={() => setShowFilters((v) => !v)}
+              className={`w-full flex items-center justify-between text-lg font-semibold ${darkMode ? 'text-lime-400' : 'text-lime-600'}`}
+            >
+              Filters
+              <FiChevronDown className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+            </button>
 
-          
-          <div className="absolute top-32 left-4 w-32 h-28 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl transform -rotate-12 animate-float-3d-fast border-2 border-lime-500">
-            <div className="p-4 text-center">
-              <FiTag className="text-lime-600 text-3xl mx-auto mb-1" />
-              <p className="text-sm font-bold text-lime-600">50% OFF</p>
-            </div>
-          </div>
-
-       
-          <div className="absolute top-20 right-20 w-12 h-12 animate-spin-slow opacity-70">
-            <FiDollarSign className="text-lime-500 text-5xl drop-shadow-lg" />
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-      
-      <div className="max-w-7xl mx-auto px-6 py-8 -mt-20 relative z-10">
-        <div
-          className={`rounded-3xl shadow-2xl p-6 transition-all duration-300 ${
-            darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
-          }`}
-        >
-          <button
-            onClick={() => setShowFilters((v) => !v)}
-            className={`w-full flex items-center justify-between text-lg font-semibold ${darkMode ? 'text-lime-400' : 'text-lime-600'}`}
-          >
-            Filters
-            <FiChevronDown className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-          </button>
-
-          {showFilters && (
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-5 animate-fadeIn">
-              <div className="relative">
-                <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
-                <input
-                  type="text"
-                  placeholder="Search products..."
-                  value={searchTerm}
-                  onChange={handleSearchChange}
-                  className={`w-full pl-12 pr-4 py-3 rounded-xl border ${
-                    darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-800'
-                  } focus:outline-none focus:ring-2 focus:ring-lime-500`}
-                />
-              </div>
-
-              <div className="relative">
-                <button
-                  className={`w-full px-4 py-3 rounded-xl border flex items-center justify-between ${
-                    darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-800'
-                  } focus:outline-none focus:ring-2 focus:ring-lime-500`}
-                >
-                  {selectedCategory}
-                  <FiChevronDown className="ml-2" />
-                </button>
-                <div className="absolute z-20 mt-2 w-full bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-300 dark:border-gray-600 max-h-60 overflow-y-auto">
+            {showFilters && (
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-5">
+                <div className="relative">
+                  <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
                   <input
                     type="text"
-                    placeholder="Search categories..."
-                    value={categorySearch}
-                    onChange={(e) => setCategorySearch(e.target.value)}
-                    className="w-full px-4 py-2 border-b border-gray-300 dark:border-gray-600 bg-transparent focus:outline-none text-sm"
+                    placeholder="Search products..."
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    className={`w-full pl-12 pr-4 py-3 rounded-xl border ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-800'} focus:outline-none focus:ring-2 focus:ring-lime-500`}
                   />
-                  {categories
-                    .filter((c) =>
-                      c.toLowerCase().includes(categorySearch.toLowerCase())
-                    )
-                    .map((cat) => (
-                      <button
-                        key={cat}
-                        onClick={() => {
-                          setSelectedCategory(cat);
-                          setCategorySearch('');
-                        }}
-                        className="w-full px-4 py-2 text-left hover:bg-lime-50 dark:hover:bg-lime-900 text-sm capitalize"
-                      >
-                        {cat}
-                      </button>
-                    ))}
                 </div>
-              </div>
 
-              <div className="flex flex-col gap-2">
-                <div className={`flex justify-between text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                  <span>EGP {priceRange[0]}</span>
-                  <span>EGP {priceRange[1]}</span>
+                <div className="relative">
+                  <button
+                    className={`w-full px-4 py-3 rounded-xl border flex items-center justify-between ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-800'} focus:outline-none focus:ring-2 focus:ring-lime-500`}
+                  >
+                    {selectedCategory}
+                    <FiChevronDown className="ml-2" />
+                  </button>
+                  <div className="absolute z-20 mt-2 w-full bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-300 dark:border-gray-600 max-h-60 overflow-y-auto">
+                    <input
+                      type="text"
+                      placeholder="Search categories..."
+                      value={categorySearch}
+                      onChange={(e) => setCategorySearch(e.target.value)}
+                      className="w-full px-4 py-2 border-b border-gray-300 dark:border-gray-600 bg-transparent focus:outline-none text-sm"
+                    />
+                    {categories
+                      .filter((c) =>
+                        c.toLowerCase().includes(categorySearch.toLowerCase())
+                      )
+                      .map((cat) => (
+                        <button
+                          key={cat}
+                          onClick={() => {
+                            setSelectedCategory(cat);
+                            setCategorySearch('');
+                          }}
+                          className="w-full px-4 py-2 text-left hover:bg-lime-50 dark:hover:bg-lime-900 text-sm capitalize"
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                  </div>
                 </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100000"
-                  step="500"
-                  value={priceRange[0]}
-                  onChange={(e) =>
-                    setPriceRange([+e.target.value, priceRange[1]])
-                  }
-                  className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-lime-600"
-                />
-                <input
-                  type="range"
-                  min="0"
-                  max="100000"
-                  step="500"
-                  value={priceRange[1]}
-                  onChange={(e) =>
-                    setPriceRange([priceRange[0], +e.target.value])
-                  }
-                  className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-lime-600"
-                />
+
+                <div className="flex flex-col gap-2">
+                  <div className={`flex justify-between text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                    <span>EGP {priceRange[0]}</span>
+                    <span>EGP {priceRange[1]}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100000"
+                    step="500"
+                    value={priceRange[0]}
+                    onChange={(e) =>
+                      setPriceRange([+e.target.value, priceRange[1]])
+                    }
+                    className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-lime-600"
+                  />
+                  <input
+                    type="range"
+                    min="0"
+                    max="100000"
+                    step="500"
+                    value={priceRange[1]}
+                    onChange={(e) =>
+                      setPriceRange([priceRange[0], +e.target.value])
+                    }
+                    className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-lime-600"
+                  />
+                </div>
+
+                <button
+                  onClick={clearFilters}
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition shadow-md"
+                >
+                  <FiX /> Clear
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {!isLoading && latestProducts.length > 0 && (
+          <div className="max-w-7xl mx-auto px-6 mb-16">
+            <h2 className={`text-3xl font-bold mb-8 ${darkMode ? 'text-lime-400' : 'text-lime-600'}`}>
+              Latest Arrivals
+            </h2>
+
+            <div className="relative">
+              <div
+                ref={sliderRef}
+                className="flex overflow-x-auto gap-6 snap-x snap-mandatory scroll-smooth hide-scrollbar"
+              >
+                {latestProducts.map((p) => (
+                  <div
+                    key={p.id}
+                    className="snap-start flex-shrink-0 w-80"
+                  >
+                    <ProductCard product={p} darkMode={darkMode} onAddToCart={handleAddToCart} />
+                  </div>
+                ))}
               </div>
 
               <button
-                onClick={clearFilters}
-                className="flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition shadow-md"
+                onClick={() => scrollSlider('left')}
+                className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md p-3 rounded-full shadow-lg hover:bg-lime-100 dark:hover:bg-lime-900 transition z-10"
               >
-                <FiX /> Clear
+                <FiChevronLeft className="w-6 h-6 text-lime-600" />
+              </button>
+              <button
+                onClick={() => scrollSlider('right')}
+                className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md p-3 rounded-full shadow-lg hover:bg-lime-100 dark:hover:bg-lime-900 transition z-10"
+              >
+                <FiChevronRight className="w-6 h-6 text-lime-600" />
               </button>
             </div>
+          </div>
+        )}
+
+        <div className="max-w-7xl mx-auto px-6 pb-16">
+          {isLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="w-12 h-12 border-4 border-lime-600 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : filteredProducts.length === 0 ? (
+            <div className="text-center py-16">
+              <FiShoppingCart className="mx-auto text-6xl text-gray-400 mb-4" />
+              <p className={`text-xl ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                No products found.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {paginatedProducts.map((p) => (
+                  <ProductCard key={p.id} product={p} darkMode={darkMode} onAddToCart={handleAddToCart} />
+                ))}
+              </div>
+
+              {totalPages > 1 && (
+                <div className="flex justify-center mt-12 gap-3">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`px-5 py-3 rounded-xl font-medium transition shadow-md ${
+                        currentPage === page
+                          ? 'bg-lime-600 text-white'
+                          : darkMode
+                          ? 'bg-gray-700 text-gray-300 hover:bg-lime-900'
+                          : 'bg-white text-gray-700 hover:bg-lime-100'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
-
-
-      {!isLoading && latestProducts.length > 0 && (
-        <div className="max-w-7xl mx-auto px-6 mb-16">
-          <h2 className={`text-3xl font-bold mb-8 ${darkMode ? 'text-lime-400' : 'text-lime-600'}`}>
-            Latest Arrivals
-          </h2>
-
-          <div className="relative">
-            <div
-              ref={sliderRef}
-              className="flex overflow-x-auto gap-6 snap-x snap-mandatory scroll-smooth hide-scrollbar"
-            >
-              {latestProducts.map((p, i) => (
-                <div
-                  key={p.id}
-                  className="snap-start flex-shrink-0 w-80"
-                  style={{ animationDelay: `${i * 100}ms` }}
-                >
-                  <ProductCard product={p} darkMode={darkMode} onAddToCart={handleAddToCart} />
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={() => scrollSlider('left')}
-              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md p-3 rounded-full shadow-lg hover:bg-lime-100 dark:hover:bg-lime-900 transition z-10"
-            >
-              <FiChevronLeft className="w-6 h-6 text-lime-600" />
-            </button>
-            <button
-              onClick={() => scrollSlider('right')}
-              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md p-3 rounded-full shadow-lg hover:bg-lime-100 dark:hover:bg-lime-900 transition z-10"
-            >
-              <FiChevronRight className="w-6 h-6 text-lime-600" />
-            </button>
-
-            <div className="flex justify-center gap-2 mt-6">
-              {Array.from({ length: Math.max(1, latestProducts.length - 2) }, (_, i) => {
-                const active = getActiveSlide() === i;
-                return (
-                  <button
-                    key={i}
-                    onClick={() =>
-                      sliderRef.current?.scrollTo({
-                        left: i * 320,
-                        behavior: 'smooth',
-                      })
-                    }
-                    className={`transition-all duration-300 rounded-full ${
-                      active
-                        ? 'w-10 h-3 bg-lime-600'
-                        : 'w-3 h-3 bg-gray-400 dark:bg-gray-600 hover:bg-lime-400'
-                    }`}
-                  />
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      
-      <div className="max-w-7xl mx-auto px-6 pb-16">
-        {isLoading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="w-12 h-12 border-4 border-lime-600 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : filteredProducts.length === 0 ? (
-          <div className="text-center py-16">
-            <FiShoppingCart className="mx-auto text-6xl text-gray-400 mb-4" />
-            <p className={`text-xl ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-              No products found.
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {paginatedProducts.map((p, i) => (
-                <div key={p.id} style={{ animationDelay: `${i * 50}ms` }}>
-                  <ProductCard product={p} darkMode={darkMode} onAddToCart={handleAddToCart} />
-                </div>
-              ))}
-            </div>
-
-            {totalPages > 1 && (
-              <div className="flex justify-center mt-12 gap-3">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    // className={`px-5 py-3 rounded-xl font-medium transition shadow-md ${
-                    //   currentPage === page
-                    //     ? 'bg-lime-600 text-white'
-                    //     : darkMode
-                    //     ? 'bg-gray-700 text-gray-300 hover:bg-lime-900'
-                    //     : 'bg-white text-gray-700 hover:bg-lime-100'
-                    // }`}
-                  >
-                    {page}
-                  </button>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </div>
+    </>
   );
 };
 

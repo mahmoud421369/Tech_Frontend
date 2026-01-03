@@ -54,12 +54,12 @@ const Offers = ({ darkMode }) => {
         if (err.name !== "AbortError") {
           console.error("Error fetching offers:", err);
           setOffers([MOCK_OFFER]);
-          Swal.fire({
-            icon: "info",
-            title: "Demo Mode",
-            text: "Showing sample offer (API unavailable)",
-            confirmButtonColor: "#84cc16",
-          });
+          // Swal.fire({
+          //   icon: "info",
+          //   title: "Demo Mode",
+          //   text: "Showing sample offer (API unavailable)",
+          //   confirmButtonColor: "#84cc16",
+          // });
         }
       } finally {
         setIsLoading(false);

@@ -318,11 +318,9 @@ const handleChange = useCallback((e) => {
               {/* <label htmlFor="email" className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">
                 Email Address
               </label> */}
-              <TextField
+              <input
                 type="email"
-                id="outlined-basic"
-                label="Email"
-                variant="outlined"
+              
                 name="email"
                 required
                 value={formData.email}
@@ -338,11 +336,9 @@ const handleChange = useCallback((e) => {
                 Password
               </label> */}
               <div className="relative">
-                <TextField
+                <input
                   type={showPassword ? "text" : "password"}
-                  id="outlined-basic"
-                  label="Password"
-                  variant="outlined"
+          
                   name="password"
                   required
                   value={formData.password}
