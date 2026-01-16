@@ -295,48 +295,59 @@ const Orders = ({darkMode}) => {
        
         </div>
 
-           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-8 mb-6
-           ">
-            <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-6 transform hover:scale-105 transition">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-base opacity-90">إجمالي الطلبات</p>
-                  <p className="text-3xl font-bold mt-2">{stats.total}</p>
-                </div>
-                <FiPackage className="text-5xl opacity-40" />
-              </div>
-            </div>
+     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-8 mb-6">
+  
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">إجمالي الطلبات</p>
+        <p className="text-3xl font-bold text-gray-900 mt-2">{stats.total}</p>
+      </div>
+      <div className="p-3 bg-gray-100 rounded-xl group-hover:bg-gray-200 transition-colors">
+        <FiPackage className="w-8 h-8 text-gray-600" />
+      </div>
+    </div>
+  </div>
 
-            <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-6 transform hover:scale-105 transition">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-base opacity-90">معلقة</p>
-                  <p className="text-3xl font-bold mt-2 text-blue-600">{stats.pending}</p>
-                </div>
-                <FiClock className="text-5xl opacity-40 text-blue-600" />
-              </div>
-            </div>
+ 
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">معلقة</p>
+        <p className="text-3xl font-bold text-blue-700 mt-2">{stats.pending}</p>
+      </div>
+      <div className="p-3 bg-blue-50 rounded-xl group-hover:bg-blue-100 transition-colors">
+        <FiClock className="w-8 h-8 text-blue-600" />
+      </div>
+    </div>
+  </div>
 
-            <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-6 transform hover:scale-105 transition">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-base opacity-90">مؤكدة</p>
-                  <p className="text-3xl font-bold mt-2 text-lime-600">{stats.confirmed}</p>
-                </div>
-                <FiCheckCircle className="text-5xl opacity-40 text-lime-600" />
-              </div>
-            </div>
 
-            <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-6 transform hover:scale-105 transition">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-base opacity-90">تم التسليم</p>
-                  <p className="text-3xl font-bold mt-2 text-green-600">{stats.delivered}</p>
-                </div>
-                <FiCheckCircle className="text-5xl opacity-40 text-green-600" />
-              </div>
-            </div>
-          </div>
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">مؤكدة</p>
+        <p className="text-3xl font-bold text-emerald-700 mt-2">{stats.confirmed}</p>
+      </div>
+      <div className="p-3 bg-emerald-50 rounded-xl group-hover:bg-emerald-100 transition-colors">
+        <FiCheckCircle className="w-8 h-8 text-emerald-600" />
+      </div>
+    </div>
+  </div>
+
+ 
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">تم التسليم</p>
+        <p className="text-3xl font-bold text-green-700 mt-2">{stats.delivered}</p>
+      </div>
+      <div className="p-3 bg-green-50 rounded-xl group-hover:bg-green-100 transition-colors">
+        <FiCheckCircle className="w-8 h-8 text-green-600" />
+      </div>
+    </div>
+  </div>
+</div>
 
         <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
           <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
@@ -491,134 +502,162 @@ const Orders = ({darkMode}) => {
           </div>
         )}
 
-        {showDetailsModal && selectedOrder && (
-          <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-6">
-            <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="bg-gradient-to-r from-lime-500 to-emerald-600 text-white p-8 relative">
-                <button
-                  onClick={() => setShowDetailsModal(false)}
-                  className="absolute top-6 left-6 p-3 bg-white/20 hover:bg-white/30 rounded-full transition"
-                >
-                  <FiX className="w-7 h-7" />
-                </button>
-                <div className="text-center flex flex-col justify-center items-center gap-3">
-                  <p className='text-xl px-3 py-3 bg-white rounded-3xl text-gray-600'>تفاصيل الطلب</p>
-                  <h3 className="text-xl font-bold mb-2">{selectedOrder.id}</h3>
-                  <p className="text-lg opacity-90 flex items-center justify-center gap-3">
-                    <FiCalendar className="text-2xl" />
-                    {new Date(selectedOrder.createdAt).toLocaleString('ar-EG', {
-                      dateStyle: 'full',
-                      timeStyle: 'short',
-                    })}
-                  </p>
-                </div>
+      {showDetailsModal && selectedOrder && (
+  <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 rounded-2xl flex items-center justify-center p-4">
+    <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto ">
+    
+      <div className="bg-gradient-to-r from-emerald-600 to-teal-700 text-white px-8 py-7 relative ">
+        <button
+          onClick={() => setShowDetailsModal(false)}
+          className="absolute top-6 right-6 p-2.5 bg-white/20 hover:bg-white/30 rounded-full transition-all"
+          aria-label="إغلاق"
+        >
+          <FiX className="w-6 h-6" />
+        </button>
+
+        <div className="text-center space-y-3">
+          <div className="inline-block px-5 py-1.5 bg-white/95 rounded-full text-emerald-800 font-semibold text-sm shadow-sm">
+            تفاصيل الطلب
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight">#{selectedOrder.id}</h2>
+          <div className="flex items-center justify-center gap-2.5 opacity-90 text-lg">
+            <FiCalendar className="w-5 h-5" />
+            {new Date(selectedOrder.createdAt).toLocaleString('ar-EG', {
+              dateStyle: 'medium',
+              timeStyle: 'short',
+            })}
+          </div>
+        </div>
+      </div>
+
+     
+      <div className="p-6 md:p-8 space-y-7 text-right">
+      
+        <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 shadow-sm">
+          <h3 className="text-xl font-bold text-gray-800 mb-5 flex items-center justify-end gap-3">
+            <FiUser className="w-6 h-6 text-emerald-600" />
+            معلومات العميل
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                <FiUser className="w-5 h-5 text-emerald-700" />
               </div>
+              <div>
+                <p className="text-sm text-gray-600">الاسم</p>
+                <p className="font-semibold text-lg">
+                  {selectedOrder.firstName} {selectedOrder.lastName}
+                </p>
+              </div>
+            </div>
 
-              <div className="p-8 space-y-8 text-right">
-                <div className="bg-gray-50 border rounded-2xl p-6 shadow-md text-right">
-                  <h4 className="text-2xl font-bold text-gray-800 mb-7 flex items-center justify-end gap-3">
-                    <FiUser className="text-3xl text-blue-600" />
-                    معلومات العميل
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-lg">
-                    <div className="flex items-center justify-center gap-3">
-                      <FiUser className="text-xl text-blue-600" />
-                      <div>
-                        <p className="text-gray-600">الاسم</p>
-                        <p className="font-bold text-xl">{selectedOrder.firstName} {selectedOrder.lastName}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <FiPhone className="text-xl text-blue-600" />
-                      <div>
-                        <p className="text-gray-600">رقم الهاتف</p>
-                        <p className="font-bold text-xl dir-ltr text-left">{selectedOrder.phoneNumber}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-gray-50 border rounded-2xl p-6 shadow-md">
-                  <h4 className="text-2xl font-bold text-gray-800 mb-5 flex items-center justify-end gap-3">
-                    <FiCreditCard className="text-3xl text-lime-600" />
-                    ملخص الدفع
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-lg">
-                    <div className="flex items-center justify-center gap-3">
-                      <div>
-                        <p className="text-gray-600 mb-4">الإجمالي</p>
-                        <p className="font-bold text-3xl text-lime-700">{selectedOrder.totalPrice} ج.م</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div>
-                        <p className="text-gray-600 mb-4">طريقة الدفع</p>
-                        <p className="font-bold text-xl">{selectedOrder.paymentMethod || '—'}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div>
-                        <p className="text-gray-600 mb-4">حالة الطلب</p>
-                        <span className={`px-3 py-2 rounded-full font-bold text-md ${getStatusColor(selectedOrder.status)}`}>
-                          {statusTranslations[selectedOrder.status]}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-gray-50 border rounded-2xl p-6 shadow-md">
-                  <h4 className="text-2xl font-bold text-gray-800 mb-6 flex items-center justify-end gap-3">
-                    <FiShoppingBag className="text-3xl text-purple-600" />
-                    المنتجات المطلوبة ({selectedOrder.orderItems?.length || 0})
-                  </h4>
-                  <div className="space-y-4">
-                    {selectedOrder.orderItems?.map((item, i) => (
-                      <div key={i} className="bg-white rounded-xl p-5 shadow hover:shadow-lg transition">
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-lg">
-                          <div className="md:col-span-2">
-                            <p className="text-gray-600 mb-1 font-semibold text-left">المنتج</p>
-                            <p className="font-bold text-xl flex items-center gap-2">
-                              <FiPackage className="text-purple-600" />
-                              {item.productName}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-gray-600 mb-1 text-center">الكمية</p>
-                            <p className="font-bold text-xl ml-14 flex items-center gap-2">
-                              <FiHash className="text-blue-600" />
-                              {item.quantity}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-gray-600 mb-1">السعر الإجمالي</p>
-                            <p className="font-bold text-2xl text-lime-600 ml-8 flex items-center gap-2">
-                              <FiDollarSign className="text-xl" />
-                              {item.subtotal} ج.م
-                            </p>
-                          </div>
-                        </div>
-                        <div className="mt-3 text-sm text-gray-500">
-                          سعر الوحدة: {item.priceAtCheckout} ج.م
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex justify-center pt-6">
-                  <button
-                    onClick={() => setShowDetailsModal(false)}
-                    className="px-10 py-4 bg-lime-600 hover:bg-lime-700 text-white font-bold text-xl rounded-2xl shadow-xl transition flex items-center gap-3"
-                  >
-                    <FiCheckCircle className="text-2xl" />
-                    إغلاق التفاصيل
-                  </button>
-                </div>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                <FiPhone className="w-5 h-5 text-emerald-700" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">الهاتف</p>
+                <p className="font-semibold text-lg dir-ltr text-left">
+                  {selectedOrder.phoneNumber}
+                </p>
               </div>
             </div>
           </div>
-        )}
+        </div>
+
+        
+        <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 shadow-sm">
+          <h3 className="text-xl font-bold text-gray-800 mb-5 flex items-center justify-end gap-3">
+            <FiCreditCard className="w-6 h-6 text-emerald-600" />
+            ملخص الدفع
+          </h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 text-center">
+            <div>
+              <p className="text-sm text-gray-600 mb-1">الإجمالي</p>
+              <p className="text-2xl font-bold text-emerald-700">
+                {selectedOrder.totalPrice} ج.م
+              </p>
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-600 mb-1">طريقة الدفع</p>
+              <p className="font-semibold text-lg">
+                {selectedOrder.paymentMethod || 'غير محدد'}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-600 mb-1">حالة الطلب</p>
+              <span
+                className={`inline-block px-4 py-1.5 rounded-full text-sm font-semibold ${getStatusColor(
+                  selectedOrder.status
+                )}`}
+              >
+                {statusTranslations[selectedOrder.status]}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        
+        <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 shadow-sm">
+          <h3 className="text-xl font-bold text-gray-800 mb-5 flex items-center justify-between">
+            <span className="flex items-center gap-3">
+              <FiShoppingBag className="w-6 h-6 text-emerald-600" />
+              المنتجات ({selectedOrder.orderItems?.length || 0})
+            </span>
+          </h3>
+
+          <div className="space-y-4">
+            {selectedOrder.orderItems?.map((item, index) => (
+              <div
+                key={index}
+                className="bg-white rounded-lg p-4 border border-gray-100 hover:border-emerald-200 transition-colors"
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                  <div className="sm:col-span-2">
+                    <div className="flex items-center gap-3">
+                      <FiPackage className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                      <p className="font-medium text-lg">{item.productName}</p>
+                    </div>
+                  </div>
+
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">الكمية</p>
+                    <p className="font-bold text-lg">{item.quantity}</p>
+                  </div>
+
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">الإجمالي</p>
+                    <p className="font-bold text-lg text-emerald-700">
+                      {item.subtotal} ج.م
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-2 text-sm text-gray-500 text-center sm:text-right">
+                  سعر الوحدة: {item.priceAtCheckout} ج.م
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        
+        <div className="flex justify-center pt-4">
+          <button
+            onClick={() => setShowDetailsModal(false)}
+            className="px-12 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-lg rounded-xl shadow-lg transition-all flex items-center gap-2.5 hover:shadow-xl active:scale-[0.98]"
+          >
+            <FiCheckCircle className="w-6 h-6" />
+            إغلاق
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
         {showStatusModal && statusModalOrder && (
           <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-6">

@@ -26,34 +26,43 @@ document.title = "إدارة المحادثات";
         </div>
 
        
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg opacity-90">محادثة فورية</p>
-              </div>
-              <FiZap className="text-6xl opacity-40 text-lime-600" />
-            </div>
-          </div>
+       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mb-12">
 
-          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg opacity-90">إشعارات فورية</p>
-              </div>
-              <FiBell className="text-6xl opacity-40 text-blue-600" />
-            </div>
-          </div>
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-7 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-lg font-medium text-gray-700">محادثة فورية</p>
+      </div>
+      <div className="p-4 bg-lime-50 rounded-xl group-hover:bg-lime-100 transition-colors">
+        <FiZap className="w-12 h-12 text-lime-600" />
+      </div>
+    </div>
+  </div>
 
-          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg opacity-90">سجل المحادثات</p>
-              </div>
-              <FiClock className="text-6xl opacity-40 text-purple-600" />
-            </div>
-          </div>
-        </div>
+  
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-7 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-lg font-medium text-gray-700">إشعارات فورية</p>
+      </div>
+      <div className="p-4 bg-blue-50 rounded-xl group-hover:bg-blue-100 transition-colors">
+        <FiBell className="w-12 h-12 text-blue-600" />
+      </div>
+    </div>
+  </div>
+
+
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-7 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-lg font-medium text-gray-700">سجل المحادثات</p>
+      </div>
+      <div className="p-4 bg-purple-50 rounded-xl group-hover:bg-purple-100 transition-colors">
+        <FiClock className="w-12 h-12 text-purple-600" />
+      </div>
+    </div>
+  </div>
+</div>
 
        
         <div className="mb-12 bg-white rounded-3xl shadow-lg border border-gray-200 p-10 text-center">

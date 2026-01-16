@@ -171,34 +171,43 @@ document.title = "إدارة الاشتراكات";
         </div>
 
      
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg opacity-90">إدارة كاملة للمتجر</p>
-              </div>
-              <FaStore className="text-6xl opacity-40 text-lime-600" />
-            </div>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mb-12">
+  
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-7 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between flex-row-reverse">
+      <div>
+        <p className="text-lg font-medium text-gray-700">إدارة كاملة للمتجر</p>
+      </div>
+      <div className="p-4 bg-emerald-50 rounded-xl group-hover:bg-emerald-100 transition-colors">
+        <FaStore className="w-12 h-12 text-emerald-600" />
+      </div>
+    </div>
+  </div>
 
-          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg opacity-90">دعم فني 24/7</p>
-              </div>
-              <FaHeadset className="text-6xl opacity-40 text-blue-600" />
-            </div>
-          </div>
+  
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-7 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between flex-row-reverse">
+      <div>
+        <p className="text-lg font-medium text-gray-700">دعم فني 24/7</p>
+      </div>
+      <div className="p-4 bg-blue-50 rounded-xl group-hover:bg-blue-100 transition-colors">
+        <FaHeadset className="w-12 h-12 text-blue-600" />
+      </div>
+    </div>
+  </div>
 
-          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg opacity-90">تحديثات تلقائية مجانية</p>
-              </div>
-              <FaCogs className="text-6xl opacity-40 text-purple-600" />
-            </div>
-          </div>
-        </div>
+
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-7 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between flex-row-reverse">
+      <div>
+        <p className="text-lg font-medium text-gray-700">تحديثات تلقائية مجانية</p>
+      </div>
+      <div className="p-4 bg-purple-50 rounded-xl group-hover:bg-purple-100 transition-colors">
+        <FaCogs className="w-12 h-12 text-purple-600" />
+      </div>
+    </div>
+  </div>
+</div>
 
 
 

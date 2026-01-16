@@ -290,62 +290,82 @@ document.title = "إدارة المنتجات";
             </div>
           </div>
 
-       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
   
-  <div className="bg-white border rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-105 transition-transform duration-300">
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
     <div className="flex items-center justify-between">
       <div>
         <p className="text-sm font-medium text-gray-600">إجمالي المنتجات</p>
-        <p className="text-3xl font-bold text-gray-800 mt-2">{stats.total}</p>
+        <p className="text-3xl font-bold text-gray-900 mt-2">{stats.total}</p>
       </div>
-      <FiPackage className="text-5xl text-gray-300" />
+      <div className="p-3 bg-emerald-100 rounded-xl">
+        <FiPackage className="w-10 h-10 text-emerald-600" />
+      </div>
     </div>
   </div>
 
-  
-  <div className="bg-white border rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-105 transition-transform duration-300">
+ 
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
     <div className="flex items-center justify-between">
       <div>
         <p className="text-sm font-medium text-gray-600">جديد</p>
-        <p className="text-3xl font-bold text-gray-800 mt-2">{stats.newCondition}</p>
+        <p className="text-3xl font-bold text-gray-900 mt-2">{stats.newCondition}</p>
       </div>
-      <FiTool className="text-5xl text-gray-300" />
+      <div className="p-3 bg-blue-100 rounded-xl">
+        <FiTool className="w-10 h-10 text-blue-600" />
+      </div>
     </div>
   </div>
 
   
-  <div className="bg-white border rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-105 transition-transform duration-300">
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
     <div className="flex items-center justify-between">
       <div>
         <p className="text-sm font-medium text-gray-600">مستعمل / مجدد</p>
-        <p className="text-3xl font-bold text-gray-800 mt-2">{stats.usedOrRefurb}</p>
+        <p className="text-3xl font-bold text-gray-900 mt-2">{stats.usedOrRefurb}</p>
       </div>
-      <FiBox className="text-5xl text-gray-300" />
+      <div className="p-3 bg-amber-100 rounded-xl">
+        <FiBox className="w-10 h-10 text-amber-600" />
+      </div>
     </div>
   </div>
 </div>
 
-          <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
-            <div className="flex flex-col sm:flex-row-reverse gap-4 items-center justify-between">
-              <div className="flex-1 relative max-w-md">
-                <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-lg" />
-                <input
-                  type="text"
-                  placeholder="ابحث في المنتجات"
-                  className="w-full pr-12 py-3.5 pl-4 rounded-xl placeholder:text-right border border-gray-300 focus:border-lime-500 focus:ring-4 focus:ring-lime-100 outline-none text-base transition bg-gray-50"
-                  onChange={(e) => debouncedSearch(e.target.value)}
-                />
-              </div>
+ <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
+  <div className="flex flex-col sm:flex-row-reverse gap-4 items-center justify-between">
 
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="px-8 py-3.5 bg-teal-50 text-teal-600 border border-emerald-100 rounded-3xl font-bold shadow transition flex items-center gap-2"
-              >
-                <FiBox className="w-5 h-5" />
-                إضافة منتج جديد
-              </button>
-            </div>
-          </div>
+    <div className="flex-1 relative max-w-md">
+      <FiSearch 
+        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-lg" 
+      />
+      <input
+        type="text"
+        placeholder="ابحث في المنتجات"
+        className="w-full pr-12 py-3.5 pl-4 placeholder:text-right rounded-xl border border-gray-300 focus:border-lime-500 focus:ring-4 focus:ring-lime-100 outline-none text-base transition bg-gray-50"
+        onChange={(e) => debouncedSearch(e.target.value)}
+      />
+    </div>
+
+  
+    <button
+      onClick={() => setShowAddModal(true)}
+      className={`
+        inline-flex items-center justify-center
+        px-6 py-3 rounded-xl
+        font-semibold text-white
+        bg-gradient-to-r from-emerald-500 to-teal-600
+        shadow-md hover:shadow-lg
+        transition-all duration-200
+        hover:from-emerald-600 hover:to-teal-700
+        transform hover:-translate-y-px
+        focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-opacity-50
+      `}
+    >
+      <FiBox className="w-5 h-5" />
+      إضافة منتج جديد
+    </button>
+  </div>
+</div>
 
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden custom-scrollbar">
             {loading ? (

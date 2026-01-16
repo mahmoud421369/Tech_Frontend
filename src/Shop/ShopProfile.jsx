@@ -226,32 +226,43 @@ const ShopProfile = () => {
         </div>
 
         
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-10">
-          <div className="bg-white border border-gray-200 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xl font-semibold text-gray-800">تحديث سريع</p>
-              </div>
-              <FiEdit3 className="text-6xl opacity-40 text-lime-600" />
-            </div>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xl font-semibold text-gray-800">عناوين متعددة</p>
-              </div>
-              <FiMapPin className="text-6xl opacity-40 text-blue-600" />
-            </div>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xl font-semibold text-gray-800">أمان عالي</p>
-              </div>
-              <FiShield className="text-6xl opacity-40 text-green-600" />
-            </div>
-          </div>
-        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 lg:gap-8 mb-10">
+ 
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-7 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-xl font-semibold text-gray-800">تحديث سريع</p>
+      </div>
+      <div className="p-4 bg-lime-50 rounded-xl group-hover:bg-lime-100 transition-colors">
+        <FiEdit3 className="w-12 h-12 text-lime-600" />
+      </div>
+    </div>
+  </div>
+
+ 
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-7 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-xl font-semibold text-gray-800">عناوين متعددة</p>
+      </div>
+      <div className="p-4 bg-blue-50 rounded-xl group-hover:bg-blue-100 transition-colors">
+        <FiMapPin className="w-12 h-12 text-blue-600" />
+      </div>
+    </div>
+  </div>
+
+
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-7 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-xl font-semibold text-gray-800">أمان عالي</p>
+      </div>
+      <div className="p-4 bg-green-50 rounded-xl group-hover:bg-green-100 transition-colors">
+        <FiShield className="w-12 h-12 text-green-600" />
+      </div>
+    </div>
+  </div>
+</div>
 
         {loading ? <ShopProfileSkeleton /> : (
           <>

@@ -224,37 +224,56 @@ document.title = "إدارة الفواتير";
         </div>
 
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg opacity-90">إجمالي الأرباح</p>
-                <p className="text-4xl font-bold mt-3">{formatNumber(totalEarnings)} ج.م</p>
-              </div>
-              <FiDollarSign className="text-6xl opacity-40 text-lime-600" />
-            </div>
-          </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mb-12">
+ 
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-7 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between flex-row-reverse">
+      <div>
+        <p className="text-sm font-medium text-gray-600">إجمالي الأرباح</p>
+        <p className="text-3xl lg:text-4xl font-bold text-gray-900 mt-3">
+          {formatNumber(totalEarnings)} ج.م
+        </p>
+      </div>
+      <div className="p-4 bg-emerald-50 rounded-xl group-hover:bg-emerald-100 transition-colors">
+        <FiDollarSign className="w-8 h-8 text-emerald-600" />
+      </div>
+    </div>
+  </div>
 
-          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg opacity-90">من الإصلاحات ({repairPct}%)</p>
-                <p className="text-4xl font-bold mt-3 text-emerald-600">{formatNumber(repairEarnings)} ج.م</p>
-              </div>
-              <FiTool className="text-6xl opacity-40 text-emerald-600" />
-            </div>
-          </div>
 
-          <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-8 transform hover:scale-105 transition">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg opacity-90">من المبيعات ({salesPct}%)</p>
-                <p className="text-4xl font-bold mt-3 text-amber-600">{formatNumber(salesEarnings)} ج.م</p>
-              </div>
-              <FiShoppingCart className="text-6xl opacity-40 text-amber-600" />
-            </div>
-          </div>
-        </div>
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-7 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between flex-row-reverse">
+      <div>
+        <p className="text-sm font-medium text-gray-600">
+          من الإصلاحات <span className="text-xs">({repairPct}%)</span>
+        </p>
+        <p className="text-3xl lg:text-4xl font-bold text-emerald-700 mt-3">
+          {formatNumber(repairEarnings)} ج.م
+        </p>
+      </div>
+      <div className="p-4 bg-emerald-50 rounded-xl group-hover:bg-emerald-100 transition-colors">
+        <FiTool className="w-8 h-8 text-emerald-600" />
+      </div>
+    </div>
+  </div>
+
+  
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-7 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between flex-row-reverse">
+      <div>
+        <p className="text-sm font-medium text-gray-600">
+          من المبيعات <span className="text-xs">({salesPct}%)</span>
+        </p>
+        <p className="text-3xl lg:text-4xl font-bold text-amber-700 mt-3">
+          {formatNumber(salesEarnings)} ج.م
+        </p>
+      </div>
+      <div className="p-4 bg-amber-50 rounded-xl group-hover:bg-amber-100 transition-colors">
+        <FiShoppingCart className="w-8 h-8 text-amber-600" />
+      </div>
+    </div>
+  </div>
+</div>
 
         
         <div className="bg-white rounded-2xl shadow-md p-6 mb-8">

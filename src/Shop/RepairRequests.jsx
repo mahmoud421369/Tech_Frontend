@@ -318,47 +318,59 @@ const RepairRequests = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-8 mb-6">
-            <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-6 transform hover:scale-105 transition">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-base opacity-90">إجمالي الطلبات</p>
-                  <p className="text-3xl font-bold mt-2">{stats.totalRepairs}</p>
-                </div>
-                <FiPackage className="text-5xl opacity-40" />
-              </div>
-            </div>
+   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-8 mb-6">
+  
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">إجمالي الطلبات</p>
+        <p className="text-3xl font-bold text-gray-900 mt-2">{stats.totalRepairs}</p>
+      </div>
+      <div className="p-4 bg-emerald-50 rounded-xl group-hover:bg-emerald-100 transition-colors">
+        <FiPackage className="w-8 h-8 text-emerald-600" />
+      </div>
+    </div>
+  </div>
 
-            <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-6 transform hover:scale-105 transition">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-base opacity-90">في انتظار العرض</p>
-                  <p className="text-3xl font-bold mt-2">{stats.pendingQuote}</p>
-                </div>
-                <FiInfo className="text-5xl opacity-40" />
-              </div>
-            </div>
 
-            <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-6 transform hover:scale-105 transition">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-base opacity-90">تحت الإصلاح</p>
-                  <p className="text-3xl font-bold mt-2">{stats.underRepair}</p>
-                </div>
-                <FiTool className="text-5xl opacity-40" />
-              </div>
-            </div>
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">في انتظار العرض</p>
+        <p className="text-3xl font-bold text-gray-900 mt-2">{stats.pendingQuote}</p>
+      </div>
+      <div className="p-4 bg-amber-50 rounded-xl group-hover:bg-amber-100 transition-colors">
+        <FiInfo className="w-8 h-8 text-amber-600" />
+      </div>
+    </div>
+  </div>
 
-            <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-6 transform hover:scale-105 transition">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-base opacity-90">مكتملة</p>
-                  <p className="text-3xl font-bold mt-2">{stats.completed}</p>
-                </div>
-                <FiCheckCircle className="text-5xl opacity-40 text-green-600" />
-              </div>
-            </div>
-          </div>
+
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">تحت الإصلاح</p>
+        <p className="text-3xl font-bold text-gray-900 mt-2">{stats.underRepair}</p>
+      </div>
+      <div className="p-4 bg-blue-50 rounded-xl group-hover:bg-blue-100 transition-colors">
+        <FiTool className="w-8 h-8 text-blue-600" />
+      </div>
+    </div>
+  </div>
+
+ 
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">مكتملة</p>
+        <p className="text-3xl font-bold text-gray-900 mt-2">{stats.completed}</p>
+      </div>
+      <div className="p-4 bg-green-50 rounded-xl group-hover:bg-green-100 transition-colors">
+        <FiCheckCircle className="w-8 h-8 text-green-600" />
+      </div>
+    </div>
+  </div>
+</div>
 
           <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
             <div className="flex flex-col sm:flex-row gap-4 items-end">

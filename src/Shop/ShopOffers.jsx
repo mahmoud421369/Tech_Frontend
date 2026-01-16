@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   FiSearch, FiPlus, FiInfo, FiEdit3, FiTrash2, FiX, FiCalendar, FiTag,
-  FiPercent, FiDollarSign, FiChevronRight, FiChevronLeft, FiCheckCircle
+  FiPercent, FiDollarSign, FiChevronRight, FiChevronLeft, FiCheckCircle,
+  FiPlusSquare
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import DatePicker from 'react-datepicker';
@@ -86,99 +87,102 @@ const ShopOffers = ({darkMode}) => {
     fetchOffers();
   }, [fetchOffers]);
 
-  const viewOfferDetails = useCallback(async (offerId) => {
-    try {
-      const res = await api.get(`/api/shop/offers/${offerId}`);
-      const offer = res.data;
+const viewOfferDetails = useCallback(async (offerId) => {
+  try {
+    const { data: offer } = await api.get(`/api/shop/offers/${offerId}`);
 
-      const startFormatted = offer.startDate
-        ? new Date(offer.startDate).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })
-        : 'غير محدد';
+    const startFormatted = offer.startDate
+      ? new Date(offer.startDate).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })
+      : 'غير محدد';
 
-      const endFormatted = offer.endDate
-        ? new Date(offer.endDate).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })
-        : 'غير محدد';
+    const endFormatted = offer.endDate
+      ? new Date(offer.endDate).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })
+      : 'غير محدد';
 
-      const statusColor = 
-        offer.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
-        offer.status === 'SCHEDULED' ? 'bg-yellow-100 text-yellow-800' :
-        'bg-red-100 text-red-800';
+    const statusStyles = {
+      ACTIVE: 'bg-emerald-100 text-emerald-800 border border-emerald-200',
+      SCHEDULED: 'bg-amber-100 text-amber-800 border border-amber-200',
+      EXPIRED: 'bg-red-100 text-red-800 border border-red-200',
+      INACTIVE: 'bg-gray-100 text-gray-700 border border-gray-200',
+    };
 
-      const discountText = offer.discountType === 'PERCENTAGE' ? '%' : 'ج.م';
+    const statusColor = statusStyles[offer.status] || 'bg-gray-100 text-gray-700 border border-gray-200';
 
-     Swal.fire({
-  title: `
-    <div class="flex flex-col items-center gap-3 mb-4">
-   
-      <div class="text-center">
-        <p class="text-sm text-gray-500">عرض رقم</p>
-        <p class="text-2xl font-bold text-gray-900">#${offer.id}</p>
-        <p class="text-lg font-semibold text-emerald-700 mt-1">${offer.name}</p>
-      </div>
-    </div>
-  `,
-  html: `
-    <div class="space-y-4 text-sm">
-      <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
-        <p class="text-gray-600 dark:text-gray-400 font-medium mb-2">الوصف</p>
-        <p class="text-gray-900 dark:text-gray-100 leading-relaxed">
-          ${offer.description || 'لا يوجد وصف متاح'}
-        </p>
-      </div>
+    const discountText = offer.discountType === 'PERCENTAGE' ? '%' : 'ج.م';
 
-      <div class="grid grid-cols-2 gap-3">
-        <div class="bg-gradient-to-br from-lime-50 to-emerald-50 dark:from-lime-900/30 dark:to-emerald-900/30 rounded-xl p-4 text-center">
-          <p class="text-gray-600 dark:text-gray-400 text-xs mb-1">قيمة الخصم</p>
-          <p class="text-xl font-bold text-lime-600 dark:text-lime-400">
-            ${offer.discountValue} ${discountText}
-          </p>
+    Swal.fire({
+    
+
+      html: `
+        <div class="space-y-4 text-sm">
+          <div class="bg-gray-50 dark:bg-gray-800/60 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+          <p class="text-gray-900 dark:text-gray-100 leading-relaxed">${offer.id}</p>
+            <div class="flex items-center justify-start gap-2 mb-2">
+              <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <p class="font-medium text-gray-700 text-right dark:text-gray-300">الوصف</p>
+            </div>
+            <p class="text-gray-900 dark:text-gray-100 leading-relaxed">
+              ${offer.description || 'لا يوجد وصف متاح'}
+            </p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div class="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/30 rounded-xl p-4 text-center">
+              <p class="text-gray-600 dark:text-gray-400 text-xs mb-1">الخصم</p>
+              <p class="text-xl font-bold text-emerald-700 dark:text-emerald-400">
+                ${offer.discountValue}${discountText}
+              </p>
+            </div>
+
+            <div class="bg-gray-50 dark:bg-gray-800/60 rounded-xl p-4 text-center">
+              <p class="text-gray-600 dark:text-gray-400 text-xs mb-1">الحالة</p>
+              <span class="inline-block px-4 py-1.5 rounded-full text-xs font-semibold ${statusColor}">
+                ${statusTranslations[offer.status] || offer.status}
+              </span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div class="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 text-center">
+              <p class="text-gray-600 dark:text-gray-400 text-xs mb-1">يبدأ</p>
+              <p class="font-semibold text-blue-700 dark:text-blue-400">${startFormatted}</p>
+            </div>
+            <div class="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4 text-center">
+              <p class="text-gray-600 dark:text-gray-400 text-xs mb-1">ينتهي</p>
+              <p class="font-semibold text-purple-700 dark:text-purple-400">${endFormatted}</p>
+            </div>
+          </div>
         </div>
+      `,
 
-        <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 text-center">
-          <p class="text-gray-600 dark:text-gray-400 text-xs mb-1">الحالة</p>
-          <span class="inline-block px-4 py-1.5 rounded-full text-xs font-bold ${statusColor}">
-            ${statusTranslations[offer.status]}
-          </span>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-2 gap-3">
-        <div class="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 text-center">
-          <p class="text-gray-600 dark:text-gray-400 text-xs mb-1">يبدأ</p>
-          <p class="font-semibold text-blue-700 dark:text-blue-400">${startFormatted}</p>
-        </div>
-        <div class="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4 text-center">
-          <p class="text-gray-600 dark:text-gray-400 text-xs mb-1">ينتهي</p>
-          <p class="font-semibold text-purple-700 dark:text-purple-400">${endFormatted}</p>
-        </div>
-      </div>
-    </div>
-  `,
-  width: 480,
-  padding: '2rem',
-  showConfirmButton: true,
-  confirmButtonText: 'إغلاق',
-  confirmButtonColor: '#94a3b8',
-  customClass: {
-    popup: 'rounded-3xl shadow-2xl',
-    title: 'mb-0',
-    htmlContainer: 'pt-2',
-    confirmButton: 'px-8 py-3 rounded-xl font-medium hover:scale-105 transition',
-  },
-  buttonsStyling: false,
-  background: darkMode ? '#111827' : '#ffffff',
-});
-    } catch (err) {
-      Swal.fire({
-        title: 'خطأ',
-        text: 'فشل تحميل تفاصيل العرض',
-        icon: 'error',
-        toast: true,
-        position: 'top-end',
-        timer: 2000,
-      });
-    }
-  }, [statusTranslations]);
+      width: 460,
+      padding: '1.5rem',
+      showConfirmButton: true,
+      confirmButtonText: 'إغلاق',
+      confirmButtonColor: '#10b981',
+      customClass: {
+        popup: 'rounded-2xl shadow-xl',
+        title: 'mb-1',
+        htmlContainer: 'pt-1',
+        confirmButton: 'px-10 py-2.5 rounded-xl font-medium hover:scale-105 transition',
+      },
+      buttonsStyling: false,
+      background: document.documentElement.classList.contains('dark') ? '#111827' : '#ffffff',
+    });
+  } catch {
+    Swal.fire({
+      title: 'خطأ',
+      text: 'فشل تحميل تفاصيل العرض',
+      icon: 'error',
+      toast: true,
+      position: 'top-end',
+      timer: 2000,
+      showConfirmButton: false,
+    });
+  }
+}, [statusTranslations]);
 
   const openModalForAdd = () => {
     setEditingOffer(null);
@@ -292,69 +296,105 @@ const ShopOffers = ({darkMode}) => {
 
 
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-8 mb-6">
-            <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-6 transform hover:scale-105 transition">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-base opacity-90">إجمالي العروض</p>
-                  <p className="text-3xl font-bold mt-2">{formatNumber(stats.totalOffers)}</p>
-                </div>
-                <FiTag className="text-5xl opacity-40 text-lime-600" />
-              </div>
-            </div>
+         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-8 mb-6">
+  
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">إجمالي العروض</p>
+        <p className="text-3xl font-bold text-gray-900 mt-2">
+          {formatNumber(stats.totalOffers)}
+        </p>
+      </div>
+      <div className="p-3.5 bg-lime-50 rounded-xl group-hover:bg-lime-100 transition-colors">
+        <FiTag className="w-10 h-10 text-lime-600" />
+      </div>
+    </div>
+  </div>
 
-            <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-6 transform hover:scale-105 transition">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-base opacity-90">العروض النشطة</p>
-                  <p className="text-3xl font-bold mt-2 text-emerald-600">{formatNumber(stats.activeOffers)}</p>
-                </div>
-                <FiCheckCircle className="text-5xl opacity-40 text-emerald-600" />
-              </div>
-            </div>
+ 
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">العروض النشطة</p>
+        <p className="text-3xl font-bold text-emerald-700 mt-2">
+          {formatNumber(stats.activeOffers)}
+        </p>
+      </div>
+      <div className="p-3.5 bg-emerald-50 rounded-xl group-hover:bg-emerald-100 transition-colors">
+        <FiCheckCircle className="w-10 h-10 text-emerald-600" />
+      </div>
+    </div>
+  </div>
 
-            <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-6 transform hover:scale-105 transition">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-base opacity-90">بالنسبة المئوية ({percentagePct}%)</p>
-                  <p className="text-3xl font-bold mt-2 text-amber-600">{formatNumber(stats.percentageOffers)}</p>
-                </div>
-                <FiPercent className="text-5xl opacity-40 text-amber-600" />
-              </div>
-            </div>
+ 
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">
+          نسبة مئوية <span className="text-xs">({percentagePct}%)</span>
+        </p>
+        <p className="text-3xl font-bold text-amber-700 mt-2">
+          {formatNumber(stats.percentageOffers)}
+        </p>
+      </div>
+      <div className="p-3.5 bg-amber-50 rounded-xl group-hover:bg-amber-100 transition-colors">
+        <FiPercent className="w-10 h-10 text-amber-600" />
+      </div>
+    </div>
+  </div>
 
-            <div className="bg-white border text-gray-600 rounded-3xl shadow-lg p-6 transform hover:scale-105 transition">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-base opacity-90">مبلغ ثابت ({fixedPct}%)</p>
-                  <p className="text-3xl font-bold mt-2 text-purple-600">{formatNumber(stats.fixedOffers)}</p>
-                </div>
-                <FiDollarSign className="text-5xl opacity-40 text-purple-600" />
-              </div>
-            </div>
-          </div>
+ 
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">
+          مبلغ ثابت <span className="text-xs">({fixedPct}%)</span>
+        </p>
+        <p className="text-3xl font-bold text-purple-700 mt-2">
+          {formatNumber(stats.fixedOffers)}
+        </p>
+      </div>
+      <div className="p-3.5 bg-purple-50 rounded-xl group-hover:bg-purple-100 transition-colors">
+        <FiDollarSign className="w-10 h-10 text-purple-600" />
+      </div>
+    </div>
+  </div>
+</div>
 
-        <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
-          <div className="flex flex-col sm:flex-row-reverse gap-4 items-center justify-between">
-            <div className="flex-1 relative max-w-md">
-              <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-lg" />
-              <input
-                type="text"
-                placeholder="ابحث في العروض بالاسم"
-                onChange={handleSearchChange}
-                className="w-full pr-12 py-3.5 pl-4 placeholder:text-right rounded-xl border border-gray-300 focus:border-lime-500 focus:ring-4 focus:ring-lime-100 outline-none text-base transition bg-gray-50"
-              />
-            </div>
 
-            <button
-              onClick={openModalForAdd}
-              className="px-8 py-3.5 bg-teal-50 text-teal-600 border border-emerald-100 rounded-3xl font-bold shadow transition flex items-center gap-2"
-            >
-              <FiPlus className="w-5 h-5" />
-              إضافة عرض جديد
-            </button>
-          </div>
-        </div>
+      <div className="bg-white rounded-2xl shadow-sm p-5 mb-8 border border-gray-100">
+  <div className="flex flex-col sm:flex-row-reverse items-center gap-4">
+    <div className="relative flex-1">
+      <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+      <input
+        type="search"
+        placeholder="ابحث في العروض..."
+        onChange={handleSearchChange}
+        className="
+          w-full pl-4 pr-12 py-3 rounded-xl bg-gray-50 border border-gray-200
+          focus:border-emerald-500 focus:outline-none focus:ring-emerald-200/60 focus:ring-2
+          text-base placeholder:text-right transition-all
+        "
+      />
+    </div>
+
+   
+    <button
+      onClick={openModalForAdd}
+      className="
+        flex items-center gap-2 px-6 py-3.5
+        bg-gradient-to-r from-lime-600 to-emerald-600
+        hover:from-lime-700 hover:to-emerald-700
+        text-white font-medium rounded-xl shadow-md
+        hover:shadow-lg transition-all duration-200
+      "
+    >
+      <FiPlusSquare className="w-5 h-5" />
+      إضافة عرض
+    </button>
+  </div>
+</div>
 
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           {loading ? (

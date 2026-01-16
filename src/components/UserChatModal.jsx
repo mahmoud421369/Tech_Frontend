@@ -1,10 +1,13 @@
 import React, { useEffect, useState, useCallback, useRef, memo } from 'react';
 import * as SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
-import { FiX, FiSend, FiMessageSquare, FiCheckCircle } from 'react-icons/fi';
+import { 
+  FiX, FiSend, FiMessageSquare, FiCheckCircle, FiUser 
+} from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import api from '../api';
 import DOMPurify from 'dompurify';
+import clsx from 'clsx';
 
 const UserChatModal = memo(({ shopId, shopName: initialShopName, onClose }) => {
   const userProfile = {
@@ -13,7 +16,7 @@ const UserChatModal = memo(({ shopId, shopName: initialShopName, onClose }) => {
   };
 
   const [stompClient, setStompClient] = useState(null);
-  const [sessions, setSessions] = useState([]); 
+  const [sessions, setSessions] = useState([]);
   const [activeSession, setActiveSession] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -23,39 +26,36 @@ const UserChatModal = memo(({ shopId, shopName: initialShopName, onClose }) => {
 
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const inputRef = useRef(null);
   const loadedSessions = useRef(new Set());
 
-  const generateTempId = () => `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const generateTempId = () => `temp-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
-
-  const getOrCreateSession = useCallback((shopIdFromMsg, shopNameFromMsg = 'Shop') => {
+ 
+  
+  const getOrCreateSession = useCallback((shopIdFromMsg, shopNameFromMsg = 'المتجر') => {
     const sid = String(shopIdFromMsg);
     let session = sessions.find(s => s.shopId === sid);
 
     if (!session) {
       session = {
         shopId: sid,
-        shopName: shopNameFromMsg,
+        shopName: shopNameFromMsg || 'المتجر',
         lastMessage: null,
         unreadCount: 0,
       };
-      setSessions(prev => {
-       
-        if (prev.some(s => s.shopId === sid)) return prev;
-        return [session, ...prev];
-      });
-    } else {
-      
-      if (shopNameFromMsg && session.shopName === 'Shop') {
-        setSessions(prev =>
-          prev.map(s => (s.shopId === sid ? { ...s, shopName: shopNameFromMsg } : s))
-        );
-      }
+      setSessions(prev => prev.some(s => s.shopId === sid) ? prev : [session, ...prev]);
+    } else if (shopNameFromMsg && session.shopName === 'المتجر') {
+      setSessions(prev =>
+        prev.map(s => s.shopId === sid ? { ...s, shopName: shopNameFromMsg } : s)
+      );
     }
+
     return session;
   }, [sessions]);
 
- 
+  
+
   const loadMessageHistory = useCallback(async (session) => {
     if (!session || !userProfile.id || loadedSessions.current.has(session.shopId)) return;
 
@@ -63,38 +63,35 @@ const UserChatModal = memo(({ shopId, shopName: initialShopName, onClose }) => {
     loadedSessions.current.add(session.shopId);
 
     try {
-      const res = await api.get(`/api/chats/${userProfile.id}/shop/${session.shopId}/paginated`);
-      const rawMessages = res.data.content || [];
+      const { data } = await api.get(`/api/chats/${userProfile.id}/shop/${session.shopId}/paginated`);
+      const raw = data.content || [];
 
-      const formatted = rawMessages.map(msg => ({
+      const formatted = raw.map(msg => ({
         id: msg.id,
         content: msg.message || '',
         senderType: msg.sentBy === 'USER' ? 'USER' : 'SHOP',
         senderName: msg.sentBy === 'USER' ? userProfile.email : (msg.shopName || session.shopName),
         createdAt: msg.createdAt,
         read: msg.read || false,
-      }));
+      })).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
-      formatted.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
       setMessages(formatted);
 
-    
       try {
         await api.put(`/api/chats/${userProfile.id}/shop/${session.shopId}/mark-read`);
         setSessions(prev =>
-          prev.map(s => (s.shopId === session.shopId ? { ...s, unreadCount: 0 } : s))
+          prev.map(s => s.shopId === session.shopId ? { ...s, unreadCount: 0 } : s)
         );
-      } catch (e) {
-        console.warn('Failed to mark as read');
-      }
+      } catch {}
     } catch (err) {
-      console.error('Failed to load messages:', err);
+      console.error(err);
       setMessages([]);
-      Swal.fire('Error', 'Failed to load chat history', 'error');
+      Swal.fire({ icon: 'error', title: 'خطأ', text: 'تعذر تحميل سجل المحادثة' });
     } finally {
       setIsLoadingHistory(false);
     }
   }, [userProfile.id]);
+
 
 
   const handleIncomingMessage = useCallback((msg) => {
@@ -105,28 +102,27 @@ const UserChatModal = memo(({ shopId, shopName: initialShopName, onClose }) => {
         if (activeSession?.shopId === String(body.shopId)) {
           setIsTyping(true);
           clearTimeout(typingTimeoutRef.current);
-          typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 3000);
+          typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 2800);
         }
         return;
       }
 
       if (body.type === "CHAT" && body.action === "SEND" && body.status === "SUCCESS") {
-        const payload = body.payload;
-        const shopIdFromMsg = String(payload.senderId || body.shopId || payload.shopId);
-        const shopNameFromMsg = payload.shopName || initialShopName || 'Shop';
+        const p = body.payload;
+        const shopIdFromMsg = String(p.senderId || body.shopId || p.shopId);
+        const shopNameFromMsg = p.shopName || initialShopName || 'المتجر';
 
         const newMessage = {
-          id: payload.id || generateTempId(),
-          content: payload.message || payload.content || '',
+          id: p.id || generateTempId(),
+          content: p.message || p.content || '',
           senderType: "SHOP",
           senderName: shopNameFromMsg,
-          createdAt: payload.createdAt || new Date().toISOString(),
+          createdAt: p.createdAt || new Date().toISOString(),
           read: false,
         };
 
         const session = getOrCreateSession(shopIdFromMsg, shopNameFromMsg);
 
-      
         setSessions(prev =>
           prev.map(s =>
             s.shopId === shopIdFromMsg
@@ -140,18 +136,16 @@ const UserChatModal = memo(({ shopId, shopName: initialShopName, onClose }) => {
           )
         );
 
-        
         if (activeSession?.shopId === shopIdFromMsg) {
-          setMessages(prev => {
-            if (prev.some(m => m.id === newMessage.id)) return prev;
-            return [...prev, newMessage];
-          });
+          setMessages(prev => prev.some(m => m.id === newMessage.id) ? prev : [...prev, newMessage]);
         }
       }
     } catch (err) {
-      console.error('WebSocket message error:', err);
+      console.error('WebSocket parse error:', err);
     }
   }, [activeSession, getOrCreateSession, initialShopName]);
+
+  
 
 
   useEffect(() => {
@@ -161,13 +155,15 @@ const UserChatModal = memo(({ shopId, shopName: initialShopName, onClose }) => {
       webSocketFactory: () => new SockJS('http://localhost:8080/ws'),
       connectHeaders: { Authorization: `Bearer ${localStorage.getItem('authToken')}` },
       reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
       onConnect: () => {
         setIsConnected(true);
         client.subscribe(`/topic/user/${userProfile.id}/chats`, handleIncomingMessage);
       },
       onDisconnect: () => setIsConnected(false),
       onStompError: (frame) => {
-        console.error('STOMP Error:', frame);
+        console.error('STOMP error:', frame);
         setIsConnected(false);
       },
     });
@@ -175,49 +171,44 @@ const UserChatModal = memo(({ shopId, shopName: initialShopName, onClose }) => {
     client.activate();
     setStompClient(client);
 
-    return () => {
-      client.deactivate();
-      clearTimeout(typingTimeoutRef.current);
-    };
+    return () => client.deactivate();
   }, [userProfile.id, handleIncomingMessage]);
-
 
   useEffect(() => {
     if (shopId && userProfile.id) {
-      const session = getOrCreateSession(shopId, initialShopName || 'Shop');
+      const session = getOrCreateSession(shopId, initialShopName);
       setActiveSession(session);
     }
   }, [shopId, initialShopName, userProfile.id, getOrCreateSession]);
 
- 
   useEffect(() => {
-    if (activeSession) {
-      loadMessageHistory(activeSession);
-    }
+    activeSession && loadMessageHistory(activeSession);
   }, [activeSession, loadMessageHistory]);
 
  
+
+
   const sendMessage = useCallback(() => {
     if (!input.trim() || !activeSession || !isConnected || !stompClient) return;
 
-    const sanitized = DOMPurify.sanitize(input.trim());
+    const clean = DOMPurify.sanitize(input.trim());
     const tempId = generateTempId();
 
-    const optimisticMsg = {
+    const optimistic = {
       id: tempId,
-      content: sanitized,
+      content: clean,
       senderType: "USER",
       senderName: userProfile.email,
       createdAt: new Date().toISOString(),
       read: false,
     };
 
-    setMessages(prev => [...prev, optimisticMsg]);
+    setMessages(prev => [...prev, optimistic]);
 
     setSessions(prev =>
       prev.map(s =>
         s.shopId === activeSession.shopId
-          ? { ...s, lastMessage: { message: sanitized, sentBy: "USER" } }
+          ? { ...s, lastMessage: { message: clean, sentBy: "USER" } }
           : s
       )
     );
@@ -226,7 +217,7 @@ const UserChatModal = memo(({ shopId, shopName: initialShopName, onClose }) => {
       destination: `/app/chat/user/${userProfile.id}/shop/${activeSession.shopId}`,
       headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` },
       body: JSON.stringify({
-        payload: sanitized,
+        payload: clean,
         senderId: userProfile.id,
         senderType: "USER",
         recipientId: activeSession.shopId,
@@ -234,6 +225,7 @@ const UserChatModal = memo(({ shopId, shopName: initialShopName, onClose }) => {
     });
 
     setInput('');
+    inputRef.current?.focus();
   }, [input, activeSession, stompClient, isConnected, userProfile]);
 
   const sendTyping = useCallback(() => {
@@ -241,14 +233,9 @@ const UserChatModal = memo(({ shopId, shopName: initialShopName, onClose }) => {
 
     stompClient.publish({
       destination: `/app/chat/${userProfile.id}/${activeSession.shopId}/typing`,
-      body: JSON.stringify({}),
+      body: '{}',
     });
   }, [stompClient, isConnected, activeSession, input]);
-
-  const handleInputChange = (e) => {
-    setInput(e.target.value);
-    sendTyping();
-  };
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -261,55 +248,69 @@ const UserChatModal = memo(({ shopId, shopName: initialShopName, onClose }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
+  if (!userProfile.id) return null;
+
   return (
-    <div className="fixed inset-0 bg-black/70 dark:bg-black/90 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-900 w-full max-w-5xl h-[85vh] rounded-3xl shadow-2xl flex flex-col md:flex-row overflow-hidden">
+    <div
+      className="fixed inset-0 bg-black/65 backdrop-blur-sm z-[1000] flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="user-chat-title"
+    >
+      <div className="bg-white w-full max-w-4xl h-[86vh] rounded-2xl shadow-2xl overflow-hidden flex border border-gray-200/70">
         
-        <div className="w-full md:w-80 bg-gray-50 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <FiMessageSquare className="text-xl text-lime-600" />
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">My Chats</h2>
+        <div className="w-72 bg-gradient-to-b from-gray-50 to-white border-r flex flex-col">
+          <div className="p-4 border-b bg-white/80 backdrop-blur-sm flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <FiMessageSquare className="text-xl text-emerald-600" />
+              <h2 id="user-chat-title" className="text-lg font-bold text-gray-800">المحادثات</h2>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
-              <FiX className="text-gray-600 dark:text-gray-300" />
+            <button
+              onClick={onClose}
+              className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+              aria-label="إغلاق النافذة"
+            >
+              <FiX className="text-xl text-gray-600" />
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          <div className="flex-1 overflow-y-auto px-2.5 py-3 space-y-2 scrollbar-thin">
             {sessions.length === 0 ? (
-              <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                <FiMessageSquare className="w-12 h-12 mx-auto opacity-30 mb-3" />
-                <p>No chats yet</p>
+              <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                <FiMessageSquare size={48} className="opacity-30 mb-3" />
+                <p className="text-sm">لا توجد محادثات بعد</p>
               </div>
             ) : (
-              sessions.map((s) => (
+              sessions.map((session) => (
                 <div
-                  key={s.shopId}
-                  onClick={() => setActiveSession(s)}
-                  className={`p-3 rounded-xl cursor-pointer transition-all hover:shadow border ${
-                    activeSession?.shopId === s.shopId
-                      ? 'bg-lime-50 dark:bg-lime-900/30 border-lime-400'
-                      : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600'
-                  }`}
+                  key={session.shopId}
+                  onClick={() => setActiveSession(session)}
+                  className={clsx(
+                    "p-3 rounded-xl cursor-pointer transition-all duration-200 border",
+                    activeSession?.shopId === session.shopId
+                      ? "bg-emerald-50 border-emerald-300 shadow-sm"
+                      : "hover:bg-gray-50 border-transparent"
+                  )}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-lime-100 dark:bg-lime-800 rounded-full flex items-center justify-center text-lime-700 dark:text-lime-400 font-bold">
-                      {s.shopName[0]?.toUpperCase() || '?'}
+                    <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center font-semibold text-sm shrink-0">
+                      {session.shopName?.[0]?.toUpperCase() || '?'}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-sm text-gray-900 dark:text-white truncate">
-                        {s.shopName}
-                      </h4>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 truncate mt-1">
-                        {s.lastMessage?.message || 'Start chatting'}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex justify-between items-baseline gap-2">
+                        <h4 className="font-medium text-gray-900 truncate text-sm">
+                          {session.shopName}
+                        </h4>
+                        {session.unreadCount > 0 && (
+                          <span className="bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                            {session.unreadCount}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 truncate mt-0.5">
+                        {session.lastMessage?.message || 'جاهز لبدء المحادثة'}
                       </p>
                     </div>
-                    {s.unreadCount > 0 && (
-                      <span className="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                        {s.unreadCount}
-                      </span>
-                    )}
                   </div>
                 </div>
               ))
@@ -317,103 +318,122 @@ const UserChatModal = memo(({ shopId, shopName: initialShopName, onClose }) => {
           </div>
         </div>
 
-     
-        <div className="flex-1 flex flex-col">
+        
+        <div className="flex-1 flex flex-col bg-gray-50/40">
           {activeSession ? (
             <>
-              <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-5 py-4 flex items-center justify-between">
+             
+              <div className="bg-white border-b px-5 py-3.5 flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-lime-100 dark:bg-lime-800 rounded-full flex items-center justify-center text-lime-700 dark:text-lime-400 font-bold text-lg">
-                    {activeSession.shopName[0]?.toUpperCase() || '?'}
+                  <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center font-bold text-lg shrink-0">
+                    {activeSession.shopName?.[0]?.toUpperCase() || '?'}
                   </div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                    {activeSession.shopName}
-                  </h3>
+                  <h3 className="font-bold text-gray-900">{activeSession.shopName}</h3>
                 </div>
+
                 {isTyping && (
-                  <div className="text-sm text-lime-600 dark:text-lime-400 animate-pulse flex items-center gap-2">
+                  <div className="text-sm text-emerald-600 flex items-center gap-2 animate-pulse">
                     <div className="flex gap-1">
-                      <span className="w-2 h-2 bg-current rounded-full animate-bounce"></span>
-                      <span className="w-2 h-2 bg-current rounded-full animate-bounce delay-100"></span>
-                      <span className="w-2 h-2 bg-current rounded-full animate-bounce delay-200"></span>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.2s]" />
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.4s]" />
                     </div>
-                    typing...
+                    يكتب...
                   </div>
                 )}
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+             
+              <div className="flex-1 overflow-y-auto p-5 space-y-5 scrollbar-thin">
                 {isLoadingHistory ? (
                   <div className="flex justify-center items-center h-full">
-                    <div className="w-10 h-10 border-4 border-lime-600 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
                   </div>
                 ) : messages.length === 0 ? (
-                  <div className="text-center py-20 text-gray-500 dark:text-gray-400">
-                    <FiMessageSquare className="w-16 h-16 mx-auto opacity-20 mb-4" />
-                    <p>Start the conversation!</p>
+                  <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                    <FiUser size={64} className="opacity-20 mb-4" />
+                    <p className="text-lg font-medium">ابدأ المحادثة الآن!</p>
                   </div>
                 ) : (
-                  messages.map((m) => (
-                    <div
-                      key={m.id}
-                      className={`flex items-start gap-3 ${m.senderType === 'USER' ? 'flex-row-reverse' : ''}`}
-                    >
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm ${
-                        m.senderType === 'USER' ? 'bg-lime-600' : 'bg-gray-500'
-                      }`}>
-                        {m.senderName[0]?.toUpperCase() || '?'}
-                      </div>
-                      <div className={`max-w-lg ${m.senderType === 'USER' ? 'text-right' : ''}`}>
-                        <div className={`inline-block px-5 py-3 rounded-2xl shadow ${
-                          m.senderType === 'USER'
-                            ? 'bg-lime-600 text-white'
-                            : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600'
-                        }`}>
-                          <div
-                            className="text-sm leading-relaxed"
-                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(m.content) }}
-                          />
-                          <p className="text-xs opacity-70 mt-2 flex items-center gap-1 justify-end">
-                            {m.senderType === 'USER' && m.read && <FiCheckCircle className="text-xs" />}
-                            {new Date(m.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                          </p>
+                  messages.map((msg) => {
+                    const isUser = msg.senderType === 'USER';
+                    return (
+                      <div
+                        key={msg.id}
+                        className={clsx(
+                          "flex items-end gap-3 max-w-[80%]",
+                          isUser ? "flex-row-reverse ml-auto" : "mr-auto"
+                        )}
+                      >
+                        <div className={clsx(
+                          "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium shrink-0",
+                          isUser
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-gray-200 text-gray-700"
+                        )}>
+                          {msg.senderName?.[0]?.toUpperCase() || '?'}
+                        </div>
+
+                        <div className={clsx(
+                          "px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm",
+                          isUser
+                            ? "bg-gradient-to-br from-emerald-600 to-emerald-700 text-white rounded-br-none"
+                            : "bg-gradient-to-br from-gray-700 to-gray-800 text-white rounded-bl-none"
+                        )}>
+                          <div dangerouslySetInnerHTML={{ __html: msg.content }} />
+                          <div className="text-xs opacity-70 mt-1.5 flex items-center gap-1.5 justify-end">
+                            {isUser && msg.read && <FiCheckCircle className="text-emerald-200" size={13} />}
+                            {new Date(msg.createdAt).toLocaleTimeString('ar-EG', {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
                 <div ref={messagesEndRef} />
               </div>
 
-              <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4">
+             
+              <div className="bg-white border-t p-4 shadow-inner">
                 <div className="flex items-center gap-3">
                   <input
+                    ref={inputRef}
+                    dir="rtl"
                     value={input}
-                    onChange={handleInputChange}
+                    onChange={(e) => {
+                      setInput(e.target.value);
+                      sendTyping();
+                    }}
                     onKeyDown={handleKeyDown}
-                    placeholder="Type your message..."
-                    className="flex-1 px-5 py-3 border border-gray-300 dark:border-gray-600 rounded-2xl focus:outline-none focus:ring-2 focus:ring-lime-500 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="اكتب رسالتك..."
+                    className="flex-1 px-5 py-3.5 bg-gray-100 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 transition-all text-base"
+                    aria-label="حقل كتابة الرسالة"
                   />
                   <button
                     onClick={sendMessage}
                     disabled={!isConnected || !input.trim()}
-                    className={`px-6 py-3 rounded-2xl font-medium flex items-center gap-2 transition ${
+                    className={clsx(
+                      "px-6 py-3.5 rounded-2xl font-medium transition-all flex items-center gap-2 shadow-sm",
                       isConnected && input.trim()
-                        ? 'bg-lime-600 hover:bg-lime-700 text-white shadow'
-                        : 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed'
-                    }`}
+                        ? "bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white"
+                        : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                    )}
+                    aria-label="إرسال الرسالة"
                   >
-                    <FiSend className="text-lg" />
-                    Send
+                    <FiSend size={18} />
+                    إرسال
                   </button>
                 </div>
               </div>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
+            <div className="flex-1 flex items-center justify-center text-gray-400">
               <div className="text-center">
-                <FiMessageSquare className="w-20 h-20 mx-auto opacity-20 mb-4" />
-                <p className="text-lg">Select a shop to start chatting</p>
+                <FiMessageSquare size={72} className="opacity-15 mb-4 mx-auto" />
+                <p className="text-xl font-medium">اختر متجر لبدء المحادثة</p>
               </div>
             </div>
           )}

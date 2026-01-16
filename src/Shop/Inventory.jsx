@@ -175,50 +175,58 @@ document.title = "إدارة الجرد";
         </div>
 
         
-       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-  
-  <div className="bg-white border rounded-2xl shadow-md p-6">
-    <div className="flex items-center justify-between">
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+ 
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between flex-row-reverse">
       <div>
         <p className="text-sm font-medium text-gray-600">إجمالي المنتجات</p>
-        <p className="text-3xl font-bold text-gray-800 mt-2">{stats.totalItems}</p>
+        <p className="text-3xl font-bold text-gray-900 mt-2">{stats.totalItems}</p>
       </div>
-      <FiBox className="text-5xl text-gray-300" />
+      <div className="p-3.5 bg-gray-100 rounded-xl group-hover:bg-gray-200 transition-colors">
+        <FiBox className="w-8 h-8 text-gray-700" />
+      </div>
     </div>
   </div>
 
  
-  <div className="bg-white border rounded-2xl shadow-md p-6">
-    <div className="flex items-center justify-between">
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between flex-row-reverse">
       <div>
         <p className="text-sm font-medium text-gray-600">مخزون منخفض</p>
-        <p className="text-3xl font-bold text-red-600 mt-2">{stats.lowStock}</p>
+        <p className="text-3xl font-bold text-red-700 mt-2">{stats.lowStock}</p>
       </div>
-      <FiAlertTriangle className="text-5xl text-red-300" />
+      <div className="p-3.5 bg-red-50 rounded-xl group-hover:bg-red-100 transition-colors">
+        <FiAlertTriangle className="w-8 h-8 text-red-600" />
+      </div>
     </div>
   </div>
 
   
-  <div className="bg-white border rounded-2xl shadow-md p-6">
-    <div className="flex items-center justify-between">
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between flex-row-reverse">
       <div>
         <p className="text-sm font-medium text-gray-600">نفد المخزون</p>
-        <p className="text-3xl font-bold text-orange-600 mt-2">{stats.outOfStock}</p>
+        <p className="text-3xl font-bold text-orange-700 mt-2">{stats.outOfStock}</p>
       </div>
-      <FiTrendingDown className="text-5xl text-orange-300" />
+      <div className="p-3.5 bg-orange-50 rounded-xl group-hover:bg-orange-100 transition-colors">
+        <FiTrendingDown className="w-8 h-8 text-orange-600" />
+      </div>
     </div>
   </div>
 
-  
-  <div className="bg-white border rounded-2xl shadow-md p-6">
-    <div className="flex items-center justify-between">
+
+  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+    <div className="flex items-center justify-between gap-3 flex-row-reverse">
       <div>
         <p className="text-sm font-medium text-gray-600">قيمة المخزون</p>
-        <p className="text-3xl font-bold text-emerald-600 mt-2">
+        <p className="text-2xl font-bold text-emerald-700 mt-2">
           {Number(stats.totalValue).toLocaleString()} ج.م
         </p>
       </div>
-      <FiDollarSign className="text-5xl text-emerald-300" />
+      <div className="p-3.5 bg-emerald-50 rounded-xl group-hover:bg-emerald-100 transition-colors">
+        <FiDollarSign className="w-8 h-8 text-emerald-600" />
+      </div>
     </div>
   </div>
 </div>
