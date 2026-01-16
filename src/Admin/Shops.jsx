@@ -489,7 +489,7 @@ const Shops = ({ darkMode }) => {
                     <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(shop.shopType || 'N/A')}</td>
                     <td className="px-6 py-4">
                       <div className="flex justify-center gap-2">
-                        <button onClick={() => viewShop(shop.id)} className="px-3 py-1.5 text-xs flex gap-2 items-center bg-emerald-50 border border-emerald-200 font-semibold dark:bg-gray-950 dark:border-gray-900 text-blue-700 dark:text-blue-700 rounded   transition">
+                        <button onClick={() => viewShop(shop.id)} className="px-3 py-1.5 text-xs flex gap-2 items-center bg-blue-50 border border-blue-200 font-semibold dark:bg-gray-950 dark:border-gray-900 text-blue-700 dark:text-blue-700 rounded   transition">
                         <FiInfo/>  View
                         </button>
                         {!shop.verified ? (
@@ -656,10 +656,10 @@ const Shops = ({ darkMode }) => {
             {selectedShop.shopAddress.notes && (
               <p><strong>Notes:</strong> {DOMPurify.sanitize(selectedShop.shopAddress.notes)}</p>
             )}
-            <div className="flex gap-6 text-xs text-gray-500">
+            {/* <div className="flex gap-6 text-xs text-gray-500">
               <p>Lat: {selectedShop.shopAddress.latitude.toFixed(6)}</p>
               <p>Lng: {selectedShop.shopAddress.longitude.toFixed(6)}</p>
-            </div>
+            </div> */}
           </div>
         </div>
       )}

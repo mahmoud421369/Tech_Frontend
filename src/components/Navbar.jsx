@@ -22,9 +22,7 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loadingNotifs, setLoadingNotifs] = useState(true);
 
-  /* ------------------------------------------------------------------ */
-  /*  AUTH & JWT                                                        */
-  /* ------------------------------------------------------------------ */
+
   const safeDecodeJwt = useCallback((token) => {
     if (!token) return null;
     try { return jwtDecode(token); } catch { return null; }
@@ -64,9 +62,7 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
     }
   }, [location.pathname, navigate, isTokenExpired]);
 
-  /* ------------------------------------------------------------------ */
-  /*  FETCH NOTIFICATIONS                                               */
-  /* ------------------------------------------------------------------ */
+
   const fetchNotifications = useCallback(async () => {
     if (!token) return;
     setLoadingNotifs(true);
@@ -154,7 +150,7 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
                 className={({ isActive }) => `
                   flex items-center gap-3 px-6 py-3 rounded-3xl font-semibold text-sm transition-all duration-300
                   ${isActive 
-                    ? "bg-white border text-lime shadow-lg shadow-emerald-500/50" 
+                    ? "bg-white dark:bg-gray-950 dark:border-gray-900 dark:text-white border text-lime shadow-lg shadow-emerald-500/50" 
                     : darkMode 
                       ? "text-emerald-300 hover:bg-emerald-500/20" 
                       : "text-gray-700 hover:bg-emerald-100"

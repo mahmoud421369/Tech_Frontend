@@ -51,6 +51,11 @@ const Service = ({ darkMode = false }) => {
     },
   ];
 
+    const textPrimary = darkMode ? "text-white" : "text-gray-900";
+  const textSecondary = darkMode ? "text-gray-400" : "text-gray-600";
+  const bgCard = darkMode ? "bg-gray-800/90" : "bg-white";
+  const border = darkMode ? "border-gray-700" : "border-gray-200";
+
   return (
     <section
       className={`py-16 lg:py-24 overflow-hidden ${
@@ -92,7 +97,7 @@ const Service = ({ darkMode = false }) => {
                 transition={{ duration: 0.6, delay: i * 0.1 }}
                 viewport={{ once: true }}
               >
-                <GradientBorderCard>
+                <GradientBorderCard className={`relative rounded-2xl ${bgCard} p-8 border ${border} overflow-hidden transition-transform hover:-translate-y-2 duration-300`}>
                   <div className="flex flex-col items-center text-center">
                     <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-lime-500/10 transition-transform duration-300 group-hover:scale-110">
                       <Icon className="w-12 h-12 text-emerald-600 dark:text-emerald-400" />

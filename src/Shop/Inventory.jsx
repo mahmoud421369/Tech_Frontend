@@ -158,7 +158,7 @@ document.title = "إدارة الجرد";
   };
 
   return (
-    <div dir="rtl" style={{ marginTop: "-575px", marginLeft: "-250px" }} className="min-h-screen bg-gray-50 font-cairo py-8">
+    <div dir="rtl" style={{ marginTop: "-540px", marginLeft: "-250px" }} className="min-h-screen bg-gray-50 font-cairo py-8">
       <div className="max-w-5xl mx-auto px-6">
 
       

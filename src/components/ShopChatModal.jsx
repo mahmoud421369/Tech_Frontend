@@ -253,7 +253,7 @@ const ShopChatModal = memo(({ open, onClose }) => {
     <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-5xl h-[85vh] rounded-3xl shadow-2xl flex overflow-hidden">
         <div className="w-80 bg-gray-50 border-r border-gray-200 flex flex-col">
-          <div className="p-4 border-b bg-white flex items-center justify-between">
+          <div className="p-4 border-b bg-white flex items-center justify-between flex-row-reverse">
             <div className="flex items-center gap-3">
               <FiMessageSquare className="text-xl text-lime-600" />
               <h2 className="text-lg font-bold">المحادثات</h2>
@@ -312,7 +312,7 @@ const ShopChatModal = memo(({ open, onClose }) => {
             <div className="p-3 border-t bg-gray-50">
               <button
                 onClick={closeChatSession}
-                className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-medium transition flex items-center justify-center gap-2"
+                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-3xl text-sm font-medium transition flex items-center justify-center gap-2"
               >
                 <FiXCircle className="text-base" />
                 إغلاق المحادثة
@@ -359,20 +359,20 @@ const ShopChatModal = memo(({ open, onClose }) => {
                 ) : (
                   messages.map(m => (
                     <div key={m.id} className={`flex items-start gap-3 ${m.senderType === 'SHOP' ? 'flex-row-reverse' : ''}`}>
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm ${
-                        m.senderType === 'SHOP' ? 'bg-lime-600' : 'bg-gray-500'
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-indigo-600 font-bold text-sm ${
+                        m.senderType === 'SHOP' ? 'bg-white text-indigo-600 border' : 'bg-gray-500 bg-white border text-gray-600'
                       }`}>
                         {m.senderName?.[0]?.toUpperCase() || '?'}
                       </div>
-                      <div className={`max-w-lg ${m.senderType === 'SHOP' ? 'text-right' : ''}`}>
-                        <div className={`inline-block px-5 py-3 rounded-2xl shadow ${
+                      <div className={`max-w-xl ${m.senderType === 'SHOP' ? 'text-right' : ''}`}>
+                        <div className={`  w-40 p-3 rounded-2xl shadow ${
                           m.senderType === 'SHOP'
-                            ? 'bg-lime-600 text-white'
-                            : 'bg-white text-gray-900 border border-gray-200'
+                            ? 'bg-indigo-600 text-white border-4 border-indigo-500'
+                            : 'bg-emerald-600 text-white border-4 border-emerald-500'
                         }`}>
                           <div className="text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: m.content }} />
                           <p className="text-xs opacity-70 mt-2 flex items-center gap-1 justify-end">
-                            {m.senderType === 'SHOP' && m.read && <FiCheckCircle className="text-white text-xs" />}
+                            {m.senderType === 'SHOP' && m.read && <FiCheckCircle className="text-gray-300 text-xs" />}
                             {new Date(m.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
                           </p>
                         </div>
@@ -391,7 +391,7 @@ const ShopChatModal = memo(({ open, onClose }) => {
                     onChange={handleInputChange}
                     onKeyDown={handleKeyDown}
                     placeholder="اكتب رسالتك..."
-                    className="flex-1 px-5 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-lime-100 focus:border-lime-500 bg-gray-50 text-base"
+                    className="flex-1 px-5 py-3 border cursor-pointer border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-lime-100 focus:border-lime-500 bg-gray-50 text-base"
                   />
                   <button
                     onClick={sendMessage}

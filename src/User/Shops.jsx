@@ -90,7 +90,7 @@ const Shops = memo(({ darkMode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    document.title = "Find Trusted Shops | TechRestore";
+    document.title = "Verified Shops";
   }, []);
 
   const fetchShops = useCallback(async () => {
@@ -147,19 +147,19 @@ const Shops = memo(({ darkMode }) => {
                 </p>
                 <div className="grid grid-cols-3 gap-6">
                   <div className="p-6 rounded-3xl bg-white dark:bg-gray-800 shadow-xl text-center">
-                    <div className="text-4xl font-bold text-lime-600 dark:text-lime-400 flex items-center justify-center gap-2">
+                    <div className="text-2xl px-3 py-2 font-bold bg-orange-50 text-orange-600 rounded-3xl dark:bg-gray-950 dark:text-orange-400 flex items-center justify-center gap-2">
                       <FiZap /> 98.9%
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Customer satisfaction</p>
                   </div>
                   <div className="p-6 rounded-3xl bg-white dark:bg-gray-800 shadow-xl text-center">
-                    <div className="text-4xl font-bold text-lime-600 dark:text-lime-400 flex items-center justify-center gap-2">
+                    <div className="text-2xl px-3 py-2 font-bold bg-indigo-50 text-indigo-600 rounded-3xl dark:bg-gray-950 dark:text-indigo-400 flex items-center justify-center gap-2">
                       <FiUsers /> 500+
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Verified shops</p>
                   </div>
                   <div className="p-6 rounded-3xl bg-white dark:bg-gray-800 shadow-xl text-center">
-                    <div className="flex items-center justify-center gap-1 text-yellow-500 text-4xl">
+                    <div className="flex items-center justify-center gap-1 bg-amber-50 dark:bg-gray-900 rounded-3xl px-3 py-2 text-yellow-500 text-4xl">
                       {[...Array(5)].map((_, i) => (
                         <FiStar key={i} fill="currentColor" />
                       ))}
@@ -256,9 +256,9 @@ const Shops = memo(({ darkMode }) => {
               <p className="text-gray-500 dark:text-gray-400 mb-8">
                 Try adjusting your search terms or browse all available shops
               </p>
-              <a href="/explore" className="inline-flex items-center gap-3 px-8 py-4 bg-lime-600 text-white rounded-2xl font-bold hover:bg-lime-700 transition hover:scale-105 shadow-lg">
+              {/* <a href="/explore" className="inline-flex items-center gap-3 px-8 py-4 bg-lime-600 text-white rounded-2xl font-bold hover:bg-lime-700 transition hover:scale-105 shadow-lg">
                 <FiHome className="w-5 h-5" /> Explore All Shops
-              </a>
+              </a> */}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

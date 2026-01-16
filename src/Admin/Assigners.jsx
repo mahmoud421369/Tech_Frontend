@@ -372,12 +372,14 @@ const Assigners = ({ darkMode }) => {
                                 <FiUserX size={16} /> Suspend
                               </button>
                             )}
+                            { a.status !== 'PENDING' && (
                             <button
                               onClick={() => updateStatus(a.id, 'delete')}
                               className="text-red-600 hover:text-red-800 flex items-center gap-1 text-xs px-3 py-1.5 bg-red-50 dark:bg-red-950 rounded-lg font-medium border border-red-200 dark:border-red-800"
                             >
                               <FiTrash2 size={16} /> Delete
                             </button>
+)}
                           </div>
                         </td>
                       </tr>

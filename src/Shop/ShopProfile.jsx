@@ -94,7 +94,7 @@ const ShopProfile = () => {
 
     } catch (err) {
       console.error(err);
-      Swal.fire('خطأ', 'فشل تحميل بيانات المتجر', 'error');
+      // Swal.fire('خطأ', 'فشل تحميل بيانات المتجر', 'error');
     } finally {
       setLoading(false);
     }
@@ -112,7 +112,9 @@ const ShopProfile = () => {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
 
-      Swal.fire({ title: 'تم التحديث بنجاح!', icon: 'success', timer: 1500, showConfirmButton: false });
+      Swal.fire({ title: 'تم التحديث بنجاح!', icon: 'success',toast: true,
+          position: "top-end",
+          timer: 2000, showConfirmButton: false });
       setShop(prev => ({ ...prev, password: '' }));
       hasFetched.current = false;
       fetchAllData();
@@ -132,7 +134,10 @@ const ShopProfile = () => {
       await api.post('/api/shops/address', newAddress, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
-      Swal.fire({ title: 'تمت الإضافة!', icon: 'success', timer: 1500 });
+      Swal.fire({ title: 'تمت الإضافة!', icon: 'success' ,
+          toast: true,
+          position: "top-end",
+          timer: 2000, });
       setNewAddress({ state: '', city: '', street: '', building: '', isDefault: false });
       hasFetched.current = false;
       fetchAllData();
@@ -146,7 +151,9 @@ const ShopProfile = () => {
       await api.put(`/api/shops/address/${editingAddressId}`, editingAddress, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
-      Swal.fire({ title: 'تم التحديث!', icon: 'success', timer: 1500 });
+      Swal.fire({ title: 'تم التحديث!', icon: 'success',toast: true,
+          position: "top-end",
+          timer: 2000, });
       setEditingAddressId(null);
       setEditingAddress({});
       hasFetched.current = false;
@@ -173,7 +180,9 @@ const ShopProfile = () => {
       await api.delete(`/api/shops/address/${id}`, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
-      Swal.fire({ title: 'تم الحذف!', icon: 'success', timer: 1500 });
+      Swal.fire({ title: 'تم الحذف!', icon: 'success', toast: true,
+          position: "top-end",
+          timer: 2000,});
       hasFetched.current = false;
       fetchAllData();
     } catch (err) {
@@ -200,7 +209,7 @@ const ShopProfile = () => {
   }
 
   return (
-    <div style={{marginTop:"-575px",marginLeft:"-250px"}} className="min-h-screen bg-gray-50 font-cairo py-8">
+    <div style={{marginTop:"-540px",marginLeft:"-250px"}} className="min-h-screen bg-gray-50 font-cairo py-8">
       <div className="max-w-5xl mx-auto px-6">
 
      
@@ -391,10 +400,10 @@ const ShopProfile = () => {
                             {addr.isDefault && <span className="inline-block mt-2 px-4 py-1 bg-lime-600 text-white rounded-full text-sm">الأساسي</span>}
                           </div>
                           <div className="flex gap-2">
-                            <button onClick={() => { setEditingAddressId(addr.id); setEditingAddress({ ...addr }); }} className="p-3 bg-lime-100 text-lime-700 rounded-xl hover:bg-lime-200">
+                            <button onClick={() => { setEditingAddressId(addr.id); setEditingAddress({ ...addr }); }} className="p-3 bg-white border text-lime-700 rounded-xl ">
                               <FiEdit3 className="w-5 h-5" />
                             </button>
-                            <button onClick={() => deleteAddress(addr.id)} className="p-3 bg-red-100 text-red-700 rounded-xl hover:bg-red-200">
+                            <button onClick={() => deleteAddress(addr.id)} className="p-3 bg-white border text-red-700 rounded-xl ">
                               <FiTrash2 className="w-5 h-5" />
                             </button>
                           </div>

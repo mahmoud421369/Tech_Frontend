@@ -154,21 +154,22 @@ const Track = memo(({ darkMode }) => {
                 <p className="text-xl text-gray-600 dark:text-gray-300">
                   Real-time tracking from warehouse to your doorstep. Watch every step, stay in control.
                 </p>
-                <div className="grid grid-cols-3 gap-6">
+                <div className="flex flex-wrap">
+                <div className="grid sm:grid-cols-3 grid-cols-2  gap-6">
                   <div className="p-6 rounded-3xl bg-white dark:bg-gray-800 shadow-xl text-center">
-                    <div className="text-4xl font-bold text-lime-600 dark:text-lime-400 flex items-center justify-center gap-2">
+                    <div className="text-2xl px-3 py-2 font-bold bg-purple-50 text-purple-600 rounded-3xl dark:bg-gray-950 dark:text-purple-400 flex items-center justify-center gap-2">
                       <FiZap /> 98.9%
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">On-time delivery</p>
                   </div>
                   <div className="p-6 rounded-3xl bg-white dark:bg-gray-800 shadow-xl text-center">
-                    <div className="text-4xl font-bold text-lime-600 dark:text-lime-400 flex items-center justify-center gap-2">
+                    <div className="text-2xl px-3 py-2 font-bold bg-green-50 text-green-600 rounded-3xl dark:bg-gray-950 dark:text-green-400 flex items-center justify-center gap-2">
                       <FiUsers /> ~50K
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Packages daily</p>
                   </div>
                   <div className="p-6 rounded-3xl bg-white dark:bg-gray-800 shadow-xl text-center">
-                    <div className="flex items-center justify-center gap-1 text-yellow-500 text-4xl">
+                    <div className="flex items-center justify-center gap-1 bg-amber-50 dark:bg-gray-900 rounded-3xl px-3 py-2 text-yellow-500 text-4xl">
                       {[...Array(5)].map((_, i) => (
                         <FiStar key={i} fill="currentColor" />
                       ))}
@@ -177,6 +178,7 @@ const Track = memo(({ darkMode }) => {
                   </div>
                 </div>
               </div>
+               </div>
               <div className="relative h-96 lg:h-[600px] flex items-center justify-center">
                 <div className="absolute inset-0 bg-gradient-to-br from-lime-200/30 to-emerald-200/30 dark:from-lime-900/20 dark:to-emerald-900/20 rounded-full blur-3xl scale-150" />
                 <div className="relative w-full h-full">
@@ -233,8 +235,8 @@ const Track = memo(({ darkMode }) => {
                 { icon: <FiRefreshCw className="w-10 h-10" />, title: "Easy Returns", desc: "30-day hassle-free return policy" },
                 { icon: <FiHeadphones className="w-10 h-10" />, title: "24/7 Support", desc: "We're here whenever you need us" },
               ].map((feature, idx) => (
-                <div key={idx} className="text-center group hover:scale-105 transition-all duration-300">
-                  <div className="inline-flex items-center justify-center w-20 h-20 bg-lime-100 dark:bg-lime-900 rounded-full mb-5 text-lime-600 dark:text-lime-400 group-hover:bg-lime-600 group-hover:text-white transition-all">
+                <div key={idx} className="text-center bg-emerald-50 dark:bg-gray-950  rounded-xl p-5 group hover:scale-105 transition-all duration-300">
+                  <div className="inline-flex items-center justify-center w-20 h-20 bg-white dark:bg-lime-900 rounded-full mb-5 text-lime-600 dark:text-lime-400 group-hover:bg-lime-600 group-hover:text-white transition-all">
                     {feature.icon}
                   </div>
                   <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
@@ -246,7 +248,7 @@ const Track = memo(({ darkMode }) => {
         </section>
 
         <div className="max-w-4xl mx-auto px-6 py-12">
-          <div className="bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-gray-200/50 dark:border-gray-700/50">
+          <div className="bg-white dark:bg-gray-800/30 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-gray-200/50 dark:border-gray-700/50">
             {orders.length === 0 ? (
               <div className="text-center py-16">
                 <FiPackage className="mx-auto text-6xl text-gray-400 mb-4" />
@@ -263,7 +265,7 @@ const Track = memo(({ darkMode }) => {
                 <div className="relative mb-10">
                   <button
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="w-full flex justify-between items-center px-6 py-4 bg-white dark:bg-gray-700 rounded-2xl border-2 border-transparent hover:border-lime-500 transition-all text-lg font-medium shadow-md"
+                    className="w-full flex justify-between items-center border px-6 py-4 bg-white dark:bg-gray-700 rounded-2xl border-2 border-transparent hover:border-lime-500 transition-all text-lg font-medium shadow-md"
                   >
                     <span>
                       {selectedOrder ? `Order #${selectedOrder.id} - ${selectedOrder.status}` : "Select Order"}
@@ -272,7 +274,7 @@ const Track = memo(({ darkMode }) => {
                   </button>
 
                   {isDropdownOpen && (
-                    <div className="absolute mt-2 w-full bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 max-h-64 overflow-y-auto z-50">
+                    <div className="absolute mt-2 w-full bg-white border dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 max-h-64 overflow-y-auto z-50">
                       {orders.map((order) => (
                         <button
                           key={order.id}

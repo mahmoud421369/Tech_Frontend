@@ -24,12 +24,12 @@ const Login = () => {
 
   const redirectMap = useMemo(
     () => ({
-      ROLE_ADMIN: "/dashboard",
-      ROLE_REPAIRER: "/shop-dashboard",
-      ROLE_SELLER: "/shop-dashboard",
-      ROLE_SHOP_OWNER: "/shop-dashboard",
-      ROLE_ASSIGNER: "/assigner-dashboard",
-      ROLE_DELIVERY: "/delivery-dashboard",
+      ROLE_ADMIN: "/admin/dashboard",
+      ROLE_REPAIRER: "/shop/dashboard",
+      ROLE_SELLER: "/shop/dashboard",
+      ROLE_SHOP_OWNER: "/shop/dashboard",
+      ROLE_ASSIGNER: "/assigner/dashboard",
+      ROLE_DELIVERY: "/delivery/dashboard",
       ROLE_GUEST: "/",
     }),
     []
@@ -284,6 +284,9 @@ const handleChange = useCallback((e) => {
           icon: "error",
           title: "Login Failed",
           text: errorMessage,
+            toast: true,
+          position: "top-end",
+          timer: 2000,
           confirmButtonColor: "#ef4444",
         });
       } finally {
@@ -305,7 +308,7 @@ const handleChange = useCallback((e) => {
       <RiToolsLine className="absolute top-1/3 left-1/4 text-emerald-200 dark:text-emerald-600 text-9xl opacity-15 animate-spin-slow" />
 
      
-      <div className="w-full max-w-lg px-6">
+      <div className="w-full max-w-lg mt-5 px-6">
         <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/60 dark:border-gray-700 p-8">
           <div className="text-center mb-6">
             <h1 className="text-4xl font-extrabold text-emerald-800 dark:text-emerald-200 mb-2">Welcome Back</h1>
@@ -315,9 +318,9 @@ const handleChange = useCallback((e) => {
           <form onSubmit={handleSubmit} className="space-y-5">
             
             <div className="space-y-2">
-              {/* <label htmlFor="email" className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">
+              <label htmlFor="email" className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">
                 Email Address
-              </label> */}
+              </label>
               <input
                 type="email"
               
@@ -332,9 +335,9 @@ const handleChange = useCallback((e) => {
 
            
             <div className="space-y-2">
-              {/* <label htmlFor="password" className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">
+              <label htmlFor="password" className="block text-sm font-medium text-emerald-700 dark:text-emerald-300">
                 Password
-              </label> */}
+              </label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -365,7 +368,7 @@ const handleChange = useCallback((e) => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-emerald-500 to-lime-600 text-white font-bold text-lg py-4 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 disabled:opacity-70 flex items-center justify-center gap-3"
+              className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 dark:from-gray-950 dark:to-black text-white font-bold text-lg py-4 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 disabled:opacity-70 flex items-center justify-center gap-3"
             >
               {loading ? (
                 <>

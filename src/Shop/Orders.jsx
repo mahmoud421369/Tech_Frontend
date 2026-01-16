@@ -4,7 +4,8 @@ import {
   FiChevronLeft, FiChevronRight, FiX, FiPackage, FiClock,
   FiTruck, FiCheckCircle, FiAlertCircle,
   FiCalendar, FiUser, FiPhone, FiCreditCard, FiDollarSign,
-  FiTag, FiShoppingBag, FiHash
+  FiTag, FiShoppingBag, FiHash,
+  FiCheck
 } from 'react-icons/fi';
 import { RiShoppingBag3Line } from 'react-icons/ri';
 import Swal from 'sweetalert2';
@@ -12,7 +13,7 @@ import api from '../api';
 import debounce from 'lodash/debounce';
 import { toast } from 'react-toastify';
 
-const Orders = () => {
+const Orders = ({darkMode}) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -255,7 +256,29 @@ const Orders = () => {
   const pageOrders = filteredOrders.slice((currentPage - 1) * ordersPerPage, currentPage * ordersPerPage);
 
   return (
-    <div style={{ marginTop: "-575px", marginLeft: "-250px" }} className="min-h-screen bg-gray-50 font-cairo py-8">
+    <div style={{ marginTop: "-540px", marginLeft: "-250px" }} className="min-h-screen bg-gray-50 font-cairo py-8">
+      
+      <style>
+        {`
+          .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-track {
+            background: ${darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
+            border-radius: 10px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: ${darkMode ? '#34d399' : '#10b981'};
+            border-radius: 10px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: ${darkMode ? '#6ee7b7' : '#059669'};
+          }
+        `}
+      </style>
+      
+      
       <div className="max-w-5xl mx-auto px-6">
 
         <div className="mb-10 bg-white rounded-3xl shadow-sm border border-gray-200 p-8">
@@ -321,8 +344,8 @@ const Orders = () => {
               <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-lg" />
               <input
                 type="text"
-                placeholder="ابحث برقم الطلب أو معرف العميل..."
-                className="w-full pr-12 py-3.5 pl-4 rounded-xl border border-gray-300 focus:border-lime-500 focus:ring-4 focus:ring-lime-100 outline-none text-base transition bg-gray-50"
+                placeholder="ابحث برقم الطلب أو معرف العميل"
+                className="w-full pr-12 py-3.5 pl-4 rounded-xl placeholder:text-right border border-gray-300 focus:border-lime-500 focus:ring-4 focus:ring-lime-100 outline-none text-base transition bg-gray-50"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -358,7 +381,7 @@ const Orders = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
           {loading ? (
             <div className="p-20 text-center">
               <div className="w-16 h-16 border-6 border-lime-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
@@ -370,11 +393,11 @@ const Orders = () => {
               <p className="text-xl">لا توجد طلبات حالياً</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto custom-scrollbar">
               <table className="w-full">
-                <thead className="bg-gray-100 text-gray-600">
+                <thead className="bg-gray-100 border text-gray-600">
                   <tr>
-                    <th className="px-5 py-4 text-base font-bold text-right">#</th>
+                    {/* <th className="px-5 py-4 text-base font-bold text-right">#</th> */}
                     <th className="px-5 py-4 text-base font-bold">المنتجات</th>
                     <th className="px-5 py-4 text-base font-bold">الكمية</th>
                     <th className="px-5 py-4 text-base font-bold">المجموع</th>
@@ -388,11 +411,11 @@ const Orders = () => {
                   {pageOrders.map((o, i) => {
                     const globalIdx = (currentPage - 1) * ordersPerPage + i + 1;
                     const totalQty = o.orderItems?.reduce((sum, item) => sum + item.quantity, 0) || 0;
-                    const productNames = o.orderItems?.map(item => item.productName).join('، ') || '—';
+                    const productNames = o.orderItems?.map(item => item.productName).join(', ') || '—';
 
                     return (
                       <tr key={o.id} className="hover:bg-gray-50 transition">
-                        <td className="px-5 py-4 text-sm font-medium text-gray-800">{globalIdx}</td>
+                        {/* <td className="px-5 py-4 text-sm font-medium text-gray-800">{globalIdx}</td> */}
                         <td className="px-5 py-4 text-sm text-gray-700 text-right max-w-xs truncate">{productNames}</td>
                         <td className="px-5 py-4 text-center">{totalQty}</td>
                         <td className="px-5 py-4 text-center font-bold">{o.totalPrice} ج.م</td>
@@ -408,15 +431,15 @@ const Orders = () => {
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex justify-center gap-2">
-                            <button onClick={() => openDetailsModal(o)} className="px-3 py-2 flex justify-center items-center gap-2 bg-transparent text-amber-500 border border-amber-500 rounded-3xl text-xs font-medium transition">
+                            <button onClick={() => openDetailsModal(o)} className="px-3 font-sans py-2 flex gap-2 bg-orange-50 text-orange-500 border border-orange-100 rounded-3xl text-sm font-bold transition">
                               <FiInfo className="w-4 h-4 inline ml-1" /> تفاصيل
                             </button>
                             {o.status === 'PENDING' && (
                               <>
-                                <button onClick={() => acceptOrder(o.id)} className="px-3 py-2 flex gap-2 bg-transparent text-lime-500 border border-lime-500 rounded-3xl text-xs font-medium transition">
-                                  <FiCheckSquare className="w-4 h-4 inline ml-1" /> قبول
+                                <button onClick={() => acceptOrder(o.id)} className="px-3 font-sans py-2 flex gap-2 bg-green-50 text-green-500 border border-green-100 rounded-3xl text-sm font-bold transition">
+                                  <FiCheck className="w-4 h-4 inline ml-1" /> قبول
                                 </button>
-                                <button onClick={() => rejectOrder(o.id)} className="px-3 py-2 flex gap-2 bg-transparent text-red-500 border border-red-500 rounded-3xl text-xs font-medium transition">
+                                <button onClick={() => rejectOrder(o.id)} className="px-3 font-sans py-2 flex gap-2 bg-red-50 text-red-500 border border-red-100 rounded-3xl text-sm font-bold transition">
                                   <FiXCircle className="w-4 h-4 inline ml-1" /> رفض
                                 </button>
                               </>
@@ -437,10 +460,10 @@ const Orders = () => {
             <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="px-4 py-3 bg-white border border-lime-600 rounded-xl disabled:opacity-50 hover:bg-lime-50 text-lime-700 font-medium transition shadow-sm flex items-center gap-2"
+              className="px-4 py-2 bg-white border border-gray-600 rounded-lg disabled:opacity-50 hover:bg-gray-50 text-lime-700 font-medium transition shadow-sm flex items-center gap-2"
             >
-              <FiChevronLeft className="w-5 h-5" />
-              السابق
+              <FiChevronLeft className="w-5 h-5 text-gray-600" />
+              
             </button>
 
             <div className="flex gap-2">
@@ -448,8 +471,8 @@ const Orders = () => {
                 <button
                   key={i + 1}
                   onClick={() => setCurrentPage(i + 1)}
-                  className={`w-12 h-12 rounded-xl font-bold text-base transition shadow-sm flex items-center justify-center ${
-                    currentPage === i + 1 ? 'bg-lime-600 text-white' : 'bg-white border border-lime-600 text-lime-700 hover:bg-lime-50'
+                  className={`w-10 h-10 rounded-xl font-bold text-base transition shadow-sm flex items-center justify-center ${
+                    currentPage === i + 1 ? 'bg-gray-600 text-white' : 'bg-white border border-gray-600 text-gray-700 hover:bg-gray-50'
                   }`}
                 >
                   {i + 1}
@@ -460,10 +483,10 @@ const Orders = () => {
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="px-4 py-3 bg-white border border-lime-600 rounded-xl disabled:opacity-50 hover:bg-lime-50 text-lime-700 font-medium transition shadow-sm flex items-center gap-2"
+              className="px-4 py-2 bg-white border border-gray-600 rounded-lg disabled:opacity-50 hover:bg-gray-50 text-lime-700 font-medium transition shadow-sm flex items-center gap-2"
             >
-              التالي
-              <FiChevronRight className="w-5 h-5" />
+              
+              <FiChevronRight className="w-5 h-5 text-gray-600" />
             </button>
           </div>
         )}

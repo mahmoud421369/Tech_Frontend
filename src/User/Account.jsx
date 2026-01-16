@@ -51,6 +51,7 @@ const Account = ({ darkMode }) => {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isAddingAddress, setIsAddingAddress] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState(null);
+  const [repairDetailsModal,setRepairDetailsModal] = useState(false);
   const [profileForm, setProfileForm] = useState({ first_name: "", last_name: "", phone: "" });
  const [addressForm, setAddressForm] = useState({
   state: "",
@@ -303,17 +304,22 @@ const Account = ({ darkMode }) => {
     }
   };
 
+  
   const handleViewRepair = async (id) => {
     try {
       const res = await api.get(`/api/users/repair-request/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       const r = res.data;
       Swal.fire({
         title: `Repair #${r.id.slice(0, 8)}`,
-        html: `<div class="text-left space-y-2">
-          <p><strong>Shop:</strong> ${r.shopName}</p>
-          <p><strong>Issue:</strong> ${r.description}</p>
-          <p><strong>Status:</strong> ${r.status}</p>
-          ${r.price ? `<p><strong>Quote:</strong> ${r.price} EGP</p>` : ""}
+        html: `<div class="text-left bg-gray-50 border rounded-xl p-3 space-y-2">
+          <p class="flex flex-col justify-start bg-gray-50 rounded-xl px-3 py-2 items-start text-teal-600 font-semibold" ><strong class="text-gray-800">Shop</strong> ${r.shopName}</p>
+          <p class="flex flex-col justify-start bg-gray-50 rounded-xl px-3 py-2 items-start text-teal-600 font-semibold"><strong class="text-gray-800">Issue</strong> ${r.description}</p>
+          <p class="flex flex-col justify-start bg-gray-50 rounded-xl px-3 py-2 items-start text-teal-600 font-semibold"><strong class="text-gray-800">Status</strong> ${r.status}</p>
+          <p class="flex flex-col justify-start bg-gray-50 rounded-xl px-3 py-2 items-start text-teal-600 font-semibold"><strong class="text-gray-800 text-left">Delivery Details</strong> ${r.deliveryAddressDetails === null ? 'No details' : r.deliveryAddressDetails}</p>
+          <hr/>
+          <p class="flex justify-between bg-gray-50 rounded-xl px-3 py-2 items-center text-teal-600 font-semibold"><strong class="text-gray-800">Payment Method</strong> ${r.paymentMethod}</p>
+
+          ${r.price ? `<p class="flex justify-between bg-gray-50 rounded-xl px-3 py-2 items-center text-teal-600 font-semibold"><strong class="text-gray-800">Quote</strong> ${r.price} EGP</p>` : ""}
         </div>`,
         icon: "info",
       });
@@ -556,9 +562,9 @@ const renderProfile = () => {
                 <FiUser className="text-5xl text-gray-500 dark:text-gray-400" />
               </div>
             </div>
-            <button className="absolute bottom-0 right-0 p-3 bg-lime-600 text-white rounded-full shadow-lg hover:bg-lime-700 transition transform hover:scale-110">
+            {/* <button className="absolute bottom-0 right-0 p-3 bg-lime-600 text-white rounded-full shadow-lg hover:bg-lime-700 transition transform hover:scale-110">
               <FiCamera className="text-lg" />
-            </button>
+            </button> */}
           </div>
         </div>
 
@@ -665,24 +671,24 @@ const renderProfile = () => {
 
       
       <div className="space-y-6 text-lg">
-        <div className="flex items-center gap-4 p-4 bg-white/50 dark:bg-gray-700/30 rounded-2xl">
+        <div className="flex items-center gap-4 p-4 bg-white/50 dark:bg-gray-950 rounded-2xl">
           <FiUser className="text-2xl text-lime-600" />
           <span className="font-medium text-gray-800 dark:text-gray-200">
             {userProfile?.first_name} {userProfile?.last_name}
           </span>
         </div>
 
-        <div className="flex items-center gap-4 p-4 bg-white/50 dark:bg-gray-700/30 rounded-2xl">
+        <div className="flex items-center gap-4 p-4 bg-white/50 dark:bg-gray-950 rounded-2xl">
           <FiMail className="text-2xl text-lime-600" />
           <span className="text-gray-700 dark:text-gray-300">{userProfile?.email}</span>
         </div>
 
-        <div className="flex items-center gap-4 p-4 bg-white/50 dark:bg-gray-700/30 rounded-2xl">
+        <div className="flex items-center gap-4 p-4 bg-white/50 dark:bg-gray-950 rounded-2xl">
           <FiPhone className="text-2xl text-lime-600" />
           <span className="text-gray-700 dark:text-gray-300">{userProfile?.phone || "— Not provided"}</span>
         </div>
 
-        <div className="flex items-center justify-between p-4 bg-white/50 dark:bg-gray-700/30 rounded-2xl">
+        <div className="flex items-center justify-between p-4 bg-white/50 dark:bg-gray-950 rounded-2xl">
           <div className="flex items-center gap-4">
             <span className="text-lg font-medium text-gray-800 dark:text-gray-200">Account Status</span>
           </div>
@@ -863,7 +869,6 @@ const renderAddresses = () => {
     );
   }
 
-  // View Mode - List of Addresses
   return (
     <div className="max-w-5xl mx-auto">
       <div className="flex justify-between items-center mb-10">
@@ -891,7 +896,7 @@ const renderAddresses = () => {
           {addresses.map((addr) => (
             <div
               key={addr.id}
-              className={`relative bg-white/40 dark:bg-gray-800/40 backdrop-blur-2xl p-8 rounded-3xl shadow-xl border-2 transition-all hover:shadow-2xl hover:-translate-y-3 ${
+              className={`relative bg-white dark:bg-gray-800/40 backdrop-blur-2xl p-8 rounded-3xl shadow-xl border-2 transition-all hover:shadow-2xl hover:-translate-y-3 ${
                 addr.isDefault
                   ? "border-lime-500 shadow-lime-500/20"
                   : "border-gray-200/60 dark:border-gray-700/60"
@@ -910,12 +915,12 @@ const renderAddresses = () => {
                 <p className="text-lg text-gray-700 dark:text-gray-300">
                   {addr.city}, {addr.state}
                 </p>
-                {(addr.latitude || addr.longitude) && (
+                {/* {(addr.latitude || addr.longitude) && (
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 flex items-center gap-2">
                     <FiGlobe className="text-base" />
                     {addr.latitude.toFixed(4)}, {addr.longitude.toFixed(4)}
                   </p>
-                )}
+                )} */}
                 {addr.notes && (
                   <p className="text-sm italic text-gray-600 dark:text-gray-400 mt-4 bg-gray-100 dark:bg-gray-700/50 px-4 py-3 rounded-xl">
                     "{addr.notes}"
@@ -926,17 +931,17 @@ const renderAddresses = () => {
               <div className="absolute top-8 right-8 flex gap-4">
                 <button
                   onClick={() => startEditAddress(addr)}
-                  className="p-4 bg-white/60 dark:bg-gray-700/60 backdrop-blur rounded-2xl text-lime-600 hover:bg-lime-100 dark:hover:bg-lime-900/50 transition shadow-lg transform hover:scale-110"
+                  className="p-4 bg-white border dark:border-gray-900 dark:bg-gray-700/60 backdrop-blur rounded-2xl text-emerald-600 dark:hover:bg-lime-900/50 transition shadow-lg transform hover:scale-110"
                   aria-label="Edit address"
                 >
-                  <FiEdit2 className="text-2xl" />
+                  <FiEdit2 className="text-md" />
                 </button>
                 <button
                   onClick={() => handleDeleteAddress(addr.id)}
-                  className="p-4 bg-white/60 dark:bg-gray-700/60 backdrop-blur rounded-2xl text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50 transition shadow-lg transform hover:scale-110"
+                  className="p-4 bg-white border dark:border-gray-900 dark:bg-gray-700/60 backdrop-blur rounded-2xl text-red-600  dark:hover:bg-red-900/50 transition shadow-lg transform hover:scale-110"
                   aria-label="Delete address"
                 >
-                  <FiTrash2 className="text-2xl" />
+                  <FiTrash2 className="text-md" />
                 </button>
               </div>
             </div>
@@ -1066,7 +1071,7 @@ const renderAddresses = () => {
               return (
                 <div
                   key={req.id}
-                  className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border border-gray-200/80 dark:border-gray-700/80 mb-6 transition-all hover:shadow-3xl hover:-translate-y-2"
+                  className="bg-white dark:bg-gray-800/60 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border border-gray-200/80 dark:border-gray-700/80 mb-6 transition-all hover:shadow-3xl hover:-translate-y-2"
                 >
                   <div className="flex justify-between items-start mb-6">
                     <div>
@@ -1097,38 +1102,39 @@ const renderAddresses = () => {
                   )}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <button
+                    
                       onClick={() => handleViewRepair(req.id)}
-                      className="px-6 py-4 bg-white/50 dark:bg-black/30 text-lime-600 rounded-2xl hover:bg-lime-100 dark:hover:bg-lime-900 transition shadow-md flex items-center justify-center gap-2 font-semibold"
+                      className="px-6 py-4 bg-blue-50 dark:bg-black/30 text-blue-600 border-4 border-blue-100 rounded-2xl  transition shadow-md flex items-center justify-center gap-2 font-semibold"
                     >
-                      <FiInfo className="text-xl" /> Details
+                      <FiInfo className="text-md" /> Details
                     </button>
                     <button
                       onClick={() => handleEditRepair(req)}
-                      className="px-6 py-4 bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 rounded-2xl hover:bg-amber-200 dark:hover:bg-amber-800 transition shadow-md flex items-center justify-center gap-2 font-semibold"
+                      className="px-6 py-4 bg-amber-50 text-amber-600 border-4 border-amber-100  dark:text-amber-300 rounded-2xl transition shadow-md flex items-center justify-center gap-2 font-semibold"
                     >
-                      <FiEdit2 className="text-xl" /> Edit
+                      <FiEdit2 className="text-md" /> Edit
                     </button>
                     {isQuoteSent && hasPrice && (
                       <button
                         onClick={() => handleAcceptQuote(req)}
                         className="px-6 py-4 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 transition shadow-xl font-bold flex items-center justify-center gap-2"
                       >
-                        <FiCheckCircle className="text-xl" /> Accept Quote
+                        <FiCheckCircle className="text-md" /> Accept Quote
                       </button>
                     )}
                     {isQuoteApproved && hasPrice && (
                       <>
-                        <button
+                        {/* <button
                           onClick={() => handleConfirmRepair(req)}
                           className="px-6 py-4 bg-lime-600 text-white rounded-2xl hover:bg-lime-700 transition shadow-xl font-bold flex items-center justify-center gap-2"
                         >
                           <FiTruck className="text-xl" /> Confirm & Pay
-                        </button>
+                        </button> */}
                         <button
                           onClick={() => handleCancelRepair(req.id)}
-                          className="px-6 py-4 bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 rounded-2xl hover:bg-red-200 dark:hover:bg-red-800 transition shadow-md flex items-center justify-center gap-2 font-semibold"
+                          className="px-6 py-4 bg-red-50 text-red-600 border-4 border-red-100 dark:bg-red-900/50 dark:text-red-300 rounded-2xl hover:bg-red-200 dark:hover:bg-red-800 transition shadow-md flex items-center justify-center gap-2 font-semibold"
                         >
-                          <FiXCircle className="text-xl" /> Cancel
+                          <FiXCircle className="text-md" /> Cancel
                         </button>
                       </>
                     )}
@@ -1136,6 +1142,11 @@ const renderAddresses = () => {
                 </div>
               );
             })}
+
+
+
+
+
             {totalPages > 1 && (
               <div className="flex justify-center items-center gap-6 mt-8">
                 <button
@@ -1169,27 +1180,27 @@ const renderAddresses = () => {
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="space-y-8">
-              <h1 className="text-5xl md:text-7xl font-extrabold bg-gradient-to-r from-lime-600 to-emerald-600 bg-clip-text text-transparent">
+              <h1 className="text-5xl  md:text-7xl font-extrabold bg-gradient-to-r from-lime-600 to-emerald-600 bg-clip-text text-transparent">
                 My Account
               </h1>
-              <p className="text-xl text-gray-600 dark:text-gray-300">
-                Manage your profile, addresses, orders, and repair requests — all in one place.
+              <p className="text-xl flex items-center gap-4   text-gray-600 dark:text-gray-300">
+               <FiUser className=" text-emerald-600 p-3 rounded-3xl w-20 h-20"/> Manage your profile, addresses, orders, and repair requests — all in one place.
               </p>
               <div className="grid grid-cols-3 gap-6">
                 <div className="p-6 rounded-3xl bg-white dark:bg-gray-800 shadow-xl text-center">
-                  <div className="text-4xl font-bold text-lime-600 dark:text-lime-400 flex items-center justify-center gap-2">
+                  <div className="text-2xl px-3 py-2 font-bold bg-emerald-50 text-emerald-600 rounded-3xl dark:bg-gray-950 dark:text-lime-400 flex items-center justify-center gap-2">
                     <FiZap /> 75.2%
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Avg daily activity</p>
                 </div>
                 <div className="p-6 rounded-3xl bg-white dark:bg-gray-800 shadow-xl text-center">
-                  <div className="text-4xl font-bold text-lime-600 dark:text-lime-400 flex items-center justify-center gap-2">
+                  <div className="text-2xl px-3 py-2 font-bold bg-emerald-50 rounded-3xl text-emerald-600 dark:bg-gray-950 dark:text-lime-400 flex items-center justify-center gap-2">
                     <FiUsers /> ~20K
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Active users</p>
                 </div>
                 <div className="p-6 rounded-3xl bg-white dark:bg-gray-800 shadow-xl text-center">
-                  <div className="flex items-center justify-center gap-1 text-yellow-500 text-4xl">
+                  <div className="flex items-center bg-amber-50 dark:bg-gray-900 rounded-3xl px-3 py-2  justify-center gap-1 text-yellow-500 text-4xl">
                     {[...Array(4)].map((_, i) => (
                       <FiStar key={i} fill="currentColor" />
                     ))}

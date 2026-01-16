@@ -1,4 +1,4 @@
-// src/components/ShopHeader.jsx
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -13,10 +13,9 @@ import {
 import { jwtDecode } from 'jwt-decode';
 import api from '../api';
 import logo from '../images/new-logo.jpg';
+import Swal from 'sweetalert2';
 
-/* --------------------------------------------------------------- */
-/* Debounce utility                                                */
-/* --------------------------------------------------------------- */
+
 const debounce = (func, delay) => {
   let timeoutId;
   return (...args) => {
@@ -49,15 +48,15 @@ const ShopHeader = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const menuItems = [
-    { name: 'dashboard', icon: <RiStore2Line className="text-xl" />, label: 'لوحة التحكم', path: '/shop-dashboard' },
-    { name: 'repairs',   icon: <RiToolsFill className="text-xl" />,   label: 'طلبات التصليح', path: '/repair/requests' },
+    { name: 'dashboard', icon: <RiStore2Line className="text-xl" />, label: 'لوحة التحكم', path: '/shop/dashboard' },
+    { name: 'repairs',   icon: <RiToolsFill className="text-xl" />,   label: 'طلبات التصليح', path: '/shop/repair-requests' },
     { name: 'devices',   icon: <RiBox2Line className="text-xl" />,   label: 'المنتجات', path: '/shop/devices' },
     { name: 'orders',    icon: <RiShoppingBag2Line className="text-xl" />, label: 'الطلبات', path: '/shop/orders' },
     { name: 'transactions', icon: <RiMoneyDollarCircleLine className="text-xl" />, label: 'الفواتير', path: '/shop/transactions' },
     { name: 'inventory', icon: <RiInbox2Line className="text-xl" />, label: 'جرد', path: '/shop/inventory' },
-    { name: 'subscription', icon: <RiPriceTag2Line className="text-xl" />, label: 'الاشتراك', path: '/subscriptions' },
+    { name: 'subscription', icon: <RiPriceTag2Line className="text-xl" />, label: 'الاشتراك', path: '/shop/subscriptions' },
     { name: 'offers',    icon: <FiTag className="text-xl" />, label: 'العروض', path: '/shop/offers' },
-    { name: 'support',   icon: <RiMessage2Line className="text-xl" />, label: 'الدردشات', path: '/support' },
+    { name: 'support',   icon: <RiMessage2Line className="text-xl" />, label: 'الدردشات', path: '/shop/chats' },
   ];
 
   const isTokenExpired = useCallback((t) => {
@@ -120,7 +119,7 @@ const ShopHeader = ({ children }) => {
       });
       setNotifications(prev => prev.filter(n => n._id !== id));
       setUnreadCount(prev => prev > 0 ? prev - 1 : 0);
-      toast.success('تم حذف الإشعار');
+      Swal.fire({position:"top-end",toast:true,timer:2000,icon:"success",text:"تم حذف الاشعار"});
     } catch (err) {
       toast.error('فشل حذف الإشعار');
     }
@@ -214,7 +213,7 @@ const ShopHeader = ({ children }) => {
 
            
             {notificationsOpen && (
-              <div className="absolute left-0 mt-3 w-96 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50">
+              <div className="absolute left-0 right-0 mt-3 w-96 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50">
      
                 <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
                   <div>
@@ -223,7 +222,7 @@ const ShopHeader = ({ children }) => {
                       <p className="text-sm text-gray-500">{unreadCount} غير مقرؤة</p>
                     )}
                   </div>
-                  {notifications.length > 0 && (
+                  {/* {notifications.length > 0 && (
                     <button
                       onClick={deleteAllNotifications}
                       className="text-sm text-red-600 hover:text-red-700 flex items-center gap-1 transition"
@@ -231,11 +230,11 @@ const ShopHeader = ({ children }) => {
                       <FiTrash2 className="text-lg" />
                       مسح الكل
                     </button>
-                  )}
+                  )} */}
                 </div>
 
                 
-                <div className="max-h-96 overflow-y-auto">
+                <div className="max-h-96  overflow-y-auto">
                   {loading ? (
                     <div className="p-10 text-center text-gray-400">جاري التحميل...</div>
                   ) : notifications.length === 0 ? (
@@ -248,13 +247,13 @@ const ShopHeader = ({ children }) => {
                       <div
                         key={notif.id}
                         className={`px-6 py-4 border-b border-gray-50 hover:bg-lime-50 transition cursor-pointer ${
-                          !notif.isRead ? 'bg-lime-50/70' : 'bg-white'
+                          !notif.isRead ? 'bg-gray-50' : 'bg-white'
                         }`}
                       >
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
                             <h4 className="font-semibold text-gray-800">{notif.title || 'إشعار'}</h4>
-                            <p className="text-sm text-gray-600 mt-1">{notif.message}</p>
+                            <p className="text-sm text-teal-500 mt-1">{notif.message}</p>
                             <p className="text-xs text-gray-400 mt-2">
                               {new Date(notif.timestamp).toLocaleString('ar-EG', {
                                 month: 'short',
@@ -283,7 +282,7 @@ const ShopHeader = ({ children }) => {
                 </div>
 
                 
-                <div className="p-4 bg-gray-50 text-center border-t">
+                {/* <div className="p-4 bg-gray-50 text-center border-t">
                   <Link
                     to="/shop/notifications"
                     onClick={() => setNotificationsOpen(false)}
@@ -291,7 +290,7 @@ const ShopHeader = ({ children }) => {
                   >
                     عرض جميع الإشعارات →
                   </Link>
-                </div>
+                </div> */}
               </div>
             )}
           </div>
@@ -308,7 +307,7 @@ const ShopHeader = ({ children }) => {
 
             {profileOpen && (
               <div className="absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 p-2">
-                <Link to="/shop/profile" onClick={() => setProfileOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-lime-50">
+                <Link to="/shop/profile" onClick={() => setProfileOpen(false)} className="flex items-center gap-3 px-4 py-3 font-semibold rounded-lg hover:bg-lime-50">
                   <FiUser /> بيانات الحساب
                 </Link>
                 <button onClick={() => { handleLogout(); setProfileOpen(false); }} className="flex items-center gap-3 px-4 py-3 w-full text-left rounded-lg hover:bg-red-50 text-red-600">

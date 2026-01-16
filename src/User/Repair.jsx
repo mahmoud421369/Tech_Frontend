@@ -175,6 +175,8 @@ const RepairRequest = ({ darkMode }) => {
       Swal.fire({
         icon: "error",
         title: "Failed to Send",
+        toast:true,
+        position:"top-end",
         text: err.response?.data?.message || "Something went wrong. Try again.",
         confirmButtonColor: "#ef4444",
       });
@@ -216,11 +218,11 @@ const RepairRequest = ({ darkMode }) => {
 
               <div className="mt-12 grid grid-cols-2 gap-8">
                 <div className="p-6 rounded-2xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm text-center shadow-lg">
-                  <h3 className={`text-4xl font-bold ${darkMode ? "text-lime-400" : "text-lime-600"}`}>75.2%</h3>
+                  <h3 className={`text-2xl px-3 py-2 font-bold bg-emerald-50 text-emerald-600 rounded-3xl dark:bg-gray-950 dark:text-lime-400 flex items-center justify-center gap-2 ${darkMode ? "text-lime-400" : "text-lime-600"}`}>75.2%</h3>
                   <p className={`text-sm mt-2 ${textSecondary}`}>Average repair success rate</p>
                 </div>
                 <div className="p-6 rounded-2xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm text-center shadow-lg">
-                  <h3 className={`text-4xl font-bold ${darkMode ? "text-lime-400" : "text-lime-600"}`}>~20k</h3>
+                  <h3 className={`text-2xl px-3 py-2 font-bold bg-emerald-50 text-emerald-600 rounded-3xl dark:bg-gray-950 dark:text-lime-400 flex items-center justify-center gap-2 ${darkMode ? "text-lime-400" : "text-lime-600"}`}>~20k</h3>
                   <p className={`text-sm mt-2 ${textSecondary}`}>Repairs completed monthly</p>
                 </div>
               </div>

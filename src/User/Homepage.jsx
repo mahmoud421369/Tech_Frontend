@@ -15,9 +15,6 @@ import {
   FiDollarSign,
   FiShield,
   FiCheckCircle,
-  FiBattery,
-  FiRewind,
-  FiRefreshCw,
   FiBatteryCharging,
   FiDroplet,
   FiSettings,
@@ -46,7 +43,9 @@ const Homepage = memo(({ darkMode }) => {
   const navigate = useNavigate();
   const shopScrollRef = useRef(null);
 
- 
+ useEffect(()=>{
+   document.title = "Home"
+ })
   const safeDecodeJwt = useCallback((token) => {
     if (!token || typeof token !== 'string' || token.trim() === '') return null;
     try { return jwtDecode(token); } catch (error) {
@@ -262,23 +261,23 @@ const Homepage = memo(({ darkMode }) => {
         </p>
         <div className="grid grid-cols-3 gap-6">
           <div className="p-6 rounded-3xl bg-white dark:bg-gray-800 shadow-xl text-center">
-            <div className="text-4xl font-bold text-lime-600 dark:text-lime-400 flex items-center justify-center gap-2">
+            <div className="text-2xl px-3 py-2 font-bold bg-emerald-50 text-emerald-600 rounded-3xl dark:bg-gray-950 dark:text-lime-400 flex items-center justify-center gap-2">
               <FiTool /> 75.2%
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Average repair success rate</p>
           </div>
           <div className="p-6 rounded-3xl bg-white dark:bg-gray-800 shadow-xl text-center">
-            <div className="text-4xl font-bold text-lime-600 dark:text-lime-400 flex items-center justify-center gap-2">
+            <div className="text-2xl px-3 py-2 font-bold bg-emerald-50 text-emerald-600 rounded-3xl dark:bg-gray-950 dark:text-lime-400 flex items-center justify-center gap-2">
               <FiCheckCircle /> ~20k
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Repairs completed monthly</p>
           </div>
           <div className="p-6 rounded-3xl bg-white dark:bg-gray-800 shadow-xl text-center">
-            <div className="flex items-center justify-center gap-1 text-yellow-500 text-4xl">
+            <div className="flex items-center justify-center gap-1 bg-amber-50 dark:bg-gray-900 rounded-3xl px-3 py-2 text-yellow-500 text-4xl">
               {[...Array(5)].map((_, i) => (
                 <FiStar key={i} fill={i < 4 ? "currentColor" : "none"} />
               ))}
-              <span className="text-2xl text-gray-500 dark:text-gray-400 ml-1">.5</span>
+              <span className="text-2xl text-gray-500 dark:text-gray-400 ml-1"></span>
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">4.5 Average user rating</p>
           </div>
@@ -404,7 +403,7 @@ const Homepage = memo(({ darkMode }) => {
           </div>
         </div>
 
-        <button className="mt-auto w-full bg-lime-600 hover:bg-lime-700 focus:ring-4 focus:ring-lime-300 dark:focus:ring-lime-800 text-white font-bold py-4 rounded-xl transition-all transform hover:translate-y-[-2px] shadow-md">
+        <button className="mt-auto w-full bg-transparent  border-4 border-lime-600 dark:border-gray-900 dark:text-white dark:bg-gray-950 hover:bg-lime-700 hover:text-white focus:ring-4 focus:ring-lime-300 dark:focus:ring-lime-800 text-lime-600 font-bold py-4 rounded-xl transition-all transform hover:translate-y-[-2px] shadow-md">
           Book a Repair Now
         </button>
       </Link>

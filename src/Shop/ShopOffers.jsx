@@ -273,7 +273,7 @@ const ShopOffers = ({darkMode}) => {
   const fixedPct = stats.totalOffers > 0 ? Math.round((stats.fixedOffers / stats.totalOffers) * 100) : 0;
 
   return (
-    <div style={{ marginTop: "-575px", marginLeft: "-250px" }} className="min-h-screen bg-gray-50 font-cairo py-8">
+    <div style={{ marginTop: "-540px", marginLeft: "-250px" }} className="min-h-screen bg-gray-50 font-cairo py-8">
       <div className="max-w-5xl mx-auto px-6">
 
         <div className="mb-10 bg-white rounded-3xl shadow-sm border border-gray-200 p-8">
@@ -340,15 +340,15 @@ const ShopOffers = ({darkMode}) => {
               <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-lg" />
               <input
                 type="text"
-                placeholder="ابحث في العروض بالاسم..."
+                placeholder="ابحث في العروض بالاسم"
                 onChange={handleSearchChange}
-                className="w-full pr-12 py-3.5 pl-4 rounded-xl border border-gray-300 focus:border-lime-500 focus:ring-4 focus:ring-lime-100 outline-none text-base transition bg-gray-50"
+                className="w-full pr-12 py-3.5 pl-4 placeholder:text-right rounded-xl border border-gray-300 focus:border-lime-500 focus:ring-4 focus:ring-lime-100 outline-none text-base transition bg-gray-50"
               />
             </div>
 
             <button
               onClick={openModalForAdd}
-              className="px-8 py-3.5 bg-teal-500 text-white border border-teal-500 rounded-3xl font-semibold hover:bg-teal-600 shadow transition flex items-center gap-2"
+              className="px-8 py-3.5 bg-teal-50 text-teal-600 border border-emerald-100 rounded-3xl font-bold shadow transition flex items-center gap-2"
             >
               <FiPlus className="w-5 h-5" />
               إضافة عرض جديد
@@ -356,7 +356,7 @@ const ShopOffers = ({darkMode}) => {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           {loading ? (
             <div className="p-20 text-center">
               <div className="w-16 h-16 border-6 border-lime-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
@@ -371,9 +371,9 @@ const ShopOffers = ({darkMode}) => {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-100 text-gray-600">
+                <thead className="bg-gray-100 border text-gray-600">
                   <tr>
-                    <th className="px-5 py-4 text-base font-bold">#</th>
+                    {/* <th className="px-5 py-4 text-base font-bold">#</th> */}
                     <th className="px-5 py-4 text-base font-bold">اسم العرض</th>
                     <th className="px-5 py-4 text-base font-bold">الوصف</th>
                     <th className="px-5 py-4 text-base font-bold">الخصم</th>
@@ -386,12 +386,12 @@ const ShopOffers = ({darkMode}) => {
                     const globalIndex = (currentPage - 1) * offersPerPage + index + 1;
                     return (
                       <tr key={offer.id} className="hover:bg-gray-50 transition">
-                        <td className="px-5 py-4 text-sm font-medium text-gray-800 text-center">{globalIndex}</td>
+                        {/* <td className="px-5 py-4 text-sm font-medium text-gray-800 text-center">{globalIndex}</td> */}
                         <td className="px-5 py-4 text-sm font-medium text-gray-800 text-center">{offer.name}</td>
                         <td className="px-5 py-4 text-sm text-gray-700 text-center max-w-xs truncate">{offer.description || '-'}</td>
                         <td className="px-5 py-4 text-center font-bold">
                           {offer.discountValue}
-                          {offer.discountType === 'PERCENTAGE' ? <FiPercent className="inline ml-1 text-lime-600" /> : <FiDollarSign className="inline ml-1 text-lime-600" />}
+                          {offer.discountType === 'PERCENTAGE' ? <FiPercent className="inline ml-1 text-lime-600" />  : 'EGP'}
                         </td>
                         <td className="px-5 py-4 text-center">
                           <span className={`px-4 py-2 rounded-full text-xs font-bold ${
@@ -406,19 +406,19 @@ const ShopOffers = ({darkMode}) => {
                           <div className="flex justify-center gap-2">
                             <button
                               onClick={() => viewOfferDetails(offer.id)}
-                              className="px-3 py-2 flex gap-2 bg-transparent text-amber-500 border border-amber-500 rounded-3xl text-xs font-medium transition"
+                              className="px-3 font-sans py-2 flex gap-2 bg-blue-50 text-blue-500 border border-blue-100 rounded-3xl text-sm font-bold transition"
                             >
                               <FiInfo className="w-4 h-4 inline ml-1" /> تفاصيل
                             </button>
                             <button
                               onClick={() => openModalForEdit(offer)}
-                              className="px-3 py-2 flex gap-2 bg-transparent text-lime-500 border border-lime-500 rounded-3xl text-xs font-medium transition"
+                              className="px-3 font-sans py-2 flex gap-2 bg-amber-50 text-amber-500 border border-amber-100 rounded-3xl text-sm font-bold transition"
                             >
                               <FiEdit3 className="w-4 h-4 inline ml-1" /> تعديل
                             </button>
                             <button
                               onClick={() => deleteOffer(offer.id)}
-                              className="px-3 py-2 flex gap-2 bg-transparent text-red-500 border border-red-500 rounded-3xl text-xs font-medium transition"
+                              className="px-3 font-sans py-2 flex gap-2 bg-red-50 text-red-500 border border-red-100 rounded-3xl text-sm font-bold transition"
                             >
                               <FiTrash2 className="w-4 h-4 inline ml-1" /> حذف
                             </button>

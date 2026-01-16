@@ -7,7 +7,7 @@ import { Header, Shops, Users, Reviews, Category, Deliveries, Assigners, AdminOf
 import  Dashboard  from './Admin/Dashboard';
 import { AssignerDashboard, DeliveryPersons, AssignerProfile, AssignedOrders, AssignedRepairs, AssignmentLogs, ReassignRepairs, ReassignOrders, OrdersForAssignment, RepairsForAssignment } from './Assigner';
 import { DeliveryDashboard, DeliveryProfile, MyDeliveries, MyRepairs, AvailableOrders, AvailableRepairs } from './Delivery';
-import { ShopHeader, ShopDashboard, RepairRequests, Products, Transactions, ShopOffers, ShopProfile, Inventory, Chat, Orders, ShopNotifications, Subscriptions } from './Shop';
+import { ShopHeader, ShopDashboard, RepairRequests, Products, Transactions, ShopOffers, ShopProfile, Inventory, Chat, Orders, Subscriptions } from './Shop';
 import { useAuth } from './context/AuthContext';
 import Shop from './User/Shop';
 
@@ -151,25 +151,25 @@ function App() {
         <Route path="/oauth2/success" element={<SuccessGoogle />} />
 
         {/* Admin Routes */}
-        <Route path="/dashboard" element={withAdminLayout(Dashboard)} />
-        <Route path="/repair-shops" element={withAdminLayout(Shops)} />
-        <Route path="/shop/subscriptions" element={withAdminLayout(AdminSubscriptions)} />
+        <Route path="/admin/dashboard" element={withAdminLayout(Dashboard)} />
+        <Route path="/admin/shops" element={withAdminLayout(Shops)} />
+        <Route path="/admin/subscriptions" element={withAdminLayout(AdminSubscriptions)} />
         <Route path="/admin/transactions" element={withAdminLayout(AdminTransactions)} />
-        <Route path="/users" element={withAdminLayout(Users)} />
+        <Route path="/admin/users" element={withAdminLayout(Users)} />
         <Route path="/admin/offers" element={withAdminLayout(AdminOffers)} />
-        <Route path="/category" element={withAdminLayout(Category)} />
-        <Route path="/deliveries" element={withAdminLayout(Deliveries)} />
-        <Route path="/assigners" element={withAdminLayout(Assigners)} />
-        <Route path="/reviews" element={withAdminLayout(Reviews)} />
+        <Route path="/admin/category" element={withAdminLayout(Category)} />
+        <Route path="/admin/deliveries" element={withAdminLayout(Deliveries)} />
+        <Route path="/admin/assigners" element={withAdminLayout(Assigners)} />
+        <Route path="/admin/reviews" element={withAdminLayout(Reviews)} />
         <Route path="/admin/repair-requests" element={withAdminLayout(AdminRepairRequests)} />
         <Route path="/admin/products" element={withAdminLayout(AdminProducts)} />
         <Route path="/admin/assignment-logs" element={withAdminLayout(AdminAssignmentLogs)} />
      
 
         {/* Assigner Routes */}
-        <Route path="/assigner-dashboard" element={withAssignerLayout(AssignerDashboard)} />
+        <Route path="/assigner/dashboard" element={withAssignerLayout(AssignerDashboard)} />
         <Route path="/assigner/profile" element={withAssignerLayout(AssignerProfile)} />
-        <Route path="/assigner/delivery-persons" element={withAssignerLayout(DeliveryPersons)} />
+        <Route path="/assigner/delivery" element={withAssignerLayout(DeliveryPersons)} />
         <Route path="/assigner/orders" element={withAssignerLayout(OrdersForAssignment)} />
         <Route path="/assigner/repair-requests" element={withAssignerLayout(RepairsForAssignment)} />
         <Route path="/assigner/assignment-logs" element={withAssignerLayout(AssignmentLogs)} />
@@ -179,7 +179,7 @@ function App() {
         <Route path="/assigner/reassign-orders" element={withAssignerLayout(ReassignOrders)} />
 
         {/* Delivery Routes */}
-        <Route path="/delivery-dashboard" element={withDeliveryLayout(DeliveryDashboard)} />
+        <Route path="/delivery/dashboard" element={withDeliveryLayout(DeliveryDashboard)} />
         <Route path="/delivery/profile" element={withDeliveryLayout(DeliveryProfile)} />
         <Route path="/delivery/available-orders" element={withDeliveryLayout(AvailableOrders)} />
         <Route path="/delivery/available-repair-requests" element={withDeliveryLayout(AvailableRepairs)} />
@@ -187,19 +187,20 @@ function App() {
         <Route path="/delivery/my-repairs" element={withDeliveryLayout(MyRepairs)} />
         
         {/* Shop Routes */}
-        <Route path="/shop-dashboard" element={withShopLayout(ShopDashboard)} />
-        <Route path="/support" element={withShopLayout(Chat)} />
+        <Route path="/shop/dashboard" element={withShopLayout(ShopDashboard)} />
+        <Route path="/shop/chats" element={withShopLayout(Chat)} />
         <Route path="/shop/transactions" element={withShopLayout(Transactions)} />
-        <Route path="/repair/requests" element={withShopLayout(RepairRequests)} />
+        <Route path="/shop/repair-requests" element={withShopLayout(RepairRequests)} />
         <Route path="/shop/devices" element={withShopLayout(Products)} />
         <Route path="/shop/offers" element={withShopLayout(ShopOffers)} />
-        <Route path="/subscriptions" element={withShopLayout(Subscriptions)} />
+        <Route path="/shop/subscriptions" element={withShopLayout(Subscriptions)} />
         <Route path="/shop/orders" element={withShopLayout(Orders)} />
         <Route path="/shop/profile" element={withShopLayout(ShopProfile)} />
         <Route path="/shop/inventory" element={withShopLayout(Inventory)} />
-        <Route path="/shop/notifications" element={withShopLayout(ShopNotifications)} />
         <Route path="/dashboard" element={<ProtectedRoute><Homepage /></ProtectedRoute>} />
       </Routes>
+
+
     <Cart
           show={showCart}
           onClose={() => setShowCart(false)}

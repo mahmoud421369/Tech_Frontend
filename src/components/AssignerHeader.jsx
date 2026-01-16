@@ -60,8 +60,8 @@ const AssignerHeader = () => {
   
   const menuItems = useMemo(
     () => [
-      { name: "Dashboard", path: "/assigner-dashboard", icon: <FiActivity size={20} /> },
-      { name: "Delivery", path: "/assigner/delivery-persons", icon: <FiUsers size={20} /> },
+      { name: "Dashboard", path: "/assigner/dashboard", icon: <FiActivity size={20} /> },
+      { name: "Delivery", path: "/assigner/delivery", icon: <FiUsers size={20} /> },
       { name: "Orders", path: "/assigner/orders", icon: <FiBox size={20} /> },
       { name: "Repairs", path: "/assigner/repair-requests", icon: <FiTool size={20} /> },
       { name: "Logs", path: "/assigner/assignment-logs", icon: <FiClipboard size={20} /> },

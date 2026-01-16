@@ -79,8 +79,8 @@ const TransactionRow = memo(({ txn }) => {
       <td className="px-5 py-4 text-sm text-gray-800 text-center">{formatDate(txn.paidAt)}</td>
       <td className="px-5 py-4 text-sm text-gray-800 text-center">{getServiceType()}</td>
       <td className="px-5 py-4 text-sm text-gray-800 text-center">{getItemName()}</td>
-      <td className="px-5 py-4 text-sm text-gray-800 text-center">{getLocation()}</td>
-      <td className="px-5 py-4 text-sm text-gray-800 text-center">{getPaymentMethod()}</td>
+      {/* <td className="px-5 py-4 text-sm text-gray-800 text-center">{getLocation()}</td> */}
+      <td className="px-5 py-4 text-sm text-gray-800 text-center text-emerald-700 font-semibold">{getPaymentMethod()}</td>
       <td className="px-5 py-4 text-center font-bold text-lg text-lime-600">
         {txn.amount.toLocaleString()} ج.م
       </td>
@@ -207,7 +207,7 @@ document.title = "إدارة الفواتير";
   };
 
   return (
-    <div dir="rtl" style={{ marginLeft: "-250px", marginTop: "-575px" }} className="min-h-screen bg-gray-50 font-cairo py-8">
+    <div dir="rtl" style={{ marginLeft: "-250px", marginTop: "-540px" }} className="min-h-screen bg-gray-50 font-cairo py-8">
       <div className="max-w-5xl mx-auto px-6">
 
       
@@ -290,7 +290,7 @@ document.title = "إدارة الفواتير";
                     <th className="px-5 py-4 text-base font-bold">التاريخ</th>
                     <th className="px-5 py-4 text-base font-bold">نوع الخدمة</th>
                     <th className="px-5 py-4 text-base font-bold">الجهاز/المنتج</th>
-                    <th className="px-5 py-4 text-base font-bold">المكان</th>
+                    {/* <th className="px-5 py-4 text-base font-bold">المكان</th> */}
                     <th className="px-5 py-4 text-base font-bold">طريقة الدفع</th>
                     <th className="px-5 py-4 text-base font-bold">المبلغ</th>
                     <th className="px-5 py-4 text-base font-bold">الحالة</th>
@@ -315,7 +315,7 @@ document.title = "إدارة الفواتير";
               className="px-4 py-3 bg-white border border-lime-600 rounded-xl disabled:opacity-50 hover:bg-lime-50 text-lime-700 font-medium transition shadow-sm flex items-center gap-2"
             >
               <FiChevronLeft className="w-5 h-5" />
-              السابق
+              
             </button>
 
             <div className="flex gap-2">
@@ -323,7 +323,7 @@ document.title = "إدارة الفواتير";
                 <button
                   key={i + 1}
                   onClick={() => setCurrentPage(i + 1)}
-                  className={`w-12 h-12 rounded-xl font-bold text-base transition shadow-sm flex items-center justify-center ${
+                  className={`w-10 h-10 rounded-xl font-bold text-base transition shadow-sm flex items-center justify-center ${
                     currentPage === i + 1 ? 'bg-lime-600 text-white' : 'bg-white border border-lime-600 text-lime-700 hover:bg-lime-50'
                   }`}
                 >
@@ -337,7 +337,7 @@ document.title = "إدارة الفواتير";
               disabled={currentPage === totalPages}
               className="px-4 py-3 bg-white border border-lime-600 rounded-xl disabled:opacity-50 hover:bg-lime-50 text-lime-700 font-medium transition shadow-sm flex items-center gap-2"
             >
-              التالي
+              
               <FiChevronRight className="w-5 h-5" />
             </button>
           </div>

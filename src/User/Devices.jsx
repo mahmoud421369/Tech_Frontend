@@ -129,6 +129,10 @@ const Products = ({ darkMode }) => {
   const pageSize = 12;
   const abortCtrlRef = useRef(new AbortController());
 
+ useEffect(()=>{
+   document.title = `Our Products`
+ })
+
   const fetchProducts = useCallback(
     async (category) => {
       abortCtrlRef.current.abort();
@@ -282,19 +286,19 @@ const Products = ({ darkMode }) => {
                 </p>
                 <div className="grid grid-cols-3 gap-6">
                   <div className="p-6 rounded-3xl bg-white dark:bg-gray-800 shadow-xl text-center">
-                    <div className="text-4xl font-bold text-lime-600 dark:text-lime-400 flex items-center justify-center gap-2">
+                    <div className="text-2xl px-3 py-2 font-bold bg-blue-50 text-blue-600 rounded-3xl dark:bg-gray-950 dark:text-blue-400 flex items-center justify-center gap-2">
                       <FiPackage /> 1,200+
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Products in stock</p>
                   </div>
                   <div className="p-6 rounded-3xl bg-white dark:bg-gray-800 shadow-xl text-center">
-                    <div className="text-4xl font-bold text-lime-600 dark:text-lime-400 flex items-center justify-center gap-2">
+                    <div className="text-2xl px-3 py-2 font-bold bg-emerald-50 text-emerald-600 rounded-3xl dark:bg-gray-950 dark:text-lime-400 flex items-center justify-center gap-2">
                       <FiUsers /> ~50K
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Happy customers</p>
                   </div>
                   <div className="p-6 rounded-3xl bg-white dark:bg-gray-800 shadow-xl text-center">
-                    <div className="flex items-center justify-center gap-1 text-yellow-500 text-4xl">
+                    <div className="flex items-center justify-center gap-1 bg-amber-50 dark:bg-gray-900 rounded-3xl px-3 py-2 text-yellow-500 text-4xl">
                       {[...Array(5)].map((_, i) => (
                         <FiStar key={i} fill="currentColor" />
                       ))}

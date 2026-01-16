@@ -10,7 +10,9 @@ import api from '../api';
 import debounce from 'lodash/debounce';
 import TextField from '@mui/material/TextField';
 
-const Products = () => {
+
+
+const Products = ({darkMode}) => {
   const [products, setProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [newProduct, setNewProduct] = useState({
@@ -82,7 +84,7 @@ document.title = "إدارة المنتجات";
       const data = Array.isArray(res.data) ? res.data : res.data.content || [];
       setProducts(data);
     } catch (err) {
-      Swal.fire('خطأ', 'فشل في جلب المنتجات', 'error');
+      // Swal.fire('خطأ', 'فشل في جلب المنتجات', 'error');
     } finally {
       setLoading(false);
     }
@@ -94,7 +96,7 @@ document.title = "إدارة المنتجات";
       const data = Array.isArray(res.data) ? res.data : res.data.content || [];
       setCategories(data);
     } catch (err) {
-      Swal.fire('خطأ', 'فشل في جلب الفئات', 'error');
+      // Swal.fire('خطأ', 'فشل في جلب الفئات', 'error');
     }
   }, []);
 
@@ -131,11 +133,24 @@ document.title = "إدارة المنتجات";
         category: { id: newProduct.category.id },
       };
       await api.post('/api/shops/products', productToSubmit);
-      Swal.fire('نجاح', 'تم إضافة المنتج', 'success');
+      Swal.fire({
+        icon:'success',
+        text:"تم اضافة المنتج",
+        timer:2000,
+        toast:true,
+        position:"top-end"
+      });
       setShowAddModal(false);
       setNewProduct({ name: '', description: '', price: '', imageUrl: '', category: { id: '', name: '' }, stockQuantity: '', condition: 'NEW' });
       fetchProducts();
     } catch (err) {
+       Swal.fire({
+        icon:'error',
+        text:`فشل في اضافة المنتج || ${err.response?.data?.message}`,
+        timer:2000,
+        toast:true,
+        position:"top-end"
+      });
       Swal.fire('خطأ', err.response?.data?.message || 'فشل في الإضافة', 'error');
     }
   };
@@ -159,11 +174,23 @@ document.title = "إدارة المنتجات";
         category: { id: editingProduct.category.id },
       };
       await api.put(`/api/shops/products/${editingProduct.id}`, updateData);
-      Swal.fire('نجاح', 'تم تعديل المنتج', 'success');
+         Swal.fire({
+        icon:'success',
+        text:"تم تعديل المنتج",
+        timer:2000,
+        toast:true,
+        position:"top-end"
+      });
       setShowEditModal(false);
       fetchProducts();
     } catch (err) {
-      Swal.fire('خطأ', 'فشل في التعديل', 'error');
+          Swal.fire({
+        icon:'error',
+        text:"خطأ في تعديل المنتج",
+        timer:2000,
+        toast:true,
+        position:"top-end"
+      });
     }
   };
 
@@ -176,11 +203,23 @@ document.title = "إدارة المنتجات";
   const updateStock = async () => {
     try {
       await api.patch(`/api/shops/products/${selectedProductId}/stock`, { newStock: parseInt(newStockValue) });
-      Swal.fire('نجاح', 'تم تحديث المخزون', 'success');
+           Swal.fire({
+        icon:'success',
+        text:"تم تحديث مخزون المنتج",
+        timer:2000,
+        toast:true,
+        position:"top-end"
+      });
       setShowStockModal(false);
       fetchProducts();
     } catch (err) {
-      Swal.fire('خطأ', 'فشل في تحديث المخزون', 'error');
+           Swal.fire({
+        icon:'error',
+        text:"خطأ في تحديث مخزون المنتج",
+        timer:2000,
+        toast:true,
+        position:"top-end"
+      });
     }
   };
 
@@ -192,16 +231,51 @@ document.title = "إدارة المنتجات";
     if (!result.isConfirmed) return;
     try {
       await api.delete(`/api/shops/products/${id}`);
-      Swal.fire('تم الحذف', 'تم حذف المنتج بنجاح', 'success');
+           Swal.fire({
+        icon:'success',
+        text:"تم ازالة المنتج",
+        timer:2000,
+        toast:true,
+        position:"top-end"
+      });
       fetchProducts();
     } catch (err) {
-      Swal.fire('خطأ', 'فشل في الحذف', 'error');
+          Swal.fire({
+        icon:'error',
+        text:" خطأ في ازالة المنتج",
+        timer:2000,
+        toast:true,
+        position:"top-end"
+      });
     }
   };
 
   return (
     <ShopLayout>
-      <div style={{marginTop:"-1225px",marginLeft:"-250px"}} className="min-h-screen bg-gray-50 font-cairo py-8">
+     
+      <div style={{marginTop:"-1140px",marginLeft:"-250px"}} className="min-h-screen bg-gray-50 font-cairo py-8">
+
+
+ <style>
+        {`
+          .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-track {
+            background: ${darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
+            border-radius: 10px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: ${darkMode ? '#34d399' : '#10b981'};
+            border-radius: 10px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: ${darkMode ? '#6ee7b7' : '#059669'};
+          }
+        `}
+      </style>
+
         <div className="max-w-5xl mx-auto px-6">
 
           <div className="mb-10 bg-white rounded-3xl shadow-sm border border-gray-200 p-8">
@@ -257,15 +331,15 @@ document.title = "إدارة المنتجات";
                 <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-lg" />
                 <input
                   type="text"
-                  placeholder="ابحث في المنتجات..."
-                  className="w-full pr-12 py-3.5 pl-4 rounded-xl border border-gray-300 focus:border-lime-500 focus:ring-4 focus:ring-lime-100 outline-none text-base transition bg-gray-50"
+                  placeholder="ابحث في المنتجات"
+                  className="w-full pr-12 py-3.5 pl-4 rounded-xl placeholder:text-right border border-gray-300 focus:border-lime-500 focus:ring-4 focus:ring-lime-100 outline-none text-base transition bg-gray-50"
                   onChange={(e) => debouncedSearch(e.target.value)}
                 />
               </div>
 
               <button
                 onClick={() => setShowAddModal(true)}
-                className="px-8 py-3.5 bg-teal-500 text-white border border-teal-500 rounded-3xl font-semibold shadow transition flex items-center gap-2"
+                className="px-8 py-3.5 bg-teal-50 text-teal-600 border border-emerald-100 rounded-3xl font-bold shadow transition flex items-center gap-2"
               >
                 <FiBox className="w-5 h-5" />
                 إضافة منتج جديد
@@ -273,7 +347,7 @@ document.title = "إدارة المنتجات";
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-lg overflow-hidden custom-scrollbar">
             {loading ? (
               <div className="p-20 text-center">
                 <div className="w-16 h-16 border-6 border-lime-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
@@ -285,9 +359,9 @@ document.title = "إدارة المنتجات";
                 <p className="text-xl">لا توجد منتجات حالياً</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-100 text-gray-600">
+              <div className="overflow-x-auto custom-scrollbar">
+                <table className="w-full ">
+                  <thead className="bg-gray-100 border text-gray-800 font-cairo">
                     <tr>
                       <th className="px-5 py-4 text-base font-bold text-right">الاسم</th>
                       <th className="px-5 py-4 text-base font-bold">الصورة</th>
@@ -329,14 +403,14 @@ document.title = "إدارة المنتجات";
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex justify-center gap-2">
-                            <button onClick={() => openEditModal(p)} className="px-3 py-2 flex gap-2 bg-transparent text-amber-500 border border-amber-500 rounded-3xl text-xs font-medium transition">
+                            <button onClick={() => openEditModal(p)} className="px-3 font-sans py-2 flex gap-2 bg-amber-50 text-amber-500 border border-amber-100 rounded-3xl text-sm font-bold transition">
                               <FiEdit3 className="w-4 h-4 inline ml-1" /> تعديل
                             </button>
-                            <button onClick={() => openStockModal(p.id, p.stock)} className="px-3 py-2 flex gap-2 bg-transparent text-lime-500 border border-lime-500 rounded-3xl text-xs font-medium transition">
+                            <button onClick={() => openStockModal(p.id, p.stock)} className="px-3 font-sans py-2 flex gap-2 bg-indigo-50 text-indigo-500 border border-indigo-100 rounded-3xl text-sm font-bold transition">
                               <FiInbox className="w-4 h-4 inline ml-1" /> مخزون
                             </button>
-                            <button onClick={() => deleteProduct(p.id)} className="px-3 py-2 bg-transparent text-red-500 border border-red-500 rounded-3xl text-xs font-medium transition flex gap-2">
-                              <FiTrash2 className="w-4 h-4 inline ml-1" /> حذف
+                            <button onClick={() => deleteProduct(p.id)} className="px-3 font-sans py-2 flex gap-2 bg-red-50 text-red-500 border border-red-100 rounded-3xl text-sm font-bold transition">
+                              <FiTrash2 className="w-4 h-4 inline ml-1" /> ازالة
                             </button>
                           </div>
                         </td>
@@ -353,10 +427,10 @@ document.title = "إدارة المنتجات";
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="px-4 py-3 bg-white border border-lime-600 rounded-xl disabled:opacity-50 hover:bg-lime-50 text-lime-700 font-medium transition shadow-sm flex items-center gap-2"
+                className="px-4 py-2 bg-white border border-gray-600 rounded-lg disabled:opacity-50 hover:bg-gray-50 text-lime-700 font-medium transition shadow-sm flex items-center gap-2"
               >
-                <FiChevronLeft className="w-5 h-5" />
-                السابق
+                <FiChevronLeft className="w-5 h-5 text-gray-600" />
+                
               </button>
 
               <div className="flex gap-2">
@@ -364,8 +438,8 @@ document.title = "إدارة المنتجات";
                   <button
                     key={i + 1}
                     onClick={() => setCurrentPage(i + 1)}
-                    className={`w-12 h-12 rounded-xl font-bold text-base transition shadow-sm flex items-center justify-center ${
-                      currentPage === i + 1 ? 'bg-lime-600 text-white' : 'bg-white border border-lime-600 text-lime-700 hover:bg-lime-50'
+                    className={`w-10 h-10 rounded-lg font-bold text-base transition shadow-sm flex items-center justify-center ${
+                      currentPage === i + 1 ? 'bg-gray-600 text-white' : 'bg-white border border-gray-600 text-gray-700 hover:bg-gray-50'
                     }`}
                   >
                     {i + 1}
@@ -376,10 +450,10 @@ document.title = "إدارة المنتجات";
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="px-4 py-3 bg-white border border-lime-600 rounded-xl disabled:opacity-50 hover:bg-lime-50 text-lime-700 font-medium transition shadow-sm flex items-center gap-2"
+                className="px-4 py-2 bg-white border border-gray-600 rounded-lg disabled:opacity-50 hover:bg-gray-50 text-lime-700 font-medium transition shadow-sm flex items-center gap-2"
               >
-                التالي
-                <FiChevronRight className="w-5 h-5" />
+                
+                <FiChevronRight className="w-5 h-5 text-gray-600" />
               </button>
             </div>
           )}
@@ -406,16 +480,19 @@ document.title = "إدارة المنتجات";
 
                     return (
                       <div key={field} className="relative">
-                        <input
+                        <TextField
+                          id="outlined-basic"
+                          label={label}
+                          variant="outlined"
                           type={field === 'price' || field === 'stockQuantity' ? 'number' : 'text'}
                           value={editingProduct[field] || ''}
                           onChange={(e) => setEditingProduct({ ...editingProduct, [field]: e.target.value })}
                           className="peer w-full px-4 py-3 pt-6 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-lime-400 focus:border-lime-500 outline-none transition text-right text-black placeholder-gray-500"
                           placeholder=" "
                         />
-                        <label className="absolute right-4 top-1 text-sm text-gray-500 transition-all duration-300 peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-focus:top-1 peer-focus:text-sm peer-focus:text-lime-600">
+                        {/* <label className="absolute right-4 top-1 text-sm text-gray-500 transition-all duration-300 peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-base peer-focus:top-1 peer-focus:text-sm peer-focus:text-lime-600">
                           {label}
-                        </label>
+                        </label> */}
                       </div>
                     );
                   })}
@@ -429,7 +506,7 @@ document.title = "إدارة المنتجات";
                       <FiChevronDown className={`transition-transform ${isEditConditionOpen ? 'rotate-180' : ''}`} />
                     </button>
                     {isEditConditionOpen && (
-                      <div className="absolute z-20 mt-2 w-full bg-white border border-lime-200 rounded-lg shadow-xl">
+                      <div className="absolute z-20 mt-2 w-full bg-white border  rounded-lg shadow-xl">
                         {conditions.map((cond) => (
                           <button
                             key={cond}
@@ -455,7 +532,7 @@ document.title = "إدارة المنتجات";
                       <FiChevronDown className={`transition-transform ${isEditCategoryOpen ? 'rotate-180' : ''}`} />
                     </button>
                     {isEditCategoryOpen && (
-                      <div className="absolute z-20 mt-2 w-full bg-white border border-lime-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                      <div className="absolute z-20 mt-2 w-full bg-white border  rounded-lg shadow-xl max-h-60 overflow-y-auto">
                         {categories.map((cat) => (
                           <button
                             key={cat.id}

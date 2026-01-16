@@ -132,6 +132,10 @@ const DeviceDetail = memo(({ addToCart, darkMode }) => {
   const [catPage, setCatPage] = useState(1);
   const [condPage, setCondPage] = useState(1);
 
+ useEffect(()=>{
+   document.title = `Product Detail | ${product?.name}`
+ })
+
   const itemsPerPage = 8;
 
   const fetchProductAndAll = useCallback(async () => {

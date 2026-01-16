@@ -281,7 +281,7 @@ const Offers = ({ darkMode }) => {
                 : "bg-lime-600 hover:bg-lime-700 text-white shadow-lg"
             }`}
           >
-            <FiChevronLeft /> Previous
+            <FiChevronLeft /> 
           </button>
 
           <span className={`text-lg font-medium ${textPrimary}`}>
@@ -297,7 +297,7 @@ const Offers = ({ darkMode }) => {
                 : "bg-lime-600 hover:bg-lime-700 text-white shadow-lg"
             }`}
           >
-            Next <FiChevronRight />
+             <FiChevronRight />
           </button>
         </div>
       )}

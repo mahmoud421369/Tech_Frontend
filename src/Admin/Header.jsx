@@ -35,25 +35,25 @@ const Header = () => {
 
   const menuItems = useMemo(
     () => [
-      { name: "dashboard", icon: <FiHome />, label: "Dashboard", path: "/dashboard" },
-      { name: "users", icon: <FiUsers />, label: "Users", path: "/users" },
+      { name: "dashboard", icon: <FiHome />, label: "Dashboard", path: "/admin/dashboard" },
+      { name: "users", icon: <FiUsers />, label: "Users", path: "/admin/users" },
       {
         name: "shops",
         icon: <RiStore3Line />,
         label: "Shop",
         subMenu: [
-          { name: "shops", icon: <RiStore2Line />, label: "Stores", path: "/repair-shops" },
-          { name: "subscriptions", icon: <RiAccountBox2Line />, label: "Subscription", path: "/shop/subscriptions" },
+          { name: "shops", icon: <RiStore2Line />, label: "Stores", path: "/admin/shops" },
+          { name: "subscriptions", icon: <RiAccountBox2Line />, label: "Subscription", path: "/admin/subscriptions" },
           { name: "products", icon: <FiBox />, label: "Products", path: "/admin/products" },
           { name: "repair requests", icon: <FiTool />, label: "Repair Requests", path: "/admin/repair-requests" },
           { name: "offers", icon: <FiTag />, label: "Offers", path: "/admin/offers" },
-          { name: "reviews", icon: <FiStar />, label: "Reviews", path: "/reviews" },
+          { name: "reviews", icon: <FiStar />, label: "Reviews", path: "/admin/reviews" },
         ],
       },
-      { name: "categories", icon: <FiList />, label: "Categories", path: "/category" },
+      { name: "categories", icon: <FiList />, label: "Categories", path: "/admin/category" },
       { name: "transactions", icon: <FiDollarSign />, label: "Transactions", path: "/admin/transactions" },
-      { name: "delivery", icon: <RiTruckLine />, label: "Delivery", path: "/deliveries" },
-      { name: "assigners", icon: <RiGift2Line />, label: "Assigner", path: "/assigners" },
+      { name: "delivery", icon: <RiTruckLine />, label: "Delivery", path: "/admin/deliveries" },
+      { name: "assigners", icon: <RiGift2Line />, label: "Assigner", path: "/admin/assigners" },
       { name: "assignment-logs", icon: <FiClipboard />, label: "Assignment Logs", path: "/admin/assignment-logs" },
     ],
     []

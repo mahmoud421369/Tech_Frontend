@@ -110,7 +110,7 @@ const DeliveryHeader = () => {
 
 
   const menuItems = [
-    { name: "Dashboard", path: "/delivery-dashboard", icon: FiHome },
+    { name: "Dashboard", path: "/delivery/dashboard", icon: FiHome },
     { name: "Available Orders", path: "/delivery/available-orders", icon: FiPackage },
     { name: "Available Repairs", path: "/delivery/available-repair-requests", icon: FiTool },
     { name: "My Deliveries", path: "/delivery/my-deliveries", icon: FiClipboard },

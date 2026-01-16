@@ -24,6 +24,7 @@ import {
   FiCheckCircle,
   FiChevronDown,
   FiZap,
+  FiShoppingCart,
 } from "react-icons/fi";
 import Swal from "sweetalert2";
 import { debounce } from "lodash";
@@ -54,7 +55,7 @@ const Shop = memo(({ darkMode, addToCart }) => {
   const dropdownRef = useRef(null);
 
   useEffect(() => {
-    document.title = shop?.name ? `${shop.name} | TechRestore` : "Loading Shop...";
+    document.title = shop?.name ? `${shop.name}` : "Loading Shop...";
   }, [shop?.name]);
 
   const debouncedSetSearch = useCallback(debounce((value) => setSearch(value), 300), []);
@@ -267,21 +268,31 @@ const Shop = memo(({ darkMode, addToCart }) => {
                 <p className="text-xl text-gray-600 dark:text-gray-300">
                   {shop?.description || "Quality products with excellent service."}
                 </p>
+                     <p className="text-xl text-gray-600 flex items-center gap-3 dark:text-gray-300">
+                  <FiPhone className="w-12 h-10 p-2 rounded-3xl bg-white dark:bg-gray-950 text-emerald-600"/>{shop?.phone || "Quality products with excellent service."}
+                </p>
+                {shop?.shopAddress && (
+
+                
+                 <p className="text-xl text-gray-600 flex items-center gap-3 dark:text-gray-300">
+                  <FiMapPin className="w-12 h-10 p-2 rounded-3xl bg-white dark:bg-gray-950  text-emerald-600"/>{shop?.shopAddress?.fullAddress || "Quality products with excellent service."}
+                </p>
+                )}
                 <div className="grid grid-cols-3 gap-6">
                   <div className="p-6 rounded-3xl bg-white dark:bg-gray-800 shadow-xl text-center">
-                    <div className="text-4xl font-bold text-lime-600 dark:text-lime-400 flex items-center justify-center gap-2">
+                    <div className="text-2xl px-3 py-2 font-bold bg-orange-50 text-orange-600 rounded-3xl dark:bg-gray-950 dark:text-orange-400 flex items-center justify-center gap-2">
                       <FiZap /> 98.9%
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Customer satisfaction</p>
                   </div>
                   <div className="p-6 rounded-3xl bg-white dark:bg-gray-800 shadow-xl text-center">
-                    <div className="text-4xl font-bold text-lime-600 dark:text-lime-400 flex items-center justify-center gap-2">
+                    <div className="text-2xl px-3 py-2 font-bold bg-indigo-50 text-indigo-600 rounded-3xl dark:bg-gray-950 dark:text-indigo-400 flex items-center justify-center gap-2">
                       <FiTruck /> 24h
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Avg delivery time</p>
                   </div>
                   <div className="p-6 rounded-3xl bg-white dark:bg-gray-800 shadow-xl text-center">
-                    <div className="flex items-center justify-center gap-1 text-yellow-500 text-4xl">
+                    <div className="flex items-center justify-center gap-1 bg-amber-50 dark:bg-gray-900 rounded-3xl px-3 py-2 text-yellow-500 text-4xl">
                       {[...Array(5)].map((_, i) => (
                         <FiStar key={i} fill="currentColor" />
                       ))}
@@ -334,8 +345,8 @@ const Shop = memo(({ darkMode, addToCart }) => {
           </div>
         </section>
 
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className={`rounded-3xl shadow-2xl p-6 backdrop-blur-md ${darkMode ? "bg-gray-800/80 border border-gray-700" : "bg-white/90 border border-gray-200"}`}>
+        <div className="max-w-7xl mx-auto bg-white px-6 py-8">
+          <div className={`rounded-3xl shadow-2xl p-6 backdrop-blur-md ${darkMode ? "bg-gray-800/80 border border-gray-700" : "bg-gray-50 border border-gray-200"}`}>
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1 relative">
                 <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
@@ -343,7 +354,7 @@ const Shop = memo(({ darkMode, addToCart }) => {
                   type="text"
                   onChange={(e) => debouncedSetSearch(e.target.value)}
                   placeholder="Search products..."
-                  className={`w-full pl-12 pr-4 py-3.5 rounded-xl border ${darkMode ? "bg-gray-700/50 border-gray-600 text-white" : "bg-gray-50 border-gray-300"} focus:outline-none focus:ring-2 focus:ring-lime-500 transition`}
+                  className={`w-full pl-12 pr-4 py-3.5 rounded-3xl cursor-pointer border ${darkMode ? "bg-gray-700/50 border-gray-600 text-white" : "bg-gray-50 border-gray-300"} focus:outline-none focus:ring-2 focus:ring-lime-500 transition`}
                 />
               </div>
               <div className="relative" ref={dropdownRef}>
@@ -357,7 +368,7 @@ const Shop = memo(({ darkMode, addToCart }) => {
                   <FiChevronDown className={`ml-3 transition-transform ${isOpen ? "rotate-180" : ""}`} />
                 </button>
                 {isOpen && categories.length > 0 && (
-                  <div className="absolute z-30 mt-2 w-full bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-300 dark:border-gray-600 max-h-64 overflow-y-auto">
+                  <div className="absolute z-50 mt-2 w-full bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-300 dark:border-gray-600 max-h-64 overflow-y-auto">
                     <button onClick={() => { handleCategoryChange("all"); setIsOpen(false); }} className="w-full px-4 py-3 text-left hover:bg-lime-50 dark:hover:bg-lime-900/30 font-medium">
                       All Products
                     </button>
@@ -439,6 +450,26 @@ const Shop = memo(({ darkMode, addToCart }) => {
                           {p.name}
                         </h3>
                       </Link>
+                       <p className={`text-sm mb-4 line-clamp-2 leading-relaxed ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+          {p.description || 'No description available.'}
+        </p>
+
+        <div className="flex flex-wrap gap-2 text-xs">
+          <span
+            className={`px-3 py-1.5 rounded-full font-medium ${
+              p.condition === 'New'
+                ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                : p.condition === 'Used'
+                ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
+                : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+            }`}
+          >
+            {p.condition || 'Unknown'}
+          </span>
+          <span className="px-3 py-1.5 rounded-full bg-lime-100 text-lime-700 dark:bg-lime-900 dark:text-lime-300 font-medium">
+            {p.categoryName || p.category || 'Uncategorized'}
+          </span>
+        </div>
                       <div className="flex items-center justify-between mt-4">
                         <span className={`text-2xl font-extrabold ${darkMode ? "text-lime-400" : "text-lime-600"}`}>
                           EGP {p.price?.toLocaleString()}
@@ -448,10 +479,18 @@ const Shop = memo(({ darkMode, addToCart }) => {
                             e.preventDefault();
                             handleAddToCart(p);
                           }}
-                          className="px-5 py-3 bg-lime-600 text-white rounded-xl font-medium hover:bg-lime-700 transition-all hover:scale-105 flex items-center gap-2 shadow-lg"
+                          className="px-5 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-lime-700 transition-all hover:scale-105 flex items-center gap-2 shadow-lg"
                         >
-                          <FiPlus className="w-5 h-5" />
+                          <FiShoppingCart className="w-5 h-5" />
                         </button>
+                        {/* <button 
+                         onClick={(e) => {
+                            e.preventDefault();
+                            handleAddToCart(p);
+                          }}
+                        className="relative px-10 py-5 bg-teal-600 rounded-2xl font-bold text-white text-xl shadow-[0_8px_0_#0d9488,inset_0_-4px_#0ea5e9] active:shadow-[0_4px_0_#0d9488,inset_0_-2px_#0ea5e9] active:translate-y-1 transition-all duration-150 hover:bg-teal-700">
+                          <span className="relative drop-shadow-md">Add to Cart</span>
+                        </button> */}
                       </div>
                     </div>
                   </div>

@@ -154,7 +154,7 @@ document.title = "إدارة الاشتراكات";
   const durationOptions = useMemo(() => Array.from({ length: 12 }, (_, i) => i + 1), []);
 
   return (
-    <div dir="rtl" style={{ marginLeft: "-250px", marginTop: "-600px" }} className="min-h-screen bg-gray-50 font-cairo py-8">
+    <div dir="rtl" style={{ marginLeft: "-250px", marginTop: "-540px" }} className="min-h-screen bg-gray-50 font-cairo py-8">
       <div className="max-w-5xl mx-auto px-6">
 
         

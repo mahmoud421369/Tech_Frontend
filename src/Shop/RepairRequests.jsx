@@ -255,10 +255,11 @@ const RepairRequests = () => {
 
     try {
       await api.put(`/api/shops/repair-request/${priceModalRepair.id}/price`, { price: Number(newPrice) });
-      Swal.fire('تم حفظ السعر بنجاح', { toast:true,position: 'top-end' });
+      Swal.fire('تم حفظ السعر بنجاح', { toast:true,position: 'top-end',title: 'تم تحديد السعر بنجاح!', icon: 'success' });
     } catch {
       setRepairs(prevRepairs);
-      toast.error('فشل حفظ السعر', { position: 'top-end' });
+           Swal.fire(' هناك مشكلة في تحديد السعر', { toast:true,position: 'top-end',title: 'فشل في تحديد السعر', icon: 'error' });
+
     } finally {
       setShowPriceModal(false);
       setPriceModalRepair(null);
@@ -303,7 +304,7 @@ const RepairRequests = () => {
 
   return (
     <ShopLayout>
-      <div style={{marginTop:"-1225px",marginLeft:"-250px"}} className="min-h-screen bg-gray-50 font-cairo py-8">
+      <div style={{marginTop:"-1140px",marginLeft:"-250px"}} className="min-h-screen bg-gray-50 font-cairo py-8">
         <div className="max-w-5xl mx-auto px-6">
           <div className="mb-10 bg-white rounded-3xl shadow-sm border border-gray-200 p-8">
             <div className="flex items-center justify-between text-right gap-5">
@@ -364,8 +365,8 @@ const RepairRequests = () => {
               <div className="flex-1 relative">
                 <input
                   type="text"
-                  placeholder="ابحث برقم الطلب، الوصف، أو اسم المتجر..."
-                  className="w-full pr-12 py-3.5 pl-4 rounded-xl border border-gray-300 focus:border-lime-500 focus:ring-4 focus:ring-lime-100 outline-none text-base transition bg-gray-50"
+                  placeholder="ابحث برقم الطلب، الوصف، أو اسم المتجر"
+                  className="w-full pr-12 py-3.5 pl-4 rounded-xl placeholder:text-right cursor-pointer border border-gray-300 focus:border-lime-500 focus:ring-4 focus:ring-lime-100 outline-none text-base transition bg-gray-50"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -417,9 +418,9 @@ const RepairRequests = () => {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-100 text-gray-600">
+                  <thead className="bg-gray-100 border text-gray-800">
                     <tr>
-                      <th className="px-5 py-4 text-base font-bold text-right">#</th>
+                      <th className="px-5 py-4 text-base font-bold">#</th>
                       <th className="px-5 py-4 text-base font-bold">المتجر</th>
                       <th className="px-5 py-4 text-base font-bold">السعر</th>
                       <th className="px-5 py-4 text-base font-bold">الحالة</th>
@@ -443,7 +444,7 @@ const RepairRequests = () => {
 
                         return (
                           <tr key={r.id} className="hover:bg-gray-50 transition">
-                            <td className="px-5 py-4 text-sm font-medium text-gray-800">{globalIdx}</td>
+                            <td className="px-5 py-4 text-sm font-medium font-mono text-center text-gray-800">#{r.id.slice(0,8)}</td>
                             <td className="px-5 py-4 text-sm text-gray-700 text-right">{r.shopName || '—'}</td>
                             <td className="px-5 py-4 text-center font-bold">
                               <span className={`${r.price ? 'text-lime-700' : 'text-red-600'}`}>
@@ -464,7 +465,7 @@ const RepairRequests = () => {
                                 {canEditPrice && (
                                   <button
                                     onClick={() => openPriceModal(r)}
-                                    className="px-3 py-2 flex items-center gap-1 bg-transparent text-emerald-500 border border-emerald-500 rounded-3xl text-xs font-medium transition shadow-sm"
+                                    className="px-3 font-sans py-2 flex gap-2 bg-blue-50 text-blue-500 border border-blue-100 rounded-3xl text-sm font-bold transition"
                                   >
                                     <FiDollarSign className="w-4 h-4" />
                                     {r.price ? 'تعديل السعر' : 'تحديد السعر'}
@@ -473,7 +474,7 @@ const RepairRequests = () => {
 
                                 <button
                                   onClick={() => openDetailsModal(r)}
-                                  className="px-3 py-2 flex items-center gap-1 bg-transparent border border-amber-500 text-amber-500 rounded-3xl text-xs font-medium transition shadow-sm"
+                                  className="px-3 font-sans py-2 flex gap-2 bg-orange-50 text-orange-500 border border-orange-100 rounded-3xl text-sm font-bold transition"
                                 >
                                   <FiInfo className="w-4 h-4" /> تفاصيل
                                 </button>
@@ -494,10 +495,10 @@ const RepairRequests = () => {
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-2 bg-white border border-lime-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-lime-50 text-lime-700 font-medium transition shadow-sm flex items-center gap-1 text-sm"
+                className="px-4 py-2 bg-white border border-gray-600 rounded-lg disabled:opacity-50 hover:bg-gray-50 text-lime-700 font-medium transition shadow-sm flex items-center gap-2"
               >
-                <FiChevronLeft className="w-4 h-4" />
-                السابق
+                <FiChevronLeft className="w-4 h-4 text-gray-600" />
+                
               </button>
 
               <div className="flex gap-1">
@@ -505,10 +506,9 @@ const RepairRequests = () => {
                   <button
                     key={i + 1}
                     onClick={() => setCurrentPage(i + 1)}
-                    className={`w-9 h-9 rounded-lg font-bold text-sm transition shadow-sm flex items-center justify-center ${
-                      currentPage === i + 1
-                        ? 'bg-lime-600 text-white'
-                        : 'bg-white border border-lime-600 text-lime-700 hover:bg-lime-50'
+                    className={`w-10 h-10 rounded-lg font-bold text-sm transition shadow-sm flex items-center justify-center ${
+                      currentPage === i + 1 ?
+                       'bg-gray-600 text-white' : 'bg-white border border-gray-600 text-gray-700 hover:bg-gray-50'
                     }`}
                   >
                     {i + 1}
@@ -519,10 +519,10 @@ const RepairRequests = () => {
               <button
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="px-3 py-2 bg-white border border-lime-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-lime-50 text-lime-700 font-medium transition shadow-sm flex items-center gap-1 text-sm"
+                className="px-4 py-2 bg-white border border-gray-600 rounded-lg disabled:opacity-50 hover:bg-gray-50 text-lime-700 font-medium transition shadow-sm flex items-center gap-2"
               >
-                التالي
-                <FiChevronRight className="w-4 h-4" />
+                
+                <FiChevronRight className="w-4 h-4 text-gray-600" />
               </button>
             </div>
           )}
@@ -530,16 +530,20 @@ const RepairRequests = () => {
           {showStatusModal && statusModalRepair && (
             <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-6">
               <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-2xl font-bold text-gray-900">
-                    تحديث الحالة #{statusModalRepair.id}
-                  </h3>
-                  <button
+                <div className="flex justify-center items-center mb-6">
+                  <h3 className="text-md font-bold font-mono text-gray-900">
+                    <p className='text-center text-2xl flex justify-between flex-row-reverse font-cairo items-center text-white mb-6 px-4 py-2 rounded-3xl bg-emerald-600 '>تحديث حالة الطلب 
+
+                      <button
                     onClick={() => setShowStatusModal(false)}
-                    className="p-3 hover:bg-gray-100 rounded-full transition"
+                    className="p-3 rounded-full transition"
                   >
                     <FiX className="w-6 h-6" />
                   </button>
+                    </p>
+                      # {statusModalRepair.id}
+                  </h3>
+                  
                 </div>
 
                 <div className="text-center mb-6">
@@ -590,7 +594,7 @@ const RepairRequests = () => {
           {showPriceModal && priceModalRepair && (
             <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-6">
               <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full">
-                <div className="flex justify-between items-center mb-6">
+                <div className="flex justify-between flex-row-reverse items-center mb-6">
                   <h3 className="text-2xl font-bold text-gray-900">
                     {priceModalRepair.price ? 'تعديل السعر' : 'تحديد السعر'}
                   </h3>
@@ -649,6 +653,7 @@ const RepairRequests = () => {
         <h3 className="text-2xl font-bold text-gray-900 flex items-center   gap-3">
           <FiInfo className="text-lime-600 text-3xl" />
           {/* <span className='text-center mb-4'>تفاصيل الطلب #</span><br /> */}
+          
          # {detailsRepair.id?.slice(0,8)}  
         </h3>
         <button

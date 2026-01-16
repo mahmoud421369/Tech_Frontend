@@ -427,7 +427,7 @@ const UsersPage = ({ darkMode }) => {
       </div>
 
    
-      <div className={`p-4 rounded-full bg-${stat.color}-100 dark:bg-${stat.color}-900/30`}>
+      <div className={`p-4 rounded-full bg-${stat.color}-50 dark:bg-${stat.color}-900/30`}>
         <stat.icon className={`w-8 h-8 text-${stat.color}-600 dark:text-${stat.color}-400`} />
       </div>
     </div>
@@ -486,7 +486,7 @@ const UsersPage = ({ darkMode }) => {
                       
                       {DOMPurify.sanitize(`${user.firstName || ''} ${user.lastName || ''}`.trim()) || 'N/A'}
                     </td>
-                    <td className="px-6 py-4 text-sm">{DOMPurify.sanitize(user.email) || 'N/A'}</td>
+                    <td className="px-6 py-4 mt-2 text-sm text-blue-500 font-semibold flex items-center gap-3 justify-center"><FiMail/>{DOMPurify.sanitize(user.email) || 'N/A'}</td>
                     <td className="px-6 py-4 text-sm">
                       <div className="flex items-center justify-center gap-2">
                         <select
@@ -608,7 +608,7 @@ const UsersPage = ({ darkMode }) => {
             <FiPhone className="w-5 h-5 text-emerald-600" />
             <div>
               <p className="text-gray-500 dark:text-gray-400">Phone</p>
-              <p className="font-medium">0{selectedUser.phone || 'N/A'}</p>
+              <p className="font-medium">{selectedUser.phone || 'N/A'}</p>
             </div>
           </div>
 

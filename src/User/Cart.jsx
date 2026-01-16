@@ -478,7 +478,7 @@ const Cart = ({ show, onClose, darkMode  }) => {
         }`}
       >
         <div className={`w-5 h-5 rounded-full border-2 ${paymentMethod === "cod" ? "border-lime-600 bg-lime-600" : "border-gray-400"}`}>
-          {paymentMethod === "cod" && <FiCheck className="w-3 h-3 text-white" />}
+          {paymentMethod === "cod" && <FiCheck className="w-3 h-3 flex justify-center items-center text-white" />}
         </div>
         <div className="text-left">
           <div className="font-medium">Cash on Delivery</div>

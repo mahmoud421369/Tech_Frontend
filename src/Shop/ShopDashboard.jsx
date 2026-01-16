@@ -9,12 +9,7 @@ import api from '../api';
 import useAuthStore from '../store/Auth';
 import debounce from 'lodash/debounce';
 import { toast } from 'react-toastify';
-import {DatePicker} from '@mui/x-date-pickers/DatePicker'
-import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
-import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
-import {LocalizationProvider} from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { arSA } from 'date-fns/locale';
+
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler);
 
 const DashboardSkeleton = () => (
@@ -178,7 +173,7 @@ useEffect(()=>{
     };
   }, [accessToken, debouncedFetchSales, fetchSalesStats, debouncedFetchOrders, fetchRepairsStats, fetchRepairsTotal, navigate]);
 
-  // Charts Data
+  
   const salesTrendData = {
     labels: salesStats?.trend?.map(d => d.day) || ['أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'],
     datasets: [{
@@ -203,7 +198,7 @@ useEffect(()=>{
   };
 
   return (
-    <div style={{marginTop:"-575px"}} className="p-6 max-w-6xl font-cairo bg-gray-50 min-h-screen">
+    <div style={{marginTop:"-540px"}} className="p-6 max-w-5xl font-cairo bg-gray-50 min-h-screen">
       {isLoading && <DashboardSkeleton />}
 
       {!isLoading && (
@@ -223,34 +218,35 @@ useEffect(()=>{
 
     
           <div className="mb-10 bg-white rounded-3xl shadow-sm border border-gray-200 max-w-5xl p-8">
-            <h3 className="text-xl font-semibold text-gray-800 mb-6 flex items-center text-justify-end gap-3">
+            <h3 className="text-xl font-semibold text-gray-800 mb-6 flex items-center justify-end gap-3">
               <FiCalendar className="text-2xl text-lime-600" />
               فلتر حسب الفترة الزمنية
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end text-right">
               <div >
-                {/* <label className="block text-sm font-medium text-gray-700  mb-2">من تاريخ ووقت</label> */}
+                <label className="block text-sm font-medium text-gray-700  mb-2">من تاريخ ووقت</label>
                 <input
               
                   type="datetime-local"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full px-5 py-4 border border-gray-300 rounded-2xl focus:ring-4 focus:ring-lime-200 focus:border-lime-500 transition bg-gray-50 text-base"
+                  placeholder='وقت البدء'
+                  className="w-full px-5 py-4 border-none  rounded-2xl focus:ring-4 focus:ring-lime-200 focus:border-lime-500 transition bg-gray-100 text-base"
                 />
               </div>
               <div >
-                {/* <label className="block text-sm font-medium text-gray-700 mb-2">إلى تاريخ ووقت</label> */}
+                <label className="block text-sm font-medium text-gray-700 mb-2">إلى تاريخ ووقت</label>
                 <input
             
                   type="datetime-local"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full px-5 py-4 border-none rounded-2xl focus:ring-4 focus:ring-lime-200 focus:border-lime-500 transition bg-gray-50 text-base"
+                  className="w-full px-5 py-4 border-none rounded-2xl focus:ring-4 focus:ring-lime-200 focus:border-lime-500 transition bg-gray-100 text-base"
                 />
               </div>
               <button
                 onClick={resetDates}
-                className="px-8 py-4 bg-gray-700 hover:bg-gray-800 text-white font-semibold rounded-2xl transition shadow-md"
+                className="px-8 py-4 bg-transparent border border-gray-600 hover:bg-gray-600 hover:text-white  text-gray-700 font-semibold rounded-3xl transition shadow-md"
               >
                 إعادة تعيين
               </button>
