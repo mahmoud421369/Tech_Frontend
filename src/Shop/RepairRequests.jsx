@@ -1,25 +1,17 @@
-import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef, memo } from 'react';
 import {
-  FiSearch,
-  FiChevronDown,
-  FiInfo,
-  FiX,
-  FiChevronLeft,
-  FiChevronRight,
-  FiTool,
-  FiPackage,
-  FiCreditCard,
-  FiDollarSign,
-  FiCheckCircle,
-  FiCalendar,
-  FiTruck,
-  FiMapPin,
+  FiSearch, FiChevronDown, FiInfo, FiX, FiChevronLeft, FiChevronRight,
+  FiTool, FiPackage, FiCopy, FiCreditCard, FiDollarSign, FiCheckCircle,
+  FiTruck, FiMapPin, FiArrowDownLeft, FiCheck, FiClock, FiXCircle,
+  FiPauseCircle, FiArrowUp, FiArrowDown, FiChevronsDown, FiActivity, FiExternalLink, FiMoreHorizontal, FiHash
 } from 'react-icons/fi';
-import { toast } from 'react-toastify';
-import ShopLayout from '../components/ShopLayout';
+import { RiFilter3Line, RiStore2Line, RiVerifiedBadgeLine } from 'react-icons/ri';
+import Swal from 'sweetalert2';
 import api from '../api';
 import debounce from 'lodash/debounce';
-import Swal from 'sweetalert2';
+
+
+
 
 const nextStatuses = {
   SUBMITTED: ['CANCELLED'],
@@ -34,46 +26,54 @@ const nextStatuses = {
   FAILED: [],
 };
 
-const getStatusColor = (status) => {
-  const map = {
-    SUBMITTED: 'bg-blue-100 text-blue-800',
-    QUOTE_SENT: 'bg-teal-100 text-teal-800',
-    QUOTE_APPROVED: 'bg-emerald-100 text-emerald-800',
-    QUOTE_REJECTED: 'bg-amber-100 text-amber-800',
-    DEVICE_COLLECTED: 'bg-purple-100 text-purple-800',
-    REPAIRING: 'bg-orange-100 text-orange-800',
-    REPAIR_COMPLETED: 'bg-green-100 text-green-800',
-    DEVICE_DELIVERED: 'bg-green-200 text-green-900',
-    CANCELLED: 'bg-red-100 text-red-800',
-    FAILED: 'bg-red-200 text-red-900',
-  };
-  return map[status] || 'bg-gray-100 text-gray-700';
+const STATUS_META = {
+  SUBMITTED: { label: 'تم التقديم', bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600', dot: 'bg-blue-500' },
+  QUOTE_SENT: { label: 'تم إرسال العرض', bg: 'bg-teal-50 dark:bg-teal-900/20', text: 'text-teal-600', dot: 'bg-teal-500' },
+  QUOTE_APPROVED: { label: 'موافقة على العرض', bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600', dot: 'bg-emerald-500' },
+  QUOTE_REJECTED: { label: 'رفض العرض', bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-600', dot: 'bg-amber-500' },
+  DEVICE_COLLECTED: { label: 'تم استلام الجهاز', bg: 'bg-purple-50 dark:bg-purple-900/20', text: 'text-purple-600', dot: 'bg-purple-500' },
+  REPAIRING: { label: 'تحت الإصلاح', bg: 'bg-orange-50 dark:bg-orange-900/20', text: 'text-orange-600', dot: 'bg-orange-500' },
+  REPAIR_COMPLETED: { label: 'تم الإصلاح', bg: 'bg-green-50 dark:bg-green-900/20', text: 'text-green-600', dot: 'bg-green-500' },
+  DEVICE_DELIVERED: { label: 'تم التسليم', bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-700', dot: 'bg-emerald-600' },
+  CANCELLED: { label: 'ملغاة', bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-600', dot: 'bg-red-500' },
+  FAILED: { label: 'فشلت', bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700', dot: 'bg-red-600' },
 };
 
-const statusArabic = {
-  SUBMITTED: 'تم التقديم',
-  QUOTE_SENT: 'تم إرسال العرض',
-  QUOTE_APPROVED: 'تمت الموافقة على العرض',
-  QUOTE_REJECTED: 'تم رفض العرض',
-  DEVICE_COLLECTED: 'تم استلام الجهاز',
-  REPAIRING: 'تحت الإصلاح',
-  REPAIR_COMPLETED: 'تم الإصلاح',
-  DEVICE_DELIVERED: 'تم التسليم',
-  CANCELLED: 'ملغاة',
-  FAILED: 'فشلت',
-};
+const getStatusMeta = (status) => STATUS_META[(status || '').toUpperCase()] || { label: status || '—', bg: 'bg-gray-50', text: 'text-gray-700', dot: 'bg-gray-400' };
+
+const ROWS_OPTIONS = [10, 25, 50];
+
+
+
+
+const StatCard = memo(({ icon: Icon, label, value, color, description }) => (
+  <div className="relative group bg-white dark:bg-gray-800 rounded-[2rem] border border-gray-100 dark:border-gray-700 p-6 transition-all duration-500 hover:shadow-2xl hover:shadow-gray-200/50 dark:hover:shadow-none overflow-hidden">
+    <div className={`absolute top-0 right-0 w-24 h-24 bg-${color}-500/5 rounded-bl-full translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-700`} />
+    <div className="flex flex-col h-full relative z-10 text-right">
+      <div className={`w-12 h-12 rounded-2xl bg-${color}-50 dark:bg-${color}-900/20 flex items-center justify-center text-${color}-600 dark:text-${color}-400 mb-4 group-hover:rotate-6 transition-transform`}>
+        <Icon size={22} />
+      </div>
+      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">{label}</p>
+      <p className="text-2xl font-black text-gray-900 dark:text-white mt-1">{value}</p>
+      <p className="text-[9px] font-bold text-gray-400 mt-2">{description}</p>
+    </div>
+  </div>
+));
+
+
+
 
 const RepairRequests = () => {
   const [repairs, setRepairs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [openFilterDropdown, setOpenFilterDropdown] = useState(false);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [statusModalRepair, setStatusModalRepair] = useState(null);
-  const [selectedNewStatus, setSelectedNewStatus] = useState('');
 
   const [showPriceModal, setShowPriceModal] = useState(false);
   const [priceModalRepair, setPriceModalRepair] = useState(null);
@@ -82,689 +82,384 @@ const RepairRequests = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [detailsRepair, setDetailsRepair] = useState(null);
 
-  const [stats, setStats] = useState({
-    totalRepairs: 0,
-    todayRepairs: 0,
-    pendingQuote: 0,
-    underRepair: 0,
-    completed: 0,
-  });
+  const [stats, setStats] = useState({ totalRepairs: 0, pendingQuote: 0, underRepair: 0, completed: 0 });
 
-  const dropdownRef = useRef(null);
-  const itemsPerPage = 10;
+  useEffect(() => { document.title = 'إدارة طلبات التصليح'; }, []);
 
-  useEffect(() => {
-    document.title = 'ادارة طلبات التصليح';
-  }, []);
+  const showToast = (text, icon) =>
+    Swal.fire({
+      text, icon, toast: true, position: 'top-start',
+      showConfirmButton: false, timer: 3000,
+    });
 
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setOpenFilterDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const fetchRepairs = useCallback(() => {
+  const fetchRepairs = useCallback(async () => {
     setLoading(true);
-    const url = statusFilter === 'all'
-      ? '/api/shops/repair-request'
-      : `/api/shops/repair-request/status/${statusFilter.toUpperCase()}`;
-
-    api.get(url, { params: { query: searchTerm } })
-      .then((res) => {
-        const data = Array.isArray(res.data) ? res.data : res.data.content || [];
-        console.log(data);
-        setRepairs(data);
-
-        const total = data.length;
-        const today = data.filter(r => {
-          const todayDate = new Date().toLocaleDateString('en-CA');
-          const createdDate = new Date(r.createdAt || r.timestamp || r.date).toLocaleDateString('en-CA');
-          return createdDate === todayDate;
-        }).length;
-
-        const pending = data.filter(r => ['SUBMITTED', 'QUOTE_SENT'].includes((r.status || '').toUpperCase())).length;
-        const repairing = data.filter(r => (r.status || '').toUpperCase() === 'REPAIRING').length;
-        const completed = data.filter(r => ['REPAIR_COMPLETED', 'DEVICE_DELIVERED'].includes((r.status || '').toUpperCase())).length;
-
-        setStats({
-          totalRepairs: total,
-          todayRepairs: today,
-          pendingQuote: pending,
-          underRepair: repairing,
-          completed: completed,
-        });
-
-        setCurrentPage(1);
-      })
-      .catch(() => toast.error('فشل جلب طلبات التصليح', { position: 'top-end' }))
-      .finally(() => setLoading(false));
+    try {
+      const url = statusFilter === 'all'
+        ? '/api/shops/repair-request'
+        : `/api/shops/repair-request/status/${statusFilter.toUpperCase()}`;
+      const res = await api.get(url, { params: { query: searchTerm } });
+      const data = Array.isArray(res.data) ? res.data : res.data.content || [];
+      setRepairs(data);
+      setStats({
+        totalRepairs: data.length,
+        pendingQuote: data.filter(r => ['SUBMITTED', 'QUOTE_SENT'].includes((r.status || '').toUpperCase())).length,
+        underRepair: data.filter(r => (r.status || '').toUpperCase() === 'REPAIRING').length,
+        completed: data.filter(r => ['REPAIR_COMPLETED', 'DEVICE_DELIVERED'].includes((r.status || '').toUpperCase())).length,
+      });
+    } catch { showToast('فشل جلب طلبات التصليح', 'error'); }
+    finally { setLoading(false); }
   }, [statusFilter, searchTerm]);
 
   const debouncedFetch = useMemo(() => debounce(fetchRepairs, 400), [fetchRepairs]);
+  useEffect(() => { debouncedFetch(); return () => debouncedFetch.cancel(); }, [debouncedFetch]);
 
-  useEffect(() => {
-    debouncedFetch();
-    return () => debouncedFetch.cancel();
-  }, [debouncedFetch]);
-
-  const openStatusModal = (repair) => {
-    const currentStatus = (repair.status || '').toUpperCase();
-    if (!nextStatuses[currentStatus]?.length) {
-      toast.info('لا يمكن تحديث حالة هذا الطلب', { position: 'top-end' });
-      return;
-    }
-    setStatusModalRepair(repair);
-    setSelectedNewStatus('');
-    setShowStatusModal(true);
-  };
-
-
-
-
-
-  const confirmStatusUpdate = async () => {
-    if (!selectedNewStatus) return;
-   const prevRepairs = [...repairs];
-    setRepairs(prevRepairs.map(r => 
-      r.id === statusModalRepair.id ? { ...r, status: selectedNewStatus } : r
-    ));
-
+  const updateRepairStatus = async (repairId, newStatus) => {
     try {
-      await api.put(`/api/shops/repair-request/${statusModalRepair.id}/status`, { status: selectedNewStatus });
-      Swal.fire({
-        title: 'تم!',
-        text: `تم تحديث الحالة إلى ${statusArabic[selectedNewStatus]}`,
-        icon: 'success',
-        toast: true,
-        position: 'top-end',
-        timer: 2000,
-        timerProgressBar: true,
-        showConfirmButton: false,
-      });
-      setShowStatusModal(false);
-    } catch {
-      setRepairs(prevRepairs);
-      Swal.fire({
-        title: 'خطأ',
-        text: 'فشل تحديث الحالة',
-        icon: 'error',
-        toast: true,
-        position: 'top-end',
-        timer: 2000,
-        timerProgressBar: true,
-        showConfirmButton: false,
-      });
-    }
+      await api.put(`/api/shops/repair-request/${repairId}/status`, { status: newStatus });
+      showToast('تم تحديث الحالة بنجاح', 'success');
+      fetchRepairs();
+    } catch { showToast('فشل تحديث الحالة', 'error'); }
   };
 
-
-
-
-
-
-  // const confirmStatusUpdate = async () => {
-  //   if (!selectedNewStatus) {
-  //     toast.error('يرجى اختيار حالة جديدة', { position: 'top-end' });
-  //     return;
-  //   }
-
-  //   const currentStatus = (statusModalRepair.status || '').toUpperCase();
-  //   if (!nextStatuses[currentStatus]?.includes(selectedNewStatus)) {
-  //     toast.error('هذا الانتقال غير مسموح', { position: 'top-end' });
-  //     return;
-  //   }
-
-  //   const prevRepairs = [...repairs];
-  //   setRepairs(prevRepairs.map(r => 
-  //     r.id === statusModalRepair.id ? { ...r, status: selectedNewStatus } : r
-  //   ));
-
-  //   try {
-  //     await api.put(`/api/shops/repair-request/${statusModalRepair.id}/status`, { status: selectedNewStatus });
-  //     toast.success(`تم تحديث الحالة إلى ${statusArabic[selectedNewStatus]}`, { position: 'top-end' });
-  //   } catch (err) {
-  //     setRepairs(prevRepairs);
-  //     toast.error('فشل تحديث الحالة', { position: 'top-end' });
-  //   } finally {
-  //     setShowStatusModal(false);
-  //     setStatusModalRepair(null);
-  //     setSelectedNewStatus('');
-  //   }
-  // };
-
-  const openPriceModal = (repair) => {
-    setPriceModalRepair(repair);
-    setNewPrice(repair.price || '');
-    setShowPriceModal(true);
-  };
-
-  const confirmPriceUpdate = async () => {
-    if (!newPrice || newPrice <= 0) {
-      toast.error('يرجى إدخال سعر صحيح', { position: 'top-end' });
-      return;
-    }
-
-    const prevRepairs = [...repairs];
-    setRepairs(prevRepairs.map(r => 
-      r.id === priceModalRepair.id ? { ...r, price: Number(newPrice) } : r
-    ));
-
+  const updateRepairPrice = async () => {
+    if (!newPrice || newPrice <= 0) { showToast('يرجى إدخال سعر صحيح', 'error'); return; }
     try {
       await api.put(`/api/shops/repair-request/${priceModalRepair.id}/price`, { price: Number(newPrice) });
-      Swal.fire('تم حفظ السعر بنجاح', { toast:true,position: 'top-end',title: 'تم تحديد السعر بنجاح!', icon: 'success' });
-    } catch {
-      setRepairs(prevRepairs);
-           Swal.fire(' هناك مشكلة في تحديد السعر', { toast:true,position: 'top-end',title: 'فشل في تحديد السعر', icon: 'error' });
-
-    } finally {
+      showToast('تم تحديد السعر بنجاح', 'success');
       setShowPriceModal(false);
-      setPriceModalRepair(null);
-      setNewPrice('');
-    }
+      fetchRepairs();
+    } catch { showToast('فشل في تحديد السعر', 'error'); }
   };
 
-  const openDetailsModal = (repair) => {
-    setDetailsRepair(repair);
-    setShowDetailsModal(true);
-  };
+  const paginated = useMemo(() => repairs.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage), [repairs, currentPage, rowsPerPage]);
+  const totalPages = Math.ceil(repairs.length / rowsPerPage);
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '—';
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return 'تاريخ غير صالح';
-    return date.toLocaleDateString('ar-EG');
-  };
-
-  const filteredAndSorted = useMemo(() => {
-    let list = [...repairs];
-
-    if (statusFilter !== 'all') {
-      list = list.filter((r) => (r.status || '').toUpperCase() === statusFilter.toUpperCase());
-    }
-
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      list = list.filter((r) =>
-        String(r.id).includes(term) ||
-        (r.description || '').toLowerCase().includes(term) ||
-        (r.shopName || '').toLowerCase().includes(term)
-      );
-    }
-
-    list.sort((a, b) => b.id - a.id);
-    return list;
-  }, [repairs, statusFilter, searchTerm]);
-
-  const totalPages = Math.ceil(filteredAndSorted.length / itemsPerPage);
-  const paginatedItems = filteredAndSorted.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const statCards = [
+    { icon: FiPackage, label: 'إجمالي الطلبات', value: stats.totalRepairs.toLocaleString('ar-EG'), color: "lime", description: "جميع الطلبات المستلمة" },
+    { icon: FiClock, label: 'بانتظار عرض سعر', value: stats.pendingQuote.toLocaleString('ar-EG'), color: "orange", description: "تحتاج إلى تسعير فوراً" },
+    { icon: FiTool, label: 'قيد الإصلاح', value: stats.underRepair.toLocaleString('ar-EG'), color: "blue", description: "داخل الورشة الآن" },
+    { icon: FiCheckCircle, label: 'تم الانتهاء', value: stats.completed.toLocaleString('ar-EG'), color: "emerald", description: "طلبات جاهزة للتسليم" },
+  ];
 
   return (
-    <ShopLayout>
-      <div style={{marginTop:"-1140px",marginLeft:"-250px"}} className="min-h-screen bg-gray-50 font-cairo py-8">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="mb-10 bg-white rounded-3xl shadow-sm border border-gray-200 p-8">
-            <div className="flex items-center justify-between text-right gap-5">
-              <div className="p-5 bg-lime-100 rounded-2xl">
-                <FiTool className="text-4xl text-lime-600" />
-              </div>
-              <div>
-                <h1 className="text-4xl font-bold text-gray-900">طلبات التصليح</h1>
-                <p className="text-lg text-gray-600 mt-2">إدارة كاملة لطلبات إصلاح الأجهزة مع تحديث فوري للحالة والسعر</p>
-              </div>
+    <div dir="rtl" className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pr-64 mt-16 transition-all duration-500 font-cairo text-right">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-10">
+
+
+
+        <div className="flex flex-col md:flex-row md:items-end mt-3 justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-1.5 rounded-full bg-lime-500" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-600">خدمات الصيانة</span>
             </div>
+            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">طلبات <span className="text-lime-500">التصليح</span></h1>
+            <p className="text-sm font-bold text-gray-500 dark:text-gray-400">أدر دورة حياة الإصلاح بالكامل من التقديم حتى التسليم النهائي</p>
           </div>
 
-   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-8 mb-6">
-  
-  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-gray-600">إجمالي الطلبات</p>
-        <p className="text-3xl font-bold text-gray-900 mt-2">{stats.totalRepairs}</p>
-      </div>
-      <div className="p-4 bg-emerald-50 rounded-xl group-hover:bg-emerald-100 transition-colors">
-        <FiPackage className="w-8 h-8 text-emerald-600" />
-      </div>
-    </div>
-  </div>
+          <button
+            title="تصفية الطلبات"
+            onClick={() => setShowFilterPanel(true)}
+            className="flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-widest hover:bg-lime-500 dark:hover:bg-lime-500 hover:text-white transition-all shadow-xl shadow-gray-900/10 active:scale-95"
+          >
+            <RiFilter3Line size={16} /> تصفية الطلبات
+          </button>
+        </div>
+
+        {/* ── Stats ── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {statCards.map(s => <StatCard key={s.label} {...s} />)}
+        </div>
 
 
-  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-gray-600">في انتظار العرض</p>
-        <p className="text-3xl font-bold text-gray-900 mt-2">{stats.pendingQuote}</p>
-      </div>
-      <div className="p-4 bg-amber-50 rounded-xl group-hover:bg-amber-100 transition-colors">
-        <FiInfo className="w-8 h-8 text-amber-600" />
-      </div>
-    </div>
-  </div>
 
-
-  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-gray-600">تحت الإصلاح</p>
-        <p className="text-3xl font-bold text-gray-900 mt-2">{stats.underRepair}</p>
-      </div>
-      <div className="p-4 bg-blue-50 rounded-xl group-hover:bg-blue-100 transition-colors">
-        <FiTool className="w-8 h-8 text-blue-600" />
-      </div>
-    </div>
-  </div>
-
- 
-  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-gray-600">مكتملة</p>
-        <p className="text-3xl font-bold text-gray-900 mt-2">{stats.completed}</p>
-      </div>
-      <div className="p-4 bg-green-50 rounded-xl group-hover:bg-green-100 transition-colors">
-        <FiCheckCircle className="w-8 h-8 text-green-600" />
-      </div>
-    </div>
-  </div>
-</div>
-
-          <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
-            <div className="flex flex-col sm:flex-row gap-4 items-end">
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  placeholder="ابحث برقم الطلب، الوصف، أو اسم المتجر"
-                  className="w-full pr-12 py-3.5 pl-4 rounded-xl placeholder:text-right cursor-pointer border border-gray-300 focus:border-lime-500 focus:ring-4 focus:ring-lime-100 outline-none text-base transition bg-gray-50"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-lg" />
-              </div>
-
-              <div className="relative" ref={dropdownRef}>
-                <button
-                  onClick={() => setOpenFilterDropdown((prev) => !prev)}
-                  className="px-8 py-3.5 bg-gray-50 border text-gray-600 rounded-xl flex items-center justify-between gap-4 min-w-48 font-medium text-base shadow transition"
-                >
-                  <span>
-                    {statusFilter === 'all'
-                      ? 'جميع الحالات'
-                      : statusArabic[statusFilter.toUpperCase()] || statusFilter}
-                  </span>
-                  <FiChevronDown className={`text-xl transition ${openFilterDropdown ? 'rotate-180' : ''}`} />
-                </button>
-
-                {openFilterDropdown && (
-                  <div className="absolute top-full mt-2 w-full bg-white border border-gray-300 rounded-xl shadow-xl z-30 overflow-hidden">
-                    <button
-                      onClick={() => { setStatusFilter('all'); setOpenFilterDropdown(false); }}
-                      className="w-full text-right px-6 py-3 hover:bg-lime-50 transition text-base"
-                    >
-                      جميع الحالات
-                    </button>
-                    {Object.keys(statusArabic).map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => { setStatusFilter(s); setOpenFilterDropdown(false); }}
-                        className="w-full text-right px-6 py-3 hover:bg-lime-50 transition text-base"
-                      >
-                        {statusArabic[s]}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+        <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none p-6">
+          <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
+            <div className="relative flex-1 group">
+              <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={18} />
+              <input
+                type="text"
+                placeholder="ابحث برقم الطلب، اسم العميل أو نوع الجهاز..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full pr-12 pl-4 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-sm text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/10 focus:border-lime-200 transition-all"
+              />
             </div>
+            <select
+              value={rowsPerPage}
+              onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+              className="px-5 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-xs font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-4 focus:ring-lime-500/10 cursor-pointer transition-all"
+            >
+              {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n} صفوف لكل صفحة</option>)}
+            </select>
           </div>
+        </div>
 
-          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-            {loading ? (
-              <div className="p-20 text-center">
-                <div className="w-16 h-16 border-6 border-lime-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                <p className="mt-6 text-lg text-gray-600">جاري تحميل الطلبات...</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-100 border text-gray-800">
-                    <tr>
-                      <th className="px-5 py-4 text-base font-bold">#</th>
-                      <th className="px-5 py-4 text-base font-bold">المتجر</th>
-                      <th className="px-5 py-4 text-base font-bold">السعر</th>
-                      <th className="px-5 py-4 text-base font-bold">الحالة</th>
-                      <th className="px-5 py-4 text-base font-bold">إجراءات</th>
+
+
+        <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden">
+          <div className="overflow-x-auto custom-scrollbar-thin">
+            <table className="w-full text-right border-collapse">
+              <thead>
+                <tr className="bg-gray-50/50 dark:bg-gray-900/30 border-b border-gray-100 dark:border-gray-700">
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">رقم الطلب</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">المتجر</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">السعر التقديري</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">الحالة</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">إجراءات</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                {loading ? (
+                  [...Array(rowsPerPage)].map((_, i) => (
+                    <tr key={i} className="animate-pulse">
+                      {[...Array(5)].map((_, j) => (
+                        <td key={j} className="px-8 py-6"><div className="h-4 bg-gray-100 dark:bg-gray-700 rounded-lg w-full" /></td>
+                      ))}
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {paginatedItems.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="text-center py-20 text-gray-500 text-xl">
-                          لا توجد طلبات تصليح حالياً
-                        </td>
-                      </tr>
-                    ) : (
-                      paginatedItems.map((r, i) => {
-                        const globalIdx = (currentPage - 1) * itemsPerPage + i + 1;
-                        const currentStatus = (r.status || '').toUpperCase();
-                        const isSubmitted = currentStatus === 'SUBMITTED';
-                        const priceAllowedStatuses = ['SUBMITTED', 'QUOTE_SENT', 'QUOTE_REJECTED'];
-                        const canEditPrice = priceAllowedStatuses.includes(currentStatus);
+                  ))
+                ) : paginated.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-8 py-24 text-center">
+                      <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-3xl flex items-center justify-center mx-auto mb-6 text-gray-200 dark:text-gray-800">
+                        <FiTool size={40} />
+                      </div>
+                      <p className="text-lg font-black text-gray-900 dark:text-white tracking-tight">لا توجد طلبات تصليح</p>
+                      <p className="text-sm font-bold text-gray-400 mt-1 uppercase tracking-widest">السجل فارغ أو لا يطابق البحث</p>
+                    </td>
+                  </tr>
+                ) : (
+                  paginated.map(r => {
+                    const cs = getStatusMeta(r.status);
+                    const canEditPrice = ['SUBMITTED', 'QUOTE_SENT', 'QUOTE_REJECTED'].includes((r.status || '').toUpperCase());
+                    const hasNext = nextStatuses[(r.status || '').toUpperCase()]?.length > 0;
+                    return (
+                      <tr key={r.id} className="hover:bg-lime-50/10 dark:hover:bg-lime-900/5 transition-colors group">
+                        <td className="px-8 py-6 whitespace-nowrap">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400">
+                              <FiHash size={18} />
+                            </div>
+                            <div>
+                              <p className="text-xs font-black text-gray-900 dark:text-white">#{String(r.id).slice(0, 8)}</p>
 
-                        return (
-                          <tr key={r.id} className="hover:bg-gray-50 transition">
-                            <td className="px-5 py-4 text-sm font-medium font-mono text-center text-gray-800">#{r.id.slice(0,8)}</td>
-                            <td className="px-5 py-4 text-sm text-gray-700 text-right">{r.shopName || '—'}</td>
-                            <td className="px-5 py-4 text-center font-bold">
-                              <span className={`${r.price ? 'text-lime-700' : 'text-red-600'}`}>
-                                {r.price ? `${r.price} ج.م` : 'غير محدد'}
-                              </span>
-                            </td>
-                            <td className="px-5 py-4 text-center">
-                              <button
-                                onClick={() => openStatusModal(r)}
-                                disabled={isSubmitted}
-                                className={`px-4 py-2 rounded-full text-xs font-bold ${getStatusColor(currentStatus)} hover:shadow transition ${isSubmitted ? 'opacity-60 cursor-not-allowed' : ''}`}
-                              >
-                                {statusArabic[currentStatus] || 'غير معروف'}
-                              </button>
-                            </td>
-                            <td className="px-5 py-4">
-                              <div className="flex justify-center gap-2">
-                                {canEditPrice && (
-                                  <button
-                                    onClick={() => openPriceModal(r)}
-                                    className="px-3 font-sans py-2 flex gap-2 bg-blue-50 text-blue-500 border border-blue-100 rounded-3xl text-sm font-bold transition"
-                                  >
-                                    <FiDollarSign className="w-4 h-4" />
-                                    {r.price ? 'تعديل السعر' : 'تحديد السعر'}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 whitespace-nowrap text-center">
+                          <p className="text-xs font-black text-gray-900 dark:text-white">{r.shopName || "—"}</p>
+
+                        </td>
+                        <td className="px-8 py-6 whitespace-nowrap text-center font-mono font-black text-sm text-lime-600">
+                          {r.price ? `EGP ${Number(r.price)}` : <span className="text-red-500">لم يتم التسعير</span>}
+                        </td>
+                        <td className="px-8 py-6 whitespace-nowrap text-center">
+                          <span onClick={() => { if (hasNext) { setStatusModalRepair(r); setShowStatusModal(true); } }} className={`inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest ${cs.bg} ${cs.text} ${hasNext ? 'cursor-pointer hover:opacity-80' : ''}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${cs.dot} animate-pulse`} />
+                            {cs.label}
+                            {hasNext && <FiChevronDown size={12} className="mr-1" />}
+                          </span>
+                        </td>
+                        <td className="px-8 py-6 whitespace-nowrap text-left">
+                          <div className="flex items-center justify-start gap-2">
+                            <button title="تفاصيل الطلب" onClick={() => { setDetailsRepair(r); setShowDetailsModal(true); }} className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 transition-all active:scale-95">
+                              <FiInfo size={16} />
+                            </button>
+                              <button title='نسخ رقم الطلب' onClick={() => { navigator.clipboard.writeText(r.id); showToast('تم نسخ رقم الطلب', 'success'); }} className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 transition-all active:scale-95">
+                                  <FiCopy size={14} />   
+                                </button>
+
+                                 {canEditPrice && (
+                                  <button title='تحديد/تغيير السعر' onClick={() => { setPriceModalRepair(r); setNewPrice(r.price || ''); setShowPriceModal(true); }} className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 transition-all active:scale-95">
+                                    <FiDollarSign size={14} />  
                                   </button>
                                 )}
 
-                                <button
-                                  onClick={() => openDetailsModal(r)}
-                                  className="px-3 font-sans py-2 flex gap-2 bg-orange-50 text-orange-500 border border-orange-100 rounded-3xl text-sm font-bold transition"
-                                >
-                                  <FiInfo className="w-4 h-4" /> تفاصيل
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                          
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
 
-          {totalPages > 1 && (
-            <div className="flex justify-center items-center gap-2 mt-10">
-              <button
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="px-4 py-2 bg-white border border-gray-600 rounded-lg disabled:opacity-50 hover:bg-gray-50 text-lime-700 font-medium transition shadow-sm flex items-center gap-2"
-              >
-                <FiChevronLeft className="w-4 h-4 text-gray-600" />
-                
-              </button>
 
-              <div className="flex gap-1">
-                {[...Array(totalPages)].map((_, i) => (
+
+          {totalPages > 1 && (
+            <div className="px-8 py-6 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest order-2 sm:order-1">
+                عرض <span className="text-gray-900 dark:text-white">{(currentPage - 1) * rowsPerPage + 1}</span> إلى <span className="text-gray-900 dark:text-white">{Math.min(currentPage * rowsPerPage, repairs.length)}</span> من <span className="text-gray-900 dark:text-white">{repairs.length}</span> طلب
+              </p>
+              <div className="flex items-center gap-2 order-1 sm:order-2">
+                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all">
+                  <FiChevronRight size={20} />
+                </button>
+                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all">
+                  <FiChevronLeft size={20} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+
+
+      {showFilterPanel && (
+        <div className="fixed inset-0 z-[100] flex items-end lg:items-center justify-center p-0 lg:p-4">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={() => setShowFilterPanel(false)} />
+          <div className="relative w-full lg:max-w-md bg-white dark:bg-gray-800 rounded-none shadow-2xl overflow-hidden animate-in slide-in-from-bottom-20 duration-500">
+            <div className="p-8 border-b border-gray-50 dark:border-gray-700">
+              <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">تصفية طلبات التصليح</h3>
+              <p className="text-xs font-bold text-gray-400 mt-1 uppercase tracking-widest">اختر الحالة لعرض الطلبات المتعلقة بها</p>
+            </div>
+            <div className="p-8 grid grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto custom-scrollbar-thin">
+              <button onClick={() => { setStatusFilter('all'); setShowFilterPanel(false); setCurrentPage(1); }} className={`px-4 py-4 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all ${statusFilter === 'all' ? "bg-lime-500 border-lime-500 text-white" : "bg-gray-50 dark:bg-gray-900 text-gray-500 hover:border-lime-500"}`}>جميع الحالات</button>
+              {Object.entries(STATUS_META).map(([key, meta]) => (
+                <button key={key} onClick={() => { setStatusFilter(key); setShowFilterPanel(false); setCurrentPage(1); }} className={`px-4 py-4 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all ${statusFilter === key ? "bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20" : "bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-700 text-gray-500 hover:border-lime-500 hover:text-lime-600"}`}>
+                  {meta.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+
+
+      {showDetailsModal && detailsRepair && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={() => setShowDetailsModal(false)} />
+          <div className="relative w-full max-w-xl bg-white dark:bg-gray-800 rounded-none shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+            <div className="px-8 py-6 border-b border-gray-50 dark:border-gray-700 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-lime-500/10 text-lime-600 flex items-center justify-center">
+                  <FiTool size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-gray-900 dark:text-white">تفاصيل طلب التصليح</h3>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">#{detailsRepair.id}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowDetailsModal(false)} className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-400 hover:text-red-500 transition-all">
+                <FiX size={18} />
+              </button>
+            </div>
+
+            <div className="px-8 py-8 space-y-6 overflow-y-auto max-h-[70vh] custom-scrollbar-thin text-right">
+              <div className="p-6 bg-gray-50 dark:bg-gray-900/50 rounded-none space-y-4">
+                <div className="flex items-start gap-3">
+                  <FiTool className="text-gray-400 mt-1" />
+                  <div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">وصف العطل</p>
+                    <p className="text-sm font-bold text-gray-900 dark:text-white mt-1 leading-relaxed">{detailsRepair.description || "لا يوجد وصف مفصل للعطل"}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                  <div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">  المتجر</p>
+                    <p className="text-xs font-bold text-gray-900 dark:text-white">{detailsRepair.shopName || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">طريقة التسليم</p>
+                    <p className="text-xs font-bold text-gray-900 dark:text-white">{detailsRepair.deliveryMethod || "—"}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest"> عنؤان التسليم</p>
+                    <p className="text-xs font-black text-lime-600 mt-2 dark:text-white">{detailsRepair.deliveryAddressDetails}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest"> طريقة الدفع</p>
+                    <p className="text-sm font-black text-gray-900 dark:text-white">{detailsRepair.paymentMethod}</p>
+                  </div>
+                </div>
+                <div className="p-6 bg-lime-500/5 dark:bg-lime-500/10 rounded-[2rem] border border-lime-500/10 flex flex-col items-center justify-center">
+                  <p className="text-[10px] font-black text-lime-600 uppercase tracking-widest mb-1">المبلغ المطلوب</p>
+                  <p className="text-2xl font-black text-lime-600 tracking-tighter">{detailsRepair.price ? `ج.م ${Number(detailsRepair.price).toLocaleString('ar-EG')}` : "—"}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-8 py-6 bg-gray-50 dark:bg-gray-900/30 border-t border-gray-50 dark:border-gray-700">
+              <button onClick={() => setShowDetailsModal(false)} className="w-full py-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl text-[10px] font-black text-gray-500 uppercase tracking-widest hover:text-lime-500 transition-all">إغلاق</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+
+      {showStatusModal && statusModalRepair && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={() => setShowStatusModal(false)} />
+          <div className="relative w-full max-w-sm bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+            <div className="p-8 border-b border-gray-50 dark:border-gray-700">
+              <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">تحديث مرحلة الإصلاح</h3>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">#{statusModalRepair.id}</p>
+            </div>
+            <div className="p-8 space-y-4">
+              <div className="space-y-2">
+                {nextStatuses[(statusModalRepair.status || '').toUpperCase()]?.map(status => (
                   <button
-                    key={i + 1}
-                    onClick={() => setCurrentPage(i + 1)}
-                    className={`w-10 h-10 rounded-lg font-bold text-sm transition shadow-sm flex items-center justify-center ${
-                      currentPage === i + 1 ?
-                       'bg-gray-600 text-white' : 'bg-white border border-gray-600 text-gray-700 hover:bg-gray-50'
-                    }`}
+                    key={status}
+                    onClick={() => { updateRepairStatus(statusModalRepair.id, status); setShowStatusModal(false); }}
+                    className="w-full px-6 py-4 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 text-xs font-black text-gray-700 dark:text-gray-200 hover:border-lime-500 hover:text-lime-600 transition-all flex items-center justify-between group"
                   >
-                    {i + 1}
+                    {getStatusMeta(status).label}
+                    <FiChevronLeft className="group-hover:-translate-x-1 transition-transform" />
                   </button>
                 ))}
               </div>
-
-              <button
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="px-4 py-2 bg-white border border-gray-600 rounded-lg disabled:opacity-50 hover:bg-gray-50 text-lime-700 font-medium transition shadow-sm flex items-center gap-2"
-              >
-                
-                <FiChevronRight className="w-4 h-4 text-gray-600" />
-              </button>
             </div>
-          )}
+            <div className="px-8 pb-8">
+              <button onClick={() => setShowStatusModal(false)} className="w-full py-4 bg-gray-50 dark:bg-gray-900 rounded-2xl text-[10px] font-black text-gray-400 uppercase tracking-widest">إلغاء</button>
+            </div>
+          </div>
+        </div>
+      )}
 
-          {showStatusModal && statusModalRepair && (
-            <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-6">
-              <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full">
-                <div className="flex justify-center items-center mb-6">
-                  <h3 className="text-md font-bold font-mono text-gray-900">
-                    <p className='text-center text-2xl flex justify-between flex-row-reverse font-cairo items-center text-white mb-6 px-4 py-2 rounded-3xl bg-emerald-600 '>تحديث حالة الطلب 
 
-                      <button
-                    onClick={() => setShowStatusModal(false)}
-                    className="p-3 rounded-full transition"
-                  >
-                    <FiX className="w-6 h-6" />
-                  </button>
-                    </p>
-                      # {statusModalRepair.id}
-                  </h3>
-                  
-                </div>
 
-                <div className="text-center mb-6">
-                  <p className="text-base text-gray-700 mb-3">الحالة الحالية</p>
-                  <span className={`inline-block px-5 py-2 rounded-full text-sm font-bold ${getStatusColor((statusModalRepair.status || '').toUpperCase())}`}>
-                    {statusArabic[(statusModalRepair.status || '').toUpperCase()] || statusModalRepair.status}
-                  </span>
-                </div>
-
-                <div>
-                  <p className="text-lg font-bold text-center mb-6">اختر الحالة الجديدة</p>
-                  <div className="grid grid-cols-1 gap-4">
-                    {nextStatuses[(statusModalRepair.status || '').toUpperCase()]?.map((status) => (
-                      <button
-                        key={status}
-                        onClick={() => setSelectedNewStatus(status)}
-                        className={`p-4 rounded-2xl border-4 transition-all ${
-                          selectedNewStatus === status
-                            ? 'border-lime-600 bg-lime-50'
-                            : 'border-gray-300 hover:border-lime-400 hover:bg-lime-50'
-                        }`}
-                      >
-                        <p className="text-lg font-bold">{statusArabic[status]}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex justify-center gap-4 mt-8">
-                  <button
-                    onClick={() => setShowStatusModal(false)}
-                    className="px-8 py-3 border-2 border-gray-400 rounded-2xl text-base font-bold hover:bg-gray-100 transition"
-                  >
-                    إلغاء
-                  </button>
-                  <button
-                    onClick={confirmStatusUpdate}
-                    disabled={!selectedNewStatus}
-                    className="px-10 py-3 bg-lime-600 text-white rounded-2xl text-base font-bold hover:bg-lime-700 disabled:opacity-50 transition shadow-lg"
-                  >
-                    تأكيد
-                  </button>
-                </div>
+      {showPriceModal && priceModalRepair && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={() => setShowPriceModal(false)} />
+          <div className="relative w-full max-w-sm bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+            <div className="p-8 border-b border-gray-50 dark:border-gray-700">
+              <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">تحديد عرض السعر</h3>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">إرسال عرض مالي للعميل</p>
+            </div>
+            <div className="p-8 space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">المبلغ المقترح (ج.م)</label>
+                <input type="number" value={newPrice} onChange={e => setNewPrice(e.target.value)} className="w-full px-5 py-4 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-lime-200 text-lg font-black text-gray-900 dark:text-white focus:outline-none transition-all text-center" />
               </div>
             </div>
-          )}
-
-          {showPriceModal && priceModalRepair && (
-            <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-6">
-              <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full">
-                <div className="flex justify-between flex-row-reverse items-center mb-6">
-                  <h3 className="text-2xl font-bold text-gray-900">
-                    {priceModalRepair.price ? 'تعديل السعر' : 'تحديد السعر'}
-                  </h3>
-                  <button
-                    onClick={() => setShowPriceModal(false)}
-                    className="p-3 hover:bg-gray-100 rounded-full transition"
-                  >
-                    <FiX className="w-6 h-6" />
-                  </button>
-                </div>
-
-                <div className="text-center mb-6">
-                  <p className="text-base text-gray-700 mb-2">السعر الحالي</p>
-                  <p className="text-2xl font-bold text-lime-700">
-                    {priceModalRepair.price ? `${priceModalRepair.price} ج.م` : 'غير محدد'}
-                  </p>
-                </div>
-
-                <div className="mb-8">
-                  <label className="block text-base font-bold text-gray-800 mb-3 text-center">
-                    السعر الجديد
-                  </label>
-                  <input
-                    type="number"
-                    value={newPrice}
-                    onChange={(e) => setNewPrice(e.target.value)}
-                    placeholder="بالجنيه المصري"
-                    className="w-full px-5 py-3 text-lg text-center border-2 border-gray-300 rounded-2xl focus:border-lime-500 focus:ring-4 focus:ring-lime-100 outline-none transition"
-                    min="1"
-                  />
-                </div>
-
-                <div className="flex justify-center gap-4">
-                  <button
-                    onClick={() => setShowPriceModal(false)}
-                    className="px-8 py-3 border-2 border-gray-400 rounded-2xl text-base font-bold hover:bg-gray-100 transition"
-                  >
-                    إلغاء
-                  </button>
-                  <button
-                    onClick={confirmPriceUpdate}
-                    disabled={!newPrice || newPrice <= 0}
-                    className="px-10 py-3 bg-lime-600 text-white rounded-2xl text-base font-bold hover:bg-lime-700 disabled:opacity-50 transition shadow-lg"
-                  >
-                    حفظ
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-         {showDetailsModal && detailsRepair && (
-  <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4">
-    <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-8">
-      <div className="flex justify-between items-center mb-8">
-        <h3 className="text-2xl font-bold text-gray-900 flex items-center   gap-3">
-          <FiInfo className="text-lime-600 text-3xl" />
-          {/* <span className='text-center mb-4'>تفاصيل الطلب #</span><br /> */}
-          
-         # {detailsRepair.id?.slice(0,8)}  
-        </h3>
-        <button
-          onClick={() => setShowDetailsModal(false)}
-          className="p-3 hover:bg-gray-100 rounded-full transition"
-        >
-          <FiX className="w-7 h-7 text-gray-600" />
-        </button>
-      </div>
-
-      <div className="space-y-6 text-right">
-        <div className="bg-gray-50 rounded-2xl p-5 flex items-center justify-between gap-4">
-          <FiPackage className="text-2xl text-lime-600" />
-          <div>
-            <p className="font-bold text-lg">المتجر</p>
-            <p className="text-gray-700">{detailsRepair.shopName || 'غير محدد'}</p>
-          </div>
-        </div>
-
-        <div className="bg-gray-50 rounded-2xl p-5 flex items-start justify-between gap-4">
-          <FiTool className="text-2xl text-lime-600 mt-1" />
-          <div>
-            <p className="font-bold text-lg">الوصف</p>
-            <p className="text-gray-700">{detailsRepair.description || 'لا يوجد وصف'}</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className="bg-gray-50 rounded-2xl p-5 flex items-center justify-between gap-4">
-            <FiTruck className="text-2xl text-lime-600" />
-            <div>
-              <p className="font-bold text-lg">طريقة التسليم</p>
-              <p className="text-gray-700">{detailsRepair.deliveryMethod || '—'}</p>
-            </div>
-          </div>
-
-          <div className="bg-gray-50 rounded-2xl p-5 flex items-center justify-between gap-4">
-            <FiCreditCard className="text-2xl text-lime-600" />
-            <div>
-              <p className="font-bold text-lg">طريقة الدفع</p>
-              <p className="text-gray-700">{detailsRepair.paymentMethod || '—'}</p>
+            <div className="px-8 pb-8 flex gap-3">
+              <button onClick={() => setShowPriceModal(false)} className="flex-1 py-4 bg-gray-50 dark:bg-gray-900 rounded-2xl text-[10px] font-black text-gray-400 uppercase tracking-widest">إلغاء</button>
+              <button onClick={updateRepairPrice} className="flex-1 py-4 bg-lime-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-lime-600 transition-all shadow-lg shadow-lime-500/20">إرسال العرض</button>
             </div>
           </div>
         </div>
+      )}
 
-        <div className="bg-gray-50 rounded-2xl p-5 flex items-start justify-between gap-4">
-          <FiMapPin className="text-2xl text-lime-600 mt-1" />
-          <div>
-            <p className="font-bold text-lg">عنوان التسليم</p>
-            <p className="text-gray-700">{detailsRepair.deliveryAddressDetails || '—'}</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className="bg-gray-50 rounded-2xl p-5 text-center">
-            <p className="font-bold text-lg mb-3 flex items-center justify-center gap-2">
-              <FiCheckCircle className="text-2xl text-lime-600" />
-              الحالة الحالية
-            </p>
-            <span className={`inline-block px-6 py-3 rounded-2xl text-lg font-bold ${getStatusColor((detailsRepair.status || '').toUpperCase())}`}>
-              {statusArabic[(detailsRepair.status || '').toUpperCase()] || detailsRepair.status}
-            </span>
-          </div>
-
-          <div className="bg-gray-50 rounded-2xl p-5 text-center">
-            <p className="font-bold text-lg mb-3 flex items-center justify-center gap-2">
-              <FiDollarSign className="text-2xl text-lime-600" />
-              السعر
-            </p>
-            <p className="text-3xl font-bold text-lime-700">
-              {detailsRepair.price ? `${detailsRepair.price} ج.م` : 'غير محدد'}
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-gray-50 rounded-2xl p-5 flex items-center justify-between gap-4">
-          <FiCalendar className="text-2xl text-lime-600" />
-          <div>
-            <p className="font-bold text-lg">تاريخ الطلب</p>
-            <p className="text-gray-700">{formatDate(detailsRepair.createdAt || detailsRepair.timestamp || detailsRepair.date)}</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex justify-center mt-10">
-        <button
-          onClick={() => setShowDetailsModal(false)}
-          className="px-12 py-4 bg-lime-600 text-white rounded-2xl text-xl font-bold hover:bg-lime-700 transition shadow-lg flex items-center gap-3"
-        >
-          <FiX className="text-2xl" />
-          إغلاق
-        </button>
-      </div>
+      <style dangerouslySetInnerHTML={{
+        __html: `
+        .custom-scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
+        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
+        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #1f2937; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
+      `}} />
     </div>
-  </div>
-)}
-        </div>
-      </div>
-    </ShopLayout>
   );
 };
 

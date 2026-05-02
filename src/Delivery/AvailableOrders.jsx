@@ -1,315 +1,330 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import {
-  FiPackage, FiUser, FiMapPin, FiHome, FiDollarSign,
-  FiClock, FiCheckCircle, FiXCircle, FiTruck, FiRefreshCw
+import React, { useEffect, useState, useCallback, useMemo, memo } from "react";
+import { 
+  FiPackage, FiUser, FiHome, FiDollarSign, FiClock,
+  FiCheckCircle, FiXCircle, FiRefreshCw,
+  FiChevronLeft, FiChevronRight, FiSearch, FiCopy, FiMapPin, FiTruck
 } from "react-icons/fi";
-import { getAvailableOrders, acceptOrder, rejectOrder, updateOrderStatus } from "../api/deliveryApi";
+import { RiStore2Line } from "@remixicon/react";
+import Swal from "sweetalert2";
+import { getAvailableOrders, acceptOrder, rejectOrder } from "../api/deliveryApi";
+import api from "../api";
+
+
+
+
+const ROWS_OPTIONS = [10, 25, 50];
+
+const STATUS_STYLE = {
+  PREPARING:        { bg: "bg-amber-50 dark:bg-amber-900/20",    text: "text-amber-700 dark:text-amber-400",  dot: "bg-amber-500"  },
+  READY_FOR_PICKUP: { bg: "bg-blue-50 dark:bg-blue-900/20",      text: "text-blue-700 dark:text-blue-400",    dot: "bg-blue-500"    },
+  IN_TRANSIT:       { bg: "bg-indigo-50 dark:bg-indigo-900/20",  text: "text-indigo-700 dark:text-indigo-400",dot: "bg-indigo-500"  },
+  DELIVERED:        { bg: "bg-emerald-50 dark:bg-emerald-900/20",text: "text-emerald-700 dark:text-emerald-400",dot: "bg-emerald-500" },
+};
+
+
+
+
+const formatPrice = (p) => `EGP ${(p || 0).toLocaleString()}`;
+const formatDate = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+
+
 
 const AvailableOrders = () => {
-  const [orders, setOrders] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [selectedStatus, setSelectedStatus] = useState("");
+  const [orders, setOrders]         = useState([]);
+  const [isLoading, setIsLoading]   = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const ordersPerPage = 8;
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [token]                     = useState(localStorage.getItem("authToken"));
 
-  const statusOptions = [
-    { value: "PREPARING", label: "Preparing", color: "from-yellow-400 to-amber-500" },
-    { value: "READY_FOR_PICKUP", label: "Ready for Pickup", color: "from-blue-400 to-cyan-500" },
-    { value: "IN_TRANSIT", label: "In Transit", color: "from-indigo-500 to-purple-600" },
-    { value: "DELIVERED", label: "Delivered", color: "from-emerald-500 to-teal-600" },
-    { value: "CANCELLED", label: "Cancelled", color: "from-red-500 to-rose-600" }
-  ];
+  const showToast = (text, icon) => {
+    Swal.fire({ text, icon, toast: true, position: "top-end", timer: 3000, showConfirmButton: false });
+  };
+
+    useEffect(() => { document.title = ' Available Orders | TechBazaar'; }, []);
+  
 
   const loadOrders = useCallback(async () => {
     setIsLoading(true);
     try {
       const data = await getAvailableOrders();
       setOrders(data.content || data || []);
-    } catch (err) {
-      toast.error("Failed to load available orders");
-    } finally {
-      setIsLoading(false);
-    }
+    } catch { showToast("Failed to load available orders", "error"); }
+    finally { setIsLoading(false); }
   }, []);
 
-  useEffect(() => {
-    loadOrders();
-    const interval = setInterval(loadOrders, 15000);
-    return () => clearInterval(interval);
+  useEffect(() => { 
+    loadOrders(); 
+    const t = setInterval(loadOrders, 30000); 
+    return () => clearInterval(t); 
   }, [loadOrders]);
 
   const handleAccept = async (id) => {
-    try {
-      await acceptOrder(id);
-      toast.success("Order accepted successfully!");
-      loadOrders();
-    } catch (err) {
-      toast.error("Failed to accept order");
-    }
+    const { isConfirmed } = await Swal.fire({
+      title: 'Accept Delivery?',
+      text: "This order will be assigned to you.",
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#84cc16',
+      confirmButtonText: 'Accept Now'
+    });
+    if (!isConfirmed) return;
+
+    try { 
+      await acceptOrder(id); 
+      showToast("Order accepted successfully", "success"); 
+      loadOrders(); 
+    } catch { showToast("Failed to accept order", "error"); }
   };
 
   const handleReject = async (id) => {
-    try {
-      await rejectOrder(id);
-      toast.success("Order rejected");
-      loadOrders();
-    } catch (err) {
-      toast.error("Failed to reject order");
-    }
+    const { isConfirmed } = await Swal.fire({
+      title: 'Reject Order?',
+      text: "Are you sure you want to pass on this order?",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      confirmButtonText: 'Yes, Reject'
+    });
+    if (!isConfirmed) return;
+
+    try { 
+      await rejectOrder(id); 
+      showToast("Order rejected", "info"); 
+      loadOrders(); 
+    } catch { showToast("Failed to reject order", "error"); }
   };
 
-  const handleUpdateStatus = async () => {
-    if (!selectedStatus) return;
-
-    try {
-      await updateOrderStatus(selectedOrder.id, { status: selectedStatus });
-      toast.success(`Status updated to ${selectedStatus.replace(/_/g, " ")}`);
-      setSelectedOrder(null);
-      setSelectedStatus("");
-      loadOrders();
-    } catch (err) {
-      toast.error("Failed to update status");
-    }
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    showToast("Copied to clipboard", "success");
   };
 
-  const totalPages = Math.ceil(orders.length / ordersPerPage);
-  const currentOrders = orders.slice((currentPage - 1) * ordersPerPage, currentPage * ordersPerPage);
+  const filtered = useMemo(() => {
+    return orders.filter(o => 
+      String(o.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(o.userAddress?.street || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(o.shopAddress?.street || "").toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [orders, searchTerm]);
 
-  const getStatusGradient = (status) => {
-    const map = {
-      PREPARING: "from-yellow-400 to-amber-500",
-      READY_FOR_PICKUP: "from-blue-400 to-cyan-500",
-      IN_TRANSIT: "from-indigo-500 to-purple-600",
-      DELIVERED: "from-emerald-500 to-teal-600",
-      CANCELLED: "from-red-500 to-rose-600",
-      default: "from-gray-400 to-gray-600"
-    };
-    return map[status] || map.default;
-  };
+  const paginated = useMemo(() => filtered.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage), [filtered, currentPage, rowsPerPage]);
+  const totalPages = Math.ceil(filtered.length / rowsPerPage);
 
   return (
-    <>
-      <ToastContainer position="top-right" theme={document.documentElement.classList.contains("dark") ? "dark" : "light"} />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
 
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-950 pt-24 pb-12 px-4">
-        <div className="max-w-7xl mx-auto">
-
-         
-          <div className="text-center mb-12 mt-5">
-            <h1 className="text-5xl md:text-6xl font-bold text-gray-800 dark:text-white flex items-center justify-center gap-6">
-              <div className="p-5 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl shadow-2xl text-white">
-                <FiPackage size={48} />
+        
+        
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-1.5 rounded-full bg-lime-500" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-600">Marketplace</span>
+            </div>
+            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">Available <span className="text-lime-500">Orders</span></h1>
+            <p className="text-sm font-bold text-gray-500 dark:text-gray-400">Claim new delivery tasks from the live dispatch queue</p>
+          </div>
+          
+          <div className="flex items-center gap-3 bg-white dark:bg-gray-800 p-2 rounded-[2rem] border border-gray-100 dark:border-gray-700 shadow-sm">
+            <div className="px-5 py-2">
+              <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Live Queue</p>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-lime-500 animate-pulse" />
+                <span className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-tighter">{orders.length} Tasks Open</span>
               </div>
-              Available Orders
-            </h1>
-            <p className="mt-4 text-xl text-gray-600 dark:text-gray-400">
-              Pick up new delivery jobs instantly
-            </p>
-            <div className="mt-6 inline-flex items-center gap-3 px-6 py-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-full text-emerald-700 dark:text-emerald-400 font-semibold">
-              <FiRefreshCw className={`animate-spin ${isLoading ? 'block' : 'hidden'}`} />
-              Auto-refresh every 15s • {orders.length} available
+            </div>
+            <button 
+              onClick={loadOrders}
+              className={`w-12 h-12 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 hover:text-lime-500 transition-all duration-700 ${isLoading ? 'rotate-180' : ''}`}
+            >
+              <FiRefreshCw size={18} className={isLoading ? "animate-spin" : ""} />
+            </button>
+          </div>
+        </div>
+
+        
+        
+
+        <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none p-6">
+          <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
+            <div className="relative flex-1 group">
+              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={18} />
+              <input
+                type="text"
+                placeholder="Search by Order ID or Location..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-sm text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/10 focus:border-lime-200 transition-all"
+              />
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Show</span>
+                <select
+                  value={rowsPerPage}
+                  onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                  className="px-5 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-xs font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-4 focus:ring-lime-500/10 cursor-pointer transition-all"
+                >
+                  {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n} rows</option>)}
+                </select>
+              </div>
             </div>
           </div>
-
-          
-          {isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-              {[...Array(8)].map((_, i) => (
-                <div key={i} className="bg-white dark:bg-gray-900 rounded-3xl h-80 animate-pulse shadow-xl border border-gray-200 dark:border-gray-800">
-                  <div className="p-8 space-y-6">
-                    <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-2xl w-3/4"></div>
-                    <div className="space-y-4">
-                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
-                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : orders.length === 0 ? (
-            <div className="text-center py-20">
-              <FiPackage size={100} className="mx-auto text-gray-300 dark:text-gray-700 mb-6" />
-              <h3 className="text-2xl font-semibold text-gray-600 dark:text-gray-400">
-                No available orders right now
-              </h3>
-              <p className="text-gray-500 dark:text-gray-500 mt-2">
-                Check back soon — new orders appear in real-time!
-              </p>
-            </div>
-          ) : (
-            <>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                {currentOrders.map((order) => (
-                  <div
-                    key={order.id}
-                    className="group relative bg-white dark:bg-gray-900 rounded-3xl shadow-xl hover:shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-all duration-500 hover:-translate-y-4 cursor-pointer"
-                  >
-                    <div className={`h-2 bg-gradient-to-r ${getStatusGradient(order.status)}`} />
-
-                    <div className="p-7">
-                      <div className="flex justify-between items-start mb-5">
-                        <h3 className="text-2xl font-bold text-gray-800 dark:text-white">
-                          #{order.id.slice(-8)}
-                        </h3>
-                        <span className={`px-4 py-2 rounded-full text-white font-bold text-xs shadow-lg bg-gradient-to-r ${getStatusGradient(order.status)}`}>
-                          {order.status.replace(/_/g, " ")}
-                        </span>
-                      </div>
-
-                      <div className="space-y-4 text-sm">
-                        <div className="flex items-start gap-3 text-gray-700 dark:text-gray-300">
-                          <FiUser className="text-emerald-600 mt-1" size={18} />
-                          <div>
-                            <div className="font-medium">Customer</div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                              {order.userAddress?.street}, {order.userAddress?.city}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-start gap-3 text-gray-700 dark:text-gray-300">
-                          <FiHome className="text-teal-600 mt-1" size={18} />
-                          <div>
-                            <div className="font-medium">Pickup From</div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                              {order.shopAddress?.street}, {order.shopAddress?.city}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
-                          <div className="flex items-center gap-2 font-bold text-xl text-emerald-600 dark:text-emerald-400">
-                            <FiDollarSign size={22} />
-                            {order.totalPrice} EGP
-                          </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-500">
-                            {new Date(order.createdAt).toLocaleTimeString()}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-6 grid grid-cols-2 gap-3">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAccept(order.id);
-                          }}
-                          className="py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-2xl hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg flex items-center justify-center gap-2"
-                        >
-                          <FiCheckCircle size={18} /> Accept
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleReject(order.id);
-                          }}
-                          className="py-3 bg-gradient-to-r from-red-500 to-rose-600 text-white font-bold rounded-2xl hover:from-red-600 hover:to-rose-700 transition-all shadow-lg flex items-center justify-center gap-2"
-                        >
-                          <FiXCircle size={18} /> Reject
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              
-              {totalPages > 1 && (
-                <div className="flex justify-center gap-3 mt-12 flex-wrap">
-                  <button
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="px-6 py-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-50 flex items-center gap-2 font-medium"
-                  >
-                    Previous
-                  </button>
-
-                  {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 2)
-                    .map((page, idx, arr) => (
-                      <React.Fragment key={page}>
-                        {idx > 0 && arr[idx - 1] !== page - 1 && (
-                          <span className="px-4 py-3 text-gray-500">...</span>
-                        )}
-                        <button
-                          onClick={() => setCurrentPage(page)}
-                          className={`w-12 h-12 rounded-xl font-bold transition-all ${
-                            currentPage === page
-                              ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg'
-                              : 'bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30'
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      </React.Fragment>
-                    ))}
-
-                  <button
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="px-6 py-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-50 flex items-center gap-2 font-medium"
-                  >
-                    Next
-                  </button>
-                </div>
-              )}
-            </>
-          )}
         </div>
 
        
-        {selectedOrder && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl max-w-md w-full p-8 border border-gray-200 dark:border-gray-800">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-2xl font-bold text-gray-800 dark:text-white">
-                  Update Order Status
-                </h3>
-                <button
-                  onClick={() => setSelectedOrder(null)}
-                  className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+       
+
+        <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden">
+          <div className="overflow-x-auto custom-scrollbar-thin">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50/50 dark:bg-gray-900/30 border-b border-gray-100 dark:border-gray-700">
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Date</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Order Ref</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Shop Info</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Customer Drop</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Payout</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                {isLoading && paginated.length === 0 ? (
+                  [...Array(rowsPerPage)].map((_, i) => (
+                    <tr key={i} className="animate-pulse">
+                      {[...Array(6)].map((_, j) => (
+                        <td key={j} className="px-8 py-6"><div className="h-4 bg-gray-100 dark:bg-gray-700 rounded-lg w-full" /></td>
+                      ))}
+                    </tr>
+                  ))
+                ) : paginated.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-8 py-24 text-center">
+                      <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-3xl flex items-center justify-center mx-auto mb-6 text-gray-200 dark:text-gray-800">
+                        <FiPackage size={40} />
+                      </div>
+                      <p className="text-lg font-black text-gray-900 dark:text-white tracking-tight">Queue is Empty</p>
+                      <p className="text-sm font-bold text-gray-400 mt-1 uppercase tracking-widest">No orders waiting for assignment</p>
+                    </td>
+                  </tr>
+                ) : (
+                  paginated.map(order => (
+                    <tr key={order.id} className="hover:bg-lime-50/10 dark:hover:bg-lime-900/5 transition-colors group">
+                      <td className="px-8 py-6 whitespace-nowrap">
+                        <p className="text-xs font-black text-gray-900 dark:text-white uppercase">{formatDate(order.createdAt)}</p>
+                        <p className="text-[10px] font-bold text-gray-400 mt-0.5 uppercase tracking-widest">Entry Date</p>
+                      </td>
+                      <td className="px-8 py-6 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono font-black text-gray-800 dark:text-gray-200">#{order.id?.slice(-8)}</span>
+                          <button onClick={() => copyToClipboard(order.id)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-400 hover:text-lime-500 transition-all">
+                            <FiCopy size={12} />
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-600">
+                            <RiStore2Line size={18} />
+                          </div>
+                          <div>
+                            <p className="text-xs font-black text-gray-900 dark:text-white truncate max-w-[200px]">{order.shopAddress?.street || "Merchant Hub"}</p>
+                            <p className="text-[10px] font-bold text-gray-400 mt-0.5 uppercase tracking-widest">{order.shopAddress?.city || "Local Area"}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600">
+                            <FiMapPin size={18} />
+                          </div>
+                          <div>
+                            <p className="text-xs font-black text-gray-900 dark:text-white truncate max-w-[200px]">{order.userAddress?.street || "Private Residence"}</p>
+                            <p className="text-[10px] font-bold text-gray-400 mt-0.5 uppercase tracking-widest">{order.userAddress?.city || "Customer Area"}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 whitespace-nowrap">
+                        <p className="text-sm font-black text-gray-900 dark:text-white tracking-tighter">{formatPrice(order.totalPrice)}</p>
+                        <p className="text-[10px] font-black text-lime-600 uppercase tracking-widest mt-0.5">Est. Earnings</p>
+                      </td>
+                      <td className="px-8 py-6 whitespace-nowrap text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => handleReject(order.id)}
+                            className="p-3 rounded-2xl bg-red-50 dark:bg-red-900/20 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                          >
+                            <FiXCircle size={18} />
+                          </button>
+                          <button 
+                            onClick={() => handleAccept(order.id)}
+                            className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-lime-500 text-white text-xs font-black uppercase tracking-widest hover:bg-lime-600 transition-all shadow-lg shadow-lime-500/20 active:scale-95"
+                          >
+                            <FiCheckCircle size={16} /> Accept
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+         
+          {totalPages > 1 && (
+            <div className="px-8 py-6 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                Showing <span className="text-gray-900 dark:text-white">{(currentPage - 1) * rowsPerPage + 1}</span> to <span className="text-gray-900 dark:text-white">{Math.min(currentPage * rowsPerPage, filtered.length)}</span> of <span className="text-gray-900 dark:text-white">{filtered.length}</span> Results
+              </p>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all"
                 >
-                  <FiXCircle size={28} />
+                  <FiChevronLeft size={20} />
+                </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-10 h-10 rounded-xl text-xs font-black transition-all ${
+                        currentPage === page 
+                          ? "bg-lime-500 text-white shadow-lg shadow-lime-500/20" 
+                          : "bg-gray-50 dark:bg-gray-800 text-gray-500 hover:text-lime-500"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+                <button 
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all"
+                >
+                  <FiChevronRight size={20} />
                 </button>
               </div>
-
-              <div className="mb-6 p-5 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl border border-emerald-200 dark:border-emerald-800">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Order ID</p>
-                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                  #{selectedOrder.id.slice(-8)}
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                {statusOptions.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => {
-                      setSelectedStatus(opt.value);
-                      handleUpdateStatus();
-                    }}
-                    className={`w-full p-5 rounded-2xl border-2 transition-all text-left font-medium ${
-                      selectedStatus === opt.value
-                        ? `border-emerald-500 bg-gradient-to-r ${opt.color} text-white shadow-lg`
-                        : 'border-gray-300 dark:border-gray-700 hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>{opt.label}</span>
-                      {selectedStatus === opt.value && <FiCheckCircle size={20} />}
-                    </div>
-                  </button>
-                ))}
-              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        .custom-scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
+        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
+        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #1f2937; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
+      `}} />
+    </div>
   );
 };
 

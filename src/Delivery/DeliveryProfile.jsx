@@ -1,243 +1,263 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import {
+import React, { useEffect, useState, useCallback, memo } from "react";
+import { 
   FiUser, FiMail, FiPhone, FiMapPin, FiClock, FiEdit3,
   FiCheckCircle, FiX, FiShield, FiTrendingUp, FiAward,
-  FiTool
+  FiTool, FiSettings, FiCamera, FiAlertCircle, FiArrowRight
 } from "react-icons/fi";
+import Swal from "sweetalert2";
 import { getDeliveryProfile, updateDeliveryProfile } from "../api/deliveryApi";
+import api from "../api";
+
+
+
+
+
+const StatCard = memo(({ label, value, icon: Icon, color }) => (
+  <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-[2.5rem] p-6 shadow-xl shadow-gray-200/20 dark:shadow-none hover:shadow-2xl transition-all duration-500 group">
+    <div className="flex items-center justify-between mb-4">
+      <div className={`w-12 h-12 rounded-2xl bg-${color}-50 dark:bg-${color}-900/20 flex items-center justify-center text-${color}-600 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-500`}>
+        <Icon size={24} />
+      </div>
+      {typeof value === "string" && (
+        <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest bg-${color}-50 dark:bg-${color}-900/30 text-${color}-600 border border-${color}-100 dark:border-${color}-800`}>
+          {value}
+        </span>
+      )}
+    </div>
+    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 mb-1">{label}</p>
+    {typeof value !== "string" && (
+      <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">{value}</p>
+    )}
+  </div>
+));
+
+const Field = memo(({ icon: Icon, label, field, value, editing, onChange, error }) => (
+  <div className="space-y-2">
+    <label className="flex items-center gap-2 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">
+      <Icon size={14} className="text-lime-500" /> {label}
+    </label>
+    <div className="relative group">
+      <input
+        type="text"
+        value={value}
+        disabled={!editing}
+        onChange={(e) => onChange(field, e.target.value)}
+        className={`w-full px-5 py-4 rounded-2xl border text-sm font-bold transition-all duration-300
+          ${editing
+            ? `bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-4 focus:ring-lime-500/10 focus:border-lime-200 text-gray-900 dark:text-white ${error ? "border-red-500 focus:ring-red-500" : ""}`
+            : "bg-gray-50/50 dark:bg-gray-900/30 border-transparent text-gray-500 dark:text-gray-400 cursor-not-allowed"
+          }`}
+      />
+      {editing && <div className="absolute right-4 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-lime-500 animate-pulse" />}
+    </div>
+    {error && <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest pl-2">{error}</p>}
+  </div>
+));
 
 const DeliveryProfile = () => {
-  const [profile, setProfile] = useState(null);
-  const [form, setForm] = useState({ name: "", address: "", phone: "" });
+  const [profile, setProfile]     = useState(null);
+  const [form, setForm]           = useState({ name: "", address: "", phone: "" });
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [formErrors, setFormErrors] = useState({});
+  const [errors, setErrors]       = useState({});
+
+  const showToast = (text, icon) => {
+    Swal.fire({ text, icon, toast: true, position: "top-end", timer: 3000, showConfirmButton: false });
+  };
+
+    useEffect(() => { document.title = 'Delivery Profile | TechBazaar'; }, []);
+  
 
   const loadProfile = useCallback(async () => {
     setIsLoading(true);
     try {
       const data = await getDeliveryProfile();
       setProfile(data);
-      setForm({
-        name: data.name || "",
-        address: data.address || "",
-        phone: data.phone || ""
-      });
-    } catch (err) {
-      toast.error("Failed to load profile");
-    } finally {
-      setIsLoading(false);
-    }
+      setForm({ name: data.name || "", address: data.address || "", phone: data.phone || "" });
+    } catch { showToast("Failed to load profile", "error"); }
+    finally { setIsLoading(false); }
   }, []);
 
-  useEffect(() => {
-    loadProfile();
-  }, [loadProfile]);
+  useEffect(() => { loadProfile(); }, [loadProfile]);
 
-  const validateForm = () => {
-    const errors = {};
-    if (!form.name.trim()) errors.name = "Name is required";
-    if (!form.address.trim()) errors.address = "Address is required";
-    if (!form.phone.trim()) errors.phone = "Phone is required";
-    else if (!/^\+?\d{10,15}$/.test(form.phone.trim())) {
-      errors.phone = "Enter a valid phone number";
-    }
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
+  const validate = () => {
+    const e = {};
+    if (!form.name.trim()) e.name = "Name is required";
+    if (!form.address.trim()) e.address = "Address is required";
+    if (!form.phone.trim()) e.phone = "Phone is required";
+    else if (!/^\+?\d{10,15}$/.test(form.phone.trim())) e.phone = "Invalid phone format";
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
   const handleUpdate = async () => {
-    if (!validateForm()) return;
-
+    if (!validate()) return;
     setIsLoading(true);
     try {
       await updateDeliveryProfile(form);
       const updated = await getDeliveryProfile();
       setProfile(updated);
       setIsEditing(false);
-      toast.success("Profile updated successfully!");
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Update failed");
-    } finally {
-      setIsLoading(false);
-    }
+      showToast("Profile synchronized successfully", "success");
+    } catch (err) { showToast(err.response?.data?.message || "Update failed", "error"); }
+    finally { setIsLoading(false); }
   };
 
-  const formatDate = (date) => date ? new Date(date).toLocaleString('en-US', {
-    year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
-  }) : "N/A";
+  const cancelEdit = () => {
+    setForm({ name: profile.name || "", address: profile.address || "", phone: profile.phone || "" });
+    setErrors({});
+    setIsEditing(false);
+  };
 
   if (isLoading && !profile) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 dark:from-gray-900 dark:to-emerald-950/30 flex items-center justify-center pt-20">
-        <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-8 animate-pulse">
+          <div className="h-48 bg-white dark:bg-gray-800 rounded-[2.5rem]" />
+          <div className="h-64 bg-white dark:bg-gray-800 rounded-[2.5rem]" />
+        </div>
       </div>
     );
   }
-
   if (!profile) return null;
 
   return (
-    <>
-      <ToastContainer position="top-right" theme={document.documentElement.classList.contains("dark") ? "dark" : "light"} />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-8">
 
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-950 pt-24 pb-12 px-4">
-        <div className="max-w-5xl mx-auto">
-
-      
-          <div className="text-center mb-12 mt-5">
-            <div className="inline-flex items-center justify-center w-32 h-32 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full shadow-2xl mb-6">
-              <FiUser size={64} className="text-white" />
-            </div>
-            <h1 className="text-5xl font-bold text-gray-800 dark:text-white">
-              Welcome back, <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                {profile.name || "Delivery Agent"}
-              </span>
-            </h1>
-            <p className="mt-3 text-xl text-gray-600 dark:text-gray-400">
-              Manage your profile and delivery stats
-            </p>
-          </div>
-
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-            {[
-              { label: "Active Orders", value: profile.activeOrderDeliveries || 0, icon: FiTrendingUp, gradient: "from-emerald-500 to-teal-600" },
-              { label: "Active Repairs", value: profile.activeRepairDeliveries || 0, icon: FiTool, gradient: "from-purple-500 to-pink-600" },
-              { label: "Total Completed", value: profile.totalCompletedDeliveries || 0, icon: FiAward, gradient: "from-orange-500 to-red-600" },
-              { label: "Account Status", value: profile.status || "PENDING", icon: FiShield, gradient: "from-blue-500 to-cyan-600" }
-            ].map((stat, i) => (
-              <div
-                key={i}
-                className="group relative bg-white dark:bg-gray-900 rounded-3xl shadow-xl hover:shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-all duration-500 hover:-translate-y-3"
-              >
-                <div className={`absolute inset-0 bg-gradient-to-br ${stat.gradient} opacity-0 group-hover:opacity-10 transition-opacity`} />
-                <div className="p-8 text-center">
-                  <div className={`inline-flex p-4 rounded-2xl bg-gradient-to-br ${stat.gradient} text-white shadow-lg mb-4`}>
-                    <stat.icon size={32} />
-                  </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">{stat.label}</p>
-                  <p className="text-3xl font-bold text-gray-800 dark:text-white mt-2">
-                    {typeof stat.value === "string" ? (
-                      <span className={`inline-block px-4 py-2 rounded-full text-sm font-bold bg-gradient-to-r ${stat.gradient} text-white`}>
-                        {stat.value}
-                      </span>
-                    ) : stat.value}
-                  </p>
-                </div>
+       
+       
+        <div className="relative bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden p-8 group">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-lime-500/5 rounded-bl-full translate-x-16 -translate-y-16 group-hover:translate-x-8 group-hover:-translate-y-8 transition-transform duration-700" />
+          
+          <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
+            <div className="relative">
+              <div className="w-32 h-32 rounded-[2.5rem] bg-gradient-to-br from-lime-500 to-emerald-600 flex items-center justify-center text-white text-4xl font-black shadow-2xl shadow-lime-500/20 group-hover:scale-105 transition-transform duration-500">
+                {profile.name?.charAt(0) || "A"}
               </div>
-            ))}
-          </div>
-
-      
-          <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-            <div className="h-2 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600"></div>
-
-            <div className="p-8 lg:p-10">
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="text-3xl font-bold text-gray-800 dark:text-white flex items-center gap-4">
-                  <FiUser className="text-emerald-600" size={36} />
-                  Profile Information
-                </h2>
-                {!isEditing ? (
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-2xl hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg flex items-center gap-3"
-                  >
-                    <FiEdit3 size={20} /> Edit Profile
-                  </button>
-                ) : (
-                  <div className="flex gap-3">
-                    <button
-                      onClick={handleUpdate}
-                      disabled={isLoading}
-                      className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-2xl hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 transition-all shadow-lg flex items-center gap-3"
-                    >
-                      <FiCheckCircle size={20} /> {isLoading ? "Saving..." : "Save Changes"}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setForm({ name: profile.name || "", address: profile.address || "", phone: profile.phone || "" });
-                        setFormErrors({});
-                        setIsEditing(false);
-                      }}
-                      className="px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white font-bold rounded-2xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all shadow-lg flex items-center gap-3"
-                    >
-                      <FiX size={20} /> Cancel
-                    </button>
-                  </div>
+              <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-2xl bg-white dark:bg-gray-900 border-4 border-gray-50 dark:border-gray-900 flex items-center justify-center text-lime-500">
+                <FiShield size={18} />
+              </div>
+            </div>
+            
+            <div className="text-center md:text-left flex-1">
+              <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
+                <span className="px-3 py-1 rounded-full bg-lime-50 dark:bg-lime-900/20 text-lime-600 text-[10px] font-black uppercase tracking-widest border border-lime-100 dark:border-lime-800">
+                  Active Agent
+                </span>
+                {profile.verified && (
+                  <span className="px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 text-[10px] font-black uppercase tracking-widest border border-blue-100 dark:border-blue-800">
+                    Verified
+                  </span>
                 )}
               </div>
-
-              <div className="grid md:grid-cols-2 gap-8">
-                
-                <div className="space-y-6">
-                  <div className="flex items-center gap-4 p-5 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl border border-emerald-200 dark:border-emerald-800">
-                    <FiMail className="text-emerald-600" size={28} />
-                    <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Email Address</p>
-                      <p className="font-semibold text-gray-800 dark:text-white">{profile.email}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 p-5 bg-teal-50 dark:bg-teal-900/20 rounded-2xl border border-teal-200 dark:border-teal-800">
-                    <FiClock className="text-teal-600" size={28} />
-                    <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Member Since</p>
-                      <p className="font-semibold text-gray-800 dark:text-white">{formatDate(profile.createdAt)}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-4">
-                    <span className={`px-5 py-3 rounded-full font-bold text-sm ${profile.verified ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300' : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300'}`}>
-                      {profile.verified ? "Verified" : "Not Verified"}
-                    </span>
-                    <span className={`px-5 py-3 rounded-full font-bold text-sm ${profile.activate ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-300' : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300'}`}>
-                      {profile.activate ? "Active" : "Inactive"}
-                    </span>
-                  </div>
+              <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter mb-1">{profile.name}</h1>
+              <p className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-6">Dispatch System Personnel</p>
+              
+              {!isEditing ? (
+                <button 
+                  onClick={() => setIsEditing(true)}
+                  className="flex items-center gap-2 px-6 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-lime-500 dark:hover:bg-lime-500 hover:text-white transition-all active:scale-95 shadow-xl shadow-gray-900/10"
+                >
+                  <FiEdit3 size={16} /> Edit Profile
+                </button>
+              ) : (
+                <div className="flex items-center justify-center md:justify-start gap-3">
+                  <button 
+                    onClick={handleUpdate}
+                    className="flex items-center gap-2 px-6 py-3 bg-lime-500 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-lime-600 transition-all active:scale-95 shadow-xl shadow-lime-500/20"
+                  >
+                    <FiCheckCircle size={16} /> {isLoading ? "Saving..." : "Apply Changes"}
+                  </button>
+                  <button 
+                    onClick={cancelEdit}
+                    className="px-6 py-3 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-gray-200 dark:hover:bg-gray-600 transition-all"
+                  >
+                    Cancel
+                  </button>
                 </div>
-
-               
-                <div className="space-y-6">
-                  {[
-                    { label: "Full Name", field: "name", icon: FiUser },
-                    { label: "Delivery Address", field: "address", icon: FiMapPin },
-                    { label: "Phone Number", field: "phone", icon: FiPhone },
-                  ].map(({ label, field, icon: Icon }) => (
-                    <div key={field}>
-                      <label className="flex items-center gap-3 text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                        <Icon className="text-emerald-600" size={20} />
-                        {label}
-                      </label>
-                      <input
-                        type="text"
-                        value={form[field]}
-                        disabled={!isEditing}
-                        onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-                        className={`w-full px-5 py-4 rounded-2xl border-2 transition-all text-gray-800 dark:text-white ${
-                          isEditing
-                            ? 'bg-white dark:bg-gray-800 border-emerald-300 dark:border-emerald-700 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20'
-                            : 'bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-700 cursor-not-allowed'
-                        } ${formErrors[field] ? 'border-red-500' : ''}`}
-                        placeholder={isEditing ? `Enter your ${label.toLowerCase()}...` : 'Not set'}
-                      />
-                      {formErrors[field] && (
-                        <p className="text-red-500 text-sm mt-2 flex items-center gap-2">
-                          {formErrors[field]}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
+
+       
+       
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard label="Active Orders"    value={profile.activeOrderDeliveries || 0}   icon={FiTrendingUp} color="blue" />
+          <StatCard label="Active Repairs"   value={profile.activeRepairDeliveries || 0}  icon={FiTool}       color="indigo"  />
+          <StatCard label="Career Deliveries" value={profile.totalCompletedDeliveries || 0} icon={FiAward}     color="amber"   />
+          <StatCard label="Account Status"   value={profile.status || "ACTIVE"}           icon={FiShield}    color="lime"    />
+        </div>
+
+     
+     
+
+        <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none p-8">
+          <div className="flex items-center gap-3 mb-10">
+            <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400">
+              <FiSettings size={20} />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">Account Configuration</h2>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Personal & professional data</p>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-x-12 gap-y-8">
+            <div className="space-y-8">
+              <div className="flex items-start gap-4 p-6 bg-gray-50/50 dark:bg-gray-900/30 rounded-3xl border border-transparent hover:border-gray-100 dark:hover:border-gray-700 transition-all group">
+                <div className="w-10 h-10 rounded-2xl bg-white dark:bg-gray-800 flex items-center justify-center text-lime-500 shadow-sm group-hover:scale-110 transition-transform">
+                  <FiMail size={18} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Email Access</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{profile.email}</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-4 p-6 bg-gray-50/50 dark:bg-gray-900/30 rounded-3xl border border-transparent hover:border-gray-100 dark:hover:border-gray-700 transition-all group">
+                <div className="w-10 h-10 rounded-2xl bg-white dark:bg-gray-800 flex items-center justify-center text-lime-500 shadow-sm group-hover:scale-110 transition-transform">
+                  <FiClock size={18} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Onboarding Date</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">
+                    {new Date(profile.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-8">
+              <Field icon={FiUser}   label="Full Display Name" field="name"    value={form.name}    editing={isEditing} onChange={(f,v) => setForm(prev => ({...prev, [f]: v}))} error={errors.name} />
+              <Field icon={FiPhone}  label="Secure Phone"      field="phone"   value={form.phone}   editing={isEditing} onChange={(f,v) => setForm(prev => ({...prev, [f]: v}))} error={errors.phone} />
+              <Field icon={FiMapPin} label="Operating Area"    field="address" value={form.address} editing={isEditing} onChange={(f,v) => setForm(prev => ({...prev, [f]: v}))} error={errors.address} />
+            </div>
+          </div>
+        </div>
+
+        
+        
+        {/* <div className="bg-gray-900 dark:bg-gray-800 rounded-[2.5rem] p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative">
+          <div className="absolute top-0 left-0 w-64 h-64 bg-lime-500/10 rounded-full -translate-x-24 -translate-y-24 blur-3xl" />
+          <div className="relative z-10 flex items-center gap-6">
+            <div className="w-16 h-16 rounded-3xl bg-lime-500/10 flex items-center justify-center text-lime-500 border border-lime-500/20">
+              <FiShield size={32} />
+            </div>
+            <div>
+              <h3 className="text-xl font-black tracking-tight mb-1">Security Standards</h3>
+              <p className="text-sm font-bold text-gray-400">Keep your operational data updated for faster payouts.</p>
+            </div>
+          </div>
+          <button className="relative z-10 flex items-center gap-2 px-8 py-4 bg-lime-500 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-lime-600 transition-all shadow-xl shadow-lime-500/20">
+            Change Password <FiArrowRight />
+          </button>
+        </div> */}
+
       </div>
-    </>
+    </div>
   );
 };
 

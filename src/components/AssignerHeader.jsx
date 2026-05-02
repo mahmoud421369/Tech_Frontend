@@ -1,340 +1,271 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
 import {
-  FiMoon,
-  FiSun,
-  FiUser,
-  FiLogOut,
-  FiMenu,
-  FiX,
-  FiActivity,
-  FiUsers,
-  FiBox,
-  FiTool,
-  FiClipboard,
-  FiRefreshCw,
-  FiSearch,
+  FiMoon, FiSun, FiUser, FiLogOut, FiMenu, FiX,
+  FiActivity, FiUsers, FiBox, FiTool, FiClipboard, FiRefreshCw, FiSearch,
+  FiChevronDown, FiBell, FiSettings, FiGrid, FiArchive
 } from "react-icons/fi";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { jwtDecode } from "jwt-decode";
 import api from "../api";
+import logo from "../images/logo-bg.png";
+
+
+
+
+const MENU_GROUPS = [
+  {
+    label: "Main Console",
+    items: [
+      { name: "Dashboard", path: "/assigner/dashboard", icon: <FiActivity size={18} /> },
+      { name: "Delivery Network", path: "/assigner/delivery", icon: <FiUsers size={18} /> },
+    ]
+  },
+  {
+    label: "Pending Queues",
+    items: [
+      { name: "Order Queue", path: "/assigner/orders", icon: <FiBox size={18} /> },
+      { name: "Repair Queue", path: "/assigner/repair-requests", icon: <FiTool size={18} /> },
+    ]
+  },
+  {
+    label: "Tracking & Recovery",
+    items: [
+      { name: "Assigned Orders", path: "/assigner/assigned-orders", icon: <FiArchive size={18} /> },
+      { name: "Assigned Repairs", path: "/assigner/assigned-repairs", icon: <FiArchive size={18} /> },
+      { name: "Reassign Orders", path: "/assigner/reassign-orders", icon: <FiRefreshCw size={18} /> },
+      { name: "Reassign Repairs", path: "/assigner/reassign-repairs", icon: <FiRefreshCw size={18} /> },
+
+    ]
+  },
+  {
+    label: "Archives",
+    items: [
+      { name: "Assignment Logs", path: "/assigner/assignment-logs", icon: <FiClipboard size={18} /> },
+    ]
+  }
+];
+
+
+
+
+const isTokenExpired = (token) => {
+  if (!token) return true;
+  try {
+    const d = jwtDecode(token);
+    return !d.exp || d.exp < Date.now() / 1000;
+  } catch { return true; }
+};
+
+
+
+
+const NavLink = memo(({ item, active, onClick }) => (
+  <Link
+    to={item.path}
+    onClick={onClick}
+    className={`group flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all duration-300 relative overflow-hidden
+      ${active
+        ? "bg-lime-500 text-white shadow-lg shadow-lime-500/20 active:scale-95"
+        : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"}`}
+  >
+    <span className={`flex-shrink-0 transition-transform duration-500 ${active ? "scale-110" : "group-hover:scale-110 group-hover:rotate-6"}`}>
+      {item.icon}
+    </span>
+    <span className="relative z-10">{item.name}</span>
+    {active && (
+      <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+    )}
+  </Link>
+));
+
+
+
 
 const AssignerHeader = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("darkMode") === "true");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
   const [token, setToken] = useState(localStorage.getItem("authToken"));
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState(null);
 
- 
+
+  
+
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
+    document.documentElement.classList.toggle("dark", darkMode);
     localStorage.setItem("darkMode", darkMode);
   }, [darkMode]);
 
-  
-  useEffect(() => {
-    const timer = setTimeout(() => setIsInitialLoading(false), 800);
-    return () => clearTimeout(timer);
-  }, []);
-
-
-  const isTokenExpired = useCallback((token) => {
-    if (!token) return true;
-    try {
-      const decoded = jwtDecode(token);
-      return !decoded.exp || decoded.exp < Date.now() / 1000;
-    } catch {
-      return true;
-    }
-  }, []);
+  const toggleDark = useCallback(() => setDarkMode(d => !d), []);
 
   
-  const menuItems = useMemo(
-    () => [
-      { name: "Dashboard", path: "/assigner/dashboard", icon: <FiActivity size={20} /> },
-      { name: "Delivery", path: "/assigner/delivery", icon: <FiUsers size={20} /> },
-      { name: "Orders", path: "/assigner/orders", icon: <FiBox size={20} /> },
-      { name: "Repairs", path: "/assigner/repair-requests", icon: <FiTool size={20} /> },
-      { name: "Logs", path: "/assigner/assignment-logs", icon: <FiClipboard size={20} /> },
-      { name: "Assigned Orders", path: "/assigner/assigned-orders", icon: <FiBox size={20} /> },
-      { name: "Assigned Repairs", path: "/assigner/assigned-repairs", icon: <FiTool size={20} /> },
-      { name: "Reassign Orders", path: "/assigner/reassign-orders", icon: <FiRefreshCw size={20} /> },
-      { name: "Reassign Repairs", path: "/assigner/reassign-repairs", icon: <FiRefreshCw size={20} /> },
-    ],
-    []
-  );
-
   
+
   useEffect(() => {
     if (token && !isTokenExpired(token)) {
       setIsAuthenticated(true);
+      if (!userProfile) {
+        api.get('/api/assigner/profile', { headers: { Authorization: `Bearer ${token}` } })
+          .then(res => setUserProfile(res.data))
+          .catch(() => { });
+      }
     } else {
-      setIsAuthenticated(false);
       localStorage.removeItem("authToken");
       localStorage.removeItem("refreshToken");
+      setIsAuthenticated(false);
       navigate("/login");
     }
-  }, [token, isTokenExpired, navigate]);
+  }, [token, navigate, userProfile]);
 
- 
-  const handleSearch = useCallback(
-    (query) => {
-      setSearchQuery(query);
-      if (!query.trim()) {
-        setSearchResults([]);
-        return;
-      }
-      const filtered = menuItems.filter((item) =>
-        item.name.toLowerCase().includes(query.toLowerCase())
-      );
-      setSearchResults(filtered);
-    },
-    [menuItems]
-  );
-
-  const handleSearchResultClick = (result) => {
-    navigate(result.path);
-    setSearchQuery("");
-    setSearchResults([]);
-    setSearchOpen(false);
-    setSidebarOpen(false);
-  };
-
- 
+  
+  
+  
   const handleLogout = useCallback(async () => {
     const refreshToken = localStorage.getItem("refreshToken");
-    const result = await Swal.fire({
-      title: "Logout Confirmation",
-      text: "Are you sure you want to log out?",
+    const { isConfirmed } = await Swal.fire({
+      title: "Confirm Logout",
+      text: "Ending your administrative session?",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#10b981",
+      confirmButtonColor: "#84cc16",
       cancelButtonColor: "#ef4444",
-      confirmButtonText: "Yes, Logout",
-      customClass: {
-        popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "",
-      },
+      confirmButtonText: "Logout Now",
+      background: darkMode ? '#111827' : '#fff',
+      color: darkMode ? '#fff' : '#000',
     });
-
-    if (!result.isConfirmed) return;
-
+    if (!isConfirmed) return;
     try {
-      if (token && refreshToken) {
-        await api.post("/api/auth/logout", { refreshToken }, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      }
-
-      localStorage.removeItem("authToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("userId");
-      setToken(null);
-      setIsAuthenticated(false);
-
-      Swal.fire({
-        icon: "success",
-        title: "Logged Out",
-        text: "See you soon!",
-        timer: 2000,
-        showConfirmButton: false,
-        toast: true,
-        position: "top-end",
-      });
-
-      navigate("/login");
-    } catch (err) {
-      Swal.fire({
-        icon: "error",
-        title: "Logout Failed",
-        text: "Please try again.",
-      });
-      navigate("/login");
-    }
+      if (token && refreshToken) await api.post("/api/auth/logout", { refreshToken }, { headers: { Authorization: `Bearer ${token}` } });
+    } catch {  }
+    localStorage.clear();
+    navigate("/login");
   }, [token, navigate, darkMode]);
 
-
-  const SkeletonLoader = useMemo(
-    () => (
-      <div className="flex justify-between items-center px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg animate-pulse">
-        <div className="h-9 w-56 bg-white/30 rounded-full"></div>
-        <div className="flex gap-4">
-          <div className="w-10 h-10 bg-white/30 rounded-full"></div>
-          <div className="w-10 h-10 bg-white/30 rounded-full"></div>
-          <div className="w-10 h-10 bg-white/30 rounded-full"></div>
-        </div>
-      </div>
-    ),
-    []
-  );
+  const isActive = (path) => location.pathname === path;
+  const closeSidebar = () => setSidebarOpen(false);
 
   return (
     <>
       
-      <header className="sticky top-0 z-50 shadow-lg" aria-label="Main Navigation">
-        {isInitialLoading ? (
-          SkeletonLoader
-        ) : (
-          <div className="flex justify-between items-center px-4 md:px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-600 dark:from-emerald-800 dark:to-teal-900 text-white">
-           
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="p-3 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-sm transition-all hover:scale-110 lg:hidden"
-                aria-label={sidebarOpen ? "Close menu" : "Open menu"}
-              >
-                {sidebarOpen ? <FiX size={20} /> : <FiMenu size={20} />}
-              </button>
-              <h1 className="text-xl md:text-2xl font-bold tracking-tight">
-                Assigner Panel
-              </h1>
-            </div>
-
-            
-            <div className="hidden md:flex flex-1 max-w-2xl mx-8">
-              <div className="relative w-full">
-                <div className="flex items-center bg-white/25 backdrop-blur-md rounded-full px-5 py-3 shadow-inner">
-                  <FiSearch size={20} className="text-white/80" />
-                  <input
-                    type="text"
-                    placeholder="Search menu..."
-                    value={searchQuery}
-                    onChange={(e) => handleSearch(e.target.value)}
-                    onFocus={() => setSearchOpen(true)}
-                    className="ml-3 bg-transparent text-white placeholder-white/70 outline-none flex-1 font-medium"
-                  />
-                </div>
-
-             
-                {searchOpen && searchQuery && (
-                  <div
-                    className="absolute top-full left-0 right-0 mt-3 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {searchResults.length > 0 ? (
-                      searchResults.map((item) => (
-                        <button
-                          key={item.name}
-                          onClick={() => handleSearchResultClick(item)}
-                          className="w-full text-left px-5 py-4 hover:bg-emerald-50 dark:hover:bg-emerald-900/50 transition-colors flex items-center gap-4 border-b border-gray-100 dark:border-gray-800 last:border-0"
-                        >
-                          <span className="text-emerald-600 dark:text-emerald-400">
-                            {item.icon}
-                          </span>
-                          <span className="font-medium text-gray-800 dark:text-gray-200">
-                            {item.name}
-                          </span>
-                        </button>
-                      ))
-                    ) : (
-                      <p className="px-5 py-6 text-center text-gray-500 dark:text-gray-400">
-                        No results found
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setDarkMode(!darkMode)}
-                className="p-3 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-sm transition-all hover:scale-110"
-                aria-label="Toggle dark mode"
-              >
-                {darkMode ? <FiSun size={20} /> : <FiMoon size={20} />}
-              </button>
-
-              {isAuthenticated && (
-                <Link
-                  to="/assigner/profile"
-                  className="p-3 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-sm transition-all hover:scale-110"
-                  aria-label="View profile"
-                >
-                  <FiUser size={20} />
-                </Link>
-              )}
-            </div>
-          </div>
-        )}
-      </header>
+      
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-md z-[60] lg:hidden transition-all duration-500" onClick={closeSidebar} aria-hidden="true" />
+      )}
 
       
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-gray-900 shadow-2xl transform transition-transform duration-300 ease-in-out ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0 flex flex-col`}
-        aria-label="Sidebar navigation"
+        className={`fixed inset-y-0 left-0 z-[70] w-64 bg-white/80 dark:bg-gray-900/90 backdrop-blur-2xl border-r border-gray-100 dark:border-gray-800 shadow-2xl flex flex-col transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1)
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
       >
-        <div className="p-6 border-b border-gray-200 dark:border-gray-800">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-emerald-600 text-center dark:text-emerald-400">
-              Tech Bazaar
-            </h2>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 lg:hidden"
-              aria-label="Close sidebar"
-            >
-              <FiX size={22} />
-            </button>
-          </div>
+        
+        <div className="relative h-20 flex items-center justify-between px-6 border-b border-gray-50 dark:border-gray-800/50">
+          <Link to="/assigner/dashboard" className="flex items-center gap-2 group" onClick={closeSidebar}>
+            <div className="w-10 h-10 rounded-2xl bg-lime-500 flex items-center justify-center group-hover:rotate-12 transition-transform duration-500 shadow-lg shadow-lime-500/20">
+              <FiGrid className="text-white" size={20} />
+            </div>
+            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tighter">Assigner<span className="text-lime-500">Hub</span></span>
+          </Link>
+          <button onClick={closeSidebar} className="lg:hidden p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-red-500 transition-all">
+            <FiX size={18} />
+          </button>
         </div>
 
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {menuItems.map((item) => (
-            <Link
-              key={item.name}
-              to={item.path}
-              onClick={() => setSidebarOpen(false)}
-              className="flex items-center gap-4 px-5 py-4 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-700 dark:hover:text-emerald-400 transition-all group"
-            >
-              <span className="text-gray-500 dark:text-gray-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
-                {item.icon}
-              </span>
-              <span className="font-medium">{item.name}</span>
-            </Link>
-          ))}
-        </nav>
+        
+        
+        <div className="flex-1 overflow-y-auto py-6 px-4 custom-scrollbar-thin space-y-8">
+          
+          <div className="relative group px-2">
+            <FiSearch className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={16} />
+            <input
+              type="text"
+              placeholder="Quick Search..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-transparent focus:border-lime-200 dark:focus:border-lime-900/50 text-xs font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/5 transition-all"
+            />
+          </div>
 
-        <div className="p-4 border-t border-gray-200 dark:border-gray-800">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-4 px-5 py-4 rounded-xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all font-medium"
-            aria-label="Logout"
-          >
-            <FiLogOut size={20} />
-            Logout
-          </button>
+          {MENU_GROUPS.map((group, idx) => (
+            <div key={idx} className="space-y-2">
+              <h3 className="px-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">{group.label}</h3>
+              <div className="space-y-1">
+                {group.items
+                  .filter(item => !searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                  .map(item => (
+                    <NavLink key={item.name} item={item} active={isActive(item.path)} onClick={closeSidebar} />
+                  ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        
+        <div className="p-4 mt-auto border-t border-gray-50 dark:border-gray-800/50 bg-gray-50/30 dark:bg-gray-800/20">
+          <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-4 space-y-3">
+
+            <div className="flex gap-2">
+              <button onClick={toggleDark} className="flex-1 h-10 rounded-xl bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-500 hover:text-lime-500 transition-all">
+                {darkMode ? <FiSun size={16} /> : <FiMoon size={16} />}
+              </button>
+              <button onClick={handleLogout} className="flex-1 h-10 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500 hover:bg-red-100 transition-all">
+                <FiLogOut size={16} />
+              </button>
+            </div>
+          </div>
         </div>
       </aside>
 
-      
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-          aria-hidden="true"
-        />
-      )}
+     
+     
+      <header className="fixed top-0 left-0 right-0 h-20 z-[40] bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-50 dark:border-gray-800 flex items-center justify-between px-6 lg:pl-[280px] transition-all duration-500">
+        <div className="flex items-center gap-4">
+          
+          
+          <button onClick={() => setSidebarOpen(true)} className="lg:hidden w-11 h-11 rounded-2xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-lime-500 hover:text-white transition-all shadow-sm">
+            <FiMenu size={20} />
+          </button>
 
-      
-      {searchOpen && (
-        <div
-          className="fixed inset-0 z-40 md:hidden"
-          onClick={() => setSearchOpen(false)}
-          aria-hidden="true"
-        />
-      )}
+          <div className="hidden sm:block">
+             <img
+                                     src={logo}
+                                     alt="Tech & Bazaar"
+                                     className="h-16 w-auto rounded-xl object-cover transition-transform duration-500 group-hover:scale-105"
+                                     style={{ transform: "scale(1.35)", transformOrigin: "left center" }}
+                                   />
+            
+          </div>
+        </div>
+
+       
+        <div className="flex items-center gap-3">
+         
+
+          <div className="h-8 w-[1px] bg-gray-100 dark:bg-gray-800 mx-1" />
+
+          <Link to="/assigner/profile" className="flex items-center gap-3 pl-1 pr-3 py-1 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all group">
+            <div className="w-10 h-10 rounded-2xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400 group-hover:text-lime-500 transition-colors">
+              <FiUser size={18} />
+            </div>
+            <div className="hidden md:block text-right">
+              <p className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-widest">{userProfile?.name?.split(' ')[0] || "Admin"}</p>
+              <p className="text-[9px] font-bold text-gray-400">View Profile</p>
+            </div>
+          </Link>
+        </div>
+      </header>
+
+      <style dangerouslySetInnerHTML={{
+        __html: `
+        .custom-scrollbar-thin::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
+        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #1f2937; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
+      `}} />
     </>
   );
 };

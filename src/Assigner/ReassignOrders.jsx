@@ -1,446 +1,424 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FiPackage, FiSearch, FiUser, FiMapPin, FiCopy,
-  FiTruck, FiCalendar, FiXCircle, FiChevronLeft, FiChevronRight
+  FiTruck, FiCalendar, FiXCircle, FiChevronLeft, FiChevronRight, FiCheck, FiClock, FiEye, FiInfo, FiClipboard, FiUserCheck
 } from 'react-icons/fi';
+import { RiStore2Line } from '@remixicon/react';
 import Swal from 'sweetalert2';
 import api from '../api';
 import Modal from '../components/Modal';
+import { uniq } from 'lodash';
+
+
+
+
+const ROWS_OPTIONS = [10, 25, 50];
+
+
+
+
+const STATUS_STYLE = {
+  PENDING:        { bg: 'bg-yellow-50 dark:bg-yellow-900/20',  border: 'border-yellow-200 dark:border-yellow-700',  text: 'text-yellow-700 dark:text-yellow-400',  dot: 'bg-yellow-500'  },
+  PENDING_PICKUP: { bg: 'bg-orange-50 dark:bg-orange-900/20',  border: 'border-orange-200 dark:border-orange-700',  text: 'text-orange-700 dark:text-orange-400',  dot: 'bg-orange-500'  },
+  ASSIGNED:       { bg: 'bg-purple-50 dark:bg-purple-900/20',  border: 'border-purple-200 dark:border-purple-700',  text: 'text-purple-700 dark:text-purple-400',  dot: 'bg-purple-500'  },
+  IN_TRANSIT:     { bg: 'bg-blue-50 dark:bg-blue-900/20',      border: 'border-blue-200 dark:border-blue-700',      text: 'text-blue-700 dark:text-blue-400',      dot: 'bg-blue-500'    },
+  IN_PROGRESS:    { bg: 'bg-indigo-50 dark:bg-indigo-900/20',  border: 'border-indigo-200 dark:border-indigo-700',  text: 'text-indigo-700 dark:text-indigo-400',  dot: 'bg-indigo-500'  },
+  COMPLETED:      { bg: 'bg-emerald-50 dark:bg-emerald-900/20',border: 'border-emerald-200 dark:border-emerald-700',text: 'text-emerald-700 dark:text-emerald-400',dot: 'bg-emerald-500' },
+};
+
+const getStatusStyle = (s) =>
+  STATUS_STYLE[s] || { bg: 'bg-gray-50 dark:bg-gray-800', border: 'border-gray-200 dark:border-gray-700', text: 'text-gray-600 dark:text-gray-400', dot: 'bg-gray-400' };
+
+const showToast = (text, icon) =>
+  Swal.fire({ text, icon, toast: true, position: 'top-end', showConfirmButton: false, timer: 2500, timerProgressBar: true });
+
+const formatDate = (date) => {
+  if (!date) return '—';
+  const d = new Date(date);
+  return (
+    <div className="flex flex-col">
+      <span className="font-bold text-gray-800 dark:text-gray-200">{d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
+      <span className="text-[10px] text-gray-400 font-mono tracking-tighter">{d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+    </div>
+  );
+};
+
+const formatAddress = (addr) => {
+  if (!addr) return 'N/A';
+  return [addr.street, addr.city, addr.state].filter(Boolean).join(', ') || 'N/A';
+};
+
+
+
+const StatCard = ({ label, value, icon: Icon, color }) => (
+  <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-sm p-5 flex items-center justify-between group hover:shadow-lg hover:shadow-lime-500/5 transition-all duration-500">
+    <div className="space-y-1">
+      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">{label}</p>
+      <p className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter">{value}</p>
+    </div>
+    <div className={`w-12 h-12 rounded-2xl bg-${color}-50 dark:bg-${color}-900/20 flex items-center justify-center text-${color}-500 group-hover:scale-110 transition-transform duration-500`}>
+      <Icon size={20} />
+    </div>
+  </div>
+);
+
+
 
 const ReassignOrders = ({ darkMode }) => {
   const navigate = useNavigate();
-  const token = localStorage.getItem('authToken');
+  const token    = localStorage.getItem('authToken');
 
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders]               = useState([]);
   const [deliveryPersons, setDeliveryPersons] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [notes, setNotes] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 6;
-  const [loading, setLoading] = useState(true);
+  const [viewDetail, setViewDetail]       = useState(null);
+  const [notes, setNotes]                 = useState('');
+  const [searchTerm, setSearchTerm]       = useState('');
+  const [currentPage, setCurrentPage]     = useState(1);
+  const [rowsPerPage, setRowsPerPage]     = useState(10);
+  const [loading, setLoading]             = useState(true);
 
-useEffect(() => {
-    document.title = "Assigner - Reassign Orders";
-
-},[]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setCurrentPage(1), 300);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-
-  const copyToClipboard = (id) => {
-    navigator.clipboard.writeText(id);
-    Swal.fire({
-      icon: 'success',
-      title: 'Copied!',
-      text: 'Order ID copied to clipboard',
-      toast: true,
-      position: 'top-end',
-      timer: 1500,
-      showConfirmButton: false
-    });
-  };
+  useEffect(() => { document.title = 'Assigner - Reassign Orders'; }, []);
 
   const fetchData = useCallback(async () => {
     if (!token) return navigate('/login');
-
+    setLoading(true);
     try {
-      setLoading(true);
       const [ordersRes, logsRes, deliveryRes] = await Promise.all([
         api.get('/api/assigner/orders-for-assignment', { headers: { Authorization: `Bearer ${token}` } }),
-        api.get('/api/assigner/assignment-log', {
-          headers: { Authorization: `Bearer ${token}` },
-          params: { assignmentType: 'ORDER' }
-        }),
-        api.get('/api/assigner/delivery-persons', { headers: { Authorization: `Bearer ${token}` } })
+        api.get('/api/assigner/assignment-log', { headers: { Authorization: `Bearer ${token}` }, params: { assignmentType: 'ORDER' } }),
+        api.get('/api/assigner/delivery-persons', { headers: { Authorization: `Bearer ${token}` } }),
       ]);
 
-      const currentOrders = (ordersRes.data.content || ordersRes.data || []).map(order => ({
-        ...order,
-        userName: `${order.firstName || ''} ${order.lastName || ''}`.trim() || 'Unknown Customer',
+      const current  = (ordersRes.data.content || ordersRes.data || []).map(o => ({ ...o, userName: `${o.firstName || ''} ${o.lastName || ''}`.trim() || 'Unknown Customer' }));
+      const assigned = (logsRes.data.content || logsRes.data || []).map(l => ({
+        id: l.orderId || l.id, userId: l.userId,
+        firstName: l.firstName, lastName: l.lastName,
+        userName: l.userName || `${l.firstName || ''} ${l.lastName || ''}`.trim(),
+        userAddress: l.userAddress || {}, shopId: l.shopId, shopName: l.shopName,
+        shopAddress: l.shopAddress || {}, status: l.status || 'ASSIGNED',
+        createdAt: l.createdAt, deliveryId: l.deliveryId, totalPrice: l.totalPrice || 0
       }));
 
-      const assignedOrders = (logsRes.data.content || logsRes.data || []).map(log => ({
-        id: log.orderId || log.id,
-        userId: log.userId,
-        userName: log.userName || `${log.firstName || ''} ${log.lastName || ''}`.trim(),
-        userAddress: log.userAddress || {},
-        shopId: log.shopId,
-        shopName: log.shopName,
-        shopAddress: log.shopAddress || {},
-        status: log.status || 'ASSIGNED',
-        createdAt: log.createdAt,
-        deliveryId: log.deliveryId
-      }));
-
-      const merged = [...currentOrders, ...assignedOrders];
-      const unique = Array.from(new Map(merged.map(o => [o.id, o])).values());
-
-      setOrders(unique);
+      const unique = Array.from(new Map([...current, ...assigned].map(o => [o.id, o])).values());
+      
+      setOrders(unique.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
       setDeliveryPersons(deliveryRes.data.content || deliveryRes.data || []);
     } catch (err) {
-      if (err.response?.status === 401) {
-        localStorage.clear();
-        navigate('/login');
-      } else {
-        Swal.fire({
-          icon: 'error',
-          title: 'Failed to load data',
-          toast: true,
-          position: 'top-end'
-        });
-      }
-    } finally {
-      setLoading(false);
-    }
+      if (err.response?.status === 401) { localStorage.clear(); navigate('/login'); }
+      else showToast('Failed to load data', 'error');
+    } finally { setLoading(false); }
   }, [token, navigate]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const reassignOrder = async (newDeliveryId) => {
     if (!selectedOrder?.id || !newDeliveryId) return;
-
     try {
-      await api.put(`/api/assigner/reassign-order/${selectedOrder.id}`, {
-        newDeliveryId,
-        notes
-      }, { headers: { Authorization: `Bearer ${token}` } });
-
-      Swal.fire({
-        icon: 'success',
-        title: 'Reassigned Successfully!',
-        text: 'The order has been transferred to the new agent',
-        toast: true,
-        position: 'top-end',
-        timer: 2000
-      });
-
-      setSelectedOrder(null);
-      setNotes('');
-      fetchData();
+      await api.put(`/api/assigner/reassign-order/${selectedOrder.id}`, { newDeliveryId, notes }, { headers: { Authorization: `Bearer ${token}` } });
+      showToast('Order transferred successfully', 'success');
+      setSelectedOrder(null); setNotes(''); fetchData();
     } catch (err) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Reassignment Failed',
-        text: err.response?.data?.message || 'Please try again later',
-        toast: true,
-        position: 'top-end'
-      });
+      showToast(err.response?.data?.message || 'Reassignment failed', 'error');
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const stats = useMemo(() => ({
+    total: orders.length,
+    assigned: orders.filter(o => o.deliveryId).length,
+    unassigned: orders.filter(o => !o.deliveryId).length,
+    revenue: orders.reduce((acc, o) => acc + (parseFloat(o.totalPrice) || 0), 0)
+  }), [orders]);
 
-  const filteredOrders = orders.filter(o =>
-    !searchTerm ||
-    o.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    o.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    o.userAddress?.street?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    o.shopName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    o.status?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filtered = useMemo(() => orders.filter(o => {
+    const searchable = [o.id, o.userName, o.shopName, o.status].join(' ').toLowerCase();
+    return !searchTerm || searchable.includes(searchTerm.toLowerCase());
+  }), [orders, searchTerm]);
 
-  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
-  const currentOrders = filteredOrders.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPages = Math.ceil(filtered.length / rowsPerPage);
+  const paginated  = useMemo(() => filtered.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage), [filtered, currentPage, rowsPerPage]);
 
-  const getStatusGradient = (status) => {
-    const map = {
-      PENDING: 'from-yellow-400 to-amber-500',
-      PENDING_PICKUP: 'from-orange-400 to-red-500',
-      ASSIGNED: 'from-purple-500 to-pink-600',
-      IN_TRANSIT: 'from-cyan-500 to-blue-600',
-      IN_PROGRESS: 'from-indigo-500 to-purple-600',
-      COMPLETED: 'from-emerald-500 to-teal-600',
-      default: 'from-gray-400 to-gray-600'
-    };
-    return map[status] || map.default;
-  };
+  const copyToClipboard = (id) => { navigator.clipboard.writeText(id); showToast('Order ID copied', 'success'); };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-950 pt-6 lg:pl-72 transition-all duration-500">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
 
-        <div className="mb-12 text-center lg:text-left">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-800 dark:text-white flex items-center gap-5 justify-center lg:justify-start">
-            <div className="p-5 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl text-white shadow-2xl">
-              <FiPackage size={40} />
+        
+        
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-1.5 rounded-full bg-lime-500" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-600">Dynamic Re-routing</span>
             </div>
-            Reassign Orders
-          </h1>
-          <p className="mt-4 text-lg text-gray-600 dark:text-gray-400">
-            Transfer any order to a different delivery agent
-          </p>
+            <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Reassign Orders</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Transfer orders between agents or fix assignment errors</p>
+          </div>
+          <button onClick={fetchData} className="px-5 py-2.5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-sm text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">
+            Refresh Data
+          </button>
         </div>
 
-        <div className="mb-10 flex justify-center lg:justify-start">
-          <div className="relative max-w-md w-full">
-            <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 text-xl" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by ID, customer, address, shop..."
-              className="w-full pl-14 pr-12 py-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-gray-800 dark:text-white text-lg"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-red-500 transition"
-              >
-                <FiXCircle size={22} />
-              </button>
-            )}
-          </div>
+       
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard label="Total Orders" value={stats.total} icon={FiPackage} color="lime" />
+          <StatCard label="In Progress" value={stats.assigned} icon={FiTruck} color="amber" />
+          <StatCard label="Unassigned" value={stats.unassigned} icon={FiXCircle} color="red" />
+          <StatCard label="Total Value" value={`EGP ${stats.revenue.toLocaleString()}`} icon={FiClipboard} color="blue" />
         </div>
 
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-white dark:bg-gray-900 rounded-3xl shadow-lg p-8 animate-pulse border border-gray-200 dark:border-gray-800">
-                <div className="h-8 bg-gray-300 dark:bg-gray-700 rounded-full w-40 mb-4"></div>
-                <div className="space-y-4">
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-4/5"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : currentOrders.length === 0 ? (
-          <div className="text-center py-20">
-            <FiPackage size={100} className="mx-auto text-gray-300 dark:text-gray-700 mb-6" />
-            <h3 className="text-2xl font-semibold text-gray-600 dark:text-gray-400">
-              {searchTerm ? 'No orders match your search' : 'No orders available for reassignment'}
-            </h3>
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-              {currentOrders.map((order) => (
-                <div
-                  key={order.id}
-                  className="group bg-white dark:bg-gray-900 rounded-3xl shadow-xl hover:shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-all duration-300 hover:-translate-y-3 cursor-pointer"
-                  onClick={() => setSelectedOrder(order)}
-                >
-                  <div className={`h-2 bg-gradient-to-r ${getStatusGradient(order.status)}`} />
-
-                  <div className="p-7">
-                    <div className="flex justify-between items-start mb-5">
-                      <div>
-                        <h3 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-3">
-                          #{order.id?.slice(-8)}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              copyToClipboard(order.id);
-                            }}
-                            className="text-gray-500 hover:text-emerald-600 transition"
-                          >
-                            <FiCopy size={18} />
-                          </button>
-                        </h3>
-                        <span className={`inline-block mt-3 px-5 py-2 rounded-full text-white font-bold text-sm shadow-lg bg-gradient-to-r ${getStatusGradient(order.status)}`}>
-                          {order.status?.replace(/_/g, ' ') || 'UNKNOWN'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4 text-sm">
-                      {order.userName && (
-                        <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
-                          <FiUser className="text-emerald-600" size={18} />
-                          <span className="font-medium">{order.userName}</span>
-                        </div>
-                      )}
-
-                      {order.userAddress?.street && (
-                        <div className="flex items-start gap-3 text-gray-600 dark:text-gray-400">
-                          <FiMapPin className="text-teal-600 mt-1" size={18} />
-                          <div>
-                            <div className="text-xs font-medium text-gray-800 dark:text-gray-200">Delivery Address</div>
-                            <div className="text-xs">{order.userAddress.street}, {order.userAddress.city}</div>
-                          </div>
-                        </div>
-                      )}
-
-                      {order.shopName && (
-                        <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
-                          <FiPackage className="text-emerald-600" size={18} />
-                          <span className="font-medium">{order.shopName}</span>
-                        </div>
-                      )}
-
-                      <div className="flex items-center gap-3 text-gray-500 dark:text-gray-500 text-xs pt-2 border-t border-gray-200 dark:border-gray-800">
-                        <FiCalendar size={16} />
-                        <span>{new Date(order.createdAt).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-
-                    <button className="mt-6 w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-2xl hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg">
-                      Reassign Order
-                    </button>
-                  </div>
-                </div>
-              ))}
+        
+        
+        <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-6">
+          <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
+            <div className="relative flex-1 group">
+              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={18} />
+              <input
+                type="text"
+                placeholder="Search by ID, customer, shop, or status..."
+                value={searchTerm}
+                onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-sm text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/10 focus:border-lime-200 transition-all"
+              />
             </div>
-
-            {totalPages > 1 && (
-              <div className="flex justify-center gap-3 flex-wrap">
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-6 py-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-50 flex items-center gap-2 font-medium"
-                >
-                  <FiChevronLeft /> Previous
-                </button>
-
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`w-12 h-12 rounded-xl font-bold transition-all ${
-                      currentPage === page
-                        ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg'
-                        : 'bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30'
-                    }`}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Rows</span>
+                <div className="relative group">
+                  <select
+                    value={rowsPerPage}
+                    onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                    className="appearance-none pl-5 pr-12 py-3 rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-4 focus:ring-lime-500/5 focus:border-lime-200 cursor-pointer transition-all"
                   >
-                    {page}
-                  </button>
-                ))}
-
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-6 py-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-50 flex items-center gap-2 font-medium"
-                >
-                  Next <FiChevronRight />
-                </button>
+                    {ROWS_OPTIONS.map(n => <option key={n} value={n} className="dark:bg-gray-800">{n}</option>)}
+                  </select>
+                  <FiChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-lime-500 transition-colors rotate-90" size={16} />
+                </div>
               </div>
-            )}
-          </>
+            </div>
+          </div>
+        </div>
+
+        
+        <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto custom-scrollbar-thin">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50/50 dark:bg-gray-900/30 border-b border-gray-100 dark:border-gray-700">
+                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Date</th>
+                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Order ID</th>
+                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Customer</th>
+                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Current Agent</th>
+                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Status</th>
+                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                {loading ? (
+                  [...Array(5)].map((_, i) => (
+                    <tr key={i} className="animate-pulse">
+                      {[...Array(6)].map((_, j) => (
+                        <td key={j} className="px-6 py-6"><div className="h-4 bg-gray-100 dark:bg-gray-700 rounded-lg w-full" /></td>
+                      ))}
+                    </tr>
+                  ))
+                ) : paginated.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-24 text-center">
+                      <FiPackage className="mx-auto text-gray-200 dark:text-gray-700 mb-4" size={48} />
+                      <p className="text-gray-400 font-medium">No orders found for reassignment</p>
+                    </td>
+                  </tr>
+                ) : (
+                  paginated.map(order => {
+                    const cs = getStatusStyle(order.status);
+                    return (
+                      <tr key={order.id} className="hover:bg-lime-50/10 dark:hover:bg-lime-900/5 transition-colors group">
+                        <td className="px-6 py-6 whitespace-nowrap">{formatDate(order.createdAt)}</td>
+                        <td className="px-6 py-6 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-mono font-bold text-gray-800 dark:text-gray-200">#{order.id?.slice(-8)}</span>
+                            <button onClick={() => copyToClipboard(order.id)} className="opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-lime-500 transition-all">
+                              <FiCopy size={12} />
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-6 py-6 whitespace-nowrap font-bold text-gray-800 dark:text-gray-100 text-sm">
+                          {order.userName}
+                        </td>
+                        <td className="px-6 py-6 whitespace-nowrap">
+                          {order.deliveryId ? (
+                            <div className="flex items-center gap-2 text-xs font-bold text-blue-600">
+                              <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                              …{order.deliveryId.slice(-8)}
+                            </div>
+                          ) : (
+                            <span className="text-xs font-bold text-gray-400 italic">Not Assigned</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-6 whitespace-nowrap">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border ${cs.bg} ${cs.border} ${cs.text}`}>
+                            <span className={`w-1 h-1 rounded-full ${cs.dot}`} />
+                            {order.status.replace(/_/g, ' ')}
+                          </span>
+                        </td>
+                        <td className="px-6 py-6 text-right whitespace-nowrap space-x-2">
+                          <button
+                            onClick={() => setViewDetail(order)}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-bold hover:bg-lime-500 hover:text-white transition-all shadow-sm"
+                          >
+                            <FiEye size={14} />
+                            Details
+                          </button>
+                          <button
+                            onClick={() => setSelectedOrder(order)}
+                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gray-900 dark:bg-lime-500 text-white dark:text-black text-xs font-black hover:bg-lime-500 transition-all shadow-md"
+                          >
+                            <FiUserCheck size={14} />
+                            Reassign
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+         
+          {totalPages > 1 && (
+            <div className="px-6 py-5 bg-gray-50/50 dark:bg-gray-900/30 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-xs font-bold text-gray-500 dark:text-gray-400">
+                Showing <span className="text-gray-900 dark:text-white">{(currentPage - 1) * rowsPerPage + 1}–{Math.min(currentPage * rowsPerPage, filtered.length)}</span> of <span className="text-gray-900 dark:text-white">{filtered.length}</span> orders
+              </p>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="w-10 h-10 flex items-center justify-center rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all"><FiChevronLeft size={18} /></button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                  <button key={p} onClick={() => setCurrentPage(p)} className={`w-10 h-10 rounded-xl text-xs font-black transition-all ${currentPage === p ? 'bg-lime-500 text-white shadow-lg' : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400'}`}>{p}</button>
+                ))}
+                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="w-10 h-10 flex items-center justify-center rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all"><FiChevronRight size={18} /></button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        
+        
+        {viewDetail && (
+          <Modal onClose={() => setViewDetail(null)} title="Order Case Details" darkMode={darkMode}>
+            <div className="space-y-6">
+              <div className="p-5 bg-gray-50 dark:bg-gray-900/50 rounded-3xl border border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Order Ref</p>
+                  <p className="text-lg font-mono font-bold text-gray-800 dark:text-white tracking-tight">#{viewDetail.id}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Status</p>
+                  <span className={`inline-flex px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider border ${getStatusStyle(viewDetail.status).bg} ${getStatusStyle(viewDetail.status).border} ${getStatusStyle(viewDetail.status).text}`}>
+                    {viewDetail.status.replace(/_/g, ' ')}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <FiUser className="text-lime-500" />
+                    <span className="text-xs font-black uppercase tracking-wider text-gray-400">Customer</span>
+                  </div>
+                  <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{viewDetail.userName}</p>
+                </div>
+                <div className="p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <FiTruck className="text-blue-500" />
+                    <span className="text-xs font-black uppercase tracking-wider text-gray-400">Assigned Agent</span>
+                  </div>
+                  <p className="text-sm font-mono font-bold text-blue-600">{viewDetail.deliveryId || 'Unassigned'}</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="p-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-3">
+                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                    <RiStore2Line size={14} className="text-lime-500" /> Store Origin
+                  </div>
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{viewDetail.shopName}</p>
+                </div>
+                <div className="p-4 bg-lime-50/30 dark:bg-lime-900/10 rounded-2xl border border-lime-100 dark:border-lime-900/30 space-y-3">
+                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-lime-600">
+                    <FiMapPin size={14} /> Shipping Address
+                  </div>
+                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{formatAddress(viewDetail.userAddress)}</p>
+                </div>
+              </div>
+              
+              <div className="pt-4 flex items-center gap-2 text-[10px] text-gray-400 uppercase tracking-widest font-bold">
+                <FiClock size={12} /> Recorded on: {new Date(viewDetail.createdAt).toLocaleString()}
+              </div>
+            </div>
+          </Modal>
         )}
 
-     
+        
+        
         {selectedOrder && (
-          <Modal onClose={() => { setSelectedOrder(null); setNotes(''); }} title="Reassign Order" darkMode={darkMode}>
-            <div className="space-y-7">
-
-             
-              <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-3xl p-7 border border-emerald-200 dark:border-emerald-800 shadow-inner">
-                <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-3">
-                  Order #{selectedOrder.id?.slice(-8)}
-                  <button
-                    onClick={() => copyToClipboard(selectedOrder.id)}
-                    className="text-emerald-600 hover:text-emerald-700"
-                  >
-                    <FiCopy size={20} />
-                  </button>
-                </h3>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-sm">
-                  <div className="flex items-center gap-4">
-                    <FiUser className="text-emerald-600" size={20} />
-                    <div>
-                      <div className="font-medium text-gray-700 dark:text-gray-300">Customer</div>
-                      <div className="text-gray-900 dark:text-white font-semibold">{selectedOrder.userName || 'N/A'}</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <FiPackage className="text-teal-600" size={20} />
-                    <div>
-                      <div className="font-medium text-gray-700 dark:text-gray-300">Shop</div>
-                      <div className="text-gray-900 dark:text-white font-semibold">{selectedOrder.shopName || 'Unknown Shop'}</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <FiTruck className="text-purple-600" size={20} />
-                    <div>
-                      <div className="font-medium text-gray-700 dark:text-gray-300">Current Agent</div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        {selectedOrder.deliveryId ? `ID: ${selectedOrder.deliveryId.slice(-8)}` : 'Unassigned'}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <FiCalendar className="text-amber-600" size={20} />
-                    <div>
-                      <div className="font-medium text-gray-700 dark:text-gray-300">Created</div>
-                      <div className="text-gray-900 dark:text-white">
-                        {new Date(selectedOrder.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </div>
-                    </div>
-                  </div>
+          <Modal onClose={() => { setSelectedOrder(null); setNotes(''); }} title="Reassign Order Agent" darkMode={darkMode}>
+            <div className="space-y-6">
+              <div className="p-5 bg-gray-50 dark:bg-gray-900/50 rounded-3xl border border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Current Agent</p>
+                  <p className="text-sm font-mono font-bold text-gray-500">ID: {selectedOrder.deliveryId ? `…${selectedOrder.deliveryId.slice(-12)}` : 'N/A'}</p>
                 </div>
-
-                {selectedOrder.userAddress?.street && (
-                  <div className="mt-6 flex items-start gap-4 text-sm">
-                    <FiMapPin className="text-emerald-600 mt-1" size={20} />
-                    <div>
-                      <div className="font-semibold text-gray-800 dark:text-gray-200">Delivery Address</div>
-                      <div className="text-gray-700 dark:text-gray-300">
-                        {selectedOrder.userAddress.building && `Bldg ${selectedOrder.userAddress.building}, `}
-                        {selectedOrder.userAddress.street}, {selectedOrder.userAddress.city}
-                        {selectedOrder.userAddress.state && `, ${selectedOrder.userAddress.state}`}
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
 
-              
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                  Reassignment Notes (optional)
-                </label>
+              <div className="space-y-3">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Transfer Reason / Notes</label>
                 <textarea
                   value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={4}
-                  placeholder="e.g., Customer requested faster delivery, Agent unavailable, Route optimization..."
-                  className="w-full px-5 py-4 rounded-2xl border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-4 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all resize-none"
+                  onChange={e => setNotes(e.target.value)}
+                  placeholder="Reason for reassigning this order..."
+                  className="w-full px-5 py-4 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm text-gray-800 dark:text-white focus:outline-none focus:ring-4 focus:ring-lime-500/10 focus:border-lime-200 transition-all resize-none h-24"
                 />
               </div>
 
-              
-              <div>
-                <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-5">Select New Delivery Agent</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-96 overflow-y-auto pr-2">
-                  {deliveryPersons.length === 0 ? (
-                    <p className="text-gray-500 dark:text-gray-400 text-center col-span-2 py-10">
-                      No delivery agents available
-                    </p>
-                  ) : (
-                    deliveryPersons.map((person) => (
-                      <button
-                        key={person.id}
-                        onClick={() => reassignOrder(person.id)}
-                        className="p-6 bg-gradient-to-r from-white to-emerald-50 dark:from-gray-900 dark:to-gray-800 border-2 border-emerald-200 dark:border-emerald-700 rounded-2xl hover:border-emerald-500 dark:hover:border-emerald-500 hover:shadow-xl transition-all text-left group"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="font-bold text-gray-800 dark:text-white text-lg">
-                              {person.name || 'Delivery Agent'}
-                            </div>
-                            <div className="text-sm text-emerald-600 dark:text-emerald-400 mt-1">
-                              ID: {person.id.slice(-8)}
-                            </div>
-                          </div>
-                          <FiTruck className="text-emerald-600 group-hover:translate-x-2 transition-transform" size={24} />
+              <div className="space-y-4">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Select New Agent</label>
+                <div className="grid grid-cols-1 gap-2.5 max-h-72 overflow-y-auto pr-2 custom-scrollbar-thin">
+                  {deliveryPersons.filter(p => p.id !== selectedOrder.deliveryId).map(person => (
+                    <button
+                      key={person.id}
+                      onClick={() => reassignOrder(person.id)}
+                      className="group flex items-center justify-between p-4 rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-lime-500 hover:bg-lime-50/20 transition-all duration-300"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-400 group-hover:text-lime-500 transition-colors"><FiUser size={18} /></div>
+                        <div className="text-left">
+                          <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{person.name}</p>
+                          <p className="text-[10px] font-bold text-emerald-500 flex items-center gap-1">
+                            {person.activeAssignments || 0} Active Tasks
+                          </p>
                         </div>
-                      </button>
-                    ))
-                  )}
+                      </div>
+                      <FiChevronRight size={18} className="text-gray-300 group-hover:text-lime-500 transition-colors" />
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
           </Modal>
         )}
       </div>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        .custom-scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
+        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
+        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
+      `}} />
     </div>
   );
 };

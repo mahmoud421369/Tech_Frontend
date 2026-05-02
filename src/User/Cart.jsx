@@ -1,576 +1,628 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { FiX, FiShoppingCart, FiCreditCard, FiTruck, FiTrash2, FiStar, FiUsers, FiZap, FiChevronDown, FiCheck } from "react-icons/fi";
-import { jwtDecode } from "jwt-decode";
-import { useNavigate } from "react-router-dom";
-import Swal from "sweetalert2";
-import api from "../api";
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  FiX, FiShoppingCart, FiCreditCard, FiTruck, FiTrash2,
+  FiZap, FiChevronDown, FiCheck, FiMapPin, FiPackage,
+} from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
+import { jwtDecode } from 'jwt-decode';
+import { useNavigate } from 'react-router-dom';
+import Swal from 'sweetalert2';
+import api from '../api';
 
-const Cart = ({ show, onClose, darkMode  }) => {
-  const [checkoutStep, setCheckoutStep] = useState("cart");
+
+
+
+const STEPS = [
+  { id: 'cart',     Icon: FiShoppingCart, label: 'Cart'     },
+  { id: 'checkout', Icon: FiMapPin,        label: 'Delivery' },
+  { id: 'complete', Icon: FiCheck,         label: 'Done'     },
+];
+
+const StepIndicator = ({ current }) => {
+  const currentIdx = STEPS.findIndex((s) => s.id === current);
+  return (
+    <div className="flex items-center justify-center gap-0 mt-5 mb-1 px-2 select-none">
+      {STEPS.map((step, i) => {
+        const done   = i < currentIdx;
+        const active = i === currentIdx;
+        return (
+          <React.Fragment key={step.id}>
+            <div className="flex flex-col items-center gap-1">
+              <motion.div
+                animate={active ? { scale: [1, 1.12, 1] } : {}}
+                transition={{ duration: 0.5, repeat: active ? Infinity : 0, repeatDelay: 2 }}
+                className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shadow-md transition-all duration-300 ${
+                  done   ? 'bg-lime-500 text-white'
+                  : active ? 'bg-gradient-to-br from-lime-400 to-emerald-600 text-white ring-2 ring-lime-400/40'
+                           : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
+                }`}
+              >
+                {done ? <FiCheck className="w-4 h-4" /> : <step.Icon className="w-4 h-4" />}
+              </motion.div>
+              <span className={`text-[10px] font-semibold ${
+                active ? 'text-lime-500 dark:text-lime-400' : done ? 'text-lime-400' : 'text-gray-400'
+              }`}>
+                {step.label}
+              </span>
+            </div>
+            {i < STEPS.length - 1 && (
+              <div className={`h-0.5 flex-1 mx-1 mb-4 rounded-full transition-all duration-500 ${
+                i < currentIdx ? 'bg-lime-500' : 'bg-gray-200 dark:bg-gray-700'
+              }`} />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+};
+
+
+
+
+const CartItem = ({ item, darkMode, onUpdate, onRemove }) => (
+  <motion.div
+    layout
+    initial={{ opacity: 0, x: 20 }}
+    animate={{ opacity: 1, x: 0 }}
+    exit={{ opacity: 0, x: -20, height: 0 }}
+    transition={{ duration: 0.28 }}
+    className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-2xl mb-3 shadow-sm transition-colors ${
+      darkMode ? 'bg-gray-800/60 border border-gray-700/60' : 'bg-white/70 border border-gray-100'
+    }`}
+  >
+
+
+    {item.productImageUrl ? (
+      <img
+        src={item.productImageUrl}
+        alt={item.productName}
+        className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-contain bg-gray-100 dark:bg-gray-700 flex-shrink-0"
+      />
+    ) : (
+      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-lime-100 to-emerald-100 dark:from-lime-900/30 dark:to-emerald-900/30 flex-shrink-0 flex items-center justify-center">
+        <FiPackage className="w-5 h-5 sm:w-6 sm:h-6 text-lime-500" />
+      </div>
+    )}
+
+    
+    
+
+    <div className="flex-1 min-w-0">
+      <h4 className={`font-semibold text-xs sm:text-sm truncate ${darkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+        {item.productName}
+      </h4>
+      <p className={`text-xs font-bold mt-0.5 ${darkMode ? 'text-lime-400' : 'text-lime-600'}`}>
+        EGP {item.productPrice?.toFixed(2)}
+      </p>
+    </div>
+
+   
+   
+
+    <div className="flex items-center gap-1 flex-shrink-0">
+      <button
+        onClick={() => onUpdate(item.id, item.quantity - 1)}
+        className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-lime-500 hover:text-white transition-colors text-sm font-bold flex items-center justify-center flex-shrink-0"
+        aria-label="Decrease quantity"
+      >
+        −
+      </button>
+      <span className="w-6 sm:w-7 text-center text-xs sm:text-sm font-bold flex-shrink-0">
+        {item.quantity}
+      </span>
+      <button
+        onClick={() => onUpdate(item.id, item.quantity + 1)}
+        className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-lime-500 hover:text-white transition-colors text-sm font-bold flex items-center justify-center flex-shrink-0"
+        aria-label="Increase quantity"
+      >
+        +
+      </button>
+      <button
+        onClick={() => onRemove(item.id)}
+        className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-red-50 dark:bg-red-900/20 hover:bg-red-500 hover:text-white transition-colors text-red-500 flex items-center justify-center flex-shrink-0 ml-0.5"
+        aria-label="Remove item"
+      >
+        <FiTrash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+      </button>
+    </div>
+  </motion.div>
+);
+
+
+
+
+const PaymentOption = ({ value, selected, onSelect, Icon, title, subtitle, darkMode }) => (
+  <button
+    onClick={() => onSelect(value)}
+    className={`w-full p-3 sm:p-4 rounded-2xl border-2 flex items-center gap-3 sm:gap-4 transition-all text-left ${
+      selected
+        ? 'border-lime-500 bg-lime-50/70 dark:bg-lime-900/20 shadow-md shadow-lime-500/10'
+        : darkMode ? 'border-gray-700 hover:border-gray-600' : 'border-gray-200 hover:border-gray-300'
+    }`}
+  >
+    <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-colors flex-shrink-0 ${
+      selected ? 'bg-lime-500 text-white' : darkMode ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500'
+    }`}>
+      <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
+    </div>
+    <div className="flex-1 min-w-0">
+      <p className={`font-semibold text-xs sm:text-sm ${darkMode ? 'text-white' : 'text-gray-900'}`}>{title}</p>
+      <p className={`text-xs mt-0.5 truncate ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{subtitle}</p>
+    </div>
+    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+      selected ? 'border-lime-500 bg-lime-500' : darkMode ? 'border-gray-600' : 'border-gray-300'
+    }`}>
+      {selected && <FiCheck className="w-3 h-3 text-white" />}
+    </div>
+  </button>
+);
+
+
+
+
+const Cart = ({ show, onClose, darkMode }) => {
+  const [checkoutStep, setCheckoutStep] = useState('cart');
   const [addresses, setAddresses] = useState([]);
-  const [selectedAddress, setSelectedAddress] = useState("");
+  const [selectedAddress, setSelectedAddress] = useState('');
   const [cartItems, setCartItems] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState('');
   const [cartTotal, setCartTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [showCookieBanner, setShowCookieBanner] = useState(true);
-
   const navigate = useNavigate();
 
-  
   const safeDecodeJwt = useCallback((token) => {
-    if (!token || typeof token !== "string" || token.trim() === "") return null;
+    if (!token || typeof token !== 'string' || !token.trim()) return null;
     try { return jwtDecode(token); } catch { return null; }
   }, []);
 
   const isTokenExpired = useCallback((token) => {
-    const decoded = safeDecodeJwt(token);
-    return !decoded || !decoded.exp || decoded.exp < Date.now() / 1000;
+    const d = safeDecodeJwt(token);
+    return !d || !d.exp || d.exp < Date.now() / 1000;
   }, [safeDecodeJwt]);
 
-  const token = localStorage.getItem("authToken");
-  const decodedToken = token ? safeDecodeJwt(token) : null;
-  const userId = decodedToken?.userId || null;
+  const token = localStorage.getItem('authToken');
   const isAuthenticated = !!token && !isTokenExpired(token);
 
-
-  const calculateTotal = useCallback((items) => {
-    const total = items.reduce((sum, item) => sum + item.productPrice * item.quantity, 0);
-    setCartTotal(total);
-  }, []);
-
+  const calcTotal = useCallback((items) =>
+    setCartTotal(items.reduce((sum, i) => sum + i.productPrice * i.quantity, 0)),
+    []
+  );
 
   const fetchCart = useCallback(async () => {
     if (!token || !isAuthenticated) { setCartItems([]); return; }
-
-    const controller = new AbortController();
+    const ctrl = new AbortController();
     try {
       setIsLoading(true);
-      const res = await api.get("/api/cart", {
-        headers: { Authorization: `Bearer ${token}` },
-        signal: controller.signal,
-      });
+      const res = await api.get('/api/cart', { headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal });
       const items = res.data.items || [];
       setCartItems(items);
-      calculateTotal(items);
+      calcTotal(items);
     } catch (err) {
-      if (err.name !== "AbortError") {
-        console.error("Error fetching cart:", err.response?.data || err.message);
-        setCartItems([]);
-        calculateTotal([]);
-        Swal.fire({ title: 'Error', text: 'Failed to load cart!', icon: 'error', toast: true, position: 'top-end', timer: 1500 });
-      }
-    } finally {
-      setIsLoading(false);
-    }
-    return () => controller.abort();
-  }, [token, isAuthenticated, calculateTotal]);
-
-
-  const addToCart = useCallback(async (productId, quantity = 1) => {
-    if (!isAuthenticated) {
-      Swal.fire({ icon: "info", title: "Login Required", text: "Please log in to add items to cart", confirmButtonText: "Go to Login" })
-        .then(() => navigate("/login"));
-      return;
-    }
-
-    const placeholder = { id: Date.now(), productId, quantity, productName: "Loading...", productPrice: 0 };
-    setCartItems(prev => {
-      const existing = prev.find(i => i.productId === productId);
-      return existing
-        ? prev.map(i => i.productId === productId ? { ...i, quantity: i.quantity + quantity } : i)
-        : [...prev, placeholder];
-    });
-
-    try {
-      const res = await api.post("/api/cart/items", { productId, quantity }, {
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      });
-      setCartItems(res.data.items || []);
-      calculateTotal(res.data.items || []);
-    } catch (err) {
-      console.error("Error adding to cart:", err.response?.data || err.message);
-      fetchCart();
-      Swal.fire({ icon: "error", title: "Error", text: err.response?.data?.message || "Failed to add item", customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" } });
-    }
-  }, [token, isAuthenticated, darkMode, navigate, calculateTotal, fetchCart]);
-
- 
-  const updateQuantity = useCallback(async (itemId, newQuantity) => {
-    if (newQuantity < 1) return removeFromCart(itemId);
-    const prevItems = [...cartItems];
-    setCartItems(prev => prev.map(i => i.id === itemId ? { ...i, quantity: newQuantity } : i));
-    calculateTotal(cartItems.map(i => i.id === itemId ? { ...i, quantity: newQuantity } : i));
-
-    try {
-      await api.put(`/api/cart/items/${itemId}`, { quantity: newQuantity }, {
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      });
-    } catch (err) {
-      console.error("Error updating quantity:", err.response?.data || err.message);
-      setCartItems(prevItems);
-      calculateTotal(prevItems);
-      Swal.fire({ icon: "error", title: "Error", text: err.response?.data?.message || "Failed to update quantity", customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" } });
-    }
-  }, [token, cartItems, calculateTotal]);
-
- 
-  const removeFromCart = useCallback(async (itemId) => {
-    const prevItems = [...cartItems];
-    setCartItems(prev => prev.filter(i => i.id !== itemId));
-    calculateTotal(cartItems.filter(i => i.id !== itemId));
-
-    try {
-      await api.delete(`/api/cart/items/${itemId}`, { headers: { Authorization: `Bearer ${token}` } });
-      Swal.fire({ title: 'Success', text: 'Item removed!', icon: 'success', toast: true, position: 'top-start', timer: 1500 });
-    } catch (err) {
-      console.error("Error removing item:", err.response?.data || err.message);
-      setCartItems(prevItems);
-      calculateTotal(prevItems);
-      Swal.fire({ title: 'Error', text: 'Failed to remove item!', icon: 'error', toast: true, position: 'top-end', timer: 1500 });
-    }
-  }, [token, cartItems, calculateTotal]);
-
- 
-  const clearCart = useCallback(async () => {
-    const prevItems = [...cartItems];
-    setCartItems([]);
-    setCartTotal(0);
-
-    try {
-      await api.delete("/api/cart", { headers: { Authorization: `Bearer ${token}` } });
-      Swal.fire({ icon: "success", title: "Success", text: "Cart cleared successfully", customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" } });
-    } catch (err) {
-      console.error("Error clearing cart:", err.response?.data || err.message);
-      setCartItems(prevItems);
-      calculateTotal(prevItems);
-      Swal.fire({ title: 'Error', text: 'Failed to clear cart!', icon: 'error', toast: true, position: 'top-end', timer: 1500 });
-    }
-  }, [token, darkMode, cartItems, calculateTotal]);
+      if (err.name !== 'AbortError') { setCartItems([]); calcTotal([]); }
+    } finally { setIsLoading(false); }
+    return () => ctrl.abort();
+  }, [token, isAuthenticated, calcTotal]);
 
   const fetchAddresses = useCallback(async () => {
     if (!token || !isAuthenticated) return;
-
-    const controller = new AbortController();
+    const ctrl = new AbortController();
     try {
-      const res = await api.get("/api/users/addresses", {
-        headers: { Authorization: `Bearer ${token}` },
-        signal: controller.signal,
-      });
-      const addrList = res.data.content || [];
-      setAddresses(addrList);
-      if (addrList.length > 0) setSelectedAddress(addrList[0].id);
+      const res = await api.get('/api/users/addresses', { headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal });
+      const list = res.data.content || [];
+      setAddresses(list);
+      if (list.length) setSelectedAddress(list[0].id);
     } catch (err) {
-      if (err.name !== "AbortError") {
-        console.error("Error fetching addresses:", err.response?.data || err.message);
-        Swal.fire({ title: 'Error', text: 'Failed to load addresses!', icon: 'error', toast: true, position: 'top-end', timer: 1500 });
-      }
+      if (err.name !== 'AbortError') console.error(err);
     }
-    return () => controller.abort();
+    return () => ctrl.abort();
   }, [token, isAuthenticated]);
 
- 
- const createOrder = useCallback(async () => {
-  if (!isAuthenticated) {
-    Swal.fire({
-      icon: "info",
-      title: "Login Required",
-      text: "Please log in to place an order",
-      confirmButtonText: "Go to Login",
-      customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" }
-    }).then(() => navigate("/login"));
-    return;
-  }
+  const updateQuantity = useCallback(async (itemId, qty) => {
+    if (qty < 1) return removeFromCart(itemId);
+    const prev = [...cartItems];
+    const updated = cartItems.map((i) => i.id === itemId ? { ...i, quantity: qty } : i);
+    setCartItems(updated);
+    calcTotal(updated);
+    try {
+      await api.put(`/api/cart/items/${itemId}`, { quantity: qty }, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } });
+    } catch { setCartItems(prev); calcTotal(prev); }
+  }, [token, cartItems, calcTotal]);
 
-  if (!selectedAddress) {
-    Swal.fire({
-      icon: "warning",
-      title: "Select Address",
-      text: "Please choose a delivery address",
-      customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" }
-    });
-    return;
-  }
+  const removeFromCart = useCallback(async (itemId) => {
+    const prev = [...cartItems];
+    const updated = cartItems.filter((i) => i.id !== itemId);
+    setCartItems(updated);
+    calcTotal(updated);
+    try {
+      await api.delete(`/api/cart/items/${itemId}`, { headers: { Authorization: `Bearer ${token}` } });
+      Swal.fire({ title: 'Removed', icon: 'success', toast: true, position: 'top-end', timer: 1200, showConfirmButton: false });
+    } catch { setCartItems(prev); calcTotal(prev); }
+  }, [token, cartItems, calcTotal]);
 
-  if (!paymentMethod) {
-    Swal.fire({
-      icon: "warning",
-      title: "Select Payment Method",
-      text: "Please choose how you'd like to pay",
-      customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" }
-    });
-    return;
-  }
+  const clearCart = useCallback(async () => {
+    const prev = [...cartItems];
+    setCartItems([]); setCartTotal(0);
+    try {
+      await api.delete('/api/cart', { headers: { Authorization: `Bearer ${token}` } });
+    } catch { setCartItems(prev); calcTotal(prev); }
+  }, [token, cartItems, calcTotal]);
 
-  setIsLoading(true);
-
-  try {
-    const payload = {
-      deliveryAddressId: selectedAddress,
-      paymentMethod: paymentMethod === "visa" ? "CREDIT_CARD" : "CASH",
-    };
-
-    const orderRes = await api.post("/api/users/orders", payload, {
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    });
-
-    const orderId = orderRes.data.id;
-
-    if (paymentMethod === "visa") {
-      const paymentRes = await api.post(`/api/payments/order/card/${orderId}`, {}, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (paymentRes.data.paymentURL) {
-        Swal.fire({
-          icon: "success",
-          title: "Order Placed!",
-          text: "Redirecting to payment gateway...",
-          timer: 2000,
-          showConfirmButton: false
-        });
-        window.open(paymentRes.data.paymentURL, "_blank");
-      }
-    } else {
-   
-      await Swal.fire({
-        icon: "success",
-        title: "Order Confirmed!",
-        text: `Thank you! Your order #${orderId} has been placed successfully.`,
-        confirmButtonColor: "#22c55e",
-        customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" }
-      });
+  const createOrder = useCallback(async () => {
+    if (!isAuthenticated) {
+      Swal.fire({ icon: 'info', title: 'Login Required', confirmButtonText: 'Go to Login' }).then(() => navigate('/login'));
+      return;
     }
+    if (!selectedAddress) { Swal.fire({ icon: 'warning', title: 'Select Address' }); return; }
+    if (!paymentMethod)   { Swal.fire({ icon: 'warning', title: 'Select Payment Method' }); return; }
 
-    setCartItems([]);
-    setCartTotal(0);
-    setCheckoutStep("complete");
+    setIsLoading(true);
+    try {
+      const orderRes = await api.post('/api/users/orders',
+        { deliveryAddressId: selectedAddress, paymentMethod: paymentMethod === 'visa' ? 'CREDIT_CARD' : 'CASH' },
+        { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } });
+      const orderId = orderRes.data.id;
 
-  } catch (err) {
-    console.error("Order failed:", err);
-    const errorMessage = err.response?.data?.message || err.message || "Something went wrong";
+      if (paymentMethod === 'visa') {
+        const payRes = await api.post(`/api/payments/order/card/${orderId}`, {}, { headers: { Authorization: `Bearer ${token}` } });
+        if (payRes.data.paymentURL) {
+          Swal.fire({ icon: 'success', title: 'Redirecting to payment...', timer: 2000, showConfirmButton: false });
+          window.open(payRes.data.paymentURL, '_blank');
+        }
+      } else {
+        await Swal.fire({ icon: 'success', title: 'Order Confirmed!', text: `Order #${orderId} placed!`, confirmButtonColor: '#22c55e' });
+      }
+      setCartItems([]); setCartTotal(0); setCheckoutStep('complete');
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'Order Failed', text: err.response?.data?.message || 'Something went wrong', confirmButtonColor: '#ef4444' });
+    } finally { setIsLoading(false); }
+  }, [token, isAuthenticated, selectedAddress, paymentMethod, navigate]);
 
-    Swal.fire({
-      icon: "error",
-      title: "Order Failed",
-      text: errorMessage,
-      confirmButtonColor: "#ef4444",
-      customClass: { popup: darkMode ? "dark:bg-gray-800 dark:text-white" : "" }
-    });
-  } finally {
-    setIsLoading(false);
-  }
-}, [token, isAuthenticated, selectedAddress, paymentMethod, darkMode, navigate, cartTotal]);
-
- 
   useEffect(() => {
     if (show && isAuthenticated) {
       Promise.all([fetchCart(), fetchAddresses()]).catch(console.error);
     } else if (show && !isAuthenticated) {
-      setCartItems([]);
-      setAddresses([]);
+      setCartItems([]); setAddresses([]);
     }
   }, [show, isAuthenticated, fetchCart, fetchAddresses]);
 
+  const handleClose = () => {
+    onClose();
+    setTimeout(() => { setCheckoutStep('cart'); setPaymentMethod(''); }, 300);
+  };
+
   if (!show) return null;
+
+  const selectedAddr = addresses.find((a) => a.id === selectedAddress);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       
-      <div
-        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity duration-300"
-        onClick={onClose}
+      
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={handleClose}
       />
 
-      
-      <div
-        className={`relative w-full max-w-md h-full overflow-y-auto shadow-2xl transform transition-transform duration-300 ease-in-out ${
-          darkMode ? "bg-gray-900 text-white" : "bg-white text-gray-900"
-        } ${show ? "translate-x-0" : "translate-x-full"}`}
+     
+     
+      <motion.div
+        initial={{ x: '100%' }}
+        animate={{ x: 0 }}
+        exit={{ x: '100%' }}
+        transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+        className={`relative w-full max-w-md h-full overflow-y-auto shadow-2xl flex flex-col ${
+          darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'
+        }`}
       >
-    
-        <section className="relative overflow-hidden bg-gradient-to-br from-lime-50 to-teal-50 dark:from-lime-900/20 dark:to-teal-900/20 p-6">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-            
-            <div className="space-y-4">
-              <h1 className="text-3xl md:text-4xl font-bold leading-tight">
-                Your <span className="underline decoration-lime-500 decoration-4">Cart</span>
-              </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                Review items, choose delivery, and checkout securely.
+        
+        
+        <div className={`relative overflow-hidden flex-shrink-0 ${
+          darkMode ? 'bg-gradient-to-br from-gray-800 to-gray-900' : 'bg-gradient-to-br from-lime-50 to-emerald-50/60'
+        } px-4 sm:px-6 pt-5 sm:pt-6 pb-4`}>
+          <div className="absolute -top-8 -right-8 w-32 h-32 bg-lime-400/10 rounded-full blur-2xl" />
+          <div className="absolute -bottom-4 -left-4 w-24 h-24 bg-emerald-400/10 rounded-full blur-2xl" />
+
+          <div className="relative flex items-start justify-between">
+            <div>
+              <h2 className={`text-xl sm:text-2xl font-extrabold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                {checkoutStep === 'cart'     ? 'Your Cart'
+                 : checkoutStep === 'checkout' ? 'Checkout'
+                 : 'Order Confirmed'}
+              </h2>
+              <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                {checkoutStep === 'cart'
+                  ? `${cartItems.length} item${cartItems.length !== 1 ? 's' : ''}`
+                  : checkoutStep === 'checkout'
+                  ? 'Almost there!'
+                  : 'Thank you for your order'}
               </p>
-
-              
-              <div className="grid grid-cols-3 gap-4 pt-4">
-                <div>
-                  <div className="text-xl font-bold text-lime-600 dark:text-lime-400 flex items-center gap-1">
-                    <FiZap /> 100%
-                  </div>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">Secure</p>
-                </div>
-                {/* <div>
-                  <div className="text-xl font-bold text-lime-600 dark:text-lime-400 flex items-center gap-1">
-                    <FiTruck /> 2-3 Days
-                  </div>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">Delivery</p>
-                </div> */}
-              
-              </div>
             </div>
-
-           
-            <div className="relative hidden md:block h-48">
-              <div className="absolute inset-0 bg-gradient-to-br from-lime-100 to-teal-100 dark:from-lime-900 dark:to-teal-900 rounded-3xl blur-3xl opacity-50"></div>
-              <div className="absolute top-4 left-4 w-32 h-40 bg-white dark:bg-gray-800 rounded-3xl shadow-xl rotate-12 transform-gpu overflow-hidden">
-                <div className="p-3 space-y-2">
-                  <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
-                  <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
-                  <div className="h-6 bg-lime-500 rounded w-12"></div>
-                </div>
-              </div>
-              <div className="absolute bottom-4 right-4 w-36 h-44 bg-white dark:bg-gray-800 rounded-3xl shadow-xl -rotate-6 transform-gpu overflow-hidden">
-                <div className="p-4">
-                  <div className="w-8 h-8 bg-lime-500 rounded-full mx-auto mb-2 flex items-center justify-center">
-                    <FiShoppingCart className="text-white text-sm" />
-                  </div>
-                  <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
-                </div>
-              </div>
-            </div>
+            <button
+              onClick={handleClose}
+              className={`p-2 rounded-full shadow-md transition-colors flex-shrink-0 ${
+                darkMode ? 'bg-gray-700/80 hover:bg-gray-600 text-gray-200' : 'bg-white/80 hover:bg-white text-gray-700'
+              }`}
+            >
+              <FiX className="w-5 h-5" />
+            </button>
           </div>
-        </section>
+
+          <StepIndicator current={checkoutStep} />
+
+          <div className={`flex items-center gap-2 mt-3 text-xs font-semibold ${darkMode ? 'text-lime-400' : 'text-lime-600'}`}>
+            <FiZap className="w-3.5 h-3.5" />
+            100% Secure & Encrypted
+          </div>
+        </div>
 
        
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm shadow-md hover:bg-white dark:hover:bg-gray-700 transition"
-        >
-          <FiX className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-        </button>
-
-      
-        <div className="p-6 pt-2">
-          {isLoading ? (
+       
+        <div className="flex-1 p-4 sm:p-5 overflow-y-auto">
+          {isLoading && checkoutStep !== 'complete' ? (
             <div className="flex justify-center items-center h-64">
-              <div className="w-12 h-12 border-4 border-lime-600 border-t-transparent rounded-full animate-spin"></div>
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                className="w-12 h-12 border-4 border-lime-500 border-t-transparent rounded-full"
+              />
             </div>
           ) : (
-            <>
-              {checkoutStep === "cart" && (
-                <div>
+            <AnimatePresence mode="wait">
+
+             
+             
+              {checkoutStep === 'cart' && (
+                <motion.div key="cart" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.25 }}>
                   {cartItems.length === 0 ? (
-                    <div className="text-center py-12">
-                      <FiShoppingCart className="mx-auto text-6xl text-gray-400 mb-3" />
-                      <p className="text-gray-500 dark:text-gray-400">Your cart is empty</p>
+                    <div className="text-center py-16 space-y-4">
+                      <div className={`w-20 h-20 rounded-full mx-auto flex items-center justify-center ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                        <FiShoppingCart className="w-9 h-9 text-gray-400" />
+                      </div>
+                      <p className={`font-bold text-lg ${darkMode ? 'text-white' : 'text-gray-800'}`}>Your cart is empty</p>
+                      <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Add some products to get started</p>
+                      <button
+                        onClick={handleClose}
+                        className="px-6 py-2.5 rounded-xl bg-lime-500 hover:bg-lime-600 text-white font-bold text-sm transition-colors"
+                      >
+                        Browse Devices
+                      </button>
                     </div>
                   ) : (
                     <>
-                      {cartItems.map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex items-center gap-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm p-4 rounded-2xl mb-3 shadow-sm"
-                        >
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-gray-900 dark:text-gray-100">{item.productName}</h4>
-                            <p className="text-sm text-lime-600 dark:text-lime-400">{item.productPrice} EGP</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                              className="w-8 h-8 rounded-full bg-lime-600 text-white hover:bg-lime-700 transition"
-                            >-</button>
-                            <span className="w-8 text-center font-medium">{item.quantity}</span>
-                            <button
-                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                              className="w-8 h-8 rounded-full bg-lime-600 text-white hover:bg-lime-700 transition"
-                            >+</button>
-                            <button
-                              onClick={() => removeFromCart(item.id)}
-                              className="ml-2 text-red-600 hover:text-red-700"
-                            >
-                              <FiTrash2 />
-                            </button>
-                          </div>
+                      <AnimatePresence>
+                        {cartItems.map((item) => (
+                          <CartItem
+                            key={item.id}
+                            item={item}
+                            darkMode={darkMode}
+                            onUpdate={updateQuantity}
+                            onRemove={removeFromCart}
+                          />
+                        ))}
+                      </AnimatePresence>
+
+                     
+                     
+                      <motion.div
+                        layout
+                        className={`mt-4 p-4 rounded-2xl ${darkMode ? 'bg-gray-800/60 border border-gray-700/60' : 'bg-white/70 border border-gray-100'}`}
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className={`font-semibold text-sm sm:text-base ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Subtotal</span>
+                          <span className={`font-extrabold text-lg sm:text-xl ${darkMode ? 'text-lime-400' : 'text-lime-700'}`}>
+                            EGP {cartTotal.toFixed(2)}
+                          </span>
                         </div>
-                      ))}
-                      <div className="mt-6 p-4 bg-lime-50 dark:bg-lime-900/30 rounded-2xl">
-                        <div className="flex justify-between text-lg font-bold">
-                          <span>Total:</span>
-                          <span className="text-lime-600 dark:text-lime-400">{cartTotal.toFixed(2)} EGP</span>
-                        </div>
-                      </div>
-                      <div className="mt-6 flex gap-3">
-                        <button
-                          onClick={() => setCheckoutStep("checkout")}
-                          className="flex-1 py-3 bg-lime-600 text-white rounded-xl hover:bg-lime-700 transition font-semibold"
+                        <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                          Delivery fees calculated at checkout
+                        </p>
+                      </motion.div>
+
+                      
+                      
+                      <div className="flex gap-2 sm:gap-3 mt-4 sm:mt-5">
+                        <motion.button
+                          whileTap={{ scale: 0.97 }}
+                          onClick={() => setCheckoutStep('checkout')}
+                          className="flex-1 py-3 sm:py-3.5 bg-gradient-to-r from-lime-500 to-emerald-600 text-white rounded-2xl font-bold shadow-lg shadow-lime-500/25 hover:shadow-lime-500/40 transition-all flex items-center justify-center gap-2 text-sm"
                         >
-                          Proceed to Checkout
-                        </button>
-                        <button
+                          <FiTruck className="w-4 h-4" /> Checkout
+                        </motion.button>
+                        <motion.button
+                          whileTap={{ scale: 0.97 }}
                           onClick={clearCart}
-                          className="px-4 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition flex items-center gap-2"
+                          className="px-3 sm:px-4 py-3 sm:py-3.5 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-2xl font-bold transition-all flex items-center gap-1.5 text-sm border border-red-500/30 hover:border-red-500 flex-shrink-0"
                         >
-                          <FiTrash2 /> Clear
-                        </button>
+                          <FiTrash2 className="w-4 h-4" />
+                        </motion.button>
                       </div>
                     </>
                   )}
-                </div>
+                </motion.div>
               )}
 
-                       
-{checkoutStep === "checkout" && (
-  <div className="space-y-6">
-  
-    <button
-      onClick={() => setCheckoutStep("cart")}
-      className="flex items-center gap-2 text-lime-600 dark:text-lime-400 hover:underline font-medium mb-4"
-    >
-      <FiChevronDown className="rotate-90 w-5 h-5" />
-      Back to Cart
-    </button>
-
-    <h3 className="text-xl font-bold text-lime-600 dark:text-lime-400">Delivery Address</h3>
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setShowDropdown(!showDropdown)}
-        className="w-full px-4 py-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-600 flex justify-between items-center text-left shadow-sm hover:shadow transition"
-      >
-        <span className="truncate">
-          {selectedAddress
-            ? addresses.find(a => a.id === selectedAddress)?.street + ", " + addresses.find(a => a.id === selectedAddress)?.city
-            : "Select your delivery address"}
-        </span>
-        <FiChevronDown className={`transition-transform ${showDropdown ? "rotate-180" : ""}`} />
-      </button>
-      {showDropdown && addresses.length > 0 && (
-        <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl shadow-lg max-h-60 overflow-y-auto">
-          {addresses.map(addr => (
-            <div
-              key={addr.id}
-              onClick={() => {
-                setSelectedAddress(addr.id);
-                setShowDropdown(false);
-              }}
-              className="px-4 py-3 hover:bg-lime-50 dark:hover:bg-lime-900/50 cursor-pointer flex items-center justify-between transition"
-            >
-              <span>{addr.street}, {addr.city}</span>
-              {selectedAddress === addr.id && <FiCheck className="text-lime-600" />}
-            </div>
-          ))}
-          {addresses.length === 0 && (
-            <div className="px-4 py-8 text-center text-gray-500">No addresses found</div>
-          )}
-        </div>
-      )}
-    </div>
-
-    <h3 className="text-xl font-bold text-lime-600 dark:text-lime-400">Payment Method</h3>
-    <div className="space-y-3">
-      <button
-        onClick={() => setPaymentMethod("cod")}
-        className={`w-full p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${
-          paymentMethod === "cod"
-            ? "border-lime-600 bg-lime-50 dark:bg-lime-900/30 shadow-md"
-            : "border-gray-300 dark:border-gray-600 hover:border-gray-400"
-        }`}
-      >
-        <div className={`w-5 h-5 rounded-full border-2 ${paymentMethod === "cod" ? "border-lime-600 bg-lime-600" : "border-gray-400"}`}>
-          {paymentMethod === "cod" && <FiCheck className="w-3 h-3 flex justify-center items-center text-white" />}
-        </div>
-        <div className="text-left">
-          <div className="font-medium">Cash on Delivery</div>
-          <div className="text-sm text-gray-500">Pay when you receive</div>
-        </div>
-      </button>
-
-      <button
-        onClick={() => setPaymentMethod("visa")}
-        className={`w-full p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${
-          paymentMethod === "visa"
-            ? "border-lime-600 bg-lime-50 dark:bg-lime-900/30 shadow-md"
-            : "border-gray-300 dark:border-gray-600 hover:border-gray-400"
-        }`}
-      >
-        <div className={`w-5 h-5 rounded-full border-2 ${paymentMethod === "visa" ? "border-lime-600 bg-lime-600" : "border-gray-400"}`}>
-          {paymentMethod === "visa" && <FiCheck className="w-3 h-3 text-white" />}
-        </div>
-        <div className="text-left">
-          <div className="font-medium flex items-center gap-2">
-            <FiCreditCard /> Credit or Debit Card
-          </div>
-          <div className="text-sm text-gray-500">Secure online payment</div>
-        </div>
-      </button>
-    </div>
-
-    
-    <div className="p-4 bg-gradient-to-r from-lime-50 to-teal-50 dark:from-lime-900/20 dark:to-teal-900/20 rounded-2xl">
-      <div className="flex justify-between text-lg font-bold">
-        <span>Total Amount:</span>
-        <span className="text-lime-600 dark:text-lime-400">{cartTotal.toFixed(2)} EGP</span>
-      </div>
-    </div>
-
-    <button
-      onClick={createOrder}
-      disabled={!paymentMethod || !selectedAddress || isLoading}
-      className={`w-full py-4 rounded-xl font-bold text-white transition-all flex items-center justify-center gap-3 ${
-        paymentMethod && selectedAddress && !isLoading
-          ? "bg-lime-600 hover:bg-lime-700 shadow-lg"
-          : "bg-gray-400 cursor-not-allowed"
-      }`}
-    >
-      {isLoading ? (
-        <>
-          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-          Processing...
-        </>
-      ) : (
-        <>
-          <FiCheck /> Place Order ({cartTotal.toFixed(2)} EGP)
-        </>
-      )}
-    </button>
-  </div>
-)}
-
-              {checkoutStep === "complete" && (
-                <div className="text-center py-12">
-                  <div className="w-20 h-20 bg-lime-100 dark:bg-lime-900 rounded-full mx-auto mb-4 flex items-center justify-center">
-                    <FiCheck className="w-10 h-10 text-lime-600 dark:text-lime-400" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-lime-600 dark:text-lime-400 mb-2">Order Confirmed!</h3>
-                  <p className="text-gray-600 dark:text-gray-400 mb-6">Thank you for shopping with us.</p>
+            
+            
+              {checkoutStep === 'checkout' && (
+                <motion.div
+                  key="checkout"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.25 }}
+                  className="space-y-5 sm:space-y-6"
+                >
                   <button
-                    onClick={() => { onClose(); setCheckoutStep("cart"); setPaymentMethod(""); }}
-                    className="px-6 py-3 bg-lime-600 text-white rounded-xl hover:bg-lime-700 transition"
+                    onClick={() => setCheckoutStep('cart')}
+                    className={`flex items-center gap-1.5 text-sm font-semibold ${darkMode ? 'text-gray-400 hover:text-lime-400' : 'text-gray-500 hover:text-lime-600'} transition-colors`}
+                  >
+                    ← Back to cart
+                  </button>
+
+                  
+                  
+                  <div>
+                    <h3 className={`text-sm sm:text-base font-bold mb-3 flex items-center gap-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                      <FiMapPin className="w-4 h-4 text-lime-500 flex-shrink-0" /> Delivery Address
+                    </h3>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowDropdown(!showDropdown)}
+                        className={`w-full px-4 py-3 sm:py-3.5 rounded-2xl border-2 flex justify-between items-center text-left text-sm transition-all ${
+                          showDropdown ? 'border-lime-500' : darkMode ? 'border-gray-700 hover:border-gray-600' : 'border-gray-200 hover:border-gray-300'
+                        } ${darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                      >
+                        <span className="truncate flex-1 mr-2">
+                          {selectedAddr
+                            ? `${selectedAddr.street}, ${selectedAddr.city}`
+                            : 'Select delivery address'}
+                        </span>
+                        <FiChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform ${showDropdown ? 'rotate-180' : ''} ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                      </button>
+
+                      <AnimatePresence>
+                        {showDropdown && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                            className={`absolute z-20 w-full mt-1 rounded-2xl shadow-xl border overflow-hidden max-h-52 overflow-y-auto ${
+                              darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
+                            }`}
+                          >
+                            {addresses.length > 0 ? addresses.map((addr) => (
+                              <div
+                                key={addr.id}
+                                onClick={() => { setSelectedAddress(addr.id); setShowDropdown(false); }}
+                                className={`px-4 py-3 flex items-center justify-between cursor-pointer text-sm transition-colors ${
+                                  selectedAddress === addr.id
+                                    ? darkMode ? 'bg-lime-900/30 text-lime-400' : 'bg-lime-50 text-lime-700'
+                                    : darkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700'
+                                }`}
+                              >
+                                <span className="truncate flex-1 mr-2">{addr.street}, {addr.city}</span>
+                                {selectedAddress === addr.id && <FiCheck className="w-4 h-4 text-lime-500 flex-shrink-0" />}
+                              </div>
+                            )) : (
+                              <div className="px-4 py-6 text-center text-sm text-gray-400">No addresses found</div>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+
+                 
+                 
+                  <div>
+                    <h3 className={`text-sm sm:text-base font-bold mb-3 flex items-center gap-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                      <FiCreditCard className="w-4 h-4 text-lime-500 flex-shrink-0" /> Payment Method
+                    </h3>
+                    <div className="space-y-3">
+                      <PaymentOption value="cod" selected={paymentMethod === 'cod'} onSelect={setPaymentMethod}
+                        Icon={FiTruck} title="Cash on Delivery" subtitle="Pay when you receive your order" darkMode={darkMode} />
+                      <PaymentOption value="visa" selected={paymentMethod === 'visa'} onSelect={setPaymentMethod}
+                        Icon={FiCreditCard} title="Credit / Debit Card" subtitle="Secure payment via gateway" darkMode={darkMode} />
+                    </div>
+                  </div>
+
+                 
+                 
+                  <div className={`p-4 rounded-2xl ${darkMode ? 'bg-gray-800/60 border border-gray-700/60' : 'bg-white/70 border border-gray-100'}`}>
+                    <p className={`text-xs font-semibold mb-3 uppercase tracking-wide ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Order Summary</p>
+                    <div className="space-y-1.5 text-xs sm:text-sm">
+                      {cartItems.map((item) => (
+                        <div key={item.id} className="flex justify-between gap-2">
+                          <span className={`truncate ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                            {item.productName} ×{item.quantity}
+                          </span>
+                          <span className={`flex-shrink-0 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                            EGP {(item.productPrice * item.quantity).toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className={`flex justify-between items-center mt-3 pt-3 border-t font-extrabold text-sm sm:text-base ${darkMode ? 'border-gray-700 text-lime-400' : 'border-gray-100 text-lime-700'}`}>
+                      <span>Total</span>
+                      <span>EGP {cartTotal.toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                
+                
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    onClick={createOrder}
+                    disabled={!paymentMethod || !selectedAddress || isLoading}
+                    className={`w-full py-3.5 sm:py-4 rounded-2xl font-extrabold text-white transition-all flex items-center justify-center gap-2 sm:gap-3 text-sm ${
+                      paymentMethod && selectedAddress && !isLoading
+                        ? 'bg-gradient-to-r from-lime-500 to-emerald-600 shadow-lg shadow-lime-500/25 hover:shadow-lime-500/40'
+                        : 'bg-gray-400 dark:bg-gray-700 cursor-not-allowed'
+                    }`}
+                  >
+                    {isLoading ? (
+                      <>
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                          className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
+                        />
+                        Processing...
+                      </>
+                    ) : (
+                      <><FiCheck className="w-5 h-5" /> Place Order · EGP {cartTotal.toFixed(2)}</>
+                    )}
+                  </motion.button>
+                </motion.div>
+              )}
+
+              
+              
+              {checkoutStep === 'complete' && (
+                <motion.div
+                  key="complete"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.4 }}
+                  className="text-center py-12 space-y-5"
+                >
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 300, delay: 0.1 }}
+                    className="w-24 h-24 bg-gradient-to-br from-lime-400 to-emerald-600 rounded-full mx-auto flex items-center justify-center shadow-xl shadow-lime-500/30"
+                  >
+                    <FiCheck className="w-12 h-12 text-white" />
+                  </motion.div>
+                  <div>
+                    <h3 className={`text-2xl font-extrabold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Order Confirmed!</h3>
+                    <p className={`mt-2 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Thank you for shopping with Tech Bazaar.
+                    </p>
+                  </div>
+                  <div className={`p-4 rounded-2xl text-sm ${darkMode ? 'bg-gray-800/60 border border-gray-700' : 'bg-lime-50 border border-lime-100'}`}>
+                    <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+                      Your order is being prepared and will be shipped soon. You'll receive a confirmation email shortly.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleClose}
+                    className="w-full py-3.5 bg-gradient-to-r from-lime-500 to-emerald-600 text-white rounded-2xl font-bold shadow-lg hover:shadow-lime-500/30 transition-all"
                   >
                     Continue Shopping
                   </button>
-                </div>
+                </motion.div>
               )}
-            </>
+
+            </AnimatePresence>
           )}
         </div>
-
-   
-        {/* {showCookieBanner && (
-          <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 shadow-lg z-50">
-            <div className="max-w-md mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
-              <p className="text-gray-700 dark:text-gray-300">
-                We use cookies to improve your cart experience. <a href="#" className="underline">Learn more</a>.
-              </p>
-              <div className="flex gap-2">
-                <button onClick={() => setShowCookieBanner(false)} className="px-3 py-1 bg-lime-600 text-white rounded-lg text-xs">Accept</button>
-                <button onClick={() => setShowCookieBanner(false)} className="px-3 py-1 bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg text-xs">Reject</button>
-              </div>
-            </div>
-          </div>
-        )} */}
-      </div>
+      </motion.div>
     </div>
   );
 };

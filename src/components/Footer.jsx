@@ -1,241 +1,213 @@
-import React from "react";
+import React, { useRef } from 'react';
+import { Link } from 'react-router-dom';
+import { motion, useInView } from 'framer-motion';
+import { FiMail, FiPhone, FiClock, FiArrowUpRight } from 'react-icons/fi';
+import { FaFacebook, FaTwitter, FaInstagram } from 'react-icons/fa';
 import {
-  FiHome,
-  FiCompass,
-  FiMap,
-  FiMail,
-  FiPhone,
-  FiClock,
-  FiShoppingBag,
-  FiTruck,
-  FiPackage,
-} from "react-icons/fi";
-import { FaFacebook, FaTwitter, FaInstagram } from "react-icons/fa";
-import { Link } from "react-router-dom";
-import logo from "../images/logo-bg.png";
+  RiMapPin2Line, RiHome3Line, RiDeviceLine,
+  RiTruckLine, RiStore2Line, RiShieldCheckLine,
+  RiVerifiedBadgeLine,
+} from 'react-icons/ri';
+import logo from '../images/logo-bg.png';
+
+const containerVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.08 } },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] } },
+};
+
+const FooterLink = ({ to, Icon, label, external }) => (
+  <li>
+    {external ? (
+      <a href={to} target="_blank" rel="noopener noreferrer"
+        className="group flex items-center gap-2.5 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-lime-600 dark:hover:text-lime-400 transition-all duration-200 hover:translate-x-1.5">
+        {Icon && <Icon className="w-4 h-4 text-lime-500 flex-shrink-0" />}
+        {label}
+        <FiArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+      </a>
+    ) : (
+      <Link to={to}
+        className="group flex items-center gap-2.5 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-lime-600 dark:hover:text-lime-400 transition-all duration-200 hover:translate-x-1.5">
+        {Icon && <Icon className="w-4 h-4 text-lime-500 flex-shrink-0" />}
+        {label}
+      </Link>
+    )}
+  </li>
+);
+
+const SocialBtn = ({ href, Icon, label }) => (
+  <motion.a whileHover={{ y: -3, scale: 1.08 }} whileTap={{ scale: 0.95 }}
+    href={href} target="_blank" rel="noopener noreferrer" aria-label={label}
+    className="p-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-300 hover:bg-lime-500 hover:text-white dark:hover:bg-lime-500 border border-gray-200 dark:border-gray-700 hover:border-lime-500 transition-colors duration-200">
+    <Icon className="w-4 h-4" />
+  </motion.a>
+);
 
 const Footer = ({ darkMode }) => {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: '-60px' });
+
+  const quickLinks = [
+    { to: '/',       Icon: RiHome3Line,  label: 'Home'        },
+    { to: '/devices',Icon: RiDeviceLine, label: 'Devices'     },
+    { to: '/track',  Icon: RiTruckLine,  label: 'Track Order' },
+    { to: '/shops',  Icon: RiStore2Line, label: 'Shops'       },
+  ];
+
+  const services = [
+    { to: '/services/repair',    label: 'Device Repair'      },
+    { to: '/services/refurbish', label: 'Refurbished Sales'  },
+    { to: '/services/warranty',  label: 'Warranty Plans',   Icon: RiShieldCheckLine },
+    { to: '/services/delivery',  label: 'Fast Delivery',    Icon: RiTruckLine },
+  ];
+
   return (
-    <footer className={`relative overflow-hidden py-20 ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+    <footer ref={ref} className="relative overflow-hidden bg-gray-100 dark:bg-gray-950">
 
-      <div className="absolute inset-0 opacity-5 pointer-events-none">
-        {[...Array(50)].map((_, i) => (
-          <div
-            key={i}
-            className={`absolute w-1 h-1 rounded-full animate-pulse ${
-              darkMode ? "bg-emerald-400" : "bg-emerald-600"
-            }`}
-            style={{
-              top: `${Math.random() * 100}%`,
-              left: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 5}s`,
-              animationDuration: `${4 + Math.random() * 4}s`,
-            }}
-          />
-        ))}
-      </div>
+      {/* ── Light-mode decorative top band ── */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-500" />
 
-    
-      <div className="absolute top-0 left-0 right-0">
-        <svg
-          className="w-full h-20"
-          viewBox="0 0 1440 320"
-          preserveAspectRatio="none"
-        >
-          <path
-            fill={darkMode ? "#111827" : "#ffffff"}
-            fillOpacity="1"
-            d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,0L1392,0C1344,0,1248,0,1152,0C1056,0,960,0,864,0C768,0,672,0,576,0C480,0,384,0,288,0C192,0,96,0,48,0L0,0Z"
-          />
+      {/* Wave divider */}
+      <div className="absolute top-0 left-0 right-0 pointer-events-none">
+        <svg viewBox="0 0 1440 80" xmlns="http://www.w3.org/2000/svg" className="w-full h-16" preserveAspectRatio="none">
+          <path d="M0,40 C360,80 720,0 1080,40 C1260,60 1380,20 1440,40 L1440,0 L0,0 Z"
+            fill={darkMode ? '#111827' : '#f9fafb'} />
         </svg>
       </div>
 
-      <div className="relative max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
+      {/* Dot grid — slightly more visible in light mode */}
+      <div className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: 'radial-gradient(circle, rgba(101,163,13,0.18) 1px, transparent 1px)',
+          backgroundSize: '32px 32px',
+          opacity: darkMode ? 0.06 : 0.5,
+        }} />
 
-         
-          <div className="space-y-8">
-            <div className="flex items-center gap-4">
-              <img
-                src={logo}
-                alt="Tech & Restore"
-                className="h-16 w-auto rounded-2xl shadow-lg"
-              />
+      {/* Glow accents */}
+      <div className="absolute top-1/4 left-0 w-72 h-72 rounded-full bg-lime-400/10 dark:bg-lime-500/5 blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 right-0 w-96 h-96 rounded-full bg-emerald-400/10 dark:bg-emerald-500/5 blur-3xl pointer-events-none" />
+
+      <div className="relative max-w-7xl mx-auto px-5 sm:px-6 lg:px-12 pt-24 pb-10">
+        <motion.div
+          variants={containerVariants} initial="hidden" animate={inView ? 'visible' : 'hidden'}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-12 mb-14"
+        >
+          {/* ── Brand ── */}
+          <motion.div variants={itemVariants} className="sm:col-span-2 lg:col-span-1 space-y-5">
+            <div className="flex items-center gap-3">
+              <img src={logo} alt="Tech Bazaar" className="h-12 w-auto rounded-xl shadow-md" />
+              <div>
+                <p className="text-gray-900 dark:text-white font-extrabold text-lg leading-tight">Tech Bazaar</p>
+                <p className="text-lime-600 dark:text-lime-400 text-xs font-semibold">Repair & Buy with Confidence</p>
+              </div>
             </div>
-            <p className={`text-base leading-relaxed max-w-sm ${
-              darkMode ? "text-gray-400" : "text-gray-600"
-            }`}>
-              Your trusted partner for premium device repairs and certified refurbished electronics. Quality service, sustainable choices.
+
+            <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed max-w-xs">
+              Your trusted partner for premium device repairs and certified refurbished electronics across Egypt.
             </p>
 
-         
-            <div className="flex gap-4">
-              {[
-                { Icon: FaFacebook, href: "https://facebook.com", label: "Facebook" },
-                { Icon: FaTwitter, href: "https://twitter.com", label: "Twitter" },
-                { Icon: FaInstagram, href: "https://instagram.com", label: "Instagram" },
-              ].map(({ Icon, href, label }, i) => (
-                <a
-                  key={i}
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`p-3 rounded-2xl transition-all duration-300 transform hover:scale-110 shadow-md ${
-                    darkMode
-                      ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/40"
-                      : "bg-white text-emerald-600 hover:bg-emerald-50"
-                  }`}
-                  aria-label={label}
-                >
-                  <Icon className="w-5 h-5" />
-                </a>
+            <div className="flex flex-wrap gap-2">
+              {['Certified', 'Genuine Parts', '6-Mo Warranty'].map((b) => (
+                <span key={b}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-lime-500/10 text-lime-700 dark:text-lime-400 border border-lime-500/20">
+                  <RiVerifiedBadgeLine className="w-3 h-3" />{b}
+                </span>
               ))}
             </div>
-          </div>
 
-    
-          <div>
-            <h3 className={`text-xl font-bold mb-6 ${darkMode ? "text-emerald-400" : "text-gray-800"}`}>
+            <div className="flex gap-2.5 pt-1">
+              <SocialBtn href="https://facebook.com"  Icon={FaFacebook}  label="Facebook"  />
+              <SocialBtn href="https://twitter.com"   Icon={FaTwitter}   label="Twitter"   />
+              <SocialBtn href="https://instagram.com" Icon={FaInstagram} label="Instagram" />
+            </div>
+          </motion.div>
+
+          {/* ── Quick Links ── */}
+          <motion.div variants={itemVariants}>
+            <h3 className="text-gray-900 dark:text-white font-bold text-base mb-5 flex items-center gap-2">
+              <span className="w-1 h-4 rounded-full bg-gradient-to-b from-lime-400 to-emerald-500 inline-block" />
               Quick Links
             </h3>
-            <ul className="space-y-4">
-              {[
-                { to: "/", Icon: FiHome, label: "Home" },
-                { to: "/explore", Icon: FiCompass, label: "Explore" },
-                { to: "/track", Icon: FiTruck, label: "Track Order" },
-                { to: "/purchase/new", Icon: FiShoppingBag, label: "Buy New" },
-                { to: "/purchase/used", Icon: FiPackage, label: "Buy Used" },
-              ].map(({ to, Icon, label }, i) => (
-                <li key={i}>
-                  <Link
-                    to={to}
-                    className={`flex items-center gap-3 text-base font-medium transition-all duration-300 hover:translate-x-2 ${
-                      darkMode
-                        ? "text-gray-300 hover:text-emerald-400"
-                        : "text-gray-600 hover:text-emerald-600"
-                    }`}
-                  >
-                    <Icon className="w-5 h-5 text-emerald-500" />
-                    {label}
-                  </Link>
-                </li>
-              ))}
+            <ul className="space-y-3">
+              {quickLinks.map((l) => <FooterLink key={l.to} {...l} />)}
             </ul>
-          </div>
+          </motion.div>
 
-          
-          <div>
-            <h3 className={`text-xl font-bold mb-6 ${darkMode ? "text-emerald-400" : "text-gray-800"}`}>
+          {/* ── Services ── */}
+          <motion.div variants={itemVariants}>
+            <h3 className="text-gray-900 dark:text-white font-bold text-base mb-5 flex items-center gap-2">
+              <span className="w-1 h-4 rounded-full bg-gradient-to-b from-lime-400 to-emerald-500 inline-block" />
               Our Services
             </h3>
-            <ul className="space-y-4">
-              {[
-                { to: "/services/repair", label: "Device Repair" },
-                { to: "/services/refurbish", label: "Refurbished Sales" },
-                { to: "/services/warranty", label: "Warranty Plans" },
-                { to: "/services/delivery", label: "Fast Delivery" },
-              ].map(({ to, label }, i) => (
-                <li key={i}>
-                  <Link
-                    to={to}
-                    className={`block text-base font-medium transition-all duration-300 hover:translate-x-2 ${
-                      darkMode
-                        ? "text-gray-300 hover:text-emerald-400"
-                        : "text-gray-600 hover:text-emerald-600"
-                    }`}
-                  >
-                    {label}
-                  </Link>
-                </li>
-              ))}
+            <ul className="space-y-3">
+              {services.map((s) => <FooterLink key={s.to} {...s} />)}
             </ul>
-          </div>
+          </motion.div>
 
-          
-          <div>
-            <h3 className={`text-xl font-bold mb-6 ${darkMode ? "text-emerald-400" : "text-gray-800"}`}>
+          {/* ── Contact ── */}
+          <motion.div variants={itemVariants}>
+            <h3 className="text-gray-900 dark:text-white font-bold text-base mb-5 flex items-center gap-2">
+              <span className="w-1 h-4 rounded-full bg-gradient-to-b from-lime-400 to-emerald-500 inline-block" />
               Contact Us
             </h3>
-            <ul className="space-y-5 text-base">
-              <li className="flex items-start gap-4">
-                <FiMap className="w-5 h-5 text-emerald-500 mt-0.5 flex-shrink-0" />
-                <span className={darkMode ? "text-gray-300" : "text-gray-600"}>
-                  Cairo, Al Maadi,<br />Egypt
-                </span>
+            <ul className="space-y-4">
+              <li className="flex items-start gap-3">
+                <RiMapPin2Line className="w-4 h-4 text-lime-500 mt-0.5 flex-shrink-0" />
+                <span className="text-gray-500 dark:text-gray-400 text-sm">Cairo, Al Maadi,<br />Egypt</span>
               </li>
-              <li className="flex items-center gap-4">
-                <FiPhone className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                <a
-                  href="tel:+2019999"
-                  className="text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
-                >
-                  +20 19999
+              <li className="flex items-center gap-3">
+                <FiPhone className="w-4 h-4 text-lime-500 flex-shrink-0" />
+                <a href="tel:+2019999" className="text-gray-500 dark:text-gray-400 text-sm hover:text-lime-600 dark:hover:text-lime-400 transition-colors">+20 19999</a>
+              </li>
+              <li className="flex items-center gap-3">
+                <FiMail className="w-4 h-4 text-lime-500 flex-shrink-0" />
+                <a href="mailto:support@techbazaar.com" className="text-gray-500 dark:text-gray-400 text-sm hover:text-lime-600 dark:hover:text-lime-400 transition-colors break-all">
+                  support@techbazaar.com
                 </a>
               </li>
-              <li className="flex items-center gap-4">
-                <FiMail className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                <a
-                  href="mailto:support@techrestore.com"
-                  className="text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
-                >
-                  support@techrestore.com
-                </a>
-              </li>
-              <li className="flex items-start gap-4">
-                <FiClock className="w-5 h-5 text-emerald-500 mt-0.5 flex-shrink-0" />
-                <span className={darkMode ? "text-gray-300" : "text-gray-600"}>
-                  24/7 Customer Support
-                </span>
+              <li className="flex items-start gap-3">
+                <FiClock className="w-4 h-4 text-lime-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">24/7 Customer Support</p>
+                  <p className="text-lime-600/70 dark:text-lime-400/60 text-xs mt-0.5">Always here to help</p>
+                </div>
               </li>
             </ul>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
 
-        
-        <div className={`pt-10 border-t ${darkMode ? "border-gray-800" : "border-gray-200"}`}>
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6 text-sm">
-            <p className={darkMode ? "text-gray-500" : "text-gray-600"}>
-              © {new Date().getFullYear()}{" "}
-              <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                Tech & Restore
-              </span>
-              . All rights reserved.
-            </p>
-            <div className="flex gap-8">
-              <Link
-                to="/privacy"
-                className={`transition-colors ${darkMode ? "text-gray-400 hover:text-emerald-400" : "text-gray-600 hover:text-emerald-600"}`}
-              >
-                Privacy Policy
+        {/* ── Divider ── */}
+        <div className="border-t border-gray-200 dark:border-gray-800" />
+
+        {/* ── Bottom bar ── */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={inView ? { opacity: 1 } : {}}
+          transition={{ delay: 0.5, duration: 0.5 }}
+          className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-8 text-sm"
+        >
+          <p className="text-gray-500 dark:text-gray-500 text-center sm:text-left">
+            © {new Date().getFullYear()}{' '}
+            <span className="font-bold text-lime-600 dark:text-lime-400">Tech Bazaar</span>. All rights reserved.
+          </p>
+          <div className="flex flex-wrap justify-center gap-5">
+            {[
+              { to: '/privacy', label: 'Privacy Policy'  },
+              { to: '/terms',   label: 'Terms of Service'},
+              { to: '/cookies', label: 'Cookie Policy'   },
+            ].map(({ to, label }) => (
+              <Link key={to} to={to}
+                className="text-gray-400 dark:text-gray-500 hover:text-lime-600 dark:hover:text-lime-400 transition-colors duration-200 text-sm">
+                {label}
               </Link>
-              <Link
-                to="/terms"
-                className={`transition-colors ${darkMode ? "text-gray-400 hover:text-emerald-400" : "text-gray-600 hover:text-emerald-600"}`}
-              >
-                Terms of Service
-              </Link>
-            </div>
+            ))}
           </div>
-        </div>
+        </motion.div>
       </div>
-
-      
-      <div className="absolute inset-0 pointer-events-none opacity-10">
-        <FiPackage className="absolute top-12 left-8 w-20 h-20 text-emerald-500 animate-float" />
-        <FiTruck className="absolute bottom-24 right-12 w-24 h-24 text-emerald-500 animate-pulse" />
-        <FiCompass className="absolute top-1/3 right-1/3 w-16 h-16 text-emerald-400 animate-ping" />
-      </div>
-
-
-      <style jsx>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0) rotate(0deg); }
-          50% { transform: translateY(-20px) rotate(5deg); }
-        }
-        .animate-float {
-          animation: float 8s ease-in-out infinite;
-        }
-      `}</style>
     </footer>
   );
 };

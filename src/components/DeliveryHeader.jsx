@@ -1,258 +1,249 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
 import {
-  FiMoon,
-  FiSun,
-  FiUser,
-  FiLogOut,
-  FiMenu,
-  FiX,
-  FiPackage,
-  FiTool,
-  FiHome,
-  FiClipboardCheck,
-  FiSettings,
-  FiClipboard,
+  FiMoon, FiSun, FiUser, FiLogOut, FiMenu, FiX,
+  FiPackage, FiTool, FiHome, FiClipboard, FiSettings,
+  FiChevronDown, FiGrid, FiBell, FiZap, FiTruck, FiActivity
 } from "react-icons/fi";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { jwtDecode } from "jwt-decode";
 import api from "../api";
+import logo from "../images/logo-bg.png";
+
+
+
+
+const MENU_GROUPS = [
+  {
+    label: "Main Dashboard",
+    items: [
+      { name: "Console",           path: "/delivery/dashboard",                icon: <FiHome size={18} />      },
+    ]
+  },
+  {
+    label: "Availability",
+    items: [
+      { name: "Orders",       path: "/delivery/available-orders",         icon: <FiPackage size={18} />   },
+      { name: "Repairs",      path: "/delivery/available-repair-requests",icon: <FiTool size={18} />      },
+    ]
+  },
+  {
+    label: "My Assignments",
+    items: [
+      { name: "Assigned Orders",   path: "/delivery/my-deliveries",            icon: <FiClipboard size={18} /> },
+      { name: "Assigned Repairs",  path: "/delivery/my-repairs",               icon: <FiTool size={18} />      },
+    ]
+  },
+  {
+    label: "Management",
+    items: [
+      { name: "Agent Profile",     path: "/delivery/profile",                  icon: <FiSettings size={18} />  },
+    ]
+  }
+];
+
+
+
+
+const isTokenExpired = (token) => {
+  if (!token) return true;
+  try {
+    const d = jwtDecode(token);
+    return !d.exp || d.exp < Date.now() / 1000;
+  } catch { return true; }
+};
+
+
+
+
+const NavLink = memo(({ item, active, onClick }) => (
+  <Link
+    to={item.path}
+    onClick={onClick}
+    className={`group flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all duration-300 relative overflow-hidden
+      ${active
+        ? "bg-lime-500 text-white shadow-lg shadow-lime-500/20 active:scale-95"
+        : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"}`}
+  >
+    <span className={`flex-shrink-0 transition-transform duration-500 ${active ? "scale-110" : "group-hover:scale-110 group-hover:rotate-6"}`}>
+      {item.icon}
+    </span>
+    <span className="relative z-10">{item.name}</span>
+    {active && (
+      <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+    )}
+  </Link>
+));
+
+
+
 
 const DeliveryHeader = () => {
-  const navigate = useNavigate();
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("darkMode") === "true");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [token, setToken] = useState(localStorage.getItem("authToken"));
+  const navigate   = useNavigate();
+  const location   = useLocation();
+  const [darkMode, setDarkMode]         = useState(() => localStorage.getItem("darkMode") === "true");
+  const [sidebarOpen, setSidebarOpen]   = useState(false);
+  const [token, setToken]               = useState(localStorage.getItem("authToken"));
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [userProfile, setUserProfile]   = useState(null);
 
  
+  
+
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
+    document.documentElement.classList.toggle("dark", darkMode);
     localStorage.setItem("darkMode", darkMode);
   }, [darkMode]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsInitialLoading(false), 800);
-    return () => clearTimeout(timer);
-  }, []);
+  const toggleDark = useCallback(() => setDarkMode(d => !d), []);
 
-  const isTokenExpired = useCallback((token) => {
-    if (!token) return true;
-    try {
-      const decoded = jwtDecode(token);
-      return !decoded.exp || decoded.exp < Date.now() / 1000;
-    } catch {
-      return true;
-    }
-  }, []);
+  
 
   useEffect(() => {
     if (token && !isTokenExpired(token)) {
       setIsAuthenticated(true);
-    } else {
-      setIsAuthenticated(false);
-      localStorage.removeItem("authToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("userId");
-      navigate("/login");
-    }
-  }, [token, isTokenExpired, navigate]);
-
-  const handleLogout = useCallback(async () => {
-    const result = await Swal.fire({
-      title: "Log out?",
-      text: "You'll be signed out of your delivery account",
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonText: "Yes, log out",
-      cancelButtonText: "Stay logged in",
-      confirmButtonColor: "#dc2626",
-      background: darkMode ? "#1f2937" : "#fff",
-      color: darkMode ? "#fff" : "#000",
-    });
-
-    if (!result.isConfirmed) return;
-
-    try {
-      const refreshToken = localStorage.getItem("refreshToken");
-      if (token && refreshToken) {
-        await api.post("/api/auth/logout", { refreshToken }, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+      if (!userProfile) {
+       
+        
+        setUserProfile({ name: "Delivery Agent", email: "Active Personnel" });
+        api.get('/api/delivery/profile', { headers: { Authorization: `Bearer ${token}` } })
+          .then(res => setUserProfile(res.data))
+          .catch(() => {});
       }
-
+    } else {
       localStorage.removeItem("authToken");
       localStorage.removeItem("refreshToken");
-      localStorage.removeItem("userId");
-      setToken(null);
-
-      Swal.fire({
-        icon: "success",
-        title: "Logged out",
-        toast: true,
-        position: "top-end",
-        timer: 2000,
-        showConfirmButton: false,
-        background: "#10b981",
-        color: "#fff"
-      });
-
-      navigate("/login");
-    } catch (err) {
+      setIsAuthenticated(false);
       navigate("/login");
     }
+  }, [token, navigate, userProfile]);
+
+
+  
+  const handleLogout = useCallback(async () => {
+    const refreshToken = localStorage.getItem("refreshToken");
+    const { isConfirmed } = await Swal.fire({
+      title: "Confirm Logout",
+      text: "Ending your delivery session?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#84cc16",
+      cancelButtonColor: "#ef4444",
+      confirmButtonText: "Logout Now",
+      background: darkMode ? '#111827' : '#fff',
+      color: darkMode ? '#fff' : '#000',
+    });
+    if (!isConfirmed) return;
+    try {
+      if (token && refreshToken) await api.post("/api/auth/logout", { refreshToken }, { headers: { Authorization: `Bearer ${token}` } });
+    } catch {  }
+    localStorage.clear();
+    navigate("/login");
   }, [token, navigate, darkMode]);
 
-
-  const menuItems = [
-    { name: "Dashboard", path: "/delivery/dashboard", icon: FiHome },
-    { name: "Available Orders", path: "/delivery/available-orders", icon: FiPackage },
-    { name: "Available Repairs", path: "/delivery/available-repair-requests", icon: FiTool },
-    { name: "My Deliveries", path: "/delivery/my-deliveries", icon: FiClipboard },
-    { name: "My Repairs", path: "/delivery/my-repairs", icon: FiTool },
-    { name: "Profile", path: "/delivery/profile", icon: FiSettings },
-  ];
-
-  const SkeletonHeader = () => (
-    <div className="h-20 bg-gradient-to-r from-emerald-500 to-teal-600 animate-pulse">
-      <div className="flex justify-between items-center h-full px-6">
-        <div className="h-10 w-64 bg-white/30 rounded-2xl"></div>
-        <div className="flex gap-4">
-          <div className="h-10 w-10 bg-white/30 rounded-full"></div>
-          <div className="h-10 w-10 bg-white/30 rounded-full"></div>
-        </div>
-      </div>
-    </div>
-  );
+  const isActive   = (path) => location.pathname === path;
+  const closeSidebar = () => setSidebarOpen(false);
 
   return (
     <>
-      {isInitialLoading ? (
-        <SkeletonHeader />
-      ) : (
-        <header className="fixed top-0 left-0 right-0 z-50 shadow-xl">
-     
-          <div className="h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600"></div>
+      
+      
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-md z-[60] lg:hidden transition-all duration-500" onClick={closeSidebar} aria-hidden="true" />
+      )}
 
-          <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 backdrop-blur-xl bg-opacity-95 dark:bg-opacity-95">
-            <div className="flex justify-between items-center px-6 py-5 max-w-7xl mx-auto">
+      
+      <aside
+        className={`fixed inset-y-0 left-0 z-[70] w-64 bg-white/80 dark:bg-gray-900/90 backdrop-blur-2xl border-r border-gray-100 dark:border-gray-800 shadow-2xl flex flex-col transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1)
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
+      >
+        
+        <div className="relative h-20 flex items-center justify-between px-6 border-b border-gray-50 dark:border-gray-800/50">
+          <Link to="/delivery/dashboard" className="flex items-center gap-2 group" onClick={closeSidebar}>
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-lime-500 to-emerald-600 flex items-center justify-center group-hover:rotate-12 transition-transform duration-500 shadow-lg shadow-lime-500/20">
+              <FiTruck className="text-white" size={20} />
+            </div>
+            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tighter">Delivery<span className="text-lime-500">Hub</span></span>
+          </Link>
+          <button onClick={closeSidebar} className="lg:hidden p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-red-500 transition-all">
+            <FiX size={18} />
+          </button>
+        </div>
 
-              
-              <Link to="/delivery-dashboard" className="flex items-center gap-4 group">
-                <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-lg group-hover:shadow-2xl transition-all duration-300">
-                  <FiUser size={28} className="text-white" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                    Delivery 
-                  </h1>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Fast • Reliable • Trusted</p>
-                </div>
-              </Link>
-
-             
-              <div className="hidden lg:flex items-center gap-6">
-                
-                <button
-                  onClick={() => setDarkMode(!darkMode)}
-                  className="p-3 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 shadow-md hover:shadow-xl transition-all duration-300 hover:scale-110"
-                >
-                  {darkMode ? <FiSun size={22} className="text-yellow-500" /> : <FiMoon size={22} className="text-indigo-600" />}
-                </button>
-
-               
-                {isAuthenticated && (
-                  <div className="relative group">
-                    <button className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-medium shadow-lg hover:shadow-2xl hover:scale-105 transition-all duration-300">
-                      <FiUser size={20} />
-                      <span>My Account</span>
-                    </button>
-
-                    <div className="absolute right-0 mt-3 w-64 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
-                      <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-                        {menuItems.map((item) => {
-                          const Icon = item.icon;
-                          return (
-                            <Link
-                              key={item.name}
-                              to={item.path}
-                              className="flex items-center gap-4 px-6 py-4 text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-all duration-200 border-b border-gray-100 dark:border-gray-700 last:border-0"
-                            >
-                              <Icon size={18} className="text-emerald-600 dark:text-emerald-400" />
-                              <span className="font-medium">{item.name}</span>
-                            </Link>
-                          );
-                        })}
-                        <button
-                          onClick={handleLogout}
-                          className="w-full flex items-center gap-4 px-6 py-4 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-all duration-200 font-medium"
-                        >
-                          <FiLogOut size={18} />
-                          Logout
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
+      
+        <div className="flex-1 overflow-y-auto py-6 px-4 custom-scrollbar-thin space-y-8">
+          {MENU_GROUPS.map((group, idx) => (
+            <div key={idx} className="space-y-2">
+              <h3 className="px-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">{group.label}</h3>
+              <div className="space-y-1">
+                {group.items.map(item => (
+                    <NavLink key={item.name} item={item} active={isActive(item.path)} onClick={closeSidebar} />
+                  ))}
               </div>
+            </div>
+          ))}
+        </div>
 
-              
-              <div className="flex lg:hidden items-center gap-4">
-                <button
-                  onClick={() => setDarkMode(!darkMode)}
-                  className="p-3 rounded-2xl bg-gray-100 dark:bg-gray-800 shadow-md"
-                >
-                  {darkMode ? <FiSun className="text-yellow-500" /> : <FiMoon className="text-indigo-600" />}
-                </button>
-
-                <button
-                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                  className="p-3 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg"
-                >
-                  {mobileMenuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
-                </button>
-              </div>
+       
+        <div className="p-4 mt-auto border-t border-gray-50 dark:border-gray-800/50 bg-gray-50/30 dark:bg-gray-800/20">
+          <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-4 space-y-3">
+          
+            <div className="flex gap-2">
+              <button onClick={toggleDark} className="flex-1 h-10 rounded-xl bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-500 hover:text-lime-500 transition-all">
+                {darkMode ? <FiSun size={16} /> : <FiMoon size={16} />}
+              </button>
+              <button onClick={handleLogout} className="flex-1 h-10 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500 hover:bg-red-100 transition-all">
+                <FiLogOut size={16} />
+              </button>
             </div>
           </div>
+        </div>
+      </aside>
 
-         
-          {mobileMenuOpen && (
-            <div className="fixed inset-0 z-40 lg:hidden">
-              <div className="fixed inset-0 bg-black/50" onClick={() => setMobileMenuOpen(false)}></div>
-              <div className="fixed right-0 top-20 w-80 h-full bg-white dark:bg-gray-900 shadow-2xl border-l border-gray-200 dark:border-gray-800 animate-slide-in-right">
-                <div className="p-6 space-y-2">
-                  {menuItems.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <Link
-                        key={item.name}
-                        to={item.path}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-4 px-6 py-4 rounded-2xl bg-gray-50 dark:bg-gray-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all"
-                      >
-                        <Icon size={20} className="text-emerald-600 dark:text-emerald-400" />
-                        <span className="text-lg font-medium text-gray-800 dark:text-white">{item.name}</span>
-                      </Link>
-                    );
-                  })}
-                  <button
-                    onClick={handleLogout}
-                    className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-all"
-                  >
-                    <FiLogOut size={20} />
-                    Logout
-                  </button>
-                </div>
-              </div>
+      
+      <header className="fixed top-0 left-0 right-0 h-20 z-[40] bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-50 dark:border-gray-800 flex items-center justify-between px-6 lg:pl-[280px] transition-all duration-500">
+        <div className="flex items-center gap-4">
+          
+          <button onClick={() => setSidebarOpen(true)} className="lg:hidden w-11 h-11 rounded-2xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-lime-500 hover:text-white transition-all shadow-sm">
+            <FiMenu size={20} />
+          </button>
+          
+          <div className="hidden sm:block">
+     <img
+                                     src={logo}
+                                     alt="Tech & Bazaar"
+                                     className="h-16 w-auto rounded-xl object-cover transition-transform duration-500 group-hover:scale-105"
+                                     style={{ transform: "scale(1.35)", transformOrigin: "left center" }}
+                                   />
+           
+          </div>
+        </div>
+
+        
+        <div className="flex items-center gap-3">
+        
+          
+          <div className="h-8 w-[1px] bg-gray-100 dark:bg-gray-800 mx-1" />
+
+          <Link to="/delivery/profile" className="flex items-center gap-3 pl-1 pr-3 py-1 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all group">
+            <div className="w-10 h-10 rounded-2xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400 group-hover:text-lime-500 transition-colors">
+              <FiUser size={18} />
             </div>
-          )}
-        </header>
-      )}
+            <div className="hidden md:block text-right">
+              <p className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-widest">{userProfile?.name?.split(' ')[0] || "Agent"}</p>
+              <p className="text-[9px] font-bold text-gray-400">View Profile</p>
+            </div>
+          </Link>
+        </div>
+      </header>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        .custom-scrollbar-thin::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
+        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #1f2937; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
+      `}} />
     </>
   );
 };

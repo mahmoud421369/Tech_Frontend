@@ -1,78 +1,128 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { FiChevronLeft, FiChevronRight, FiTag, FiCalendar, FiPercent } from 'react-icons/fi';
 import { RiStore2Line } from 'react-icons/ri';
 import api from '../api';
-import Swal from 'sweetalert2';
 
-const GlassCard = ({ children }) => (
-  <div className="relative backdrop-blur-xl bg-white/80 dark:bg-black/30 border border-gray-200/50 dark:border-gray-700/50 rounded-2xl p-6 shadow-lg hover:shadow-2xl hover:-translate-y-2 transition-all duration-500">
-    {children}
-  </div>
-);
+const STATUS_STYLES = {
+  active:  'bg-emerald-500 text-white',
+  expired: 'bg-red-500 text-white',
+  pending: 'bg-amber-400 text-amber-900',
+};
 
-const OfferCard = ({ offer, darkMode }) => {
-  const formatDate = (date) => {
-    if (!date) return 'N/A';
-    return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
+const CARD_GRADIENTS = [
+  { from: 'from-lime-500',   to: 'to-emerald-600' },
+  { from: 'from-violet-500', to: 'to-purple-600'  },
+  { from: 'from-orange-500', to: 'to-rose-600'    },
+  { from: 'from-cyan-500',   to: 'to-blue-600'    },
+  { from: 'from-pink-500',   to: 'to-red-600'     },
+];
 
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'active': return 'bg-emerald-500 text-white';
-      case 'expired': return 'bg-red-500 text-white';
-      case 'pending': return 'bg-amber-500 text-white';
-      default: return 'bg-gray-500 text-white';
-    }
-  };
-
+/* ── Offer card ─────────────────────────────────────────────── */
+const OfferCard = ({ offer, darkMode, gradientIndex = 0 }) => {
+  const { from, to } = CARD_GRADIENTS[gradientIndex % CARD_GRADIENTS.length];
   const isPercentage = offer.discountType === 'PERCENTAGE';
 
+  const formatDate = (d) =>
+    d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
+
   return (
-    <GlassCard>
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.3 }}
+      className={`relative flex flex-col h-full rounded-2xl overflow-hidden shadow-lg
+        transition-shadow duration-300 hover:shadow-2xl hover:-translate-y-1 ${
+          darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-100'
+        }`}
+    >
+      {/* top accent */}
+      <div className={`h-1.5 w-full bg-gradient-to-r ${from} ${to} flex-shrink-0`} />
+
+      {/* discount badge */}
       {offer.discountValue && (
-        <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-10">
-          <div className="bg-gradient-to-br from-emerald-500 to-lime-600 text-white font-bold px-4 py-2 rounded-2xl shadow-2xl flex items-center gap-2 text-sm">
-            {isPercentage ? <FiPercent className="w-4 h-4" /> : <span className="text-xs">EGP</span>}
-            <span>{offer.discountValue}{isPercentage ? '%' : ''}</span>
-            <span className="text-xs font-normal">OFF</span>
+        <div className="absolute top-4 right-4 z-10">
+          <div className={`bg-gradient-to-r ${from} ${to} text-white font-extrabold text-sm
+            px-3 py-1.5 rounded-xl shadow-md flex items-center gap-1.5`}>
+            {isPercentage ? <FiPercent className="w-3.5 h-3.5" /> : <span className="text-xs">EGP</span>}
+            {offer.discountValue}{isPercentage ? '%' : ''} OFF
           </div>
         </div>
       )}
 
-      <div className="mt-6">
-        <h3 className={`font-bold text-xl line-clamp-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+      <div className="flex flex-col flex-1 p-5 pt-4 gap-3">
+        <div className={`flex items-center gap-2 text-xs font-semibold ${darkMode ? 'text-lime-400' : 'text-lime-600'}`}>
+          <RiStore2Line className="w-4 h-4 flex-shrink-0" />
+          <span className="line-clamp-1">{offer.shopName || 'Partner Shop'}</span>
+        </div>
+
+        <h3 className={`font-bold text-base sm:text-lg leading-snug line-clamp-2 pr-20 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
           {offer.name}
         </h3>
-        <p className={`text-sm mt-3 line-clamp-3 leading-relaxed ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+
+        <p className={`text-sm leading-relaxed line-clamp-3 flex-1 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
           {offer.description || 'Limited time offer on selected devices and services.'}
         </p>
 
-        <div className="flex items-center gap-2 mt-4 text-sm">
-          <RiStore2Line className="w-5 h-5 text-emerald-500" />
-          <span className={darkMode ? 'text-gray-400' : 'text-gray-700'}>{offer.shopName}</span>
-        </div>
-      </div>
-
-      <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
-        <div className="flex items-center gap-2 text-sm">
-          <FiCalendar className="w-4 h-4 text-emerald-500" />
-          <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+        <div className={`flex items-center justify-between pt-3 border-t ${darkMode ? 'border-gray-700' : 'border-gray-100'}`}>
+          <div className={`flex items-center gap-1.5 text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            <FiCalendar className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
             Ends {formatDate(offer.endDate)}
+          </div>
+          <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+            STATUS_STYLES[offer.status?.toLowerCase()] || 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+          }`}>
+            {offer.status?.toUpperCase() || 'ACTIVE'}
           </span>
         </div>
-        <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${getStatusColor(offer.status)}`}>
-          {offer.status?.toUpperCase()}
-        </span>
       </div>
-    </GlassCard>
+    </motion.div>
   );
 };
 
+const SkeletonCard = ({ darkMode }) => (
+  <div className={`rounded-2xl overflow-hidden border animate-pulse ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'}`}>
+    <div className={`h-1.5 w-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
+    <div className="p-5 space-y-3">
+      <div className={`h-3 w-24 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
+      <div className={`h-5 w-3/4 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
+      <div className={`h-3 w-full rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
+      <div className={`h-3 w-5/6 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
+      <div className="flex justify-between pt-3">
+        <div className={`h-3 w-28 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
+        <div className={`h-5 w-16 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
+      </div>
+    </div>
+  </div>
+);
+
+/* ── Visible count hook ─────────────────────────────────────── */
+const useVisibleCount = () => {
+  const [count, setCount] = useState(3);
+  useEffect(() => {
+    const update = () => {
+      const w = window.innerWidth;
+      setCount(w < 640 ? 1 : w < 1024 ? 2 : 3);
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+  return count;
+};
+
+/* ── Main OffersSlider ─────────────────────────────────────── */
 const OffersSlider = ({ darkMode }) => {
   const [offers, setOffers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const sliderRef = useRef(null);
+  const autoPlayRef = useRef(null);
+  const visibleCount = useVisibleCount();
+
+  const maxIndex = Math.max(0, offers.length - visibleCount);
+  /* dots only when > 3 offers */
+  const showDots   = offers.length > 3;
+  const showArrows = offers.length > visibleCount;
 
   const fetchOffers = useCallback(async () => {
     try {
@@ -82,145 +132,160 @@ const OffersSlider = ({ darkMode }) => {
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         .slice(0, 20);
       setOffers(latest);
-    } catch (error) {
-      Swal.fire({
-        title: 'Error',
-        text: 'Failed to load offers',
-        icon: 'error',
-        toast: true,
-        position: 'top-end',
-        timer: 3000,
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    } catch { /* silently fail */ }
+    finally { setIsLoading(false); }
   }, []);
 
-  useEffect(() => {
-    fetchOffers();
-  }, [fetchOffers]);
+  useEffect(() => { fetchOffers(); }, [fetchOffers]);
 
-  const scrollToIndex = (index) => {
-    if (!sliderRef.current) return;
-    const cardWidth = sliderRef.current.children[0]?.offsetWidth || 380;
-    const gap = 24;
-    const scrollPosition = index * (cardWidth + gap);
-    sliderRef.current.scrollTo({ left: scrollPosition, behavior: 'smooth' });
-    setCurrentIndex(index);
-  };
+  const goTo = useCallback((idx) => {
+    setCurrentIndex(Math.max(0, Math.min(idx, maxIndex)));
+  }, [maxIndex]);
 
-  const scrollNext = () => {
-    const next = currentIndex + 1;
-    if (next >= offers.length) return;
-    scrollToIndex(next);
-  };
+  const next = useCallback(() => {
+    setCurrentIndex((prev) => (prev >= maxIndex ? 0 : prev + 1));
+  }, [maxIndex]);
 
-  const scrollPrev = () => {
-    const prev = currentIndex - 1;
-    if (prev < 0) return;
-    scrollToIndex(prev);
-  };
+  const prev = useCallback(() => {
+    setCurrentIndex((prev) => (prev <= 0 ? maxIndex : prev - 1));
+  }, [maxIndex]);
+
+  /* auto-play */
+  const startAutoPlay = useCallback(() => {
+    clearInterval(autoPlayRef.current);
+    if (offers.length > visibleCount) {
+      autoPlayRef.current = setInterval(next, 5500);
+    }
+  }, [offers.length, visibleCount, next]);
 
   useEffect(() => {
-    if (isLoading || offers.length === 0) return;
-    const interval = setInterval(scrollNext, 6000);
-    return () => clearInterval(interval);
-  }, [isLoading, offers.length, currentIndex]);
+    if (!isLoading) startAutoPlay();
+    return () => clearInterval(autoPlayRef.current);
+  }, [isLoading, startAutoPlay]);
 
-  useEffect(() => {
-    if (!sliderRef.current || offers.length === 0) return;
-    const handleScroll = () => {
-      const scrollLeft = sliderRef.current.scrollLeft;
-      const cardWidth = sliderRef.current.children[0]?.offsetWidth || 380;
-      const gap = 24;
-      const index = Math.round(scrollLeft / (cardWidth + gap));
-      setCurrentIndex(Math.max(0, Math.min(index, offers.length - 1)));
-    };
-    sliderRef.current.addEventListener('scroll', handleScroll);
-    return () => sliderRef.current?.removeEventListener('scroll', handleScroll);
-  }, [offers.length]);
+  const pauseAutoPlay = () => clearInterval(autoPlayRef.current);
+  const resumeAutoPlay = () => startAutoPlay();
 
+  /* ── Loading ── */
   if (isLoading) {
     return (
-      <section className="py-16 bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading exclusive offers...</p>
+      <section className={`py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
+          <div className="h-8 w-52 rounded-xl mx-auto mb-10 animate-pulse bg-lime-500/20" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[1, 2, 3].map((i) => <SkeletonCard key={i} darkMode={darkMode} />)}
+          </div>
         </div>
       </section>
     );
   }
 
+  /* ── Empty ── */
   if (offers.length === 0) {
     return (
-      <section className="py-16 bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <FiTag className="mx-auto text-5xl mb-4 text-gray-400 dark:text-gray-600" />
-          <h3 className="text-xl font-bold text-gray-800 dark:text-white">No Offers Available</h3>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">Check back soon for exciting deals!</p>
+      <section className={`py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <div className="max-w-7xl mx-auto px-5 text-center space-y-3">
+          <div className={`inline-flex p-5 rounded-full ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
+            <FiTag className={`w-8 h-8 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+          </div>
+          <p className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>No Offers Available</p>
+          <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Check back soon for exciting deals!</p>
         </div>
       </section>
     );
   }
 
-  return (
-    <section className="py-16 bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-10">
-          <h2 className="text-3xl sm:text-4xl font-extrabold bg-gradient-to-r from-emerald-600 to-lime-500 bg-clip-text text-transparent">
-            Exclusive Offers
-          </h2>
-          <p className="mt-3 text-base text-gray-600 dark:text-gray-300">
-            Grab the best deals on devices and repair services
-          </p>
-        </div>
+  const cardWidthPct = 100 / visibleCount;
+  const translateX   = -(currentIndex * cardWidthPct);
 
-        <div className="relative">
-          <div
-            ref={sliderRef}
-            className="flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth hide-scrollbar"
-          >
-            {offers.map((offer) => (
-              <div
-                key={offer.id}
-                className="flex-shrink-0 w-full sm:w-80 md:w-96 snap-start"
-              >
-                <OfferCard offer={offer} darkMode={darkMode} />
-              </div>
-            ))}
+  return (
+    <section className={`py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+      <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="flex items-end justify-between mb-10 flex-wrap gap-4">
+          <div>
+            <motion.h2
+              initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+              className="text-3xl sm:text-4xl font-extrabold bg-gradient-to-r from-emerald-600 to-lime-500 bg-clip-text text-transparent"
+            >
+              Exclusive Offers
+            </motion.h2>
+            <p className={`mt-1 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              Grab the best deals on devices and repair services
+            </p>
           </div>
 
-          <button
-            onClick={scrollPrev}
-            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 p-3 rounded-full bg-white/90 dark:bg-black/70 shadow-2xl hover:scale-110 transition-all backdrop-blur-md"
-            aria-label="Previous"
-          >
-            <FiChevronLeft className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-          </button>
-
-          <button
-            onClick={scrollNext}
-            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 p-3 rounded-full bg-white/90 dark:bg-black/70 shadow-2xl hover:scale-110 transition-all backdrop-blur-md"
-            aria-label="Next"
-          >
-            <FiChevronRight className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-          </button>
+          {showArrows && (
+            <div className="flex gap-2">
+              <motion.button whileTap={{ scale: 0.93 }}
+                onMouseEnter={pauseAutoPlay} onMouseLeave={resumeAutoPlay}
+                onClick={prev}
+                disabled={currentIndex === 0 && maxIndex !== 0}
+                className={`p-2.5 rounded-xl border transition-all ${
+                  currentIndex === 0 && maxIndex !== 0
+                    ? 'opacity-30 cursor-not-allowed'
+                    : darkMode ? 'bg-gray-800 border-gray-700 text-white hover:border-lime-500'
+                               : 'bg-white border-gray-200 text-gray-700 hover:border-lime-500'
+                }`}>
+                <FiChevronLeft className="w-5 h-5" />
+              </motion.button>
+              <motion.button whileTap={{ scale: 0.93 }}
+                onMouseEnter={pauseAutoPlay} onMouseLeave={resumeAutoPlay}
+                onClick={next}
+                disabled={currentIndex >= maxIndex && maxIndex !== 0}
+                className={`p-2.5 rounded-xl border transition-all ${
+                  currentIndex >= maxIndex && maxIndex !== 0
+                    ? 'opacity-30 cursor-not-allowed'
+                    : darkMode ? 'bg-gray-800 border-gray-700 text-white hover:border-lime-500'
+                               : 'bg-white border-gray-200 text-gray-700 hover:border-lime-500'
+                }`}>
+                <FiChevronRight className="w-5 h-5" />
+              </motion.button>
+            </div>
+          )}
         </div>
 
-        <div className="flex justify-center gap-2 mt-8">
-          {offers.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => scrollToIndex(i)}
-              className={`transition-all duration-300 rounded-full ${
-                i === currentIndex
-                  ? 'w-10 h-2 bg-emerald-600'
-                  : 'w-2 h-2 bg-gray-400 dark:bg-gray-600 hover:bg-emerald-400'
-              }`}
-              aria-label={`Go to offer ${i + 1}`}
-            />
-          ))}
+        {/* Track */}
+        <div className="overflow-hidden" onMouseEnter={pauseAutoPlay} onMouseLeave={resumeAutoPlay}>
+          <motion.div
+            className="flex"
+            animate={{ x: `${translateX}%` }}
+            transition={{ type: 'spring', stiffness: 260, damping: 30 }}
+          >
+            {offers.map((offer, i) => (
+              <div key={offer.id}
+                style={{ minWidth: `${cardWidthPct}%` }}
+                className="px-2.5 box-border"
+              >
+                <OfferCard offer={offer} darkMode={darkMode} gradientIndex={i} />
+              </div>
+            ))}
+          </motion.div>
         </div>
+
+        {/* Dots — only if > 3 offers */}
+        <AnimatePresence>
+          {showDots && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="flex justify-center gap-2 mt-8"
+            >
+              {Array.from({ length: maxIndex + 1 }).map((_, i) => (
+                <motion.button
+                  key={i}
+                  onClick={() => goTo(i)}
+                  className={`rounded-full transition-all duration-300 ${
+                    i === currentIndex
+                      ? 'w-8 h-2 bg-emerald-500'
+                      : darkMode ? 'w-2 h-2 bg-gray-600 hover:bg-gray-400'
+                                 : 'w-2 h-2 bg-gray-300 hover:bg-gray-400'
+                  }`}
+                  aria-label={`Go to slide ${i + 1}`}
+                />
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </section>
   );

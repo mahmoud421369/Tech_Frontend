@@ -1,258 +1,266 @@
-/* eslint-disable jsx-a11y/anchor-is-valid */
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
 import {
-  FiSettings, FiLogOut, FiUser, FiChevronDown,
-  FiHome, FiUsers, FiStar, FiTag, FiList, FiMoon, FiSun,
-  FiBox, FiTool, FiClipboard, FiMenu, FiSearch, FiX, FiDollarSign
+  FiMoon, FiSun, FiUser, FiLogOut, FiMenu, FiX,
+  FiActivity, FiUsers, FiBox, FiTool, FiClipboard, FiRefreshCw, FiSearch,
+  FiChevronDown, FiBell, FiSettings, FiGrid, FiArchive, FiTag, FiStar, FiShoppingBag, FiTruck, FiLayers, FiCreditCard
 } from "react-icons/fi";
-import {
-  RiAccountBox2Line, RiGift2Line, RiStore2Line, RiStore3Line, RiTruckLine
-} from "react-icons/ri";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import logo from "../images/logo-bg.png";
 import Swal from "sweetalert2";
-import api from "../api";
 import { jwtDecode } from "jwt-decode";
+import api from "../api";
+import logo from "../images/logo-bg.png";
 
-const Header = () => {
-  
-  const [darkMode, setDarkMode] = useState(false);
-  const [showProfileMenu] = useState(false); // unused now but kept in case
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [shopDropdownOpen, setShopDropdownOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
 
-  const location = useLocation();
+
+
+
+const MENU_GROUPS = [
+  {
+    label: "Core Administration",
+    items: [
+      { name: "Dashboard", path: "/admin/dashboard", icon: <FiActivity size={18} /> },
+      { name: "Users", path: "/admin/users", icon: <FiUsers size={18} /> },
+      { name: "Categories", path: "/admin/category", icon: <FiLayers size={18} /> },
+      { name: "Transactions", path: "/admin/transactions", icon: <FiCreditCard size={18} /> },
+    ]
+  },
+  {
+    label: "Shop Ecosystem",
+    items: [
+      { name: "Stores", path: "/admin/shops", icon: <FiShoppingBag size={18} /> },
+      { name: "Subscriptions", path: "/admin/subscriptions", icon: <FiSettings size={18} /> },
+      { name: "Products", path: "/admin/products", icon: <FiBox size={18} /> },
+      { name: "Repair Requests", path: "/admin/repair-requests", icon: <FiTool size={18} /> },
+      { name: "Offers", path: "/admin/offers", icon: <FiTag size={18} /> },
+      { name: "Reviews", path: "/admin/reviews", icon: <FiStar size={18} /> },
+    ]
+  },
+  {
+    label: "Logistics Management",
+    items: [
+      { name: "Delivery Network", path: "/admin/deliveries", icon: <FiTruck size={18} /> },
+      { name: "Assigners", path: "/admin/assigners", icon: <FiUsers size={18} /> },
+      { name: "Assignment Logs", path: "/admin/assignment-logs", icon: <FiClipboard size={18} /> },
+    ]
+  }
+];
+
+
+
+const isTokenExpired = (token) => {
+  if (!token) return true;
+  try {
+    const d = jwtDecode(token);
+    return !d.exp || d.exp < Date.now() / 1000;
+  } catch { return true; }
+};
+
+
+const NavLink = memo(({ item, active, onClick }) => (
+  <Link
+    to={item.path}
+    onClick={onClick}
+    className={`group flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all duration-300 relative overflow-hidden
+      ${active
+        ? "bg-lime-500 text-white shadow-lg shadow-lime-500/20 active:scale-95"
+        : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"}`}
+  >
+    <span className={`flex-shrink-0 transition-transform duration-500 ${active ? "scale-110" : "group-hover:scale-110 group-hover:rotate-6"}`}>
+      {item.icon}
+    </span>
+    <span className="relative z-10">{item.name}</span>
+    {active && (
+      <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+    )}
+  </Link>
+));
+
+
+
+
+const Header = ({ darkMode: darkModeProp, toggleDarkMode }) => {
   const navigate = useNavigate();
-
+  const location = useLocation();
+  const [localDarkMode, setLocalDarkMode] = useState(() => localStorage.getItem("darkMode") === "true");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [token, setToken] = useState(localStorage.getItem("authToken"));
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
 
-  const user = {
-    name: "Mahmoud Ali",
-    email: "tech@repairdevices.com",
-  };
+  const darkMode = darkModeProp !== undefined ? darkModeProp : localDarkMode;
 
-  const menuItems = useMemo(
-    () => [
-      { name: "dashboard", icon: <FiHome />, label: "Dashboard", path: "/admin/dashboard" },
-      { name: "users", icon: <FiUsers />, label: "Users", path: "/admin/users" },
-      {
-        name: "shops",
-        icon: <RiStore3Line />,
-        label: "Shop",
-        subMenu: [
-          { name: "shops", icon: <RiStore2Line />, label: "Stores", path: "/admin/shops" },
-          { name: "subscriptions", icon: <RiAccountBox2Line />, label: "Subscription", path: "/admin/subscriptions" },
-          { name: "products", icon: <FiBox />, label: "Products", path: "/admin/products" },
-          { name: "repair requests", icon: <FiTool />, label: "Repair Requests", path: "/admin/repair-requests" },
-          { name: "offers", icon: <FiTag />, label: "Offers", path: "/admin/offers" },
-          { name: "reviews", icon: <FiStar />, label: "Reviews", path: "/admin/reviews" },
-        ],
-      },
-      { name: "categories", icon: <FiList />, label: "Categories", path: "/admin/category" },
-      { name: "transactions", icon: <FiDollarSign />, label: "Transactions", path: "/admin/transactions" },
-      { name: "delivery", icon: <RiTruckLine />, label: "Delivery", path: "/admin/deliveries" },
-      { name: "assigners", icon: <RiGift2Line />, label: "Assigner", path: "/admin/assigners" },
-      { name: "assignment-logs", icon: <FiClipboard />, label: "Assignment Logs", path: "/admin/assignment-logs" },
-    ],
-    []
-  );
 
-  /* ------------------------------------------------------------------ */
-  /*  AUTH & JWT                                                        */
-  /* ------------------------------------------------------------------ */
-  const safeDecodeJwt = useCallback((token) => {
-    if (!token) return null;
-    try {
-      return jwtDecode(token);
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const isTokenExpired = useCallback((token) => {
-    const decoded = safeDecodeJwt(token);
-    return !decoded || !decoded.exp || decoded.exp < Date.now() / 1000;
-  }, [safeDecodeJwt]);
-
-  const handleLogout = useCallback(async () => {
-    const refreshToken = localStorage.getItem("refreshToken");
-    try {
-      if (token && refreshToken) {
-        await api.post("/api/auth/logout", { refreshToken });
-      }
-    } catch (err) { /* ignore */ }
-    localStorage.clear();
-    setToken(null);
-    setIsAuthenticated(false);
-    Swal.fire({ title: "Logged out!", icon: "success", timer: 1500, showConfirmButton: false });
-    navigate("/login", { replace: true });
-  }, [token, navigate]);
+  
 
   useEffect(() => {
-    const currentToken = localStorage.getItem("authToken");
-    if (!currentToken || isTokenExpired(currentToken)) {
+    document.documentElement.classList.toggle("dark", darkMode);
+    localStorage.setItem("darkMode", darkMode);
+  }, [darkMode]);
+
+  const toggleDark = useCallback(() => {
+    const next = !darkMode;
+    if (toggleDarkMode) toggleDarkMode(next);
+    else setLocalDarkMode(next);
+  }, [darkMode, toggleDarkMode]);
+
+ 
+  
+
+  useEffect(() => {
+    if (token && !isTokenExpired(token)) {
+      
+    } else {
       localStorage.removeItem("authToken");
       localStorage.removeItem("refreshToken");
-      setIsAuthenticated(false);
-      if (!["/login", "/signup"].includes(location.pathname)) {
-        navigate("/login");
-      }
-    } else {
-      setToken(currentToken);
-      setIsAuthenticated(true);
+      navigate("/login");
     }
-  }, [location.pathname, navigate, isTokenExpired]);
+  }, [token, navigate, ]);
 
-  /* ------------------------------------------------------------------ */
-  /*  DARK MODE                                                         */
-  /* ------------------------------------------------------------------ */
-  useEffect(() => {
-    const saved = localStorage.getItem("darkMode") === "true";
-    setDarkMode(saved);
-    document.documentElement.classList.toggle("dark", saved);
-  }, []);
+ 
+  
+  const handleLogout = useCallback(async () => {
+    const refreshToken = localStorage.getItem("refreshToken");
+    const { isConfirmed } = await Swal.fire({
+      title: "Confirm Logout",
+      text: "Ending your administrative session?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#84cc16",
+      cancelButtonColor: "#ef4444",
+      confirmButtonText: "Logout Now",
+      background: darkMode ? '#111827' : '#fff',
+      color: darkMode ? '#fff' : '#000',
+    });
+    if (!isConfirmed) return;
+    try {
+      if (token && refreshToken) await api.post("/api/auth/logout", { refreshToken }, { headers: { Authorization: `Bearer ${token}` } });
+    } catch {  }
+    localStorage.clear();
+    navigate("/login");
+  }, [token, navigate, darkMode]);
 
-  const toggleDarkMode = () => {
-    const newMode = !darkMode;
-    setDarkMode(newMode);
-    localStorage.setItem("darkMode", newMode);
-    document.documentElement.classList.toggle("dark", newMode);
-  };
-
-  /* ------------------------------------------------------------------ */
-  /*  SEARCH FILTERING                                                  */
-  /* ------------------------------------------------------------------ */
-  const filteredMenuItems = useMemo(() => {
-    if (!searchQuery.trim()) return menuItems;
-    const q = searchQuery.toLowerCase();
-    return menuItems
-      .map(item => {
-        const matchesMain = item.label.toLowerCase().includes(q);
-        if (item.subMenu) {
-          const filteredSub = item.subMenu.filter(s => s.label.toLowerCase().includes(q));
-          return matchesMain || filteredSub.length > 0 ? { ...item, subMenu: filteredSub } : null;
-        }
-        return matchesMain ? item : null;
-      })
-      .filter(Boolean);
-  }, [menuItems, searchQuery]);
+  const isActive = (path) => location.pathname === path;
+  const closeSidebar = () => setSidebarOpen(false);
 
   return (
     <>
-   
-      {isSidebarOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden" onClick={() => setIsSidebarOpen(false)} />
+      
+      
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-md z-[60] lg:hidden transition-all duration-500" onClick={closeSidebar} aria-hidden="true" />
       )}
 
       
-      <nav className={`fixed inset-y-0 left-0 z-50 w-64 bg-white/95 dark:bg-black/40 backdrop-blur-2xl border-r border-gray-200 dark:border-emerald-500/30 shadow-2xl transition-all duration-500 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
-        <div className="flex flex-col h-full">
-          <div className="p-6 border-b border-gray-200 dark:border-emerald-500/30">
-            <div className="flex items-center justify-center relative group">
-              <img src={logo} alt="Tech & Bazaar" className="h-28 object-contain drop-shadow-2xl group-hover:scale-105 transition-all duration-500" />
-              {darkMode && <div className="absolute inset-0 bg-emerald-500/30 blur-3xl animate-pulse" />}
-            </div>
-            <button onClick={() => setIsSidebarOpen(false)} className="absolute top-4 right-4 lg:hidden text-gray-500 hover:text-emerald-500">
-              <FiX size={24} />
-            </button>
-          </div>
-
-          <ul className="flex-1 py-4 px-3 space-y-4 overflow-y-auto">
-            {filteredMenuItems.map(item => (
-              <li key={item.name}>
-                {item.subMenu ? (
-                  <div>
-                    <button
-                      onClick={() => setShopDropdownOpen(prev => prev === item.name ? null : item.name)}
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-medium text-sm transition-all ${darkMode ? "text-emerald-400 hover:bg-emerald-500/10" : "text-gray-700 hover:bg-emerald-50"}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-emerald-600 dark:text-emerald-400 text-lg">{item.icon}</span>
-                        <span>{item.label}</span>
-                      </div>
-                      <FiChevronDown className={`transition-transform ${shopDropdownOpen === item.name ? "rotate-180" : ""}`} />
-                    </button>
-                    {shopDropdownOpen === item.name && (
-                      <ul className="mt-2 ml-10 space-y-4">
-                        {item.subMenu.map(sub => (
-                          <li key={sub.name}>
-                            <Link
-                              to={sub.path}
-                              onClick={() => setIsSidebarOpen(false)}
-                              className={`flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all ${darkMode ? "text-emerald-300 hover:bg-emerald-500/10" : "text-gray-600 hover:bg-emerald-50"}`}
-                            >
-                              <span className="text-emerald-600 dark:text-emerald-400 text-base">{sub.icon}</span>
-                              {sub.label}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                ) : (
-                  <Link
-                    to={item.path}
-                    onClick={() => setIsSidebarOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all ${darkMode ? "text-emerald-400 hover:bg-emerald-500/10" : "text-gray-700 hover:bg-emerald-50"}`}
-                  >
-                    <span className="text-emerald-600 dark:text-emerald-400 text-lg">{item.icon}</span>
-                    <span>{item.label}</span>
-                  </Link>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </nav>
-
       
-      <header className={`fixed top-0 left-0 right-0 h-20 z-40 flex items-center justify-between px-6 shadow-lg lg:pl-64 transition-all duration-500 ${
-        darkMode 
-          ? "bg-gray-950/95 backdrop-blur-2xl border-b border-emerald-500/30" 
-          : "bg-white/95 border-b border-gray-200"
-      }`}>
+      <aside
+        className={`fixed inset-y-0 left-0 z-[70] w-64 bg-white/80 dark:bg-gray-900/90 backdrop-blur-2xl border-r border-gray-100 dark:border-gray-800 shadow-2xl flex flex-col transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1)
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
+      >
         
-        <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-3 rounded-2xl bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition">
-          <FiMenu size={24} />
-        </button>
+        
+        <div className="relative h-20 flex items-center justify-between px-6 border-b border-gray-50 dark:border-gray-800/50">
+          <Link to="/admin/dashboard" className="flex items-center  gap-2 group" onClick={closeSidebar}>
+            <div className="w-10 h-10 rounded-2xl bg-lime-500 flex items-center justify-center group-hover:rotate-12 transition-transform duration-500 shadow-lg shadow-lime-500/20">
+                         <FiGrid className="text-white" size={20} />
+                       </div>
+                       <span className="text-lg font-black text-gray-900 dark:text-white tracking-tighter">Admin<span className="text-lime-500">Panel</span></span>
+          </Link>
+          <button onClick={closeSidebar} className="lg:hidden p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-red-500 transition-all">
+            <FiX size={18} />
+          </button>
+        </div>
 
-        <div className="flex items-center gap-6 ml-auto">
-          
-          <div className="relative hidden lg:block">
+       
+       
+        <div className="flex-1 overflow-y-auto py-6 px-4 custom-scrollbar-thin space-y-8">
+         
+         
+          <div className="relative group px-2">
+            <FiSearch className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={16} />
             <input
               type="text"
-              placeholder="Search anything..."
+              placeholder="Quick Search..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-80 pl-12 pr-6 py-4 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/30 transition-all ${
-                darkMode 
-                  ? "bg-emerald-950/50 border border-emerald-500/40 text-white placeholder-emerald-400" 
-                  : "bg-gray-100 border border-gray-300 text-gray-900"
-              }`}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-transparent focus:border-lime-200 dark:focus:border-lime-900/50 text-xs font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/5 transition-all"
             />
-            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500" size={20} />
           </div>
 
+          {MENU_GROUPS.map((group, idx) => (
+            <div key={idx} className="space-y-2">
+              <h3 className="px-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">{group.label}</h3>
+              <div className="space-y-1">
+                {group.items
+                  .filter(item => !searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                  .map(item => (
+                    <NavLink key={item.name} item={item} active={isActive(item.path)} onClick={closeSidebar} />
+                  ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
         
-          <button onClick={toggleDarkMode} className={`p-4 rounded-2xl transition-all ${
-            darkMode 
-              ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 shadow-lg shadow-emerald-500/50" 
-              : "bg-emerald-100 text-emerald-600 hover:bg-emerald-200"
-          }`}>
-            {darkMode ? <FiMoon size={22} /> : <FiSun size={22} />}
+        
+        <div className="p-4 mt-auto border-t border-gray-50 dark:border-gray-800/50 bg-gray-50/30 dark:bg-gray-800/20">
+          <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-4 space-y-3">
+            <div className="flex gap-2">
+              <button onClick={toggleDark} className="flex-1 h-10 rounded-xl bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-500 hover:text-lime-500 transition-all">
+                {darkMode ? <FiSun size={16} /> : <FiMoon size={16} />}
+              </button>
+              <button onClick={handleLogout} className="flex-1 h-10 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500 hover:bg-red-100 transition-all">
+                <FiLogOut size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+     
+     
+      <header className="fixed top-0 left-0 right-0 h-20 z-[40] bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-50 dark:border-gray-800 flex items-center justify-between px-6 lg:pl-[280px] transition-all duration-500">
+        <div className="flex items-center gap-4">
+          
+          
+          <button onClick={() => setSidebarOpen(true)} className="lg:hidden w-11 h-11 rounded-2xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-lime-500 hover:text-white transition-all shadow-sm">
+            <FiMenu size={20} />
           </button>
 
-          
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-2xl hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg"
-          >
-            <FiLogOut size={20} /> Logout
-          </button>
+          <div className="hidden sm:block">
+             <img
+                         src={logo}
+                         alt="Tech & Restore"
+                         className="h-16 w-auto rounded-xl object-cover transition-transform duration-500 group-hover:scale-105"
+                         style={{ transform: "scale(1.35)", transformOrigin: "left center" }}
+                       />
+          </div>
         </div>
+
+      
+      
+        {/* <div className="flex items-center gap-3">
+          <div className="h-8 w-[1px] bg-gray-100 dark:bg-gray-800 mx-1" />
+
+          <Link to="/admin/profile" className="flex items-center gap-3 pl-1 pr-3 py-1 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all group">
+            <div className="w-10 h-10 rounded-2xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400 group-hover:text-lime-500 transition-colors">
+              <FiUser size={18} />
+            </div>
+            <div className="hidden md:block text-right">
+              <p className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-widest">{userProfile?.name?.split(' ')[0] || "Admin"}</p>
+              <p className="text-[9px] font-bold text-gray-400">Master Admin</p>
+            </div>
+          </Link>
+        </div> */}
       </header>
+
+      <style dangerouslySetInnerHTML={{
+        __html: `
+        .custom-scrollbar-thin::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
+        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #1f2937; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
+      `}} />
     </>
   );
 };

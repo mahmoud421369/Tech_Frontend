@@ -1,283 +1,411 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import {
+import React, { useEffect, useState, useCallback, useMemo, memo } from "react";
+import { 
   FiTool, FiMapPin, FiDollarSign, FiClock,
-  FiCheckCircle, FiHome, FiUser, FiPackage,
-  FiUserPlus,
-  FiPhone
+  FiCheckCircle, FiUser, FiPackage, FiPhone,
+  FiChevronLeft, FiChevronRight, FiSearch, FiCopy,
+  FiRefreshCw, FiInfo, FiX, FiActivity, FiArrowRight
 } from "react-icons/fi";
+import { FaStore } from "react-icons/fa";
+import Swal from "sweetalert2";
 import { getMyRepairs, updateRepairStatus } from "../api/deliveryApi";
+import api from "../api";
+
+
+
+const ROWS_OPTIONS = [10, 25, 50];
+
+const STATUS_STYLE = {
+  REPAIR_COMPLETED: { bg: "bg-emerald-50 dark:bg-emerald-900/20", text: "text-emerald-700 dark:text-emerald-400", dot: "bg-emerald-500" },
+  DEVICE_DELIVERED: { bg: "bg-emerald-50 dark:bg-emerald-900/20", text: "text-emerald-700 dark:text-emerald-400", dot: "bg-emerald-500" },
+  CANCELLED:        { bg: "bg-red-50 dark:bg-red-900/20",         text: "text-red-700 dark:text-red-400",         dot: "bg-red-500"     },
+  PICKED_UP:        { bg: "bg-indigo-50 dark:bg-indigo-900/20",   text: "text-indigo-700 dark:text-indigo-400",   dot: "bg-indigo-500"  },
+  DELIVERED_TO_SHOP:{ bg: "bg-blue-50 dark:bg-blue-900/20",       text: "text-blue-700 dark:text-blue-400",       dot: "bg-blue-500"    },
+  IN_REPAIR:        { bg: "bg-purple-50 dark:bg-purple-900/20",   text: "text-purple-700 dark:text-purple-400",   dot: "bg-purple-500"  },
+};
+
+const STATUS_LABEL = {
+  REPAIR_COMPLETED:  "Repair Completed",
+  DEVICE_DELIVERED:  "Device Delivered",
+  CANCELLED:         "Cancelled",
+  PICKED_UP:         "Picked Up",
+  DELIVERED_TO_SHOP: "Delivered to Shop",
+  IN_REPAIR:         "In Repair",
+};
+
+
+
+const formatPrice = (p) => `EGP ${(p || 0).toLocaleString()}`;
+const formatDate = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+
+
 
 const MyRepairs = () => {
-  const [repairs, setRepairs] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const repairsPerPage = 8;
+  const [repairs, setRepairs]           = useState([]);
+  const [isLoading, setIsLoading]       = useState(true);
+  const [searchTerm, setSearchTerm]     = useState("");
+  const [currentPage, setCurrentPage]   = useState(1);
+  const [rowsPerPage, setRowsPerPage]   = useState(10);
+  const [selectedRepair, setSelectedRepair] = useState(null);
+
+  const showToast = (text, icon) => {
+    Swal.fire({ text, icon, toast: true, position: "top-end", timer: 3000, showConfirmButton: false });
+  };
+
+    useEffect(() => { document.title = 'My Repairs | TechBazaar'; }, []);
+  
 
   const loadRepairs = useCallback(async () => {
     setIsLoading(true);
     try {
       const data = await getMyRepairs();
+    
       setRepairs(data.content || data || []);
-    } catch (err) {
-      toast.error("Failed to load your repairs");
-    } finally {
-      setIsLoading(false);
-    }
+    } catch { showToast("Failed to load repairs", "error"); }
+    finally { setIsLoading(false); }
   }, []);
 
-  useEffect(() => {
-    loadRepairs();
-    const interval = setInterval(loadRepairs, 15000);
-    return () => clearInterval(interval);
+  useEffect(() => { 
+    loadRepairs(); 
+    const t = setInterval(loadRepairs, 30000); 
+    return () => clearInterval(t); 
   }, [loadRepairs]);
 
-  const updateStatus = async (repairId, newStatus) => {
+  const handleUpdate = async (id, newStatus) => {
+    const { isConfirmed } = await Swal.fire({
+      title: 'Update Status?',
+      text: `Change repair status to ${STATUS_LABEL[newStatus]}?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#84cc16',
+      confirmButtonText: 'Confirm'
+    });
+    if (!isConfirmed) return;
+
     try {
-      await updateRepairStatus(repairId, { status: newStatus });
-      toast.success(
-        newStatus === "REPAIR_COMPLETED"
-          ? "Repair marked as completed!"
-          : newStatus === "DEVICE_DELIVERED"
-          ? "Device delivered to customer!"
-          : "Status updated!"
-      );
+      await updateRepairStatus(id, { status: newStatus });
+      showToast("Repair status updated", "success");
       loadRepairs();
-    } catch (err) {
-      toast.error("Failed to update status");
-    }
+    } catch { showToast("Failed to update status", "error"); }
   };
 
-  const totalPages = Math.ceil(repairs.length / repairsPerPage);
-  const currentRepairs = repairs.slice((currentPage - 1) * repairsPerPage, currentPage * repairsPerPage);
-
-  const getStatusStyle = (status) => {
-    switch (status) {
-      case "REPAIR_COMPLETED":
-      case "DEVICE_DELIVERED":
-        return "from-emerald-500 to-teal-600";
-      case "CANCELLED":
-        return "from-red-500 to-rose-600";
-      case "PICKED_UP":
-      case "DELIVERED_TO_SHOP":
-      case "IN_REPAIR":
-        return "from-indigo-500 to-purple-600";
-      default:
-        return "from-gray-400 to-gray-600";
-    }
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    showToast("Copied to clipboard", "success");
   };
 
-  const getStatusLabel = (status) => {
-    const labels = {
-      REPAIR_COMPLETED: "Repair Completed",
-      DEVICE_DELIVERED: "Device Delivered",
-      CANCELLED: "Cancelled",
-      PICKED_UP: "Picked Up",
-      DELIVERED_TO_SHOP: "Delivered to Shop",
-      IN_REPAIR: "In Repair",
-    };
-    return labels[status] || status?.replace(/_/g, " ");
-  };
+  const filtered = useMemo(() => {
+    return repairs.filter(r => 
+      String(r.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      `${r.firstName} ${r.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(r.userAddress?.street || "").toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [repairs, searchTerm]);
+
+  const paginated = useMemo(() => filtered.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage), [filtered, currentPage, rowsPerPage]);
+  const totalPages = Math.ceil(filtered.length / rowsPerPage);
 
   return (
-    <>
-      <ToastContainer position="top-right" theme={document.documentElement.classList.contains("dark") ? "dark" : "light"} />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
 
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-950 pt-24 pb-12 px-4">
-        <div className="max-w-7xl mx-auto">
-
+        
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-1.5 rounded-full bg-lime-500" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-600">Technical Hub</span>
+            </div>
+            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">My <span className="text-lime-500">Repairs</span></h1>
+            <p className="text-sm font-bold text-gray-500 dark:text-gray-400">Track device service cycles and manage delivery stages</p>
+          </div>
           
-          <div className="text-center mb-12 mt-5">
-            <h1 className="text-5xl md:text-6xl font-bold text-gray-800 dark:text-white flex items-center justify-center gap-6">
-              <div className="p-5 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl shadow-2xl text-white">
-                <FiTool size={48} />
+          <div className="flex items-center gap-3 bg-white dark:bg-gray-800 p-2 rounded-[2rem] border border-gray-100 dark:border-gray-700 shadow-sm">
+            <div className="px-5 py-2">
+              <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Assigned Service</p>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+                <span className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-tighter">{repairs.length} Active Jobs</span>
               </div>
-              My Repair Deliveries
-            </h1>
-            <p className="mt-4 text-xl text-gray-600 dark:text-gray-400">
-              Manage device pickup & delivery for repairs
-            </p>
-            <div className="mt-6 inline-flex items-center gap-3 px-6 py-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-full text-emerald-700 dark:text-emerald-400 font-semibold">
-              Auto-refresh every 15s • {repairs.length} active
+            </div>
+            <button 
+              onClick={loadRepairs}
+              className={`w-12 h-12 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 hover:text-lime-500 transition-all duration-700 ${isLoading ? 'rotate-180' : ''}`}
+            >
+              <FiRefreshCw size={18} className={isLoading ? "animate-spin" : ""} />
+            </button>
+          </div>
+        </div>
+
+     
+     
+        <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none p-6">
+          <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
+            <div className="relative flex-1 group">
+              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={18} />
+              <input
+                type="text"
+                placeholder="Search by Repair ID, Tech or Customer..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-sm text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/10 focus:border-lime-200 transition-all"
+              />
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Show</span>
+                <select
+                  value={rowsPerPage}
+                  onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                  className="px-5 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-xs font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-4 focus:ring-lime-500/10 cursor-pointer transition-all"
+                >
+                  {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n} rows</option>)}
+                </select>
+              </div>
             </div>
           </div>
+        </div>
 
-          
-          {isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-              {[...Array(8)].map((_, i) => (
-                <div key={i} className="bg-white dark:bg-gray-900 rounded-3xl h-80 animate-pulse shadow-xl border border-gray-200 dark:border-gray-800">
-                  <div className="p-8 space-y-6">
-                    <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-2xl w-3/4"></div>
-                    <div className="space-y-4">
-                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
-                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : repairs.length === 0 ? (
-            <div className="text-center py-20">
-              <FiTool size={100} className="mx-auto text-gray-300 dark:text-gray-700 mb-6" />
-              <h3 className="text-2xl font-semibold text-gray-600 dark:text-gray-400">
-                No repair jobs assigned
-              </h3>
-              <p className="text-gray-500 dark:text-gray-500 mt-2">
-                Accept repair requests from the "Available Repairs" page!
-              </p>
-            </div>
-          ) : (
-            <>
-             
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                {currentRepairs.map((repair) => (
-                  <div
-                    key={repair.id}
-                    className="group relative bg-white dark:bg-gray-900 rounded-3xl shadow-xl hover:shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-all duration-500 hover:-translate-y-4"
-                  >
-                    <div className={`h-2 bg-gradient-to-r ${getStatusStyle(repair.status)}`} />
-
-                    <div className="p-7">
-                      <div className="flex justify-between flex-wrap items-start mb-5">
-                        <h3 className="text-lg font-bold text-gray-800 dark:text-white">
-                          #{repair.id?.slice(-8)}
-                        </h3>
-                        <span className={`px-4 py-2 rounded-full text-white font-bold text-xs shadow-lg bg-gradient-to-r ${getStatusStyle(repair.status)}`}>
-                          {getStatusLabel(repair.status)}
-                        </span>
+        
+        
+        <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden">
+          <div className="overflow-x-auto custom-scrollbar-thin">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50/50 dark:bg-gray-900/30 border-b border-gray-100 dark:border-gray-700">
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Service Date</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Repair Ref</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Customer</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Current Status</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Task Value</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                {isLoading && paginated.length === 0 ? (
+                  [...Array(rowsPerPage)].map((_, i) => (
+                    <tr key={i} className="animate-pulse">
+                      {[...Array(6)].map((_, j) => (
+                        <td key={j} className="px-8 py-6"><div className="h-4 bg-gray-100 dark:bg-gray-700 rounded-lg w-full" /></td>
+                      ))}
+                    </tr>
+                  ))
+                ) : paginated.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-8 py-24 text-center">
+                      <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-3xl flex items-center justify-center mx-auto mb-6 text-gray-200 dark:text-gray-800">
+                        <FiTool size={40} />
                       </div>
-
-          <div className="flex items-start gap-3 text-gray-700 dark:text-gray-300">
-                          <FiUserPlus className="text-emerald-600 mt-1" size={18} />
-                          <div>
-                            <div className="font-medium">Customer Name</div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                              {repair.firstName} {repair.lastName}
+                      <p className="text-lg font-black text-gray-900 dark:text-white tracking-tight">No Active Repairs</p>
+                      <p className="text-sm font-bold text-gray-400 mt-1 uppercase tracking-widest">You have no repair deliveries in progress</p>
+                    </td>
+                  </tr>
+                ) : (
+                  paginated.map(repair => {
+                    const st = STATUS_STYLE[repair.status] || { bg: 'bg-gray-50', text: 'text-gray-500', dot: 'bg-gray-400' };
+                    return (
+                      <tr key={repair.id} className="hover:bg-lime-50/10 dark:hover:bg-lime-900/5 transition-colors group">
+                        <td className="px-8 py-6 whitespace-nowrap">
+                          <p className="text-xs font-black text-gray-900 dark:text-white uppercase">{formatDate(repair.createdAt)}</p>
+                          <p className="text-[10px] font-bold text-gray-400 mt-0.5 uppercase tracking-widest">Logged</p>
+                        </td>
+                        <td className="px-8 py-6 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-mono font-black text-gray-800 dark:text-gray-200">#{repair.id?.slice(-8)}</span>
+                            <button onClick={() => copyToClipboard(repair.id)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-400 hover:text-lime-500 transition-all">
+                              <FiCopy size={12} />
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 whitespace-nowrap">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-lime-50 dark:bg-lime-900/20 flex items-center justify-center text-lime-600">
+                              <FiUser size={18} />
+                            </div>
+                            <div>
+                              <p className="text-xs font-black text-gray-900 dark:text-white truncate max-w-[150px]">{repair.firstName} {repair.lastName}</p>
+                              <p className="text-[10px] font-bold text-gray-400 mt-0.5 uppercase tracking-widest">{repair.phone || "No Contact"}</p>
                             </div>
                           </div>
-                        </div><br />
-
-                          <div className="flex items-start gap-3 text-gray-700 dark:text-gray-300">
-                          <FiPhone className="text-emerald-600 mt-1" size={18} />
-                          <div>
-                            <div className="font-medium">Customer Phone</div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                              {repair.phone} 
-                            </div>
-                          </div>
-                        </div><br />
-
-                      <div className="space-y-4 text-sm">
-                        <div className="flex items-start gap-3 text-gray-700 dark:text-gray-300">
-                          <FiUser className="text-emerald-600 mt-1" size={18} />
-                          <div>
-                            <div className="font-medium">Customer Address</div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                              {repair.userAddress?.street}, {repair.userAddress?.city}, {repair.userAddress?.state}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-start gap-3 text-gray-700 dark:text-gray-300">
-                          <FiMapPin className="text-emerald-600 mt-1" size={18} />
-                          <div>
-                            <div className="font-medium">Shop Address</div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                              {repair.shopAddress?.street}, {repair.shopAddress?.city}, {repair.shopAddress?.state}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
-                          <div className="flex items-center gap-2 font-bold text-xl text-emerald-600 dark:text-emerald-400">
-                            <FiDollarSign size={22} />
-                            {repair.price || 0} EGP
-                          </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-500">
-                            {new Date(repair.createdAt).toLocaleTimeString()}
-                          </div>
-                        </div>
-                      </div>
-
-                     
-                      <div className="mt-6 space-y-3">
-                        {repair.status === "REPAIR_COMPLETED" || repair.status === "DEVICE_DELIVERED" ? (
-                          <div className="py-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-2xl text-center shadow-lg flex items-center justify-center gap-3">
-                            <FiCheckCircle size={22} />
-                            {repair.status === "DEVICE_DELIVERED" ? "Device Delivered" : "Repair Completed"}
-                          </div>
-                        ) : (
-                          <>
-                            {repair.status !== "CANCELLED" && (
-                              <>
-                                <button
-                                  onClick={() => updateStatus(repair.id, "REPAIR_COMPLETED")}
-                                  className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2"
-                                >
-                                  <FiPackage size={18} /> Mark Repair Completed
-                                </button>
-                                <button
-                                  onClick={() => updateStatus(repair.id, "DEVICE_DELIVERED")}
-                                  className="w-full py-3 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2"
-                                >
-                                  <FiCheckCircle size={18} /> Device Delivered
-                                </button>
-                              </>
+                        </td>
+                        <td className="px-8 py-6 whitespace-nowrap">
+                          <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-transparent ${st.bg} ${st.text}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${st.dot} animate-pulse`} />
+                            {STATUS_LABEL[repair.status] || repair.status?.replace(/_/g, ' ')}
+                          </span>
+                        </td>
+                        <td className="px-8 py-6 whitespace-nowrap">
+                          <p className="text-sm font-black text-gray-900 dark:text-white tracking-tighter">{formatPrice(repair.price)}</p>
+                          <p className="text-[10px] font-black text-lime-600 uppercase tracking-widest mt-0.5">Value</p>
+                        </td>
+                        <td className="px-8 py-6 whitespace-nowrap text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button 
+                              onClick={() => setSelectedRepair(repair)}
+                              className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-700 text-gray-400 hover:text-lime-500 transition-all"
+                            >
+                              <FiInfo size={18} />
+                            </button>
+                            {["REPAIR_COMPLETED", "DEVICE_DELIVERED", "CANCELLED"].indexOf(repair.status) === -1 && (
+                              <button 
+                                onClick={() => handleUpdate(repair.id, "DEVICE_DELIVERED")}
+                                className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-lime-500 text-white text-xs font-black uppercase tracking-widest hover:bg-lime-600 transition-all shadow-lg shadow-lime-500/20 active:scale-95"
+                              >
+                                <FiCheckCircle size={16} /> Complete
+                              </button>
                             )}
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
 
          
-              {totalPages > 1 && (
-                <div className="flex justify-center gap-3 mt-12 flex-wrap">
-                  <button
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="px-6 py-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-50 flex items-center gap-2 font-medium"
-                  >
-                    Previous
-                  </button>
-
-                  {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
-                    .map((page, idx, arr) => (
-                      <React.Fragment key={page}>
-                        {idx > 0 && arr[idx - 1] !== page - 1 && (
-                          <span className="px-4 py-3 text-gray-500">...</span>
-                        )}
-                        <button
-                          onClick={() => setCurrentPage(page)}
-                          className={`w-12 h-12 rounded-xl font-bold transition-all ${
-                            currentPage === page
-                              ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg'
-                              : 'bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30'
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      </React.Fragment>
-                    ))}
-
-                  <button
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="px-6 py-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-50 flex items-center gap-2 font-medium"
-                  >
-                    Next
-                  </button>
+         
+          {totalPages > 1 && (
+            <div className="px-8 py-6 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                Showing <span className="text-gray-900 dark:text-white">{(currentPage - 1) * rowsPerPage + 1}</span> to <span className="text-gray-900 dark:text-white">{Math.min(currentPage * rowsPerPage, filtered.length)}</span> of <span className="text-gray-900 dark:text-white">{filtered.length}</span> Results
+              </p>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all"
+                >
+                  <FiChevronLeft size={20} />
+                </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-10 h-10 rounded-xl text-xs font-black transition-all ${
+                        currentPage === page 
+                          ? "bg-lime-500 text-white shadow-lg shadow-lime-500/20" 
+                          : "bg-gray-50 dark:bg-gray-800 text-gray-500 hover:text-lime-500"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
                 </div>
-              )}
-            </>
+                <button 
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all"
+                >
+                  <FiChevronRight size={20} />
+                </button>
+              </div>
+            </div>
           )}
         </div>
+
+        
+        
+        {selectedRepair && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={() => setSelectedRepair(null)} />
+            <div className="relative w-full max-w-2xl bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-in fade-in zoom-in duration-300">
+              <div className="p-8 space-y-8">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-lime-500 flex items-center justify-center text-white shadow-lg shadow-lime-500/20">
+                      <FiTool size={24} />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">Request Details</h2>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Ticket: #{selectedRepair.id}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setSelectedRepair(null)} className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 hover:text-red-500 transition-all">
+                    <FiX size={20} />
+                  </button>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-8">
+                  <div className="space-y-6">
+                    <div>
+                       <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Customer Profile</h3>
+                       <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-2xl">
+                          <div className="w-10 h-10 rounded-xl bg-white dark:bg-gray-800 flex items-center justify-center text-lime-500 shadow-sm"><FiUser size={18} /></div>
+                          <div>
+                            <p className="text-sm font-black text-gray-900 dark:text-white">{selectedRepair.firstName} {selectedRepair.lastName}</p>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">{selectedRepair.phone || "Secure Contact"}</p>
+                          </div>
+                       </div>
+                    </div>
+                    <div>
+                       <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Current Status</h3>
+                       <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-lime-500 animate-ping" />
+                          <p className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-tighter">
+                            {STATUS_LABEL[selectedRepair.status] || selectedRepair.status}
+                          </p>
+                       </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-6">
+                    <div>
+                       <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Logistics Hub</h3>
+                       <div className="space-y-3">
+                          <div className="flex items-start gap-3">
+                            <FaStore className="text-amber-500 mt-1" size={14} />
+                            <div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase">Origin</p>
+                          <p className="text-sm font-black text-gray-900 dark:text-white font-cairo truncate max-w-[200px]">{selectedRepair.shopAddress?.street + "," + selectedRepair.shopAddress?.state + "," +  selectedRepair.shopAddress?.city || "Merchant Hub"}</p>
+                        </div>
+                          </div>
+                          {/* <div className="flex items-start gap-3">
+                            <FiMapPin className="text-blue-500 mt-1" size={14} />
+                           <div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase">Destination</p>
+                          <p className="text-sm font-black text-gray-900 dark:text-white font-cairo truncate max-w-[200px]">{selectedRepair.userAddress?.street + "," + selectedRepair.userAddress?.state + "," +  selectedRepair.userAddress?.city || "Customer Site"}</p>
+                        </div>
+                          </div> */}
+                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-6 bg-gray-50 dark:bg-gray-900/50 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-6">
+                   <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-lime-500/10 flex items-center justify-center text-lime-500"><FiActivity size={18} /></div>
+                      <div>
+                         <p className="text-[10px] font-black text-gray-400 uppercase">Service Value</p>
+                         <p className="text-xl font-black text-gray-900 dark:text-white tracking-tighter">{formatPrice(selectedRepair.price)}</p>
+                      </div>
+                   </div>
+                   {["REPAIR_COMPLETED", "DEVICE_DELIVERED", "CANCELLED"].indexOf(selectedRepair.status) === -1 && (
+                     <button 
+                        onClick={() => { handleUpdate(selectedRepair.id, "DEVICE_DELIVERED"); setSelectedRepair(null); }}
+                        className="flex items-center gap-2 px-8 py-4 bg-lime-500 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-lime-600 transition-all shadow-xl shadow-lime-500/20"
+                     >
+                       Mark Finalized <FiArrowRight />
+                     </button>
+                   )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-    </>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        .custom-scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
+        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
+        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #1f2937; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
+      `}} />
+    </div>
   );
 };
 

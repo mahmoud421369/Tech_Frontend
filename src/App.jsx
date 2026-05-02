@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Footer, Navbar, RepairDetailsModal, ServiceModal, AssignerHeader, Modal, DeliveryHeader } from './components';
-import { Login, Signup, LoginSuccess, SuccessGoogle } from './Auth';
-import { Repair, Track, Account, Homepage, Cart, DeviceDetail, Offers, RepairRequest, Devices, Stores } from './User';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Footer, Navbar, AssignerHeader, DeliveryHeader } from './components';
+import { Login, Signup, SuccessGoogle } from './Auth';
+import { Repair, Track, Account, Homepage, Cart, DeviceDetail, Offers, Devices, Stores } from './User';
 import { Header, Shops, Users, Reviews, Category, Deliveries, Assigners, AdminOffers, AdminRepairRequests, AdminProducts, AdminAssignmentLogs, AdminSubscriptions, AdminTransactions } from './Admin';
 import  Dashboard  from './Admin/Dashboard';
 import { AssignerDashboard, DeliveryPersons, AssignerProfile, AssignedOrders, AssignedRepairs, AssignmentLogs, ReassignRepairs, ReassignOrders, OrdersForAssignment, RepairsForAssignment } from './Assigner';
 import { DeliveryDashboard, DeliveryProfile, MyDeliveries, MyRepairs, AvailableOrders, AvailableRepairs } from './Delivery';
 import { ShopHeader, ShopDashboard, RepairRequests, Products, Transactions, ShopOffers, ShopProfile, Inventory, Chat, Orders, Subscriptions } from './Shop';
-import { useAuth } from './context/AuthContext';
 import Shop from './User/Shop';
 
 function App() {
@@ -19,7 +18,7 @@ function App() {
   const [activePage, setActivePage] = useState('admin-dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [cartCount, setCartCount] = useState(0); 
-  const { currentUser } = useAuth();
+ 
 
   useEffect(() => {
     const token = localStorage.getItem("authToken");
@@ -126,7 +125,7 @@ function App() {
   );
 
   const ProtectedRoute = ({ children }) => {
-    return currentUser ? children : <Navigate to="/login" />;
+    // return currentUser ? children : <Navigate to="/login" />;
   };
 
   return (
@@ -146,8 +145,8 @@ function App() {
         <Route path="/repair" element={withNavbarLayout(Repair)} />
         <Route path="/offers" element={withNavbarLayout(Offers)} />
         <Route path="/device/:id" element={withNavbarLayout(DeviceDetail, { addToCart })} />
-        <Route path="/shops/:shopId" element={withNavbarLayout(Shop)} />
-        <Route path="/repair-request/:requestId/update" element={withNavbarLayout(RepairRequest)} />
+        <Route path="/shops/:shopId" element={withNavbarLayout(Shop,{addToCart})} />
+        {/* <Route path="/repair-request/:requestId/update" element={withNavbarLayout(RepairRequest)} /> */}
         <Route path="/oauth2/success" element={<SuccessGoogle />} />
 
         {/* Admin Routes */}

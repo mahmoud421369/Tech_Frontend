@@ -1,424 +1,240 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import {
-  FaCalendar, FaCreditCard, FaMoneyBillWave, FaStore,
-  FaHeadset, FaCogs
+  FaCalendar, FaCreditCard, FaMoneyBillWave, FaHeadset, FaCogs,
 } from 'react-icons/fa';
+import { FiChevronDown, FiX, FiCheck, FiRefreshCw, FiZap, FiActivity, FiArrowLeft, FiClock, FiShield, FiMoreHorizontal } from 'react-icons/fi';
+import { RiCalendar2Line, RiStore2Line, RiVerifiedBadgeLine } from 'react-icons/ri';
 import Swal from 'sweetalert2';
-import API from '../api';
-import { FiChevronDown } from 'react-icons/fi';
+import api from '../api';
 
-const VALID_SUB_TYPES = ['COMMISSION', 'RATIO'];
-const PRICE_PER_MONTH = { COMMISSION: 1000, RATIO: 800 };
-const CURRENCY = 'ج.م';
+
+
+
+const PRICE_PER_MONTH  = { COMMISSION: 1000, RATIO: 800 };
+const TYPE_LABELS      = { COMMISSION: 'خطة العمولة الذكية', RATIO: 'الخطة الثابتة الاحترافية' };
+const CURRENCY         = 'EGP';
+
+
+
+
+const showToast = (text, icon) =>
+  Swal.fire({ text, icon, toast: true, position: 'top-start', showConfirmButton: false, timer: 3000 });
+
+
+
+
+const StatCard = memo(({ icon: Icon, label, value, color, description }) => (
+  <div className="relative group bg-white dark:bg-gray-800 rounded-[2rem] border border-gray-100 dark:border-gray-700 p-6 transition-all duration-500 hover:shadow-2xl hover:shadow-gray-200/50 dark:hover:shadow-none overflow-hidden">
+    <div className={`absolute top-0 right-0 w-24 h-24 bg-${color}-500/5 rounded-bl-full translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-700`} />
+    <div className="flex flex-col h-full relative z-10 text-right">
+      <div className={`w-12 h-12 rounded-2xl bg-${color}-50 dark:bg-${color}-900/20 flex items-center justify-center text-${color}-600 dark:text-${color}-400 mb-4 group-hover:rotate-6 transition-transform`}>
+        <Icon size={22} />
+      </div>
+      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">{label}</p>
+      <p className="text-2xl font-black text-gray-900 dark:text-white mt-1">{value}</p>
+      <p className="text-[9px] font-bold text-gray-400 mt-2">{description}</p>
+    </div>
+  </div>
+));
+
+
+
 
 const Subscriptions = () => {
   const [currentSub, setCurrentSub] = useState(null);
-  const [allSubs, setAllSubs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [duration, setDuration] = useState(1);
-  const [type, setType] = useState('COMMISSION');
-  const [typeOpen, setTypeOpen] = useState(false);
-  const [durationOpen, setDurationOpen] = useState(false);
+  const [allSubs, setAllSubs]       = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [duration, setDuration]     = useState(1);
+  const [type, setType]             = useState('COMMISSION');
 
-  const totalPrice = PRICE_PER_MONTH[type] * duration;
-  const hasActiveSub = currentSub && new Date(currentSub.endDate) > new Date();
-
-  const abortCtrlRef = useRef(null);
-
-  const getConfig = useCallback(() => {
-    if (!abortCtrlRef.current) {
-      abortCtrlRef.current = new AbortController();
-    }
-    return { signal: abortCtrlRef.current.signal };
-  }, []);
-
-  const formatDate = (dateStr) => {
-    return new Date(dateStr).toLocaleDateString('ar-EG', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-  };
-
-useEffect(() => {
-document.title = "إدارة الاشتراكات";
-
-});
-
-  const createPayload = useCallback(() => ({
-    months: duration,
-    type: type.toUpperCase(),
-  }), [duration, type]);
+  useEffect(() => { document.title = 'إدارة الاشتراكات الاحترافية'; }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [currentRes, allRes] = await Promise.all([
-        API.get('/api/subscriptions', getConfig()),
-        API.get('/api/subscriptions/all', getConfig()),
+      const [currentRes, allRes] = await Promise.allSettled([
+        api.get('/api/subscriptions'),
+        api.get('/api/subscriptions/all'),
       ]);
-
-      setCurrentSub(currentRes.data?.content?.[0] ?? null);
-      setAllSubs(Array.isArray(allRes.data?.content) ? allRes.data.content : allRes.data ?? []);
-    } catch (err) {
-  
-    } finally {
-      setLoading(false);
-    }
-  }, [getConfig]);
-
-  useEffect(() => {
-    abortCtrlRef.current?.abort();
-    abortCtrlRef.current = new AbortController();
-    fetchData();
-
-    return () => abortCtrlRef.current?.abort();
+      if (currentRes.status === 'fulfilled') setCurrentSub(currentRes.value.data?.[0] || currentRes.value.data);
+      if (allRes.status === 'fulfilled') setAllSubs(Array.isArray(allRes.value.data) ? allRes.value.data : allRes.value.data?.content || []);
+    } catch { showToast('فشل تحميل بيانات الاشتراكات', 'error'); }
+    finally { setLoading(false); }
   }, []);
 
-  const subscribeWithCard = async () => {
-    const result = await Swal.fire({
-      title: 'تأكيد الاشتراك',
-      html: `
-        <div class="text-right space-y-3">
-          <p><strong>النوع:</strong> ${type === 'COMMISSION' ? 'نسبة عمولة' : 'مبلغ ثابت'}</p>
-          <p><strong>المدة:</strong> ${duration} شهر</p>
-          <p><strong>الإجمالي:</strong> <span class="text-2xl font-bold text-lime-600">${totalPrice} ${CURRENCY}</span></p>
-        </div>
-      `,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: 'نعم، ادفع بالبطاقة',
-      cancelButtonText: 'إلغاء',
-      confirmButtonColor: '#10b981',
-    });
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-    if (!result.isConfirmed) return;
-
-    Swal.fire({ title: 'جاري المعالجة...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
+  const handleSubscribe = async (method) => {
+    setSubmitting(true);
     try {
-      const res = await API.post('/api/subscriptions/card', createPayload(), getConfig());
-      const { paymentURL, message } = res.data;
-
-      if (!paymentURL) {
-        await Swal.fire({ icon: 'success', title: 'تم بنجاح!', text: message || 'تم تفعيل الاشتراك', timer: 3000 });
+      const payload = { months: duration, type: type.toUpperCase() };
+      const endpoint = method === 'card' ? '/api/subscriptions/card' : '/api/subscriptions/cash';
+      const res = await api.post(endpoint, payload);
+      
+      if (method === 'card' && res.data.paymentURL) {
+        window.location.href = res.data.paymentURL;
+      } else {
+        showToast(method === 'card' ? 'تم تفعيل الاشتراك بنجاح' : 'تم إرسال طلب الدفع النقدي', 'success');
         fetchData();
-        return;
       }
-
-      await Swal.fire({ icon: 'success', title: 'سيتم توجيهك إلى الدفع', toast: true, position: "top-end", timer: 2500 });
-      window.location.href = paymentURL;
-    } catch (err) {
-      const msg = err?.response?.data?.message || 'فشل إنشاء الدفع';
-      Swal.fire('فشل', msg, 'error');
-    }
+    } catch { showToast('فشل إتمام العملية', 'error'); }
+    finally { setSubmitting(false); }
   };
 
-  const subscribeWithCash = async () => {
-    const result = await Swal.fire({
-      title: 'طلب دفع نقدي',
-      html: `
-        <div class="text-right space-y-3">
-          <p><strong>النوع:</strong> ${type === 'COMMISSION' ? 'نسبة عمولة' : 'مبلغ ثابت'}</p>
-          <p><strong>المدة:</strong> ${duration} شهر</p>
-          <p><strong>الإجمالي:</strong> <span class="text-2xl font-bold text-orange-600">${totalPrice} ${CURRENCY}</span></p>
-          <p class="text-sm text-gray-600 mt-4">سيتم التواصل معك لاستلام المبلغ نقدًا</p>
-        </div>
-      `,
-      icon: 'info',
-      showCancelButton: true,
-      confirmButtonText: 'إرسال الطلب',
-      cancelButtonText: 'إلغاء',
-      confirmButtonColor: '#f97316',
-    });
+  const isActive = (date) => date && new Date(date) > new Date();
 
-    if (!result.isConfirmed) return;
-
-    Swal.fire({ title: 'جاري إرسال الطلب...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
-    try {
-      await API.post('/api/subscriptions/cash', createPayload(), getConfig());
-      await Swal.fire({
-        icon: 'success',
-        title: 'تم إرسال الطلب',
-        text: 'سنتواصل معك قريبًا لاستلام المبلغ نقدًا',
-        timer: 4000,
-      });
-      fetchData();
-    } catch (err) {
-      const msg = err?.response?.data?.message || 'فشل إرسال الطلب';
-      Swal.fire('فشل', msg, 'error');
-    }
-  };
-
-  const durationOptions = useMemo(() => Array.from({ length: 12 }, (_, i) => i + 1), []);
+  const statCards = [
+    { icon: FiShield, label: 'حالة الحساب', value: isActive(currentSub?.endDate) ? "نشط" : "منتهي", color: "emerald", description: "بناءً على اشتراكك الحالي" },
+    { icon: FiClock, label: 'تاريخ الانتهاء', value: currentSub?.endDate ? new Date(currentSub.endDate).toLocaleDateString('ar-EG') : "—", color: "orange", description: "موعد تجديد الاشتراك" },
+    { icon: FiZap, label: 'الخطة الحالية', value: currentSub?.type ? (TYPE_LABELS[currentSub.type] || currentSub.type) : "لا يوجد", color: "blue", description: "نوع الاشتراك المفعل" },
+    { icon: FiActivity, label: 'العمليات', value: allSubs.length.toLocaleString('ar-EG'), color: "indigo", description: "إجمالي سجل المدفوعات" },
+  ];
 
   return (
-    <div dir="rtl" style={{ marginLeft: "-250px", marginTop: "-540px" }} className="min-h-screen bg-gray-50 font-cairo py-8">
-      <div className="max-w-5xl mx-auto px-6">
-
-        
-        <div className="mb-10 bg-white rounded-3xl shadow-sm border border-gray-200 p-8">
-          <div className="flex items-center flex-row-reverse justify-between text-right gap-5">
-            <div className="p-5 bg-lime-100 rounded-2xl">
-              <FaCalendar className="text-4xl text-lime-600" />
-            </div>
-            <div>
-              <h1 className="text-4xl font-bold text-gray-900">إدارة الاشتراكات</h1>
-              <p className="text-lg text-gray-600 mt-2">اختر خطتك أو جدد اشتراكك بسهولة وأمان</p>
-            </div>
-          </div>
-        </div>
-
-     
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mb-12">
-  
-  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-7 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
-    <div className="flex items-center justify-between flex-row-reverse">
-      <div>
-        <p className="text-lg font-medium text-gray-700">إدارة كاملة للمتجر</p>
-      </div>
-      <div className="p-4 bg-emerald-50 rounded-xl group-hover:bg-emerald-100 transition-colors">
-        <FaStore className="w-12 h-12 text-emerald-600" />
-      </div>
-    </div>
-  </div>
-
-  
-  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-7 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
-    <div className="flex items-center justify-between flex-row-reverse">
-      <div>
-        <p className="text-lg font-medium text-gray-700">دعم فني 24/7</p>
-      </div>
-      <div className="p-4 bg-blue-50 rounded-xl group-hover:bg-blue-100 transition-colors">
-        <FaHeadset className="w-12 h-12 text-blue-600" />
-      </div>
-    </div>
-  </div>
-
-
-  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-7 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
-    <div className="flex items-center justify-between flex-row-reverse">
-      <div>
-        <p className="text-lg font-medium text-gray-700">تحديثات تلقائية مجانية</p>
-      </div>
-      <div className="p-4 bg-purple-50 rounded-xl group-hover:bg-purple-100 transition-colors">
-        <FaCogs className="w-12 h-12 text-purple-600" />
-      </div>
-    </div>
-  </div>
-</div>
-
-
-
-
-  <div className="col-span-full bg-white rounded-3xl shadow-lg border border-gray-200 p-10">
-            <h2 className="text-3xl font-bold text-gray-900 mb-10 flex items-center gap-5 justify-center">
-              <FaCalendar className="text-lime-600 text-4xl" />
-              سجل الاشتراكات الكامل
-            </h2>
-
-            {allSubs.length === 0 ? (
-              <div className="text-center py-24 text-gray-500">
-                <FaCalendar className="w-24 h-24 mx-auto opacity-30 mb-8" />
-                <p className="text-3xl font-medium mb-4">لا توجد اشتراكات سابقة</p>
-                <p className="text-xl">ستظهر هنا جميع اشتراكاتك السابقة والحالية عند إنشائها</p>
-              </div>
-            ) : (
-              <div className="grid gap-8">
-                {allSubs.map((s, index) => {
-                  const isActive = new Date(s.endDate) > new Date();
-                  const isCurrent = index === 0 && isActive;
-
-                  return (
-                    <div
-                      key={s.id}
-                      className={`relative p-10 rounded-3xl border-4 transition-all shadow-xl ${
-                        isActive
-                          ? 'bg-gradient-to-br from-lime-50 via-emerald-50 to-teal-50 border-lime-400'
-                          : 'bg-gray-50 border-gray-300'
-                      }`}
-                    >
-                  
-                      {isCurrent && (
-                        <div className="absolute -top-5 left-1/2 -translate-x-1/2 px-8 py-3 bg-lime-600 text-white font-bold rounded-full shadow-lg text-lg">
-                          ← الاشتراك الحالي
-                        </div>
-                      )}
-
-                      <div className="grid md:grid-cols-3 gap-8 items-center text-center md:text-right">
-                       
-                        <div>
-                          <p className="text-3xl font-bold text-gray-900 mb-3">
-                            {s.type === 'COMMISSION' ? 'نسبة عمولة' : 'مبلغ ثابت'}
-                          </p>
-                          <span className={`inline-block px-8 py-4 rounded-full text-xl font-bold shadow-md ${
-                            isActive ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'
-                          }`}>
-                            {isActive ? 'نشط حاليًا' : 'منتهي الصلاحية'}
-                          </span>
-                        </div>
-
-                    
-                        <div className="space-y-4">
-                          <p className="text-xl text-gray-700">
-                            <span className="font-medium">بدأ في:</span>{' '}
-                            <span className="font-bold text-2xl text-lime-700">{formatDate(s.startDate)}</span>
-                          </p>
-                          <p className="text-xl text-gray-700">
-                            <span className="font-medium">ينتهي في:</span>{' '}
-                            <span className="font-bold text-2xl text-red-600">{formatDate(s.endDate)}</span>
-                          </p>
-                        </div>
-
-                        
-                        <div className="space-y-4">
-                          <p className="text-5xl font-extrabold text-lime-600">
-                            {Number(s.totalAmount).toLocaleString()} {CURRENCY}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            رقم الاشتراك: <span className="font-mono font-bold">#{s.id}</span>
-                          </p>
-                        </div>
-                      </div>
-
-                      
-                      {isActive && (
-                        <div className="mt-8 h-3 bg-gradient-to-r from-lime-500 to-emerald-600 rounded-full"></div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div><br />
+    <div dir="rtl" className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pr-64 mt-16 transition-all duration-500 font-cairo text-right">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-10">
 
       
-        <div className="grid lg:grid-cols-1 gap-8 mb-12">
+      
 
-         
-          <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-8">
-            <div className="text-center mb-8">
-              <div className="inline-flex p-5 bg-lime-100 rounded-2xl mb-4">
-                <FaCalendar className="text-4xl text-lime-600" />
-              </div>
-              <h2 className="text-3xl font-bold text-gray-900">
-                {hasActiveSub ? 'تجديد الاشتراك' : 'اشترك الآن'}
-              </h2>
+        <div className="flex flex-col md:flex-row md:items-end mt-3 justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-1.5 rounded-full bg-lime-500" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-600">نظام العضويات</span>
             </div>
-
-           
-            <div className="mb-6">
-              <label className="block text-lg font-medium text-gray-800 mb-3">نوع الاشتراك</label>
-              <div className="relative">
-                <button
-                  onClick={() => setTypeOpen(!typeOpen)}
-                  className="w-full px-6 py-4 bg-gray-50 border-2 border-gray-300 rounded-2xl flex justify-between items-center hover:border-lime-500 transition font-medium text-lg"
-                >
-                  <span>
-                    {type === 'COMMISSION' ? 'نسبة عمولة' : 'مبلغ ثابت'} ({PRICE_PER_MONTH[type]} {CURRENCY}/شهر)
-                  </span>
-                  <FiChevronDown className={`text-xl transition ${typeOpen ? 'rotate-180' : ''}`} />
-                </button>
-                {typeOpen && (
-                  <div className="absolute top-full mt-3 w-full bg-white border-2 border-lime-300 rounded-2xl shadow-xl z-10 overflow-hidden">
-                    {VALID_SUB_TYPES.map((t) => (
-                      <button
-                        key={t}
-                        onClick={() => { setType(t); setTypeOpen(false); }}
-                        className="w-full px-6 py-4 text-right hover:bg-lime-50 transition font-medium"
-                      >
-                        {t === 'COMMISSION' ? 'نسبة عمولة' : 'مبلغ ثابت'} ({PRICE_PER_MONTH[t]} {CURRENCY}/شهر)
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-           
-            <div className="mb-8">
-              <label className="block text-lg font-medium text-gray-800 mb-3">المدة بالشهور</label>
-              <div className="relative">
-                <button
-                  onClick={() => setDurationOpen(!durationOpen)}
-                  className="w-full px-6 py-4 bg-gray-50 border-2 border-gray-300 rounded-2xl flex justify-between items-center hover:border-lime-500 transition font-medium text-lg"
-                >
-                  <span>{duration} شهر {duration === 12 && '(سنة كاملة)'}</span>
-                  <FiChevronDown className={`text-xl transition ${durationOpen ? 'rotate-180' : ''}`} />
-                </button>
-                {durationOpen && (
-                  <div className="absolute top-full mt-3 w-full bg-white border-2 border-lime-300 rounded-2xl shadow-xl z-10 max-h-64 overflow-y-auto">
-                    {durationOptions.map((m) => (
-                      <button
-                        key={m}
-                        onClick={() => { setDuration(m); setDurationOpen(false); }}
-                        className="w-full px-6 py-4 text-right hover:bg-lime-50 transition"
-                      >
-                        {m} شهر {m === 12 && '(سنة كاملة)'}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-           
-            <div className="text-center p-8 bg-gradient-to-r from-lime-50 to-emerald-50 rounded-2xl mb-8">
-              <p className="text-5xl font-bold text-lime-600">{totalPrice.toLocaleString()} {CURRENCY}</p>
-              <p className="text-gray-700 mt-3 text-lg">{PRICE_PER_MONTH[type]} × {duration} شهر</p>
-            </div>
-
-           
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                onClick={subscribeWithCard}
-                className="py-5 px-6 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-2xl shadow-lg transition flex items-center justify-center gap-3 text-lg"
-              >
-                <FaCreditCard className="text-xl" />
-                بالبطاقة
-              </button>
-              <button
-                onClick={subscribeWithCash}
-                className="py-5 px-6 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white font-bold rounded-2xl shadow-lg transition flex items-center justify-center gap-3 text-lg"
-              >
-                <FaMoneyBillWave className="text-xl" />
-                نقدي
-              </button>
-            </div>
+            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">باقات <span className="text-lime-500">الاشتراك</span></h1>
+            <p className="text-sm font-bold text-gray-500 dark:text-gray-400">اختر الباقة المناسبة لحجم أعمالك واستمتع بمميزات تقنية غير محدودة</p>
           </div>
+        </div>
 
+       
+       
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+           {statCards.map(s => <StatCard key={s.label} {...s} />)}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">الاشتراك الحالي</h2>
-            {loading ? (
-              <div className="flex justify-center py-12">
-                <div className="w-12 h-12 border-6 border-lime-600 border-t-transparent rounded-full animate-spin"></div>
-              </div>
-            ) : !currentSub ? (
-              <div className="text-center py-12 text-gray-500">
-                <FaCalendar className="w-16 h-16 mx-auto opacity-30 mb-4" />
-                <p className="text-xl">لا يوجد اشتراك نشط حاليًا</p>
-              </div>
-            ) : (
-              <div className="p-8 bg-gradient-to-r from-lime-50 to-emerald-50 rounded-2xl">
-                <p className="text-2xl font-bold text-gray-900">
-                  {currentSub.type === 'COMMISSION' ? 'نسبة عمولة' : 'مبلغ ثابت'}
-                </p>
-                <p className="text-lg text-gray-700 mt-3">
-                  من {formatDate(currentSub.startDate)} إلى {formatDate(currentSub.endDate)}
-                </p>
-                <p className="text-4xl font-bold text-lime-600 mt-6">{currentSub.totalAmount} {CURRENCY}</p>
-                <div className="mt-6 inline-block px-6 py-3 rounded-full text-lg font-bold bg-green-100 text-green-800">
-                  {hasActiveSub ? 'نشط' : 'منتهي'}
-                </div>
-              </div>
-            )}
-          </div> */}
+          
+           <div className="lg:col-span-1 space-y-6">
+              <div className="bg-white dark:bg-gray-800 rounded-none border border-gray-100 dark:border-gray-700 p-8 shadow-xl shadow-gray-200/20 dark:shadow-none space-y-8">
+                 <div className="space-y-4">
+                    <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">اختر خطتك</h3>
+                    <div className="space-y-3">
+                       {['COMMISSION', 'RATIO'].map(t => (
+                          <button key={t} onClick={() => setType(t)} className={`w-full p-5 rounded-none border-2 transition-all text-right group ${type === t ? 'border-lime-500 bg-lime-50 dark:bg-lime-900/10' : 'border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 hover:border-lime-200'}`}>
+                             <div className="flex items-center justify-between mb-1">
+                                <p className={`text-xs font-black uppercase tracking-widest ${type === t ? 'text-lime-600' : 'text-gray-400'}`}>{t === 'COMMISSION' ? "الأكثر شيوعاً" : "للمحترفين"}</p>
+                                {type === t && <div className="w-5 h-5 rounded-full bg-lime-500 flex items-center justify-center text-white"><FiCheck size={12} /></div>}
+                             </div>
+                             <p className={`text-sm font-black ${type === t ? 'text-gray-900 dark:text-white' : 'text-gray-500'}`}>{TYPE_LABELS[t]}</p>
+                             <p className="text-xl font-black text-lime-600 mt-2">{PRICE_PER_MONTH[t]} {CURRENCY} <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">/ شهر</span></p>
+                          </button>
+                       ))}
+                    </div>
+                 </div>
 
-         
+                 <div className="space-y-4">
+                    <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">مدة الاشتراك</h3>
+                    <div className="grid grid-cols-2 gap-3">
+                       {[1, 3, 6, 12].map(m => (
+                          <button title="اختر المدة" key={m} onClick={() => setDuration(m)} className={`py-4 rounded-2xl border transition-all text-[10px] font-black uppercase tracking-widest ${duration === m ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-transparent shadow-xl' : 'bg-gray-50 dark:bg-gray-900 border-transparent text-gray-400 hover:bg-gray-100'}`}>
+                             {m === 1 ? "شهر واحد" : m === 12 ? "سنة كاملة" : `${m} أشهر`}
+                          </button>
+                       ))}
+                    </div>
+                 </div>
+
+                 <div className="pt-6 border-t border-gray-100 dark:border-gray-700 space-y-4 text-center">
+                    <div className="flex items-center justify-between px-2">
+                       <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">الإجمالي المطلوب</span>
+                       <span className="text-2xl font-black text-gray-900 dark:text-white">{(PRICE_PER_MONTH[type] * duration).toLocaleString('ar-EG')} {CURRENCY}</span>
+                    </div>
+                    <div className="flex gap-3">
+                       <button title="الدفع بالبطاقة" onClick={() => handleSubscribe('card')} disabled={submitting} className="flex-1 py-4 bg-lime-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-lime-600 transition-all shadow-lg shadow-lime-500/20 active:scale-95">الدفع بالبطاقة</button>
+                       <button title="الدفع نقداً" onClick={() => handleSubscribe('cash')} disabled={submitting} className="flex-1 py-4 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-200 dark:hover:bg-gray-600 transition-all active:scale-95">دفع نقدي</button>
+                    </div>
+                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-relaxed">بضغطك على زر الاشتراك أنت توافق على شروط الخدمة وسياسة الخصوصية الخاصة بالمنصة</p>
+                 </div>
+              </div>
+           </div>
+
+           
+           
+           <div className="lg:col-span-2 space-y-6">
+              <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden">
+                 <div className="px-8 py-6 border-b border-gray-50 dark:border-gray-700 flex items-center justify-between bg-gray-50/30 dark:bg-gray-900/30">
+                    <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">سجل المدفوعات والاشتراكات</h3>
+                    {/* <FiMoreHorizontal size={20} className="text-gray-400" /> */}
+                 </div>
+                 <div className="overflow-x-auto custom-scrollbar-thin">
+                    <table className="w-full text-right border-collapse">
+                       <thead>
+                          <tr className="border-b border-gray-50 dark:border-gray-800">
+                             <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">النوع</th>
+                             <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">المبلغ</th>
+                             <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">الصلاحية</th>
+                             <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-left">الحالة</th>
+                          </tr>
+                       </thead>
+                       <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                          {loading ? (
+                             [...Array(3)].map((_, i) => (
+                                <tr key={i} className="animate-pulse">
+                                   {[...Array(4)].map((_, j) => <td key={j} className="px-8 py-6"><div className="h-4 bg-gray-100 dark:bg-gray-700 rounded-lg w-full" /></td>)}
+                                </tr>
+                             ))
+                          ) : allSubs.length === 0 ? (
+                             <tr>
+                                <td colSpan={4} className="px-8 py-20 text-center">
+                                   <div className="w-16 h-16 bg-gray-50 dark:bg-gray-900 rounded-2xl flex items-center justify-center mx-auto mb-4 text-gray-200">
+                                      <FiZap size={32} />
+                                   </div>
+                                   <p className="text-xs font-black text-gray-400 uppercase tracking-widest">لا يوجد سجل مدفوعات حالياً</p>
+                                </td>
+                             </tr>
+                          ) : allSubs.map(sub => {
+                             const active = isActive(sub.endDate);
+                             return (
+                                <tr key={sub.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/50 transition-colors">
+                                   <td className="px-8 py-6 whitespace-nowrap">
+                                      <p className="text-xs font-black text-gray-900 dark:text-white">{TYPE_LABELS[sub.type] || sub.type}</p>
+                                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">#{sub.id?.slice(0, 8)}</p>
+                                   </td>
+                                   <td className="px-8 py-6 whitespace-nowrap text-center font-mono font-black text-xs text-lime-600">
+                                      {Number(sub.totalAmount)} {CURRENCY}
+                                   </td>
+                                   <td className="px-8 py-6 whitespace-nowrap text-center">
+                                      <p className="text-[10px] font-black text-gray-900 dark:text-white">{new Date(sub.startDate).toLocaleDateString('ar-EG')}</p>
+                                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">إلى {new Date(sub.endDate).toLocaleDateString('ar-EG')}</p>
+                                   </td>
+                                   <td className="px-8 py-6 whitespace-nowrap text-left">
+                                      <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${active ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 'bg-red-50 dark:bg-red-900/20 text-red-600'}`}>
+                                         <span className={`w-1 h-1 rounded-full ${active ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                                         {active ? "نشط" : "منتهي"}
+                                      </span>
+                                   </td>
+                                </tr>
+                             );
+                          })}
+                       </tbody>
+                    </table>
+                 </div>
+              </div>
+           </div>
         </div>
       </div>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        .custom-scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
+        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
+        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #1f2937; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
+      `}} />
     </div>
   );
 };

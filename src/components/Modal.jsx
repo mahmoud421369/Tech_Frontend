@@ -7,7 +7,7 @@ const Modal = ({ title, children, onClose }) => {
       <div className="relative bg-gray-100 dark:bg-gray-900 rounded-2xl shadow-lg w-full max-w-lg p-6">
        
         <div className="flex justify-between items-center mb-4 border-b pb-2">
-          <h2 className="text-xl font-semibold text-indigo-700 dark:text-indigo-400">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
             {title}
           </h2>
           <button

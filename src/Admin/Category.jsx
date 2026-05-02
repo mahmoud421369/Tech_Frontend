@@ -1,492 +1,366 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  FiList,
-  FiPlus,
-  FiEdit3,
-  FiTrash2,
-  FiCopy,
-  FiSearch,
-  FiXCircle,
-  FiChevronLeft,
-  FiChevronRight,
-  FiGrid,
+  FiList, FiPlus, FiEdit3, FiTrash2, FiCopy,
+  FiSearch, FiXCircle, FiChevronLeft, FiChevronRight,
+  FiGrid, FiX, FiCheck, FiActivity, FiTag
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import api from '../api';
-import Modal from '../components/Modal';
 
-const LoadingSpinner = () => (
-  <div className="flex justify-center items-center h-64">
-    <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-  </div>
-);
+const ROWS_OPTIONS = [5, 10, 20, 50];
 
-const CategoriesSkeleton = ({ darkMode }) => (
-  <div className="animate-pulse p-6">
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-        <div className="h-6 w-1/2 bg-gray-300 dark:bg-gray-600 rounded mb-2"></div>
-        <div className="h-8 w-1/4 bg-gray-300 dark:bg-gray-600 rounded"></div>
+const sanitize = (str) => String(str ?? '').replace(/[<>"'`]/g, '');
+
+const showToast = (text, icon) =>
+  Swal.fire({ text, icon, toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
+
+const copyToClipboard = (id) =>
+  navigator.clipboard.writeText(id)
+    .then(() => showToast('Category ID copied!', 'success'))
+    .catch(() => showToast('Failed to copy', 'error'));
+
+
+    
+
+const StatCard = memo(({ icon: Icon, label, value, color }) => (
+  <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-sm hover:shadow-xl hover:shadow-lime-500/5 transition-all duration-500 group relative overflow-hidden">
+    <div className={`absolute top-0 right-0 w-24 h-24 bg-${color}-500/5 rounded-bl-full translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-700`} />
+    <div className="relative flex items-center justify-between">
+      <div className="space-y-1">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">{label}</p>
+        <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">{value}</p>
+      </div>
+      <div className={`w-14 h-14 rounded-2xl bg-${color}-50 dark:bg-${color}-900/20 flex items-center justify-center text-${color}-500 group-hover:rotate-12 group-hover:scale-110 transition-all duration-500`}>
+        <Icon size={24} />
       </div>
     </div>
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-      <div className="h-10 w-full sm:w-80 bg-gray-300 dark:bg-gray-600 rounded-lg mb-6"></div>
-      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-        <thead className="bg-gray-100 dark:bg-gray-700">
-          <tr>
-            {['ID', 'Name', 'Actions'].map((_, idx) => (
-              <th key={idx} className="px-6 py-3">
-                <div className="h-4 w-20 bg-gray-300 dark:bg-gray-600 rounded"></div>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-          {[...Array(5)].map((_, idx) => (
-            <tr key={idx}>
-              <td className="px-6 py-4"><div className="h-4 w-10 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-              <td className="px-6 py-4"><div className="h-4 w-32 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-              <td className="px-6 py-4">
-                <div className="flex justify-center gap-2">
-                  <div className="h-8 w-16 bg-gray-300 dark:bg-gray-600 rounded"></div>
-                  <div className="h-8 w-16 bg-gray-300 dark:bg-gray-600 rounded"></div>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
   </div>
-);
+));
 
-const PaginatedTable = ({
-  data,
-  columns,
-  page,
-  setPage,
-  pageSize,
-  renderRow,
-  emptyMessage,
-  darkMode,
-}) => {
-  const totalPages = Math.ceil(data.length / pageSize);
-  const paginatedData = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return data.slice(start, start + pageSize);
-  }, [data, page, pageSize]);
-
-  const getPageNumbers = () => {
-    const pages = [];
-    const maxVisible = 5;
-    if (totalPages <= maxVisible) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i);
-    } else {
-      let start = Math.max(1, page - 2);
-      let end = Math.min(totalPages, start + maxVisible - 1);
-      if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1);
-      if (start > 1) { pages.push(1); if (start > 2) pages.push('...'); }
-      for (let i = start; i <= end; i++) pages.push(i);
-      if (end < totalPages) { if (end < totalPages - 1) pages.push('...'); pages.push(totalPages); }
-    }
-    return pages;
-  };
-
-  return (
-    <>
-      <style>
-        {`
-          .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
-          .custom-scrollbar::-webkit-scrollbar-track { background: ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}; border-radius: 10px; }
-          .custom-scrollbar::-webkit-scrollbar-thumb { background: ${darkMode ? '#34d399' : '#10b981'}; border-radius: 10px; }
-          .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: ${darkMode ? '#6ee7b7' : '#059669'}; }
-        `}
-      </style>
-
-      <div className="overflow-x-auto custom-scrollbar">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-        <thead className="bg-gray-100">
-  <tr>
-    {columns.map((col, i) => (
-      <th
-        key={i}
-        className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider first:rounded-tl-xl last:rounded-tr-xl"
-      >
-        {col}
-      </th>
-    ))}
-  </tr>
-</thead>
-          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 text-gray-900 dark:text-gray-100">
-            {paginatedData.map(renderRow)}
-            {paginatedData.length === 0 && (
-              <tr>
-                <td colSpan={columns.length} className="py-12 text-center text-gray-500 dark:text-gray-400">
-                  <div className="flex flex-col items-center gap-3">
-                    <FiList className="text-4xl text-gray-400 dark:text-gray-500" />
-                    <p className="text-lg font-medium">{emptyMessage}</p>
-                  </div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-
-        {totalPages > 1 && (
-          <div className="flex justify-center items-center space-x-2 mt-8">
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
-            >
-              <FiChevronLeft /> Prev
-            </button>
-            {getPageNumbers().map((num, i) => (
-              <button
-                key={i}
-                onClick={() => typeof num === 'number' && setPage(num)}
-                disabled={num === '...'}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  num === '...'
-                    ? 'cursor-default text-gray-500 dark:text-gray-400'
-                    : page === num
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-800'
-                }`}
-              >
-                {num}
-              </button>
-            ))}
-            <button
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
-            >
-              Next <FiChevronRight />
-            </button>
+const CategoryModal = memo(({ editingCategory, value, onChange, onClose, onSubmit, loading }) => (
+  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-md p-4">
+    <div className="w-full max-w-sm bg-white dark:bg-gray-800 rounded-none shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
+      <div className="flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/80 px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+        <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">
+          {editingCategory ? 'Edit Category' : 'Add Category'}
+        </h3>
+        <button onClick={onClose} className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-red-500 transition-all">
+          <FiX size={18} title="Close" />
+        </button>
+      </div>
+      <div className="p-6 space-y-4">
+        {editingCategory && (
+          <div className="p-4 bg-gray-50 dark:bg-gray-900/40 border border-transparent">
+             <div className="flex items-center justify-between">
+               <div>
+                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Registry ID</p>
+                 <p className="text-xs font-mono font-bold text-gray-700 dark:text-gray-300 mt-1">{editingCategory.id}</p>
+               </div>
+               <button onClick={() => copyToClipboard(editingCategory.id)} className="p-2 bg-white dark:bg-gray-800 rounded-lg text-gray-400 hover:text-lime-500 shadow-sm transition-all">
+                 <FiCopy size={14} title="Copy ID" />
+               </button>
+             </div>
           </div>
         )}
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Category Title</label>
+          <input
+            type="text"
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            placeholder="e.g. Smartphones"
+            className="w-full px-4 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/5 transition-all"
+            autoFocus
+            onKeyDown={e => e.key === 'Enter' && onSubmit()}
+          />
+        </div>
       </div>
-    </>
-  );
-};
+      <div className="px-6 pb-6 flex gap-3">
+        <button onClick={onClose}
+          className="flex-1 py-4 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-black uppercase tracking-[0.2em] hover:bg-gray-200 dark:hover:bg-gray-600 transition-all">
+          Cancel
+        </button>
+        <button onClick={onSubmit} disabled={loading || !value.trim()}
+          className="flex-1 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-[0.2em] hover:bg-lime-500 dark:hover:bg-lime-500 dark:hover:text-white transition-all active:scale-[0.98] disabled:opacity-30">
+          {loading ? 'Processing...' : editingCategory ? 'Update' : 'Add'}
+        </button>
+      </div>
+    </div>
+  </div>
+));
+
+
 
 const Categories = ({ darkMode }) => {
   const navigate = useNavigate();
   const token = localStorage.getItem('authToken');
+
   const [categories, setCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [categoryName, setCategoryName] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [page, setPage] = useState(1);
-  const pageSize = 5;
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
- useEffect(() => {
-    document.title = "Categories - TechRepair";
-  }, []);
+  useEffect(() => { document.title = 'Admin - Categories'; }, []);
 
   const fetchCategories = useCallback(async () => {
-    if (!token) {
-      Swal.fire({ title: 'Error', text: 'Please log in.', icon: 'error' });
-      navigate('/login');
-      return;
-    }
-
-    setIsLoading(true);
+    if (!token) { navigate('/login'); return; }
+    setLoading(true);
     try {
       const { data } = await api.get('/api/admin/categories', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const processed = Array.isArray(data) ? data : data?.content || [];
-      setCategories(processed);
-    } catch (error) {
-      const msg = error.response?.status === 401 ? 'Session expired.' : 'Failed to load categories.';
-      Swal.fire({ title: 'Error', text: msg, icon: 'error' });
-      if (error.response?.status === 401) {
-        ['authToken', 'refreshToken', 'userId'].forEach(k => localStorage.removeItem(k));
-        navigate('/login');
-      }
-      setCategories([]);
-    } finally {
-      setIsLoading(false);
-    }
+      setCategories(Array.isArray(data) ? data : data?.content || []);
+    } catch (err) {
+      if (err?.response?.status === 401) { navigate('/login'); }
+      else showToast('Sync failed', 'error');
+    } finally { setLoading(false); }
   }, [token, navigate]);
 
-  const saveCategory = async () => {
-    if (!categoryName.trim()) {
-      Swal.fire({ title: 'Error', text: 'Category name is required.', icon: 'error' });
-      return;
-    }
+  useEffect(() => { fetchCategories(); }, [fetchCategories]);
 
+  const saveCategory = useCallback(async () => {
+    const name = categoryName.trim();
+    if (!name) { showToast('Name is mandatory', 'warning'); return; }
+    setSaving(true);
     try {
-      setIsLoading(true);
       if (editingCategory) {
-        await api.put(
-          `/api/admin/categories/${editingCategory.id}`,
-          { name: categoryName },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        Swal.fire({ title: 'Updated!', text: 'Category updated.', icon: 'success', toast: true, position: 'top-end', timer: 1500 });
+        await api.put(`/api/admin/categories/${editingCategory.id}`, { name: sanitize(name) }, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        showToast('Category updated', 'success');
       } else {
-        await api.post(
-          '/api/admin/categories',
-          { name: categoryName },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        Swal.fire({ title: 'Added!', text: 'Category created.', icon: 'success', toast: true, position: 'top-end', timer: 1500 });
+        await api.post('/api/admin/categories', { name: sanitize(name) }, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        showToast('Category created', 'success');
       }
       setCategoryName('');
       setEditingCategory(null);
       setIsModalOpen(false);
       fetchCategories();
-    } catch (error) {
-      Swal.fire({ title: 'Error', text: 'Failed to save category.', icon: 'error' });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    } catch { showToast('Commit failed', 'error'); }
+    finally { setSaving(false); }
+  }, [categoryName, editingCategory, token, fetchCategories]);
 
-  const deleteCategory = async (id) => {
-    const result = await Swal.fire({
-      title: 'Delete Category?',
-      text: 'This action cannot be undone!',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#ef4444',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Yes, delete',
+  const deleteCategory = useCallback(async (id) => {
+    const { isConfirmed } = await Swal.fire({
+      title: 'Delete Category?', text: 'This action will delete the category from registry.',
+      icon: 'warning', showCancelButton: true, confirmButtonText: 'Confirm Delete', confirmButtonColor: '#ef4444',
+      background: darkMode ? '#111827' : '#fff', color: darkMode ? '#fff' : '#000',
     });
-    if (!result.isConfirmed) return;
-
+    if (!isConfirmed) return;
     try {
-      setIsLoading(true);
       await api.delete(`/api/admin/categories/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      Swal.fire({ title: 'Deleted!', text: 'Category removed.', icon: 'success', toast: true, position: 'top-end', timer: 1500 });
-      fetchCategories();
-    } catch (error) {
-      Swal.fire({ title: 'Error', text: 'Failed to delete.', icon: 'error' });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      showToast('Category deleted', 'success'); fetchCategories();
+    } catch { showToast('Deleted failed', 'error'); }
+  }, [token, fetchCategories, darkMode]);
 
-  const copyToClipboard = (id) => {
-    navigator.clipboard.writeText(id).then(
-      () => Swal.fire({ title: 'Copied!', text: 'Category ID copied!', icon: 'success', toast: true, position: 'top-end', timer: 1000 }),
-      () => Swal.fire({ title: 'Error', text: 'Failed to copy', icon: 'error', toast: true, position: 'top-end', timer: 1000 })
-    );
-  };
-
-  const filteredCategories = useMemo(() => {
+  const filtered = useMemo(() => {
     if (!searchTerm.trim()) return categories;
-    const lower = searchTerm.toLowerCase();
-    return categories.filter(c => c.name?.toLowerCase().includes(lower));
+    const t = searchTerm.toLowerCase();
+    return categories.filter(c => c.name?.toLowerCase().includes(t));
   }, [categories, searchTerm]);
 
-  useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
+  const totalPages = Math.ceil(filtered.length / rowsPerPage);
+  const paginated = useMemo(() => {
+    const start = (currentPage - 1) * rowsPerPage;
+    return filtered.slice(start, start + rowsPerPage);
+  }, [filtered, currentPage, rowsPerPage]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-16 ml-3">
-      <div className="max-w-7xl mx-auto space-y-8">
-
-       
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-3">
-              <FiList /> Categories
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">Manage product categories</p>
-          </div>
-          <button
-            onClick={() => {
-              setEditingCategory(null);
-              setCategoryName('');
-              setIsModalOpen(true);
-            }}
-            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all duration-300 shadow-md hover:shadow-lg"
-          >
-            <FiPlus /> Add Category
-          </button>
-        </div>
-
-        {isLoading ? (
-          <CategoriesSkeleton darkMode={darkMode} />
-        ) : (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-
-            
-           <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-  <div className="grid grid-cols-1 sm:grid-cols-5  gap-6">
-
-    <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg  border border-gray-200 dark:border-gray-600 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow col-span-1 sm:col-span-3 sm:col-start-2">
-      <div className="text-left sm:text-center">
-        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Categories</p>
-        <p className="text-3xl font-bold mt-2 text-emerald-600 dark:text-emerald-500">
-          {categories.length}
-        </p>
-      </div>
-
-      
-      <div className="p-4 rounded-full bg-emerald-100 dark:bg-emerald-900/30">
-        <FiGrid className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
-      </div>
-    </div>
-  </div>
-</div>
-
-            
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <div className="relative max-w-md">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
-                <div className="relative">
-                  <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                  <input
-                    type="text"
-                    placeholder="Search by name..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-10 py-2.5 focus:outline-none rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
-                  />
-                  {searchTerm && (
-                    <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
-                      <FiXCircle />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            
-            <div className="p-6">
-            
-
-<PaginatedTable
-  data={filteredCategories}
-  columns={['ID', 'Category Name', 'Actions']}
-  page={page}
-  setPage={setPage}
-  pageSize={pageSize}
-  darkMode={darkMode}
-  renderRow={(c) => (
-    <tr
-      key={c.id}
-      className="border-b border-gray-200 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-all duration-200"
-    >
-     
-      <td className="px-6 py-5 text-center">
-        <div className="flex items-center justify-center gap-2">
-          <code className="text-xs font-mono bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg text-gray-700 dark:text-gray-300">
-            {c.id}
-          </code>
-          <button
-            onClick={() => copyToClipboard(c.id)}
-            className="text-gray-400 hover:text-emerald-600 transition-colors"
-            title="Copy ID"
-          >
-            <FiCopy className="w-4 h-4" />
-          </button>
-        </div>
-      </td>
-
-    
-      <td className="px-6 py-5">
-        <div className="flex justify-center">
-          <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-            {c.name || 'Unnamed Category'}
-          </span>
-        </div>
-      </td>
-
-      
-      <td className="px-6 py-5">
-        <div className="flex justify-center items-center gap-3">
-          <button
-            onClick={() => {
-              setEditingCategory(c);
-              setCategoryName(c.name || '');
-              setIsModalOpen(true);
-            }}
-            className="text-amber-600 dark:bg-gray-950 dark:text-white dark:border-gray-900 hover:text-amber-800 flex items-center gap-1 text-xs px-3 py-1.5 bg-yellow-50 rounded-lg font-medium border border-yellow-200"
-          >
-            <FiEdit3 className="w-4 h-4 group-hover:scale-110 transition-transform" />
-            Edit
-          </button>
-
-          <button
-            onClick={() => deleteCategory(c.id)}
-            className="text-red-600 dark:bg-gray-950 dark:text-white dark:border-gray-900 hover:text-red-800 flex items-center gap-1 text-xs px-3 py-1.5 bg-red-50 rounded-lg font-medium border border-red-200 "
-          >
-            <FiTrash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
-            Delete
-          </button>
-        </div>
-      </td>
-    </tr>
-  )}
-  emptyMessage={
-    searchTerm
-      ? 'No categories found matching your search.'
-      : 'No categories yet. Click "Add Category" to create one!'
-  }
-/>
-            </div>
-          </div>
-        )}
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 space-y-8">
 
         
-        {isModalOpen && (
-          <Modal onClose={() => setIsModalOpen(false)} title={editingCategory ? 'Edit Category' : 'Add Category'} darkMode={darkMode}>
-            <div className="space-y-4">
-              <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-semibold text-gray-900 dark:text-gray-100">Category Details</h4>
-                  {editingCategory && (
-                    <button onClick={() => copyToClipboard(editingCategory.id)} className="text-gray-500 hover:text-emerald-600">
-                      <FiCopy className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-                {editingCategory && (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                    <strong>ID:</strong> {editingCategory.id}
-                  </p>
-                )}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
-                  <input
-                    type="text"
-                    value={categoryName}
-                    onChange={(e) => setCategoryName(e.target.value)}
-                    placeholder="Enter category name"
-                    className="w-full px-3 py-2 rounded-lg bg-white focus:outline-none dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-5 py-2 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={saveCategory}
-                  disabled={isLoading || !categoryName.trim()}
-                  className="px-5 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {isLoading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
-                  {editingCategory ? 'Update' : 'Create'}
-                </button>
-              </div>
+        
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-1.5 rounded-full bg-lime-500" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-600">Category Schema</span>
             </div>
-          </Modal>
-        )}
+            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">Categories</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Define and organize the platform catalog structure</p>
+          </div>
+
+          <button
+            onClick={() => { setEditingCategory(null); setCategoryName(''); setIsModalOpen(true); }}
+            className="flex items-center justify-center gap-2 px-6 py-3.5 bg-lime-500 text-white rounded-2xl shadow-lg shadow-lime-500/20 hover:scale-105 active:scale-95 transition-all text-xs font-black uppercase tracking-widest"
+          >
+            <FiPlus size={16} /> New Category
+          </button>
+        </div>
+
+       
+       
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <StatCard icon={FiGrid} label="Total Categories" value={categories.length} color="lime" />
+          <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-sm flex items-center gap-4">
+             <div className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center text-gray-400">
+               <FiActivity size={20} />
+             </div>
+             <div>
+               <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">System Integrity</p>
+               <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Schema Validated</p>
+             </div>
+          </div>
+        </div>
+
+        
+        
+        <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
+          <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
+            <div className="relative flex-1 group">
+              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={16} />
+              <input
+                type="text"
+                placeholder="Search category..."
+                value={searchTerm}
+                onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                className="w-full pl-12 pr-10 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/5 transition-all"
+              />
+              {searchTerm && (
+                <button onClick={() => setSearchTerm('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors">
+                  <FiXCircle size={16} title="Clear Search" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3 px-4">
+               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">View</span>
+               <select
+                 value={rowsPerPage}
+                 onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                 className="bg-transparent text-sm font-black text-gray-900 dark:text-white focus:outline-none cursor-pointer"
+               >
+                 {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n} Rows</option>)}
+               </select>
+            </div>
+          </div>
+        </div>
+
+       
+       
+        <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
+          {loading ? (
+            <div className="py-32 text-center space-y-4">
+              <div className="w-12 h-12 border-4 border-lime-500 border-t-transparent rounded-full animate-spin mx-auto shadow-lg" />
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 animate-pulse">Syncing schema...</p>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[500px]">
+                  <thead className="bg-gray-50 dark:bg-gray-900/50">
+                    <tr>
+                      <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-widest text-gray-400"> ID</th>
+                      <th className="px-8 py-5 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">Category </th>
+                      <th className="px-8 py-5 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">Operations</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                    {paginated.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="py-32 text-center">
+                          <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
+                            <FiList size={32} className="text-gray-200" />
+                          </div>
+                          <p className="text-gray-400 font-bold">No Records Found</p>
+                        </td>
+                      </tr>
+                    ) : paginated.map(c => (
+                      <tr key={c.id} className="hover:bg-lime-50/10 dark:hover:bg-lime-900/5 transition-colors group">
+                        <td className="px-8 py-6">
+                          <div className="flex items-center gap-3">
+                            <code className="text-[10px] font-black bg-gray-50 dark:bg-gray-900 px-3 py-1.5 rounded-lg text-gray-500 max-w-[150px] truncate block border border-transparent group-hover:border-lime-500/20 transition-all">
+                              {c.id}
+                            </code>
+                            <button
+                              onClick={() => copyToClipboard(c.id)}
+                              className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-lime-500 transition-all"
+                            >
+                              <FiCopy size={14} title="Copy Identity ID" />
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 text-center">
+                          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-black bg-lime-50 dark:bg-lime-900/20 text-lime-600 uppercase tracking-widest border border-lime-500/10">
+                            <FiTag size={12} />
+                            {sanitize(c.name) || 'Unnamed Entry'}
+                          </span>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => { setEditingCategory(c); setCategoryName(c.name || ''); setIsModalOpen(true); }}
+                              className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 hover:scale-110 transition-all"
+                            >
+                              <FiEdit3 size={16} title="Edit Category" />
+                            </button>
+                            <button
+                              onClick={() => deleteCategory(c.id)}
+                              className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500 hover:scale-110 transition-all"
+                            >
+                              <FiTrash2 size={16} title="Delete Category" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between border-t border-gray-50 dark:border-gray-800 bg-gray-50/30 dark:bg-gray-800/20 px-8 py-6 gap-6">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                    Showing {Math.min(paginated.length, rowsPerPage)} Entries of {filtered.length}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
+                      className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all">
+                      <FiChevronLeft size={16} title="Previous Page" />
+                    </button>
+                    <div className="flex gap-1">
+                      {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                        const p = i + 1;
+                        return (
+                          <button key={p} onClick={() => setCurrentPage(p)}
+                            className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all border
+                              ${currentPage === p ? 'bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20' : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-500 hover:border-lime-500/50'}`}>
+                            {p}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
+                      className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all">
+                      <FiChevronRight size={16} title="Next Page" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
+
+      {isModalOpen && (
+        <CategoryModal
+          editingCategory={editingCategory}
+          value={categoryName}
+          onChange={setCategoryName}
+          onClose={() => setIsModalOpen(false)}
+          onSubmit={saveCategory}
+          loading={saving}
+        />
+      )}
     </div>
   );
 };

@@ -1,721 +1,495 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import {
   FiChevronDown, FiSearch, FiInfo, FiCheckSquare, FiXCircle,
   FiChevronLeft, FiChevronRight, FiX, FiPackage, FiClock,
   FiTruck, FiCheckCircle, FiAlertCircle,
   FiCalendar, FiUser, FiPhone, FiCreditCard, FiDollarSign,
   FiTag, FiShoppingBag, FiHash,
-  FiCheck
+  FiCheck, FiFilter, FiArrowLeft, FiCopy, FiThumbsUp, FiSettings,
+  FiChevronsDown, FiArrowUp, FiArrowDown, FiExternalLink, FiMoreHorizontal, FiActivity
 } from 'react-icons/fi';
-import { RiShoppingBag3Line } from 'react-icons/ri';
+import { RiShoppingCartLine } from 'react-icons/ri';
 import Swal from 'sweetalert2';
 import api from '../api';
 import debounce from 'lodash/debounce';
-import { toast } from 'react-toastify';
 
-const Orders = ({darkMode}) => {
+
+
+
+const ROWS_OPTIONS = [10, 25, 50];
+
+const STATUS_TRANSLATIONS = {
+  PENDING: 'معلق',
+  CONFIRMED: 'مؤكد',
+  PROCESSING: 'قيد المعالجة',
+  FINISHPROCESSING: 'تمت المعالجة',
+  SHIPPED: 'تم الشحن',
+  DELIVERED: 'تم التسليم',
+  CANCELLED: 'ملغى',
+  all: 'جميع الحالات',
+};
+
+const STATUSES = ['PENDING', 'CONFIRMED', 'PROCESSING', 'FINISHPROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+
+const NEXT_STATUSES = {
+  PENDING: ['CONFIRMED', 'CANCELLED'],
+  CONFIRMED: ['PROCESSING'],
+  PROCESSING: ['FINISHPROCESSING'],
+  FINISHPROCESSING: ['SHIPPED'],
+  SHIPPED: ['DELIVERED'],
+  DELIVERED: [],
+  CANCELLED: [],
+};
+
+const STATUS_STYLE = {
+  PENDING: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600', dot: 'bg-blue-500' },
+  CONFIRMED: { bg: 'bg-lime-50 dark:bg-lime-900/20', text: 'text-lime-600', dot: 'bg-lime-500' },
+  PROCESSING: { bg: 'bg-yellow-50 dark:bg-yellow-900/20', text: 'text-yellow-600', dot: 'bg-yellow-500' },
+  FINISHPROCESSING: { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-600', dot: 'bg-amber-500' },
+  SHIPPED: { bg: 'bg-purple-50 dark:bg-purple-900/20', text: 'text-purple-600', dot: 'bg-purple-500' },
+  DELIVERED: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600', dot: 'bg-emerald-500' },
+  CANCELLED: { bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-600', dot: 'bg-red-500' },
+};
+
+const getStatusStyle = (s) => STATUS_STYLE[s] || { bg: 'bg-gray-50', text: 'text-gray-600', dot: 'bg-gray-400' };
+
+
+
+const StatCard = memo(({ icon: Icon, label, value, color, description }) => (
+  <div className="relative group bg-white dark:bg-gray-800 rounded-[2rem] border border-gray-100 dark:border-gray-700 p-6 transition-all duration-500 hover:shadow-2xl hover:shadow-gray-200/50 dark:hover:shadow-none overflow-hidden">
+    <div className={`absolute top-0 right-0 w-24 h-24 bg-${color}-500/5 rounded-bl-full translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-700`} />
+    <div className="flex flex-col h-full relative z-10 text-right">
+      <div className={`w-12 h-12 rounded-2xl bg-${color}-50 dark:bg-${color}-900/20 flex items-center justify-center text-${color}-600 dark:text-${color}-400 mb-4 group-hover:rotate-6 transition-transform`}>
+        <Icon size={22} />
+      </div>
+      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">{label}</p>
+      <p className="text-2xl font-black text-gray-900 dark:text-white mt-1">{value}</p>
+      <p className="text-[9px] font-bold text-gray-400 mt-2">{description}</p>
+    </div>
+  </div>
+));
+
+
+
+
+const Orders = () => {
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [statusFilter, setStatusFilter] = useState('all');
-  const [openFilterDropdown, setOpenFilterDropdown] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [statusModalOrder, setStatusModalOrder] = useState(null);
   const [selectedNewStatus, setSelectedNewStatus] = useState('');
 
-  const filterDropdownRef = useRef(null);
-  const ordersPerPage = 10;
 
-  useEffect(() => {
-    document.title = "إدارة الطلبات";
-  }, []);
+  useEffect(() => { document.title = 'إدارة الطلبات'; }, []);
 
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target)) {
-        setOpenFilterDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  const showToast = (text, icon) =>
+    Swal.fire({
+      text, icon, toast: true, position: 'top-start',
+      showConfirmButton: false, timer: 3000,
+    });
 
-  const statusTranslations = {
-    PENDING: 'معلق',
-    CONFIRMED: 'مؤكد',
-    PROCESSING: 'قيد المعالجة',
-    FINISHPROCESSING: 'تمت المعالجة',
-    SHIPPED: 'تم الشحن',
-    DELIVERED: 'تم التسليم',
-    CANCELLED: 'ملغى',
-    all: 'جميع الحالات',
-  };
-
-  const statuses = ['PENDING', 'CONFIRMED', 'PROCESSING', 'FINISHPROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
-
-  const nextStatuses = {
-    PENDING: ['CONFIRMED', 'CANCELLED'],
-    CONFIRMED: ['PROCESSING'],
-    PROCESSING: ['FINISHPROCESSING'],
-    FINISHPROCESSING: ['SHIPPED'],
-    SHIPPED: ['DELIVERED'],
-    DELIVERED: [],
-    CANCELLED: [],
-  };
-
-  const getStatusColor = (status) => {
-    const map = {
-      PENDING: 'bg-blue-100 text-blue-800',
-      CONFIRMED: 'bg-lime-100 text-lime-800',
-      PROCESSING: 'bg-yellow-100 text-yellow-800',
-      FINISHPROCESSING: 'bg-amber-100 text-amber-800',
-      SHIPPED: 'bg-purple-100 text-purple-800',
-      DELIVERED: 'bg-green-100 text-green-800',
-      CANCELLED: 'bg-red-100 text-red-800',
-    };
-    return map[status] || 'bg-gray-100 text-gray-700';
-  };
-
-  const stats = useMemo(() => {
-    const total = orders.length;
-    const pending = orders.filter(o => o.status === 'PENDING').length;
-    const confirmed = orders.filter(o => o.status === 'CONFIRMED').length;
-    const processing = orders.filter(o => ['PROCESSING', 'FINISHPROCESSING'].includes(o.status)).length;
-    const delivered = orders.filter(o => o.status === 'DELIVERED').length;
-
-    return { total, pending, confirmed, processing, delivered };
-  }, [orders]);
-
-  const debouncedFetch = useMemo(
-    () => debounce((status, search) => {
-      setLoading(true);
+  const fetchOrders = useCallback(async (status, search = '') => {
+    setLoading(true);
+    try {
       const endpoint = status === 'all'
         ? '/api/shops/orders/control'
         : `/api/shops/orders/control/status/${status}`;
+      const res = await api.get(endpoint, { params: { query: search } });
+      setOrders(Array.isArray(res.data) ? res.data : res.data.content || []);
+    } catch {
+      showToast('فشل تحميل الطلبات', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-      api.get(endpoint, { params: { query: search } })
-        .then((res) => {
-          const data = Array.isArray(res.data) ? res.data : res.data.content || [];
-          setOrders(data);
-        })
-        .catch(() => toast.error('فشل تحميل الطلبات'))
-        .finally(() => setLoading(false));
-    }, 300),
-    []
-  );
-
-  const fetchOrders = useCallback((status, search = '') => {
-    debouncedFetch(status, search);
-  }, [debouncedFetch]);
+  const debouncedFetch = useMemo(() => debounce(fetchOrders, 300), [fetchOrders]);
 
   useEffect(() => {
-    fetchOrders(statusFilter, searchTerm);
+    debouncedFetch(statusFilter, searchTerm);
     return () => debouncedFetch.cancel();
-  }, [statusFilter, searchTerm, fetchOrders]);
-
-  const acceptOrder = async (orderId) => {
-    const confirm = await Swal.fire({
-      title: 'قبول الطلب؟',
-      text: 'سيتم خصم الكميات من المخزون',
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: 'قبول',
-      cancelButtonText: 'إلغاء',
-      confirmButtonColor: '#84cc16',
-    });
-    if (!confirm.isConfirmed) return;
-
-    const prev = [...orders];
-    setOrders(prev.map(o => o.id === orderId ? { ...o, status: 'CONFIRMED' } : o));
-
-    try {
-      await api.post(`/api/shops/orders/control/${orderId}/accept`);
-      Swal.fire({
-        title: 'نجاح',
-        text: 'تم قبول الطلب',
-        icon: 'success',
-        toast: true,
-        position: 'top-end',
-        timer: 2000,
-        timerProgressBar: true,
-        showConfirmButton: false,
-      });
-    } catch {
-      setOrders(prev);
-      Swal.fire({
-        title: 'فشل',
-        text: 'فشل قبول الطلب',
-        icon: 'error',
-        toast: true,
-        position: 'top-end',
-        timer: 2000,
-        timerProgressBar: true,
-        showConfirmButton: false,
-      });
-    }
-  };
-
-  const rejectOrder = async (orderId) => {
-    const { isConfirmed } = await Swal.fire({
-      title: 'رفض الطلب؟',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'رفض',
-      cancelButtonText: 'إلغاء',
-      confirmButtonColor: '#ef4444',
-    });
-    if (!isConfirmed) return;
-
-    const prev = [...orders];
-    setOrders(prev.map(o => o.id === orderId ? { ...o, status: 'CANCELLED' } : o));
-
-    try {
-      await api.post(`/api/shops/orders/control/${orderId}/reject`);
-      Swal.fire({
-        title: 'نجاح',
-        text: 'تم رفض الطلب',
-        icon: 'success',
-        toast: true,
-        position: 'top-end',
-        timer: 2000,
-        timerProgressBar: true,
-        showConfirmButton: false,
-      });
-    } catch {
-      setOrders(prev);
-      Swal.fire({
-        title: 'فشل',
-        text: 'فشل في رفض الطلب',
-        icon: 'error',
-        toast: true,
-        position: 'top-end',
-        timer: 2000,
-        timerProgressBar: true,
-        showConfirmButton: false,
-      });
-    }
-  };
-
-  const openStatusUpdateModal = (order) => {
-    setStatusModalOrder(order);
-    setSelectedNewStatus('');
-    setShowStatusModal(true);
-  };
-
-  const confirmStatusUpdate = async () => {
-    if (!selectedNewStatus) return;
-    const prev = [...orders];
-    setOrders(prev.map(o => o.id === statusModalOrder.id ? { ...o, status: selectedNewStatus } : o));
-
-    try {
-      await api.put(`/api/shops/orders/control/${statusModalOrder.id}/status`, { status: selectedNewStatus });
-      Swal.fire({
-        title: 'تم!',
-        text: `تم تحديث الحالة إلى ${statusTranslations[selectedNewStatus]}`,
-        icon: 'success',
-        toast: true,
-        position: 'top-end',
-        timer: 2000,
-        timerProgressBar: true,
-        showConfirmButton: false,
-      });
-      setShowStatusModal(false);
-    } catch {
-      setOrders(prev);
-      Swal.fire({
-        title: 'خطأ',
-        text: 'فشل تحديث الحالة',
-        icon: 'error',
-        toast: true,
-        position: 'top-end',
-        timer: 2000,
-        timerProgressBar: true,
-        showConfirmButton: false,
-      });
-    }
-  };
-
-  const openDetailsModal = (order) => {
-    setSelectedOrder(order);
-    setShowDetailsModal(true);
-  };
+  }, [statusFilter, searchTerm, debouncedFetch]);
 
   const filteredOrders = useMemo(() => {
-    if (!searchTerm) return orders;
-    const term = searchTerm.toLowerCase();
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return orders;
     return orders.filter(o =>
-      o.id.toString().includes(term) ||
-      (o.userId || '').toLowerCase().includes(term)
+      String(o.id).toLowerCase().includes(term) ||
+      `${o.firstName} ${o.lastName}`.toLowerCase().includes(term) ||
+      String(o.phoneNumber).toLowerCase().includes(term) ||
+      (o.orderItems || []).some(item => item.productName?.toLowerCase().includes(term))
     );
   }, [orders, searchTerm]);
 
-  const totalPages = Math.ceil(filteredOrders.length / ordersPerPage);
-  const pageOrders = filteredOrders.slice((currentPage - 1) * ordersPerPage, currentPage * ordersPerPage);
+  const paginated = useMemo(() => filteredOrders.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage), [filteredOrders, currentPage, rowsPerPage]);
+  const totalPages = Math.ceil(filteredOrders.length / rowsPerPage);
+
+  const stats = useMemo(() => ({
+    total: orders.length,
+    pending: orders.filter(o => o.status === 'PENDING').length,
+    confirmed: orders.filter(o => o.status === 'CONFIRMED').length,
+    delivered: orders.filter(o => o.status === 'DELIVERED').length,
+  }), [orders]);
+
+  const updateOrderStatus = async (orderId, newStatus) => {
+    try {
+      if (newStatus === 'CONFIRMED') {
+        const { isConfirmed } = await Swal.fire({
+          title: 'قبول الطلب؟', text: 'سيتم خصم الكميات من المخزون', icon: 'question',
+          showCancelButton: true, confirmButtonText: 'قبول', cancelButtonText: 'إلغاء',
+          confirmButtonColor: '#84cc16',
+        });
+        if (!isConfirmed) return;
+        await api.post(`/api/shops/orders/control/${orderId}/accept`);
+      } else if (newStatus === 'CANCELLED') {
+        const { isConfirmed } = await Swal.fire({
+          title: 'رفض الطلب؟', icon: 'warning',
+          showCancelButton: true, confirmButtonText: 'رفض', cancelButtonText: 'إلغاء',
+          confirmButtonColor: '#ef4444',
+        });
+        if (!isConfirmed) return;
+        await api.post(`/api/shops/orders/control/${orderId}/reject`);
+      } else {
+        await api.put(`/api/shops/orders/control/${orderId}/status`, { status: newStatus });
+      }
+      showToast('تم تحديث الحالة بنجاح', 'success');
+      fetchOrders(statusFilter, searchTerm);
+    } catch {
+      showToast('فشل تحديث الحالة', 'error');
+    }
+  };
+
+  const statCards = [
+    { icon: RiShoppingCartLine, label: 'إجمالي الطلبات', value: stats.total.toLocaleString('ar-EG'), color: "lime", description: "طلبات قيد المعالجة" },
+    { icon: FiClock, label: 'طلبات معلقة', value: stats.pending.toLocaleString('ar-EG'), color: "blue", description: "بانتظار المراجعة" },
+    { icon: FiCheckCircle, label: 'طلبات مؤكدة', value: stats.confirmed.toLocaleString('ar-EG'), color: "emerald", description: "في مرحلة التنفيذ" },
+    { icon: FiTruck, label: 'تم التسليم', value: stats.delivered.toLocaleString('ar-EG'), color: "indigo", description: "عمليات مكتملة" },
+  ];
 
   return (
-    <div style={{ marginTop: "-540px", marginLeft: "-250px" }} className="min-h-screen bg-gray-50 font-cairo py-8">
-      
-      <style>
-        {`
-          .custom-scrollbar::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-          }
-          .custom-scrollbar::-webkit-scrollbar-track {
-            background: ${darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
-            border-radius: 10px;
-          }
-          .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: ${darkMode ? '#34d399' : '#10b981'};
-            border-radius: 10px;
-          }
-          .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: ${darkMode ? '#6ee7b7' : '#059669'};
-          }
-        `}
-      </style>
-      
-      
-      <div className="max-w-5xl mx-auto px-6">
+    <div dir="rtl" className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pr-64 mt-16 transition-all duration-500 font-cairo text-right">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-10">
 
-        <div className="mb-10 bg-white rounded-3xl shadow-sm border border-gray-200 p-8">
-          <div className="flex items-center justify-between text-right gap-5">
-            <div className="p-5 bg-lime-100 rounded-2xl">
-              <RiShoppingBag3Line className="text-4xl text-lime-600" />
+
+
+        <div className="flex flex-col md:flex-row md:items-end mt-3 justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-1.5 rounded-full bg-lime-500" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-600">سجل المعاملات</span>
             </div>
-            <div>
-              <h1 className="text-4xl font-bold text-gray-900">الطلبات</h1>
-              <p className="text-lg text-gray-600 mt-2">إدارة ومتابعة جميع طلبات العملاء بسهولة وسرعة</p>
-            </div>
+            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">إدارة <span className="text-lime-500">الطلبات</span></h1>
+            <p className="text-sm font-bold text-gray-500 dark:text-gray-400">تابع وحسن تجربة عملائك من خلال إدارة الطلبات الفعالة</p>
           </div>
 
-       
+          <button
+            title="تصفية النتائج"
+            onClick={() => setShowFilterPanel(true)}
+            className="flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-widest hover:bg-lime-500 dark:hover:bg-lime-500 hover:text-white transition-all shadow-xl shadow-gray-900/10 active:scale-95"
+          >
+            <FiFilter size={16} /> تصفية النتائج
+          </button>
         </div>
 
-     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-8 mb-6">
-  
-  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-gray-600">إجمالي الطلبات</p>
-        <p className="text-3xl font-bold text-gray-900 mt-2">{stats.total}</p>
-      </div>
-      <div className="p-3 bg-gray-100 rounded-xl group-hover:bg-gray-200 transition-colors">
-        <FiPackage className="w-8 h-8 text-gray-600" />
-      </div>
-    </div>
-  </div>
-
- 
-  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-gray-600">معلقة</p>
-        <p className="text-3xl font-bold text-blue-700 mt-2">{stats.pending}</p>
-      </div>
-      <div className="p-3 bg-blue-50 rounded-xl group-hover:bg-blue-100 transition-colors">
-        <FiClock className="w-8 h-8 text-blue-600" />
-      </div>
-    </div>
-  </div>
 
 
-  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-gray-600">مؤكدة</p>
-        <p className="text-3xl font-bold text-emerald-700 mt-2">{stats.confirmed}</p>
-      </div>
-      <div className="p-3 bg-emerald-50 rounded-xl group-hover:bg-emerald-100 transition-colors">
-        <FiCheckCircle className="w-8 h-8 text-emerald-600" />
-      </div>
-    </div>
-  </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {statCards.map(s => <StatCard key={s.label} {...s} />)}
+        </div>
 
- 
-  <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-gray-600">تم التسليم</p>
-        <p className="text-3xl font-bold text-green-700 mt-2">{stats.delivered}</p>
-      </div>
-      <div className="p-3 bg-green-50 rounded-xl group-hover:bg-green-100 transition-colors">
-        <FiCheckCircle className="w-8 h-8 text-green-600" />
-      </div>
-    </div>
-  </div>
-</div>
 
-        <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
-          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-            <div className="flex-1 relative max-w-md">
-              <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-lg" />
+
+        <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none p-6">
+          <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
+            <div className="relative flex-1 group">
+              <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={18} />
               <input
                 type="text"
-                placeholder="ابحث برقم الطلب أو معرف العميل"
-                className="w-full pr-12 py-3.5 pl-4 rounded-xl placeholder:text-right border border-gray-300 focus:border-lime-500 focus:ring-4 focus:ring-lime-100 outline-none text-base transition bg-gray-50"
+                placeholder="ابحث برقم الطلب، اسم العميل، أو المنتج..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full pr-12 pl-4 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-sm text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/10 focus:border-lime-200 transition-all"
               />
             </div>
-
-            <div className="relative" ref={filterDropdownRef}>
-              <button
-                onClick={() => setOpenFilterDropdown(prev => !prev)}
-                className="px-8 py-3.5 bg-gray-50 border text-gray-600 rounded-xl flex items-center justify-between gap-4 min-w-48 font-medium shadow transition"
-              >
-                <span>{statusTranslations[statusFilter]}</span>
-                <FiChevronDown className={`text-xl transition ${openFilterDropdown ? 'rotate-180' : ''}`} />
-              </button>
-
-              {openFilterDropdown && (
-                <div className="absolute top-full mt-2 w-full bg-white border border-gray-300 rounded-xl shadow-xl z-30 overflow-hidden">
-                  {['all', ...statuses].map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => {
-                        setStatusFilter(s);
-                        setOpenFilterDropdown(false);
-                        setCurrentPage(1);
-                      }}
-                      className="w-full text-right px-6 py-3 hover:bg-lime-50 transition text-base"
-                    >
-                      {statusTranslations[s]}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <select
+              value={rowsPerPage}
+              onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+              className="px-5 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-xs font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-4 focus:ring-lime-500/10 cursor-pointer transition-all"
+            >
+              {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n} طلبات لكل صفحة</option>)}
+            </select>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-          {loading ? (
-            <div className="p-20 text-center">
-              <div className="w-16 h-16 border-6 border-lime-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-              <p className="mt-6 text-lg text-gray-600">جاري تحميل الطلبات...</p>
-            </div>
-          ) : pageOrders.length === 0 ? (
-            <div className="p-20 text-center text-gray-500">
-              <RiShoppingBag3Line className="w-16 h-16 mx-auto opacity-30 mb-4" />
-              <p className="text-xl">لا توجد طلبات حالياً</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto custom-scrollbar">
-              <table className="w-full">
-                <thead className="bg-gray-100 border text-gray-600">
-                  <tr>
-                    {/* <th className="px-5 py-4 text-base font-bold text-right">#</th> */}
-                    <th className="px-5 py-4 text-base font-bold">المنتجات</th>
-                    <th className="px-5 py-4 text-base font-bold">الكمية</th>
-                    <th className="px-5 py-4 text-base font-bold">المجموع</th>
-                    <th className="px-5 py-4 text-base font-bold">الدفع</th>
-                    <th className="px-5 py-4 text-base font-bold">التاريخ</th>
-                    <th className="px-5 py-4 text-base font-bold">الحالة</th>
-                    <th className="px-5 py-4 text-base font-bold">إجراءات</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {pageOrders.map((o, i) => {
-                    const globalIdx = (currentPage - 1) * ordersPerPage + i + 1;
-                    const totalQty = o.orderItems?.reduce((sum, item) => sum + item.quantity, 0) || 0;
-                    const productNames = o.orderItems?.map(item => item.productName).join(', ') || '—';
 
+
+        <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden">
+          <div className="overflow-x-auto custom-scrollbar-thin">
+            <table className="w-full text-right border-collapse">
+              <thead>
+                <tr className="bg-gray-50/50 dark:bg-gray-900/30 border-b border-gray-100 dark:border-gray-700">
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">الطلب</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">العميل</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">المجموع</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">التاريخ</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">الحالة</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">إجراءات</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                {loading ? (
+                  [...Array(rowsPerPage)].map((_, i) => (
+                    <tr key={i} className="animate-pulse">
+                      {[...Array(6)].map((_, j) => (
+                        <td key={j} className="px-8 py-6"><div className="h-4 bg-gray-100 dark:bg-gray-700 rounded-lg w-full" /></td>
+                      ))}
+                    </tr>
+                  ))
+                ) : paginated.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-8 py-24 text-center">
+                      <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-3xl flex items-center justify-center mx-auto mb-6 text-gray-200 dark:text-gray-800">
+                        <FiShoppingBag size={40} />
+                      </div>
+                      <p className="text-lg font-black text-gray-900 dark:text-white tracking-tight">لا توجد طلبات</p>
+                      <p className="text-sm font-bold text-gray-400 mt-1 uppercase tracking-widest">السجل فارغ أو لا يطابق شروط البحث</p>
+                    </td>
+                  </tr>
+                ) : (
+                  paginated.map(o => {
+                    const cs = getStatusStyle(o.status);
+                    const totalQty = (o.orderItems || []).reduce((sum, i) => sum + i.quantity, 0);
                     return (
-                      <tr key={o.id} className="hover:bg-gray-50 transition">
-                        {/* <td className="px-5 py-4 text-sm font-medium text-gray-800">{globalIdx}</td> */}
-                        <td className="px-5 py-4 text-sm text-gray-700 text-right max-w-xs truncate">{productNames}</td>
-                        <td className="px-5 py-4 text-center">{totalQty}</td>
-                        <td className="px-5 py-4 text-center font-bold">{o.totalPrice} ج.م</td>
-                        <td className="px-5 py-4 text-center text-sm">{o.paymentMethod || '—'}</td>
-                        <td className="px-5 py-4 text-center text-sm">{new Date(o.createdAt).toLocaleDateString('ar-EG')}</td>
-                        <td className="px-5 py-4 text-center">
-                          <button
-                            onClick={() => openStatusUpdateModal(o)}
-                            className={`px-4 py-2 rounded-full text-xs font-bold ${getStatusColor(o.status)} hover:shadow transition`}
-                          >
-                            {statusTranslations[o.status]}
-                          </button>
+                      <tr key={o.id} className="hover:bg-lime-50/10 dark:hover:bg-lime-900/5 transition-colors group">
+                        <td className="px-8 py-6 whitespace-nowrap">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400">
+                              <FiHash size={18} />
+                            </div>
+                            <div>
+                              <p className="text-xs font-black text-gray-900 dark:text-white">#{String(o.id).slice(0, 8)}</p>
+                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{totalQty} منتجات</p>
+                            </div>
+                          </div>
                         </td>
-                        <td className="px-5 py-4">
-                          <div className="flex justify-center gap-2">
-                            <button onClick={() => openDetailsModal(o)} className="px-3 font-sans py-2 flex gap-2 bg-orange-50 text-orange-500 border border-orange-100 rounded-3xl text-sm font-bold transition">
-                              <FiInfo className="w-4 h-4 inline ml-1" /> تفاصيل
+                        <td className="px-8 py-6 whitespace-nowrap text-center">
+                          <p className="text-xs font-black text-gray-900 dark:text-white">{o.firstName} {o.lastName}</p>
+                          <p dir='ltr' className="text-[10px] font-bold text-gray-400 tracking-tight">{o.phoneNumber || "بدون هاتف"}</p>
+                        </td>
+                        <td className="px-8 py-6 whitespace-nowrap text-center font-mono font-black text-xs text-lime-600">
+                          EGP {Number(o.totalPrice)}
+                        </td>
+                        <td className="px-8 py-6 whitespace-nowrap text-center">
+                          <p className="text-[10px] font-black text-gray-900 dark:text-white">{new Date(o.createdAt).toLocaleDateString('ar-EG')}</p>
+                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{new Date(o.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</p>
+                        </td>
+                        <td className="px-8 py-6 whitespace-nowrap text-center">
+                          <span onClick={() => { setStatusModalOrder(o); setShowStatusModal(true); }} className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest ${cs.bg} ${cs.text}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${cs.dot} animate-pulse`} />
+                            {STATUS_TRANSLATIONS[o.status] || o.status}
+                          </span>
+                        </td>
+                        <td className="px-8 py-6 whitespace-nowrap text-left">
+                          <div className="flex items-center justify-start gap-2">
+                            <button title="تفاصيل الطلب" onClick={() => { setSelectedOrder(o); setShowDetailsModal(true); }} className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 transition-all active:scale-95">
+                              <FiInfo size={16} />
                             </button>
+                            <button title='نسخ' onClick={() => { navigator.clipboard.writeText(o.id); showToast('تم نسخ رقم الطلب', 'success'); }} className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 transition-all active:scale-95">
+                              <FiCopy size={14} />  
+                            </button>
+
                             {o.status === 'PENDING' && (
-                              <>
-                                <button onClick={() => acceptOrder(o.id)} className="px-3 font-sans py-2 flex gap-2 bg-green-50 text-green-500 border border-green-100 rounded-3xl text-sm font-bold transition">
-                                  <FiCheck className="w-4 h-4 inline ml-1" /> قبول
+                              <div className="flex gap-2">
+                                <button title="قبول الطلب" onClick={() => updateOrderStatus(o.id, 'CONFIRMED')} className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 hover:bg-emerald-100 transition-all active:scale-95">
+                                  <FiCheck size={16} />
                                 </button>
-                                <button onClick={() => rejectOrder(o.id)} className="px-3 font-sans py-2 flex gap-2 bg-red-50 text-red-500 border border-red-100 rounded-3xl text-sm font-bold transition">
-                                  <FiXCircle className="w-4 h-4 inline ml-1" /> رفض
+                                <button title="رفض الطلب" onClick={() => updateOrderStatus(o.id, 'CANCELLED')} className="p-3 rounded-2xl bg-red-50 dark:bg-red-900/20 text-red-600 hover:bg-red-100 transition-all active:scale-95">
+                                  <FiX size={16} />
                                 </button>
-                              </>
+                              </div>
                             )}
                           </div>
                         </td>
                       </tr>
                     );
-                  })}
-                </tbody>
-              </table>
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+
+
+          {totalPages > 1 && (
+            <div className="px-8 py-6 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest order-2 sm:order-1">
+                عرض <span className="text-gray-900 dark:text-white">{(currentPage - 1) * rowsPerPage + 1}</span> إلى <span className="text-gray-900 dark:text-white">{Math.min(currentPage * rowsPerPage, filteredOrders.length)}</span> من <span className="text-gray-900 dark:text-white">{filteredOrders.length}</span> طلب
+              </p>
+              <div className="flex items-center gap-2 order-1 sm:order-2">
+                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all">
+                  <FiChevronRight size={20} />
+                </button>
+                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all">
+                  <FiChevronLeft size={20} />
+                </button>
+              </div>
             </div>
           )}
         </div>
+      </div>
 
-        {totalPages > 1 && (
-          <div className="flex justify-center items-center gap-3 mt-10">
-            <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="px-4 py-2 bg-white border border-gray-600 rounded-lg disabled:opacity-50 hover:bg-gray-50 text-lime-700 font-medium transition shadow-sm flex items-center gap-2"
-            >
-              <FiChevronLeft className="w-5 h-5 text-gray-600" />
-              
-            </button>
 
-            <div className="flex gap-2">
-              {[...Array(totalPages)].map((_, i) => (
+
+      {showDetailsModal && selectedOrder && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={() => setShowDetailsModal(false)} />
+          <div className="relative w-full max-w-2xl bg-white dark:bg-gray-800 rounded-none shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+            <div className="px-8 py-6 border-b border-gray-50 dark:border-gray-700 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-lime-500/10 text-lime-600 flex items-center justify-center">
+                  <RiShoppingCartLine size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-gray-900 dark:text-white">تفاصيل الطلب</h3>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">#{selectedOrder.id}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowDetailsModal(false)} className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-400 hover:text-red-500 transition-all">
+                <FiX size={18} />
+              </button>
+            </div>
+
+            <div className="px-8 py-8 space-y-8 overflow-y-auto max-h-[70vh] custom-scrollbar-thin">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">العميل</p>
+                  <p className="text-sm font-black text-gray-900 dark:text-white">{selectedOrder.firstName} {selectedOrder.lastName}</p>
+                  <p dir="ltr" className="text-[10px] font-bold text-gray-500">{selectedOrder.phoneNumber}</p>
+                </div>
+                <div className="space-y-1 text-left">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">التاريخ</p>
+                  <p className="text-sm font-black text-gray-900 dark:text-white">{new Date(selectedOrder.createdAt).toLocaleDateString('ar-EG')}</p>
+                  <p className="text-[10px] font-bold text-gray-500">{new Date(selectedOrder.createdAt).toLocaleTimeString('ar-EG')}</p>
+                </div>
+              </div>
+
+              <div className="p-6 bg-gray-50 dark:bg-gray-900/50 rounded-[2rem] border border-gray-100 dark:border-gray-700">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">المنتجات المطلوب</p>
+                <div className="space-y-4">
+                  {(selectedOrder.orderItems || []).map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-800 last:border-0 last:pb-0">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center text-gray-400 border border-gray-100 dark:border-gray-700">
+                          <FiPackage size={14} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-gray-900 dark:text-white">{item.productName}</p>
+                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">{item.quantity} وحدة × {item.priceAtCheckout} ج.م</p>
+                        </div>
+                      </div>
+                      <p className="text-xs font-black text-lime-600 font-mono">{item.subtotal} ج.م</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between px-6">
+                <p className="text-sm font-black text-gray-900 dark:text-white">الإجمالي النهائي</p>
+                <p className="text-2xl font-black text-lime-600 tracking-tighter">ج.م {selectedOrder.totalPrice.toLocaleString('ar-EG')}</p>
+              </div>
+            </div>
+
+            <div className="px-8 py-6 bg-gray-50 dark:bg-gray-900/30 border-t border-gray-50 dark:border-gray-700 flex gap-4">
+              <button onClick={() => setShowDetailsModal(false)} className="flex-1 py-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl text-[10px] font-black text-gray-500 uppercase tracking-widest hover:text-lime-500 transition-all">إغلاق النافذة</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+
+      {showFilterPanel && (
+        <div className="fixed inset-0 z-[100] flex items-end lg:items-center justify-center p-0 lg:p-4">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={() => setShowFilterPanel(false)} />
+          <div className="relative w-full lg:max-w-md bg-white dark:bg-gray-800 rounded-none shadow-2xl overflow-hidden animate-in slide-in-from-bottom-20 duration-500">
+            <div className="p-8 border-b border-gray-50 dark:border-gray-700">
+              <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">تصفية الطلبات</h3>
+              <p className="text-xs font-bold text-gray-400 mt-1 uppercase tracking-widest">اختر الحالة المطلوبة للعرض</p>
+            </div>
+            <div className="p-8 grid grid-cols-2 gap-4">
+              {['all', ...STATUSES].map(s => (
                 <button
-                  key={i + 1}
-                  onClick={() => setCurrentPage(i + 1)}
-                  className={`w-10 h-10 rounded-xl font-bold text-base transition shadow-sm flex items-center justify-center ${
-                    currentPage === i + 1 ? 'bg-gray-600 text-white' : 'bg-white border border-gray-600 text-gray-700 hover:bg-gray-50'
-                  }`}
+                  key={s}
+                  onClick={() => { setStatusFilter(s); setShowFilterPanel(false); setCurrentPage(1); }}
+                  className={`px-4 py-4 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all ${statusFilter === s
+                      ? "bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20"
+                      : "bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-700 text-gray-500 hover:border-lime-500 hover:text-lime-600"
+                    }`}
                 >
-                  {i + 1}
+                  {STATUS_TRANSLATIONS[s]}
                 </button>
               ))}
             </div>
-
-            <button
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="px-4 py-2 bg-white border border-gray-600 rounded-lg disabled:opacity-50 hover:bg-gray-50 text-lime-700 font-medium transition shadow-sm flex items-center gap-2"
-            >
-              
-              <FiChevronRight className="w-5 h-5 text-gray-600" />
-            </button>
-          </div>
-        )}
-
-      {showDetailsModal && selectedOrder && (
-  <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 rounded-2xl flex items-center justify-center p-4">
-    <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto ">
-    
-      <div className="bg-gradient-to-r from-emerald-600 to-teal-700 text-white px-8 py-7 relative ">
-        <button
-          onClick={() => setShowDetailsModal(false)}
-          className="absolute top-6 right-6 p-2.5 bg-white/20 hover:bg-white/30 rounded-full transition-all"
-          aria-label="إغلاق"
-        >
-          <FiX className="w-6 h-6" />
-        </button>
-
-        <div className="text-center space-y-3">
-          <div className="inline-block px-5 py-1.5 bg-white/95 rounded-full text-emerald-800 font-semibold text-sm shadow-sm">
-            تفاصيل الطلب
-          </div>
-          <h2 className="text-2xl font-bold tracking-tight">#{selectedOrder.id}</h2>
-          <div className="flex items-center justify-center gap-2.5 opacity-90 text-lg">
-            <FiCalendar className="w-5 h-5" />
-            {new Date(selectedOrder.createdAt).toLocaleString('ar-EG', {
-              dateStyle: 'medium',
-              timeStyle: 'short',
-            })}
           </div>
         </div>
-      </div>
+      )}
 
-     
-      <div className="p-6 md:p-8 space-y-7 text-right">
-      
-        <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 shadow-sm">
-          <h3 className="text-xl font-bold text-gray-800 mb-5 flex items-center justify-end gap-3">
-            <FiUser className="w-6 h-6 text-emerald-600" />
-            معلومات العميل
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                <FiUser className="w-5 h-5 text-emerald-700" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">الاسم</p>
-                <p className="font-semibold text-lg">
-                  {selectedOrder.firstName} {selectedOrder.lastName}
-                </p>
-              </div>
+
+
+      {showStatusModal && statusModalOrder && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={() => setShowStatusModal(false)} />
+          <div className="relative w-full max-w-sm bg-white dark:bg-gray-800 rounded-none shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+            <div className="p-8 border-b border-gray-50 dark:border-gray-700">
+              <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">تحديث حالة الطلب</h3>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">#{statusModalOrder.id}</p>
             </div>
-
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                <FiPhone className="w-5 h-5 text-emerald-700" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">الهاتف</p>
-                <p className="font-semibold text-lg dir-ltr text-left">
-                  {selectedOrder.phoneNumber}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        
-        <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 shadow-sm">
-          <h3 className="text-xl font-bold text-gray-800 mb-5 flex items-center justify-end gap-3">
-            <FiCreditCard className="w-6 h-6 text-emerald-600" />
-            ملخص الدفع
-          </h3>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 text-center">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">الإجمالي</p>
-              <p className="text-2xl font-bold text-emerald-700">
-                {selectedOrder.totalPrice} ج.م
-              </p>
-            </div>
-
-            <div>
-              <p className="text-sm text-gray-600 mb-1">طريقة الدفع</p>
-              <p className="font-semibold text-lg">
-                {selectedOrder.paymentMethod || 'غير محدد'}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-sm text-gray-600 mb-1">حالة الطلب</p>
-              <span
-                className={`inline-block px-4 py-1.5 rounded-full text-sm font-semibold ${getStatusColor(
-                  selectedOrder.status
-                )}`}
-              >
-                {statusTranslations[selectedOrder.status]}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        
-        <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 shadow-sm">
-          <h3 className="text-xl font-bold text-gray-800 mb-5 flex items-center justify-between">
-            <span className="flex items-center gap-3">
-              <FiShoppingBag className="w-6 h-6 text-emerald-600" />
-              المنتجات ({selectedOrder.orderItems?.length || 0})
-            </span>
-          </h3>
-
-          <div className="space-y-4">
-            {selectedOrder.orderItems?.map((item, index) => (
-              <div
-                key={index}
-                className="bg-white rounded-lg p-4 border border-gray-100 hover:border-emerald-200 transition-colors"
-              >
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                  <div className="sm:col-span-2">
-                    <div className="flex items-center gap-3">
-                      <FiPackage className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-                      <p className="font-medium text-lg">{item.productName}</p>
-                    </div>
-                  </div>
-
-                  <div className="text-center">
-                    <p className="text-sm text-gray-600">الكمية</p>
-                    <p className="font-bold text-lg">{item.quantity}</p>
-                  </div>
-
-                  <div className="text-center">
-                    <p className="text-sm text-gray-600">الإجمالي</p>
-                    <p className="font-bold text-lg text-emerald-700">
-                      {item.subtotal} ج.م
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-2 text-sm text-gray-500 text-center sm:text-right">
-                  سعر الوحدة: {item.priceAtCheckout} ج.م
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        
-        <div className="flex justify-center pt-4">
-          <button
-            onClick={() => setShowDetailsModal(false)}
-            className="px-12 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-lg rounded-xl shadow-lg transition-all flex items-center gap-2.5 hover:shadow-xl active:scale-[0.98]"
-          >
-            <FiCheckCircle className="w-6 h-6" />
-            إغلاق
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
-
-        {showStatusModal && statusModalOrder && (
-          <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-6">
-            <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-2xl font-bold text-gray-900">تحديث الحالة #{statusModalOrder.id}</h3>
-                <button onClick={() => setShowStatusModal(false)} className="p-3 hover:bg-gray-100 rounded-full transition">
-                  <FiX className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="text-center mb-6">
-                <p className="text-base text-gray-700 mb-3">الحالة الحالية</p>
-                <span className={`inline-block px-5 py-2 rounded-full text-sm font-bold ${getStatusColor(statusModalOrder.status)}`}>
-                  {statusTranslations[statusModalOrder.status]}
-                </span>
-              </div>
-
-              <div>
-                <p className="text-lg font-bold text-center mb-6">اختر الحالة الجديدة</p>
-                <div className="grid grid-cols-1 gap-4">
-                  {nextStatuses[statusModalOrder.status]?.map((status) => (
+            <div className="p-8 space-y-4">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">اختر المرحلة التالية</p>
+              <div className="space-y-2">
+                {(NEXT_STATUSES[statusModalOrder.status] || []).length > 0 ? (
+                  (NEXT_STATUSES[statusModalOrder.status] || []).map(status => (
                     <button
                       key={status}
-                      onClick={() => setSelectedNewStatus(status)}
-                      className={`p-4 rounded-2xl border-4 transition-all ${
-                        selectedNewStatus === status
-                          ? 'border-lime-600 bg-lime-50'
-                          : 'border-gray-300 hover:border-lime-400 hover:bg-lime-50'
-                      }`}
+                      onClick={() => { updateOrderStatus(statusModalOrder.id, status); setShowStatusModal(false); }}
+                      className="w-full px-6 py-4 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 text-xs font-black text-gray-700 dark:text-gray-200 hover:border-lime-500 hover:text-lime-600 transition-all flex items-center justify-between group"
                     >
-                      <p className="text-lg font-bold">{statusTranslations[status]}</p>
+                      {STATUS_TRANSLATIONS[status]}
+                      <FiChevronLeft className="group-hover:-translate-x-1 transition-transform" />
                     </button>
-                  ))}
-                </div>
-                {nextStatuses[statusModalOrder.status]?.length === 0 && (
-                  <p className="text-center text-base text-gray-600 mt-6">
-                    لا توجد حالات متاحة للتحديث
-                  </p>
+                  ))
+                ) : (
+                  <div className="py-8 text-center space-y-3">
+                    <div className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-300 mx-auto">
+                      <FiCheckSquare size={24} />
+                    </div>
+                    <p className="text-xs font-bold text-gray-400">لا توجد مراحل تالية متاحة لهذا الطلب</p>
+                  </div>
                 )}
               </div>
-
-              <div className="flex justify-center gap-4 mt-8">
-                <button onClick={() => setShowStatusModal(false)} className="px-8 py-3 border-2 border-gray-400 rounded-2xl text-base font-bold hover:bg-gray-100 transition">
-                  إلغاء
-                </button>
-                <button
-                  onClick={confirmStatusUpdate}
-                  disabled={!selectedNewStatus}
-                  className="px-10 py-3 bg-lime-600 text-white rounded-2xl text-base font-bold hover:bg-lime-700 disabled:opacity-50 transition shadow-lg"
-                >
-                  تأكيد
-                </button>
-              </div>
+            </div>
+            <div className="px-8 pb-8">
+              <button onClick={() => setShowStatusModal(false)} className="w-full py-4 bg-gray-50 dark:bg-gray-900 rounded-2xl text-[10px] font-black text-gray-400 uppercase tracking-widest">إلغاء</button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      <style dangerouslySetInnerHTML={{
+        __html: `
+        .custom-scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
+        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
+        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #1f2937; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
+      `}} />
     </div>
   );
 };

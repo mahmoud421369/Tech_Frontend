@@ -9,7 +9,7 @@ const SuccessGoogle = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Debug: Log all cookies (will exclude HttpOnly cookies)
+    
     console.log("All cookies:", document.cookie);
 
     // Check for non-HttpOnly cookie
@@ -89,7 +89,7 @@ const SuccessGoogle = () => {
             </h2>
             <div className="flex gap-4">
               <button
-                onClick={() => window.location.reload()} // Retry by reloading
+                onClick={() => window.location.reload()} 
                 className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition-colors duration-200"
                 aria-label="Retry authentication"
               >

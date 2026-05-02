@@ -1,4 +1,3 @@
-
 export { default as Inventory } from './Inventory';
 export { default as Orders } from './Orders';
 export { default as Products } from './Products';
@@ -7,7 +6,6 @@ export { default as ShopDashboard } from './ShopDashboard';
 export { default as ShopHeader } from './ShopHeader';
 export { default as ShopOffers } from './ShopOffers';
 export { default as ShopProfile } from './ShopProfile';
-
 export { default as Chat } from './Chat';
 export { default as Subscriptions } from './Subscription';
 export { default as Transactions } from './Transactions';

@@ -1,310 +1,319 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  FiClipboard, FiUser, FiPackage, FiTool, FiUserCheck,
+  FiChevronLeft, FiChevronRight, FiChevronUp, FiChevronDown,
+  FiSearch, FiX, FiActivity, FiMapPin, FiClock
+} from 'react-icons/fi';
 import Swal from 'sweetalert2';
-import { FiClipboard, FiClock, FiUser, FiMapPin, FiCalendar, FiPackage, FiStore, FiUserCheck, FiTool, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import api from '../api';
 
-const LogsSkeleton = () => (
-  <div className="animate-pulse p-6">
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      {[...Array(4)].map((_, idx) => (
-        <div
-          key={idx}
-          className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700"
-        >
-          <div className="h-6 w-1/2 bg-gray-300 dark:bg-gray-600 rounded mb-2"></div>
-          <div className="h-8 w-1/4 bg-gray-300 dark:bg-gray-600 rounded"></div>
-        </div>
-      ))}
-    </div>
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-6 border border-gray-200 dark:border-gray-700">
-      <div className="h-10 w-full md:w-80 bg-gray-300 dark:bg-gray-600 rounded-lg mb-6"></div>
-      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-        <thead className="bg-gray-100 dark:bg-gray-750">
-          <tr>
-            {['Assigner', 'Type', 'Shop', 'User', 'Address', 'Created', 'Updated'].map((_, idx) => (
-              <th key={idx} className="px-6 py-3">
-                <div className="h-4 w-20 bg-gray-300 dark:bg-gray-600 rounded"></div>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-          {[...Array(10)].map((_, idx) => (
-            <tr key={idx}>
-              <td className="px-6 py-4"><div className="h-4 w-32 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-              <td className="px-6 py-4"><div className="h-4 w-24 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-              <td className="px-6 py-4"><div className="h-4 w-40 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-              <td className="px-6 py-4"><div className="h-4 w-32 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-              <td className="px-6 py-4"><div className="h-4 w-64 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-              <td className="px-6 py-4"><div className="h-4 w-36 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-              <td className="px-6 py-4"><div className="h-4 w-36 bg-gray-300 dark:bg-gray-600 rounded"></div></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+const ROWS_OPTIONS = [5, 10, 20, 50];
+
+const TYPE_META = {
+  ORDER: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600', dot: 'bg-blue-500' },
+  REPAIR: { bg: 'bg-purple-50 dark:bg-purple-900/20', text: 'text-purple-600', dot: 'bg-purple-500' },
+};
+const getTypeMeta = (t) => TYPE_META[t] || TYPE_META.ORDER;
+
+const showToast = (text, icon) =>
+  Swal.fire({ text, icon, toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
+
+const formatDate = (d) => {
+  if (!d) return '—';
+  return new Date(d).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
+
+const formatAddress = (addr) => {
+  if (!addr) return '—';
+  const parts = [addr.building, addr.street, addr.city, addr.state].filter(Boolean).join(', ');
+  return addr.notes ? `${parts} (${addr.notes})` : parts || '—';
+};
+
+
+
+
+const StatCard = memo(({ icon: Icon, label, value, color }) => (
+  <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-sm hover:shadow-xl hover:shadow-lime-500/5 transition-all duration-500 group relative overflow-hidden">
+    <div className={`absolute top-0 right-0 w-24 h-24 bg-${color}-500/5 rounded-bl-full translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-700`} />
+    <div className="relative flex items-center justify-between">
+      <div className="space-y-1">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">{label}</p>
+        <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">{value}</p>
+      </div>
+      <div className={`w-14 h-14 rounded-2xl bg-${color}-50 dark:bg-${color}-900/20 flex items-center justify-center text-${color}-500 group-hover:rotate-12 group-hover:scale-110 transition-all duration-500`}>
+        <Icon size={24} />
+      </div>
     </div>
   </div>
-);
+));
+
+const SortIcon = memo(({ field, sortField, sortDir }) => {
+  if (sortField !== field) return <FiChevronDown size={11} className="text-gray-400 dark:text-gray-500" />;
+  return sortDir === 'asc' ? <FiChevronUp size={11} className="text-lime-600" /> : <FiChevronDown size={11} className="text-lime-600" />;
+});
 
 const AdminAssignmentLogs = ({ darkMode }) => {
   const navigate = useNavigate();
   const token = localStorage.getItem('authToken');
+
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [sortField, setSortField] = useState('createdAt');
+  const [sortDir, setSortDir] = useState('desc');
 
-  useEffect(() => {
-    document.title = "Assignment Logs - TechRepair";
-  }, []);
+  useEffect(() => { document.title = 'Admin - Assignment Logs'; }, []);
 
   const fetchLogs = useCallback(async () => {
-    if (!token) {
-      Swal.fire('Error', 'Please log in.', 'error');
-      navigate('/login');
-      return;
-    }
-
+    if (!token) { navigate('/login'); return; }
     setLoading(true);
     try {
-      const res = await api.get('/api/admin/assignment-logs', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = Array.isArray(res.data.content) ? res.data.content : res.data || [];
+      const res = await api.get('/api/admin/assignment-logs', { headers: { Authorization: `Bearer ${token}` } });
+      const data = Array.isArray(res.data.content) ? res.data.content : Array.isArray(res.data) ? res.data : [];
       setLogs(data);
     } catch (err) {
-      if (err.response?.status === 401) {
-        localStorage.clear();
-        navigate('/login');
-      }
+      if (err.response?.status === 401) { navigate('/login'); }
+      else showToast('Sync failed', 'error');
       setLogs([]);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }, [navigate, token]);
 
-  useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
+  useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return 'N/A';
-    return new Date(dateStr).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const formatAddress = (addr) => {
-    if (!addr) return 'N/A';
-    const parts = [
-      addr.building,
-      addr.street,
-      addr.city,
-      addr.state,
-    ].filter(Boolean).join(', ');
-    return addr.notes ? `${parts} (${addr.notes})` : parts || 'N/A';
-  };
-
-  const stats = {
-    totalLogs: logs.length,
-    orderAssignments: logs.filter(l => l.assignmentType === 'ORDER').length,
-    repairAssignments: logs.filter(l => l.assignmentType === 'REPAIR').length,
+  const stats = useMemo(() => ({
+    total: logs.length,
+    orderLogs: logs.filter(l => l.assignmentType === 'ORDER').length,
+    repairLogs: logs.filter(l => l.assignmentType === 'REPAIR').length,
     uniqueAssigners: new Set(logs.map(l => l.assignerId)).size,
-  };
+  }), [logs]);
 
-  const totalPages = Math.ceil(logs.length / itemsPerPage);
-  const paginatedLogs = logs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const handleSort = useCallback((field) => {
+    setSortField(prev => { if (prev === field) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return prev; } setSortDir('asc'); return field; });
+    setCurrentPage(1);
+  }, []);
 
-  const handlePrevPage = () => setCurrentPage(prev => Math.max(1, prev - 1));
-  const handleNextPage = () => setCurrentPage(prev => Math.min(totalPages, prev + 1));
+  const processed = useMemo(() => {
+    const t = search.toLowerCase();
+    let list = logs.filter(l =>
+      (typeFilter === 'all' || l.assignmentType === typeFilter) &&
+      (!t || (l.assignerName || '').toLowerCase().includes(t) || (l.shopName || '').toLowerCase().includes(t) || (l.userName || '').toLowerCase().includes(t))
+    );
+    return [...list].sort((a, b) => {
+      let av = a[sortField], bv = b[sortField];
+      if (sortField === 'createdAt' || sortField === 'updatedAt') { av = new Date(av || 0).getTime(); bv = new Date(bv || 0).getTime(); }
+      else { av = String(av || '').toLowerCase(); bv = String(bv || '').toLowerCase(); }
+      if (av < bv) return sortDir === 'asc' ? -1 : 1;
+      if (av > bv) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [logs, search, typeFilter, sortField, sortDir]);
+
+  const totalPages = Math.ceil(processed.length / rowsPerPage);
+  const paginated = processed.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+
+  const Th = ({ field, label, center = true }) => (
+    <th onClick={() => handleSort(field)}
+      className={`px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${center ? 'text-center' : 'text-left'}`}>
+      <span className={`flex items-center gap-1.5 ${center ? 'justify-center' : ''}`}>
+        {label} <SortIcon field={field} sortField={sortField} sortDir={sortDir} />
+      </span>
+    </th>
+  );
+
+  const statCards = [
+    { icon: FiClipboard, label: 'Total Assignments', value: stats.total, color: 'lime' },
+    { icon: FiPackage, label: 'Order Assignments', value: stats.orderLogs, color: 'blue' },
+    { icon: FiTool, label: 'Repair Assignments', value: stats.repairLogs, color: 'purple' },
+    { icon: FiUserCheck, label: 'Active Assigners', value: stats.uniqueAssigners, color: 'emerald' },
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:pl-72 transition-colors duration-300 mt-16">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
-          <h1 className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-3">
-            <FiClipboard className="w-10 h-10" /> Assignment Logs
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Track all assignment activities across assigners, shops, and users
-          </p>
+        
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-1.5 rounded-full bg-lime-500" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-600">Assignments</span>
+            </div>
+            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">Assignment Logs</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Full historical audit of assignment activities across the platform network</p>
+          </div>
+
+          <div className="p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-sm flex items-center gap-4">
+             <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center text-gray-400">
+               <FiActivity size={18} />
+             </div>
+             <div>
+               <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Log Integrity</p>
+               <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Verified</p>
+             </div>
+          </div>
         </div>
 
-        {loading ? (
-          <LogsSkeleton />
-        ) : (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {[
-                { label: 'Total Logs', value: stats.totalLogs, color: 'emerald', icon: FiClipboard },
-                { label: 'Order Assignments', value: stats.orderAssignments, color: 'blue', icon: FiPackage },
-                { label: 'Repair Assignments', value: stats.repairAssignments, color: 'purple', icon: FiTool },
-                { label: 'Active Assigners', value: stats.uniqueAssigners, color: 'teal', icon: FiUserCheck },
-              ].map((stat, index) => (
-                <div
-                  key={index}
-                  className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-center justify-between hover:shadow-md transition-shadow"
-                >
-                  <div className="text-left">
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
-                    <p className={`text-3xl font-bold mt-2 text-${stat.color}-600 dark:text-${stat.color}-400`}>
-                      {stat.value}
-                    </p>
-                  </div>
-                  <div className={`p-4 rounded-full bg-${stat.color}-100 dark:bg-${stat.color}-900/30`}>
-                    <stat.icon className={`w-8 h-8 text-${stat.color}-600 dark:text-${stat.color}-400`} />
-                  </div>
-                </div>
+        
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {statCards.map(s => <StatCard key={s.label} {...s} />)}
+        </div>
+
+        
+        
+        <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
+          <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
+            
+            <div className="relative flex-1 group">
+              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={16} />
+              <input type="text" placeholder="Search by assigner name, or shop ..." value={search} onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
+                className="w-full pl-12 pr-10 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/5 transition-all" />
+              {search && <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors"><FiX size={16} title="Clear Registry Filter" /></button>}
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {['all', 'ORDER', 'REPAIR'].map(t => (
+                <button key={t} onClick={() => { setTypeFilter(t); setCurrentPage(1); }}
+                  className={`px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all
+                    ${typeFilter === t 
+                      ? 'bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20' 
+                      : 'border-transparent bg-gray-50 dark:bg-gray-900/50 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+                  {t === 'all' ? 'All' : t}
+                </button>
               ))}
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow overflow-hidden border border-gray-200 dark:border-gray-700">
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead className="bg-gray-100 dark:bg-gray-750">
+            <div className="flex items-center gap-3 px-4 border-l border-gray-100 dark:border-gray-800">
+               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Rows</span>
+               <select value={rowsPerPage} onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                 className="bg-transparent text-sm font-black text-gray-900 dark:text-white focus:outline-none cursor-pointer">
+                 {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
+               </select>
+            </div>
+          </div>
+        </div>
+
+        
+        
+        <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
+          {loading ? (
+            <div className="py-32 text-center space-y-4">
+              <div className="w-12 h-12 border-4 border-lime-500 border-t-transparent rounded-full animate-spin mx-auto shadow-lg" />
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 animate-pulse">Accessing historical archives...</p>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto custom-scrollbar-thin">
+                <table className="w-full min-w-[900px]">
+                  <thead className="bg-gray-50 dark:bg-gray-900/50">
                     <tr>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                        <div className="flex items-center gap-2">
-                          <FiUser className="w-4 h-4" />
-                          Assigner
-                        </div>
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Type</th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                        <div className="flex items-center gap-2">
-                          
-                          Shop
-                        </div>
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                        <div className="flex items-center gap-2">
-                          
-                          User
-                        </div>
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                        <div className="flex items-center gap-2">
-                         
-                          Delivery Address
-                        </div>
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                        <div className="flex items-center gap-2">
-                        
-                          Assigned At
-                        </div>
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                        <div className="flex items-center gap-2">
-                         
-                          Updated At
-                        </div>
-                      </th>
+                      <Th field="assignerName" label="Assigner Name" center={false} />
+                      <Th field="assignmentType" label="Type" />
+                      <Th field="shopName" label="Shop" center={false} />
+                      <Th field="userName" label="User" center={false} />
+                      <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-widest text-gray-400">Desitination</th>
+                      <Th field="createdAt" label="Date" />
+                      <Th field="updatedAt" label="Last Update" />
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {paginatedLogs.length > 0 ? (
-                      paginatedLogs.map((log) => (
-                        <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-750 transition">
-                          <td className="px-6 py-4 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-                            {log.assignerName || '—'}
+                  <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                    {paginated.length === 0 ? (
+                      <tr><td colSpan={7} className="py-32 text-center">
+                        <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
+                          <FiClipboard size={32} className="text-gray-200" />
+                        </div>
+                        <p className="text-gray-400 font-bold">No Log Entries Identified</p>
+                      </td></tr>
+                    ) : paginated.map(log => {
+                      const meta = getTypeMeta(log.assignmentType);
+                      return (
+                        <tr key={log.id} className="hover:bg-lime-50/10 dark:hover:bg-lime-900/5 transition-colors group">
+                          <td className="px-4 py-2">
+                             <div className="flex items-center gap-3">
+                               <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 group-hover:text-lime-500 transition-colors">
+                                 <FiUser size={14} />
+                               </div>
+                               <p className="text-xs font-bold text-gray-900 dark:text-white tracking-tight">{log.assignerName || '—'}</p>
+                             </div>
                           </td>
-                          <td className="px-6 py-4">
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                              log.assignmentType === 'ORDER'
-                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'
-                                : 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300'
-                            }`}>
+                          <td className="px-4 py-2 text-center">
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${meta.bg} ${meta.text}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
                               {log.assignmentType || 'N/A'}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
-                            {log.shopName || '—'}
+                          <td className="px-4 py-2">
+                             <p className="text-xs font-bold text-gray-700 dark:text-gray-300">{log.shopName || '—'}</p>
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
-                            {log.userName || '—'}
+                          <td className="px-4 py-2">
+                             <p className="text-xs font-bold text-gray-700 dark:text-gray-300">{log.userName || '—'}</p>
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={formatAddress(log.userAddress)}>
-                            {formatAddress(log.userAddress)}
+                          <td className="px-4 py-2">
+                             <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 max-w-[200px] truncate" title={formatAddress(log.userAddress)}>
+                                <FiMapPin size={12} className="flex-shrink-0" />
+                                {formatAddress(log.userAddress)}
+                             </div>
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
-                            <div className="flex items-center gap-2">
-                             
-                              {formatDate(log.createdAt)}
-                            </div>
+                          <td className="px-4 py-3 text-center">
+                             <div className="flex flex-col items-center gap-1">
+                                <FiClock size={10} className="text-gray-400" />
+                                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{formatDate(log.createdAt)}</span>
+                             </div>
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
-                            <div className="flex items-center gap-2">
-                              
-                              {formatDate(log.updatedAt)}
-                            </div>
+                          <td className="px-4 py-3 text-center">
+                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{formatDate(log.updatedAt)}</span>
                           </td>
                         </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={7} className="text-center py-16 text-gray-500 dark:text-gray-400 text-lg">
-                          <FiClipboard className="mx-auto text-6xl mb-4 text-gray-300 dark:text-gray-600" />
-                          No assignment logs found
-                        </td>
-                      </tr>
-                    )}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
 
               {totalPages > 1 && (
-                <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, logs.length)} of {logs.length} logs
+                <div className="flex flex-col sm:flex-row items-center justify-between border-t border-gray-50 dark:border-gray-800 bg-gray-50/30 dark:bg-gray-800/20 px-8 py-6 gap-6">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                    Showing {paginated.length} dossiers of {processed.length}
                   </p>
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={handlePrevPage}
-                      disabled={currentPage === 1}
-                      className="px-4 py-2 rounded-lg bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                    >
-                      <FiChevronLeft />
-                      Previous
+                    <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
+                      className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all">
+                      <FiChevronLeft size={16} title="Previous Page" />
                     </button>
-
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                        <button
-                          key={page}
-                          onClick={() => setCurrentPage(page)}
-                          className={`w-10 h-10 rounded-lg font-medium transition-all ${
-                            currentPage === page
-                              ? 'bg-emerald-600 text-white shadow-md'
-                              : 'bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      ))}
+                    <div className="flex gap-1">
+                      {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                        const p = i + 1;
+                        return (
+                          <button key={p} onClick={() => setCurrentPage(p)}
+                            className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all border
+                              ${currentPage === p ? 'bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20' : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-500 hover:border-lime-500/50'}`}>
+                            {p}
+                          </button>
+                        );
+                      })}
                     </div>
-
-                    <button
-                      onClick={handleNextPage}
-                      disabled={currentPage === totalPages}
-                      className="px-4 py-2 rounded-lg bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                    >
-                      Next
-                      <FiChevronRight />
+                    <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
+                      className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all">
+                      <FiChevronRight size={16} title="Next Page" />
                     </button>
                   </div>
                 </div>
               )}
-            </div>
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
+        <style dangerouslySetInnerHTML={{ __html: `
+        .custom-scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
+        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
+        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
+      `}} />
     </div>
   );
 };

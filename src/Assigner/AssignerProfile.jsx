@@ -1,368 +1,239 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Swal from 'sweetalert2';
-import api from '../api';
 import {
   FiUser, FiMail, FiPhone, FiCalendar, FiCheckCircle,
-  FiXCircle, FiEdit3, FiShield, FiActivity
+  FiXCircle, FiEdit3, FiShield, FiSave, FiX, FiInfo, FiZap, FiLayout
 } from 'react-icons/fi';
+import Swal from 'sweetalert2';
+import api from '../api';
+
+const showToast = (text, icon) =>
+  Swal.fire({ text, icon, toast: true, position: 'top-end', showConfirmButton: false, timer: 2500, timerProgressBar: true });
 
 const AssignerProfile = ({ darkMode }) => {
   const navigate = useNavigate();
   const token = localStorage.getItem('authToken');
 
-  const [profile, setProfile] = useState({});
-  const [form, setForm] = useState({ name: '', department: '', phone: '' });
+  const [profile, setProfile]     = useState({});
+  const [form, setForm]           = useState({ name: '', department: '', phone: '' });
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-useEffect(() => {
-    document.title = "Assigner - Profile ";
-
-},[]);
+  useEffect(() => { 
+    document.title = 'Assigner - Premium Profile'; 
+  }, []);
 
   const fetchProfile = useCallback(async () => {
-    if (!token) {
-      navigate('/login');
-      return;
-    }
-
+    if (!token) { navigate('/login'); return; }
     try {
       setIsLoading(true);
-      const res = await api.get('/api/assigner/profile', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
+      const res  = await api.get('/api/assigner/profile', { headers: { Authorization: `Bearer ${token}` } });
       const data = res.data;
       setProfile(data);
-      setForm({
-        name: data.name || '',
-        department: data.department || '',
-        phone: data.phone || '',
-      });
+      setForm({ name: data.name || '', department: data.department || '', phone: data.phone || '' });
     } catch (err) {
-      if (err.response?.status === 401) {
-        localStorage.clear();
-        navigate('/login');
-      } else {
-        Swal.fire({
-          icon: 'error',
-          title: 'Failed to load profile',
-          toast: true,
-          position: 'top-end',
-          timer: 3000
-        });
-      }
-    } finally {
-      setIsLoading(false);
-    }
+      if (err.response?.status === 401) { localStorage.clear(); navigate('/login'); }
+      else showToast('Failed to load profile', 'error');
+    } finally { setIsLoading(false); }
   }, [token, navigate]);
+
+  useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
   const handleUpdate = async () => {
     const { isConfirmed } = await Swal.fire({
-      title: 'Update Profile?',
-      text: 'Save changes to your profile information',
+      title: 'Save Profile Changes?',
+      text: 'Update your administrative information',
       icon: 'question',
       showCancelButton: true,
-      confirmButtonText: 'Yes, Update',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#10b981',
+      confirmButtonText: 'Yes, Save',
+      confirmButtonColor: '#84cc16',
+      background: darkMode ? '#1f2937' : '#fff',
+      color: darkMode ? '#fff' : '#000',
     });
-
     if (!isConfirmed) return;
 
     try {
       setIsLoading(true);
-      await api.put('/api/assigner/profile', form, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
+      await api.put('/api/assigner/profile', form, { headers: { Authorization: `Bearer ${token}` } });
       await fetchProfile();
       setIsEditing(false);
-
-      Swal.fire({
-        icon: 'success',
-        title: 'Profile Updated!',
-        toast: true,
-        position: 'top-end',
-        timer: 2000
-      });
+      showToast('Profile synchronized', 'success');
     } catch (err) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Update Failed',
-        text: err.response?.data?.message || 'Please try again',
-        toast: true,
-        position: 'top-end'
-      });
-    } finally {
-      setIsLoading(false);
-    }
+      showToast(err.response?.data?.message || 'Synchronization failed', 'error');
+    } finally { setIsLoading(false); }
   };
 
   const handleCancel = () => {
-    setForm({
-      name: profile.name || '',
-      department: profile.department || '',
-      phone: profile.phone || '',
-    });
+    setForm({ name: profile.name || '', department: profile.department || '', phone: profile.phone || '' });
     setIsEditing(false);
   };
 
-  useEffect(() => {
-    fetchProfile();
-  }, [fetchProfile]);
+  const formatDate = (date) =>
+    date ? new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
 
-  const formatDate = (date) => {
-    return date ? new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }) : 'N/A';
-  };
+  const statusStyle = profile.status === 'APPROVED'
+    ? { bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-200 dark:border-emerald-700', text: 'text-emerald-700 dark:text-emerald-400', dot: 'bg-emerald-500' }
+    : profile.status === 'PENDING'
+    ? { bg: 'bg-yellow-50 dark:bg-yellow-900/20', border: 'border-yellow-200 dark:border-yellow-700', text: 'text-yellow-700 dark:text-yellow-400', dot: 'bg-yellow-500' }
+    : { bg: 'bg-red-50 dark:bg-red-900/20', border: 'border-red-200 dark:border-red-700', text: 'text-red-700 dark:text-red-400', dot: 'bg-red-500' };
 
   if (isLoading && !profile.id) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-950 dark:to-emerald-950/30 pt-20 lg:pl-72">
-        <div className="max-w-7xl mx-auto px-6 py-12">
-          <div className="animate-pulse space-y-8">
-            <div className="h-12 bg-gray-300 dark:bg-gray-700 rounded-2xl w-80"></div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="bg-white dark:bg-gray-900 rounded-3xl p-8 shadow-lg border border-gray-200 dark:border-gray-800">
-                  <div className="h-6 bg-gray-300 dark:bg-gray-700 rounded w-40 mb-4"></div>
-                  <div className="h-10 bg-gray-200 dark:bg-gray-800 rounded-xl"></div>
-                </div>
-              ))}
-            </div>
-            <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl p-10 border border-gray-200 dark:border-gray-800">
-              <div className="space-y-8">
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} className="h-20 bg-gray-200 dark:bg-gray-800 rounded-2xl"></div>
-                ))}
-              </div>
-            </div>
-          </div>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-4">
+          <div className="h-48 bg-white dark:bg-gray-800 rounded-[2.5rem] animate-pulse" />
+          <div className="h-64 bg-white dark:bg-gray-800 rounded-[2.5rem] animate-pulse" />
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-950 pt-6 lg:pl-72 transition-all duration-500">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+  const fieldClass = "w-full px-5 py-4 rounded-2xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/10 focus:border-lime-200 transition-all";
+  const readClass  = "px-5 py-4 rounded-2xl bg-gray-50/50 dark:bg-gray-900/30 border border-gray-100 dark:border-gray-700 text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-3";
 
-        
-        <div className="mb-12 text-center lg:text-left">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-800 dark:text-white flex items-center flex-wrap gap-5 justify-center lg:justify-start">
-            <div className="p-5 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl text-white shadow-2xl">
-              <FiUser size={40} />
-            </div>
-            My Profile,<span className='text-5xl text-teal-600 font-bold'>{profile.displayName}</span> 
-          </h1>
-          <p className="mt-4 text-lg text-gray-600 dark:text-gray-400">
-            Manage your assigner account and view performance stats
-          </p>
-        </div>
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-8">
 
        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-          {/* <div className="group bg-white dark:bg-gray-900 rounded-3xl shadow-xl p-8 border border-gray-200 dark:border-gray-800 hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">Total Assignments</p>
-                <p className="text-4xl font-bold text-emerald-600 dark:text-emerald-400 mt-2">
-                  {profile.totalAssignmentsHandled || 0}
-                </p>
+       
+        <div className="relative bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden p-8 group">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-lime-500/5 rounded-bl-full translate-x-16 -translate-y-16 group-hover:translate-x-8 group-hover:-translate-y-8 transition-transform duration-700" />
+          
+          <div className="relative flex flex-col md:flex-row items-center gap-8">
+            <div className="relative">
+              <div className="w-32 h-32 rounded-[2.5rem] bg-gradient-to-br from-lime-400 to-emerald-500 p-1">
+                <div className="w-full h-full rounded-[2.2rem] bg-white dark:bg-gray-800 flex items-center justify-center overflow-hidden">
+                  <FiUser size={64} className="text-lime-500" />
+                </div>
               </div>
-              <div className="p-4 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl">
-                <FiActivity className="text-emerald-600 dark:text-emerald-400" size={32} />
-              </div>
-            </div>
-          </div>
-
-          <div className="group bg-white dark:bg-gray-900 rounded-3xl shadow-xl p-8 border border-gray-200 dark:border-gray-800 hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">Pending Tasks</p>
-                <p className="text-4xl font-bold text-amber-600 dark:text-amber-400 mt-2">
-                  {profile.pendingAssignments || 0}
-                </p>
-              </div>
-              <div className="p-4 bg-amber-100 dark:bg-amber-900/30 rounded-2xl">
-                <FiCalendar className="text-amber-600 dark:text-amber-400" size={32} />
+              <div className={`absolute -bottom-2 -right-2 px-4 py-1.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border shadow-lg ${statusStyle.bg} ${statusStyle.border} ${statusStyle.text}`}>
+                {profile.status}
               </div>
             </div>
-          </div> */}
 
-          <div className="group bg-white dark:bg-gray-900 rounded-3xl shadow-xl p-8 border border-gray-200 dark:border-gray-800 hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">Account Status</p>
-                <span className={`mt-3 inline-block px-5 py-2 rounded-full text-white font-bold text-sm shadow-lg ${
-                  profile.status === 'APPROVED' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' :
-                  profile.status === 'PENDING' ? 'bg-gradient-to-r from-yellow-500 to-amber-600' :
-                  'bg-gradient-to-r from-red-500 to-pink-600'
-                }`}>
-                  {profile.status || 'UNKNOWN'}
-                </span>
+            <div className="flex-1 text-center md:text-left space-y-2">
+              <div className="flex flex-col md:flex-row md:items-center gap-3 justify-center md:justify-start">
+                <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">{profile.name || 'System Assigner'}</h1>
+                {profile.verified && <FiCheckCircle className="text-emerald-500 hidden md:block" size={24} />}
               </div>
-              {profile.status === 'APPROVED' ? (
-                <FiCheckCircle className="text-emerald-500" size={36} />
-              ) : (
-                <FiXCircle className="text-red-500" size={36} />
-              )}
+              <p className="text-gray-500 dark:text-gray-400 font-medium">{profile.email}</p>
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 pt-2">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
+                  <FiLayout size={14} className="text-lime-500" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{profile.department || 'Logistics'}</span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
+                  <FiShield size={14} className="text-blue-500" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">ID: {profile.id?.slice(-8)}</span>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        
-        <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-800">
-          <div className="bg-gradient-to-r from-emerald-500 to-teal-600 px-8 py-6 flex flex-col sm:flex-row justify-between items-center">
-            <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-              <FiUser size={28} />
-              Profile Information
-            </h2>
             {!isEditing && (
               <button
                 onClick={() => setIsEditing(true)}
-                className="mt-4 sm:mt-0 px-6 py-3 bg-white/20 backdrop-blur-sm text-white rounded-2xl hover:bg-white/30 transition-all flex items-center gap-2 font-medium"
+                className="px-6 py-3 rounded-2xl bg-gray-900 dark:bg-lime-500 text-white dark:text-black text-sm font-black hover:bg-lime-500 transition-all shadow-xl shadow-gray-200 dark:shadow-none active:scale-95"
               >
-                <FiEdit3 /> Edit Profile
+                Edit Account
               </button>
             )}
           </div>
+        </div>
 
-          <div className="p-8 lg:p-10 space-y-8">
+        
+        
+        <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-sm p-8 space-y-8">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-lime-50 dark:bg-lime-900/30 flex items-center justify-center text-lime-500">
+              <FiInfo size={20} />
+            </div>
+            <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">Administrative Info</h2>
+          </div>
 
-           
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-2">
-                  <FiMail className="text-emerald-600" /> Email Address
-                </label>
-                <p className="text-lg font-semibold text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-800/50 px-5 py-4 rounded-2xl border border-gray-200 dark:border-gray-700">
-                  {profile.email || 'N/A'}
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-2">
-                  <FiShield className="text-teal-600" /> Assigner ID
-                </label>
-                <p className="text-lg font-semibold text-gray-800 dark:text-gray-200 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 px-5 py-4 rounded-2xl border border-emerald-200 dark:border-emerald-800">
-                  {profile.id || 'N/A'}
-                </p>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Account Display Name</label>
+              {isEditing
+                ? <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={fieldClass} />
+                : <div className={readClass}><FiUser className="text-lime-500" /> {profile.name || 'N/A'}</div>}
             </div>
 
-           
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Full Name</label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    className="w-full px-5 py-4 rounded-2xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-4 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all"
-                    placeholder="Enter your name"
-                  />
-                ) : (
-                  <p className="text-lg text-gray-800 dark:text-gray-200 px-5 py-4 bg-gray-50 dark:bg-gray-800 rounded-2xl">
-                    {profile.name || 'Not set'}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Department</label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={form.department}
-                    onChange={(e) => setForm({ ...form, department: e.target.value })}
-                    className="w-full px-5 py-4 rounded-2xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-4 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all"
-                    placeholder="e.g., Logistics, Support"
-                  />
-                ) : (
-                  <p className="text-lg text-gray-800 dark:text-gray-200 px-5 py-4 bg-gray-50 dark:bg-gray-800 rounded-2xl">
-                    {profile.department || 'Not specified'}
-                  </p>
-                )}
-              </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Department / Role</label>
+              {isEditing
+                ? <input type="text" value={form.department} onChange={e => setForm({ ...form, department: e.target.value })} className={fieldClass} />
+                : <div className={readClass}><FiZap className="text-blue-500" /> {profile.department || 'Not Specified'}</div>}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-2">
-                  <FiPhone className="text-emerald-600" /> Phone Number
-                </label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    className="w-full px-5 py-4 rounded-2xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-4 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all"
-                    placeholder="01xxxxxxxxx"
-                  />
-                ) : (
-                  <p className="text-lg text-gray-800 dark:text-gray-200 px-5 py-4 bg-gray-50 dark:bg-gray-800 rounded-2xl">
-                    {profile.phone ? `${profile.phone}` : 'Not set'}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-2">
-                  <FiCalendar className="text-teal-600" /> Member Since
-                </label>
-                <p className="text-lg font-medium text-gray-700 dark:text-gray-300 px-5 py-4 bg-gradient-to-r from-teal-50 to-emerald-50 dark:from-teal-900/20 dark:to-emerald-900/20 rounded-2xl border border-teal-200 dark:border-teal-800">
-                  {formatDate(profile.createdAt)}
-                </p>
-              </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Primary Email</label>
+              <div className={readClass}><FiMail className="text-orange-500" /> {profile.email}</div>
             </div>
 
-            
-            <div className="pt-6 border-t border-gray-200 dark:border-gray-800">
-              <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Account Status</h4>
-              <div className="flex flex-wrap gap-4">
-                <span className={`px-6 py-3 rounded-2xl font-bold text-white shadow-lg ${
-                  profile.verified
-                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600'
-                    : 'bg-gradient-to-r from-gray-400 to-gray-600'
-                }`}>
-                  {profile.verified ? 'Verified Account' : 'Not Verified'}
-                </span>
-                <span className={`px-6 py-3 rounded-2xl font-bold text-white shadow-lg ${
-                  profile.activate
-                    ? 'bg-gradient-to-r from-emerald-600 to-teal-700'
-                    : 'bg-gradient-to-r from-red-500 to-pink-600'
-                }`}>
-                  {profile.activate ? 'Active' : 'Inactive'}
-                </span>
-              </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Phone Connectivity</label>
+              {isEditing
+                ? <input type="text" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className={fieldClass} />
+                : <div className={readClass}><FiPhone className="text-emerald-500" /> {profile.phone || 'Not Connected'}</div>}
             </div>
 
-            
-            {isEditing && (
-              <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-200 dark:border-gray-800">
-                <button
-                  onClick={handleUpdate}
-                  disabled={isLoading}
-                  className="px-8 py-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-2xl hover:from-emerald-600 hover:to-teal-700 transition-all shadow-xl flex items-center justify-center gap-3 disabled:opacity-70"
-                >
-                  {isLoading ? 'Saving...' : 'Save Changes'}
-                </button>
-                <button
-                  onClick={handleCancel}
-                  disabled={isLoading}
-                  className="px-8 py-4 bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold rounded-2xl hover:bg-gray-300 dark:hover:bg-gray-700 transition-all"
-                >
-                  Cancel
-                </button>
-              </div>
-            )}
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Access Level</label>
+              <div className={readClass}><FiShield className="text-purple-500" /> Full Assigner Permissions</div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Registry Date</label>
+              <div className={readClass}><FiCalendar className="text-rose-500" /> {formatDate(profile.createdAt)}</div>
+            </div>
+          </div>
+
+          {isEditing && (
+            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+              <button
+                onClick={handleUpdate}
+                disabled={isLoading}
+                className="flex-1 flex items-center justify-center gap-2 px-8 py-4 rounded-2xl bg-lime-500 hover:bg-lime-600 disabled:opacity-50 text-white font-black transition-all shadow-lg shadow-lime-500/20 active:scale-95"
+              >
+                <FiSave size={18} /> Update Administrative Profile
+              </button>
+              <button
+                onClick={handleCancel}
+                disabled={isLoading}
+                className="px-8 py-4 rounded-2xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 font-bold transition-all active:scale-95"
+              >
+                Discard Changes
+              </button>
+            </div>
+          )}
+        </div>
+
+       
+       
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 p-6 flex items-center justify-between group">
+            <div className="space-y-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Security Check</p>
+              <p className={`text-sm font-black ${profile.verified ? 'text-emerald-500' : 'text-gray-400'}`}>
+                {profile.verified ? 'Verified Identity' : 'Pending Verification'}
+              </p>
+            </div>
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 ${profile.verified ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 group-hover:scale-110' : 'bg-gray-50 dark:bg-gray-900 text-gray-300'}`}>
+              {profile.verified ? <FiCheckCircle size={24} /> : <FiXCircle size={24} />}
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 p-6 flex items-center justify-between group">
+            <div className="space-y-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Service Status</p>
+              <p className={`text-sm font-black ${profile.activate ? 'text-indigo-500' : 'text-red-500'}`}>
+                {profile.activate ? 'Active Console' : 'Console Deactivated'}
+              </p>
+            </div>
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 ${profile.activate ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500 group-hover:scale-110' : 'bg-red-50 dark:bg-red-900/20 text-red-500'}`}>
+              {profile.activate ? <FiCheckCircle size={24} /> : <FiXCircle size={24} />}
+            </div>
           </div>
         </div>
       </div>
