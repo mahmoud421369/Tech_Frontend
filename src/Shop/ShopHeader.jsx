@@ -59,36 +59,36 @@ const isTokenExpired = (token) => {
 const formatTimeAr = (ts) => {
   if (!ts) return "";
   try {
-    const now     = new Date();
-    const date    = new Date(ts);
-    const diffMs  = now - date;
-    const mins    = Math.floor(diffMs / 60000);
-    const hours   = Math.floor(mins / 60);
-    const days    = Math.floor(hours / 24);
-    if (mins < 1)   return "الآن";
-    if (mins < 60)  return `منذ ${mins} دقيقة`;
+    const now = new Date();
+    const date = new Date(ts);
+    const diffMs = now - date;
+    const mins = Math.floor(diffMs / 60000);
+    const hours = Math.floor(mins / 60);
+    const days = Math.floor(hours / 24);
+    if (mins < 1) return "الآن";
+    if (mins < 60) return `منذ ${mins} دقيقة`;
     if (hours < 24) return `منذ ${hours} ساعة`;
     if (days === 1) return "أمس";
-    if (days < 7)   return `منذ ${days} أيام`;
+    if (days < 7) return `منذ ${days} أيام`;
     return date.toLocaleDateString("ar-EG", { month: "short", day: "numeric" });
   } catch { return ""; }
 };
 
 const getNotifMeta = (notif) => {
   const type = (notif.type || notif.category || "").toLowerCase();
-  if (type.includes("order")   || type.includes("طلب"))
-    return { icon: <FiShoppingBag size={13} />, color: "text-blue-500",   bg: "bg-blue-50 dark:bg-blue-500/10",   border: "border-blue-200 dark:border-blue-500/25" };
-  if (type.includes("repair")  || type.includes("تصليح"))
-    return { icon: <FiTool size={13} />,        color: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-500/10", border: "border-orange-200 dark:border-orange-500/25" };
+  if (type.includes("order") || type.includes("طلب"))
+    return { icon: <FiShoppingBag size={13} />, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-500/10", border: "border-blue-200 dark:border-blue-500/25" };
+  if (type.includes("repair") || type.includes("تصليح"))
+    return { icon: <FiTool size={13} />, color: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-500/10", border: "border-orange-200 dark:border-orange-500/25" };
   if (type.includes("payment") || type.includes("دفع") || type.includes("معاملة"))
-    return { icon: <FiCreditCard size={13} />,  color: "text-emerald-500",bg: "bg-emerald-50 dark:bg-emerald-500/10", border: "border-emerald-200 dark:border-emerald-500/25" };
+    return { icon: <FiCreditCard size={13} />, color: "text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-500/10", border: "border-emerald-200 dark:border-emerald-500/25" };
   if (type.includes("warning") || type.includes("تحذير"))
-    return { icon: <FiAlertTriangle size={13} />,color: "text-yellow-500",bg: "bg-yellow-50 dark:bg-yellow-500/10", border: "border-yellow-200 dark:border-yellow-500/25" };
-  if (type.includes("error")   || type.includes("خطأ"))
-    return { icon: <FiAlertCircle size={13} />, color: "text-red-500",    bg: "bg-red-50 dark:bg-red-500/10",    border: "border-red-200 dark:border-red-500/25" };
+    return { icon: <FiAlertTriangle size={13} />, color: "text-yellow-500", bg: "bg-yellow-50 dark:bg-yellow-500/10", border: "border-yellow-200 dark:border-yellow-500/25" };
+  if (type.includes("error") || type.includes("خطأ"))
+    return { icon: <FiAlertCircle size={13} />, color: "text-red-500", bg: "bg-red-50 dark:bg-red-500/10", border: "border-red-200 dark:border-red-500/25" };
   if (type.includes("message") || type.includes("رسالة") || type.includes("chat"))
-    return { icon: <FiMessageSquare size={13} />,color: "text-purple-500",bg: "bg-purple-50 dark:bg-purple-500/10", border: "border-purple-200 dark:border-purple-500/25" };
-  return { icon: <FiInfo size={13} />,          color: "text-emerald-500",bg: "bg-emerald-50 dark:bg-emerald-500/10", border: "border-emerald-200 dark:border-emerald-500/25" };
+    return { icon: <FiMessageSquare size={13} />, color: "text-purple-500", bg: "bg-purple-50 dark:bg-purple-500/10", border: "border-purple-200 dark:border-purple-500/25" };
+  return { icon: <FiInfo size={13} />, color: "text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-500/10", border: "border-emerald-200 dark:border-emerald-500/25" };
 };
 
 
@@ -107,7 +107,7 @@ const NavLink = memo(({ item, active, onClick }) => (
       {item.icon}
     </span>
     <span className="relative z-10">{item.name}</span>
-    {active  && <div className="absolute left-3 w-1.5 h-1.5 rounded-full bg-white/70 animate-pulse" />}
+    {active && <div className="absolute left-3 w-1.5 h-1.5 rounded-full bg-white/70 animate-pulse" />}
     {!active && <div className="absolute inset-y-0 right-0 w-0 group-hover:w-[3px] bg-lime-500 rounded-l-full transition-all duration-300" />}
   </Link>
 ));
@@ -115,7 +115,7 @@ const NavLink = memo(({ item, active, onClick }) => (
 
 
 const NotifItem = memo(({ notif, darkMode, onDelete, onMarkRead, idx }) => {
-  const meta      = useMemo(() => getNotifMeta(notif), [notif]);
+  const meta = useMemo(() => getNotifMeta(notif), [notif]);
   const [exit, setExit] = useState(false);
 
   const triggerDelete = (e) => {
@@ -130,8 +130,8 @@ const NotifItem = memo(({ notif, darkMode, onDelete, onMarkRead, idx }) => {
   };
 
   return (
-    <div 
-    
+    <div
+
       className={`notif-item group relative flex items-start gap-3 px-4 py-3.5 border-b
         transition-all duration-300 cursor-default select-none
         ${exit ? "opacity-0 scale-95 -translate-x-3" : ""}
@@ -145,12 +145,12 @@ const NotifItem = memo(({ notif, darkMode, onDelete, onMarkRead, idx }) => {
         }`}
       style={{ animationDelay: `${idx * 0.04}s` }}
     >
-      
+
       <div className={`shrink-0 mt-0.5 w-8 h-8 rounded-xl flex items-center justify-center border ${meta.bg} ${meta.border} ${meta.color}`}>
         {meta.icon}
       </div>
 
-    
+
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-1">
           <p className={`text-[13px] font-bold leading-snug ${darkMode ? "text-gray-100" : "text-gray-900"}`}
@@ -171,7 +171,7 @@ const NotifItem = memo(({ notif, darkMode, onDelete, onMarkRead, idx }) => {
         </p>
       </div>
 
-    
+
       <div className="shrink-0 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
         {!notif.read && (
           <button
@@ -211,17 +211,17 @@ const NotificationPanel = memo(({
   return (
     <div
       dir="rtl"
-      
+
       className={`notif-panel absolute top-full left-full   mt-3 w-[400px] rounded-2xl overflow-hidden border shadow-2xl z-50
         ${darkMode
           ? "bg-gray-900/97 backdrop-blur-2xl border-emerald-500/15 shadow-[0_24px_60px_rgba(0,0,0,0.75)]"
           : "bg-white border-gray-200 shadow-[0_20px_60px_rgba(0,0,0,0.1)]"}`}
       onClick={e => e.stopPropagation()}
     >
-     
-      <div  className={`px-5 py-4 border-b ${darkMode ? "border-gray-800" : "border-gray-100"}`}>
-       
-        <div  className="flex items-center justify-between mb-3.5">
+
+      <div className={`px-5 py-4 border-b ${darkMode ? "border-gray-800" : "border-gray-100"}`}>
+
+        <div className="flex items-center justify-between mb-3.5">
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-xl ${darkMode ? "bg-emerald-500/12" : "bg-emerald-50"}`}>
               <RiNotification2Line size={15} className="text-emerald-500" />
@@ -238,7 +238,7 @@ const NotificationPanel = memo(({
             </div>
           </div>
 
-        
+
           <div className="flex items-center gap-0.5">
             {unreadCount > 0 && (
               <button
@@ -272,10 +272,10 @@ const NotificationPanel = memo(({
           </div>
         </div>
 
-        
+
         <div className={`flex gap-1 p-1 rounded-xl ${darkMode ? "bg-black/30" : "bg-gray-100"}`}>
           {[
-            { key: "all",    label: `الكل`, count: notifications.length },
+            { key: "all", label: `الكل`, count: notifications.length },
             { key: "unread", label: `غير مقروء`, count: unreadCount },
           ].map(t => (
             <button
@@ -303,7 +303,7 @@ const NotificationPanel = memo(({
         </div>
       </div>
 
-      
+
       <div className="max-h-[360px] overflow-y-auto notif-scroll">
         {loadingNotifs ? (
           <div className="p-5 space-y-3">
@@ -346,8 +346,8 @@ const NotificationPanel = memo(({
         )}
       </div>
 
-     
-     
+
+
       {notifications.length > 0 && !loadingNotifs && (
         <div className={`px-5 py-2.5 border-t ${darkMode ? "border-gray-800" : "border-gray-100"}`}>
           <p className={`text-center text-[10px] font-semibold ${darkMode ? "text-gray-700" : "text-gray-300"}`}
@@ -426,23 +426,23 @@ const ShopHeader = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [darkMode,          setDarkMode]          = useState(() => localStorage.getItem("darkMode") === "true");
-  const [sidebarOpen,       setSidebarOpen]       = useState(false);
-  const [searchQuery,       setSearchQuery]       = useState("");
-  const [token]                                   = useState(localStorage.getItem("authToken"));
-  const [userProfile,       setUserProfile]       = useState(null);
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("darkMode") === "true");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [token] = useState(localStorage.getItem("authToken"));
+  const [userProfile, setUserProfile] = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications,     setNotifications]     = useState([]);
-  const [loadingNotifs,     setLoadingNotifs]     = useState(true);
-  const [unreadCount,       setUnreadCount]       = useState(0);
-  const [badgeKey,          setBadgeKey]          = useState(0);
-  const [bellRinging,       setBellRinging]       = useState(false);
-  const [isAuthenticated,   setIsAuthenticated]   = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [loadingNotifs, setLoadingNotifs] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [badgeKey, setBadgeKey] = useState(0);
+  const [bellRinging, setBellRinging] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  const notifRef      = useRef(null);
+  const notifRef = useRef(null);
   const prevUnreadRef = useRef(0);
 
- 
+
   useEffect(() => {
     const handler = (e) => {
       if (notifRef.current && !notifRef.current.contains(e.target))
@@ -460,8 +460,8 @@ const ShopHeader = () => {
 
   const toggleDark = useCallback(() => setDarkMode(d => !d), []);
 
-  
-  
+
+
   useEffect(() => {
     if (token && !isTokenExpired(token)) {
       setIsAuthenticated(true);
@@ -471,13 +471,13 @@ const ShopHeader = () => {
     }
   }, [token, navigate]);
 
- 
-  
+
+
   const fetchNotifications = useCallback(async () => {
     if (!token) return;
     setLoadingNotifs(true);
     try {
-      const res  = await api.get("/api/notifications/shops");
+      const res = await api.get("/api/notifications/shops");
       const data = Array.isArray(res.data) ? res.data : res.data?.content || [];
       const newUnread = data.filter(n => !n.read).length;
 
@@ -522,9 +522,9 @@ const ShopHeader = () => {
   }, []);
 
 
-  
+
   const handleMarkRead = useCallback(async (id) => {
-   
+
     setNotifications(prev => {
       const next = prev.map(n => n.id === id ? { ...n, read: true } : n);
       const u = next.filter(n => !n.read).length;
@@ -532,20 +532,20 @@ const ShopHeader = () => {
       prevUnreadRef.current = u;
       return next;
     });
-    try { await api.put(`/api/notifications/shops/${id}/read`); } catch {  }
+    try { await api.put(`/api/notifications/shops/${id}/read`); } catch { }
   }, []);
 
- 
-  
+
+
   const handleMarkAllRead = useCallback(async () => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     setUnreadCount(0);
     prevUnreadRef.current = 0;
     toast.success("تم تعليم جميع الإشعارات كمقروءة");
-    try { await api.put("/api/notifications/shops/read-all"); } catch {  }
+    try { await api.put("/api/notifications/shops/read-all"); } catch { }
   }, []);
 
-  
+
   const handleClearAll = useCallback(async () => {
     const { isConfirmed } = await Swal.fire({
       title: "حذف جميع الإشعارات",
@@ -571,8 +571,8 @@ const ShopHeader = () => {
     }
   }, [darkMode]);
 
- 
-  
+
+
   const handleLogout = useCallback(async () => {
     const refreshToken = localStorage.getItem("refreshToken");
     const { isConfirmed } = await Swal.fire({
@@ -596,11 +596,11 @@ const ShopHeader = () => {
     navigate("/login");
   }, [token, navigate, darkMode]);
 
-  const isActive    = (path) => location.pathname === path;
+  const isActive = (path) => location.pathname === path;
   const closeSidebar = () => setSidebarOpen(false);
 
 
-  
+
 
   return (
     <div dir="rtl" className="transition-colors duration-300">
@@ -612,8 +612,8 @@ const ShopHeader = () => {
         toastStyle={{ fontFamily: "'Cairo', sans-serif", fontSize: 13 }}
       />
 
-     
-     
+
+
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] lg:hidden"
@@ -622,8 +622,8 @@ const ShopHeader = () => {
         />
       )}
 
-     
-     
+
+
       <aside
         className={`fixed inset-y-0 right-0 z-[70] w-64
           bg-white/90 dark:bg-gray-900/95 backdrop-blur-2xl
@@ -632,8 +632,8 @@ const ShopHeader = () => {
           transition-transform duration-500
           ${sidebarOpen ? "translate-x-0" : "translate-x-full"} lg:translate-x-0`}
       >
-        
-        
+
+
         <div className="relative h-32 flex flex-col items-center justify-center px-6 border-b border-gray-50 dark:border-gray-800/50">
           <Link to="/shop/dashboard" className="flex flex-col items-center group" onClick={closeSidebar}>
             <div className="w-32 h-24 rounded-3xl p-1 group-hover:scale-105 transition-transform duration-500 overflow-hidden">
@@ -650,8 +650,8 @@ const ShopHeader = () => {
           </button>
         </div>
 
-       
-       
+
+
         <div className="px-4 pt-5 pb-1">
           <div className="relative group">
             <FiSearch
@@ -672,8 +672,8 @@ const ShopHeader = () => {
           </div>
         </div>
 
-       
-       
+
+
         <div className="flex-1 overflow-y-auto py-4 px-4 custom-scrollbar-thin space-y-5">
           {MENU_GROUPS.map((group, idx) => (
             <div key={idx} className="space-y-1">
@@ -690,8 +690,8 @@ const ShopHeader = () => {
           ))}
         </div>
 
-        
-        
+
+
         <div className="p-4 border-t border-gray-50 dark:border-gray-800/50 bg-gray-50/30 dark:bg-gray-800/20">
           <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-4 shadow-sm">
             <div className="flex gap-2">
@@ -714,8 +714,8 @@ const ShopHeader = () => {
         </div>
       </aside>
 
-      
-      
+
+
       <header
         className="fixed top-0 left-0 right-0 h-[72px] z-[40]
           bg-white/85 dark:bg-gray-900/85 backdrop-blur-xl
@@ -723,8 +723,8 @@ const ShopHeader = () => {
           flex items-center justify-between px-5 lg:pr-72
           transition-all duration-500"
       >
-     
-     
+
+
         <div className="flex items-center gap-4">
           <button
             onClick={() => setSidebarOpen(true)}
@@ -748,12 +748,12 @@ const ShopHeader = () => {
           </div>
         </div>
 
-        
-        
+
+
         <div className="flex items-center gap-3">
 
-          
-          
+
+
           <div className="relative" ref={notifRef}>
             <button
               onClick={() => setShowNotifications(v => !v)}
@@ -798,8 +798,8 @@ const ShopHeader = () => {
 
           <div className="h-9 w-px bg-gray-100 dark:bg-gray-800" />
 
-          
-          
+
+
           <Link
             to="/shop/profile"
             className="flex items-center gap-3 pl-1 pr-3 py-1.5 rounded-2xl
