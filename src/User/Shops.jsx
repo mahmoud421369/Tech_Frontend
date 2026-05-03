@@ -197,7 +197,7 @@ const Shops = memo(({ darkMode }) => {
 
   const pageSize = 9;
 
-  useEffect(() => { document.title = 'Verified Shops | TechBazaar'; }, []);
+  useEffect(() => { document.title = 'Verified Shops | Tech-Restore'; }, []);
 
   const fetchShops = useCallback(async () => {
     const controller = new AbortController();

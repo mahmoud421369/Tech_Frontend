@@ -182,7 +182,7 @@ const DeviceDetail = memo(({ addToCart, darkMode }) => {
   const itemsPerPage = 8;
 
   useEffect(() => {
-    if (product?.name) document.title = `${product.name} | TechBazaar`;
+    if (product?.name) document.title = `${product.name} | Tech-Restore`;
   }, [product?.name]);
 
   const fetchProductAndAll = useCallback(async () => {

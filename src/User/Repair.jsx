@@ -224,7 +224,7 @@ const RepairRequest = ({ darkMode }) => {
   const border = darkMode ? "border-gray-700" : "border-gray-200";
   const textPrimary = darkMode ? "text-white" : "text-gray-900";
 
-  useEffect(() => { document.title = "Book Repair | TechBazaar"; }, []);
+  useEffect(() => { document.title = "Book Repair | Tech-Restore"; }, []);
 
   const sanitizeDescription = useCallback((input) =>
     sanitizeHtml(input, { allowedTags: [], allowedAttributes: {} }).trim(), []);

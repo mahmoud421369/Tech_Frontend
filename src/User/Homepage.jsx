@@ -405,7 +405,7 @@ const Homepage = memo(({ darkMode }) => {
    const shopScrollRef = useRef(null);
    const prodScrollRef = useRef(null);
 
-   useEffect(() => { document.title = 'Home'; }, []);
+   useEffect(() => { document.title = 'Home | Tech-Restore'; }, []);
 
    const safeDecodeJwt = useCallback((token) => {
       if (!token || typeof token !== 'string' || token.trim() === '') return null;

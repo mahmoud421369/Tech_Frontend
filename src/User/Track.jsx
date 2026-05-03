@@ -131,7 +131,7 @@ const Track = memo(({ darkMode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  useEffect(() => { document.title = "Track your order | TechBazaar"; }, []);
+  useEffect(() => { document.title = "Track your order | Tech-Restore"; }, []);
 
   useEffect(() => {
   

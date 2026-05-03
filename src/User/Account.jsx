@@ -330,7 +330,7 @@ const Account = ({ darkMode }) => {
     } finally { setIsLoading(false); }
   }, [token, navigate]);
 
-  useEffect(() => { document.title = "My Account | TechBazaar"; fetchAll(); }, [fetchAll]);
+  useEffect(() => { document.title = "My Account | Tech-Restore"; fetchAll(); }, [fetchAll]);
 
  
   

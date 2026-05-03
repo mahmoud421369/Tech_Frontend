@@ -219,7 +219,7 @@ const Products = ({ darkMode }) => {
   const abortCtrlRef = useRef(new AbortController());
   const token       = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
 
-  useEffect(() => { document.title = 'Our Products | TechBazaar'; }, []);
+  useEffect(() => { document.title = 'Our Products | Tech-Restore'; }, []);
 
 
   

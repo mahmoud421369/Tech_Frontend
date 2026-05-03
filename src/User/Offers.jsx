@@ -402,7 +402,7 @@ const Offers = ({ darkMode }) => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const token = localStorage.getItem("authToken");
 
-  useEffect(() => { document.title = "Exclusive Offers | TechBazaar"; }, []);
+  useEffect(() => { document.title = "Exclusive Offers | Tech-Restore"; }, []);
 
   useEffect(() => {
     const controller = new AbortController();

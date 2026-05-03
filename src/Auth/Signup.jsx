@@ -2,18 +2,14 @@ import React, { useState, useCallback, useMemo, useEffect, memo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import api from "../api";
-import { Sparkles, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import {
   RiUserLine, RiLockPasswordLine, RiMailLine, RiPhoneLine,
   RiHome4Line, RiMapPinLine, RiStore2Line,
   RiFileListLine, RiTruckLine, RiUserSettingsLine,
   RiEyeLine, RiEyeOffLine, RiArrowDownSLine, RiShieldCheckLine,
 } from "react-icons/ri";
-import { FiRefreshCw, FiArrowLeft, FiCheck } from "react-icons/fi";
-import logo from "../images/logo-bg.png";
-
-
-
+import { FiArrowLeft, FiCheck } from "react-icons/fi";
 
 const EMAIL_REGEX         = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX         = /^\d{10,15}$/;
@@ -37,22 +33,17 @@ const INPUT_NORMAL = "border-gray-200 dark:border-gray-700";
 const INPUT_ERR    = "border-red-300 dark:border-red-600 focus:border-red-500 focus:ring-red-300/50";
 const OTP_INPUT    = "w-10 h-11 sm:w-11 sm:h-12 text-center text-lg sm:text-xl font-bold rounded-xl bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-4 focus:ring-lime-300/50 focus:border-lime-500 transition-all";
 
-
+const toast = (icon, title, text) =>
+  Swal.fire({ icon, title, text, toast: true, position: "top-end", timer: 2500, showConfirmButton: false, timerProgressBar: true });
 
 const validateEmail    = (v) => !v.trim() ? "Email is required" : !EMAIL_REGEX.test(v) ? "Valid email required" : "";
 const validatePhone    = (v) => { if (!v.trim()) return "Phone is required"; const c = v.replace(/\D/g, ""); return PHONE_REGEX.test(c) ? "" : "Valid phone required (10-15 digits)"; };
 const validatePassword = (v) => !v ? "Password is required" : v.length < MIN_PASSWORD_LENGTH ? `Min ${MIN_PASSWORD_LENGTH} characters` : "";
 
-
-
-
 const DotsBackground = () => (
   <div className="fixed inset-0 pointer-events-none z-0" aria-hidden="true"
     style={{ backgroundImage: `radial-gradient(circle, rgba(101,163,13,0.13) 1.5px, transparent 1.5px)`, backgroundSize: "28px 28px" }} />
 );
-
-
-
 
 const Spinner = () => (
   <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
@@ -60,9 +51,6 @@ const Spinner = () => (
     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
   </svg>
 );
-
-
-
 
 const CartoonIllustration = memo(() => (
   <svg viewBox="0 0 480 520" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full max-w-[300px] sm:max-w-[380px] lg:max-w-[420px]">
@@ -93,9 +81,6 @@ const CartoonIllustration = memo(() => (
   </svg>
 ));
 
-
-
-
 const Field = memo(({ label, icon, error, children }) => (
   <div className="space-y-1">
     <label className="block text-[10px] sm:text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{label}</label>
@@ -106,8 +91,6 @@ const Field = memo(({ label, icon, error, children }) => (
     {error && <p className="text-[10px] sm:text-xs text-red-600 dark:text-red-400 font-medium" role="alert">{error}</p>}
   </div>
 ));
-
-
 
 const PasswordInput = memo(({ formType, value, onChange, onBlur, showPassword, onToggle, error }) => (
   <Field label="Password (min 6 chars)" icon={<RiLockPasswordLine size={15} />} error={error}>
@@ -124,16 +107,12 @@ const PasswordInput = memo(({ formType, value, onChange, onBlur, showPassword, o
   </Field>
 ));
 
-
-
 const SubmitBtn = memo(({ label, loading }) => (
   <button type="submit" disabled={loading}
     className="w-full h-10 sm:h-11 rounded-xl font-bold text-sm bg-lime-500 hover:bg-lime-600 text-white transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-sm">
     {loading ? <><Spinner /> Creating Account...</> : label}
   </button>
 ));
-
-
 
 const ErrorBanner = memo(({ message }) =>
   message ? (
@@ -143,21 +122,11 @@ const ErrorBanner = memo(({ message }) =>
   ) : null
 );
 
-
-
 const OTPStep = memo(({ email, onSuccess, onBack }) => {
-  const [otp, setOtp]             = useState(["","","","","",""]);
-  const [loading, setLoading]     = useState(false);
-  const [resending, setResending] = useState(false);
-  const [error, setError]         = useState("");
-  const [countdown, setCountdown] = useState(60);
+  const [otp, setOtp]         = useState(["","","","","",""]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState("");
   const inputsRef = React.useRef([]);
-
-  useEffect(() => {
-    if (countdown <= 0) return;
-    const t = setTimeout(() => setCountdown(c => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [countdown]);
 
   const handleOtpChange = useCallback((i, v) => {
     if (!/^\d*$/.test(v)) return;
@@ -180,24 +149,15 @@ const OTPStep = memo(({ email, onSuccess, onBack }) => {
     if (code.length !== 6) { setError("Please enter all 6 digits"); return; }
     setLoading(true);
     try {
-      await api.post("/api/auth/verify-email", { email, optCode: code });
-      await Swal.fire({ icon: "success", title: "Email Verified!", text: "Your account is ready. Redirecting to login...", toast: true, position: "top-end", timer: 2500, showConfirmButton: false });
+      await api.post("/api/auth/verify-email", { email, optCode: code  });
+      await toast("success", "Email Verified!", "Your account is ready. Redirecting to login...");
       onSuccess();
-    } catch (err) { setError(err.response?.data?.message || "Invalid code. Please try again."); }
-    finally { setLoading(false); }
+    } catch (err) {
+      setError(err.response?.data?.message || "Invalid code. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }, [otp, email, onSuccess]);
-
-  const handleResend = useCallback(async () => {
-    if (countdown > 0) return;
-    setResending(true);
-    try {
-      await api.get("/api/auth/get-code", { params: { email } });
-      setCountdown(60); setOtp(["","","","","",""]); setError("");
-      inputsRef.current[0]?.focus();
-      Swal.fire({ icon: "success", title: "Code Resent!", text: `A new code was sent to ${email}`, toast: true, position: "top-end", timer: 2500, showConfirmButton: false });
-    } catch (err) { setError(err.response?.data?.message || "Failed to resend. Please try again."); }
-    finally { setResending(false); }
-  }, [email, countdown]);
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -226,27 +186,17 @@ const OTPStep = memo(({ email, onSuccess, onBack }) => {
         className="w-full h-10 sm:h-11 rounded-xl font-bold text-sm bg-lime-500 hover:bg-lime-600 text-white transition-all flex items-center justify-center gap-2 disabled:opacity-70">
         {loading ? <><Spinner /> Verifying...</> : "Verify Email"}
       </button>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-start">
         <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition font-medium">
           <FiArrowLeft size={13} /> Back
-        </button>
-        <button onClick={handleResend} disabled={countdown > 0 || resending}
-          className="flex items-center gap-1.5 text-sm font-semibold text-lime-600 dark:text-lime-400 hover:text-lime-800 disabled:opacity-50 transition">
-          <FiRefreshCw size={12} className={resending ? "animate-spin" : ""} />
-          {countdown > 0 ? `Resend in ${countdown}s` : "Resend Code"}
         </button>
       </div>
     </div>
   );
 });
 
-
-
-
 const mkErrors  = () => ({ user: {}, shop: {}, delivery: {}, assigner: {} });
 const mkTouched = () => ({ user: {}, shop: {}, delivery: {}, assigner: {} });
-
-
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -265,7 +215,7 @@ const Signup = () => {
   const [deliveryData, setDeliveryData] = useState({ name: "", email: "", phone: "", password: "", address: "" });
   const [assignerData, setAssignerData] = useState({ name: "", email: "", phone: "", password: "", department: "" });
 
-  useEffect(() => { document.title = "Sign Up | TechBazaar"; }, []);
+  useEffect(() => { document.title = "Sign Up | Tech-Restore"; }, []);
 
   const activeTabConfig = useMemo(() => TAB_CONFIG.find(t => t.key === activeTab), [activeTab]);
 
@@ -291,7 +241,7 @@ const Signup = () => {
     const { name, value } = e.target;
     setTouched(prev => ({ ...prev, [formType]: { ...prev[formType], [name]: true } }));
     let fe = "";
-    if (name === "email")    fe = validateEmail(value);
+    if (name === "email")         fe = validateEmail(value);
     else if (name === "phone")    fe = validatePhone(value);
     else if (name === "password") fe = validatePassword(value);
     else if (!value.trim())       fe = "Required";
@@ -315,14 +265,35 @@ const Signup = () => {
     setLoading(true);
     try {
       await api.post(endpoint, data);
-      await api.get("/api/auth/get-code", { params: { email: data.email } });
       setPendingEmail(data.email);
       setOtpStep(true);
     } catch (err) {
-      const msg = err.response?.data?.message || "Registration failed. Please try again.";
-      setErrors(prev => ({ ...prev, [formType]: { ...prev[formType], general: msg } }));
-      Swal.fire({ icon: "error", title: "Registration Failed", text: msg, confirmButtonColor: "#ef4444" });
-    } finally { setLoading(false); }
+      const status = err.response?.status;
+      const serverMsg = err.response?.data?.message;
+
+      let msg = "Registration failed. Please try again.";
+      let emailErr = "";
+
+      if (status === 409) {
+        msg = serverMsg || "This email is already registered.";
+        emailErr = msg;
+        setErrors(prev => ({
+          ...prev,
+          [formType]: { ...prev[formType], email: emailErr, general: "" },
+        }));
+        setTouched(prev => ({
+          ...prev,
+          [formType]: { ...prev[formType], email: true },
+        }));
+        toast("error", "Email Already Exists", msg);
+      } else {
+        msg = serverMsg || msg;
+        setErrors(prev => ({ ...prev, [formType]: { ...prev[formType], general: msg } }));
+        toast("error", "Registration Failed", msg);
+      }
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   const handleUserSignup = useCallback((e) => {
@@ -361,8 +332,8 @@ const Signup = () => {
     setTouched(prev => ({ ...prev, delivery: { name: true, email: true, phone: true, address: true, password: true } }));
     const ne = {};
     if (!deliveryData.name.trim())    ne.name    = "Required";
-    const ee = validateEmail(deliveryData.email);       if (ee) ne.email   = ee;
-    const pe = validatePhone(deliveryData.phone);       if (pe) ne.phone   = pe;
+    const ee = validateEmail(deliveryData.email);       if (ee) ne.email    = ee;
+    const pe = validatePhone(deliveryData.phone);       if (pe) ne.phone    = pe;
     const pw = validatePassword(deliveryData.password); if (pw) ne.password = pw;
     if (!deliveryData.address.trim()) ne.address = "Required";
     if (Object.keys(ne).length) { setErrors(prev => ({ ...prev, delivery: ne })); return; }
@@ -385,7 +356,6 @@ const Signup = () => {
   const handleOtpSuccess = useCallback(() => navigate("/login"), [navigate]);
   const handleOtpBack    = useCallback(() => { setOtpStep(false); setPendingEmail(""); }, []);
 
-  /* Input helper */
   const inp = (formType, name, type, value, onChange, onBlur, placeholder, autoComplete) => {
     const err = getError(formType, name);
     return (
@@ -400,14 +370,9 @@ const Signup = () => {
     <div className="relative min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
       <DotsBackground />
 
-      
-      
       <nav className="fixed top-0 w-full z-50 border-b border-gray-200 dark:border-gray-800 bg-white/90 dark:bg-gray-950/90 backdrop-blur-xl">
         <div className="h-0.5 bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-500" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-3.5 flex items-center justify-end">
-          {/* <Link to="/" className="flex items-center gap-2.5 sm:gap-3">
-            <img src={logo} alt="Logo" className="h-7 sm:h-9 w-auto rounded-xl object-cover" />
-          </Link> */}
           <div className="flex items-center gap-3 sm:gap-5">
             <Link to="/login" className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-lime-600 dark:hover:text-lime-400 transition hidden sm:block">
               Already have an account?
@@ -419,13 +384,9 @@ const Signup = () => {
         </div>
       </nav>
 
-      
-      
       <section className="relative z-10 pt-16 pb-8 sm:pt-20 sm:pb-16 px-4 sm:px-6 min-h-screen flex items-start">
         <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-8 sm:gap-12 items-start w-full pt-4 sm:pt-6">
 
-         
-         
           <div className="relative md:sticky md:top-24 flex justify-center order-2 md:order-1">
             <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-none">
               <CartoonIllustration />
@@ -437,15 +398,12 @@ const Signup = () => {
                 </div>
               </div>
               <div className="absolute -bottom-3 sm:-bottom-5 left-2 sm:left-3 bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-2.5 sm:p-3.5 text-center">
-                
                 <p className="font-bold text-sm sm:text-base text-gray-900 dark:text-gray-100">Free</p>
                 <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">to start</p>
               </div>
             </div>
           </div>
 
-        
-        
           <div className="space-y-4 sm:space-y-6 order-1 md:order-2">
             <div>
               <div className="inline-flex items-center gap-2 bg-lime-100 dark:bg-lime-900/30 text-lime-700 dark:text-lime-400 px-3.5 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium mb-3 sm:mb-4">
@@ -457,15 +415,11 @@ const Signup = () => {
               <p className="mt-2 sm:mt-3 text-base sm:text-lg text-gray-500 dark:text-gray-400">Choose your role and get started today.</p>
             </div>
 
-         
-         
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl sm:rounded-3xl shadow-xl p-4 sm:p-6 space-y-4 sm:space-y-5">
               {otpStep ? (
                 <OTPStep email={pendingEmail} onSuccess={handleOtpSuccess} onBack={handleOtpBack} />
               ) : (
                 <>
-                  
-                  
                   <div className="space-y-2">
                     <p className="text-[10px] sm:text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Select your role</p>
                     <div className="grid grid-cols-2 gap-2" role="tablist">
@@ -480,12 +434,10 @@ const Signup = () => {
                             onClick={() => setActiveTab(key)}
                             className={`relative flex items-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-3xl justify-center border-2 font-semibold text-xs sm:text-sm transition-all duration-200 overflow-hidden ${
                               isActive
-                                ? `border-transparent text-white  shadow-lg`
-                                : `bg-gray-50 border text-gray-800 hover:shadow-sm`
+                                ? `border-transparent text-white shadow-lg`
+                                : `bg-gray-50 dark:bg-gray-900 dark:border-gray-800 dark:text-white border text-gray-800 hover:shadow-sm`
                             }`}
                           >
-                           
-                           
                             {isActive && (
                               <span className={`absolute inset-0 bg-gradient-to-r ${color}`} />
                             )}
@@ -501,8 +453,6 @@ const Signup = () => {
                       })}
                     </div>
 
-                  
-                  
                     {activeTabConfig && (
                       <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${activeTabConfig.bg} border ${activeTabConfig.border}`}>
                         <span className={`flex-shrink-0 ${activeTabConfig.text}`}>{activeTabConfig.icon}</span>
@@ -513,7 +463,6 @@ const Signup = () => {
                     )}
                   </div>
 
-                
                   {activeTab === "user" && (
                     <form onSubmit={handleUserSignup} className="space-y-3 sm:space-y-4" noValidate>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -536,8 +485,6 @@ const Signup = () => {
                     </form>
                   )}
 
-                  
-                  
                   {activeTab === "shop" && (
                     <form onSubmit={handleShopSignup} className="space-y-3 sm:space-y-4" noValidate>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -554,8 +501,6 @@ const Signup = () => {
                           {inp("shop","description","text",shopData.description,handleShopChange,handleBlur,"Brief description",undefined)}
                         </Field>
 
-                        
-                        
                         <div className="space-y-1">
                           <label className="block text-[10px] sm:text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Shop Type</label>
                           <div className="relative">
@@ -574,7 +519,7 @@ const Signup = () => {
                               <ul role="listbox" className="absolute z-20 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden">
                                 {SHOP_TYPE_OPTIONS.map(opt => (
                                   <li key={opt.value} role="option" aria-selected={shopData.shopType === opt.value}
-                                    onClick={() => handleShopTypeSelect(opt.value)}
+                                    onMouseDown={(e) => { e.preventDefault(); handleShopTypeSelect(opt.value); }}
                                     className={`px-4 py-2.5 text-sm cursor-pointer flex items-center justify-between transition-colors ${shopData.shopType === opt.value ? "bg-lime-50 dark:bg-lime-900/30 text-lime-700 dark:text-lime-400 font-semibold" : "text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
                                     {opt.label}
                                     {shopData.shopType === opt.value && <FiCheck size={13} className="text-lime-600" />}
@@ -605,8 +550,6 @@ const Signup = () => {
                     </form>
                   )}
 
-                  
-                  
                   {activeTab === "delivery" && (
                     <form onSubmit={handleDeliverySignup} className="space-y-3 sm:space-y-4" noValidate>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -629,8 +572,6 @@ const Signup = () => {
                     </form>
                   )}
 
-                  
-                  
                   {activeTab === "assigner" && (
                     <form onSubmit={handleAssignerSignup} className="space-y-3 sm:space-y-4" noValidate>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

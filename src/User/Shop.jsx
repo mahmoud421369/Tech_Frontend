@@ -274,7 +274,7 @@ const Shop = memo(({ darkMode, addToCart }) => {
   const [activeFiltersCount, setActiveFiltersCount] = useState(0);
 
   useEffect(() => {
-    document.title = shop?.name  ? sanitizeText(shop.name) + " | TechBazaar" : "Loading Shop...";
+    document.title = shop?.name  ? sanitizeText(shop.name) + " | Tech-Restore" : "Loading Shop...";
   }, [shop?.name]);
 
 
