@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FiSearch, FiX, FiCopy, FiTrash2, FiInfo, FiCheck, FiXCircle,
@@ -18,9 +18,6 @@ const showToast = (text, icon) =>
   Swal.fire({ text, icon, toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
 
 const sanitize = (s) => DOMPurify.sanitize(String(s ?? ''));
-
-
-
 
 const StatCard = memo(({ icon: Icon, label, value, color }) => (
   <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-sm hover:shadow-xl hover:shadow-lime-500/5 transition-all duration-500 group relative overflow-hidden">
@@ -42,62 +39,101 @@ const SortIcon = memo(({ field, sortField, sortDir }) => {
   return sortDir === 'asc' ? <FiChevronUp size={11} className="text-lime-600" /> : <FiChevronDown size={11} className="text-lime-600" />;
 });
 
+const RowsDropdown = memo(({ value, options, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  return (
+    <div className="relative inline-block" ref={ref}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-transparent hover:border-lime-500/20 transition-all focus:outline-none focus:ring-2 focus:ring-lime-500/20"
+      >
+        <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">{value} Rows</span>
+        <FiChevronDown size={12} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute right-0 z-20 mt-1 w-32 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+          {options.map(n => (
+            <button
+              key={n}
+              onClick={() => { onChange(n); setOpen(false); }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition
+                ${value === n
+                  ? 'bg-lime-50 dark:bg-lime-900/30 text-lime-600'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+            >
+              {n} Rows
+              {value === n && <FiCheck size={12} className="text-lime-500" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
+
 const ShopModal = memo(({ shop, onClose }) => {
   if (!shop) return null;
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-md p-4">
-      <div className="w-full max-w-lg bg-white dark:bg-gray-800 rounded-none shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700 max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/80 px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Shop Profile</h3>
-            <code className="text-[10px] font-black bg-lime-500 text-white px-2 py-0.5 rounded-lg">
-              {String(shop.id).slice(0, 8)}
+      <div className="w-full max-w-[340px] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700 max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/80 px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <h3 className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">Shop Profile</h3>
+            <code className="text-[9px] font-black bg-lime-500 text-white px-1.5 py-0.5 rounded-lg">
+              {String(shop.id).slice(0, 6)}
             </code>
           </div>
-          <button onClick={onClose} className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-red-500 transition-all">
-            <FiX size={18} title="Close" />
+          <button onClick={onClose} className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-red-500 transition-all">
+            <FiX size={16} title="Close" />
           </button>
         </div>
 
-        <div className="overflow-y-auto flex-1 p-6 space-y-4">
+        <div className="overflow-y-auto flex-1 p-4 space-y-3">
           {[
-            { icon: FiUser, label: 'Merchant Name', value: sanitize(shop.name) },
-            { icon: FiMail, label: 'Official Email', value: sanitize(shop.email) },
-            { icon: FiPhone, label: 'Support Line', value: shop.phone ? sanitize(shop.phone) : 'N/A' },
-            { icon: FiTag, label: 'Shop Category', value: shop.shopType ? sanitize(shop.shopType) : 'N/A' },
-            { icon: FiStar, label: 'Platform Rating', value: shop.rating || 'No ratings yet' },
+            { icon: FiUser, label: 'Merchant', value: sanitize(shop.name) },
+            { icon: FiMail, label: 'Email', value: sanitize(shop.email) },
+            { icon: FiPhone, label: 'Phone', value: shop.phone ? sanitize(shop.phone) : 'N/A' },
+            { icon: FiTag, label: 'Type', value: shop.shopType ? sanitize(shop.shopType) : 'N/A' },
           ].map(({ icon: Icon, label, value }) => (
-            <div key={label} className="group p-4 bg-gray-50 dark:bg-gray-900/40 border border-transparent hover:border-lime-500/20 transition-all duration-300">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-white dark:bg-gray-800 flex items-center justify-center text-lime-500 shadow-sm group-hover:rotate-6 transition-transform">
-                  <Icon size={18} />
+            <div key={label} className="group p-2.5 bg-gray-50 dark:bg-gray-900/40 border border-transparent hover:border-lime-500/20 rounded-xl transition-all duration-300">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center text-lime-500 shadow-sm group-hover:rotate-6 transition-transform">
+                  <Icon size={14} />
                 </div>
-                <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{label}</p>
-                  <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{String(value)}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em]">{label}</p>
+                  <p className="text-xs font-bold text-gray-800 dark:text-gray-100 truncate">{String(value)}</p>
                 </div>
               </div>
             </div>
           ))}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 bg-gray-50 dark:bg-gray-900/40 border border-transparent">
-              <div className="flex items-center gap-3">
-                <FiCheckCircle size={18} className={shop.verified ? 'text-emerald-500' : 'text-red-500'} />
+          <div className="grid grid-cols-2 gap-2">
+            <div className="p-2.5 bg-gray-50 dark:bg-gray-900/40 border border-transparent rounded-xl">
+              <div className="flex items-center gap-2">
+                <FiCheckCircle size={14} className={shop.verified ? 'text-emerald-500' : 'text-red-500'} />
                 <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Verification</p>
-                  <p className={`text-[10px] font-black uppercase tracking-widest ${shop.verified ? 'text-emerald-600' : 'text-red-600'}`}>
-                    {shop.verified ? 'Authorized' : 'Suspended'}
+                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Verification</p>
+                  <p className={`text-[9px] font-black uppercase tracking-widest ${shop.verified ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {shop.verified ? 'Auth' : 'Susp'}
                   </p>
                 </div>
               </div>
             </div>
-            <div className="p-4 bg-gray-50 dark:bg-gray-900/40 border border-transparent">
-              <div className="flex items-center gap-3">
-                {shop.activate ? <FiToggleRight size={18} className="text-emerald-500" /> : <FiToggleLeft size={18} className="text-gray-400" />}
+            <div className="p-2.5 bg-gray-50 dark:bg-gray-900/40 border border-transparent rounded-xl">
+              <div className="flex items-center gap-2">
+                {shop.activate ? <FiToggleRight size={14} className="text-emerald-500" /> : <FiToggleLeft size={14} className="text-gray-400" />}
                 <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Visibility</p>
-                  <p className={`text-[10px] font-black uppercase tracking-widest ${shop.activate ? 'text-emerald-600' : 'text-gray-400'}`}>
+                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Visibility</p>
+                  <p className={`text-[9px] font-black uppercase tracking-widest ${shop.activate ? 'text-emerald-600' : 'text-gray-400'}`}>
                     {shop.activate ? 'Public' : 'Hidden'}
                   </p>
                 </div>
@@ -105,39 +141,22 @@ const ShopModal = memo(({ shop, onClose }) => {
             </div>
           </div>
 
-          {shop.description && (
-            <div className="p-4 bg-gray-50 dark:bg-gray-900/40 border border-transparent">
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Description</p>
-              <p className="text-sm text-gray-700 dark:text-gray-300 font-medium leading-relaxed">{sanitize(shop.description)}</p>
-            </div>
-          )}
-
           {shop.shopAddress && (
-            <div className="p-4 bg-lime-50 dark:bg-lime-900/20 border border-lime-500/10 rounded-2xl">
-              <div className="flex items-center gap-2 mb-3">
-                <FiMapPin size={16} className="text-lime-600" />
-                <p className="text-[10px] font-black text-lime-700 dark:text-lime-400 uppercase tracking-widest">Operational Address</p>
+            <div className="p-3 bg-lime-50 dark:bg-lime-900/20 border border-lime-500/10 rounded-xl">
+              <div className="flex items-center gap-2 mb-2">
+                <FiMapPin size={12} className="text-lime-600" />
+                <p className="text-[8px] font-black text-lime-700 dark:text-lime-400 uppercase tracking-widest">Address</p>
               </div>
-              <div className="grid grid-cols-2 gap-y-3 gap-x-4">
-                {[
-                  { l: 'Street', v: shop.shopAddress.street },
-                  { l: 'Building', v: shop.shopAddress.building },
-                  { l: 'City', v: shop.shopAddress.city },
-                  { l: 'State', v: shop.shopAddress.state }
-                ].map(f => (
-                  <div key={f.l}>
-                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{f.l}</p>
-                    <p className="text-xs font-bold text-gray-700 dark:text-gray-200">{f.v || '—'}</p>
-                  </div>
-                ))}
-              </div>
+              <p className="text-[11px] font-bold text-gray-700 dark:text-gray-200">
+                {shop.shopAddress.street}, {shop.shopAddress.city}
+              </p>
             </div>
           )}
         </div>
 
-        <div className="p-6 flex-shrink-0 border-t border-gray-100 dark:border-gray-700 bg-gray-50/30 dark:bg-gray-800/20">
+        <div className="p-4 flex-shrink-0 border-t border-gray-100 dark:border-gray-700 bg-gray-50/30 dark:bg-gray-800/20">
           <button onClick={onClose}
-            className="w-full py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-[0.2em] hover:bg-lime-500 dark:hover:bg-lime-500 dark:hover:text-white transition-all active:scale-[0.98]">
+            className="w-full py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-lime-500 dark:hover:bg-lime-500 dark:hover:text-white transition-all active:scale-[0.98]">
             Close
           </button>
         </div>
@@ -327,11 +346,12 @@ const Shops = ({ darkMode }) => {
             </div>
 
             <div className="flex items-center gap-3 px-4 border-l border-gray-100 dark:border-gray-800">
-              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Rows</span>
-              <select value={rowsPerPage} onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                className="bg-transparent text-sm font-black text-gray-900 dark:text-white focus:outline-none cursor-pointer">
-                {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
+               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Rows</span>
+               <RowsDropdown
+                 value={rowsPerPage}
+                 options={ROWS_OPTIONS}
+                 onChange={n => { setRowsPerPage(n); setCurrentPage(1); }}
+               />
             </div>
           </div>
         </div>

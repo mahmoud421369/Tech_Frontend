@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FiList, FiPlus, FiEdit3, FiTrash2, FiCopy,
   FiSearch, FiXCircle, FiChevronLeft, FiChevronRight,
-  FiGrid, FiX, FiCheck, FiActivity, FiTag
+  FiGrid, FiX, FiCheck, FiActivity, FiTag, FiChevronDown
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import api from '../api';
@@ -20,9 +20,6 @@ const copyToClipboard = (id) =>
     .then(() => showToast('Category ID copied!', 'success'))
     .catch(() => showToast('Failed to copy', 'error'));
 
-
-    
-
 const StatCard = memo(({ icon: Icon, label, value, color }) => (
   <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-sm hover:shadow-xl hover:shadow-lime-500/5 transition-all duration-500 group relative overflow-hidden">
     <div className={`absolute top-0 right-0 w-24 h-24 bg-${color}-500/5 rounded-bl-full translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-700`} />
@@ -38,52 +35,92 @@ const StatCard = memo(({ icon: Icon, label, value, color }) => (
   </div>
 ));
 
+const RowsDropdown = memo(({ value, options, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  return (
+    <div className="relative inline-block" ref={ref}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-transparent hover:border-lime-500/20 transition-all focus:outline-none focus:ring-2 focus:ring-lime-500/20"
+      >
+        <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">{value} Rows</span>
+        <FiChevronDown size={12} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute right-0 z-20 mt-1 w-32 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+          {options.map(n => (
+            <button
+              key={n}
+              onClick={() => { onChange(n); setOpen(false); }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition
+                ${value === n
+                  ? 'bg-lime-50 dark:bg-lime-900/30 text-lime-600'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+            >
+              {n} Rows
+              {value === n && <FiCheck size={12} className="text-lime-500" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
+
 const CategoryModal = memo(({ editingCategory, value, onChange, onClose, onSubmit, loading }) => (
   <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-md p-4">
-    <div className="w-full max-w-sm bg-white dark:bg-gray-800 rounded-none shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
-      <div className="flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/80 px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-        <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">
+    <div className="w-full max-w-[320px] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
+      <div className="flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/80 px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+        <h3 className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">
           {editingCategory ? 'Edit Category' : 'Add Category'}
         </h3>
-        <button onClick={onClose} className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-red-500 transition-all">
-          <FiX size={18} title="Close" />
+        <button onClick={onClose} className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-red-500 transition-all">
+          <FiX size={16} title="Close" />
         </button>
       </div>
-      <div className="p-6 space-y-4">
+      <div className="p-4 space-y-3">
         {editingCategory && (
-          <div className="p-4 bg-gray-50 dark:bg-gray-900/40 border border-transparent">
+          <div className="p-3 bg-gray-50 dark:bg-gray-900/40 border border-transparent rounded-xl">
              <div className="flex items-center justify-between">
                <div>
-                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Registry ID</p>
-                 <p className="text-xs font-mono font-bold text-gray-700 dark:text-gray-300 mt-1">{editingCategory.id}</p>
+                 <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Registry ID</p>
+                 <p className="text-[10px] font-mono font-bold text-gray-700 dark:text-gray-300 mt-0.5">{editingCategory.id.slice(0, 12)}...</p>
                </div>
-               <button onClick={() => copyToClipboard(editingCategory.id)} className="p-2 bg-white dark:bg-gray-800 rounded-lg text-gray-400 hover:text-lime-500 shadow-sm transition-all">
-                 <FiCopy size={14} title="Copy ID" />
+               <button onClick={() => copyToClipboard(editingCategory.id)} className="p-1.5 bg-white dark:bg-gray-800 rounded-lg text-gray-400 hover:text-lime-500 shadow-sm transition-all">
+                 <FiCopy size={12} title="Copy ID" />
                </button>
              </div>
           </div>
         )}
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Category Title</label>
+        <div className="space-y-1">
+          <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Category Title</label>
           <input
             type="text"
             value={value}
             onChange={e => onChange(e.target.value)}
             placeholder="e.g. Smartphones"
-            className="w-full px-4 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/5 transition-all"
+            className="w-full px-3 py-2.5 rounded-xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-xs font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/5 transition-all"
             autoFocus
             onKeyDown={e => e.key === 'Enter' && onSubmit()}
           />
         </div>
       </div>
-      <div className="px-6 pb-6 flex gap-3">
+      <div className="px-4 pb-4 pt-1 flex gap-2">
         <button onClick={onClose}
-          className="flex-1 py-4 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-black uppercase tracking-[0.2em] hover:bg-gray-200 dark:hover:bg-gray-600 transition-all">
+          className="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-all">
           Cancel
         </button>
         <button onClick={onSubmit} disabled={loading || !value.trim()}
-          className="flex-1 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-[0.2em] hover:bg-lime-500 dark:hover:bg-lime-500 dark:hover:text-white transition-all active:scale-[0.98] disabled:opacity-30">
-          {loading ? 'Processing...' : editingCategory ? 'Update' : 'Add'}
+          className="flex-1 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-lime-500 dark:hover:bg-lime-500 dark:hover:text-white transition-all active:scale-[0.98] disabled:opacity-30">
+          {loading ? '...' : editingCategory ? 'Update' : 'Add'}
         </button>
       </div>
     </div>
@@ -234,13 +271,11 @@ const Categories = ({ darkMode }) => {
 
             <div className="flex items-center gap-3 px-4">
                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">View</span>
-               <select
+               <RowsDropdown
                  value={rowsPerPage}
-                 onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                 className="bg-transparent text-sm font-black text-gray-900 dark:text-white focus:outline-none cursor-pointer"
-               >
-                 {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n} Rows</option>)}
-               </select>
+                 options={ROWS_OPTIONS}
+                 onChange={n => { setRowsPerPage(n); setCurrentPage(1); }}
+               />
             </div>
           </div>
         </div>

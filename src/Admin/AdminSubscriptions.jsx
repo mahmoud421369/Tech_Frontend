@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FiFileText, FiSearch, FiX, FiCopy, FiRefreshCw,
   FiCheckCircle, FiXCircle, FiClock, FiDollarSign,
   FiChevronLeft, FiChevronRight, FiChevronUp, FiChevronDown, FiInfo,
-  FiActivity, FiCalendar, FiCreditCard
+  FiActivity, FiCalendar, FiCreditCard, FiCheck
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import api from '../api';
@@ -33,9 +33,6 @@ const formatDate = (d) => {
   return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
-
-
-
 const StatCard = memo(({ icon: Icon, label, value, color }) => (
   <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-sm hover:shadow-xl hover:shadow-lime-500/5 transition-all duration-500 group relative overflow-hidden">
     <div className={`absolute top-0 right-0 w-24 h-24 bg-${color}-500/5 rounded-bl-full translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-700`} />
@@ -56,6 +53,86 @@ const SortIcon = memo(({ field, sortField, sortDir }) => {
   return sortDir === 'asc' ? <FiChevronUp size={11} className="text-lime-600" /> : <FiChevronDown size={11} className="text-lime-600" />;
 });
 
+const RowsDropdown = memo(({ value, options, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+  return (
+    <div className="relative inline-block" ref={ref}>
+      <button onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-transparent hover:border-lime-500/20 transition-all focus:outline-none focus:ring-2 focus:ring-lime-500/20">
+        <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">{value} Rows</span>
+        <FiChevronDown size={12} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute right-0 z-20 mt-1 w-32 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+          {options.map(n => (
+            <button key={n} onClick={() => { onChange(n); setOpen(false); }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition
+                ${value === n ? 'bg-lime-50 dark:bg-lime-900/30 text-lime-600' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
+              {n} Rows
+              {value === n && <FiCheck size={12} className="text-lime-500" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
+
+const SubscriptionModal = memo(({ sub, onClose }) => {
+  if (!sub) return null;
+  const fmt = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+  const rows = [
+    { icon: FiFileText, label: 'Shop Entity', value: sub.shopName || '—' },
+    { icon: FiActivity, label: 'Shop ID', value: sub.shopId || '—', mono: true },
+    { icon: FiCalendar, label: 'Start Date', value: fmt(sub.startDate) },
+    { icon: FiCalendar, label: 'End Date', value: fmt(sub.endDate) },
+    { icon: FiClock, label: 'Duration', value: sub.months ? `${sub.months} Month(s)` : '—' },
+    { icon: FiDollarSign, label: 'Amount', value: sub.amount ? `${sub.amount.toLocaleString()} EGP` : '—', color: 'lime' },
+    { icon: FiCreditCard, label: 'Method', value: (sub.paymentMethod || 'CARD').toUpperCase(), color: 'blue' },
+  ];
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-md p-4">
+      <div className="w-full max-w-[280px] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
+        <div className="flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/80 px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+          <h3 className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">Plan Dossier</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-red-500 transition-all">
+            <FiX size={16} title="Close" />
+          </button>
+        </div>
+        <div className="p-4 space-y-2">
+          {rows.map(({ icon: Icon, label, value, mono, color }) => (
+            <div key={label} className="group p-2 bg-gray-50 dark:bg-gray-900/40 border border-transparent hover:border-lime-500/20 rounded-xl transition-all duration-300">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center text-lime-500 shadow-sm group-hover:rotate-6 transition-transform">
+                  <Icon size={12} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em]">{label}</p>
+                  <p className={`text-[10px] font-bold truncate ${mono ? 'font-mono text-lime-600' : color === 'lime' ? 'text-lime-600' : color === 'blue' ? 'text-blue-500' : 'text-gray-700 dark:text-gray-200'}`}>
+                    {value}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="px-4 pb-4 pt-2">
+          <button onClick={onClose}
+            className="w-full py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-lime-500 dark:hover:bg-lime-500 dark:hover:text-white transition-all active:scale-[0.98]">
+            Dismiss
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
 const AdminSubscriptions = ({ darkMode }) => {
   const navigate = useNavigate();
   const token = localStorage.getItem('authToken');
@@ -70,6 +147,7 @@ const AdminSubscriptions = ({ darkMode }) => {
   const [sortDir, setSortDir] = useState('asc');
   const [serverPage, setServerPage] = useState(0);
   const [totalServerPages, setTotalServerPages] = useState(1);
+  const [selectedSub, setSelectedSub] = useState(null);
 
   useEffect(() => { document.title = 'Admin - Subscriptions'; }, []);
 
@@ -183,32 +261,9 @@ const AdminSubscriptions = ({ darkMode }) => {
   const viewDetails = useCallback(async (subscriptionId) => {
     try {
       const { data: s } = await api.get(`/api/admin/subscriptions/${subscriptionId}`, { headers: { Authorization: `Bearer ${token}` } });
-      const fmt = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
-      
-      Swal.fire({
-        title: 'Subscription Details',
-        background: darkMode ? '#111827' : '#fff',
-        color: darkMode ? '#fff' : '#000',
-        width: '550px',
-        html: `<div class="text-left text-xs font-bold space-y-4 p-4 uppercase tracking-widest">
-          <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-none border border-gray-100 dark:border-gray-800">
-            <div class="grid grid-cols-2 gap-y-4">
-              <div class="text-gray-400">Shop Entity</div><div>${s.shopName || '—'}</div>
-              <div class="text-gray-400">Shop ID</div><div class="font-mono text-lime-500">${s.shopId || '—'}</div>
-              <div class="text-gray-400">Start date</div><div>${fmt(s.startDate)}</div>
-              <div class="text-gray-400">End date</div><div>${fmt(s.endDate)}</div>
-              <div class="text-gray-400"> Duration</div><div>${s.months ? `${s.months} Month(s)` : '—'}</div>
-              <div class="text-gray-400"> Amount</div><div>${s.months ? `${s.months * 1000} EGP` : '—'}</div>
-
-              <div class="text-gray-400">Payment Method</div><div class="text-blue-500">${(s.paymentMethod || 'CARD').toUpperCase()}</div>
-              <div class="text-gray-400">Payment Status</div><div>${(s.status || s.paymentStatus || 'UNSET').toUpperCase()}</div>
-            </div>
-          </div>
-        </div>`,
-        showConfirmButton: true, confirmButtonText: 'Close', confirmButtonColor: '#84cc16',
-      });
+      setSelectedSub(s);
     } catch (err) { showToast(err?.response?.data?.message || 'Sync failed', 'error'); }
-  }, [token, darkMode]);
+  }, [token]);
 
   const Th = ({ field, label, center = true }) => (
     <th onClick={() => handleSort(field)}
@@ -288,11 +343,12 @@ const AdminSubscriptions = ({ darkMode }) => {
                  <FiRefreshCw size={16} title="Refresh Registry" />
                </button>
                <div className="flex items-center gap-3 px-4 border-l border-gray-100 dark:border-gray-800">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Rows</span>
-                  <select value={rowsPerPage} onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                    className="bg-transparent text-sm font-black text-gray-900 dark:text-white focus:outline-none cursor-pointer">
-                    {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
-                  </select>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">View</span>
+                  <RowsDropdown
+                    value={rowsPerPage}
+                    options={ROWS_OPTIONS}
+                    onChange={n => { setRowsPerPage(n); setCurrentPage(1); }}
+                  />
                </div>
             </div>
           </div>
@@ -456,6 +512,8 @@ const AdminSubscriptions = ({ darkMode }) => {
           )}
         </div>
       </div>
+
+      {selectedSub && <SubscriptionModal sub={selectedSub} onClose={() => setSelectedSub(null)} />}
 
         <style dangerouslySetInnerHTML={{ __html: `
         .custom-scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }

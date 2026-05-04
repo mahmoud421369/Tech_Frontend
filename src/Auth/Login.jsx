@@ -380,12 +380,19 @@ const ForgotPasswordModal = memo(({ onClose }) => {
 
 const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClose }) => {
   const navigate = useNavigate();
+  const { clearAuth } = useAuthStore();
   const [view, setView] = useState(isPending ? "pending" : "form");
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("card");
   const [months, setMonths] = useState(1);
   const [error, setError] = useState("");
   const totalPrice = months * PRICE_PER_MONTH;
+
+  const handleLogout = useCallback(() => {
+    clearAuth();
+    onClose();
+    navigate("/login");
+  }, [clearAuth, onClose, navigate]);
 
   const renewCard = useCallback(async () => {
     setLoading(true); setError("");
@@ -421,75 +428,72 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
   }, [shopEmail, months, accessToken]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4">
-      <div className="bg-white dark:bg-gray-950 w-full max-w-md sm:rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-800 transition-all transform animate-in fade-in slide-in-from-bottom-4 duration-300">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-gray-900/60 dark:bg-black/80 backdrop-blur-sm" onClick={handleLogout} />
+      
+      <div className="relative w-full max-w-md bg-white dark:bg-gray-950 rounded-[2rem] shadow-2xl overflow-hidden border border-gray-200 dark:border-white/10 transform transition-all animate-in zoom-in-95 duration-300">
         
-        <div className="px-5 sm:px-6 py-5 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-red-50 via-orange-50/50 to-white dark:from-red-900/10 dark:via-orange-900/5 dark:to-gray-950 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-white dark:bg-gray-800 shadow-sm border border-red-100 dark:border-red-900/30 flex items-center justify-center flex-shrink-0">
-              <FiClock size={24} className="text-red-500 animate-pulse" />
+       
+        <div className={`px-6 py-6 border-b border-gray-100 dark:border-white/5 flex items-center justify-between ${
+          view === 'pending' ? 'bg-amber-50/50 dark:bg-amber-500/5' : 'bg-red-50/50 dark:bg-red-500/5'
+        }`}>
+          <div className="flex items-center gap-4">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+              view === 'pending' ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-red-100 dark:bg-red-900/30'
+            }`}>
+              {view === 'pending' ? (
+                <FiClock size={24} className="text-amber-600 animate-pulse" />
+              ) : (
+                <FiAlertTriangle size={24} className="text-red-600" />
+              )}
             </div>
             <div>
-              <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight leading-none mb-1">
-                {view === "form" && "Renewal Required"}
+              <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">
+                {view === "form" && "Renewal Needed"}
                 {view === "pending" && "Pending Approval"}
-                {view === "redirect" && "Processing..."}
+                {view === "redirect" && "Connecting..."}
               </h3>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
-                <p className="text-[10px] uppercase font-black text-gray-500 dark:text-gray-400 tracking-[0.15em]">
-                  {view === "form" && "Access Suspended"}
-                  {view === "pending" && "Queue: High Priority"}
-                  {view === "redirect" && "Secure Link Active"}
-                </p>
-              </div>
+              <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+                {view === "form" && "Action Required"}
+                {view === "pending" && "Request Sent"}
+                {view === "redirect" && "Secure Link"}
+              </p>
             </div>
           </div>
-          <button onClick={onClose} className="w-10 h-10 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center transition-all text-gray-400 hover:text-red-500">
-            <FiX size={20} />
+          <button 
+            onClick={handleLogout}
+            className="p-2 rounded-full bg-gray-100 dark:bg-white/5 text-gray-500 hover:text-red-500 transition-colors"
+          >
+            <FiX size={18} />
           </button>
         </div>
 
-        <div className="p-5 sm:p-7">
+        <div className="p-6 sm:p-8">
           {view === "pending" && (
-            <div className="text-center space-y-6 py-4">
-              <div className="w-20 h-20 bg-amber-50 dark:bg-amber-900/20 rounded-3xl flex items-center justify-center mx-auto border-2 border-amber-100 dark:border-amber-800/30">
-                <FiClock size={36} className="text-amber-500" />
-              </div>
+            <div className="text-center space-y-6">
               <div className="space-y-2">
-                <h4 className="text-xl font-black text-gray-900 dark:text-white">Submission Successful</h4>
-                <p className="text-sm text-gray-500 dark:text-gray-400 max-w-[280px] mx-auto">
-                  Your cash renewal request has been sent to our admin team for verification.
+                <h4 className="text-xl font-black text-gray-900 dark:text-white">Request Received</h4>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
+                  Your cash renewal is being verified. This usually takes a few hours.
                 </p>
               </div>
-              <div className="bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-4 border border-gray-100 dark:border-gray-800">
-                <p className="text-xs font-bold text-gray-600 dark:text-gray-400 leading-relaxed">
-                  Activation usually takes <span className="text-amber-600">1-4 hours</span>. Please keep your transaction receipt handy.
-                </p>
+              
+              <div className="bg-gray-50 dark:bg-white/5 rounded-2xl p-5 border border-gray-100 dark:border-white/5 text-left">
+                <h5 className="font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2 text-xs uppercase tracking-widest">
+                  <FiClock className="text-amber-500" /> Next Steps
+                </h5>
+                <ul className="space-y-2 text-xs text-gray-600 dark:text-gray-400 font-medium">
+                  <li>• We'll notify you via email when activated.</li>
+                  <li>• Keep your receipt for support if needed.</li>
+                </ul>
               </div>
-              <button onClick={() => navigate("/login", { replace: true })} className="w-full h-12 rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold text-sm hover:scale-[1.02] active:scale-95 transition-all">
+
+              <button 
+                onClick={handleLogout}
+                className="w-full h-12 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold text-sm uppercase tracking-widest hover:bg-gray-800 dark:hover:bg-gray-100 transition-all shadow-lg"
+              >
                 Back to Login
               </button>
-            </div>
-          )}
-
-          {view === "redirect" && (
-            <div className="text-center space-y-6 py-6">
-              <div className="relative w-20 h-20 mx-auto">
-                <div className="absolute inset-0 rounded-3xl bg-blue-500/20 animate-ping" />
-                <div className="relative w-full h-full bg-blue-100 dark:bg-blue-900/30 rounded-3xl flex items-center justify-center border-2 border-blue-200 dark:border-blue-800">
-                  <Spinner />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <h4 className="text-xl font-black text-gray-900 dark:text-white">Connecting Securely</h4>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Please wait while we prepare your <span className="font-bold text-blue-600">Secure Payment Link</span>.
-                </p>
-              </div>
-              <div className="flex items-center justify-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                <FiLock size={12} className="text-emerald-500" /> 256-bit SSL Encryption
-              </div>
             </div>
           )}
 
@@ -497,44 +501,64 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
             <div className="space-y-6">
               {error && <ErrorBanner message={error} />}
 
-              <div className="relative overflow-hidden bg-gray-900 dark:bg-black rounded-3xl p-5 text-white shadow-xl shadow-gray-200 dark:shadow-none">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-lime-500/10 rounded-full -mr-16 -mt-16 blur-2xl" />
-                <div className="relative z-10 flex items-center justify-between mb-4">
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-400">Merchant Plan</span>
-                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/10 backdrop-blur-md border border-white/10">
-                    <FiShield size={10} className="text-lime-400" />
-                    <span className="text-[8px] font-bold uppercase tracking-widest">Secure Checkout</span>
+              
+              
+              <div className="bg-gray-50 dark:bg-white/5 rounded-2xl p-6 border border-gray-100 dark:border-white/5">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                    Subscription Fee
+                  </span>
+                  <div className="flex items-center gap-1 text-emerald-500 font-bold text-[10px]">
+                    <FiShield size={12} /> SECURE
                   </div>
                 </div>
-                <div className="flex items-end justify-between gap-4">
+                
+                <div className="flex items-end justify-between">
                   <div>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Total Due</p>
-                    <h2 className="text-3xl font-black tracking-tighter">
-                      {totalPrice.toLocaleString()} <span className="text-lg font-medium text-gray-500">{CURRENCY}</span>
+                    <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">
+                      {totalPrice.toLocaleString()} <span className="text-sm font-medium text-gray-400">{CURRENCY}</span>
                     </h2>
                   </div>
-                  <div className="flex items-center gap-2 bg-white/5 p-1 rounded-xl border border-white/5">
-                    <button onClick={() => setMonths(m => Math.max(1, m - 1))} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 transition font-bold text-lg text-lime-400">−</button>
+                  
+                  <div className="flex items-center gap-2 bg-white dark:bg-gray-900 p-1 rounded-xl shadow-sm border border-gray-100 dark:border-white/5">
+                    <button 
+                      onClick={() => setMonths(m => Math.max(1, m - 1))}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/5 transition text-lg font-bold text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                    >
+                      −
+                    </button>
                     <div className="px-2 text-center">
-                      <p className="text-lg font-black leading-none">{months}</p>
-                      <p className="text-[8px] uppercase font-bold text-gray-500">Mo</p>
+                      <p className="text-sm font-black text-gray-900 dark:text-white leading-none">{months}</p>
+                      <p className="text-[8px] uppercase font-bold text-gray-400 mt-0.5">Mo</p>
                     </div>
-                    <button onClick={() => setMonths(m => Math.min(12, m + 1))} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 transition font-bold text-lg text-lime-400">+</button>
+                    <button 
+                      onClick={() => setMonths(m => Math.min(12, m + 1))}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/5 transition text-lg font-bold text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                    >
+                      +
+                    </button>
                   </div>
                 </div>
               </div>
 
+              {/* Payment Methods */}
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { k: "card", l: "Credit Card", icon: <FiCreditCard size={14} />, color: "blue" },
-                  { k: "cash", l: "Cash Payment", icon: <FiDollarSign size={14} />, color: "emerald" },
+                  { k: "card", l: "Card", icon: <FiCreditCard size={18} />, color: "blue" },
+                  { k: "cash", l: "Cash", icon: <FiDollarSign size={18} />, color: "emerald" },
                 ].map(({ k, l, icon, color }) => (
-                  <button key={k} onClick={() => setActiveTab(k)}
-                    className={`flex flex-col items-center justify-center gap-2 py-4 rounded-2xl border-2 transition-all duration-200 ${activeTab === k
-                      ? `border-${color}-500 bg-${color}-50/50 dark:bg-${color}-900/20`
-                      : "border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-gray-200 dark:hover:border-gray-700"
-                      }`}>
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${activeTab === k ? `bg-${color}-500 text-white` : "bg-gray-50 dark:bg-gray-800 text-gray-400"}`}>
+                  <button 
+                    key={k} 
+                    onClick={() => setActiveTab(k)}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-300 ${
+                      activeTab === k
+                        ? `border-${color}-500 bg-${color}-50/50 dark:bg-${color}-500/10`
+                        : "border-gray-100 dark:border-white/5 bg-white dark:bg-gray-900/50 hover:border-gray-200"
+                    }`}
+                  >
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                      activeTab === k ? `bg-${color}-500 text-white shadow-lg` : "bg-gray-100 dark:bg-white/5 text-gray-400"
+                    }`}>
                       {icon}
                     </div>
                     <span className={`text-[10px] font-black uppercase tracking-widest ${activeTab === k ? `text-${color}-600 dark:text-${color}-400` : "text-gray-500"}`}>
@@ -544,28 +568,15 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
                 ))}
               </div>
 
-              <div className="space-y-4">
-                <button
-                  onClick={activeTab === "card" ? renewCard : renewCash}
-                  disabled={loading}
-                  className={`w-full h-14 rounded-2xl text-white text-sm font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3 ${activeTab === "card" ? "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20" : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20"}`}
-                >
-                  {loading ? (
-                    <Spinner />
-                  ) : (
-                    <>
-                      {activeTab === "card" ? <FiCreditCard size={18} /> : <FiDollarSign size={18} />}
-                      {activeTab === "card" ? "Activate with Card" : "Confirm Cash Entry"}
-                    </>
-                  )}
-                </button>
-                
-                <p className="text-center text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
-                  {activeTab === "card" 
-                    ? "Instant access granted after payment" 
-                    : "Admin approval required for cash"}
-                </p>
-              </div>
+              <button
+                onClick={activeTab === "card" ? renewCard : renewCash}
+                disabled={loading}
+                className={`w-full h-12 rounded-xl text-white text-[11px] font-black uppercase tracking-[0.15em] transition-all shadow-xl active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 ${
+                  activeTab === "card" ? "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20" : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20"
+                }`}
+              >
+                {loading ? <Spinner /> : activeTab === "card" ? "Continue to Payment" : "Submit Cash Request"}
+              </button>
             </div>
           )}
         </div>
@@ -598,7 +609,7 @@ function checkLatestSubscription(subs) {
     const sStatus = (s.status || '').toUpperCase();
     const pStatus = (s.paymentStatus || s.payment_status || '').toUpperCase();
     
-    const isPaid = ['PAID', 'ACTIVE', 'SETTLED', 'COMPLETED', 'SUCCESS', 'APPROVED'].some(
+    const isPaid = ['PAID', 'ACTIVE', 'SETTLED', 'COMPLETED', 'SUCCESS', 'APPROVED', 'CONFIRMED', 'SUCCESSFUL'].some(
       term => sStatus === term || pStatus === term
     );
     
@@ -692,15 +703,13 @@ const Login = ({ darkMode }) => {
     if (name === "password") setErrors(p => ({ ...p, password: validatePassword(value) }));
   }, [validateEmail, validatePassword]);
 
-  const checkSubscription = useCallback(async (token) => {
+  const checkSubscription = useCallback(async (email) => {
     try {
-      const { data } = await api.get("/api/subscriptions/all", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      return checkLatestSubscription(Array.isArray(data) ? data : data?.content || []);
+      const { data } = await api.get(`/api/subscriptions/renew/status/${email}`);
+      return checkLatestSubscription(data ? [data] : []);
     } catch (err) {
       console.warn("Subscription check failed:", err?.response?.status, err?.response?.data);
-      return { expired: false, shopId: null };
+      return { expired: true, shopId: null };
     }
   }, []);
 
@@ -742,7 +751,7 @@ const Login = ({ darkMode }) => {
 
 
       if (roles.some(r => SHOP_ROLES.has(r))) {
-        const { expired, shopId: subShopId, isPending } = await checkSubscription(accessToken);
+        const { expired, shopId: subShopId, isPending } = await checkSubscription(finalEmail);
         const finalShopId = subShopId || loginShopId || res.data.shop?.id;
         if (expired || isPending) {
           needsRenewal = true;
@@ -779,8 +788,9 @@ const Login = ({ darkMode }) => {
         const accessToken = err.response?.data?.access_token || null;
 
         let isPending = false;
-        if (accessToken) {
-          const subCheck = await checkSubscription(accessToken);
+        const checkEmail = formData.email?.trim();
+        if (checkEmail) {
+          const subCheck = await checkSubscription(checkEmail);
           isPending = subCheck.isPending;
         }
 

@@ -154,8 +154,8 @@ const AdminOffers = ({ darkMode }) => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
 
-      
-      
+
+
 
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-1">
@@ -168,26 +168,26 @@ const AdminOffers = ({ darkMode }) => {
           </div>
 
           <div className="p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-sm flex items-center gap-4">
-             <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center text-gray-400">
-               <FiActivity size={18} />
-             </div>
-             <div>
-               <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Campaign State</p>
-               <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Active Audit</p>
-             </div>
+            <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center text-gray-400">
+              <FiActivity size={18} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Campaign State</p>
+              <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Active Audit</p>
+            </div>
           </div>
         </div>
 
-        
-        
+
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {statCards.map(s => <StatCard key={s.label} {...s} />)}
         </div>
 
-       
+
         <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
           <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
-            
+
             <div className="relative flex-1 group">
               <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={16} />
               <input type="text" placeholder="Search by campaign title, or shop ..." value={search} onChange={e => setSearch(e.target.value)}
@@ -199,8 +199,8 @@ const AdminOffers = ({ darkMode }) => {
               {[{ v: 'all', l: 'All' }, { v: 'active', l: 'Active' }, { v: 'expired', l: 'Expired' }].map(({ v, l }) => (
                 <button key={v} onClick={() => { setStatusFilter(v); setCurrentPage(1); }}
                   className={`px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all
-                    ${statusFilter === v 
-                      ? 'bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20' 
+                    ${statusFilter === v
+                      ? 'bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20'
                       : 'border-transparent bg-gray-50 dark:bg-gray-900/50 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
                   {l}
                 </button>
@@ -208,17 +208,17 @@ const AdminOffers = ({ darkMode }) => {
             </div>
 
             <div className="flex items-center gap-3 px-4 border-l border-gray-100 dark:border-gray-800">
-               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Rows</span>
-               <select value={rowsPerPage} onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                 className="bg-transparent text-sm font-black text-gray-900 dark:text-white focus:outline-none cursor-pointer">
-                 {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
-               </select>
+              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Rows</span>
+              <select value={rowsPerPage} onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                className="bg-transparent text-sm font-black text-gray-900 dark:text-white focus:outline-none cursor-pointer">
+                {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
             </div>
           </div>
         </div>
 
-        
-        
+
+
         <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
           {loading ? (
             <div className="py-32 text-center space-y-4">
@@ -262,11 +262,11 @@ const AdminOffers = ({ darkMode }) => {
                             </div>
                           </td>
                           <td className="px-8 py-6">
-                             <p className="text-sm font-bold text-gray-900 dark:text-white tracking-tight max-w-[160px] truncate">{offer.name || 'Unnamed'}</p>
+                            <p className="text-sm font-bold text-gray-900 dark:text-white tracking-tight max-w-[160px] truncate">{offer.name || 'Unnamed'}</p>
                           </td>
                           <td className="px-8 py-6 text-center">
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-lime-50 dark:bg-lime-900/20 text-lime-600 border border-lime-500/10">
-                              
+
                               {discountText} OFF
                             </span>
                           </td>
@@ -277,16 +277,16 @@ const AdminOffers = ({ darkMode }) => {
                             </span>
                           </td>
                           <td className="px-8 py-6">
-                             <div className="flex items-center gap-2">
-                               <FaStore size={12} className="text-gray-400" />
-                               <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{offer.shopName || 'Global'}</p>
-                             </div>
+                            <div className="flex items-center gap-2">
+                              <FaStore size={12} className="text-gray-400" />
+                              <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{offer.shopName || 'Global'}</p>
+                            </div>
                           </td>
                           <td className="px-8 py-6 text-center">
-                             <div className="flex flex-col items-center gap-1">
-                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{formatDate(offer.startDate)}</span>
-                                <span className={`text-[10px] font-black uppercase tracking-widest ${status === 'EXPIRED' ? 'text-rose-500' : 'text-emerald-500'}`}>{formatDate(offer.endDate)}</span>
-                             </div>
+                            <div className="flex flex-col items-center gap-1">
+                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{formatDate(offer.startDate)}</span>
+                              <span className={`text-[10px] font-black uppercase tracking-widest ${status === 'EXPIRED' ? 'text-rose-500' : 'text-emerald-500'}`}>{formatDate(offer.endDate)}</span>
+                            </div>
                           </td>
                           <td className="px-8 py-6 text-center">
                             <button onClick={() => deleteOffer(offer.id)}
@@ -337,7 +337,8 @@ const AdminOffers = ({ darkMode }) => {
 
       </div>
 
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .custom-scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
         .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }

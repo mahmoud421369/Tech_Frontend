@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FiUsers, FiSearch, FiX, FiCopy, FiCheckCircle, FiXCircle,
   FiUser, FiMail, FiPhone, FiCalendar, FiPackage, FiClock,
   FiInfo, FiUserCheck, FiUserX, FiTrash2, FiActivity,
-  FiChevronLeft, FiChevronRight, FiChevronUp, FiChevronDown,
+  FiChevronLeft, FiChevronRight, FiChevronUp, FiChevronDown, FiCheck
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import DOMPurify from 'dompurify';
@@ -29,9 +29,6 @@ const formatDate = (dateStr) => {
   if (!dateStr) return 'N/A';
   return new Date(dateStr).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
-
-
-
 
 const StatCard = memo(({ icon: Icon, label, value, color }) => (
   <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-sm hover:shadow-xl hover:shadow-lime-500/5 transition-all duration-500 group relative overflow-hidden">
@@ -63,68 +60,85 @@ const SortIcon = memo(({ field, sortField, sortDir }) => {
   return sortDir === 'asc' ? <FiChevronUp size={11} className="text-lime-600" /> : <FiChevronDown size={11} className="text-lime-600" />;
 });
 
+const RowsDropdown = memo(({ value, options, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+  return (
+    <div className="relative inline-block" ref={ref}>
+      <button onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-transparent hover:border-lime-500/20 transition-all focus:outline-none focus:ring-2 focus:ring-lime-500/20">
+        <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">{value} Rows</span>
+        <FiChevronDown size={12} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute right-0 z-20 mt-1 w-32 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+          {options.map(n => (
+            <button key={n} onClick={() => { onChange(n); setOpen(false); }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition
+                ${value === n ? 'bg-lime-50 dark:bg-lime-900/30 text-lime-600' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
+              {n} Rows
+              {value === n && <FiCheck size={12} className="text-lime-500" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
+
 const AssignerModal = memo(({ assigner, onClose }) => {
   if (!assigner) return null;
   const fields = [
-    { icon: FiUser, label: 'Assigner Name', value: sanitize(assigner.name || 'N/A') },
+    { icon: FiUser, label: 'Personnel Name', value: sanitize(assigner.name || 'N/A') },
     { icon: FiMail, label: 'Contact Email', value: sanitize(assigner.email || 'N/A') },
     { icon: FiPhone, label: 'Contact Phone', value: sanitize(assigner.phone || 'N/A') },
     { icon: FiCalendar, label: 'Commissioned On', value: formatDate(assigner.createdAt) },
-    { icon: FiPackage, label: 'Workload Handled', value: assigner.totalAssignmentsHandled || 0 },
-    { icon: FiClock, label: 'Active Queue', value: assigner.pendingAssignments || 0 },
+    { icon: FiPackage, label: 'Historical Load', value: `${assigner.totalAssignmentsHandled || 0} Jobs` },
+    { icon: FiClock, label: 'Current Queue', value: `${assigner.pendingAssignments || 0} Active`, color: 'amber' },
   ];
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-md p-4">
-      <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-none shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
-        <div className="flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/80 px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-          <div className="flex items-center gap-3">
-            <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Assigner Details</h3>
-            <code className="text-[10px] font-black bg-lime-500 text-white px-2 py-0.5 rounded-lg">
-              {String(assigner.id).slice(0, 8)}
-            </code>
-          </div>
-          <button onClick={onClose} className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-red-500 transition-all">
-            <FiX size={18} title="Close" />
+      <div className="w-full max-w-[280px] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
+        <div className="flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/80 px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+          <h3 className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">Personnel Dossier</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-red-500 transition-all">
+            <FiX size={16} title="Close" />
           </button>
         </div>
-        <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-          {fields.map(({ icon: Icon, label, value }) => (
-            <div key={label} className="group p-4 bg-gray-50 dark:bg-gray-900/40 border border-transparent hover:border-lime-500/20 transition-all duration-300">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-white dark:bg-gray-800 flex items-center justify-center text-lime-500 shadow-sm group-hover:rotate-6 transition-transform">
-                  <Icon size={18} />
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{label}</p>
-                  <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{String(value)}</p>
-                </div>
+        <div className="p-4 space-y-2">
+          {fields.map(({ icon: Icon, label, value, color }) => (
+            <div key={label} className="group p-2.5 bg-gray-50 dark:bg-gray-900/40 rounded-xl border border-transparent hover:border-lime-500/10 transition-all">
+              <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">{label}</p>
+              <div className="flex items-center gap-2">
+                <Icon size={12} className={`${color === 'amber' ? 'text-amber-500' : 'text-lime-500'} group-hover:scale-110 transition-transform`} />
+                <p className="text-[11px] font-bold text-gray-800 dark:text-gray-100 truncate">{String(value)}</p>
               </div>
             </div>
           ))}
-          <div className="p-4 bg-gray-50 dark:bg-gray-900/40 border border-transparent flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Operational Status</p>
-              <div className="mt-2"><StatusBadge status={assigner.status} /></div>
-            </div>
-            <button onClick={() => navigator.clipboard.writeText(assigner.id).then(() => showToast('ID copied!', 'success'))}
-              className="p-3 bg-white dark:bg-gray-800 rounded-xl text-gray-400 hover:text-lime-500 shadow-sm transition-all border border-transparent hover:border-lime-500/20">
-              <FiCopy size={16} title="Copy Assigner ID" />
-            </button>
+          <div className="p-3 bg-gray-50 dark:bg-gray-900/40 rounded-xl border border-transparent flex items-center justify-between mt-2">
+             <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Authority</p>
+             <StatusBadge status={assigner.status} />
           </div>
         </div>
-        <div className="px-6 pb-6 pt-2">
+        <div className="px-4 pb-4 pt-2 flex gap-2">
+          <button onClick={() => navigator.clipboard.writeText(assigner.id).then(() => showToast('ID Copied', 'success'))}
+            className="flex-1 py-2.5 bg-gray-50 dark:bg-gray-900 text-gray-500 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all">
+            Copy ID
+          </button>
           <button onClick={onClose}
-            className="w-full py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-[0.2em] hover:bg-lime-500 dark:hover:bg-lime-500 dark:hover:text-white transition-all active:scale-[0.98]">
-            Close
+            className="flex-[2] py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-lime-500 dark:hover:bg-lime-500 dark:hover:text-white transition-all active:scale-[0.98]">
+            Dismiss
           </button>
         </div>
       </div>
     </div>
   );
 });
-
-
-
 
 const Assigners = ({ darkMode }) => {
   const navigate = useNavigate();
@@ -284,11 +298,12 @@ const Assigners = ({ darkMode }) => {
             </div>
 
             <div className="flex items-center gap-3 px-4 border-l border-gray-100 dark:border-gray-800">
-              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Rows</span>
-              <select value={rowsPerPage} onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                className="bg-transparent text-sm font-black text-gray-900 dark:text-white focus:outline-none cursor-pointer">
-                {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
+              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">View</span>
+              <RowsDropdown
+                value={rowsPerPage}
+                options={ROWS_OPTIONS}
+                onChange={n => { setRowsPerPage(n); setCurrentPage(1); }}
+              />
             </div>
           </div>
         </div>
@@ -345,19 +360,19 @@ const Assigners = ({ darkMode }) => {
                             </button>
                             {a.status !== 'APPROVED' && (
                               <button onClick={() => updateStatus(a.id, 'approve')}
-                                className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-500 hover:scale-110 transition-all">
+                                className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-500 hover:scale-110 transition-all border border-transparent hover:border-emerald-500/20">
                                 <FiCheckCircle size={16} title="Authorize Assigner" />
                               </button>
                             )}
                             {a.status !== 'SUSPENDED' && (
                               <button onClick={() => updateStatus(a.id, 'suspend')}
-                                className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 hover:scale-110 transition-all">
+                                className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 hover:scale-110 transition-all border border-transparent hover:border-amber-500/20">
                                 <FiUserX size={16} title="Suspend Authority" />
                               </button>
                             )}
                             {a.status !== 'PENDING' && (
                               <button onClick={() => updateStatus(a.id, 'delete')}
-                                className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500 hover:scale-110 transition-all">
+                                className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500 hover:scale-110 transition-all border border-transparent hover:border-red-500/20">
                                 <FiTrash2 size={16} title="Purge Registry" />
                               </button>
                             )}

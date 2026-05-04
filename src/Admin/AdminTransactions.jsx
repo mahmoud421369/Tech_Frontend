@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FiCreditCard, FiCopy, FiSearch, FiX, FiUser, FiDollarSign,
   FiClock, FiCheckCircle, FiXCircle, FiChevronLeft, FiChevronRight,
-  FiChevronUp, FiChevronDown, FiActivity, FiDownload
+  FiChevronUp, FiChevronDown, FiActivity, FiDownload, FiEye, FiCheck, FiHash
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import DOMPurify from 'dompurify';
@@ -27,6 +27,94 @@ const formatDate = (d) => {
   if (!d) return 'N/A';
   return new Date(d).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
+
+const RowsDropdown = memo(({ value, options, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  return (
+    <div className="relative inline-block" ref={ref}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-transparent hover:border-lime-500/20 transition-all focus:outline-none focus:ring-2 focus:ring-lime-500/20"
+      >
+        <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">{value} Rows</span>
+        <FiChevronDown size={12} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute right-0 z-20 mt-1 w-32 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+          {options.map(n => (
+            <button
+              key={n}
+              onClick={() => { onChange(n); setOpen(false); }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition
+                ${value === n
+                  ? 'bg-lime-50 dark:bg-lime-900/30 text-lime-600'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+            >
+              {n} Rows
+              {value === n && <FiCheck size={12} className="text-lime-500" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
+
+const TransactionModal = memo(({ transaction, onClose }) => {
+  if (!transaction) return null;
+  const rows = [
+    { icon: FiHash, label: 'Tx ID', value: transaction.id },
+    { icon: FiUser, label: 'User ID', value: transaction.userId },
+    { icon: FiDollarSign, label: 'Amount', value: `${transaction.amount?.toLocaleString()} EGP` },
+    { icon: FiCreditCard, label: 'Method', value: transaction.paymentMethod || 'CASH' },
+    { icon: FiCheckCircle, label: 'Status', value: transaction.paymentStatus || transaction.status },
+    { icon: FiClock, label: 'Date', value: formatDate(transaction.paidAt || transaction.createdAt) },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-md p-4">
+      <div className="w-full max-w-[280px] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
+        <div className="flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/80 px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+          <h3 className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">Tx Details</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-red-500 transition-all">
+            <FiX size={16} title="Close" />
+          </button>
+        </div>
+
+        <div className="p-4 space-y-2">
+          {rows.map(({ icon: Icon, label, value }) => (
+            <div key={label} className="group p-2 bg-gray-50 dark:bg-gray-900/40 border border-transparent hover:border-lime-500/20 rounded-xl transition-all duration-300">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center text-lime-500 shadow-sm group-hover:rotate-6 transition-transform">
+                  <Icon size={12} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em]">{label}</p>
+                  <p className="text-[11px] font-bold text-gray-800 dark:text-gray-100 truncate">{value}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="px-4 pb-4 pt-0">
+          <button onClick={onClose}
+            className="w-full py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[9px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-lime-500 dark:hover:bg-lime-500 dark:hover:text-white transition-all active:scale-[0.98]">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});
 
 
 
@@ -63,6 +151,7 @@ const TransactionsPage = ({ darkMode }) => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [sortField, setSortField] = useState('createdAt');
   const [sortDir, setSortDir] = useState('desc');
+  const [selectedTx, setSelectedTx] = useState(null);
 
   useEffect(() => { document.title = 'Admin - Transactions'; }, []);
 
@@ -200,11 +289,12 @@ const TransactionsPage = ({ darkMode }) => {
             </div>
 
             <div className="flex items-center gap-3 px-4 border-l border-gray-100 dark:border-gray-800">
-              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Rows</span>
-              <select value={rowsPerPage} onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                className="bg-transparent text-sm font-black text-gray-900 dark:text-white focus:outline-none cursor-pointer">
-                {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
+               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Rows</span>
+               <RowsDropdown
+                 value={rowsPerPage}
+                 options={ROWS_OPTIONS}
+                 onChange={n => { setRowsPerPage(n); setCurrentPage(1); }}
+               />
             </div>
           </div>
         </div>
@@ -229,6 +319,7 @@ const TransactionsPage = ({ darkMode }) => {
                       <Th field="status" label="Status" />
                       <Th field="createdAt" label="Date" />
                       <th className="px-8 py-5 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">Method</th>
+                      <th className="px-8 py-5 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">Ops</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
@@ -266,6 +357,13 @@ const TransactionsPage = ({ darkMode }) => {
                           <td className="px-8 py-6 text-center">
                             <p className="text-[10px] font-black text-gray-700 dark:text-gray-200 uppercase tracking-widest">{t.paymentMethod || 'SYSTEM'}</p>
                             <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">{t.paymentType || t.type || 'N/A'}</p>
+                          </td>
+                          <td className="px-8 py-6">
+                            <div className="flex items-center justify-center">
+                              <button onClick={() => setSelectedTx(t)} className="w-9 h-9 rounded-xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 hover:text-lime-500 transition-all border border-transparent hover:border-lime-500/20">
+                                <FiEye size={14} title="View Details" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -307,6 +405,7 @@ const TransactionsPage = ({ darkMode }) => {
           )}
         </div>
       </div>
+      {selectedTx && <TransactionModal transaction={selectedTx} onClose={() => setSelectedTx(null)} />}
     </div>
   );
 };

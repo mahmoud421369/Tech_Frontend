@@ -123,8 +123,8 @@ const RepairRequestsPage = ({ darkMode }) => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
 
-        
-        
+
+
 
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-1">
@@ -137,27 +137,27 @@ const RepairRequestsPage = ({ darkMode }) => {
           </div>
 
           <div className="p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-sm flex items-center gap-4">
-             <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center text-gray-400">
-               <FiActivity size={18} />
-             </div>
-             <div>
-               <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">System Flow</p>
-               <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Active Monitoring</p>
-             </div>
+            <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center text-gray-400">
+              <FiActivity size={18} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">System Flow</p>
+              <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Active Monitoring</p>
+            </div>
           </div>
         </div>
 
-      
-      
+
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {statCards.map(s => <StatCard key={s.label} {...s} />)}
         </div>
 
-       
-       
+
+
         <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
           <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
-            
+
             <div className="relative flex-1 group">
               <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={16} />
               <input type="text" placeholder="Search requests by merchant, issue description, or ticket ID..." value={search} onChange={e => setSearch(e.target.value)}
@@ -166,17 +166,17 @@ const RepairRequestsPage = ({ darkMode }) => {
             </div>
 
             <div className="flex items-center gap-3 px-4 border-l border-gray-100 dark:border-gray-800">
-               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Rows</span>
-               <select value={rowsPerPage} onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                 className="bg-transparent text-sm font-black text-gray-900 dark:text-white focus:outline-none cursor-pointer">
-                 {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
-               </select>
+              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Rows</span>
+              <select value={rowsPerPage} onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                className="bg-transparent text-sm font-black text-gray-900 dark:text-white focus:outline-none cursor-pointer">
+                {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
             </div>
           </div>
         </div>
 
-       
-       
+
+
         <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
           {loading ? (
             <div className="py-32 text-center space-y-4">
@@ -216,14 +216,14 @@ const RepairRequestsPage = ({ darkMode }) => {
                             </div>
                           </td>
                           <td className="px-8 py-6">
-                             <p className="text-sm font-bold text-gray-900 dark:text-white tracking-tight">{sanitize(req.shopName || 'Unknown Merchant')}</p>
+                            <p className="text-sm font-bold text-gray-900 dark:text-white tracking-tight">{sanitize(req.shopName || 'Unknown Merchant')}</p>
                           </td>
                           <td className="px-8 py-6">
-                             <p className="text-xs font-medium text-gray-600 dark:text-gray-400 max-w-[250px] truncate" title={req.description}>{sanitize(req.description || 'No objective provided')}</p>
+                            <p className="text-xs font-medium text-gray-600 dark:text-gray-400 max-w-[250px] truncate" title={req.description}>{sanitize(req.description || 'No objective provided')}</p>
                           </td>
                           <td className="px-8 py-6 text-center">
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-gray-50 dark:bg-gray-900/50 text-gray-400 border border-transparent">
-                               <FiTruck size={12} /> {sanitize(req.deliveryMethod || 'UNSET')}
+                              <FiTruck size={12} /> {sanitize(req.deliveryMethod || 'UNSET')}
                             </span>
                           </td>
                           <td className="px-8 py-6 text-center">
@@ -234,7 +234,7 @@ const RepairRequestsPage = ({ darkMode }) => {
                           </td>
                           <td className="px-8 py-6 text-center">
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-gray-50 dark:bg-gray-900/50 text-gray-400 border border-transparent">
-                               <FiCreditCard size={12} /> {sanitize(req.paymentMethod || 'UNSET')}
+                              <FiCreditCard size={12} /> {sanitize(req.paymentMethod || 'UNSET')}
                             </span>
                           </td>
                         </tr>
@@ -276,8 +276,9 @@ const RepairRequestsPage = ({ darkMode }) => {
             </>
           )}
         </div>
-      </div>   
-        <style dangerouslySetInnerHTML={{ __html: `
+      </div>
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .custom-scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
         .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }

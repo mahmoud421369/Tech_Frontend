@@ -21,7 +21,8 @@ const PUBLIC_ROUTES = [
   '/api/auth/refresh-token',
   '/api/auth/reset-password',
   '/api/auth/forgot-password',
-  '/api/auth/get-code',  
+  '/api/auth/get-code',
+  '/api/subscriptions/renew/status',
 ];
 
 const isPublicRoute = (url = '') =>

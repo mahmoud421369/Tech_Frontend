@@ -83,25 +83,25 @@ const ReviewModal = memo(({ review, onClose }) => {
             { l: 'Submission Date', v: new Date(review.createdAt).toLocaleString() },
           ].map(f => (
             <div key={f.l} className="p-4 bg-gray-50 dark:bg-gray-900/40 border border-transparent">
-               <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{f.l}</p>
-               <p className="text-sm font-bold text-gray-800 dark:text-gray-100 mt-1">{f.v}</p>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{f.l}</p>
+              <p className="text-sm font-bold text-gray-800 dark:text-gray-100 mt-1">{f.v}</p>
             </div>
           ))}
 
           <div className="p-4 bg-gray-50 dark:bg-gray-900/40 border border-transparent flex items-center justify-between">
-             <div>
-               <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Platform Rating</p>
-               <div className="mt-2"><StarRating rating={review.rating} size={18} /></div>
-             </div>
-             <div className="text-right">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Sentiment</p>
-                <p className="text-sm font-black text-lime-600 uppercase tracking-widest mt-1">{review.rating >= 4 ? 'Positive' : review.rating <= 2 ? 'Critical' : 'Neutral'}</p>
-             </div>
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Platform Rating</p>
+              <div className="mt-2"><StarRating rating={review.rating} size={18} /></div>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Sentiment</p>
+              <p className="text-sm font-black text-lime-600 uppercase tracking-widest mt-1">{review.rating >= 4 ? 'Positive' : review.rating <= 2 ? 'Critical' : 'Neutral'}</p>
+            </div>
           </div>
 
           <div className="p-4 bg-lime-50 dark:bg-lime-900/20 border border-lime-500/10 rounded-2xl">
-             <p className="text-[10px] font-black text-lime-700 dark:text-lime-400 uppercase tracking-widest mb-2">Customer Narrative</p>
-             <p className="text-sm text-gray-700 dark:text-gray-300 font-medium leading-relaxed italic">"{sanitize(review.comment || 'No written testimony provided.')}"</p>
+            <p className="text-[10px] font-black text-lime-700 dark:text-lime-400 uppercase tracking-widest mb-2">Customer Narrative</p>
+            <p className="text-sm text-gray-700 dark:text-gray-300 font-medium leading-relaxed italic">"{sanitize(review.comment || 'No written testimony provided.')}"</p>
           </div>
         </div>
 
@@ -166,7 +166,7 @@ const Reviews = ({ darkMode }) => {
   const processed = useMemo(() => {
     const t = debouncedSearch.toLowerCase();
     let list = reviews.filter(r => {
-     
+
       const matchSearch = !t || (r.userId || '').toLowerCase().includes(t) || (r.shopId || '').toLowerCase().includes(t) || (r.comment || '').toLowerCase().includes(t);
       return matchSearch;
     });
@@ -185,8 +185,8 @@ const Reviews = ({ darkMode }) => {
   const paginated = processed.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
   const deleteReview = useCallback(async (id) => {
-    const { isConfirmed } = await Swal.fire({ 
-      title: 'Purge Review?', text: 'This will permanently remove the feedback.', icon: 'warning', 
+    const { isConfirmed } = await Swal.fire({
+      title: 'Purge Review?', text: 'This will permanently remove the feedback.', icon: 'warning',
       showCancelButton: true, confirmButtonText: 'Confirm Purge', confirmButtonColor: '#ef4444',
       background: darkMode ? '#111827' : '#fff', color: darkMode ? '#fff' : '#000',
     });
@@ -208,15 +208,15 @@ const Reviews = ({ darkMode }) => {
 
   const statCards = [
     { icon: FiMessageCircle, label: 'Total Reviews', value: stats.total, color: 'lime' },
-  
+
   ];
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
 
-        
-        
+
+
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -228,29 +228,29 @@ const Reviews = ({ darkMode }) => {
           </div>
 
           <div className="flex items-center gap-3">
-             <div className="p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-sm flex items-center gap-4">
-               <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center text-gray-400">
-                 <FiActivity size={18} />
-               </div>
-               <div>
-                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Moderation</p>
-                 <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Active Audit</p>
-               </div>
-             </div>
+            <div className="p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-sm flex items-center gap-4">
+              <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center text-gray-400">
+                <FiActivity size={18} />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Moderation</p>
+                <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Active Audit</p>
+              </div>
+            </div>
           </div>
         </div>
 
-       
-       
+
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {statCards.map(s => <StatCard key={s.label} {...s} />)}
         </div>
 
-     
-     
+
+
         <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
           <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
-            
+
             <div className="relative flex-1 group">
               <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={16} />
               <input type="text" placeholder="Search by customer ID, shop ID, or sentiment keyword..." value={search} onChange={e => setSearch(e.target.value)}
@@ -258,20 +258,20 @@ const Reviews = ({ darkMode }) => {
               {search && <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors"><FiX size={16} title="Clear Search" /></button>}
             </div>
 
-           
+
 
             <div className="flex items-center gap-3 px-4 border-l border-gray-100 dark:border-gray-800">
-               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Rows</span>
-               <select value={rowsPerPage} onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                 className="bg-transparent text-sm font-black text-gray-900 dark:text-white focus:outline-none cursor-pointer">
-                 {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
-               </select>
+              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Rows</span>
+              <select value={rowsPerPage} onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                className="bg-transparent text-sm font-black text-gray-900 dark:text-white focus:outline-none cursor-pointer">
+                {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
             </div>
           </div>
         </div>
 
-        
-        
+
+
         <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
           {loading ? (
             <div className="py-32 text-center space-y-4">
@@ -309,21 +309,21 @@ const Reviews = ({ darkMode }) => {
                         </td>
                         <td className="px-6 py-5 text-center">
                           <div className="flex flex-col items-center gap-1">
-                             <StarRating rating={review.rating} />
-                             <span className={`text-[9px] font-black uppercase tracking-widest ${review.rating >= 4 ? 'text-emerald-500' : 'text-amber-500'}`}>{review.rating}/5</span>
+                            <StarRating rating={review.rating} />
+                            <span className={`text-[9px] font-black uppercase tracking-widest ${review.rating >= 4 ? 'text-emerald-500' : 'text-amber-500'}`}>{review.rating}/5</span>
                           </div>
                         </td>
                         <td className="px-6 py-5">
-                           <div className="max-w-[300px] truncate">
-                             <p className="text-sm text-gray-700 dark:text-gray-300 font-medium italic">"{sanitize(review.comment) || 'No narrative provided'}"</p>
-                             <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">Ref: {sanitize(review.shopId).slice(0,8)}...</p>
-                           </div>
+                          <div className="max-w-[300px] truncate">
+                            <p className="text-sm text-gray-700 dark:text-gray-300 font-medium italic">"{sanitize(review.comment) || 'No narrative provided'}"</p>
+                            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">Ref: {sanitize(review.shopId).slice(0, 8)}...</p>
+                          </div>
                         </td>
                         <td className="px-6 py-5 text-center">
-                           <div className="flex flex-col items-center gap-1 text-gray-400">
-                             <FiClock size={12} />
-                             <span className="text-[10px] font-black uppercase tracking-widest">{new Date(review.createdAt).toLocaleDateString()}</span>
-                           </div>
+                          <div className="flex flex-col items-center gap-1 text-gray-400">
+                            <FiClock size={12} />
+                            <span className="text-[10px] font-black uppercase tracking-widest">{new Date(review.createdAt).toLocaleDateString()}</span>
+                          </div>
                         </td>
                         <td className="px-6 py-5">
                           <div className="flex items-center justify-center gap-2">

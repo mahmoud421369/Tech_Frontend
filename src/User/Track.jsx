@@ -61,13 +61,13 @@ const STYLES = `
 `;
 
 const STATUS_STEPS = [
-  { key: "PENDING",          label: "Order Placed",        sub: "Your order has been received",       icon: <FiClock className="w-5 h-5" /> },
-  { key: "CONFIRMED",        label: "Confirmed",           sub: "Order confirmed by our team",        icon: <FiCheckCircle className="w-5 h-5" /> },
-  { key: "PROCESSING",       label: "Processing",          sub: "Items being prepared",               icon: <FiPackage className="w-5 h-5" /> },
-  { key: "FINISHPROCESSING", label: "Ready to Ship",       sub: "Packed and ready for courier",       icon: <FiCheckCircle className="w-5 h-5" /> },
-  { key: "SHIPPED",          label: "Out for Delivery",    sub: "On the way to your address",         icon: <FiTruck className="w-5 h-5" /> },
-  { key: "DELIVERED",        label: "Delivered",           sub: "Package delivered successfully",     icon: <FiCheckCircle className="w-5 h-5" /> },
-  { key: "CANCELLED",        label: "Cancelled",           sub: "Order has been cancelled",           icon: <FiXCircle className="w-5 h-5" /> },
+  { key: "PENDING", label: "Order Placed", sub: "Your order has been received", icon: <FiClock className="w-5 h-5" /> },
+  { key: "CONFIRMED", label: "Confirmed", sub: "Order confirmed by our team", icon: <FiCheckCircle className="w-5 h-5" /> },
+  { key: "PROCESSING", label: "Processing", sub: "Items being prepared", icon: <FiPackage className="w-5 h-5" /> },
+  { key: "FINISHPROCESSING", label: "Ready to Ship", sub: "Packed and ready for courier", icon: <FiCheckCircle className="w-5 h-5" /> },
+  { key: "SHIPPED", label: "Out for Delivery", sub: "On the way to your address", icon: <FiTruck className="w-5 h-5" /> },
+  { key: "DELIVERED", label: "Delivered", sub: "Package delivered successfully", icon: <FiCheckCircle className="w-5 h-5" /> },
+  { key: "CANCELLED", label: "Cancelled", sub: "Order has been cancelled", icon: <FiXCircle className="w-5 h-5" /> },
 ];
 
 const WaveBottom = memo(({ darkMode }) => (
@@ -93,9 +93,8 @@ const StatCard = memo(({ icon, value, label, accent, delay, darkMode }) => (
     transition={{ duration: 0.5, delay }}
     viewport={{ once: true, margin: "-50px" }}
     whileHover={{ y: -4, scale: 1.03 }}
-    className={`relative overflow-hidden rounded-2xl p-4 shadow-xl border transition-all duration-300 ${
-      darkMode ? 'bg-gray-800/80 border-gray-700/60 backdrop-blur-md' : 'bg-white/90 border-gray-100 backdrop-blur-md'
-    }`}
+    className={`relative overflow-hidden rounded-2xl p-4 shadow-xl border transition-all duration-300 ${darkMode ? 'bg-gray-800/80 border-gray-700/60 backdrop-blur-md' : 'bg-white/90 border-gray-100 backdrop-blur-md'
+      }`}
   >
     <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-2xl" style={{ background: `linear-gradient(90deg, ${accent}, ${accent}88)` }} />
     <div className="flex items-center gap-3 mb-2">
@@ -110,9 +109,8 @@ const StatCard = memo(({ icon, value, label, accent, delay, darkMode }) => (
 
 const HeroSection = memo(({ darkMode, heroStats }) => (
   <div className="min-h-screen">
-    <section className={`relative overflow-hidden pt-10 pb-32 md:pt-24 -mt-8 md:pb-40  ${
-      darkMode ? 'bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950' : 'bg-gradient-to-br from-lime-50 via-white to-emerald-50'
-    }`}>
+    <section className={`relative overflow-hidden pt-10 pb-32 md:pt-24 -mt-8 md:pb-40  ${darkMode ? 'bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950' : 'bg-gradient-to-br from-lime-50 via-white to-emerald-50'
+      }`}>
       <div className="blob1 absolute w-[400px] h-[400px] -top-32 -left-24 rounded-full blur-3xl opacity-20 bg-lime-400 pointer-events-none" />
       <div className="blob2 absolute w-[350px] h-[350px] top-8 -right-16 rounded-full blur-3xl opacity-15 bg-emerald-500 pointer-events-none" />
       <div className="blob3 absolute w-[250px] h-[250px] bottom-20 left-1/2 rounded-full blur-3xl opacity-10 bg-teal-300 pointer-events-none" />
@@ -251,9 +249,9 @@ const Track = memo(({ darkMode }) => {
   }, [fetchOrders]);
 
   const heroStats = useMemo(() => [
-    { icon: <FiZap size={15} />,   value: "98.9%", label: "On-time delivery",  accent: "#0d9488", delay: 0.1 },
-    { icon: <FiUsers size={15} />, value: "~50K",  label: "Packages daily",    accent: "#3b82f6", delay: 0.2 },
-    { icon: <FiStar size={15} />,  value: "4.9★",  label: "Customer rating",   accent: "#f59e0b", delay: 0.3 },
+    { icon: <FiZap size={15} />, value: "98.9%", label: "On-time delivery", accent: "#0d9488", delay: 0.1 },
+    { icon: <FiUsers size={15} />, value: "~50K", label: "Packages daily", accent: "#3b82f6", delay: 0.2 },
+    { icon: <FiStar size={15} />, value: "4.9★", label: "Customer rating", accent: "#f59e0b", delay: 0.3 },
   ], []);
 
   if (isLoading) return (
@@ -270,8 +268,8 @@ const Track = memo(({ darkMode }) => {
                 <div key={i} className="flex items-center gap-4">
                   <div className={`w-14 h-14 rounded-full flex-shrink-0 animate-pulse skeleton-shimmer ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
                   <div className="flex-1 space-y-2">
-                    <div className={`h-4 rounded-lg animate-pulse ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} style={{ width: `${[60,75,50,70,55][i]}%` }} />
-                    <div className={`h-3 rounded-lg animate-pulse ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`} style={{ width: `${[40,55,35,50,40][i]}%` }} />
+                    <div className={`h-4 rounded-lg animate-pulse ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} style={{ width: `${[60, 75, 50, 70, 55][i]}%` }} />
+                    <div className={`h-3 rounded-lg animate-pulse ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`} style={{ width: `${[40, 55, 35, 50, 40][i]}%` }} />
                   </div>
                 </div>
               ))}
@@ -338,21 +336,19 @@ const Track = memo(({ darkMode }) => {
                     <p className={`text-xs font-semibold uppercase tracking-widest mb-2 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>Select Order</p>
                     <button
                       onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                      className={`w-full flex justify-between items-center px-5 py-3.5 rounded-xl border-2 transition-all text-sm font-semibold shadow-sm ${
-                        isDropdownOpen
-                          ? 'border-lime-500 shadow-lime-500/10'
-                          : darkMode ? 'bg-gray-900/60 border-gray-700 hover:border-lime-500/50' : 'bg-gray-50 border-gray-200 hover:border-lime-400'
-                      } ${darkMode ? 'text-white' : 'text-gray-900'}`}
+                      className={`w-full flex justify-between items-center px-5 py-3.5 rounded-xl border-2 transition-all text-sm font-semibold shadow-sm ${isDropdownOpen
+                        ? 'border-lime-500 shadow-lime-500/10'
+                        : darkMode ? 'bg-gray-900/60 border-gray-700 hover:border-lime-500/50' : 'bg-gray-50 border-gray-200 hover:border-lime-400'
+                        } ${darkMode ? 'text-white' : 'text-gray-900'}`}
                     >
                       <div className="flex items-center gap-3">
                         <div className={`w-2 h-2 rounded-full ${isCancelled ? 'bg-red-500' : 'bg-lime-500'}`} />
                         <span>{selectedOrder ? `Order #${selectedOrder.id?.slice(0, 8)}…` : 'Select an order'}</span>
                         {selectedOrder && (
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
-                            selectedOrder.status === 'DELIVERED' ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${selectedOrder.status === 'DELIVERED' ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
                             : selectedOrder.status === 'CANCELLED' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                            : 'bg-lime-100 text-lime-700 dark:bg-lime-900/40 dark:text-lime-300'
-                          }`}>{selectedOrder.status}</span>
+                              : 'bg-lime-100 text-lime-700 dark:bg-lime-900/40 dark:text-lime-300'
+                            }`}>{selectedOrder.status}</span>
                         )}
                       </div>
                       <FiChevronDown className={`transition-transform duration-300 text-lime-500 ${isDropdownOpen ? 'rotate-180' : ''}`} />
@@ -364,25 +360,22 @@ const Track = memo(({ darkMode }) => {
                           animate={{ opacity: 1, y: 0, scale: 1 }}
                           exit={{ opacity: 0, y: -8, scale: 0.97 }}
                           transition={{ duration: 0.18 }}
-                          className={`absolute mt-2 w-full rounded-2xl shadow-2xl border z-50 overflow-hidden thin-scroll max-h-60 overflow-y-auto ${
-                            darkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-                          }`}
+                          className={`absolute mt-2 w-full rounded-2xl shadow-2xl border z-50 overflow-hidden thin-scroll max-h-60 overflow-y-auto ${darkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+                            }`}
                         >
                           {orders.map((order) => (
                             <button key={order.id}
                               onClick={() => { setSelectedOrder(order); setIsDropdownOpen(false); }}
-                              className={`w-full text-left px-5 py-3.5 flex items-center justify-between text-sm font-medium transition-colors ${
-                                selectedOrder?.id === order.id
-                                  ? 'bg-lime-500/10 text-lime-600 dark:text-lime-400'
-                                  : darkMode ? 'text-gray-300 hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-50'
-                              }`}
+                              className={`w-full text-left px-5 py-3.5 flex items-center justify-between text-sm font-medium transition-colors ${selectedOrder?.id === order.id
+                                ? 'bg-lime-500/10 text-lime-600 dark:text-lime-400'
+                                : darkMode ? 'text-gray-300 hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-50'
+                                }`}
                             >
                               <span>Order #{order.id?.slice(0, 8)}…</span>
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
-                                order.status === 'DELIVERED' ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${order.status === 'DELIVERED' ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
                                 : order.status === 'CANCELLED' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                                : 'bg-lime-100 text-lime-700 dark:bg-lime-900/40 dark:text-lime-300'
-                              }`}>{order.status}</span>
+                                  : 'bg-lime-100 text-lime-700 dark:bg-lime-900/40 dark:text-lime-300'
+                                }`}>{order.status}</span>
                             </button>
                           ))}
                         </motion.div>
@@ -399,20 +392,18 @@ const Track = memo(({ darkMode }) => {
                         transition={{ duration: 0.25 }}
                         className="space-y-6"
                       >
-                        <div className={`rounded-xl p-4 border flex flex-wrap items-center justify-between gap-3 ${
-                          darkMode ? 'bg-gray-900/50 border-gray-700/50' : 'bg-lime-50/60 border-lime-100'
-                        }`}>
+                        <div className={`rounded-xl p-4 border flex flex-wrap items-center justify-between gap-3 ${darkMode ? 'bg-gray-900/50 border-gray-700/50' : 'bg-lime-50/60 border-lime-100'
+                          }`}>
                           <div>
                             <p className={`text-xs font-semibold uppercase tracking-widest ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>Live Tracking</p>
                             <p className={`text-base font-extrabold mt-0.5 ${darkMode ? 'text-white' : 'text-gray-900'}`} style={{ fontFamily: "'Outfit', sans-serif" }}>
                               Order <span className={`${darkMode ? 'text-lime-400' : 'text-lime-600'}`}>#{selectedOrder.id?.slice(0, 8)}</span>
                             </p>
                           </div>
-                          <span className={`text-xs px-3 py-1.5 rounded-full font-bold ${
-                            isCancelled ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
+                          <span className={`text-xs px-3 py-1.5 rounded-full font-bold ${isCancelled ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
                             : selectedOrder.status === 'DELIVERED' ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
-                            : 'bg-lime-100 text-lime-700 dark:bg-lime-900/40 dark:text-lime-300'
-                          }`}>{selectedOrder.status}</span>
+                              : 'bg-lime-100 text-lime-700 dark:bg-lime-900/40 dark:text-lime-300'
+                            }`}>{selectedOrder.status}</span>
                         </div>
                         {!isCancelled && (
                           <div className="space-y-2">
@@ -447,26 +438,23 @@ const Track = memo(({ darkMode }) => {
                                   transition={{ duration: 0.3, delay: index * 0.06 }}
                                   className="flex items-start gap-5 py-3 pl-1 relative"
                                 >
-                                  <div className={`relative z-10 w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-500 ${
-                                    isCancelledStep
-                                      ? 'bg-red-500 text-white shadow-lg shadow-red-500/30'
-                                      : isCompleted
-                                        ? 'bg-gradient-to-br from-lime-500 to-emerald-500 text-white shadow-lg shadow-lime-500/30'
-                                        : darkMode ? 'bg-gray-700 text-gray-500' : 'bg-gray-100 text-gray-400'
-                                  } ${isCurrent ? 'step-pulse' : ''}`}>
+                                  <div className={`relative z-10 w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-500 ${isCancelledStep
+                                    ? 'bg-red-500 text-white shadow-lg shadow-red-500/30'
+                                    : isCompleted
+                                      ? 'bg-gradient-to-br from-lime-500 to-emerald-500 text-white shadow-lg shadow-lime-500/30'
+                                      : darkMode ? 'bg-gray-700 text-gray-500' : 'bg-gray-100 text-gray-400'
+                                    } ${isCurrent ? 'step-pulse' : ''}`}>
                                     {step.icon}
                                   </div>
                                   <div className="flex-1 pt-1.5">
-                                    <p className={`text-sm font-bold leading-snug ${
-                                      isCancelledStep ? 'text-red-500 dark:text-red-400'
+                                    <p className={`text-sm font-bold leading-snug ${isCancelledStep ? 'text-red-500 dark:text-red-400'
                                       : isCompleted ? darkMode ? 'text-lime-400' : 'text-lime-700'
-                                      : darkMode ? 'text-gray-500' : 'text-gray-400'
-                                    }`}>{step.label}</p>
-                                    <p className={`text-xs mt-0.5 ${
-                                      isCompleted || isCancelledStep
-                                        ? darkMode ? 'text-gray-400' : 'text-gray-500'
-                                        : darkMode ? 'text-gray-600' : 'text-gray-300'
-                                    }`}>{step.sub}</p>
+                                        : darkMode ? 'text-gray-500' : 'text-gray-400'
+                                      }`}>{step.label}</p>
+                                    <p className={`text-xs mt-0.5 ${isCompleted || isCancelledStep
+                                      ? darkMode ? 'text-gray-400' : 'text-gray-500'
+                                      : darkMode ? 'text-gray-600' : 'text-gray-300'
+                                      }`}>{step.sub}</p>
                                     {isCurrent && !isCancelledStep && (
                                       <span className="inline-flex items-center gap-1 mt-1 text-xs font-bold text-lime-500">
                                         <span className="w-1.5 h-1.5 rounded-full bg-lime-500 animate-pulse" />
@@ -543,9 +531,8 @@ const Track = memo(({ darkMode }) => {
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: opt.delay }}
                   viewport={{ once: true }}
-                  className={`delivery-card relative rounded-2xl shadow-xl overflow-hidden border ${
-                    darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-                  }`}
+                  className={`delivery-card relative rounded-2xl shadow-xl overflow-hidden border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
+                    }`}
                 >
                   {opt.badge && (
                     <span className="absolute top-3 right-3 bg-gradient-to-r from-lime-500 to-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full z-10">

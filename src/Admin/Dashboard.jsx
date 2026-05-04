@@ -263,7 +263,7 @@ const Dashboard = ({ darkMode }) => {
                   <h2 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">Recent Users</h2>
                   <FiUsers size={20} className="text-lime-500" />
                 </div>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto custom-scrollbar-thin">
                    <table className="w-full">
                      <thead className="bg-gray-50 dark:bg-gray-900/50">
                        <tr>
@@ -317,7 +317,7 @@ const Dashboard = ({ darkMode }) => {
 
              
              
-             <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
+             {/* <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
                 <div className="px-8 py-6 border-b border-gray-50 dark:border-gray-700 flex items-center justify-between">
                   <h2 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">Recent Feed</h2>
                   <button onClick={fetchData} className="text-gray-400 hover:text-lime-500 transition-colors">
@@ -337,7 +337,7 @@ const Dashboard = ({ darkMode }) => {
                     <NotifItem key={n.id} notif={n} onDelete={deleteNotification} />
                   ))}
                 </div>
-             </div>
+             </div> */}
           </div>
 
         </div>

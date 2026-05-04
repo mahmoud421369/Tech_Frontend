@@ -86,6 +86,46 @@ const RoleDropdown = memo(({ userId, currentRole, pendingRole, onSelect }) => {
   );
 });
 
+const RowsDropdown = memo(({ value, options, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  return (
+    <div className="relative inline-block" ref={ref}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-transparent hover:border-lime-500/20 transition-all focus:outline-none focus:ring-2 focus:ring-lime-500/20"
+      >
+        <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">{value} Rows</span>
+        <FiChevronDown size={12} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute right-0 z-20 mt-1 w-32 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+          {options.map(n => (
+            <button
+              key={n}
+              onClick={() => { onChange(n); setOpen(false); }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition
+                ${value === n
+                  ? 'bg-lime-50 dark:bg-lime-900/30 text-lime-600'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+            >
+              {n} Rows
+              {value === n && <FiCheck size={12} className="text-lime-500" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
+
 const UserModal = memo(({ user, onClose }) => {
   if (!user) return null;
   const rows = [
@@ -98,47 +138,47 @@ const UserModal = memo(({ user, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-md p-4">
-      <div className="w-full max-w-xs bg-white dark:bg-gray-800 rounded-none shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
-        <div className="flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/80 px-5 py-3 border-b border-gray-100 dark:border-gray-700">
+      <div className="w-full max-w-[280px] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
+        <div className="flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/80 px-4 py-3 border-b border-gray-100 dark:border-gray-700">
           <h3 className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">User Profile</h3>
           <button onClick={onClose} className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-red-500 transition-all">
             <FiX size={16} title="Close" />
           </button>
         </div>
 
-        <div className="p-5 space-y-3">
+        <div className="p-4 space-y-2">
           {rows.map(({ icon: Icon, label, value }) => (
-            <div key={label} className="group p-3 bg-gray-50 dark:bg-gray-900/40 border border-transparent hover:border-lime-500/20 transition-all duration-300">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center text-lime-500 shadow-sm group-hover:rotate-6 transition-transform">
-                  <Icon size={14} />
+            <div key={label} className="group p-2 bg-gray-50 dark:bg-gray-900/40 border border-transparent hover:border-lime-500/20 rounded-xl transition-all duration-300">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center text-lime-500 shadow-sm group-hover:rotate-6 transition-transform">
+                  <Icon size={12} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">{label}</p>
-                  <p className="text-xs font-bold text-gray-800 dark:text-gray-100 truncate">{value}</p>
+                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em]">{label}</p>
+                  <p className="text-[11px] font-bold text-gray-800 dark:text-gray-100 truncate">{value}</p>
                 </div>
               </div>
             </div>
           ))}
 
-          <div className="p-3 bg-gray-50 dark:bg-gray-900/40 border border-transparent">
-             <div className="flex items-center gap-3">
-               <div className={`w-8 h-8 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center ${user.activate ? "text-emerald-500" : "text-red-500"}`}>
-                 {user.activate ? <FiCheckCircle size={14} /> : <FiXCircle size={14} />}
-               </div>
-               <div>
-                 <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">Status</p>
-                 <p className={`text-[10px] font-black uppercase tracking-widest ${user.activate ? 'text-emerald-600' : 'text-red-600'}`}>
-                   {user.activate ? 'Active' : 'Suspended'}
-                 </p>
-               </div>
-             </div>
+          <div className="p-2 bg-gray-50 dark:bg-gray-900/40 border border-transparent rounded-xl">
+            <div className="flex items-center gap-2">
+              <div className={`w-7 h-7 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center ${user.activate ? "text-emerald-500" : "text-red-500"}`}>
+                {user.activate ? <FiCheckCircle size={12} /> : <FiXCircle size={12} />}
+              </div>
+              <div>
+                <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em]">Status</p>
+                <p className={`text-[9px] font-black uppercase tracking-widest ${user.activate ? 'text-emerald-600' : 'text-red-600'}`}>
+                  {user.activate ? 'Active' : 'Suspended'}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="px-5 pb-5 pt-1">
+        <div className="px-4 pb-4 pt-0">
           <button onClick={onClose}
-            className="w-full py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-lime-500 dark:hover:bg-lime-500 dark:hover:text-white transition-all active:scale-[0.98]">
+            className="w-full py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[9px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-lime-500 dark:hover:bg-lime-500 dark:hover:text-white transition-all active:scale-[0.98]">
             Close
           </button>
         </div>
@@ -287,8 +327,8 @@ const UsersPage = ({ darkMode }) => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
 
-        
-        
+
+
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -300,28 +340,28 @@ const UsersPage = ({ darkMode }) => {
           </div>
 
           <div className="flex items-center gap-3">
-             <div className="p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-sm flex items-center gap-4">
-               <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center text-gray-400">
-                 <FiActivity size={18} />
-               </div>
-               <div>
-                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Sync Status</p>
-                 <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Real-time Active</p>
-               </div>
-             </div>
+            <div className="p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-sm flex items-center gap-4">
+              <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center text-gray-400">
+                <FiActivity size={18} />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Sync Status</p>
+                <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Real-time Active</p>
+              </div>
+            </div>
           </div>
         </div>
 
-      
-      
+
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           <StatCard icon={FiUsers} label="Total Users" value={stats.total} color="lime" />
           <StatCard icon={RiCheckLine} label="Authorized" value={stats.active} color="emerald" />
           <StatCard icon={FiShield} label="Suspended" value={stats.inactive} color="rose" />
         </div>
 
-       
-       
+
+
         <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
           <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
             <div className="relative flex-1 group">
@@ -341,19 +381,17 @@ const UsersPage = ({ darkMode }) => {
             </div>
 
             <div className="flex items-center gap-3 px-4">
-               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">View</span>
-               <select
-                 value={rowsPerPage}
-                 onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                 className="bg-transparent text-sm font-black text-gray-900 dark:text-white focus:outline-none cursor-pointer"
-               >
-                 {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n} Rows</option>)}
-               </select>
+              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">View</span>
+              <RowsDropdown
+                value={rowsPerPage}
+                options={ROWS_OPTIONS}
+                onChange={n => { setRowsPerPage(n); setCurrentPage(1); }}
+              />
             </div>
           </div>
         </div>
 
-       
+
         <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
           {loading ? (
             <div className="py-32 text-center space-y-4">
@@ -362,8 +400,8 @@ const UsersPage = ({ darkMode }) => {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[900px]">
+              <div className="overflow-x-auto custom-scrollbar-thin">
+                <table className="w-full  min-w-[900px]">
                   <thead className="bg-gray-50 dark:bg-gray-900/50">
                     <tr>
                       <Th field="id" label="ID" center={true} />
@@ -401,8 +439,8 @@ const UsersPage = ({ darkMode }) => {
 
                         <td className="px-6 py-5 text-center">
                           <div className="space-y-0.5">
-                             <p className="text-sm font-bold text-gray-900 dark:text-white tracking-tight">{sanitize(`${user.firstName || ''} ${user.lastName || ''}`.trim()) || 'Unnamed Entity'}</p>
-                             <p className="text-[10px] text-gray-400 font-medium">{sanitize(user.email)}</p>
+                            <p className="text-sm font-bold text-gray-900 dark:text-white tracking-tight">{sanitize(`${user.firstName || ''} ${user.lastName || ''}`.trim()) || 'Unnamed Entity'}</p>
+                            <p className="text-[10px] text-gray-400 font-medium">{sanitize(user.email)}</p>
                           </div>
                         </td>
 
@@ -477,7 +515,7 @@ const UsersPage = ({ darkMode }) => {
               {totalPages > 1 && (
                 <div className="flex flex-col sm:flex-row items-center justify-between border-t border-gray-50 dark:border-gray-800 bg-gray-50/30 dark:bg-gray-800/20 px-8 py-6 gap-6">
                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                    Showing {Math.min(paginated.length, rowsPerPage)} Identities of {processed.length}
+                    Showing {Math.min(paginated.length, rowsPerPage)} users of {processed.length}
                   </p>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
@@ -509,7 +547,14 @@ const UsersPage = ({ darkMode }) => {
           )}
         </div>
       </div>
-
+      <style dangerouslySetInnerHTML={{
+        __html: `
+        .custom-scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
+        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
+        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
+      `}} />
       {selectedUser && <UserModal user={selectedUser} onClose={() => setSelectedUser(null)} />}
     </div>
   );
