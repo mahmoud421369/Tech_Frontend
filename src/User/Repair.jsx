@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, memo } from "react";
+import React, { useEffect, useState, useCallback, memo, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import sanitizeHtml from "sanitize-html";
@@ -14,9 +14,6 @@ import {
   RiCheckDoubleLine, RiCheckLine, RiCloseLine,
   RiPhoneLine, RiStore2Line, RiStarFill,
 } from "react-icons/ri";
-
-
-
 
 const WaveBottom = memo(({ darkMode }) => (
   <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-none pointer-events-none">
@@ -37,8 +34,6 @@ const WaveTop = memo(({ darkMode }) => (
     </svg>
   </div>
 ));
-
-
 
 const StatCard = memo(({ icon, value, label, accent, delay, darkMode }) => (
   <motion.div
@@ -64,25 +59,20 @@ const StatCard = memo(({ icon, value, label, accent, delay, darkMode }) => (
   </motion.div>
 ));
 
-
-
-
 const LoadingSpinner = memo(({ darkMode }) => (
   <div className="flex justify-center items-center h-48 sm:h-64">
     <div className={`w-10 h-10 sm:w-12 sm:h-12 border-4 ${darkMode ? "border-lime-400" : "border-lime-500"} border-t-transparent rounded-full animate-spin`} />
   </div>
 ));
 
-
-
-
 const StepProgressBar = memo(({ step, darkMode }) => {
-  const steps = [
+  const steps = useMemo(() => [
     { label: "Describe", icon: <FiTool size={15} /> },
     { label: "Category", icon: <RiDeviceLine size={15} /> },
     { label: "Shop", icon: <FaStore size={13} /> },
-  ];
-  const progress = ((step - 1) / (steps.length - 1)) * 100;
+  ], []);
+  
+  const progress = useMemo(() => ((step - 1) / (steps.length - 1)) * 100, [step, steps.length]);
 
   return (
     <div className={`max-w-2xl mx-auto my-6 sm:my-10 px-4 sm:px-6 py-6 sm:py-8 rounded-xl sm:rounded-2xl shadow-lg border ${
@@ -132,8 +122,6 @@ const StepProgressBar = memo(({ step, darkMode }) => {
   );
 });
 
-
-
 const NavButtons = memo(({ onBack, onNext, nextLabel = "Continue", nextDisabled = false, isLoading = false, showBack = true, darkMode }) => (
   <div className={`flex gap-3 mt-8 sm:mt-12 ${showBack ? "justify-between" : "justify-center"} max-w-md mx-auto`}>
     {showBack && (
@@ -171,9 +159,6 @@ const NavButtons = memo(({ onBack, onNext, nextLabel = "Continue", nextDisabled 
   </div>
 ));
 
-
-
-
 const SUGGESTIONS = ["Screen cracked", "Battery issue", "Not charging", "Overheating", "Software crash", "Water damage"];
 
 const fallbackCategories = [
@@ -203,11 +188,7 @@ const getCategoryIcon = (name) => {
   return map[name] || <RiDeviceLine className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12" />;
 };
 
-
-
-
-
-const RepairRequest = ({ darkMode }) => {
+const RepairRequest = memo(({ darkMode }) => {
   const navigate = useNavigate();
   const token = localStorage.getItem("authToken");
 
@@ -220,17 +201,14 @@ const RepairRequest = ({ darkMode }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [submitProgress, setSubmitProgress] = useState(0);
 
-  const bgCard = darkMode ? "bg-gray-800/90" : "bg-white";
-  const border = darkMode ? "border-gray-700" : "border-gray-200";
-  const textPrimary = darkMode ? "text-white" : "text-gray-900";
+  const bgCard = useMemo(() => darkMode ? "bg-gray-800/90" : "bg-white", [darkMode]);
+  const border = useMemo(() => darkMode ? "border-gray-700" : "border-gray-200", [darkMode]);
+  const textPrimary = useMemo(() => darkMode ? "text-white" : "text-gray-900", [darkMode]);
 
   useEffect(() => { document.title = "Book Repair | Tech-Restore"; }, []);
 
   const sanitizeDescription = useCallback((input) =>
     sanitizeHtml(input, { allowedTags: [], allowedAttributes: {} }).trim(), []);
-
-
-  
 
   useEffect(() => {
     let cancelled = false;
@@ -250,9 +228,6 @@ const RepairRequest = ({ darkMode }) => {
     fetchCategories();
     return () => { cancelled = true; };
   }, [token]);
-
- 
-  
 
   useEffect(() => {
     if (step !== 3 || !selectedCategory) return;
@@ -301,7 +276,7 @@ const RepairRequest = ({ darkMode }) => {
     let progress = 0;
     const timer = setInterval(() => {
       progress += (interval / duration) * 100;
-      setSubmitProgress(Math.min(100, progress));
+      setSubmitProgress(prev => Math.min(100, progress));
       if (progress >= 100) clearInterval(timer);
     }, interval);
     try {
@@ -334,36 +309,26 @@ const RepairRequest = ({ darkMode }) => {
     }
   }, [selectedShop, description, selectedCategory, token, sanitizeDescription, navigate]);
 
-  const heroStats = [
+  const heroStats = useMemo(() => [
     { icon: <FiTool size={16} />, value: "75.2%", label: "Repair success rate", accent: "#16a34a", delay: 0.1 },
     { icon: <RiCheckLine size={16} />, value: "~20k", label: "Monthly repairs", accent: "#6366f1", delay: 0.2 },
     { icon: <RiStarFill size={16} />, value: "4.5★", label: "Avg user rating", accent: "#f59e0b", delay: 0.3 },
-  ];
+  ], []);
 
   return (
     <div className={`min-h-screen overflow-x-hidden ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
-
-    
-    
       <section className={`relative overflow-hidden pt-16 sm:pt-20 pb-24 sm:pb-32 md:pb-40 ${
         darkMode ? "bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950"
           : "bg-gradient-to-br from-lime-50 via-white to-emerald-50"
       }`}>
-        
-        
-
         <div className="absolute w-72 h-72 sm:w-[500px] sm:h-[500px] -top-32 -left-20 rounded-full blur-3xl opacity-20 bg-lime-400 animate-pulse pointer-events-none" style={{ animationDuration: "5s" }} />
         <div className="absolute w-56 h-56 sm:w-[400px] sm:h-[400px] top-10 -right-16 rounded-full blur-3xl opacity-15 bg-emerald-500 animate-pulse pointer-events-none" style={{ animationDuration: "7s" }} />
-     
-     
         <div className="absolute inset-0 pointer-events-none opacity-[0.025]"
           style={{ backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 39px,#000 39px,#000 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,#000 39px,#000 40px)" }} />
         <WaveTop darkMode={darkMode} />
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
-           
-           
             <div className="space-y-6 sm:space-y-8 text-center lg:text-left">
               <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}
                 className="inline-flex items-center gap-2 mt-4 px-3 sm:px-4 py-1.5 rounded-full border text-xs sm:text-sm font-semibold bg-lime-500/10 border-lime-500/30 text-lime-600 dark:text-lime-400">
@@ -385,8 +350,6 @@ const RepairRequest = ({ darkMode }) => {
               </div>
             </div>
 
-           
-           
             <div className="relative h-56 sm:h-80 lg:h-[520px] hidden sm:block">
               <div className="absolute inset-0 bg-gradient-to-br from-lime-200/30 to-emerald-200/30 dark:from-lime-900/20 dark:to-emerald-900/20 rounded-full blur-3xl scale-125" />
               <div className="relative w-full h-full">
@@ -420,19 +383,12 @@ const RepairRequest = ({ darkMode }) => {
         <WaveBottom darkMode={darkMode} />
       </section>
 
-      
-      
       <div className="px-4 sm:px-6">
         <StepProgressBar step={step} darkMode={darkMode} />
       </div>
 
-     
-     
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-8 pb-16 sm:pb-20">
         <AnimatePresence mode="wait">
-
-         
-         
           {step === 1 && (
             <motion.div key="step1" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.3 }}>
               <h2 className={`text-2xl sm:text-3xl font-extrabold text-center mb-2 sm:mb-3 ${darkMode ? "text-lime-400" : "text-lime-600"}`}>
@@ -477,8 +433,6 @@ const RepairRequest = ({ darkMode }) => {
             </motion.div>
           )}
 
-          
-          
           {step === 2 && (
             <motion.div key="step2" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.3 }}>
               <h2 className={`text-2xl sm:text-3xl font-extrabold text-center mb-2 sm:mb-3 ${darkMode ? "text-lime-400" : "text-lime-600"}`}>
@@ -521,8 +475,6 @@ const RepairRequest = ({ darkMode }) => {
             </motion.div>
           )}
 
-          
-          
           {step === 3 && (
             <motion.div key="step3" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.3 }}>
               <h2 className={`text-2xl sm:text-3xl font-extrabold text-center mb-2 sm:mb-3 ${darkMode ? "text-lime-400" : "text-lime-600"}`}>
@@ -541,8 +493,6 @@ const RepairRequest = ({ darkMode }) => {
                           ? "bg-gradient-to-br from-lime-500 to-emerald-600 text-white border-lime-400 shadow-lime-500/30 shadow-xl"
                           : `${bgCard} ${darkMode ? "border-gray-700 hover:border-lime-500" : "border-gray-200 hover:border-lime-400"}`
                       }`}>
-                     
-                     
                       <div className="flex items-start justify-between mb-4 sm:mb-5">
                         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                           <div className={`p-2 sm:p-2.5 rounded-lg sm:rounded-xl flex-shrink-0 ${
@@ -554,7 +504,7 @@ const RepairRequest = ({ darkMode }) => {
                             {shop.name}
                           </h3>
                         </div>
-                        <div className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl flex-shrink-0 ml-1 ${
+                        <div className={`flex items-center gap-1.5 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-1.5 rounded-lg sm:rounded-xl flex-shrink-0 ml-1 ${
                           selectedShop?.id === shop.id ? "bg-white/20" : darkMode ? "bg-gray-700" : "bg-gray-100"
                         }`}>
                           <FaStar className="text-amber-400 text-xs sm:text-sm" />
@@ -564,8 +514,6 @@ const RepairRequest = ({ darkMode }) => {
                         </div>
                       </div>
 
-                    
-                    
                       <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-3 sm:mb-4">
                         {[
                           { icon: <RiPhoneLine />, label: "Phone", value: shop.phone || "N/A" },
@@ -615,8 +563,6 @@ const RepairRequest = ({ darkMode }) => {
               <NavButtons onBack={handleBack} onNext={sendRepairRequest} nextLabel="Send Repair Request"
                 nextDisabled={!selectedShop} isLoading={isLoading} darkMode={darkMode} />
 
-              
-              
               {isLoading && submitProgress > 0 && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-md mx-auto mt-6 sm:mt-8">
                   <div className={`w-full rounded-full h-2.5 overflow-hidden ${darkMode ? "bg-gray-700" : "bg-gray-200"}`}>
@@ -630,11 +576,10 @@ const RepairRequest = ({ darkMode }) => {
               )}
             </motion.div>
           )}
-
         </AnimatePresence>
       </div>
     </div>
   );
-};
+});
 
 export default RepairRequest;

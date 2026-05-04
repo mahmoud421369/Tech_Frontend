@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef, memo } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { FiX, FiShoppingCart, FiBell } from "react-icons/fi";
 import { ToastContainer, toast } from "react-toastify";
@@ -12,6 +12,7 @@ import {
   RiStore2Line, RiSunLine, RiMoonLine, RiTruckLine, RiHome2Line,
   RiLogoutBoxRLine, RiNotificationLine
 } from "react-icons/ri";
+
 
 
 const STYLES = `
@@ -214,6 +215,16 @@ const STYLES = `
   .notif-scroll::-webkit-scrollbar-thumb { background: rgba(16,185,129,0.3); border-radius: 4px; }
 `;
 
+const formatTime = (ts) => {
+  try {
+    const d = new Date(ts);
+    return d.toLocaleString(undefined, {
+      month: "short", day: "numeric",
+      hour: "2-digit", minute: "2-digit"
+    });
+  } catch { return ""; }
+};
+
 
 
 
@@ -338,29 +349,23 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
 
 
   
-  const dm = darkMode;
+  const navBg = useMemo(() => 
+    darkMode
+      ? scrolled
+        ? "bg-[#030a06]/85 border-emerald-500/20 shadow-[0_8px_40px_rgba(0,0,0,0.6)]"
+        : "bg-[#030a06]/70 border-emerald-500/12"
+      : scrolled
+        ? "bg-white/98 border-gray-200 shadow-[0_4px_24px_rgba(0,0,0,0.07)]"
+        : "bg-white/95 border-gray-200",
+    [darkMode, scrolled]
+  );
 
-  const navBg = dm
-    ? scrolled
-      ? "bg-[#030a06]/85 border-emerald-500/20 shadow-[0_8px_40px_rgba(0,0,0,0.6)]"
-      : "bg-[#030a06]/70 border-emerald-500/12"
-    : scrolled
-      ? "bg-white/98 border-gray-200 shadow-[0_4px_24px_rgba(0,0,0,0.07)]"
-      : "bg-white/95 border-gray-200";
-
-  const pillBg = dm
-    ? "bg-[#0d1a12]/80 border border-emerald-900/40"
-    : "bg-gray-100/90 border border-gray-200";
-
-  const formatTime = (ts) => {
-    try {
-      const d = new Date(ts);
-      return d.toLocaleString(undefined, {
-        month: "short", day: "numeric",
-        hour: "2-digit", minute: "2-digit"
-      });
-    } catch { return ""; }
-  };
+  const pillBg = useMemo(() => 
+    darkMode
+      ? "bg-[#0d1a12]/80 border border-emerald-900/40"
+      : "bg-gray-100/90 border border-gray-200",
+    [darkMode]
+  );
 
   return (
     <>
@@ -371,7 +376,7 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
 
       <ToastContainer
         position="top-right"
-        theme={dm ? "dark" : "light"}
+        theme={darkMode ? "dark" : "light"}
         toastStyle={{ fontFamily: "'Poppins', sans-serif", fontSize: 14 }}
       />
 
@@ -382,7 +387,7 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
 
       
       
-        {dm && (
+        {darkMode && (
           <div
             className="glow-orb"
             style={{ width: 320, height: 60, top: -20, left: "40%", background: "rgba(16,185,129,0.07)" }}
@@ -399,7 +404,7 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
               className="h-14 w-auto rounded-xl object-cover transition-transform duration-500 group-hover:scale-105"
               style={{ transform: "scale(1.35)", transformOrigin: "left center" }}
             />
-            {dm && (
+            {darkMode && (
               <div className="absolute inset-0 rounded-xl bg-emerald-500/20 opacity-0 group-hover:opacity-100 blur-xl transition-opacity duration-500 -z-10" />
             )}
           </div>
@@ -415,8 +420,8 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
               className={({ isActive }) =>
                 `nav-link-item ${
                   isActive
-                    ? dm ? "nav-link-active-dark" : "nav-link-active-light"
-                    : dm ? "nav-link-inactive-dark" : "nav-link-inactive-light"
+                    ? darkMode ? "nav-link-active-dark" : "nav-link-active-light"
+                    : darkMode ? "nav-link-inactive-dark" : "nav-link-inactive-light"
                 }`
               }
             >
@@ -436,12 +441,12 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
               <div className="relative" ref={notifRef}>
                 <button
                   onClick={() => setShowNotifications(v => !v)}
-                  className={`icon-btn ${dm ? "dark-icon-btn" : "light-icon-btn"}`}
+                  className={`icon-btn ${darkMode ? "dark-icon-btn" : "light-icon-btn"}`}
                   aria-label="Notifications"
                 >
                   <FiBell
                     size={20}
-                    className={dm ? "text-emerald-400" : "text-emerald-600"}
+                    className={darkMode ? "text-emerald-400" : "text-emerald-600"}
                     style={{ transition: "transform 0.2s" }}
                   />
                   {unreadCount > 0 && (
@@ -464,20 +469,20 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
                 {showNotifications && (
                   <div
                     className={`notif-panel absolute right-0 mt-3 w-[380px] rounded-2xl overflow-hidden border shadow-2xl ${
-                      dm
+                      darkMode
                         ? "bg-[#050e08]/95 backdrop-blur-2xl border-emerald-500/25 shadow-[0_20px_60px_rgba(0,0,0,0.7)]"
                         : "bg-white border-gray-200 shadow-[0_20px_60px_rgba(0,0,0,0.12)]"
                     }`}
                   >
                     
                     
-                    <div className={`flex items-center justify-between px-5 py-4 border-b ${dm ? "border-emerald-500/15" : "border-gray-100"}`}>
+                    <div className={`flex items-center justify-between px-5 py-4 border-b ${darkMode ? "border-emerald-500/15" : "border-gray-100"}`}>
                       <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-xl ${dm ? "bg-emerald-500/15" : "bg-emerald-50"}`}>
+                        <div className={`p-2 rounded-xl ${darkMode ? "bg-emerald-500/15" : "bg-emerald-50"}`}>
                           <RiNotificationLine size={16} className="text-emerald-500" />
                         </div>
                         <div>
-                          <p className={`text-sm font-700 font-bold ${dm ? "text-white" : "text-gray-900"}`} style={{ fontFamily: "'Outfit',sans-serif" }}>
+                          <p className={`text-sm font-700 font-bold ${darkMode ? "text-white" : "text-gray-900"}`} style={{ fontFamily: "'Outfit',sans-serif" }}>
                             Notifications
                           </p>
                           {unreadCount > 0 && (
@@ -489,7 +494,7 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
                       </div>
                       <button
                         onClick={() => setShowNotifications(false)}
-                        className={`p-1.5 rounded-lg transition ${dm ? "hover:bg-white/10 text-gray-400 hover:text-white" : "hover:bg-gray-100 text-gray-400 hover:text-gray-700"}`}
+                        className={`p-1.5 rounded-lg transition ${darkMode ? "hover:bg-white/10 text-gray-400 hover:text-white" : "hover:bg-gray-100 text-gray-400 hover:text-gray-700"}`}
                       >
                         <FiX size={16} />
                       </button>
@@ -501,15 +506,15 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
                       {loadingNotifs ? (
                         <div className="p-6 space-y-3">
                           {[1,2,3].map(i => (
-                            <div key={i} className={`h-14 rounded-xl shimmer-line ${dm ? "bg-white/5" : "bg-gray-100"}`} />
+                            <div key={i} className={`h-14 rounded-xl shimmer-line ${darkMode ? "bg-white/5" : "bg-gray-100"}`} />
                           ))}
                         </div>
                       ) : notifications.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-12 gap-3">
-                          <div className={`p-4 rounded-2xl ${dm ? "bg-emerald-500/10" : "bg-emerald-50"}`}>
+                          <div className={`p-4 rounded-2xl ${darkMode ? "bg-emerald-500/10" : "bg-emerald-50"}`}>
                             <RiBellLine size={28} className="text-emerald-500/60" />
                           </div>
-                          <p className={`text-sm font-medium ${dm ? "text-gray-500" : "text-gray-400"}`} style={{ fontFamily: "'Outfit',sans-serif" }}>
+                          <p className={`text-sm font-medium ${darkMode ? "text-gray-500" : "text-gray-400"}`} style={{ fontFamily: "'Outfit',sans-serif" }}>
                             You're all caught up!
                           </p>
                         </div>
@@ -518,7 +523,7 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
                           <div
                             key={notif.id}
                             className={`notif-item group px-5 py-4 border-b transition-all ${
-                              dm
+                              darkMode
                                 ? `border-emerald-500/08 hover:bg-emerald-500/06 ${!notif.read ? "bg-emerald-500/06" : ""}`
                                 : `border-gray-50 hover:bg-gray-50 ${!notif.read ? "bg-emerald-50/60" : ""}`
                             }`}
@@ -529,14 +534,14 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
                               <div className="mt-1.5 shrink-0">
                                 {!notif.read
                                   ? <div className="w-2 h-2 rounded-full bg-emerald-500" style={{ boxShadow: "0 0 6px rgba(16,185,129,0.7)" }} />
-                                  : <div className={`w-2 h-2 rounded-full ${dm ? "bg-gray-700" : "bg-gray-200"}`} />
+                                  : <div className={`w-2 h-2 rounded-full ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
                                 }
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className={`text-sm font-semibold leading-snug truncate ${dm ? "text-gray-100" : "text-gray-900"}`} style={{ fontFamily: "'Outfit',sans-serif" }}>
+                                <p className={`text-sm font-semibold leading-snug truncate ${darkMode ? "text-gray-100" : "text-gray-900"}`} style={{ fontFamily: "'Outfit',sans-serif" }}>
                                   {notif.title}
                                 </p>
-                                <p className={`text-xs mt-0.5 line-clamp-2 ${dm ? "text-gray-500" : "text-gray-500"}`}>
+                                <p className={`text-xs mt-0.5 line-clamp-2 ${darkMode ? "text-gray-500" : "text-gray-500"}`}>
                                   {notif.message}
                                 </p>
                                 <p className="text-[11px] text-emerald-600 dark:text-emerald-500 mt-1.5 font-medium">
@@ -545,7 +550,7 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
                               </div>
                               <button
                                 onClick={() => deleteNotification(notif.id)}
-                                className={`shrink-0 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition ${dm ? "hover:bg-red-500/20 text-gray-600 hover:text-red-400" : "hover:bg-red-50 text-gray-300 hover:text-red-400"}`}
+                                className={`shrink-0 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition ${darkMode ? "hover:bg-red-500/20 text-gray-600 hover:text-red-400" : "hover:bg-red-50 text-gray-300 hover:text-red-400"}`}
                               >
                                 <FiX size={13} />
                               </button>
@@ -562,12 +567,12 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
              
               <button
                 onClick={onCartClick}
-                className={`icon-btn ${dm ? "dark-icon-btn" : "light-icon-btn"}`}
+                className={`icon-btn ${darkMode ? "dark-icon-btn" : "light-icon-btn"}`}
                 aria-label="Cart"
               >
                 <RiShoppingCartLine
                   size={20}
-                  className={dm ? "text-emerald-400" : "text-emerald-600"}
+                  className={darkMode ? "text-emerald-400" : "text-emerald-600"}
                 />
               </button>
             </>
@@ -577,17 +582,17 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
          
           <button
             onClick={toggleDarkMode}
-            className={`icon-btn ${dm ? "dark-icon-btn" : "light-icon-btn"} overflow-hidden`}
+            className={`icon-btn ${darkMode ? "dark-icon-btn" : "light-icon-btn"} overflow-hidden`}
             aria-label="Toggle theme"
           >
             <span
               style={{
                 display: "inline-flex",
                 transition: "transform 0.4s cubic-bezier(.16,1,.3,1), opacity 0.3s",
-                transform: dm ? "rotate(0deg)" : "rotate(180deg)",
+                transform: darkMode ? "rotate(0deg)" : "rotate(180deg)",
               }}
             >
-              {dm
+              {darkMode
                 ? <RiMoonLine size={20} className="text-emerald-400" />
                 : <RiSunLine size={20} className="text-amber-500" />
               }
@@ -627,9 +632,9 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
                
                 <button
                   onClick={() => setShowNotifications(v => !v)}
-                  className={`icon-btn ${dm ? "dark-icon-btn" : "light-icon-btn"}`}
+                  className={`icon-btn ${darkMode ? "dark-icon-btn" : "light-icon-btn"}`}
                 >
-                  <FiBell size={19} className={dm ? "text-emerald-400" : "text-emerald-600"} />
+                  <FiBell size={19} className={darkMode ? "text-emerald-400" : "text-emerald-600"} />
                   {unreadCount > 0 && (
                     <span
                       className="badge-pop absolute -top-1 -right-1 text-white text-[9px] font-bold rounded-full w-4.5 h-4.5 min-w-[18px] flex items-center justify-center px-0.5"
@@ -639,16 +644,16 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
                     </span>
                   )}
                 </button>
-                <button onClick={onCartClick} className={`icon-btn ${dm ? "dark-icon-btn" : "light-icon-btn"}`}>
-                  <RiShoppingCartLine size={19} className={dm ? "text-emerald-400" : "text-emerald-600"} />
+                <button onClick={onCartClick} className={`icon-btn ${darkMode ? "dark-icon-btn" : "light-icon-btn"}`}>
+                  <RiShoppingCartLine size={19} className={darkMode ? "text-emerald-400" : "text-emerald-600"} />
                 </button>
               </>
             )}
             <button
               onClick={toggleDarkMode}
-              className={`icon-btn ${dm ? "dark-icon-btn" : "light-icon-btn"}`}
+              className={`icon-btn ${darkMode ? "dark-icon-btn" : "light-icon-btn"}`}
             >
-              {dm
+              {darkMode
                 ? <RiMoonLine size={19} className="text-emerald-400" />
                 : <RiSunLine size={19} className="text-amber-500" />}
             </button>
@@ -659,16 +664,16 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
        
         {showNotifications && (
           <div className={`notif-panel mx-4 mb-3 rounded-2xl overflow-hidden border ${
-            dm
+            darkMode
               ? "bg-[#050e08]/98 border-emerald-500/25"
               : "bg-white border-gray-200 shadow-lg"
           }`}>
-            <div className={`flex justify-between items-center px-4 py-3 border-b ${dm ? "border-emerald-500/15" : "border-gray-100"}`}>
-              <span className={`text-sm font-bold ${dm ? "text-white" : "text-gray-900"}`} style={{ fontFamily: "'Outfit',sans-serif" }}>
+            <div className={`flex justify-between items-center px-4 py-3 border-b ${darkMode ? "border-emerald-500/15" : "border-gray-100"}`}>
+              <span className={`text-sm font-bold ${darkMode ? "text-white" : "text-gray-900"}`} style={{ fontFamily: "'Outfit',sans-serif" }}>
                 Notifications {unreadCount > 0 && <span className="text-emerald-500">({unreadCount})</span>}
               </span>
               <button onClick={() => setShowNotifications(false)}>
-                <FiX size={16} className={dm ? "text-gray-400" : "text-gray-500"} />
+                <FiX size={16} className={darkMode ? "text-gray-400" : "text-gray-500"} />
               </button>
             </div>
             <div className="notif-scroll max-h-64 overflow-y-auto">
@@ -677,10 +682,10 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
               ) : notifications.length === 0 ? (
                 <p className="p-6 text-center text-sm text-gray-500">No notifications</p>
               ) : notifications.map(notif => (
-                <div key={notif.id} className={`notif-item flex items-start gap-3 px-4 py-3 border-b ${dm ? "border-white/5" : "border-gray-50"}`}>
-                  <div className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${!notif.read ? "bg-emerald-500" : dm ? "bg-gray-700" : "bg-gray-300"}`} />
+                <div key={notif.id} className={`notif-item flex items-start gap-3 px-4 py-3 border-b ${darkMode ? "border-white/5" : "border-gray-50"}`}>
+                  <div className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${!notif.read ? "bg-emerald-500" : darkMode ? "bg-gray-700" : "bg-gray-300"}`} />
                   <div className="flex-1 min-w-0">
-                    <p className={`text-xs font-semibold truncate ${dm ? "text-gray-100" : "text-gray-900"}`}>{notif.title}</p>
+                    <p className={`text-xs font-semibold truncate ${darkMode ? "text-gray-100" : "text-gray-900"}`}>{notif.title}</p>
                     <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-1">{notif.message}</p>
                   </div>
                   <button onClick={() => deleteNotification(notif.id)}>
@@ -696,13 +701,13 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
 
       
       <div className={`nav-pill md:hidden fixed bottom-0 left-0 right-0 z-50 backdrop-blur-2xl border-t transition-all duration-300 ${
-        dm
+        darkMode
           ? "bg-[#030a06]/90 border-emerald-500/15"
           : "bg-white/98 border-gray-200"
       }`}>
        
        
-        {dm && (
+        {darkMode && (
           <div className="absolute top-0 left-0 right-0 h-px shimmer-line" />
         )}
         <div className="flex items-center justify-around px-2 py-2">
@@ -713,10 +718,10 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
               className={({ isActive }) =>
                 `mobile-tab ${
                   isActive
-                    ? dm
+                    ? darkMode
                       ? "text-emerald-400 bg-emerald-500/12"
                       : "text-emerald-600 bg-white border"
-                    : dm
+                    : darkMode
                       ? "text-gray-500"
                       : "text-gray-500"
                 }`
@@ -725,7 +730,7 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
               {({ isActive }) => (
                 <>
                   <span style={{
-                    filter: isActive && dm ? "drop-shadow(0 0 6px rgba(16,185,129,0.7))" : "none",
+                    filter: isActive && darkMode ? "drop-shadow(0 0 6px rgba(16,185,129,0.7))" : "none",
                     transition: "filter 0.2s, transform 0.2s",
                     transform: isActive ? "scale(1.1)" : "scale(1)",
                     display: "inline-flex"
@@ -738,7 +743,7 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
                       className="absolute bottom-1 left-1/2 w-4 h-0.5 rounded-full bg-emerald-500"
                       style={{
                         transform: "translateX(-50%)",
-                        boxShadow: dm ? "0 0 6px rgba(16,185,129,0.8)" : "none"
+                        boxShadow: darkMode ? "0 0 6px rgba(16,185,129,0.8)" : "none"
                       }}
                     />
                   )}

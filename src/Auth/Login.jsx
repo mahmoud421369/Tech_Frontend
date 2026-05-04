@@ -7,7 +7,8 @@ import { RiEyeLine, RiEyeOffLine } from "@remixicon/react";
 import { Award, BookOpen } from "lucide-react";
 import {
   FiMail, FiArrowLeft, FiRefreshCw, FiCreditCard,
-  FiDollarSign, FiCheckCircle, FiClock, FiAlertTriangle,
+  FiDollarSign, FiCheckCircle, FiClock, FiAlertTriangle,FiLock
+  , FiX,FiShield
 } from "react-icons/fi";
 import api from "../api";
 
@@ -22,15 +23,15 @@ const sanitize = (s) => String(s ?? "").replace(/[<>"'`]/g, "");
 
 
 const FRIENDLY_ERRORS = {
-  "bad credentials":            "The email or password you entered is incorrect.",
-  "user not found":             "No account found with this email address.",
-  "account is disabled":        "Your account has been disabled. Please contact support.",
-  "account is locked":          "Your account is temporarily locked. Try again later.",
-  "too many requests":          "Too many login attempts. Please wait a moment and try again.",
-  "invalid token":              "Your session has expired. Please log in again.",
-  "email not verified":         "Please verify your email address before signing in.",
-  "missing access token":       "Authentication failed. Please try again.",
-  "network error":              "Unable to connect. Please check your internet connection.",
+  "bad credentials": "The email or password you entered is incorrect.",
+  "user not found": "No account found with this email address.",
+  "account is disabled": "Your account has been disabled. Please contact support.",
+  "account is locked": "Your account is temporarily locked. Try again later.",
+  "too many requests": "Too many login attempts. Please wait a moment and try again.",
+  "invalid token": "Your session has expired. Please log in again.",
+  "email not verified": "Please verify your email address before signing in.",
+  "missing access token": "Authentication failed. Please try again.",
+  "network error": "Unable to connect. Please check your internet connection.",
 };
 
 
@@ -39,8 +40,8 @@ const FRIENDLY_ERRORS = {
 function parseError(raw) {
   const lower = (raw || "").toLowerCase().trim();
 
-  
-  
+
+
   if (
     lower.includes("subscription is expired") ||
     lower.includes("subscription expired") ||
@@ -54,8 +55,8 @@ function parseError(raw) {
     if (lower.includes(key)) return { message: friendly, isExpired: false };
   }
 
- 
-  
+
+
   const cleaned = sanitize(raw);
   return {
     message: cleaned
@@ -154,14 +155,14 @@ const ErrorBanner = ({ message, hint }) => (
 
 
 const ForgotPasswordModal = memo(({ onClose }) => {
-  const [step, setStep]         = useState("email");
-  const [email, setEmail]       = useState("");
-  const [otp, setOtp]           = useState(["", "", "", "", "", ""]);
-  const [newPassword, setNew]   = useState("");
+  const [step, setStep] = useState("email");
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [newPassword, setNew] = useState("");
   const [confirmPw, setConfirm] = useState("");
-  const [showPw, setShowPw]     = useState(false);
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [countdown, setCountdown] = useState(0);
   const inputsRef = React.useRef([]);
 
@@ -241,7 +242,7 @@ const ForgotPasswordModal = memo(({ onClose }) => {
     }
   }, [email, otp, newPassword, confirmPw]);
 
-  const inCls  = "w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 text-sm outline-none focus:ring-4 focus:ring-lime-300/50 focus:border-lime-500 transition-all";
+  const inCls = "w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 text-sm outline-none focus:ring-4 focus:ring-lime-300/50 focus:border-lime-500 transition-all";
   const otpCls = "w-10 h-11 sm:w-11 sm:h-12 text-center text-lg sm:text-xl font-bold rounded-xl bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-4 focus:ring-lime-300/50 focus:border-lime-500 transition-all";
 
   return (
@@ -263,9 +264,9 @@ const ForgotPasswordModal = memo(({ onClose }) => {
             )}
             <h3 className="text-sm font-bold text-gray-900 dark:text-white">
               {step === "email" && "Forgot Password"}
-              {step === "otp"   && "Enter Reset Code"}
+              {step === "otp" && "Enter Reset Code"}
               {step === "reset" && "Set New Password"}
-              {step === "done"  && "Password Reset!"}
+              {step === "done" && "Password Reset!"}
             </h3>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition text-gray-500 text-sm">✕</button>
@@ -377,218 +378,194 @@ const ForgotPasswordModal = memo(({ onClose }) => {
 
 
 
-const RenewalModal = memo(({ shopId, accessToken, onSuccess }) => {
+const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClose }) => {
   const navigate = useNavigate();
-  const [view, setView]           = useState("form");
-  const [loading, setLoading]     = useState(false);
+  const [view, setView] = useState(isPending ? "pending" : "form");
+  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("card");
-  const [months, setMonths]       = useState(1);
-  const [error, setError]         = useState("");
+  const [months, setMonths] = useState(1);
+  const [error, setError] = useState("");
   const totalPrice = months * PRICE_PER_MONTH;
 
   const renewCard = useCallback(async () => {
     setLoading(true); setError("");
     try {
       const res = await api.post(
-        `/api/subscriptions/renew/card/${shopId}`,
+        `/api/subscriptions/renew/card/${shopEmail}`,
         { months, type: "COMMISSION" },
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
-      const paymentUrl = res.data?.paymentUrl || res.data?.paymentURL;
-      if (paymentUrl) {
-        try {
-          const parsed = new URL(paymentUrl);
-          if (parsed.protocol === "https:") {
-            setView("redirect");
-            setTimeout(() => { window.location.href = paymentUrl; }, 1500);
-          } else {
-            setError("The payment URL received is not secure. Please contact support.");
-          }
-        } catch {
-          setError("An invalid payment URL was received. Please try again or contact support.");
-        }
+      if (res.data.paymentURL) {
+        setView("redirect");
+        window.location.href = res.data.paymentURL;
       } else {
-        Swal.fire({ icon: "success", title: "Payment Confirmed!", toast: true, position: "top-end", timer: 3000, showConfirmButton: false });
-        onSuccess();
+        onSuccess?.();
       }
     } catch (err) {
-      const raw = err.response?.data?.message || err.message;
-      setError(parseError(raw).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [shopId, months, accessToken, onSuccess]);
+      setError(err.response?.data?.message || "Card renewal failed. Please try again.");
+    } finally { setLoading(false); }
+  }, [shopEmail, months, accessToken, onSuccess]);
 
   const renewCash = useCallback(async () => {
     setLoading(true); setError("");
     try {
       await api.post(
-        `/api/subscriptions/cash`,
+        `/api/subscriptions/renew/cash/${shopEmail}`,
         { months, type: "COMMISSION" },
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
       setView("pending");
     } catch (err) {
-      const raw = err.response?.data?.message || err.message;
-      setError(parseError(raw).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [months, accessToken]);
+      setError(err.response?.data?.message || "Cash renewal failed. Please try again.");
+    } finally { setLoading(false); }
+  }, [shopEmail, months, accessToken]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4">
-      <div className="w-full sm:max-w-md bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-        <div className="sm:hidden flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-gray-700" />
-        </div>
-
+      <div className="bg-white dark:bg-gray-950 w-full max-w-md sm:rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-800 transition-all transform animate-in fade-in slide-in-from-bottom-4 duration-300">
         
-        
-        <div className="px-5 sm:px-6 py-4 border-b border-gray-100 dark:border-gray-800 bg-red-50 dark:bg-red-900/10 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
-            <FiClock size={18} className="text-red-500 dark:text-red-400" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-gray-900 dark:text-white">
-              {view === "form"     && "Subscription Expired"}
-              {view === "pending"  && "Awaiting Admin Approval"}
-              {view === "redirect" && "Redirecting to Payment"}
-            </h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              {view === "form"     && "You must renew to access your shop."}
-              {view === "pending"  && "Your cash request is under review."}
-              {view === "redirect" && "Please wait — do not close this tab."}
-            </p>
-          </div>
-        </div>
-
-        <div className="px-5 sm:px-6 py-5 max-h-[80vh] overflow-y-auto">
-
-          {view === "pending" && (
-            <div className="text-center space-y-5 py-2">
-              <div className="w-16 h-16 bg-amber-100 dark:bg-amber-900/30 rounded-2xl flex items-center justify-center mx-auto">
-                <FiClock size={30} className="text-amber-500 dark:text-amber-400" />
-              </div>
-              <div>
-                <p className="text-base font-bold text-gray-900 dark:text-white">Cash Request Submitted</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5 leading-relaxed">
-                  An admin must confirm your payment before you can access your shop.
+        <div className="px-5 sm:px-6 py-5 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-red-50 via-orange-50/50 to-white dark:from-red-900/10 dark:via-orange-900/5 dark:to-gray-950 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-white dark:bg-gray-800 shadow-sm border border-red-100 dark:border-red-900/30 flex items-center justify-center flex-shrink-0">
+              <FiClock size={24} className="text-red-500 animate-pulse" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight leading-none mb-1">
+                {view === "form" && "Renewal Required"}
+                {view === "pending" && "Pending Approval"}
+                {view === "redirect" && "Processing..."}
+              </h3>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                <p className="text-[10px] uppercase font-black text-gray-500 dark:text-gray-400 tracking-[0.15em]">
+                  {view === "form" && "Access Suspended"}
+                  {view === "pending" && "Queue: High Priority"}
+                  {view === "redirect" && "Secure Link Active"}
                 </p>
               </div>
-              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 text-left space-y-2">
-                <p className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wide">What happens next?</p>
-                <ul className="text-xs text-amber-700 dark:text-amber-400 space-y-1.5 list-disc list-inside">
-                  <li>An admin will review and confirm your cash payment.</li>
-                  <li>You will receive an email notification once confirmed.</li>
-                  <li><strong>You cannot access your shop until approved.</strong></li>
-                  <li>After confirmation, simply log in again.</li>
-                </ul>
+            </div>
+          </div>
+          <button onClick={onClose} className="w-10 h-10 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center transition-all text-gray-400 hover:text-red-500">
+            <FiX size={20} />
+          </button>
+        </div>
+
+        <div className="p-5 sm:p-7">
+          {view === "pending" && (
+            <div className="text-center space-y-6 py-4">
+              <div className="w-20 h-20 bg-amber-50 dark:bg-amber-900/20 rounded-3xl flex items-center justify-center mx-auto border-2 border-amber-100 dark:border-amber-800/30">
+                <FiClock size={36} className="text-amber-500" />
               </div>
-              <button
-                onClick={() => navigate("/login", { replace: true })}
-                className="w-full py-2.5 rounded-xl border-2 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-              >
+              <div className="space-y-2">
+                <h4 className="text-xl font-black text-gray-900 dark:text-white">Submission Successful</h4>
+                <p className="text-sm text-gray-500 dark:text-gray-400 max-w-[280px] mx-auto">
+                  Your cash renewal request has been sent to our admin team for verification.
+                </p>
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-4 border border-gray-100 dark:border-gray-800">
+                <p className="text-xs font-bold text-gray-600 dark:text-gray-400 leading-relaxed">
+                  Activation usually takes <span className="text-amber-600">1-4 hours</span>. Please keep your transaction receipt handy.
+                </p>
+              </div>
+              <button onClick={() => navigate("/login", { replace: true })} className="w-full h-12 rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold text-sm hover:scale-[1.02] active:scale-95 transition-all">
                 Back to Login
               </button>
             </div>
           )}
 
           {view === "redirect" && (
-            <div className="text-center space-y-5 py-2">
-              <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mx-auto">
-                <Spinner />
+            <div className="text-center space-y-6 py-6">
+              <div className="relative w-20 h-20 mx-auto">
+                <div className="absolute inset-0 rounded-3xl bg-blue-500/20 animate-ping" />
+                <div className="relative w-full h-full bg-blue-100 dark:bg-blue-900/30 rounded-3xl flex items-center justify-center border-2 border-blue-200 dark:border-blue-800">
+                  <Spinner />
+                </div>
               </div>
-              <div>
-                <p className="text-base font-bold text-gray-900 dark:text-white">Redirecting to Payment Gateway</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5">
-                  Please wait — <span className="font-semibold text-blue-600 dark:text-blue-400">do not close this window.</span>
+              <div className="space-y-2">
+                <h4 className="text-xl font-black text-gray-900 dark:text-white">Connecting Securely</h4>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Please wait while we prepare your <span className="font-bold text-blue-600">Secure Payment Link</span>.
                 </p>
+              </div>
+              <div className="flex items-center justify-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                <FiLock size={12} className="text-emerald-500" /> 256-bit SSL Encryption
               </div>
             </div>
           )}
 
           {view === "form" && (
-            <div className="space-y-5">
+            <div className="space-y-6">
               {error && <ErrorBanner message={error} />}
 
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3.5">
-                <p className="text-xs text-red-700 dark:text-red-400 font-medium text-center">
-                  ⚠️ Your subscription has expired. Renew now to regain access to your shop.
-                </p>
-              </div>
-
-              
-              
-
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Duration</span>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => setMonths(m => Math.max(1, m - 1))} className="w-7 h-7 rounded-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition font-bold">−</button>
-                    <span className="text-lg font-bold text-gray-900 dark:text-white w-8 text-center">{months}</span>
-                    <button onClick={() => setMonths(m => Math.min(12, m + 1))} className="w-7 h-7 rounded-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition font-bold">+</button>
-                    <span className="text-sm text-gray-500 dark:text-gray-400 ml-1">month{months > 1 ? "s" : ""}</span>
+              <div className="relative overflow-hidden bg-gray-900 dark:bg-black rounded-3xl p-5 text-white shadow-xl shadow-gray-200 dark:shadow-none">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-lime-500/10 rounded-full -mr-16 -mt-16 blur-2xl" />
+                <div className="relative z-10 flex items-center justify-between mb-4">
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-400">Merchant Plan</span>
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/10 backdrop-blur-md border border-white/10">
+                    <FiShield size={10} className="text-lime-400" />
+                    <span className="text-[8px] font-bold uppercase tracking-widest">Secure Checkout</span>
                   </div>
                 </div>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">{PRICE_PER_MONTH.toLocaleString()} {CURRENCY} × {months}</span>
-                  <span className="text-xl font-extrabold text-lime-600 dark:text-lime-400">{totalPrice.toLocaleString()} {CURRENCY}</span>
+                <div className="flex items-end justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Total Due</p>
+                    <h2 className="text-3xl font-black tracking-tighter">
+                      {totalPrice.toLocaleString()} <span className="text-lg font-medium text-gray-500">{CURRENCY}</span>
+                    </h2>
+                  </div>
+                  <div className="flex items-center gap-2 bg-white/5 p-1 rounded-xl border border-white/5">
+                    <button onClick={() => setMonths(m => Math.max(1, m - 1))} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 transition font-bold text-lg text-lime-400">−</button>
+                    <div className="px-2 text-center">
+                      <p className="text-lg font-black leading-none">{months}</p>
+                      <p className="text-[8px] uppercase font-bold text-gray-500">Mo</p>
+                    </div>
+                    <button onClick={() => setMonths(m => Math.min(12, m + 1))} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 transition font-bold text-lg text-lime-400">+</button>
+                  </div>
                 </div>
               </div>
 
-              
-              
-
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-3">
                 {[
-                  { k: "card", l: "Pay by Card", icon: <FiCreditCard size={13} /> },
-                  { k: "cash", l: "Pay Cash",    icon: <FiDollarSign size={13} /> },
-                ].map(({ k, l, icon }) => (
+                  { k: "card", l: "Credit Card", icon: <FiCreditCard size={14} />, color: "blue" },
+                  { k: "cash", l: "Cash Payment", icon: <FiDollarSign size={14} />, color: "emerald" },
+                ].map(({ k, l, icon, color }) => (
                   <button key={k} onClick={() => setActiveTab(k)}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold border-2 transition-all ${
-                      activeTab === k
-                        ? "bg-lime-500 border-lime-500 text-white"
-                        : "border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:border-lime-400"
-                    }`}>
-                    {icon}{l}
+                    className={`flex flex-col items-center justify-center gap-2 py-4 rounded-2xl border-2 transition-all duration-200 ${activeTab === k
+                      ? `border-${color}-500 bg-${color}-50/50 dark:bg-${color}-900/20`
+                      : "border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-gray-200 dark:hover:border-gray-700"
+                      }`}>
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${activeTab === k ? `bg-${color}-500 text-white` : "bg-gray-50 dark:bg-gray-800 text-gray-400"}`}>
+                      {icon}
+                    </div>
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${activeTab === k ? `text-${color}-600 dark:text-${color}-400` : "text-gray-500"}`}>
+                      {l}
+                    </span>
                   </button>
                 ))}
               </div>
 
-              {activeTab === "card" && (
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-3">
-                  <p className="text-xs text-blue-700 dark:text-blue-400 font-medium">
-                    You'll be redirected to a secure payment gateway. Your subscription activates automatically after payment.
-                  </p>
-                </div>
-              )}
-              {activeTab === "cash" && (
-                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3">
-                  <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">
-                    After submitting, an admin must confirm your payment. <strong>You cannot access your shop until confirmed.</strong>
-                  </p>
-                </div>
-              )}
-
-              <button
-                onClick={activeTab === "card" ? renewCard : renewCash}
-                disabled={loading}
-                className={`w-full py-3 rounded-xl text-white text-sm font-bold transition disabled:opacity-60 flex items-center justify-center gap-2 shadow-sm ${
-                  activeTab === "card" ? "bg-blue-600 hover:bg-blue-700" : "bg-lime-500 hover:bg-lime-600"
-                }`}
-              >
-                {loading
-                  ? <><Spinner /> Processing...</>
-                  : activeTab === "card"
-                    ? <><FiCreditCard size={13} /> Pay Now</>
-                    : <><FiDollarSign size={13} /> Submit Cash Request</>
-                }
-              </button>
-
-              <p className="text-center text-xs text-gray-400 dark:text-gray-500">
-                You cannot access your shop until your subscription is active.
-              </p>
+              <div className="space-y-4">
+                <button
+                  onClick={activeTab === "card" ? renewCard : renewCash}
+                  disabled={loading}
+                  className={`w-full h-14 rounded-2xl text-white text-sm font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3 ${activeTab === "card" ? "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20" : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20"}`}
+                >
+                  {loading ? (
+                    <Spinner />
+                  ) : (
+                    <>
+                      {activeTab === "card" ? <FiCreditCard size={18} /> : <FiDollarSign size={18} />}
+                      {activeTab === "card" ? "Activate with Card" : "Confirm Cash Entry"}
+                    </>
+                  )}
+                </button>
+                
+                <p className="text-center text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                  {activeTab === "card" 
+                    ? "Instant access granted after payment" 
+                    : "Admin approval required for cash"}
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -601,15 +578,69 @@ const RenewalModal = memo(({ shopId, accessToken, onSuccess }) => {
 
 
 function checkLatestSubscription(subs) {
-  if (!Array.isArray(subs) || subs.length === 0) return { expired: false, shopId: null };
+  if (!Array.isArray(subs) || subs.length === 0) {
+    return { expired: true, shopId: null, isPending: false, noSubs: true };
+  }
+
+  const now = new Date();
+
+
+  
+
+  const activeSub = subs.find(s => {
+    const rawEnd = s.endDate || s.end_date || s.expiryDate;
+    const end = rawEnd ? new Date(rawEnd) : null;
+    
+   
+    
+    const isNotExpired = end && end.getTime() > (now.getTime() - 86400000); 
+    
+    const sStatus = (s.status || '').toUpperCase();
+    const pStatus = (s.paymentStatus || s.payment_status || '').toUpperCase();
+    
+    const isPaid = ['PAID', 'ACTIVE', 'SETTLED', 'COMPLETED', 'SUCCESS', 'APPROVED'].some(
+      term => sStatus === term || pStatus === term
+    );
+    
+    return isNotExpired && isPaid;
+  });
+
+ 
+  
+  if (activeSub) {
+    return {
+      expired: false,
+      shopId: activeSub.shopId || activeSub.shop?.id || null,
+      isPending: false,
+    };
+  }
+
+  
+  
+
+  const pendingSub = subs.find(s => {
+    const sStatus = (s.status || '').toUpperCase();
+    const pStatus = (s.paymentStatus || s.payment_status || '').toUpperCase();
+    const pMethod = (s.paymentMethod || s.payment_method || s.payment?.method || '').toUpperCase();
+    
+    return (sStatus === 'PENDING' || pStatus === 'PENDING') && pMethod === 'CASH';
+  });
+
+  
+  
   const sorted = [...subs].sort(
-    (a, b) => (b.endDate ? new Date(b.endDate).getTime() : 0) - (a.endDate ? new Date(a.endDate).getTime() : 0)
+    (a, b) => {
+      const dateA = new Date(a.endDate || a.end_date || 0).getTime();
+      const dateB = new Date(b.endDate || b.end_date || 0).getTime();
+      return dateB - dateA;
+    }
   );
-  const latest  = sorted[0];
-  const endDate = latest.endDate ? new Date(latest.endDate) : null;
+  const latest = sorted[0];
+
   return {
-    expired: endDate !== null && endDate < new Date(),
-    shopId:  latest.shopId || latest.shop?.id || null,
+    expired: !pendingSub,
+    shopId: latest.shopId || latest.shop?.id || null,
+    isPending: !!pendingSub,
   };
 }
 
@@ -618,46 +649,46 @@ function checkLatestSubscription(subs) {
 
 
 const Login = ({ darkMode }) => {
-  const [formData, setFormData]         = useState({ email: "", password: "" });
+  const [formData, setFormData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors]             = useState({ email: "", password: "", general: "" });
-  const [touched, setTouched]           = useState({ email: false, password: false });
-  const [loading, setLoading]           = useState(false);
-  const [showForgot, setShowForgot]     = useState(false);
-  const [renewalData, setRenewalData]   = useState(null);
+  const [errors, setErrors] = useState({ email: "", password: "", general: "" });
+  const [touched, setTouched] = useState({ email: false, password: false });
+  const [loading, setLoading] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
+  const [renewalData, setRenewalData] = useState(null);
 
-  const navigate        = useNavigate();
+  const navigate = useNavigate();
   const { setUserData } = useAuthStore();
 
   useEffect(() => { document.title = "Sign In | Tech-Restore"; }, []);
 
   const redirectMap = useMemo(() => ({
-    ROLE_ADMIN:      "/admin/dashboard",
-    ROLE_REPAIRER:   "/shop/dashboard",
-    ROLE_SELLER:     "/shop/dashboard",
+    ROLE_ADMIN: "/admin/dashboard",
+    ROLE_REPAIRER: "/shop/dashboard",
+    ROLE_SELLER: "/shop/dashboard",
     ROLE_SHOP_OWNER: "/shop/dashboard",
-    ROLE_ASSIGNER:   "/assigner/dashboard",
-    ROLE_DELIVERY:   "/delivery/dashboard",
-    ROLE_GUEST:      "/",
+    ROLE_ASSIGNER: "/assigner/dashboard",
+    ROLE_DELIVERY: "/delivery/dashboard",
+    ROLE_GUEST: "/",
   }), []);
 
   const SHOP_ROLES = useMemo(() => new Set(["ROLE_SHOP_OWNER", "ROLE_REPAIRER", "ROLE_SELLER"]), []);
 
-  const validateEmail    = useCallback((v) => !v.trim() ? "Email address is required." : !EMAIL_REGEX.test(v) ? "Please enter a valid email address." : "", []);
+  const validateEmail = useCallback((v) => !v.trim() ? "Email address is required." : !EMAIL_REGEX.test(v) ? "Please enter a valid email address." : "", []);
   const validatePassword = useCallback((v) => !v ? "Password is required." : v.length < MIN_PASSWORD_LENGTH ? `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` : "", []);
 
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
     setFormData(p => ({ ...p, [name]: value }));
     setErrors(p => ({ ...p, [name]: "", general: "" }));
-    if (name === "email")    setErrors(p => ({ ...p, email:    validateEmail(value) }));
+    if (name === "email") setErrors(p => ({ ...p, email: validateEmail(value) }));
     if (name === "password") setErrors(p => ({ ...p, password: validatePassword(value) }));
   }, [validateEmail, validatePassword]);
 
   const handleBlur = useCallback((e) => {
     const { name, value } = e.target;
     setTouched(p => ({ ...p, [name]: true }));
-    if (name === "email")    setErrors(p => ({ ...p, email:    validateEmail(value) }));
+    if (name === "email") setErrors(p => ({ ...p, email: validateEmail(value) }));
     if (name === "password") setErrors(p => ({ ...p, password: validatePassword(value) }));
   }, [validateEmail, validatePassword]);
 
@@ -687,18 +718,18 @@ const Login = ({ darkMode }) => {
 
     try {
       const res = await api.post("/api/auth/login", {
-        email:    formData.email.trim(),
+        email: formData.email.trim(),
         password: formData.password,
       });
 
-      const { access_token: accessToken, role, id: backendId, email: backendEmail } = res.data;
+      const { access_token: accessToken, role, id: backendId, email: backendEmail, shopId: loginShopId } = res.data;
       if (!accessToken) throw new Error("Missing access token");
 
       let decoded;
-      try { decoded = jwtDecode(accessToken); } catch {  }
+      try { decoded = jwtDecode(accessToken); } catch { }
 
-      const roles      = Array.isArray(role) ? role : role ? [role] : [];
-      const finalId    = backendId ?? decoded?.sub ?? null;
+      const roles = Array.isArray(role) ? role : role ? [role] : [];
+      const finalId = backendId ?? decoded?.sub ?? null;
       const finalEmail = backendEmail ?? formData.email;
 
       localStorage.setItem("id", finalId);
@@ -708,18 +739,19 @@ const Login = ({ darkMode }) => {
       for (const r of roles) { if (redirectMap[r]) { redirectPath = redirectMap[r]; break; } }
 
 
-      
+
 
       if (roles.some(r => SHOP_ROLES.has(r))) {
-        const { expired, shopId } = await checkSubscription(accessToken);
-        if (expired) {
+        const { expired, shopId: subShopId, isPending } = await checkSubscription(accessToken);
+        const finalShopId = subShopId || loginShopId || res.data.shop?.id;
+        if (expired || isPending) {
           needsRenewal = true;
-          setRenewalData({ shopId, accessToken, redirectPath });
+          setRenewalData({ shopId: finalShopId, shopEmail: finalEmail, accessToken, redirectPath, isPending });
           return;
         }
       }
-   
-      
+
+
 
 
       await Swal.fire({
@@ -734,23 +766,26 @@ const Login = ({ darkMode }) => {
       const rawMessage = err.response?.data?.message || err.message || "";
       const { message: friendlyMessage, isExpired } = parseError(rawMessage);
 
-   
-      
+
+
 
       if (isExpired) {
-  
-        
         const shopId =
           err.response?.data?.shopId ||
           err.response?.data?.shop?.id ||
+          err.response?.data?.id || 
           null;
 
-      
-          
         const accessToken = err.response?.data?.access_token || null;
 
+        let isPending = false;
+        if (accessToken) {
+          const subCheck = await checkSubscription(accessToken);
+          isPending = subCheck.isPending;
+        }
+
         needsRenewal = true;
-        setRenewalData({ shopId, accessToken, redirectPath: "/shop/dashboard" });
+        setRenewalData({ shopId, shopEmail: formData.email.trim(), accessToken, redirectPath: "/shop/dashboard", isPending });
         return;
       }
 
@@ -774,19 +809,19 @@ const Login = ({ darkMode }) => {
     setRenewalData(null);
   }, [navigate, renewalData]);
 
-  const eErr = touched.email    && errors.email;
+  const eErr = touched.email && errors.email;
   const pErr = touched.password && errors.password;
 
-  const ib  = "w-full px-4 py-3 sm:py-3.5 rounded-xl bg-white dark:bg-gray-900 border-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 transition-all text-sm sm:text-base outline-none focus:ring-4 focus:ring-lime-300/50 dark:focus:ring-lime-500/30 focus:border-lime-500 dark:focus:border-lime-500";
+  const ib = "w-full px-4 py-3 sm:py-3.5 rounded-xl bg-white dark:bg-gray-900 border-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 transition-all text-sm sm:text-base outline-none focus:ring-4 focus:ring-lime-300/50 dark:focus:ring-lime-500/30 focus:border-lime-500 dark:focus:border-lime-500";
   const in_ = "border-gray-200 dark:border-gray-700";
-  const ie  = "border-red-300 dark:border-red-600 focus:border-red-500 focus:ring-red-300/50";
+  const ie = "border-red-300 dark:border-red-600 focus:border-red-500 focus:ring-red-300/50";
 
   return (
     <div className="relative min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
       <DotsBackground />
 
-     
-     
+
+
       <nav className="fixed top-0 w-full z-50 border-b border-gray-200 dark:border-gray-800 bg-white/90 dark:bg-gray-950/90 backdrop-blur-xl">
         <div className="h-0.5 bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-500" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-3.5 flex items-center justify-end gap-3 sm:gap-5">
@@ -801,13 +836,13 @@ const Login = ({ darkMode }) => {
         </div>
       </nav>
 
-     
-     
+
+
       <section className="relative z-10 pt-16 sm:pt-20 pb-8 sm:pb-16 px-4 sm:px-6 min-h-screen flex items-center">
         <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center w-full py-4 sm:py-0">
 
-          
-          
+
+
           <div className="relative flex justify-center order-2 md:order-1">
             <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-none">
               <CartoonIllustration />
@@ -826,7 +861,7 @@ const Login = ({ darkMode }) => {
             </div>
           </div>
 
-          
+
           <div className="space-y-5 sm:space-y-7 order-1 md:order-2">
             <div>
               <div className="inline-flex items-center gap-2 bg-lime-100 dark:bg-lime-900/30 text-lime-700 dark:text-lime-400 px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium mb-3 sm:mb-5">
@@ -840,14 +875,14 @@ const Login = ({ darkMode }) => {
 
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl sm:rounded-3xl shadow-xl p-5 sm:p-7 space-y-4 sm:space-y-5">
 
-             
-             
+
+
               {errors.general && (
                 <ErrorBanner
                   message={errors.general}
                   hint={
                     errors.general.toLowerCase().includes("incorrect") ||
-                    errors.general.toLowerCase().includes("not found")
+                      errors.general.toLowerCase().includes("not found")
                       ? "Double-check your email and password, or use 'Forgot your password?' below."
                       : undefined
                   }
@@ -855,8 +890,8 @@ const Login = ({ darkMode }) => {
               )}
 
               <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5" noValidate>
-                
-                
+
+
                 <div className="space-y-1.5">
                   <label htmlFor="login-email" className="block text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">Email address</label>
                   <input
@@ -872,7 +907,7 @@ const Login = ({ darkMode }) => {
                   )}
                 </div>
 
-              
+
 
                 <div className="space-y-1.5">
                   <label htmlFor="login-password" className="block text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">Password</label>
@@ -894,8 +929,8 @@ const Login = ({ darkMode }) => {
                   )}
                 </div>
 
-               
-               
+
+
 
                 <div className="text-right">
                   <button type="button" onClick={() => setShowForgot(true)} className="text-xs sm:text-sm text-lime-600 dark:text-lime-400 hover:text-lime-800 dark:hover:text-lime-200 font-medium hover:underline">
@@ -932,16 +967,18 @@ const Login = ({ darkMode }) => {
         </div>
       </section>
 
-    
-    
-    
+
+
+
       {showForgot && <ForgotPasswordModal onClose={() => setShowForgot(false)} />}
 
       {renewalData && (
         <RenewalModal
-          shopId={renewalData.shopId}
+          shopEmail={renewalData.shopEmail}
           accessToken={renewalData.accessToken}
+          isPending={renewalData.isPending}
           onSuccess={handleRenewalSuccess}
+          onClose={() => setRenewalData(null)}
         />
       )}
     </div>

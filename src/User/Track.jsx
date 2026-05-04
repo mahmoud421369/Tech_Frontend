@@ -1,15 +1,12 @@
-import React, { useState, useEffect, memo } from "react";
+import React, { useState, useEffect, memo, useCallback, useMemo } from "react";
 import {
   FiPackage, FiCheckCircle, FiTruck, FiXCircle,
   FiClock, FiChevronDown, FiHome, FiStar,
-  FiUsers, FiZap, FiShield,
+  FiUsers, FiZap,
 } from "react-icons/fi";
 import { RiCarLine, RiMotorbikeLine } from "react-icons/ri";
 import { motion, AnimatePresence } from "framer-motion";
-import Swal from "sweetalert2";
 import api from "../api";
-
-
 
 const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap');
@@ -63,9 +60,6 @@ const STYLES = `
   .progress-fill { animation: progressFill 1s cubic-bezier(.16,1,.3,1) both; }
 `;
 
-
-
-
 const STATUS_STEPS = [
   { key: "PENDING",          label: "Order Placed",        sub: "Your order has been received",       icon: <FiClock className="w-5 h-5" /> },
   { key: "CONFIRMED",        label: "Confirmed",           sub: "Order confirmed by our team",        icon: <FiCheckCircle className="w-5 h-5" /> },
@@ -76,34 +70,28 @@ const STATUS_STEPS = [
   { key: "CANCELLED",        label: "Cancelled",           sub: "Order has been cancelled",           icon: <FiXCircle className="w-5 h-5" /> },
 ];
 
-
-
-
-const WaveBottom = ({ darkMode }) => (
+const WaveBottom = memo(({ darkMode }) => (
   <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-none pointer-events-none">
     <svg viewBox="0 0 1440 100" xmlns="http://www.w3.org/2000/svg" className="relative block w-full h-16 md:h-24" preserveAspectRatio="none">
       <path d="M0,50 C180,100 360,0 540,50 C720,100 900,0 1080,50 C1260,100 1380,20 1440,50 L1440,100 L0,100 Z" fill={darkMode ? '#111827' : '#f9fafb'} />
     </svg>
   </div>
-);
-const WaveTop = ({ darkMode }) => (
+));
+
+const WaveTop = memo(({ darkMode }) => (
   <div className="absolute top-0 left-0 w-full overflow-hidden leading-none pointer-events-none">
     <svg viewBox="0 0 1440 80" xmlns="http://www.w3.org/2000/svg" className="relative block w-full h-12 md:h-20" preserveAspectRatio="none">
       <path d="M0,40 C360,80 720,0 1080,40 C1260,60 1380,20 1440,40 L1440,0 L0,0 Z" fill={darkMode ? '#111827' : '#f9fafb'} />
     </svg>
   </div>
-);
+));
 
-
-
-
-
-const StatCard = ({ icon, value, label, accent, delay, darkMode }) => (
+const StatCard = memo(({ icon, value, label, accent, delay, darkMode }) => (
   <motion.div
-    initial={{ opacity: 0, y: 28, scale: 0.93 }}
+    initial={{ opacity: 0, y: 20, scale: 0.95 }}
     whileInView={{ opacity: 1, y: 0, scale: 1 }}
     transition={{ duration: 0.5, delay }}
-    viewport={{ once: true }}
+    viewport={{ once: true, margin: "-50px" }}
     whileHover={{ y: -4, scale: 1.03 }}
     className={`relative overflow-hidden rounded-2xl p-4 shadow-xl border transition-all duration-300 ${
       darkMode ? 'bg-gray-800/80 border-gray-700/60 backdrop-blur-md' : 'bg-white/90 border-gray-100 backdrop-blur-md'
@@ -118,50 +106,13 @@ const StatCard = ({ icon, value, label, accent, delay, darkMode }) => (
     </div>
     <p className={`text-xs font-semibold pl-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{label}</p>
   </motion.div>
-);
+));
 
-
-
-
-
-const Track = memo(({ darkMode }) => {
-  const token = localStorage.getItem("authToken");
-  const [orders, setOrders] = useState([]);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
-  useEffect(() => { document.title = "Track your order | Tech-Restore"; }, []);
-
-  useEffect(() => {
-  
-    const fetchOrders = async () => {
-      if (!token) { setIsLoading(false); return; }
-      setIsLoading(true);
-      try {
-        const res = await api.get("/api/users/orders", { headers: { Authorization: `Bearer ${token}` } });
-        const data = res.data.content || res.data || [];
-        setOrders(data);
-        if (data.length > 0) setSelectedOrder(data[0]);
-      } catch {}
-      finally { setIsLoading(false); }
-    };
-    fetchOrders();
-  }, [token]);
-
-  const heroStats = [
-    { icon: <FiZap size={15} />,   value: "98.9%", label: "On-time delivery",  accent: "#0d9488", delay: 0.1 },
-    { icon: <FiUsers size={15} />, value: "~50K",  label: "Packages daily",    accent: "#3b82f6", delay: 0.2 },
-    { icon: <FiStar size={15} />,  value: "4.9★",  label: "Customer rating",   accent: "#f59e0b", delay: 0.3 },
-  ];
-
-
-  const HeroSection = () => (
-    <div className="min-h-screen">
+const HeroSection = memo(({ darkMode, heroStats }) => (
+  <div className="min-h-screen">
     <section className={`relative overflow-hidden pt-10 pb-32 md:pt-24 -mt-8 md:pb-40  ${
       darkMode ? 'bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950' : 'bg-gradient-to-br from-lime-50 via-white to-emerald-50'
     }`}>
-      
       <div className="blob1 absolute w-[400px] h-[400px] -top-32 -left-24 rounded-full blur-3xl opacity-20 bg-lime-400 pointer-events-none" />
       <div className="blob2 absolute w-[350px] h-[350px] top-8 -right-16 rounded-full blur-3xl opacity-15 bg-emerald-500 pointer-events-none" />
       <div className="blob3 absolute w-[250px] h-[250px] bottom-20 left-1/2 rounded-full blur-3xl opacity-10 bg-teal-300 pointer-events-none" />
@@ -170,10 +121,9 @@ const Track = memo(({ darkMode }) => {
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid md:grid-cols-2 gap-10 lg:gap-16 items-center">
-          
           <div className="space-y-6">
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border text-sm font-semibold bg-lime-500/10 border-lime-500/30 text-lime-600 dark:text-lime-400"
+              className="inline-flex items-center gap-2 px-4 mt-6 py-1.5 rounded-full border text-sm font-semibold bg-lime-500/10 border-lime-500/30 text-lime-600 dark:text-lime-400"
             >
               <span className="w-2 h-2 rounded-full bg-lime-500 animate-ping" />
               Real-time order tracking
@@ -201,11 +151,9 @@ const Track = memo(({ darkMode }) => {
             </div>
           </div>
 
-          
           <div className="relative h-64 sm:h-72 lg:h-[420px] hidden md:block">
             <div className="absolute inset-0 bg-gradient-to-br from-lime-300/20 to-emerald-300/20 dark:from-lime-900/15 dark:to-emerald-900/15 rounded-full blur-3xl scale-125" />
             <div className="relative w-full h-full">
-              
               <motion.div initial={{ opacity: 0, rotate: 10, y: 20 }} animate={{ opacity: 1, rotate: 12, y: 0 }} transition={{ duration: 0.8, delay: 0.2 }} whileHover={{ rotate: 5, scale: 1.04 }}
                 className={`absolute top-8 left-6 w-44 rounded-3xl shadow-2xl overflow-hidden border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
               >
@@ -228,7 +176,6 @@ const Track = memo(({ darkMode }) => {
                 </div>
               </motion.div>
 
-             
               <motion.div initial={{ opacity: 0, rotate: -8, y: 20 }} animate={{ opacity: 1, rotate: -10, y: 0 }} transition={{ duration: 0.8, delay: 0.35 }} whileHover={{ rotate: -4, scale: 1.04 }}
                 className={`absolute bottom-10 right-8 w-52 rounded-3xl shadow-2xl overflow-hidden border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
               >
@@ -247,7 +194,6 @@ const Track = memo(({ darkMode }) => {
                 </div>
               </motion.div>
 
-             
               <motion.div initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.7, delay: 0.15 }} whileHover={{ scale: 1.07, y: -4 }}
                 className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-40 rounded-3xl shadow-2xl overflow-hidden border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
               >
@@ -262,7 +208,6 @@ const Track = memo(({ darkMode }) => {
                 </div>
               </motion.div>
 
-             
               <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
                 className="float-badge absolute top-1/4 right-4 z-20 bg-gradient-to-r from-lime-500 to-emerald-500 text-white text-xs font-bold px-3 py-2 rounded-2xl shadow-xl"
               >
@@ -274,15 +219,48 @@ const Track = memo(({ darkMode }) => {
       </div>
       <WaveBottom darkMode={darkMode} />
     </section>
-    </div>
-  );
+  </div>
+));
 
-  
+const Track = memo(({ darkMode }) => {
+  const token = localStorage.getItem("authToken");
+  const [orders, setOrders] = useState([]);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  useEffect(() => { document.title = "Track your order | Tech-Restore"; }, []);
+
+  const fetchOrders = useCallback(async () => {
+    if (!token) { setIsLoading(false); return; }
+    setIsLoading(true);
+    try {
+      const res = await api.get("/api/users/orders", { headers: { Authorization: `Bearer ${token}` } });
+      const data = res.data.content || res.data || [];
+      setOrders(data);
+      if (data.length > 0) setSelectedOrder(data[0]);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+  const heroStats = useMemo(() => [
+    { icon: <FiZap size={15} />,   value: "98.9%", label: "On-time delivery",  accent: "#0d9488", delay: 0.1 },
+    { icon: <FiUsers size={15} />, value: "~50K",  label: "Packages daily",    accent: "#3b82f6", delay: 0.2 },
+    { icon: <FiStar size={15} />,  value: "4.9★",  label: "Customer rating",   accent: "#f59e0b", delay: 0.3 },
+  ], []);
+
   if (isLoading) return (
     <>
       <style>{STYLES}</style>
       <div className={`track-root min-h-screen ${darkMode ? 'bg-gray-900' : 'bg-gray-50'} pt-16`}>
-        <HeroSection />
+        <HeroSection darkMode={darkMode} heroStats={heroStats} />
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
           <div className={`rounded-2xl border shadow-xl overflow-hidden ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             <div className="h-1 bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-500" />
@@ -304,12 +282,11 @@ const Track = memo(({ darkMode }) => {
     </>
   );
 
-  
   if (!token) return (
     <>
       <style>{STYLES}</style>
       <div className={`track-root min-h-screen ${darkMode ? 'bg-gray-900' : 'bg-gray-50'} pt-16`}>
-        <HeroSection />
+        <HeroSection darkMode={darkMode} heroStats={heroStats} />
         <div className="max-w-md mx-auto px-4 sm:px-6 py-10 text-center">
           <div className={`rounded-2xl border shadow-xl p-8 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             <div className="h-1 bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-500 -mx-8 -mt-8 mb-8 rounded-t-2xl" />
@@ -327,27 +304,20 @@ const Track = memo(({ darkMode }) => {
     </>
   );
 
-
   const currentStepIndex = STATUS_STEPS.findIndex((s) => s.key === selectedOrder?.status);
   const isCancelled = selectedOrder?.status === "CANCELLED";
   const progressPct = isCancelled ? 0 : Math.round(((currentStepIndex) / (STATUS_STEPS.length - 2)) * 100);
 
- 
   return (
     <>
       <style>{STYLES}</style>
       <div className={`track-root min-h-screen ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50'} pt-16 pb-16`}>
-
-        <HeroSection />
-
-       
+        <HeroSection darkMode={darkMode} heroStats={heroStats} />
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
           <div className={`rounded-2xl border shadow-xl overflow-hidden ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             <div className="h-1 bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-500" />
-
             <div className="p-5 sm:p-8">
               {orders.length === 0 ? (
-               
                 <div className="text-center py-16 space-y-5">
                   <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
                     <FiPackage className="w-10 h-10 text-gray-400" />
@@ -364,7 +334,6 @@ const Track = memo(({ darkMode }) => {
                 </div>
               ) : (
                 <>
-                
                   <div className="relative mb-8">
                     <p className={`text-xs font-semibold uppercase tracking-widest mb-2 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>Select Order</p>
                     <button
@@ -388,7 +357,6 @@ const Track = memo(({ darkMode }) => {
                       </div>
                       <FiChevronDown className={`transition-transform duration-300 text-lime-500 ${isDropdownOpen ? 'rotate-180' : ''}`} />
                     </button>
-
                     <AnimatePresence>
                       {isDropdownOpen && (
                         <motion.div
@@ -421,8 +389,6 @@ const Track = memo(({ darkMode }) => {
                       )}
                     </AnimatePresence>
                   </div>
-
-                  
                   {selectedOrder && (
                     <AnimatePresence mode="wait">
                       <motion.div
@@ -433,7 +399,6 @@ const Track = memo(({ darkMode }) => {
                         transition={{ duration: 0.25 }}
                         className="space-y-6"
                       >
-                        
                         <div className={`rounded-xl p-4 border flex flex-wrap items-center justify-between gap-3 ${
                           darkMode ? 'bg-gray-900/50 border-gray-700/50' : 'bg-lime-50/60 border-lime-100'
                         }`}>
@@ -449,8 +414,6 @@ const Track = memo(({ darkMode }) => {
                             : 'bg-lime-100 text-lime-700 dark:bg-lime-900/40 dark:text-lime-300'
                           }`}>{selectedOrder.status}</span>
                         </div>
-
-                       
                         {!isCancelled && (
                           <div className="space-y-2">
                             <div className="flex justify-between items-center">
@@ -468,17 +431,14 @@ const Track = memo(({ darkMode }) => {
                             </div>
                           </div>
                         )}
-
-                       
                         <div className="relative">
                           <div className="timeline-line" />
                           <div className="space-y-1">
-                            {STATUS_STEPS.filter(s => isCancelled ? (s.key !== 'DELIVERED') : (s.key !== 'CANCELLED')).map((step, index, arr) => {
+                            {STATUS_STEPS.filter(s => isCancelled ? (s.key !== 'DELIVERED') : (s.key !== 'CANCELLED')).map((step, index) => {
                               const stepIndex = STATUS_STEPS.findIndex(s => s.key === step.key);
                               const isCompleted = !isCancelled && stepIndex <= currentStepIndex;
                               const isCurrent = stepIndex === currentStepIndex;
                               const isCancelledStep = isCancelled && step.key === 'CANCELLED';
-
                               return (
                                 <motion.div
                                   key={step.key}
@@ -487,7 +447,6 @@ const Track = memo(({ darkMode }) => {
                                   transition={{ duration: 0.3, delay: index * 0.06 }}
                                   className="flex items-start gap-5 py-3 pl-1 relative"
                                 >
-                                  
                                   <div className={`relative z-10 w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-500 ${
                                     isCancelledStep
                                       ? 'bg-red-500 text-white shadow-lg shadow-red-500/30'
@@ -497,8 +456,6 @@ const Track = memo(({ darkMode }) => {
                                   } ${isCurrent ? 'step-pulse' : ''}`}>
                                     {step.icon}
                                   </div>
-
-                                 
                                   <div className="flex-1 pt-1.5">
                                     <p className={`text-sm font-bold leading-snug ${
                                       isCancelledStep ? 'text-red-500 dark:text-red-400'
@@ -517,8 +474,6 @@ const Track = memo(({ darkMode }) => {
                                       </span>
                                     )}
                                   </div>
-
-                                 
                                   {isCompleted && !isCurrent && (
                                     <FiCheckCircle className="text-lime-500 flex-shrink-0 mt-1.5" size={16} />
                                   )}
@@ -527,8 +482,6 @@ const Track = memo(({ darkMode }) => {
                             })}
                           </div>
                         </div>
-
-                        
                         <div className="flex justify-center pt-2">
                           <a href="/devices"
                             className="inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-600 hover:to-emerald-600 text-white font-bold rounded-xl transition-all shadow-lg shadow-lime-500/20 text-sm"
@@ -544,8 +497,6 @@ const Track = memo(({ darkMode }) => {
             </div>
           </div>
         </div>
-
-      
         <section className={`py-16 px-4 sm:px-6 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
           <div className="max-w-5xl mx-auto">
             <motion.h2
@@ -559,7 +510,6 @@ const Track = memo(({ darkMode }) => {
               </span>{' '}
               Delivery Options
             </motion.h2>
-
             <div className="grid sm:grid-cols-3 gap-5">
               {[
                 {
@@ -617,10 +567,10 @@ const Track = memo(({ darkMode }) => {
             </div>
           </div>
         </section>
-
       </div>
     </>
   );
 });
 
+Track.displayName = 'Track';
 export default Track;

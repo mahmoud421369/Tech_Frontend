@@ -16,16 +16,10 @@ import { RiStarFill, RiPhoneLine, RiMapPinLine } from "react-icons/ri";
 
 const ChatModal = lazy(() => import("../components/UserChatModal"));
 
-
-
-
 const sanitizeText = (str) =>
   typeof str === "string"
     ? str.replace(/[<>&"']/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&#39;" }[c]))
     : str;
-
-
-    
 
 const WaveBottom = memo(({ darkMode }) => (
   <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-none pointer-events-none">
@@ -46,8 +40,6 @@ const WaveTop = memo(({ darkMode }) => (
     </svg>
   </div>
 ));
-
-
 
 const StatCard = memo(({ icon, value, label, accent, delay, darkMode }) => (
   <motion.div
@@ -73,24 +65,21 @@ const StatCard = memo(({ icon, value, label, accent, delay, darkMode }) => (
   </motion.div>
 ));
 
-
-
-
 const ProductCard = memo(({ product, darkMode, onAddToCart }) => {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);
 
-  const discountedPrice = product.discount
+  const discountedPrice = useMemo(() => product.discount
     ? product.price * (1 - product.discount / 100)
-    : null;
+    : null, [product.price, product.discount]);
 
-  const safeProduct = {
+  const safeProduct = useMemo(() => ({
     name: sanitizeText(product.name) || "Product",
     brand: sanitizeText(product.brand) || "",
     condition: sanitizeText(product.condition) || "Unknown",
     categoryName: sanitizeText(product.categoryName || product.category) || "Uncategorized",
     price: Number(product.price) || 0,
-  };
+  }), [product]);
 
   return (
     <motion.div
@@ -102,13 +91,7 @@ const ProductCard = memo(({ product, darkMode, onAddToCart }) => {
         darkMode ? "bg-gray-800 border-gray-700 hover:border-lime-700/50" : "bg-white border-gray-200 hover:border-lime-300"
       }`}
     >
-    
-    
-
       <div className="relative flex-shrink-0 h-40 sm:h-48 md:h-52 overflow-hidden bg-gray-100 dark:bg-gray-900/50">
-       
-       
-
         <AnimatePresence>
           {!imgLoaded && !imgError && (
             <motion.div
@@ -146,18 +129,12 @@ const ProductCard = memo(({ product, darkMode, onAddToCart }) => {
         )}
       </div>
 
-   
-   
       <div className="flex flex-col flex-grow p-3 sm:p-4 gap-1.5 sm:gap-2">
         <h3 className={`font-bold text-sm sm:text-base line-clamp-2 leading-snug min-h-[2.5rem] sm:min-h-[3rem] ${
           darkMode ? "text-white" : "text-gray-900"
         }`}>
           {safeProduct.name}
         </h3>
-
-        {/* <p className={`text-xs font-semibold truncate ${darkMode ? "text-lime-400" : "text-lime-600"}`}>
-          {safeProduct.brand || "\u00A0"}
-        </p> */}
 
         <div className="flex flex-wrap gap-1 text-xs">
           <span className={`px-2 py-0.5 rounded-full font-semibold ${
@@ -172,8 +149,6 @@ const ProductCard = memo(({ product, darkMode, onAddToCart }) => {
           </span>
         </div>
 
-      
-      
         <div className="mt-auto pt-2 border-t border-gray-100 dark:border-gray-700/60">
           {discountedPrice ? (
             <div className="flex items-baseline gap-1.5 flex-wrap">
@@ -207,9 +182,6 @@ const ProductCard = memo(({ product, darkMode, onAddToCart }) => {
   );
 });
 
-
-
-
 const ProductSkeleton = memo(({ darkMode }) => (
   <div className={`rounded-xl sm:rounded-2xl overflow-hidden animate-pulse shadow-md ${darkMode ? "bg-gray-800" : "bg-white"}`}>
     <div className={`h-40 sm:h-48 md:h-52 ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
@@ -225,9 +197,6 @@ const ProductSkeleton = memo(({ darkMode }) => (
     </div>
   </div>
 ));
-
-
-
 
 const StarRating = memo(({ value, onChange, size = "w-7 h-7 sm:w-9 sm:h-9" }) => (
   <div className="flex gap-1.5 sm:gap-2">
@@ -245,8 +214,18 @@ const StarRating = memo(({ value, onChange, size = "w-7 h-7 sm:w-9 sm:h-9" }) =>
   </div>
 ));
 
-
-
+const FilterPill = memo(({ label, isActive, onClick, darkMode }) => (
+  <button
+    onClick={onClick}
+    className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold border-2 transition-all ${
+      isActive
+        ? "bg-lime-500 border-lime-500 text-white shadow-sm"
+        : darkMode ? "border-gray-700 text-gray-300 hover:border-lime-500 bg-gray-800/60" : "border-gray-200 text-gray-600 hover:border-lime-400 bg-white"
+    }`}
+  >
+    {label}
+  </button>
+));
 
 const Shop = memo(({ darkMode, addToCart }) => {
   const { shopId } = useParams();
@@ -266,20 +245,16 @@ const Shop = memo(({ darkMode, addToCart }) => {
   const [inStockOnly, setInStockOnly] = useState(false);
   const [reviews, setReviews] = useState([]);
   const [newReview, setNewReview] = useState({ rating: 0, comment: "" });
-  const [userRating, setUserRating] = useState(0);
   const [editingReview, setEditingReview] = useState(null);
   const [isLoading, setIsLoading] = useState({ shop: true, products: true, reviews: true });
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [openChat, setOpenChat] = useState(false);
-  const [activeFiltersCount, setActiveFiltersCount] = useState(0);
 
   useEffect(() => {
     document.title = shop?.name  ? sanitizeText(shop.name) + " | Tech-Restore" : "Loading Shop...";
   }, [shop?.name]);
 
-
-
-  useEffect(() => {
+  const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (selectedCategories.length > 0) count += selectedCategories.length;
     if (selectedCondition !== "all") count++;
@@ -287,7 +262,7 @@ const Shop = memo(({ darkMode, addToCart }) => {
     if (priceMax !== "") count++;
     if (sortBy !== "default") count++;
     if (inStockOnly) count++;
-    setActiveFiltersCount(count);
+    return count;
   }, [selectedCategories, selectedCondition, priceMin, priceMax, sortBy, inStockOnly]);
 
   const fetchShopProfile = useCallback(async () => {
@@ -354,7 +329,7 @@ const Shop = memo(({ darkMode, addToCart }) => {
     }
     try {
       await api.post(`/api/reviews/${encodeURIComponent(shopId)}`, { rating: newReview.rating, comment: sanitizeText(comment) });
-      setNewReview({ rating: 0, comment: "" }); setUserRating(0);
+      setNewReview({ rating: 0, comment: "" });
       fetchShopReviews();
       Swal.fire({ toast: true, position: "top-end", icon: "success", title: "Review added!", timer: 2000, timerProgressBar: true, showConfirmButton: false });
     } catch {
@@ -390,7 +365,7 @@ const Shop = memo(({ darkMode, addToCart }) => {
 
   useEffect(() => {
     if (shopId) { fetchShopProfile(); fetchCategories(); fetchProductsByShop(); fetchShopReviews(); }
-  }, [shopId]); // eslint-disable-line
+  }, [shopId, fetchShopProfile, fetchCategories, fetchProductsByShop, fetchShopReviews]);
 
   const filteredProducts = useMemo(() => {
     let result = [...products];
@@ -404,11 +379,13 @@ const Shop = memo(({ darkMode, addToCart }) => {
     const min = priceMin !== "" ? Number(priceMin) : -Infinity;
     const max = priceMax !== "" ? Number(priceMax) : Infinity;
     if (priceMin !== "" || priceMax !== "") result = result.filter(p => Number(p.price) >= min && Number(p.price) <= max);
+    
     if (sortBy === "price-asc") result.sort((a, b) => Number(a.price) - Number(b.price));
     else if (sortBy === "price-desc") result.sort((a, b) => Number(b.price) - Number(a.price));
     else if (sortBy === "name-asc") result.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
     else if (sortBy === "discount") result.sort((a, b) => (b.discount || 0) - (a.discount || 0));
     else if (sortBy === "newest") result.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    
     return result;
   }, [products, search, selectedCondition, selectedCategories, priceMin, priceMax, sortBy, inStockOnly]);
 
@@ -417,20 +394,15 @@ const Shop = memo(({ darkMode, addToCart }) => {
     setPriceMin(""); setPriceMax(""); setSortBy("default"); setInStockOnly(false); setIsFilterOpen(false);
   }, []);
 
+  const heroStats = useMemo(() => [
+    { icon: <FiZap size={16} />, value: "98.9%", label: "Customer satisfaction", accent: "#f97316", delay: 0.1 },
+    { icon: <FiTruck size={16} />, value: "24h", label: "Avg delivery time", accent: "#16a34a", delay: 0.2 },
+    { icon: <RiStarFill size={16} />, value: "4.9★", label: "Avg shop rating", accent: "#f59e0b", delay: 0.3 },
+  ], []);
 
-  
-  const FilterPill = ({ label, isActive, onClick }) => (
-    <button
-      onClick={onClick}
-      className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold border-2 transition-all ${
-        isActive
-          ? "bg-lime-500 border-lime-500 text-white shadow-sm"
-          : darkMode ? "border-gray-700 text-gray-300 hover:border-lime-500 bg-gray-800/60" : "border-gray-200 text-gray-600 hover:border-lime-400 bg-white"
-      }`}
-    >
-      {label}
-    </button>
-  );
+  const avgRating = useMemo(() => reviews.length > 0
+    ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+    : "–", [reviews]);
 
   if (isLoading.shop) return (
     <div className={`min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"} flex items-center justify-center`}>
@@ -445,22 +417,9 @@ const Shop = memo(({ darkMode, addToCart }) => {
     </div>
   );
 
-  const heroStats = [
-    { icon: <FiZap size={16} />, value: "98.9%", label: "Customer satisfaction", accent: "#f97316", delay: 0.1 },
-    { icon: <FiTruck size={16} />, value: "24h", label: "Avg delivery time", accent: "#16a34a", delay: 0.2 },
-    { icon: <RiStarFill size={16} />, value: "4.9★", label: "Avg shop rating", accent: "#f59e0b", delay: 0.3 },
-  ];
-
-  const avgRating = reviews.length > 0
-    ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
-    : "–";
-
   return (
     <>
       <div className={`min-h-screen overflow-x-hidden ${darkMode ? "bg-gray-900 text-white" : "bg-gray-50"}`}>
-
-      
-      
         <section className={`relative overflow-hidden pt-16 sm:pt-20 pb-24 sm:pb-32 md:pb-40 ${
           darkMode ? "bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950" : "bg-gradient-to-br from-lime-50 via-white to-emerald-50"
         }`}>
@@ -530,8 +489,6 @@ const Shop = memo(({ darkMode, addToCart }) => {
                 </div>
               </div>
 
-              
-              
               <div className="relative h-56 sm:h-72 lg:h-[480px] xl:h-[520px] hidden sm:block">
                 <div className="absolute inset-0 bg-gradient-to-br from-lime-200/30 to-emerald-200/30 dark:from-lime-900/20 dark:to-emerald-900/20 rounded-full blur-3xl scale-125" />
                 <div className="relative w-full h-full">
@@ -573,12 +530,7 @@ const Shop = memo(({ darkMode, addToCart }) => {
           <WaveBottom darkMode={darkMode} />
         </section>
 
-        
-        
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 md:py-10">
-
-          
-          
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-5 sm:mb-6">
             <div className="flex items-center gap-3 flex-wrap">
               <div>
@@ -596,9 +548,7 @@ const Shop = memo(({ darkMode, addToCart }) => {
               )}
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-3 flex-wrap ">
-            
-            
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
               <select
                 value={sortBy}
                 onChange={e => setSortBy(e.target.value)}
@@ -614,8 +564,7 @@ const Shop = memo(({ darkMode, addToCart }) => {
                 <option value="newest">Newest First</option>
               </select>
 
-             
-              <div className="relative  sm:flex-none">
+              <div className="relative sm:flex-none">
                 <FiSearch className={`absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
                 <input
                   type="text" value={search} onChange={e => setSearch(e.target.value)}
@@ -631,8 +580,6 @@ const Shop = memo(({ darkMode, addToCart }) => {
                 )}
               </div>
 
-             
-             
               <motion.button
                 whileTap={{ scale: 0.96 }}
                 onClick={() => setIsFilterOpen(true)}
@@ -653,8 +600,6 @@ const Shop = memo(({ darkMode, addToCart }) => {
             </div>
           </div>
 
-         
-         
           {isLoading.products ? (
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
               {[...Array(8)].map((_, i) => <ProductSkeleton key={i} darkMode={darkMode} />)}
@@ -682,8 +627,6 @@ const Shop = memo(({ darkMode, addToCart }) => {
           )}
         </div>
 
-       
-       
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 md:py-20">
           <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 xl:gap-16 items-start">
             <div className="space-y-5 sm:space-y-6 md:space-y-8">
@@ -702,13 +645,11 @@ const Shop = memo(({ darkMode, addToCart }) => {
                 </div>
               </div>
 
-             
-             
               <div className={`p-4 sm:p-6 md:p-7 rounded-xl sm:rounded-2xl border-2 ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
                 <h3 className={`text-base sm:text-lg font-extrabold mb-3 sm:mb-5 ${darkMode ? "text-gray-100" : "text-gray-800"}`}>
                   Share Your Experience
                 </h3>
-                <StarRating value={userRating} onChange={star => { setUserRating(star); setNewReview(p => ({ ...p, rating: star })); }} />
+                <StarRating value={newReview.rating} onChange={star => setNewReview(p => ({ ...p, rating: star }))} />
                 <textarea
                   value={newReview.comment}
                   onChange={e => setNewReview(p => ({ ...p, comment: e.target.value }))}
@@ -733,8 +674,6 @@ const Shop = memo(({ darkMode, addToCart }) => {
                 </motion.button>
               </div>
 
-            
-            
               <div className="space-y-3 sm:space-y-4">
                 {isLoading.reviews ? (
                   [...Array(3)].map((_, i) => (
@@ -794,8 +733,6 @@ const Shop = memo(({ darkMode, addToCart }) => {
               </div>
             </div>
 
-            
-            
             <div className="hidden lg:flex justify-center items-center min-h-[400px]">
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }}
@@ -840,8 +777,6 @@ const Shop = memo(({ darkMode, addToCart }) => {
           </div>
         </section>
 
-        
-        
         <AnimatePresence>
           {isFilterOpen && (
             <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
@@ -869,8 +804,6 @@ const Shop = memo(({ darkMode, addToCart }) => {
                 </div>
 
                 <div className="p-4 sm:p-5 space-y-5 sm:space-y-6">
-                 
-                 
                   <div>
                     <label className={`flex items-center gap-2 text-sm font-bold mb-2 sm:mb-3 ${darkMode ? "text-gray-200" : "text-gray-800"}`}>
                       <FiTag className="text-lime-500" /> Price Range (EGP)
@@ -885,21 +818,17 @@ const Shop = memo(({ darkMode, addToCart }) => {
                     </div>
                   </div>
 
-                  
-                  
                   <div>
                     <label className={`flex items-center gap-2 text-sm font-bold mb-2 sm:mb-3 ${darkMode ? "text-gray-200" : "text-gray-800"}`}>
                       <FiPackage className="text-lime-500" /> Condition
                     </label>
                     <div className="flex flex-wrap gap-2">
                       {["all", "New", "Used"].map(cond => (
-                        <FilterPill key={cond} label={cond === "all" ? "All" : cond} isActive={selectedCondition === cond} onClick={() => setSelectedCondition(cond)} />
+                        <FilterPill key={cond} label={cond === "all" ? "All" : cond} isActive={selectedCondition === cond} onClick={() => setSelectedCondition(cond)} darkMode={darkMode} />
                       ))}
                     </div>
                   </div>
 
-                 
-                 
                   <div>
                     <label className={`flex items-center gap-2 text-sm font-bold mb-2 sm:mb-3 ${darkMode ? "text-gray-200" : "text-gray-800"}`}>
                       <FiTrendingUp className="text-lime-500" /> Sort By
@@ -913,13 +842,11 @@ const Shop = memo(({ darkMode, addToCart }) => {
                         { value: "discount", label: "Best Deals" },
                         { value: "newest", label: "Newest" },
                       ].map(opt => (
-                        <FilterPill key={opt.value} label={opt.label} isActive={sortBy === opt.value} onClick={() => setSortBy(opt.value)} />
+                        <FilterPill key={opt.value} label={opt.label} isActive={sortBy === opt.value} onClick={() => setSortBy(opt.value)} darkMode={darkMode} />
                       ))}
                     </div>
                   </div>
 
-                  
-                  
                   <div>
                     <label className={`flex items-center gap-2 text-sm font-bold mb-2 sm:mb-3 ${darkMode ? "text-gray-200" : "text-gray-800"}`}>
                       <FiAward className="text-lime-500" /> Availability
@@ -936,8 +863,6 @@ const Shop = memo(({ darkMode, addToCart }) => {
                     </button>
                   </div>
 
-                  
-                  
                   <div>
                     <label className={`flex items-center gap-2 text-sm font-bold mb-2 sm:mb-3 ${darkMode ? "text-gray-200" : "text-gray-800"}`}>
                       <FiFilter className="text-lime-500" /> Categories
@@ -947,13 +872,11 @@ const Shop = memo(({ darkMode, addToCart }) => {
                     </label>
                     <div className="flex flex-wrap gap-1.5 sm:gap-2 max-h-40 sm:max-h-48 overflow-y-auto pr-1">
                       {categories.map(cat => (
-                        <FilterPill key={cat.id} label={sanitizeText(cat.name)} isActive={selectedCategories.includes(cat.name)} onClick={() => handleCategoryCheckbox(cat.name)} />
+                        <FilterPill key={cat.id} label={sanitizeText(cat.name)} isActive={selectedCategories.includes(cat.name)} onClick={() => handleCategoryCheckbox(cat.name)} darkMode={darkMode} />
                       ))}
                     </div>
                   </div>
 
-                 
-                 
                   <div className="flex gap-2 sm:gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
                     <button onClick={resetFilters}
                       className={`flex-1 py-2.5 sm:py-3 rounded-xl font-bold text-sm transition ${darkMode ? "bg-gray-700 text-gray-300 hover:bg-gray-600" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
@@ -970,8 +893,6 @@ const Shop = memo(({ darkMode, addToCart }) => {
           )}
         </AnimatePresence>
 
-       
-       
         <motion.button
           whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}
           onClick={() => setOpenChat(true)}
@@ -980,8 +901,6 @@ const Shop = memo(({ darkMode, addToCart }) => {
           <FiMessageCircle className="text-xl sm:text-2xl" />
         </motion.button>
 
-        
-        
         <AnimatePresence>
           {editingReview && (
             <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
@@ -1015,8 +934,6 @@ const Shop = memo(({ darkMode, addToCart }) => {
           )}
         </AnimatePresence>
 
-        
-        
         <Suspense fallback={null}>
           <AnimatePresence>
             {openChat && (

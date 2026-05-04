@@ -9,9 +9,25 @@ import api from '../api';
 import Swal from 'sweetalert2';
 
 
+const cardVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: (i) => ({
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.35,
+      delay: i * 0.04,
+      ease: [0.25, 0.46, 0.45, 0.94]
+    }
+  })
+};
 
+const hoverScale = {
+  y: -5,
+  transition: { duration: 0.2, ease: "easeOut" }
+};
 
-const WaveBottom = ({ darkMode }) => (
+const WaveBottom = memo(({ darkMode }) => (
   <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-none pointer-events-none">
     <svg viewBox="0 0 1440 100" xmlns="http://www.w3.org/2000/svg"
       className="relative block w-full h-16 md:h-24" preserveAspectRatio="none">
@@ -19,8 +35,9 @@ const WaveBottom = ({ darkMode }) => (
         fill={darkMode ? '#111827' : '#f9fafb'} />
     </svg>
   </div>
-);
-const WaveTop = ({ darkMode }) => (
+));
+
+const WaveTop = memo(({ darkMode }) => (
   <div className="absolute top-0 left-0 w-full overflow-hidden leading-none pointer-events-none">
     <svg viewBox="0 0 1440 80" xmlns="http://www.w3.org/2000/svg"
       className="relative block w-full h-12 md:h-20" preserveAspectRatio="none">
@@ -28,15 +45,15 @@ const WaveTop = ({ darkMode }) => (
         fill={darkMode ? '#111827' : '#f9fafb'} />
     </svg>
   </div>
-);
+));
 
-
-
-
-const StatCard = ({ icon, value, label, accent, delay, darkMode }) => (
+const StatCard = memo(({ icon, value, label, accent, delay, darkMode }) => (
   <motion.div
-    initial={{ opacity: 0, y: 28, scale: 0.93 }} whileInView={{ opacity: 1, y: 0, scale: 1 }}
-    transition={{ duration: 0.5, delay }} viewport={{ once: true }} whileHover={{ y: -5, scale: 1.03 }}
+    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+    whileInView={{ opacity: 1, y: 0, scale: 1 }}
+    transition={{ duration: 0.5, delay }}
+    viewport={{ once: true, margin: "-50px" }}
+    whileHover={hoverScale}
     className={`relative group overflow-hidden rounded-2xl p-4 sm:p-5 shadow-xl border transition-all duration-300 ${
       darkMode ? 'bg-gray-800/80 border-gray-700/60 backdrop-blur-md' : 'bg-white/90 border-gray-100 backdrop-blur-md'
     }`}
@@ -52,10 +69,7 @@ const StatCard = ({ icon, value, label, accent, delay, darkMode }) => (
     </div>
     <p className={`text-xs font-semibold leading-snug pl-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{label}</p>
   </motion.div>
-);
-
-
-
+));
 
 const conditionConfig = {
   New:         'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
@@ -63,31 +77,35 @@ const conditionConfig = {
   Refurbished: 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300',
 };
 
-
-
-
 const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError]   = useState(false);
   const [cartAdded, setCartAdded] = useState(false);
 
-  const discountedPrice = product.discount
-    ? (product.price * (1 - product.discount / 100)).toFixed(2) : null;
+  const discountedPrice = useMemo(() => 
+    product.discount ? (product.price * (1 - product.discount / 100)).toFixed(2) : null
+  , [product.price, product.discount]);
 
-  const handleCart = (e) => {
+  const handleCart = useCallback((e) => {
     e.stopPropagation();
     setCartAdded(true);
     onAddToCart(product);
     setTimeout(() => setCartAdded(false), 2000);
-  };
+  }, [onAddToCart, product]);
+
+  const navigateToDetail = useCallback(() => {
+    window.location.href = `/device/${product.id}`;
+  }, [product.id]);
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: index * 0.04, ease: [0.25, 0.46, 0.45, 0.94] }}
-      whileHover={{ y: -5, transition: { duration: 0.2 } }}
-      onClick={() => (window.location.href = `/device/${product.id}`)}
+      custom={index}
+      variants={cardVariants}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: "50px" }}
+      whileHover={hoverScale}
+      onClick={navigateToDetail}
       className={`group relative flex flex-col rounded-2xl overflow-hidden cursor-pointer
         transition-shadow duration-300 hover:shadow-2xl h-full ${
           darkMode ? 'bg-gray-800 border border-gray-700/80 shadow-lg shadow-black/20'
@@ -96,13 +114,13 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
     >
       {product.discount && (
         <motion.span initial={{ scale: 0, rotate: -12 }} animate={{ scale: 1, rotate: 0 }}
-          transition={{ type: 'spring', stiffness: 400, delay: 0.1 + index * 0.04 }}
+          transition={{ type: 'spring', stiffness: 400, delay: 0.1 + index * 0.03 }}
           className="absolute top-2.5 left-2.5 z-10 inline-flex bg-gradient-to-r from-orange-500 to-rose-500 text-white text-[10px] sm:text-[11px] font-extrabold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full shadow-md">
           -{product.discount}%
         </motion.span>
       )}
       <div className="absolute top-2.5 right-2.5 z-10 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0">
-        <button onClick={(e) => { e.stopPropagation(); window.location.href = `/device/${product.id}`; }}
+        <button onClick={(e) => { e.stopPropagation(); navigateToDetail(); }}
           className={`p-1.5 sm:p-2 rounded-xl shadow-lg backdrop-blur-sm transition-colors ${
             darkMode ? 'bg-gray-900/80 text-gray-200 hover:text-lime-400' : 'bg-white/90 text-gray-600 hover:text-lime-600'
           }`}>
@@ -113,7 +131,7 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
       <div className={`relative w-full aspect-square overflow-hidden ${darkMode ? 'bg-gray-750/50' : 'bg-gray-50'}`}>
         <AnimatePresence>
           {!imgLoaded && !imgError && (
-            <motion.div exit={{ opacity: 0 }} transition={{ duration: 0.3 }}
+            <motion.div exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
               className={`absolute inset-0 animate-pulse ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
           )}
         </AnimatePresence>
@@ -122,10 +140,11 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
           alt={product.name}
           onLoad={() => setImgLoaded(true)}
           onError={() => { setImgError(true); setImgLoaded(true); }}
-          initial={{ scale: 1.08, opacity: 0 }}
-          animate={imgLoaded ? { scale: 1, opacity: 1 } : {}}
-          transition={{ duration: 0.4 }}
-          className="w-full h-full object-contain p-3 sm:p-4 group-hover:scale-[1.07] transition-transform duration-500 ease-out"
+          loading="lazy"
+          initial={{ opacity: 0 }}
+          animate={imgLoaded ? { opacity: 1 } : {}}
+          transition={{ duration: 0.3 }}
+          className="w-full h-full object-contain p-3 sm:p-4 group-hover:scale-[1.05] transition-transform duration-500 ease-out"
         />
       </div>
 
@@ -137,9 +156,6 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
           <span className={`text-[10px] sm:text-[11px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-full ${
             conditionConfig[product.condition] || 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
           }`}>{product.condition || 'Unknown'}</span>
-          {/* <span className="text-[10px] sm:text-[11px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-full bg-lime-100 text-lime-800 dark:bg-lime-900/40 dark:text-lime-300">
-            {product.categoryName || product.category || ''}
-          </span> */}
         </div>
         <div className="flex items-baseline gap-1.5 mt-auto pt-1">
           <span className={`text-base sm:text-lg font-extrabold tracking-tight ${darkMode ? 'text-lime-400' : 'text-lime-700'}`}>
@@ -174,10 +190,7 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
   );
 });
 
-
-
-
-const FilterSection = ({ title, isOpen, onToggle, darkMode, children }) => (
+const FilterSection = memo(({ title, isOpen, onToggle, darkMode, children }) => (
   <div className={`border-b pb-4 ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
     <button onClick={onToggle}
       className={`w-full flex justify-between items-center text-sm sm:text-base font-bold py-1 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>
@@ -189,13 +202,138 @@ const FilterSection = ({ title, isOpen, onToggle, darkMode, children }) => (
       <div className="pt-3">{children}</div>
     </motion.div>
   </div>
-);
+));
 
+const SidebarContent = memo(({ darkMode, searchTerm, setSearchTerm, sortBy, setSortBy, selectedCategoryId, setSelectedCategoryId, categories, isSortOpen, setIsSortOpen, isCatOpen, setIsCatOpen, isCondOpen, setIsCondOpen, isPriceOpen, setIsPriceOpen, selectedConditions, toggleCondition, priceRange, setPriceRange, clearFilters, activeFiltersCount }) => (
+  <div className="py-4 sm:py-6 space-y-4 sm:space-y-5">
+    <div className="flex items-center justify-between">
+      <h3 className={`text-lg sm:text-xl font-extrabold flex items-center gap-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+        <FiFilter className="text-lime-500" /> Filters
+      </h3>
+      {activeFiltersCount > 0 && (
+        <span className="px-2.5 py-0.5 rounded-full bg-lime-500 text-white text-xs font-bold">{activeFiltersCount}</span>
+      )}
+    </div>
 
+    <div className="relative">
+      <FiSearch className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} size={14} />
+      <input type="text" placeholder="Search products..." value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        className={`w-full pl-10 pr-4 py-2.5 sm:py-3 rounded-xl border text-sm ${
+          darkMode ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500'
+                   : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
+        } focus:outline-none focus:ring-2 focus:ring-lime-500 focus:border-transparent transition`}
+      />
+      {searchTerm && (
+        <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2">
+          <FiX className="text-gray-400 hover:text-gray-600" size={14} />
+        </button>
+      )}
+    </div>
 
-const Products = ({ darkMode }) => {
- 
-  
+    <FilterSection title="Sort By" isOpen={isSortOpen} onToggle={() => setIsSortOpen(!isSortOpen)} darkMode={darkMode}>
+      <div className="space-y-2">
+        {[
+          { value: 'relevance',      label: 'Relevance'           },
+          { value: 'priceLowToHigh', label: 'Price: Low to High'  },
+          { value: 'priceHighToLow', label: 'Price: High to Low'  },
+          { value: 'newest',         label: 'Newest Arrivals'     },
+        ].map((opt) => (
+          <label key={opt.value} className="flex items-center gap-3 cursor-pointer group">
+            <div onClick={() => setSortBy(opt.value)}
+              className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                sortBy === opt.value ? 'border-lime-500 bg-lime-500' : darkMode ? 'border-gray-600' : 'border-gray-300'
+              }`}>
+              {sortBy === opt.value && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+            </div>
+            <span onClick={() => setSortBy(opt.value)}
+              className={`text-sm font-medium transition-colors ${
+                sortBy === opt.value ? 'text-lime-500'
+                  : darkMode ? 'text-gray-300 group-hover:text-white' : 'text-gray-600 group-hover:text-gray-900'
+              }`}>
+              {opt.label}
+            </span>
+          </label>
+        ))}
+      </div>
+    </FilterSection>
+
+    <FilterSection title="Category" isOpen={isCatOpen} onToggle={() => setIsCatOpen(!isCatOpen)} darkMode={darkMode}>
+      <div className="space-y-2">
+        <label className="flex items-center gap-3 cursor-pointer group">
+          <div onClick={() => setSelectedCategoryId('all')}
+            className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+              selectedCategoryId === 'all' ? 'border-lime-500 bg-lime-500' : darkMode ? 'border-gray-600' : 'border-gray-300'
+            }`}>
+            {selectedCategoryId === 'all' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+          </div>
+          <span onClick={() => setSelectedCategoryId('all')}
+            className={`text-sm font-medium capitalize transition-colors ${
+              selectedCategoryId === 'all' ? 'text-lime-500'
+                : darkMode ? 'text-gray-300 group-hover:text-white' : 'text-gray-600 group-hover:text-gray-900'
+            }`}>
+            All Categories
+          </span>
+        </label>
+        
+        {categories.map((cat) => (
+          <label key={cat.id} className="flex items-center gap-3 cursor-pointer group">
+            <div onClick={() => setSelectedCategoryId(cat.id)}
+              className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                selectedCategoryId === cat.id ? 'border-lime-500 bg-lime-500' : darkMode ? 'border-gray-600' : 'border-gray-300'
+              }`}>
+              {selectedCategoryId === cat.id && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+            </div>
+            <span onClick={() => setSelectedCategoryId(cat.id)}
+              className={`text-sm font-medium capitalize transition-colors truncate ${
+                selectedCategoryId === cat.id ? 'text-lime-500'
+                  : darkMode ? 'text-gray-300 group-hover:text-white' : 'text-gray-600 group-hover:text-gray-900'
+              }`}>
+              {cat.name}
+            </span>
+          </label>
+        ))}
+      </div>
+    </FilterSection>
+
+    <FilterSection title="Condition" isOpen={isCondOpen} onToggle={() => setIsCondOpen(!isCondOpen)} darkMode={darkMode}>
+      <div className="flex flex-wrap gap-2">
+        {['New', 'Used', 'Refurbished'].map((cond) => (
+          <button key={cond} onClick={() => toggleCondition(cond)}
+            className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold border-2 transition-all duration-200 ${
+              selectedConditions.includes(cond) ? 'bg-lime-500 border-lime-500 text-white'
+                : darkMode ? 'border-gray-700 text-gray-300 hover:border-lime-500 hover:text-lime-400'
+                           : 'border-gray-200 text-gray-600 hover:border-lime-500 hover:text-lime-600'
+            }`}>
+            {cond}
+          </button>
+        ))}
+      </div>
+    </FilterSection>
+
+    <FilterSection title="Price Range (EGP)" isOpen={isPriceOpen} onToggle={() => setIsPriceOpen(!isPriceOpen)} darkMode={darkMode}>
+      <div className="space-y-3 sm:space-y-4">
+        <div className={`flex justify-between text-xs sm:text-sm font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+          <span className="px-2 py-1 rounded-lg bg-lime-500/10 text-lime-600 dark:text-lime-400">EGP {priceRange[0].toLocaleString()}</span>
+          <span className="px-2 py-1 rounded-lg bg-lime-500/10 text-lime-600 dark:text-lime-400">EGP {priceRange[1].toLocaleString()}</span>
+        </div>
+        <input type="range" min="0" max="100000" step="1000" value={priceRange[0]}
+          onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
+          className="w-full accent-lime-600 h-2 rounded-lg appearance-none cursor-pointer bg-gray-200 dark:bg-gray-700" />
+        <input type="range" min="0" max="100000" step="1000" value={priceRange[1]}
+          onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
+          className="w-full accent-lime-600 h-2 rounded-lg appearance-none cursor-pointer bg-gray-200 dark:bg-gray-700" />
+      </div>
+    </FilterSection>
+
+    <motion.button whileTap={{ scale: 0.97 }} onClick={clearFilters}
+      className="w-full py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white font-bold text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 transition-all">
+      <FiX /> Clear All Filters
+    </motion.button>
+  </div>
+));
+
+const Products = memo(({ darkMode }) => {
   const [products, setProducts]             = useState([]);
   const [categories, setCategories]         = useState([]);        
   const [searchTerm, setSearchTerm]         = useState('');
@@ -221,39 +359,25 @@ const Products = ({ darkMode }) => {
 
   useEffect(() => { document.title = 'Our Products | Tech-Restore'; }, []);
 
-
-  
   useEffect(() => {
     const ctrl = new AbortController();
     api.get('/api/categories', { headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal })
       .then((res) => {
         const cats = res.data.content || res.data || [];
-        
-        
         setCategories(cats.map((c) => ({ id: c.id, name: c.name || String(c.id) })));
       })
       .catch((err) => {
-        if (err.name !== 'AbortError') {
-         
-          
-          setCategories([]);
-        }
+        if (err.name !== 'AbortError') setCategories([]);
       });
     return () => ctrl.abort();
   }, [token]);
 
-
-  
   const fetchProducts = useCallback(async (categoryId) => {
     abortCtrlRef.current.abort();
     abortCtrlRef.current = new AbortController();
     setIsLoading(true);
     try {
-      
-      
-      const url = categoryId === 'all'
-        ? '/api/products'
-        : `/api/products/category/${categoryId}`;
+      const url = categoryId === 'all' ? '/api/products' : `/api/products/category/${categoryId}`;
       const res = await api.get(url, { signal: abortCtrlRef.current.signal });
       setProducts(res.data.content || res.data || []);
     } catch (err) {
@@ -302,202 +426,55 @@ const Products = ({ darkMode }) => {
 
   const totalPages = Math.ceil(filteredProducts.length / pageSize);
 
- 
-  
-  const scrollSlider = (dir) => {
+  const scrollSlider = useCallback((dir) => {
     if (!sliderRef.current) return;
     sliderRef.current.scrollBy({ left: dir === 'left' ? -340 : 340, behavior: 'smooth' });
-  };
+  }, []);
 
   useEffect(() => {
     const slider = sliderRef.current;
     if (!slider) return;
+    let timeout;
     const check = () => {
-      setCanScrollLeft(slider.scrollLeft > 0);
-      setCanScrollRight(slider.scrollLeft + slider.clientWidth < slider.scrollWidth - 2);
+      if (timeout) return;
+      timeout = setTimeout(() => {
+        setCanScrollLeft(slider.scrollLeft > 2);
+        setCanScrollRight(slider.scrollLeft + slider.clientWidth < slider.scrollWidth - 5);
+        timeout = null;
+      }, 100);
     };
     check();
     slider.addEventListener('scroll', check);
     window.addEventListener('resize', check);
-    const t = setTimeout(check, 300);
-    return () => { slider.removeEventListener('scroll', check); window.removeEventListener('resize', check); clearTimeout(t); };
+    return () => { slider.removeEventListener('scroll', check); window.removeEventListener('resize', check); clearTimeout(timeout); };
   }, [latestProducts]);
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setSearchTerm(''); setPriceRange([0, 50000]); setSelectedCategoryId('all');
     setSelectedConditions([]); setSortBy('relevance'); setCurrentPage(1);
-  };
+  }, []);
 
-  const toggleCondition = (c) =>
-    setSelectedConditions((prev) => prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]);
+  const toggleCondition = useCallback((c) =>
+    setSelectedConditions((prev) => prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]), []);
 
-  const showSliderArrows = latestProducts.length > 3 && (canScrollLeft || canScrollRight);
+  const showSliderArrows = useMemo(() => latestProducts.length > 3 && (canScrollLeft || canScrollRight), [latestProducts.length, canScrollLeft, canScrollRight]);
 
-  const activeFiltersCount = [
+  const activeFiltersCount = useMemo(() => [
     searchTerm,
     selectedCategoryId !== 'all' ? selectedCategoryId : null,
     ...selectedConditions,
     priceRange[0] !== 0 || priceRange[1] !== 50000 ? 'price' : null,
     sortBy !== 'relevance' ? sortBy : null,
-  ].filter(Boolean).length;
+  ].filter(Boolean).length, [searchTerm, selectedCategoryId, selectedConditions, priceRange, sortBy]);
 
-  const heroStats = [
+  const heroStats = useMemo(() => [
     { icon: <FiPackage size={16} />, value: '1,200+', label: 'Products in stock', accent: '#0d9488', delay: 0.1 },
     { icon: <FiUsers size={16} />,   value: '~50K',   label: 'Happy customers',   accent: '#3b82f6', delay: 0.2 },
     { icon: <RiStarFill size={16} />, value: '4.9★',  label: 'Average rating',    accent: '#f59e0b', delay: 0.3 },
-  ];
-
-
-  
-
-  const SidebarContent = () => (
-    <div className="py-4 sm:py-6 space-y-4 sm:space-y-5">
-      <div className="flex items-center justify-between">
-        <h3 className={`text-lg sm:text-xl font-extrabold flex items-center gap-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-          <FiFilter className="text-lime-500" /> Filters
-        </h3>
-        {activeFiltersCount > 0 && (
-          <span className="px-2.5 py-0.5 rounded-full bg-lime-500 text-white text-xs font-bold">{activeFiltersCount}</span>
-        )}
-      </div>
-
-     
-     
-      <div className="relative">
-        <FiSearch className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} size={14} />
-        <input type="text" placeholder="Search products..." value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className={`w-full pl-10 pr-4 py-2.5 sm:py-3 rounded-xl border text-sm ${
-            darkMode ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500'
-                     : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
-          } focus:outline-none focus:ring-2 focus:ring-lime-500 focus:border-transparent transition`}
-        />
-        {searchTerm && (
-          <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2">
-            <FiX className="text-gray-400 hover:text-gray-600" size={14} />
-          </button>
-        )}
-      </div>
-
-    
-    
-      <FilterSection title="Sort By" isOpen={isSortOpen} onToggle={() => setIsSortOpen(!isSortOpen)} darkMode={darkMode}>
-        <div className="space-y-2">
-          {[
-            { value: 'relevance',      label: 'Relevance'           },
-            { value: 'priceLowToHigh', label: 'Price: Low to High'  },
-            { value: 'priceHighToLow', label: 'Price: High to Low'  },
-            { value: 'newest',         label: 'Newest Arrivals'     },
-          ].map((opt) => (
-            <label key={opt.value} className="flex items-center gap-3 cursor-pointer group">
-              <div onClick={() => setSortBy(opt.value)}
-                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
-                  sortBy === opt.value ? 'border-lime-500 bg-lime-500' : darkMode ? 'border-gray-600' : 'border-gray-300'
-                }`}>
-                {sortBy === opt.value && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-              </div>
-              <span onClick={() => setSortBy(opt.value)}
-                className={`text-sm font-medium transition-colors ${
-                  sortBy === opt.value ? 'text-lime-500'
-                    : darkMode ? 'text-gray-300 group-hover:text-white' : 'text-gray-600 group-hover:text-gray-900'
-                }`}>
-                {opt.label}
-              </span>
-            </label>
-          ))}
-        </div>
-      </FilterSection>
-
-     
-     
-
-      <FilterSection title="Category" isOpen={isCatOpen} onToggle={() => setIsCatOpen(!isCatOpen)} darkMode={darkMode}>
-        <div className="space-y-2">
-         
-         
-          <label className="flex items-center gap-3 cursor-pointer group">
-            <div onClick={() => setSelectedCategoryId('all')}
-              className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
-                selectedCategoryId === 'all' ? 'border-lime-500 bg-lime-500' : darkMode ? 'border-gray-600' : 'border-gray-300'
-              }`}>
-              {selectedCategoryId === 'all' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-            </div>
-            <span onClick={() => setSelectedCategoryId('all')}
-              className={`text-sm font-medium capitalize transition-colors ${
-                selectedCategoryId === 'all' ? 'text-lime-500'
-                  : darkMode ? 'text-gray-300 group-hover:text-white' : 'text-gray-600 group-hover:text-gray-900'
-              }`}>
-              All Categories
-            </span>
-          </label>
-          
-          
-          {categories.map((cat) => (
-            <label key={cat.id} className="flex items-center gap-3 cursor-pointer group">
-              <div onClick={() => setSelectedCategoryId(cat.id)}
-                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
-                  selectedCategoryId === cat.id ? 'border-lime-500 bg-lime-500' : darkMode ? 'border-gray-600' : 'border-gray-300'
-                }`}>
-                {selectedCategoryId === cat.id && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-              </div>
-              <span onClick={() => setSelectedCategoryId(cat.id)}
-                className={`text-sm font-medium capitalize transition-colors truncate ${
-                  selectedCategoryId === cat.id ? 'text-lime-500'
-                    : darkMode ? 'text-gray-300 group-hover:text-white' : 'text-gray-600 group-hover:text-gray-900'
-                }`}>
-                {cat.name}
-              </span>
-            </label>
-          ))}
-        </div>
-      </FilterSection>
-
-   
-   
-      <FilterSection title="Condition" isOpen={isCondOpen} onToggle={() => setIsCondOpen(!isCondOpen)} darkMode={darkMode}>
-        <div className="flex flex-wrap gap-2">
-          {['New', 'Used', 'Refurbished'].map((cond) => (
-            <button key={cond} onClick={() => toggleCondition(cond)}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold border-2 transition-all duration-200 ${
-                selectedConditions.includes(cond) ? 'bg-lime-500 border-lime-500 text-white'
-                  : darkMode ? 'border-gray-700 text-gray-300 hover:border-lime-500 hover:text-lime-400'
-                             : 'border-gray-200 text-gray-600 hover:border-lime-500 hover:text-lime-600'
-              }`}>
-              {cond}
-            </button>
-          ))}
-        </div>
-      </FilterSection>
-
-    
-    
-      <FilterSection title="Price Range (EGP)" isOpen={isPriceOpen} onToggle={() => setIsPriceOpen(!isPriceOpen)} darkMode={darkMode}>
-        <div className="space-y-3 sm:space-y-4">
-          <div className={`flex justify-between text-xs sm:text-sm font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-            <span className="px-2 py-1 rounded-lg bg-lime-500/10 text-lime-600 dark:text-lime-400">EGP {priceRange[0].toLocaleString()}</span>
-            <span className="px-2 py-1 rounded-lg bg-lime-500/10 text-lime-600 dark:text-lime-400">EGP {priceRange[1].toLocaleString()}</span>
-          </div>
-          <input type="range" min="0" max="100000" step="1000" value={priceRange[0]}
-            onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
-            className="w-full accent-lime-600 h-2 rounded-lg appearance-none cursor-pointer bg-gray-200 dark:bg-gray-700" />
-          <input type="range" min="0" max="100000" step="1000" value={priceRange[1]}
-            onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
-            className="w-full accent-lime-600 h-2 rounded-lg appearance-none cursor-pointer bg-gray-200 dark:bg-gray-700" />
-        </div>
-      </FilterSection>
-
-      <motion.button whileTap={{ scale: 0.97 }} onClick={clearFilters}
-        className="w-full py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white font-bold text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 transition-all">
-        <FiX /> Clear All Filters
-      </motion.button>
-    </div>
-  );
+  ], []);
 
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50'}`}>
-
-    
-    
       <section className={`relative overflow-hidden pt-16 sm:pt-20 pb-28 sm:pb-32 md:pb-40 ${
         darkMode ? 'bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950'
                  : 'bg-gradient-to-br from-lime-50 via-white to-emerald-50'
@@ -583,8 +560,6 @@ const Products = ({ darkMode }) => {
         <WaveBottom darkMode={darkMode} />
       </section>
 
-  
-  
       {!isLoading && latestProducts.length > 0 && (
         <div className={`py-10 sm:py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -619,39 +594,41 @@ const Products = ({ darkMode }) => {
         </div>
       )}
 
-    
-    
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <div className="flex gap-5 lg:gap-8">
-
-         
-         
-
           <aside className={`hidden lg:block w-60 xl:w-64 flex-shrink-0 sticky top-20 self-start max-h-[calc(100vh-5rem)] overflow-y-auto rounded-2xl border shadow-lg ${
             darkMode ? 'bg-gray-800/60 border-gray-700 backdrop-blur-md' : 'bg-white border-gray-200'
           }`}>
-            <div className="px-4 xl:px-5"><SidebarContent /></div>
+            <div className="px-4 xl:px-5">
+              <SidebarContent 
+                darkMode={darkMode}
+                searchTerm={searchTerm} setSearchTerm={setSearchTerm}
+                sortBy={sortBy} setSortBy={setSortBy}
+                selectedCategoryId={selectedCategoryId} setSelectedCategoryId={setSelectedCategoryId}
+                categories={categories}
+                isSortOpen={isSortOpen} setIsSortOpen={setIsSortOpen}
+                isCatOpen={isCatOpen} setIsCatOpen={setIsCatOpen}
+                isCondOpen={isCondOpen} setIsCondOpen={setIsCondOpen}
+                isPriceOpen={isPriceOpen} setIsPriceOpen={setIsPriceOpen}
+                selectedConditions={selectedConditions} toggleCondition={toggleCondition}
+                priceRange={priceRange} setPriceRange={setPriceRange}
+                clearFilters={clearFilters} activeFiltersCount={activeFiltersCount}
+              />
+            </div>
           </aside>
 
-         
-         
           <div className="flex-1 min-w-0">
-           
-           
             <div className="flex items-center justify-between mb-5 sm:mb-8 flex-wrap gap-2 sm:gap-3">
               <div>
                 <span className={`text-xl sm:text-2xl font-extrabold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{filteredProducts.length}</span>
                 <span className={`ml-2 text-sm sm:text-base font-medium ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>products found</span>
               </div>
               <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-               
-               
                 {selectedConditions.map((c) => (
                   <span key={c} className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-lime-500/10 text-lime-600 dark:text-lime-400 text-xs font-semibold border border-lime-500/30">
                     {c}<button onClick={() => toggleCondition(c)}><FiX className="w-3 h-3" /></button>
                   </span>
                 ))}
-                
                 
                 <motion.button whileTap={{ scale: 0.96 }} onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                   className={`lg:hidden flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl border font-semibold text-xs sm:text-sm transition-all shadow-sm hover:shadow-md ${
@@ -666,11 +643,9 @@ const Products = ({ darkMode }) => {
               </div>
             </div>
 
-           
-           
             {isLoading ? (
               <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5 lg:gap-6">
-                {[...Array(9)].map((_, i) => (
+                {Array.from({ length: 9 }).map((_, i) => (
                   <div key={i} className={`h-[280px] sm:h-[380px] md:h-[420px] rounded-2xl animate-pulse shadow-md ${darkMode ? 'bg-gray-800' : 'bg-white'}`} />
                 ))}
               </div>
@@ -693,8 +668,6 @@ const Products = ({ darkMode }) => {
               </div>
             )}
 
-            
-            
             {totalPages > 1 && (
               <div className="flex justify-center mt-8 sm:mt-14 gap-1.5 sm:gap-2 flex-wrap">
                 <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}
@@ -722,8 +695,6 @@ const Products = ({ darkMode }) => {
         </div>
       </div>
 
-  
-  
       <AnimatePresence>
         {isSidebarOpen && (
           <div className="fixed inset-0 z-50 lg:hidden">
@@ -739,13 +710,28 @@ const Products = ({ darkMode }) => {
                   <FiX className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
-              <div className="px-4 sm:px-5"><SidebarContent /></div>
+              <div className="px-4 sm:px-5">
+                <SidebarContent 
+                  darkMode={darkMode}
+                  searchTerm={searchTerm} setSearchTerm={setSearchTerm}
+                  sortBy={sortBy} setSortBy={setSortBy}
+                  selectedCategoryId={selectedCategoryId} setSelectedCategoryId={setSelectedCategoryId}
+                  categories={categories}
+                  isSortOpen={isSortOpen} setIsSortOpen={setIsSortOpen}
+                  isCatOpen={isCatOpen} setIsCatOpen={setIsCatOpen}
+                  isCondOpen={isCondOpen} setIsCondOpen={setIsCondOpen}
+                  isPriceOpen={isPriceOpen} setIsPriceOpen={setIsPriceOpen}
+                  selectedConditions={selectedConditions} toggleCondition={toggleCondition}
+                  priceRange={priceRange} setPriceRange={setPriceRange}
+                  clearFilters={clearFilters} activeFiltersCount={activeFiltersCount}
+                />
+              </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
     </div>
-  );
-};
+   );
+});
 
 export default Products;

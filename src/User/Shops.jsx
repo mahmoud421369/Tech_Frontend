@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import {
   FiSearch, FiMapPin, FiPhone, FiTruck, FiZap,
   FiFilter, FiUsers, FiSliders, FiChevronDown,
-  FiChevronLeft, FiChevronRight, FiX, FiStar,
+  FiChevronLeft, FiChevronRight, FiX,
 } from 'react-icons/fi';
 import { RiStore2Line, RiStarFill, RiVerifiedBadgeLine } from 'react-icons/ri';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,7 +11,26 @@ import api from '../api';
 
 
 
-const WaveBottom = ({ darkMode }) => (
+const cardVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: (i) => ({
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.4,
+      delay: i * 0.05,
+      ease: [0.25, 0.46, 0.45, 0.94]
+    }
+  })
+};
+
+const hoverScale = {
+  y: -5,
+  scale: 1.02,
+  transition: { duration: 0.2, ease: "easeOut" }
+};
+
+const WaveBottom = memo(({ darkMode }) => (
   <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-none pointer-events-none">
     <svg viewBox="0 0 1440 100" xmlns="http://www.w3.org/2000/svg"
       className="relative block w-full h-16 md:h-24" preserveAspectRatio="none">
@@ -19,9 +38,9 @@ const WaveBottom = ({ darkMode }) => (
         fill={darkMode ? '#111827' : '#f9fafb'} />
     </svg>
   </div>
-);
+));
 
-const WaveTop = ({ darkMode }) => (
+const WaveTop = memo(({ darkMode }) => (
   <div className="absolute top-0 left-0 w-full overflow-hidden leading-none pointer-events-none">
     <svg viewBox="0 0 1440 80" xmlns="http://www.w3.org/2000/svg"
       className="relative block w-full h-12 md:h-20" preserveAspectRatio="none">
@@ -29,18 +48,15 @@ const WaveTop = ({ darkMode }) => (
         fill={darkMode ? '#111827' : '#f9fafb'} />
     </svg>
   </div>
-);
+));
 
-
-
-
-const StatCard = ({ icon, value, label, accent, delay, darkMode }) => (
+const StatCard = memo(({ icon, value, label, accent, delay, darkMode }) => (
   <motion.div
-    initial={{ opacity: 0, y: 28, scale: 0.93 }}
+    initial={{ opacity: 0, y: 20, scale: 0.95 }}
     whileInView={{ opacity: 1, y: 0, scale: 1 }}
     transition={{ duration: 0.5, delay }}
-    viewport={{ once: true }}
-    whileHover={{ y: -5, scale: 1.03 }}
+    viewport={{ once: true, margin: "-50px" }}
+    whileHover={hoverScale}
     className={`relative group overflow-hidden rounded-2xl p-5 shadow-xl border transition-all duration-300 ${
       darkMode ? 'bg-gray-800/80 border-gray-700/60 backdrop-blur-md' : 'bg-white/90 border-gray-100 backdrop-blur-md'
     }`}
@@ -56,12 +72,9 @@ const StatCard = ({ icon, value, label, accent, delay, darkMode }) => (
     </div>
     <p className={`text-xs font-semibold leading-snug pl-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{label}</p>
   </motion.div>
-);
+));
 
-
-
-
-const FilterSection = ({ title, isOpen, onToggle, darkMode, children }) => (
+const FilterSection = memo(({ title, isOpen, onToggle, darkMode, children }) => (
   <div className={`border-b pb-4 ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
     <button
       onClick={onToggle}
@@ -83,22 +96,19 @@ const FilterSection = ({ title, isOpen, onToggle, darkMode, children }) => (
       <div className="pt-3">{children}</div>
     </motion.div>
   </div>
-);
+));
 
-
-
-
-const ShopCard = memo(({ shop, darkMode }) => (
+const ShopCard = memo(({ shop, darkMode, index }) => (
   <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.3 }}
+    custom={index}
+    variants={cardVariants}
+    initial="hidden"
+    animate="visible"
+    whileHover={hoverScale}
     className={`group flex flex-col rounded-2xl shadow-md transition-all duration-300 hover:shadow-2xl overflow-hidden cursor-pointer border h-full ${
       darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
     }`}
   >
-    
-    
     <div className="relative flex-shrink-0">
       <div className="w-full h-40 sm:h-44 bg-gradient-to-br from-lime-500 via-emerald-500 to-teal-600 flex items-center justify-center text-white text-7xl font-black select-none">
         {shop.name?.charAt(0).toUpperCase() || 'S'}
@@ -115,8 +125,6 @@ const ShopCard = memo(({ shop, darkMode }) => (
       </span>
     </div>
 
-    
-    
     <div className="flex flex-col flex-grow p-4 gap-2">
       <h3 className={`font-bold text-base sm:text-lg line-clamp-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
         {shop.name || 'Unnamed Shop'}
@@ -140,8 +148,6 @@ const ShopCard = memo(({ shop, darkMode }) => (
         </p>
       )}
 
-     
-     
       <motion.button
         whileTap={{ scale: 0.97 }}
         onClick={() => (window.location.href = `/shops/${shop.id}`)}
@@ -159,9 +165,7 @@ const ShopCard = memo(({ shop, darkMode }) => (
   </motion.div>
 ));
 
-
-
-const ShopSkeleton = ({ darkMode }) => (
+const ShopSkeleton = memo(({ darkMode }) => (
   <div className={`rounded-2xl overflow-hidden animate-pulse shadow-md ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
     <div className={`h-40 sm:h-44 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
     <div className="p-4 space-y-3">
@@ -172,10 +176,173 @@ const ShopSkeleton = ({ darkMode }) => (
       <div className={`h-10 rounded-xl w-full mt-2 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
     </div>
   </div>
-);
+));
 
+const RadioOption = memo(({ value, label, selected, onSelect, icon, darkMode }) => (
+  <label className="flex items-center gap-3 cursor-pointer group py-0.5">
+    <div
+      onClick={() => onSelect(value)}
+      className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+        selected ? 'border-lime-500 bg-lime-500' : darkMode ? 'border-gray-600' : 'border-gray-300'
+      }`}
+    >
+      {selected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+    </div>
+    <span
+      onClick={() => onSelect(value)}
+      className={`text-sm font-medium flex items-center gap-1.5 transition-colors ${
+        selected ? 'text-lime-500' : darkMode ? 'text-gray-300 group-hover:text-white' : 'text-gray-600 group-hover:text-gray-900'
+      }`}
+    >
+      {icon && icon}
+      {label}
+    </span>
+  </label>
+));
 
+const PillButton = memo(({ label, isActive, onClick, darkMode }) => (
+  <button
+    onClick={onClick}
+    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border-2 transition-all duration-200 ${
+      isActive
+        ? 'bg-lime-500 border-lime-500 text-white shadow-sm shadow-lime-200'
+        : darkMode
+          ? 'border-gray-700 text-gray-300 hover:border-lime-500 hover:text-lime-400 bg-gray-800/60'
+          : 'border-gray-200 text-gray-600 hover:border-lime-400 hover:text-lime-600 bg-white'
+    }`}
+  >
+    {label}
+  </button>
+));
 
+const SidebarContent = memo(({ 
+  darkMode, searchTerm, setSearchTerm, setCurrentPage, sortBy, setSortBy, sortLabels,
+  shopTypes, selectedShopTypes, toggleShopType, cities, selectedCities, toggleCity,
+  minRating, setMinRating, showVerifiedOnly, setShowVerifiedOnly, clearFilters,
+  isSortSectionOpen, setIsSortSectionOpen, isShopTypeSectionOpen, setIsShopTypeSectionOpen,
+  isCitySectionOpen, setIsCitySectionOpen, isRatingSectionOpen, setIsRatingSectionOpen,
+  isVerifiedSectionOpen, setIsVerifiedSectionOpen, activeFiltersCount
+}) => (
+  <div className="py-6 space-y-5">
+    <div className="flex items-center justify-between">
+      <h3 className={`text-xl font-extrabold flex items-center gap-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+        <FiFilter className="text-lime-500" /> Filters
+      </h3>
+      {activeFiltersCount > 0 && (
+        <span className="px-2.5 py-0.5 rounded-full bg-lime-500 text-white text-xs font-bold">
+          {activeFiltersCount}
+        </span>
+      )}
+    </div>
+
+    <div className="relative">
+      <FiSearch className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+      <input
+        type="text"
+        placeholder="Search shops..."
+        value={searchTerm}
+        onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+        className={`w-full pl-11 pr-10 py-3 rounded-xl border text-sm ${
+          darkMode ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
+        } focus:outline-none focus:ring-2 focus:ring-lime-500 focus:border-transparent transition`}
+      />
+      {searchTerm && (
+        <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 hover:text-gray-600 transition">
+          <FiX className="text-gray-400 w-4 h-4" />
+        </button>
+      )}
+    </div>
+
+    <FilterSection title="Sort By" isOpen={isSortSectionOpen} onToggle={() => setIsSortSectionOpen(!isSortSectionOpen)} darkMode={darkMode}>
+      <div className="space-y-2">
+        {Object.entries(sortLabels).map(([value, label]) => (
+          <RadioOption key={value} value={value} label={label} selected={sortBy === value} onSelect={setSortBy} darkMode={darkMode} />
+        ))}
+      </div>
+    </FilterSection>
+
+    <FilterSection title="Shop Type" isOpen={isShopTypeSectionOpen} onToggle={() => setIsShopTypeSectionOpen(!isShopTypeSectionOpen)} darkMode={darkMode}>
+      <div className="flex flex-wrap gap-2">
+        {shopTypes.length === 0
+          ? <p className={`text-sm ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>No types available</p>
+          : shopTypes.map(type => (
+            <PillButton key={type} label={type} isActive={selectedShopTypes.includes(type)} onClick={() => toggleShopType(type)} darkMode={darkMode} />
+          ))}
+      </div>
+    </FilterSection>
+
+    {cities.length > 0 && (
+      <FilterSection title="City" isOpen={isCitySectionOpen} onToggle={() => setIsCitySectionOpen(!isCitySectionOpen)} darkMode={darkMode}>
+        <div className="flex flex-wrap gap-2">
+          {cities.map(city => (
+            <PillButton key={city} label={city} isActive={selectedCities.includes(city)} onClick={() => toggleCity(city)} darkMode={darkMode} />
+          ))}
+        </div>
+      </FilterSection>
+    )}
+
+    <FilterSection title="Minimum Rating" isOpen={isRatingSectionOpen} onToggle={() => setIsRatingSectionOpen(!isRatingSectionOpen)} darkMode={darkMode}>
+      <div className="space-y-2">
+        {[
+          { value: 0, label: 'Any rating', icon: null },
+          { value: 4, label: '4+ Stars', icon: <RiStarFill className="text-amber-400 w-3.5 h-3.5" /> },
+          { value: 4.5, label: '4.5+ Stars', icon: <RiStarFill className="text-amber-400 w-3.5 h-3.5" /> },
+          { value: 4.8, label: '4.8+ Stars', icon: <RiStarFill className="text-amber-400 w-3.5 h-3.5" /> },
+        ].map(opt => (
+          <RadioOption key={opt.value} value={opt.value} label={opt.label} icon={opt.icon} selected={minRating === opt.value} onSelect={setMinRating} darkMode={darkMode} />
+        ))}
+      </div>
+    </FilterSection>
+
+    <FilterSection title="Verified Only" isOpen={isVerifiedSectionOpen} onToggle={() => setIsVerifiedSectionOpen(!isVerifiedSectionOpen)} darkMode={darkMode}>
+      <button
+        onClick={() => setShowVerifiedOnly(!showVerifiedOnly)}
+        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all duration-200 ${
+          showVerifiedOnly
+            ? 'bg-lime-500/10 border-lime-500 text-lime-600 dark:text-lime-400'
+            : darkMode ? 'border-gray-700 text-gray-300 hover:border-lime-500 bg-gray-800/60' : 'border-gray-200 text-gray-600 hover:border-lime-500 bg-white'
+        }`}
+      >
+        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+          showVerifiedOnly ? 'bg-lime-500 border-lime-500' : darkMode ? 'border-gray-500' : 'border-gray-300'
+        }`}>
+          {showVerifiedOnly && <RiVerifiedBadgeLine className="text-white w-3 h-3" />}
+        </div>
+        <span className="text-sm font-semibold">Show only verified shops</span>
+        {showVerifiedOnly && (
+          <span className="ml-auto text-xs bg-lime-500 text-white px-2 py-0.5 rounded-full font-bold">ON</span>
+        )}
+      </button>
+    </FilterSection>
+
+    <motion.button
+      whileTap={{ scale: 0.97 }}
+      onClick={clearFilters}
+      className="w-full py-3 rounded-xl bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600
+        text-white font-bold text-sm shadow-md hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2"
+    >
+      <FiX /> Clear All Filters
+    </motion.button>
+  </div>
+));
+
+const PaginationButton = memo(({ children, onClick, disabled, active, darkMode }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    className={`min-w-[40px] h-10 sm:min-w-[44px] sm:h-11 px-2 rounded-xl font-bold text-sm transition-all duration-200 border flex items-center justify-center ${
+      active
+        ? 'bg-gradient-to-r from-lime-500 to-emerald-500 text-white border-transparent shadow-lg shadow-lime-500/30 scale-105'
+        : disabled
+          ? 'opacity-40 cursor-not-allowed ' + (darkMode ? 'bg-gray-800 border-gray-700 text-gray-400' : 'bg-white border-gray-200 text-gray-400')
+          : darkMode
+            ? 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white hover:border-lime-500'
+            : 'bg-white border-gray-200 text-gray-700 hover:bg-lime-50 hover:border-lime-300'
+    }`}
+  >
+    {children}
+  </button>
+));
 
 const Shops = memo(({ darkMode }) => {
   const [shops, setShops] = useState([]);
@@ -253,227 +420,40 @@ const Shops = memo(({ darkMode }) => {
 
   const totalPages = Math.ceil(filteredShops.length / pageSize);
 
-  const toggleShopType = (type) => {
+  const toggleShopType = useCallback((type) => {
     setCurrentPage(1);
     setSelectedShopTypes(prev => prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]);
-  };
-  const toggleCity = (city) => {
+  }, []);
+  
+  const toggleCity = useCallback((city) => {
     setCurrentPage(1);
     setSelectedCities(prev => prev.includes(city) ? prev.filter(c => c !== city) : [...prev, city]);
-  };
+  }, []);
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setSearchTerm(''); setSelectedShopTypes([]); setSelectedCities([]);
     setMinRating(0); setShowVerifiedOnly(false); setSortBy('relevance'); setCurrentPage(1);
-  };
+  }, []);
 
-  const activeFiltersCount = [
+  const activeFiltersCount = useMemo(() => [
     searchTerm,
     ...selectedShopTypes,
     ...selectedCities,
     minRating > 0 ? minRating : null,
     showVerifiedOnly ? 'verified' : null,
     sortBy !== 'relevance' ? sortBy : null,
-  ].filter(Boolean).length;
+  ].filter(Boolean).length, [searchTerm, selectedShopTypes, selectedCities, minRating, showVerifiedOnly, sortBy]);
 
-  const sortLabels = { relevance: 'Relevance', ratingHighToLow: 'Rating: High to Low', nameAZ: 'Name: A to Z' };
+  const sortLabels = useMemo(() => ({ relevance: 'Relevance', ratingHighToLow: 'Rating: High to Low', nameAZ: 'Name: A to Z' }), []);
 
-  
-  
-  const RadioOption = ({ value, label, selected, onSelect, icon }) => (
-    <label className="flex items-center gap-3 cursor-pointer group py-0.5">
-      <div
-        onClick={() => onSelect(value)}
-        className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
-          selected ? 'border-lime-500 bg-lime-500' : darkMode ? 'border-gray-600' : 'border-gray-300'
-        }`}
-      >
-        {selected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-      </div>
-      <span
-        onClick={() => onSelect(value)}
-        className={`text-sm font-medium flex items-center gap-1.5 transition-colors ${
-          selected ? 'text-lime-500' : darkMode ? 'text-gray-300 group-hover:text-white' : 'text-gray-600 group-hover:text-gray-900'
-        }`}
-      >
-        {icon && icon}
-        {label}
-      </span>
-    </label>
-  );
-
- 
-  
-  const PillButton = ({ label, isActive, onClick }) => (
-    <button
-      onClick={onClick}
-      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border-2 transition-all duration-200 ${
-        isActive
-          ? 'bg-lime-500 border-lime-500 text-white shadow-sm shadow-lime-200'
-          : darkMode
-            ? 'border-gray-700 text-gray-300 hover:border-lime-500 hover:text-lime-400 bg-gray-800/60'
-            : 'border-gray-200 text-gray-600 hover:border-lime-400 hover:text-lime-600 bg-white'
-      }`}
-    >
-      {label}
-    </button>
-  );
-
-
-  
-  const SidebarContent = () => (
-    <div className="py-6 space-y-5">
-     
-     
-      <div className="flex items-center justify-between">
-        <h3 className={`text-xl font-extrabold flex items-center gap-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-          <FiFilter className="text-lime-500" /> Filters
-        </h3>
-        {activeFiltersCount > 0 && (
-          <span className="px-2.5 py-0.5 rounded-full bg-lime-500 text-white text-xs font-bold">
-            {activeFiltersCount}
-          </span>
-        )}
-      </div>
-
-     
-     
-      <div className="relative">
-        <FiSearch className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
-        <input
-          type="text"
-          placeholder="Search shops..."
-          value={searchTerm}
-          onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-          className={`w-full pl-11 pr-10 py-3 rounded-xl border text-sm ${
-            darkMode ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
-          } focus:outline-none focus:ring-2 focus:ring-lime-500 focus:border-transparent transition`}
-        />
-        {searchTerm && (
-          <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 hover:text-gray-600 transition">
-            <FiX className="text-gray-400 w-4 h-4" />
-          </button>
-        )}
-      </div>
-
-      
-      
-      <FilterSection title="Sort By" isOpen={isSortSectionOpen} onToggle={() => setIsSortSectionOpen(!isSortSectionOpen)} darkMode={darkMode}>
-        <div className="space-y-2">
-          {Object.entries(sortLabels).map(([value, label]) => (
-            <RadioOption key={value} value={value} label={label} selected={sortBy === value} onSelect={setSortBy} />
-          ))}
-        </div>
-      </FilterSection>
-
-     
-     
-      <FilterSection title="Shop Type" isOpen={isShopTypeSectionOpen} onToggle={() => setIsShopTypeSectionOpen(!isShopTypeSectionOpen)} darkMode={darkMode}>
-        <div className="flex flex-wrap gap-2">
-          {shopTypes.length === 0
-            ? <p className={`text-sm ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>No types available</p>
-            : shopTypes.map(type => (
-              <PillButton key={type} label={type} isActive={selectedShopTypes.includes(type)} onClick={() => toggleShopType(type)} />
-            ))}
-        </div>
-      </FilterSection>
-
-      
-      
-      {cities.length > 0 && (
-        <FilterSection title="City" isOpen={isCitySectionOpen} onToggle={() => setIsCitySectionOpen(!isCitySectionOpen)} darkMode={darkMode}>
-          <div className="flex flex-wrap gap-2">
-            {cities.map(city => (
-              <PillButton key={city} label={city} isActive={selectedCities.includes(city)} onClick={() => toggleCity(city)} />
-            ))}
-          </div>
-        </FilterSection>
-      )}
-
-      
-      
-      <FilterSection title="Minimum Rating" isOpen={isRatingSectionOpen} onToggle={() => setIsRatingSectionOpen(!isRatingSectionOpen)} darkMode={darkMode}>
-        <div className="space-y-2">
-          {[
-            { value: 0, label: 'Any rating', icon: null },
-            { value: 4, label: '4+ Stars', icon: <RiStarFill className="text-amber-400 w-3.5 h-3.5" /> },
-            { value: 4.5, label: '4.5+ Stars', icon: <RiStarFill className="text-amber-400 w-3.5 h-3.5" /> },
-            { value: 4.8, label: '4.8+ Stars', icon: <RiStarFill className="text-amber-400 w-3.5 h-3.5" /> },
-          ].map(opt => (
-            <RadioOption key={opt.value} value={opt.value} label={opt.label} icon={opt.icon} selected={minRating === opt.value} onSelect={setMinRating} />
-          ))}
-        </div>
-      </FilterSection>
-
-      
-      
-      <FilterSection title="Verified Only" isOpen={isVerifiedSectionOpen} onToggle={() => setIsVerifiedSectionOpen(!isVerifiedSectionOpen)} darkMode={darkMode}>
-        <button
-          onClick={() => setShowVerifiedOnly(!showVerifiedOnly)}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all duration-200 ${
-            showVerifiedOnly
-              ? 'bg-lime-500/10 border-lime-500 text-lime-600 dark:text-lime-400'
-              : darkMode ? 'border-gray-700 text-gray-300 hover:border-lime-500 bg-gray-800/60' : 'border-gray-200 text-gray-600 hover:border-lime-500 bg-white'
-          }`}
-        >
-          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-            showVerifiedOnly ? 'bg-lime-500 border-lime-500' : darkMode ? 'border-gray-500' : 'border-gray-300'
-          }`}>
-            {showVerifiedOnly && <RiVerifiedBadgeLine className="text-white w-3 h-3" />}
-          </div>
-          <span className="text-sm font-semibold">Show only verified shops</span>
-          {showVerifiedOnly && (
-            <span className="ml-auto text-xs bg-lime-500 text-white px-2 py-0.5 rounded-full font-bold">ON</span>
-          )}
-        </button>
-      </FilterSection>
-
-      
-      
-      <motion.button
-        whileTap={{ scale: 0.97 }}
-        onClick={clearFilters}
-        className="w-full py-3 rounded-xl bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600
-          text-white font-bold text-sm shadow-md hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2"
-      >
-        <FiX /> Clear All Filters
-      </motion.button>
-    </div>
-  );
-
-  const heroStats = [
+  const heroStats = useMemo(() => [
     { icon: <FiZap size={18} />, value: '98.9%', label: 'Customer satisfaction', accent: '#f97316', delay: 0.1 },
     { icon: <FiUsers size={18} />, value: '500+', label: 'Verified shops nationwide', accent: '#6366f1', delay: 0.2 },
     { icon: <RiStarFill size={18} />, value: '4.9★', label: 'Average shop rating', accent: '#f59e0b', delay: 0.3 },
-  ];
-
-  
-  
-
-  const PaginationButton = ({ children, onClick, disabled, active }) => (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`min-w-[40px] h-10 sm:min-w-[44px] sm:h-11 px-2 rounded-xl font-bold text-sm transition-all duration-200 border flex items-center justify-center ${
-        active
-          ? 'bg-gradient-to-r from-lime-500 to-emerald-500 text-white border-transparent shadow-lg shadow-lime-500/30 scale-105'
-          : disabled
-            ? 'opacity-40 cursor-not-allowed ' + (darkMode ? 'bg-gray-800 border-gray-700 text-gray-400' : 'bg-white border-gray-200 text-gray-400')
-            : darkMode
-              ? 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white hover:border-lime-500'
-              : 'bg-white border-gray-200 text-gray-700 hover:bg-lime-50 hover:border-lime-300'
-      }`}
-    >
-      {children}
-    </button>
-  );
+  ], []);
 
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50'}`}>
-
-     
-     
-
       <section className={`relative overflow-hidden pt-20 pb-32 md:pt-24 md:pb-40 ${
         darkMode ? 'bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950' : 'bg-gradient-to-br from-lime-50 via-white to-emerald-50'
       }`}>
@@ -516,9 +496,6 @@ const Shops = memo(({ darkMode }) => {
                 {heroStats.map(s => <StatCard key={s.label} {...s} darkMode={darkMode} />)}
               </div>
             </div>
-
-            
-            
 
             <div className="relative h-96 lg:h-[580px]">
               <div className="absolute inset-0 bg-gradient-to-br from-lime-200/30 to-emerald-200/30 dark:from-lime-900/20 dark:to-emerald-900/20 rounded-full blur-3xl scale-125" />
@@ -580,31 +557,31 @@ const Shops = memo(({ darkMode }) => {
         <WaveBottom darkMode={darkMode} />
       </section>
 
-     
-     
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <div className="flex gap-6 lg:gap-8">
-
-          
-          
           <aside className={`hidden lg:block w-72 xl:w-64 flex-shrink-0 sticky top-20 self-start h-[calc(100vh-5rem)] overflow-y-auto rounded-2xl border shadow-lg ${
             darkMode ? 'bg-gray-800/60 border-gray-700 backdrop-blur-md' : 'bg-white border-gray-200'
           }`}>
             <div className="px-5">
-              <SidebarContent />
+              <SidebarContent 
+                darkMode={darkMode} searchTerm={searchTerm} setSearchTerm={setSearchTerm}
+                setCurrentPage={setCurrentPage} sortBy={sortBy} setSortBy={setSortBy}
+                sortLabels={sortLabels} shopTypes={shopTypes} selectedShopTypes={selectedShopTypes}
+                toggleShopType={toggleShopType} cities={cities} selectedCities={selectedCities}
+                toggleCity={toggleCity} minRating={minRating} setMinRating={setMinRating}
+                showVerifiedOnly={showVerifiedOnly} setShowVerifiedOnly={setShowVerifiedOnly}
+                clearFilters={clearFilters} isSortSectionOpen={isSortSectionOpen}
+                setIsSortSectionOpen={setIsSortSectionOpen} isShopTypeSectionOpen={isShopTypeSectionOpen}
+                setIsShopTypeSectionOpen={setIsShopTypeSectionOpen} isCitySectionOpen={isCitySectionOpen}
+                setIsCitySectionOpen={setIsCitySectionOpen} isRatingSectionOpen={isRatingSectionOpen}
+                setIsRatingSectionOpen={setIsRatingSectionOpen} isVerifiedSectionOpen={isVerifiedSectionOpen}
+                setIsVerifiedSectionOpen={setIsVerifiedSectionOpen} activeFiltersCount={activeFiltersCount}
+              />
             </div>
           </aside>
 
-          
-          
-
           <div className="flex-1 min-w-0">
-
-           
-           
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 sm:mb-8">
-             
-             
               <div className="flex items-center flex-wrap gap-2">
                 <div>
                   <span className={`text-xl sm:text-2xl font-extrabold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -624,8 +601,6 @@ const Shops = memo(({ darkMode }) => {
                 ))}
               </div>
 
-            
-            
               <motion.button
                 whileTap={{ scale: 0.96 }}
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -645,11 +620,9 @@ const Shops = memo(({ darkMode }) => {
               </motion.button>
             </div>
 
-            
-            
             {isLoading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                {[...Array(9)].map((_, i) => <ShopSkeleton key={i} darkMode={darkMode} />)}
+                {Array.from({ length: 9 }).map((_, i) => <ShopSkeleton key={i} darkMode={darkMode} />)}
               </div>
             ) : filteredShops.length === 0 ? (
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center py-24 sm:py-32">
@@ -668,23 +641,21 @@ const Shops = memo(({ darkMode }) => {
               </motion.div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 items-start">
-                {paginatedShops.map(shop => <ShopCard key={shop.id} shop={shop} darkMode={darkMode} />)}
+                {paginatedShops.map((shop, i) => <ShopCard key={shop.id} shop={shop} darkMode={darkMode} index={i} />)}
               </div>
             )}
 
-            
-            
             {totalPages > 1 && (
               <div className="flex justify-center mt-10 sm:mt-14 gap-1.5 sm:gap-2 flex-wrap">
-                <PaginationButton onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+                <PaginationButton onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} darkMode={darkMode}>
                   <FiChevronLeft className="w-4 h-4" />
                 </PaginationButton>
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                  <PaginationButton key={page} onClick={() => setCurrentPage(page)} active={currentPage === page}>
+                  <PaginationButton key={page} onClick={() => setCurrentPage(page)} active={currentPage === page} darkMode={darkMode}>
                     {page}
                   </PaginationButton>
                 ))}
-                <PaginationButton onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+                <PaginationButton onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} darkMode={darkMode}>
                   <FiChevronRight className="w-4 h-4" />
                 </PaginationButton>
               </div>
@@ -693,8 +664,6 @@ const Shops = memo(({ darkMode }) => {
         </div>
       </div>
 
-      
-      
       <AnimatePresence>
         {isSidebarOpen && (
           <div className="fixed inset-0 z-50 lg:hidden">
@@ -725,7 +694,20 @@ const Shops = memo(({ darkMode }) => {
                 </button>
               </div>
               <div className="px-4 sm:px-5">
-                <SidebarContent />
+                <SidebarContent 
+                  darkMode={darkMode} searchTerm={searchTerm} setSearchTerm={setSearchTerm}
+                  setCurrentPage={setCurrentPage} sortBy={sortBy} setSortBy={setSortBy}
+                  sortLabels={sortLabels} shopTypes={shopTypes} selectedShopTypes={selectedShopTypes}
+                  toggleShopType={toggleShopType} cities={cities} selectedCities={selectedCities}
+                  toggleCity={toggleCity} minRating={minRating} setMinRating={setMinRating}
+                  showVerifiedOnly={showVerifiedOnly} setShowVerifiedOnly={setShowVerifiedOnly}
+                  clearFilters={clearFilters} isSortSectionOpen={isSortSectionOpen}
+                  setIsSortSectionOpen={setIsSortSectionOpen} isShopTypeSectionOpen={isShopTypeSectionOpen}
+                  setIsShopTypeSectionOpen={setIsShopTypeSectionOpen} isCitySectionOpen={isCitySectionOpen}
+                  setIsCitySectionOpen={setIsCitySectionOpen} isRatingSectionOpen={isRatingSectionOpen}
+                  setIsRatingSectionOpen={setIsRatingSectionOpen} isVerifiedSectionOpen={isVerifiedSectionOpen}
+                  setIsVerifiedSectionOpen={setIsVerifiedSectionOpen} activeFiltersCount={activeFiltersCount}
+                />
               </div>
             </motion.div>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, memo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, memo, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
    FiStar, FiTool, FiMonitor, FiTag, FiDollarSign,
@@ -21,8 +21,25 @@ import {
 
 
 
+const cardVariants = {
+   hidden: { opacity: 0, y: 20 },
+   visible: (i) => ({
+      opacity: 1,
+      y: 0,
+      transition: {
+         delay: i * 0.05,
+         duration: 0.4,
+         ease: [0.25, 0.46, 0.45, 0.94]
+      }
+   })
+};
 
-const WaveBottom = ({ darkMode }) => (
+const hoverScale = {
+   y: -5,
+   transition: { duration: 0.2, ease: "easeOut" }
+};
+
+const WaveBottom = memo(({ darkMode }) => (
    <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-none pointer-events-none">
       <svg viewBox="0 0 1440 100" xmlns="http://www.w3.org/2000/svg"
          className="relative block w-full h-16 md:h-24" preserveAspectRatio="none">
@@ -30,8 +47,9 @@ const WaveBottom = ({ darkMode }) => (
             fill={darkMode ? '#111827' : '#f9fafb'} />
       </svg>
    </div>
-);
-const WaveTop = ({ darkMode }) => (
+));
+
+const WaveTop = memo(({ darkMode }) => (
    <div className="absolute top-0 left-0 w-full overflow-hidden leading-none pointer-events-none">
       <svg viewBox="0 0 1440 80" xmlns="http://www.w3.org/2000/svg"
          className="relative block w-full h-12 md:h-20" preserveAspectRatio="none">
@@ -39,18 +57,15 @@ const WaveTop = ({ darkMode }) => (
             fill={darkMode ? '#111827' : '#f9fafb'} />
       </svg>
    </div>
-);
+));
 
-
-
-
-const StatCard = ({ icon, value, label, accent, delay, darkMode }) => (
+const StatCard = memo(({ icon, value, label, accent, delay, darkMode }) => (
    <motion.div
-      initial={{ opacity: 0, y: 28, scale: 0.93 }}
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
       whileInView={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.5, delay }}
-      viewport={{ once: true }}
-      whileHover={{ y: -5, scale: 1.03 }}
+      viewport={{ once: true, margin: "-50px" }}
+      whileHover={hoverScale}
       className={`relative group overflow-hidden rounded-2xl p-4 sm:p-5 shadow-xl border transition-all duration-300 ${darkMode ? 'bg-gray-800/80 border-gray-700/60 backdrop-blur-md' : 'bg-white/90 border-gray-100 backdrop-blur-md'
          }`}
    >
@@ -67,10 +82,7 @@ const StatCard = ({ icon, value, label, accent, delay, darkMode }) => (
       </div>
       <p className={`text-xs font-semibold leading-snug pl-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{label}</p>
    </motion.div>
-);
-
-
-
+));
 
 const conditionConfig = {
    New: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
@@ -78,45 +90,46 @@ const conditionConfig = {
    Refurbished: 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300',
 };
 
-
-
-
-const ProductCard = ({ product, darkMode, onAddToCart, index = 0 }) => {
+const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
    const [imgLoaded, setImgLoaded] = useState(false);
    const [imgError, setImgError] = useState(false);
    const [cartAdded, setCartAdded] = useState(false);
 
-   const discountedPrice = product.discount
-      ? (product.price * (1 - product.discount / 100)).toFixed(2) : null;
+   const discountedPrice = useMemo(() => 
+      product.discount ? (product.price * (1 - product.discount / 100)).toFixed(2) : null
+   , [product.price, product.discount]);
 
-   const handleCart = (e) => {
+   const handleCart = useCallback((e) => {
       e.stopPropagation();
       setCartAdded(true);
       onAddToCart(product);
       setTimeout(() => setCartAdded(false), 2000);
-   };
+   }, [onAddToCart, product]);
+
+   const navigateToProduct = useCallback(() => {
+      window.location.href = `/device/${product.id}`;
+   }, [product.id]);
 
    return (
       <motion.div
-         initial={{ opacity: 0, y: 28 }}
-         animate={{ opacity: 1, y: 0 }}
-         transition={{ duration: 0.4, delay: index * 0.06, ease: [0.25, 0.46, 0.45, 0.94] }}
-         whileHover={{ y: -5, transition: { duration: 0.22 } }}
-         onClick={() => (window.location.href = `/device/${product.id}`)}
+         custom={index}
+         variants={cardVariants}
+         initial="hidden"
+         whileInView="visible"
+         viewport={{ once: true, margin: "50px" }}
+         whileHover={hoverScale}
+         onClick={navigateToProduct}
          className={`group relative flex flex-col rounded-2xl overflow-hidden cursor-pointer
         transition-shadow duration-300 hover:shadow-2xl h-full ${darkMode
                ? 'bg-gray-800 border border-gray-700/80 shadow-lg shadow-black/20'
                : 'bg-white border border-gray-100 shadow-md shadow-gray-200/60'
             }`}
       >
-        
-        
-        
          {product.discount && (
             <motion.span
                initial={{ scale: 0, rotate: -12 }}
                animate={{ scale: 1, rotate: 0 }}
-               transition={{ type: 'spring', stiffness: 400, delay: 0.15 + index * 0.06 }}
+               transition={{ type: 'spring', stiffness: 400, delay: 0.15 + index * 0.03 }}
                className="absolute top-2.5 left-2.5 z-10 inline-flex items-center
             bg-gradient-to-r from-orange-500 to-rose-500 text-white
             text-[10px] sm:text-[11px] font-extrabold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full shadow-md"
@@ -125,12 +138,10 @@ const ProductCard = ({ product, darkMode, onAddToCart, index = 0 }) => {
             </motion.span>
          )}
 
-         
-         
          <div className="absolute top-2.5 right-2.5 z-10 opacity-0 group-hover:opacity-100
         transition-all duration-200 translate-y-1 group-hover:translate-y-0">
             <button
-               onClick={(e) => { e.stopPropagation(); window.location.href = `/device/${product.id}`; }}
+               onClick={(e) => { e.stopPropagation(); navigateToProduct(); }}
                className={`p-1.5 sm:p-2 rounded-xl shadow-lg backdrop-blur-sm transition-colors ${darkMode ? 'bg-gray-900/80 text-gray-200 hover:text-lime-400'
                      : 'bg-white/90 text-gray-600 hover:text-lime-600'
                   }`}
@@ -139,12 +150,10 @@ const ProductCard = ({ product, darkMode, onAddToCart, index = 0 }) => {
             </button>
          </div>
 
-         
-         
          <div className={`relative w-full aspect-square overflow-hidden ${darkMode ? 'bg-gray-750/50' : 'bg-gray-50'}`}>
             <AnimatePresence>
                {!imgLoaded && !imgError && (
-                  <motion.div exit={{ opacity: 0 }} transition={{ duration: 0.3 }}
+                  <motion.div exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
                      className={`absolute inset-0 animate-pulse ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
                )}
             </AnimatePresence>
@@ -153,16 +162,14 @@ const ProductCard = ({ product, darkMode, onAddToCart, index = 0 }) => {
                alt={product.name}
                onLoad={() => setImgLoaded(true)}
                onError={() => { setImgError(true); setImgLoaded(true); }}
-               initial={{ scale: 1.08, opacity: 0 }}
-               animate={imgLoaded ? { scale: 1, opacity: 1 } : {}}
-               transition={{ duration: 0.45 }}
-               className="w-full h-full object-contain p-3 sm:p-4 group-hover:scale-[1.07]
+               loading="lazy"
+               initial={{ opacity: 0 }}
+               animate={imgLoaded ? { opacity: 1 } : {}}
+               transition={{ duration: 0.3 }}
+               className="w-full h-full object-contain p-3 sm:p-4 group-hover:scale-[1.05]
             transition-transform duration-500 ease-out"
             />
          </div>
-
-        
-        
 
          <div className="flex flex-col flex-1 p-3 sm:p-4 gap-1.5 sm:gap-2">
             <h3 className={`font-semibold text-xs sm:text-sm leading-snug line-clamp-2 ${darkMode ? 'text-white' : 'text-gray-900'
@@ -223,10 +230,7 @@ const ProductCard = ({ product, darkMode, onAddToCart, index = 0 }) => {
          </div>
       </motion.div>
    );
-};
-
-
-
+});
 
 const GRADIENTS = [
    'from-lime-500 via-emerald-500 to-teal-600',
@@ -237,24 +241,20 @@ const GRADIENTS = [
 ];
 const getGradient = (name = '') => GRADIENTS[(name.charCodeAt(0) || 0) % GRADIENTS.length];
 
-
-
-
 const ShopCard = memo(({ shop, darkMode, index = 0 }) => (
    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.07, ease: [0.25, 0.46, 0.45, 0.94] }}
-      whileHover={{ y: -5, transition: { duration: 0.22 } }}
+      custom={index}
+      variants={cardVariants}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: "50px" }}
+      whileHover={hoverScale}
       className={`group flex flex-col rounded-2xl overflow-hidden h-full
       transition-shadow duration-300 hover:shadow-2xl ${darkMode
             ? 'bg-gray-800 border border-gray-700/80 shadow-lg shadow-black/20'
             : 'bg-white border border-gray-100 shadow-md shadow-gray-200/60'
          }`}
    >
-      
-      
-      
       <div className="relative overflow-hidden flex-shrink-0">
          <div className={`w-full h-32 sm:h-36 md:h-40 bg-gradient-to-br ${getGradient(shop.name)}
         flex items-center justify-center select-none
@@ -281,8 +281,6 @@ const ShopCard = memo(({ shop, darkMode, index = 0 }) => (
          )}
       </div>
 
-     
-     
       <div className="flex flex-col flex-1 p-3 sm:p-4 gap-2">
          <h3 className={`font-bold text-sm sm:text-base leading-tight line-clamp-1 ${darkMode ? 'text-white' : 'text-gray-900'
             }`}>
@@ -327,10 +325,7 @@ const ShopCard = memo(({ shop, darkMode, index = 0 }) => (
    </motion.div>
 ));
 
-
-
-
-const HScrollSection = ({ title, items, darkMode, renderCard, loading, skeletonH = 'h-80 sm:h-[380px]', scrollRef, onLeft, onRight, showLeft, showRight, showArrows }) => (
+const HScrollSection = memo(({ title, items, darkMode, renderCard, loading, skeletonH = 'h-80 sm:h-[380px]', scrollRef, onLeft, onRight, showLeft, showRight, showArrows }) => (
    <section className={`py-12 sm:py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
          <div className="flex items-center justify-between flex-wrap gap-3 sm:gap-4 mb-6 sm:mb-10">
@@ -362,18 +357,15 @@ const HScrollSection = ({ title, items, darkMode, renderCard, loading, skeletonH
             )}
          </div>
 
-         
-         
-
          <div
             ref={scrollRef}
             className="flex overflow-x-auto gap-3 sm:gap-4 md:gap-5 snap-x snap-mandatory scroll-smooth pb-4 sm:pb-6 hide-scrollbar"
          >
             {loading
-               ? [...Array(4)].map((_, i) => (
+               ? Array.from({ length: 4 }).map((_, i) => (
                   <div key={i}
                      className={`snap-start flex-shrink-0 w-[200px] sm:w-[260px] md:w-[280px] lg:w-[300px] ${skeletonH}
-                  rounded-2xl animate-pulse shadow-md ${darkMode ? 'bg-gray-800' : 'bg-white'}`} />
+                   rounded-2xl animate-pulse shadow-md ${darkMode ? 'bg-gray-800' : 'bg-white'}`} />
                ))
                : items.map((item, i) => (
                   <div key={item.id}
@@ -385,10 +377,7 @@ const HScrollSection = ({ title, items, darkMode, renderCard, loading, skeletonH
          </div>
       </div>
    </section>
-);
-
-
-
+));
 
 const Homepage = memo(({ darkMode }) => {
    const [shops, setShops] = useState([]);
@@ -430,24 +419,22 @@ const Homepage = memo(({ darkMode }) => {
          const token = localStorage.getItem('authToken');
          if (!token || isTokenExpired(token)) throw new Error('Unauthorized');
 
-         const shopRes = await api.get('/api/users/shops/all', {
-            headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
-         });
-         const shopsWithDevices = (shopRes.data.content || []).map((shop) => ({ ...shop, devices: [], services: shop.services || [] }));
-         setShops(shopsWithDevices);
+        
+         const [shopRes, productRes] = await Promise.all([
+            api.get('/api/users/shops/all', {
+               headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
+            }),
+            api.get('/api/products', {
+               headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
+            }).catch(() => ({ data: { content: [] } })) 
+         ]);
 
-         const productPromises = shopsWithDevices.map((shop) =>
-            api.get(`/api/products/shop/${shop.id}`, { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal })
-               .then((res) => ({ shopId: shop.id, products: res.data.content || [] }))
-         );
-         const productResults = await Promise.all(productPromises);
-         const allProducts = productResults.flatMap((r) => r.products);
+         const shopsData = shopRes.data.content || [];
+         const allProducts = productRes.data.content || [];
+
+         setShops(shopsData.map(shop => ({ ...shop, devices: [], services: shop.services || [] })));
          setProducts(allProducts.slice(0, 12));
-
-         setShops((prev) => prev.map((shop) => {
-            const shopProducts = productResults.find((r) => r.shopId === shop.id)?.products || [];
-            return { ...shop, devices: shopProducts };
-         }));
+         
       } catch (err) {
          if (err.name !== 'AbortError') {
             if (err.response?.status === 401 || err.message === 'Unauthorized') {
@@ -476,56 +463,73 @@ const Homepage = memo(({ darkMode }) => {
       }
    }, [navigate, isTokenExpired]);
 
-   
-   
-
-   const makeHandler = (ref, setLeft, setRight) => () => {
+   const updateScrollState = useCallback((ref, setLeft, setRight) => {
       if (!ref.current) return;
       const { scrollLeft, clientWidth, scrollWidth } = ref.current;
-      setLeft(scrollLeft > 0);
-      setRight(scrollLeft + clientWidth < scrollWidth - 2);
-   };
+      setLeft(scrollLeft > 2);
+      setRight(scrollLeft + clientWidth < scrollWidth - 5);
+   }, []);
 
    useEffect(() => {
       const ref = prodScrollRef.current;
       if (!ref) return;
-      const h = makeHandler(prodScrollRef, setCanScrollLeftProds, setCanScrollRightProds);
+      let timeout;
+      const h = () => {
+         if (timeout) return;
+         timeout = setTimeout(() => {
+            updateScrollState(prodScrollRef, setCanScrollLeftProds, setCanScrollRightProds);
+            timeout = null;
+         }, 100);
+      };
       h(); ref.addEventListener('scroll', h); return () => ref.removeEventListener('scroll', h);
-   }, [products]);
+   }, [products, updateScrollState]);
 
    useEffect(() => {
       const ref = shopScrollRef.current;
       if (!ref) return;
-      const h = makeHandler(shopScrollRef, setCanScrollLeftShops, setCanScrollRightShops);
+      let timeout;
+      const h = () => {
+         if (timeout) return;
+         timeout = setTimeout(() => {
+            updateScrollState(shopScrollRef, setCanScrollLeftShops, setCanScrollRightShops);
+            timeout = null;
+         }, 100);
+      };
       h(); ref.addEventListener('scroll', h); return () => ref.removeEventListener('scroll', h);
-   }, [shops]);
+   }, [shops, updateScrollState]);
 
-   const scrollBy = (ref, dir) => {
+   const scrollBy = useCallback((ref, dir) => {
       if (!ref.current) return;
       const step = ref.current.clientWidth * 0.75;
       ref.current.scrollBy({ left: dir === 'left' ? -step : step, behavior: 'smooth' });
-   };
+   }, []);
 
-   const showProdArrows = products.length > 3 && (canScrollLeftProds || canScrollRightProds);
-   const showShopArrows = shops.length > 3 && (canScrollLeftShops || canScrollRightShops);
+   const showProdArrows = useMemo(() => products.length > 3 && (canScrollLeftProds || canScrollRightProds), [products.length, canScrollLeftProds, canScrollRightProds]);
+   const showShopArrows = useMemo(() => shops.length > 3 && (canScrollLeftShops || canScrollRightShops), [shops.length, canScrollLeftShops, canScrollRightShops]);
 
-   const offers = [
+   const offers = useMemo(() => [
       { icon: <FiMonitor className="h-5 w-5" />, title: '20% off iPhone screen repair' },
       { icon: <FiShield className="h-5 w-5" />, title: 'Laptop battery replacement EGP 499' },
       { icon: <FiCheckCircle className="h-5 w-5" />, title: 'Free diagnostics on any device' },
       { icon: <FiDollarSign className="h-5 w-5" />, title: 'Buy 2 accessories, get 10% off' },
-   ];
+   ], []);
 
-   const heroStats = [
+   const heroStats = useMemo(() => [
       { icon: <FiTool size={16} />, value: '75.2%', label: 'Average repair success rate', accent: '#16a34a', delay: 0.15 },
       { icon: <RiCheckLine size={16} />, value: '~20k', label: 'Repairs completed monthly', accent: '#6366f1', delay: 0.25 },
       { icon: <RiStarFill size={16} />, value: '4.5★', label: 'Average user rating', accent: '#f59e0b', delay: 0.35 },
-   ];
+   ], []);
+
+   const renderProductCard = useCallback((p, i) => (
+      <ProductCard product={p} darkMode={darkMode} onAddToCart={handleAddToCart} index={i} />
+   ), [darkMode, handleAddToCart]);
+
+   const renderShopCard = useCallback((shop, i) => (
+      <ShopCard shop={shop} darkMode={darkMode} index={i} />
+   ), [darkMode]);
 
    return (
       <>
-        
-        
          <section className={`relative overflow-hidden pt-16 sm:pt-20 pb-28 sm:pb-32 md:pb-40 ${darkMode ? 'bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950'
                : 'bg-gradient-to-br from-lime-50 via-white to-emerald-50'
             }`}>
@@ -538,23 +542,22 @@ const Homepage = memo(({ darkMode }) => {
             <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
 
-                 
-                  <div className="space-y-6 sm:space-y-8 order-1 lg:order-1 text-center lg:text-left">
+                  <div className="space-y-6 sm:space-y-8 order-1  text-center lg:text-left">
                      <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}
-                        className="inline-flex items-center gap-2 mt-6 px-4 py-1.5 rounded-full border text-sm font-semibold bg-lime-500/10 border-lime-500/30 text-lime-600 dark:text-lime-400">
+                        className="inline-flex text-left items-center gap-2 mt-6 px-4 py-1.5 rounded-full border text-sm font-semibold bg-lime-500/10 border-lime-500/30 text-lime-600 dark:text-lime-400">
                         <span className="w-2 h-2 rounded-full bg-lime-500 animate-ping" />
                         Trusted by thousands across Egypt
                      </motion.div>
 
                      <motion.h1 initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }}
-                        className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold leading-[1.08]">
+                        className="text-3xl sm:text-5xl text-left md:text-6xl lg:text-7xl font-extrabold leading-[1.08]">
                         <span className="bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-500 bg-clip-text text-transparent">Repair & Buy</span><br />
                         <span className={darkMode ? 'text-white' : 'text-gray-900'}>Devices with</span><br />
                         <span className="relative inline-block" style={{ WebkitTextStroke: darkMode ? '2px #84cc16' : '2px #16a34a', color: 'transparent' }}>Confidence</span>
                      </motion.h1>
 
                      <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}
-                        className={`text-base sm:text-lg md:text-xl leading-relaxed max-w-xl mx-auto lg:mx-0 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        className={`text-base text-left sm:text-lg md:text-xl leading-relaxed max-w-xl mx-auto lg:mx-0 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                         Find trusted repair shops and purchase refurbished devices at great prices — all in one place.
                      </motion.p>
 
@@ -565,8 +568,8 @@ const Homepage = memo(({ darkMode }) => {
                            Book a Repair
                         </Link>
                         <Link to="/devices" className={`px-5 sm:px-7 py-3 sm:py-3.5 rounded-xl font-bold text-sm border-2 transition-all duration-300 hover:-translate-y-0.5 ${darkMode ? 'border-gray-600 text-gray-300 hover:border-lime-500 hover:text-lime-400'
-                              : 'border-gray-300 text-gray-700 hover:border-lime-500 hover:text-lime-600'
-                           }`}>
+                               : 'border-gray-300 text-gray-700 hover:border-lime-500 hover:text-lime-600'
+                            }`}>
                            Browse Devices
                         </Link>
                      </motion.div>
@@ -576,9 +579,7 @@ const Homepage = memo(({ darkMode }) => {
                      </div>
                   </div>
 
-                 
-                 
-                  <div className="relative h-56 sm:h-80 lg:h-[600px] order-1 lg:order-2">
+                  <div className="relative h-56 sm:h-80 lg:h-[600px] order-2 ">
                      <div className="absolute inset-0 bg-gradient-to-br from-lime-200/30 to-emerald-200/30 dark:from-lime-900/20 dark:to-emerald-900/20 rounded-full blur-3xl scale-125" />
                      <div className="relative w-full h-full">
                         <motion.div initial={{ opacity: 0, rotate: 8, y: 20 }} animate={{ opacity: 1, rotate: 12, y: 0 }}
@@ -615,7 +616,7 @@ const Homepage = memo(({ darkMode }) => {
                                  <div className="h-2 sm:h-3 rounded bg-gradient-to-r from-lime-400 to-emerald-400 w-1/2" />
                               </div>
                               <div className="flex gap-0.5 sm:gap-1">
-                                 {[...Array(5)].map((_, i) => (
+                                 {Array.from({ length: 5 }).map((_, i) => (
                                     <RiStarFill key={i} className={i < 4 ? 'text-amber-400 w-3 h-3 sm:w-4 sm:h-4' : 'text-gray-300 w-3 h-3 sm:w-4 sm:h-4'} />
                                  ))}
                               </div>
@@ -648,8 +649,6 @@ const Homepage = memo(({ darkMode }) => {
             <WaveBottom darkMode={darkMode} />
          </section>
 
-         
-         
          <section className={`py-12 sm:py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
             <div className="max-w-6xl mx-auto px-4 sm:px-6">
                <motion.h2 initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
@@ -659,8 +658,6 @@ const Homepage = memo(({ darkMode }) => {
                </motion.h2>
 
                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-8">
-                  
-                  
                   <motion.div initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }}
                      transition={{ delay: 0.1 }} viewport={{ once: true }}>
                      <div className={`h-full rounded-2xl p-5 sm:p-8 shadow-lg flex flex-col transition-all ${darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border-2'
@@ -696,9 +693,6 @@ const Homepage = memo(({ darkMode }) => {
                         </Link>
                      </div>
                   </motion.div>
-
-                
-                
 
                   <motion.div initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }}
                      transition={{ delay: 0.2 }} viewport={{ once: true }}>
@@ -736,13 +730,7 @@ const Homepage = memo(({ darkMode }) => {
             </div>
          </section>
 
-       
-       
-
          <Service darkMode={darkMode} />
-
-   
-   
 
          <HScrollSection
             title="Featured Products"
@@ -756,14 +744,9 @@ const Homepage = memo(({ darkMode }) => {
             showLeft={canScrollLeftProds}
             showRight={canScrollRightProds}
             showArrows={showProdArrows}
-            renderCard={(p, i) => (
-               <ProductCard product={p} darkMode={darkMode} onAddToCart={handleAddToCart} index={i} />
-            )}
+            renderCard={renderProductCard}
          />
 
-        
-        
-        
          <HScrollSection
             title="Top Shops"
             items={shops}
@@ -776,9 +759,7 @@ const Homepage = memo(({ darkMode }) => {
             showLeft={canScrollLeftShops}
             showRight={canScrollRightShops}
             showArrows={showShopArrows}
-            renderCard={(shop, i) => (
-               <ShopCard shop={shop} darkMode={darkMode} index={i} />
-            )}
+            renderCard={renderShopCard}
          />
 
          <OffersSlider darkMode={darkMode} />

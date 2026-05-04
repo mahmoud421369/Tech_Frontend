@@ -19,7 +19,9 @@ const PUBLIC_ROUTES = [
   '/api/auth/verify-email',
   '/api/auth/login',
   '/api/auth/refresh-token',
-  '/api/auth/reset-password'
+  '/api/auth/reset-password',
+  '/api/auth/forgot-password',
+  '/api/auth/get-code',  
 ];
 
 const isPublicRoute = (url = '') =>
@@ -50,7 +52,12 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 403 && !originalRequest._retry) {
+    const isRenewalRoute = 
+      originalRequest.url?.includes('/api/subscriptions/all') ||
+      originalRequest.url?.includes('/api/subscriptions/renew') ||
+      originalRequest.url?.includes('/api/subscriptions/cash');
+
+    if (error.response?.status === 403 && !originalRequest._retry && !isRenewalRoute) {
       originalRequest._retry = true;
 
       if (isRefreshing) {

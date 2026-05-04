@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback,useMemo } from 'react';
 import {
   FiX, FiShoppingCart, FiCreditCard, FiTruck, FiTrash2,
   FiZap, FiChevronDown, FiCheck, FiMapPin, FiPackage,
@@ -18,7 +18,7 @@ const STEPS = [
   { id: 'complete', Icon: FiCheck,         label: 'Done'     },
 ];
 
-const StepIndicator = ({ current }) => {
+const StepIndicator = React.memo(({ current }) => {
   const currentIdx = STEPS.findIndex((s) => s.id === current);
   return (
     <div className="flex items-center justify-center gap-0 mt-5 mb-1 px-2 select-none">
@@ -55,12 +55,12 @@ const StepIndicator = ({ current }) => {
       })}
     </div>
   );
-};
+});
 
 
 
 
-const CartItem = ({ item, darkMode, onUpdate, onRemove }) => (
+const CartItem = React.memo(({ item, darkMode, onUpdate, onRemove }) => (
   <motion.div
     layout
     initial={{ opacity: 0, x: 20 }}
@@ -102,7 +102,7 @@ const CartItem = ({ item, darkMode, onUpdate, onRemove }) => (
 
     <div className="flex items-center gap-1 flex-shrink-0">
       <button
-        onClick={() => onUpdate(item.id, item.quantity - 1)}
+        onClick={() => onUpdate(item.id, Number(item.quantity) - 1)}
         className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-lime-500 hover:text-white transition-colors text-sm font-bold flex items-center justify-center flex-shrink-0"
         aria-label="Decrease quantity"
       >
@@ -112,7 +112,7 @@ const CartItem = ({ item, darkMode, onUpdate, onRemove }) => (
         {item.quantity}
       </span>
       <button
-        onClick={() => onUpdate(item.id, item.quantity + 1)}
+        onClick={() => onUpdate(item.id, Number(item.quantity) + 1)}
         className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-lime-500 hover:text-white transition-colors text-sm font-bold flex items-center justify-center flex-shrink-0"
         aria-label="Increase quantity"
       >
@@ -127,12 +127,12 @@ const CartItem = ({ item, darkMode, onUpdate, onRemove }) => (
       </button>
     </div>
   </motion.div>
-);
+));
 
 
 
 
-const PaymentOption = ({ value, selected, onSelect, Icon, title, subtitle, darkMode }) => (
+const PaymentOption = React.memo(({ value, selected, onSelect, Icon, title, subtitle, darkMode }) => (
   <button
     onClick={() => onSelect(value)}
     className={`w-full p-3 sm:p-4 rounded-2xl border-2 flex items-center gap-3 sm:gap-4 transition-all text-left ${
@@ -156,7 +156,7 @@ const PaymentOption = ({ value, selected, onSelect, Icon, title, subtitle, darkM
       {selected && <FiCheck className="w-3 h-3 text-white" />}
     </div>
   </button>
-);
+));
 
 
 
@@ -168,9 +168,12 @@ const Cart = ({ show, onClose, darkMode }) => {
   const [cartItems, setCartItems] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('');
-  const [cartTotal, setCartTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+
+  const cartTotal = useMemo(() => {
+    return cartItems.reduce((sum, item) => sum + (item.productPrice * (item.quantity || 1)), 0);
+  }, [cartItems]);
 
   const safeDecodeJwt = useCallback((token) => {
     if (!token || typeof token !== 'string' || !token.trim()) return null;
@@ -185,11 +188,6 @@ const Cart = ({ show, onClose, darkMode }) => {
   const token = localStorage.getItem('authToken');
   const isAuthenticated = !!token && !isTokenExpired(token);
 
-  const calcTotal = useCallback((items) =>
-    setCartTotal(items.reduce((sum, i) => sum + i.productPrice * i.quantity, 0)),
-    []
-  );
-
   const fetchCart = useCallback(async () => {
     if (!token || !isAuthenticated) { setCartItems([]); return; }
     const ctrl = new AbortController();
@@ -198,12 +196,11 @@ const Cart = ({ show, onClose, darkMode }) => {
       const res = await api.get('/api/cart', { headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal });
       const items = res.data.items || [];
       setCartItems(items);
-      calcTotal(items);
     } catch (err) {
-      if (err.name !== 'AbortError') { setCartItems([]); calcTotal([]); }
+      if (err.name !== 'AbortError') { setCartItems([]); }
     } finally { setIsLoading(false); }
     return () => ctrl.abort();
-  }, [token, isAuthenticated, calcTotal]);
+  }, [token, isAuthenticated]);
 
   const fetchAddresses = useCallback(async () => {
     if (!token || !isAuthenticated) return;
@@ -220,34 +217,39 @@ const Cart = ({ show, onClose, darkMode }) => {
   }, [token, isAuthenticated]);
 
   const updateQuantity = useCallback(async (itemId, qty) => {
-    if (qty < 1) return removeFromCart(itemId);
-    const prev = [...cartItems];
-    const updated = cartItems.map((i) => i.id === itemId ? { ...i, quantity: qty } : i);
-    setCartItems(updated);
-    calcTotal(updated);
+    const newQty = Number(qty);
+    if (newQty < 1) return removeFromCart(itemId);
+    
+    setCartItems(prev => prev.map(i => i.id === itemId ? { ...i, quantity: newQty } : i));
+
     try {
-      await api.put(`/api/cart/items/${itemId}`, { quantity: qty }, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } });
-    } catch { setCartItems(prev); calcTotal(prev); }
-  }, [token, cartItems, calcTotal]);
+      await api.put(`/api/cart/items/${itemId}`, { quantity: newQty }, { 
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } 
+      });
+    } catch (err) {
+      fetchCart();
+    }
+  }, [token, fetchCart]);
 
   const removeFromCart = useCallback(async (itemId) => {
-    const prev = [...cartItems];
-    const updated = cartItems.filter((i) => i.id !== itemId);
-    setCartItems(updated);
-    calcTotal(updated);
+    setCartItems(prev => prev.filter(i => i.id !== itemId));
+
     try {
       await api.delete(`/api/cart/items/${itemId}`, { headers: { Authorization: `Bearer ${token}` } });
       Swal.fire({ title: 'Removed', icon: 'success', toast: true, position: 'top-end', timer: 1200, showConfirmButton: false });
-    } catch { setCartItems(prev); calcTotal(prev); }
-  }, [token, cartItems, calcTotal]);
+    } catch {
+      fetchCart();
+    }
+  }, [token, fetchCart]);
 
   const clearCart = useCallback(async () => {
-    const prev = [...cartItems];
-    setCartItems([]); setCartTotal(0);
+    setCartItems([]);
     try {
       await api.delete('/api/cart', { headers: { Authorization: `Bearer ${token}` } });
-    } catch { setCartItems(prev); calcTotal(prev); }
-  }, [token, cartItems, calcTotal]);
+    } catch {
+      fetchCart();
+    }
+  }, [token, fetchCart]);
 
   const createOrder = useCallback(async () => {
     if (!isAuthenticated) {
@@ -273,7 +275,7 @@ const Cart = ({ show, onClose, darkMode }) => {
       } else {
         await Swal.fire({ icon: 'success', title: 'Order Confirmed!', text: `Order #${orderId} placed!`, confirmButtonColor: '#22c55e' });
       }
-      setCartItems([]); setCartTotal(0); setCheckoutStep('complete');
+      setCartItems([]); setCheckoutStep('complete');
     } catch (err) {
       Swal.fire({ icon: 'error', title: 'Order Failed', text: err.response?.data?.message || 'Something went wrong', confirmButtonColor: '#ef4444' });
     } finally { setIsLoading(false); }
@@ -312,7 +314,7 @@ const Cart = ({ show, onClose, darkMode }) => {
         initial={{ x: '100%' }}
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
-        transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+        transition={{ type: 'tween', ease: 'circOut', duration: 0.4 }}
         className={`relative w-full max-w-md h-full overflow-y-auto shadow-2xl flex flex-col ${
           darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'
         }`}
@@ -350,7 +352,7 @@ const Cart = ({ show, onClose, darkMode }) => {
             </button>
           </div>
 
-          <StepIndicator current={checkoutStep} />
+          {cartItems.length > 0 && <StepIndicator current={checkoutStep} />}
 
           <div className={`flex items-center gap-2 mt-3 text-xs font-semibold ${darkMode ? 'text-lime-400' : 'text-lime-600'}`}>
             <FiZap className="w-3.5 h-3.5" />

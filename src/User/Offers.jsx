@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useCallback, memo } from "react";
+import React, { useState, useEffect, useCallback, memo, useMemo } from "react";
 import {
   FaTag, FaPercent, FaCalendarAlt, FaStore,
   FaShieldAlt, FaClock, FaCheckCircle, FaGift,
 } from "react-icons/fa";
-import { FiChevronLeft, FiChevronRight, FiTag, FiX, FiExternalLink, FiClock } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import Swal from "sweetalert2";
@@ -12,7 +11,8 @@ import { RiStarFill, RiTimeLine, RiStore2Line, RiShieldCheckLine, RiPriceTag2Lin
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from "@headlessui/react";
 
 
-
+import * as FiIcons from "react-icons/fi";
+const { FiChevronLeft, FiChevronRight, FiTag, FiX, FiExternalLink, FiClock: FiClockIcon } = FiIcons;
 
 const WaveBottom = memo(({ darkMode }) => (
   <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-none pointer-events-none">
@@ -23,6 +23,7 @@ const WaveBottom = memo(({ darkMode }) => (
     </svg>
   </div>
 ));
+
 const WaveTop = memo(({ darkMode }) => (
   <div className="absolute top-0 left-0 w-full overflow-hidden leading-none pointer-events-none">
     <svg viewBox="0 0 1440 80" xmlns="http://www.w3.org/2000/svg"
@@ -32,9 +33,6 @@ const WaveTop = memo(({ darkMode }) => (
     </svg>
   </div>
 ));
-
-
-
 
 const StatCard = memo(({ icon, value, label, accent, delay, darkMode }) => (
   <motion.div
@@ -60,18 +58,14 @@ const StatCard = memo(({ icon, value, label, accent, delay, darkMode }) => (
   </motion.div>
 ));
 
-
-
-const LimeScrollStyle = () => (
+const LimeScrollStyle = memo(() => (
   <style>{`
     .lime-scroll::-webkit-scrollbar { width: 6px; }
     .lime-scroll::-webkit-scrollbar-track { background: transparent; }
     .lime-scroll::-webkit-scrollbar-thumb { background: linear-gradient(180deg,#84cc16,#10b981); border-radius: 999px; }
     .lime-scroll { scrollbar-width: thin; scrollbar-color: #84cc16 transparent; }
   `}</style>
-);
-
-
+));
 
 const daysLeft = (endDate) => {
   const diff = Math.ceil((new Date(endDate) - new Date()) / (1000 * 60 * 60 * 24));
@@ -80,18 +74,21 @@ const daysLeft = (endDate) => {
   if (diff === 1) return "1 day left";
   return `${diff} days left`;
 };
+
 const formatDiscount = (offer) =>
   offer.discountType === "PERCENTAGE" ? `${offer.discountValue}%` : `${offer.discountValue} EGP`;
+
 const formatDateRange = (s, e) =>
   `${new Date(s).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} — ${new Date(e).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
 
-
-
 const OfferCard = memo(({ offer, index, darkMode, onViewDetail }) => {
-  const isPercentage = offer.discountType === "PERCENTAGE";
-  const isActive = offer.status === "ACTIVE";
-  const remaining = daysLeft(offer.endDate);
-  const isUrgent = remaining && parseInt(remaining) <= 3;
+  const isPercentage = useMemo(() => offer.discountType === "PERCENTAGE", [offer.discountType]);
+  const isActive = useMemo(() => offer.status === "ACTIVE", [offer.status]);
+  const remaining = useMemo(() => daysLeft(offer.endDate), [offer.endDate]);
+  const isUrgent = useMemo(() => remaining && parseInt(remaining) <= 3, [remaining]);
+
+  const discountFormatted = useMemo(() => formatDiscount(offer), [offer]);
+  const dateRangeFormatted = useMemo(() => formatDateRange(offer.startDate, offer.endDate), [offer.startDate, offer.endDate]);
 
   return (
     <motion.div
@@ -107,15 +104,13 @@ const OfferCard = memo(({ offer, index, darkMode, onViewDetail }) => {
       <div className="h-1.5 w-full bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-500 flex-shrink-0" />
       <div className="absolute inset-0 bg-gradient-to-br from-lime-500/0 via-lime-500/5 to-emerald-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
-      
-      
       <motion.div initial={{ scale: 0.8, opacity: 0 }} whileInView={{ scale: 1, opacity: 1 }}
         transition={{ delay: index * 0.07 + 0.2, type: "spring", stiffness: 200 }} viewport={{ once: true }}
         className="absolute top-4 right-4 z-10">
         <div className={`flex flex-col items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl shadow-xl ${
           isPercentage ? "bg-gradient-to-br from-orange-500 to-rose-500" : "bg-gradient-to-br from-lime-500 to-emerald-600"
         }`}>
-          <span className="text-white text-sm sm:text-lg font-extrabold leading-none text-center">{formatDiscount(offer)}</span>
+          <span className="text-white text-sm sm:text-lg font-extrabold leading-none text-center">{discountFormatted}</span>
           <span className="text-white/80 text-[8px] sm:text-[9px] font-bold uppercase tracking-wide">OFF</span>
         </div>
       </motion.div>
@@ -123,7 +118,7 @@ const OfferCard = memo(({ offer, index, darkMode, onViewDetail }) => {
       <div className="p-4 sm:p-6 relative z-10 flex flex-col flex-1">
         <div className="pr-16 sm:pr-20 mb-2 sm:mb-3">
           <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 flex-wrap">
-            <span className={`inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold ${
+            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold ${
               isActive ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
                 : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
             }`}>
@@ -133,7 +128,7 @@ const OfferCard = memo(({ offer, index, darkMode, onViewDetail }) => {
             </span>
             {remaining && (
               <motion.span animate={isUrgent ? { scale: [1, 1.05, 1] } : {}} transition={{ duration: 1, repeat: Infinity }}
-                className={`inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold ${
+                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold ${
                   isUrgent ? "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300"
                     : darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-100 text-gray-600"
                 }`}>
@@ -150,8 +145,6 @@ const OfferCard = memo(({ offer, index, darkMode, onViewDetail }) => {
           {offer.description || "Limited time offer on selected services and products."}
         </p>
 
-       
-       
         <motion.div whileHover={{ scale: 1.01 }}
           className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg sm:rounded-xl mb-3 sm:mb-5 border ${darkMode ? "bg-gray-700/50 border-gray-600" : "bg-gray-50 border-gray-200"}`}>
           <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0 ${
@@ -167,14 +160,12 @@ const OfferCard = memo(({ offer, index, darkMode, onViewDetail }) => {
           </div>
         </motion.div>
 
-       
-       
         <div className="space-y-2 mt-auto">
           <div className={`flex items-center gap-2 text-xs sm:text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
             <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-md sm:rounded-lg flex items-center justify-center flex-shrink-0 ${darkMode ? "bg-gray-700" : "bg-gray-100"}`}>
               <FaCalendarAlt className="text-lime-500 text-[10px] sm:text-xs" />
             </div>
-            <span className="text-[10px] sm:text-xs">{formatDateRange(offer.startDate, offer.endDate)}</span>
+            <span className="text-[10px] sm:text-xs">{dateRangeFormatted}</span>
           </div>
           {offer.shopName && (
             <Link to={`/shops/${offer.shopId}`} onClick={(e) => e.stopPropagation()} className="flex items-center gap-2 group/link">
@@ -187,8 +178,6 @@ const OfferCard = memo(({ offer, index, darkMode, onViewDetail }) => {
         </div>
       </div>
 
-     
-     
       <div className={`px-4 sm:px-6 py-2.5 sm:py-3 border-t flex items-center justify-between flex-shrink-0 ${darkMode ? "border-gray-700 bg-gray-800/50" : "border-gray-100 bg-gray-50/80"}`}>
         <span className={`text-[10px] sm:text-xs font-semibold ${darkMode ? "text-gray-500" : "text-gray-400"}`}>
           {isPercentage ? "Percentage discount" : "Fixed amount off"}
@@ -208,9 +197,6 @@ const OfferCard = memo(({ offer, index, darkMode, onViewDetail }) => {
   );
 });
 
-
-
-
 const OfferDetailModal = memo(({ open, onClose, offerId, token, darkMode }) => {
   const [offer, setOffer] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -226,10 +212,13 @@ const OfferDetailModal = memo(({ open, onClose, offerId, token, darkMode }) => {
     return () => { cancelled = true; };
   }, [open, offerId, token]);
 
-  const isPercentage = offer?.discountType === "PERCENTAGE";
-  const isActive = offer?.status === "ACTIVE";
-  const remaining = offer ? daysLeft(offer.endDate) : null;
-  const isUrgent = remaining && parseInt(remaining) <= 3;
+  const isPercentage = useMemo(() => offer?.discountType === "PERCENTAGE", [offer]);
+  const isActive = useMemo(() => offer?.status === "ACTIVE", [offer]);
+  const remaining = useMemo(() => offer ? daysLeft(offer.endDate) : null, [offer]);
+  const isUrgent = useMemo(() => remaining && parseInt(remaining) <= 3, [remaining]);
+
+  const discountFormatted = useMemo(() => offer ? formatDiscount(offer) : "", [offer]);
+  const dateRangeFormatted = useMemo(() => offer ? formatDateRange(offer.startDate, offer.endDate) : "", [offer]);
 
   return (
     <Dialog open={open} onClose={onClose} className="relative z-50">
@@ -253,7 +242,6 @@ const OfferDetailModal = memo(({ open, onClose, offerId, token, darkMode }) => {
             ) : offer ? (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
                 className="p-4 sm:p-6 space-y-4 sm:space-y-5">
-                {/* badge area */}
                 <div className={`relative rounded-xl sm:rounded-2xl p-4 sm:p-6 overflow-hidden ${darkMode ? "bg-gray-800" : "bg-gradient-to-br from-lime-50 to-emerald-50"}`}>
                   <div className="flex items-start justify-between gap-3 sm:gap-4">
                     <div className="flex-1">
@@ -267,7 +255,7 @@ const OfferDetailModal = memo(({ open, onClose, offerId, token, darkMode }) => {
                           <span className={`inline-flex items-center gap-1 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold ${
                             isUrgent ? "bg-orange-100 text-orange-700" : darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-100 text-gray-600"
                           }`}>
-                            <FiClock className="w-3 h-3" />{remaining}
+                            <FiClockIcon className="w-3 h-3" />{remaining}
                           </span>
                         )}
                       </div>
@@ -287,10 +275,10 @@ const OfferDetailModal = memo(({ open, onClose, offerId, token, darkMode }) => {
                 <div className="grid grid-cols-2 gap-2 sm:gap-4">
                   {[
                     { label: "Discount Type", value: isPercentage ? "Percentage" : "Fixed Amount", icon: <FaPercent />, color: isPercentage ? "text-orange-500" : "text-lime-600 dark:text-lime-400" },
-                    { label: "You Save", value: isPercentage ? `${offer.discountValue}% OFF` : `${offer.discountValue} EGP`, icon: <FaTag />, color: "text-lime-600 dark:text-lime-400" },
+                    { label: "You Save", value: discountFormatted, icon: <FaTag />, color: "text-lime-600 dark:text-lime-400" },
                   ].map((item) => (
                     <div key={item.label} className={`p-3 sm:p-4 rounded-lg sm:rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
-                      <div className={`flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-semibold uppercase tracking-wide mb-0.5 sm:mb-1 ${darkMode ? "text-gray-500" : "text-gray-400"}`}>
+                      <div className={`flex items-center gap-1.5 sm:gap-1.5 text-[10px] sm:text-xs font-semibold uppercase tracking-wide mb-0.5 sm:mb-1 ${darkMode ? "text-gray-500" : "text-gray-400"}`}>
                         <span className={item.color}>{item.icon}</span>{item.label}
                       </div>
                       <p className={`text-sm sm:text-lg font-extrabold ${item.color}`}>{item.value}</p>
@@ -304,7 +292,7 @@ const OfferDetailModal = memo(({ open, onClose, offerId, token, darkMode }) => {
                   </div>
                   <div>
                     <p className={`text-[10px] sm:text-xs font-semibold uppercase tracking-wide ${darkMode ? "text-gray-500" : "text-gray-400"}`}>Valid Period</p>
-                    <p className={`text-xs sm:text-sm font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>{formatDateRange(offer.startDate, offer.endDate)}</p>
+                    <p className={`text-xs sm:text-sm font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>{dateRangeFormatted}</p>
                   </div>
                 </div>
 
@@ -359,9 +347,6 @@ const OfferDetailModal = memo(({ open, onClose, offerId, token, darkMode }) => {
   );
 });
 
-
-
-
 const SkeletonCard = memo(({ darkMode }) => (
   <div className={`rounded-xl sm:rounded-2xl border-2 overflow-hidden animate-pulse ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
     <div className="h-1.5 bg-gradient-to-r from-lime-300 to-emerald-300 opacity-40" />
@@ -380,8 +365,6 @@ const SkeletonCard = memo(({ darkMode }) => (
   </div>
 ));
 
-
-
 const MOCK_OFFER = {
   id: "0199b7de-ded5-7fea-964d-616ca9af5d3c", name: "Offer 6",
   description: "The sixth offer", discountType: "FIXED_VALUE", discountValue: 200,
@@ -389,11 +372,7 @@ const MOCK_OFFER = {
   shopId: "01998efa-6127-7218-bcd3-f701a640df92", shopName: "Star",
 };
 
-
-
-
-
-const Offers = ({ darkMode }) => {
+const Offers = memo(({ darkMode }) => {
   const [offers, setOffers] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(6);
@@ -428,29 +407,31 @@ const Offers = ({ darkMode }) => {
   }, [token]);
 
   const openDetail = useCallback((id) => { setDetailOfferId(id); setIsDetailOpen(true); }, []);
+  const closeDetail = useCallback(() => { setIsDetailOpen(false); setDetailOfferId(null); }, []);
 
-  const totalPages = Math.ceil(offers.length / pageSize);
-  const paginatedOffers = offers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const totalPages = useMemo(() => Math.ceil(offers.length / pageSize), [offers.length, pageSize]);
+  const paginatedOffers = useMemo(() => offers.slice((currentPage - 1) * pageSize, currentPage * pageSize), [offers, currentPage, pageSize]);
 
-  const heroStats = [
+  const heroStats = useMemo(() => [
     { icon: <FaGift size={16} />, value: "50%", label: "Max discount available", accent: "#f97316", delay: 0.1 },
     { icon: <RiStore2Line size={16} />, value: "500+", label: "Participating shops", accent: "#6366f1", delay: 0.2 },
     { icon: <RiStarFill size={16} />, value: "Daily", label: "New offers added", accent: "#16a34a", delay: 0.3 },
-  ];
+  ], []);
 
-  const features = [
+  const features = useMemo(() => [
     { icon: <FaGift className="w-7 h-7 sm:w-9 sm:h-9" />, title: "Big Savings", desc: "Up to 50% off on repairs & devices", accent: "#f97316" },
     { icon: <RiShieldCheckLine className="w-7 h-7 sm:w-9 sm:h-9" />, title: "Trusted Shops", desc: "Verified partners with quality guarantee", accent: "#6366f1" },
     { icon: <FaClock className="w-7 h-7 sm:w-9 sm:h-9" />, title: "Limited Time", desc: "Exclusive deals available right now", accent: "#ef4444" },
     { icon: <FaCheckCircle className="w-7 h-7 sm:w-9 sm:h-9" />, title: "Easy Redemption", desc: "Apply instantly at checkout, no code needed", accent: "#16a34a" },
-  ];
+  ], []);
+
+  const handlePrevPage = useCallback(() => setCurrentPage((p) => Math.max(1, p - 1)), []);
+  const handleNextPage = useCallback(() => setCurrentPage((p) => Math.min(totalPages, p + 1)), [totalPages]);
 
   return (
     <div className={`min-h-screen overflow-x-hidden ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
       <LimeScrollStyle />
 
-     
-     
       <section className={`relative overflow-hidden pt-16 sm:pt-20 pb-24 sm:pb-32 md:pb-40 ${
         darkMode ? "bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950"
           : "bg-gradient-to-br from-lime-50 via-white to-emerald-50"
@@ -483,8 +464,6 @@ const Offers = ({ darkMode }) => {
               </div>
             </div>
 
-           
-           
             <div className="relative h-56 sm:h-80 lg:h-[520px] order-1 lg:order-2 hidden sm:block">
               <div className="absolute inset-0 bg-gradient-to-br from-lime-200/30 to-emerald-200/30 dark:from-lime-900/20 dark:to-emerald-900/20 rounded-full blur-3xl scale-125" />
               <div className="relative w-full h-full">
@@ -520,8 +499,6 @@ const Offers = ({ darkMode }) => {
         <WaveBottom darkMode={darkMode} />
       </section>
 
-     
-     
       <section className={`py-12 sm:py-20 ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.h2 initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
@@ -548,8 +525,6 @@ const Offers = ({ darkMode }) => {
         </div>
       </section>
 
-     
-     
       <section className={`py-10 sm:py-16 ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
@@ -588,11 +563,9 @@ const Offers = ({ darkMode }) => {
         </div>
       </section>
 
-     
-     
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-2 sm:gap-3 py-8 sm:py-12 flex-wrap px-4 sm:px-6">
-          <motion.button whileTap={{ scale: 0.96 }} onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}
+          <motion.button whileTap={{ scale: 0.96 }} onClick={handlePrevPage} disabled={currentPage === 1}
             className={`p-2.5 sm:p-3 rounded-xl border-2 transition-all ${currentPage === 1 ? "opacity-40 cursor-not-allowed border-gray-200 dark:border-gray-700" : darkMode ? "bg-gray-800 border-gray-700 text-white hover:border-lime-500" : "bg-white border-gray-200 text-gray-700 hover:border-lime-400"}`}>
             <FiChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </motion.button>
@@ -605,17 +578,17 @@ const Offers = ({ darkMode }) => {
               {page}
             </motion.button>
           ))}
-          <motion.button whileTap={{ scale: 0.96 }} onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
+          <motion.button whileTap={{ scale: 0.96 }} onClick={handleNextPage} disabled={currentPage === totalPages}
             className={`p-2.5 sm:p-3 rounded-xl border-2 transition-all ${currentPage === totalPages ? "opacity-40 cursor-not-allowed border-gray-200 dark:border-gray-700" : darkMode ? "bg-gray-800 border-gray-700 text-white hover:border-lime-500" : "bg-white border-gray-200 text-gray-700 hover:border-lime-400"}`}>
             <FiChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
           </motion.button>
         </div>
       )}
 
-      <OfferDetailModal open={isDetailOpen} onClose={() => { setIsDetailOpen(false); setDetailOfferId(null); }}
+      <OfferDetailModal open={isDetailOpen} onClose={closeDetail}
         offerId={detailOfferId} token={token} darkMode={darkMode} />
     </div>
   );
-};
+});
 
 export default Offers;
