@@ -240,7 +240,7 @@ const NotificationPanel = memo(({
 
 
           <div className="flex items-center gap-0.5">
-            {unreadCount > 0 && (
+            {/* {unreadCount > 0 && (
               <button
                 onClick={onMarkAllRead}
                 title="تعليم الكل كمقروء"
@@ -251,17 +251,8 @@ const NotificationPanel = memo(({
                 <RiCheckDoubleLine size={13} />
                 قراءة الكل
               </button>
-            )}
-            {notifications.length > 0 && (
-              <button
-                onClick={onClearAll}
-                title="حذف جميع الإشعارات"
-                className={`p-1.5 rounded-xl transition
-                  ${darkMode ? "hover:bg-red-500/12 text-gray-600 hover:text-red-400" : "hover:bg-red-50 text-gray-400 hover:text-red-500"}`}
-              >
-                <FiTrash2 size={13} />
-              </button>
-            )}
+            )} */}
+
             <button
               onClick={onClose}
               className={`p-1.5 rounded-xl transition
@@ -435,6 +426,13 @@ const ShopHeader = () => {
   const [notifications, setNotifications] = useState([]);
   const [loadingNotifs, setLoadingNotifs] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
+
+
+
+  useEffect(() => {
+    const count = notifications.filter(n => !n.read).length;
+    setUnreadCount(count);
+  }, [notifications]);
   const [badgeKey, setBadgeKey] = useState(0);
   const [bellRinging, setBellRinging] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -463,11 +461,15 @@ const ShopHeader = () => {
 
 
   useEffect(() => {
-    if (token && !isTokenExpired(token)) {
+    if (token) {
       setIsAuthenticated(true);
     } else {
-      localStorage.clear();
-      navigate("/login");
+      const storedToken = localStorage.getItem("authToken");
+      if (!storedToken) {
+        navigate("/login");
+      } else {
+        setIsAuthenticated(true);
+      }
     }
   }, [token, navigate]);
 
@@ -475,14 +477,14 @@ const ShopHeader = () => {
 
   const fetchNotifications = useCallback(async () => {
     if (!token) return;
-    setLoadingNotifs(true);
+
+    // setLoadingNotifs(true); 
     try {
       const res = await api.get("/api/notifications/shops");
       const data = Array.isArray(res.data) ? res.data : res.data?.content || [];
       const newUnread = data.filter(n => !n.read).length;
 
       setNotifications(data);
-      setUnreadCount(newUnread);
 
       if (newUnread > prevUnreadRef.current) {
         setBadgeKey(k => k + 1);
@@ -510,9 +512,6 @@ const ShopHeader = () => {
       await api.delete(`/api/notifications/shops/${id}`);
       setNotifications(prev => {
         const next = prev.filter(n => n.id !== id);
-        const u = next.filter(n => !n.read).length;
-        setUnreadCount(u);
-        prevUnreadRef.current = u;
         return next;
       });
       toast.success("تم حذف الإشعار");
@@ -527,9 +526,6 @@ const ShopHeader = () => {
 
     setNotifications(prev => {
       const next = prev.map(n => n.id === id ? { ...n, read: true } : n);
-      const u = next.filter(n => !n.read).length;
-      setUnreadCount(u);
-      prevUnreadRef.current = u;
       return next;
     });
     try { await api.put(`/api/notifications/shops/${id}/read`); } catch { }
@@ -596,8 +592,17 @@ const ShopHeader = () => {
     navigate("/login");
   }, [token, navigate, darkMode]);
 
-  const isActive = (path) => location.pathname === path;
-  const closeSidebar = () => setSidebarOpen(false);
+  const isActive = useCallback((path) => location.pathname === path, [location.pathname]);
+  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
+
+  const filteredMenuGroups = useMemo(() => {
+    if (!searchQuery) return MENU_GROUPS;
+    const q = searchQuery.toLowerCase();
+    return MENU_GROUPS.map(group => ({
+      ...group,
+      items: group.items.filter(item => item.name.toLowerCase().includes(q))
+    })).filter(group => group.items.length > 0);
+  }, [searchQuery]);
 
 
 
@@ -626,7 +631,7 @@ const ShopHeader = () => {
 
       <aside
         className={`fixed inset-y-0 right-0 z-[70] w-64
-          bg-white/90 dark:bg-gray-900/95 backdrop-blur-2xl
+          bg-white dark:bg-gray-900/95 backdrop-blur-2xl
           border-l border-gray-100 dark:border-gray-800
           shadow-2xl flex flex-col
           transition-transform duration-500
@@ -675,19 +680,22 @@ const ShopHeader = () => {
 
 
         <div className="flex-1 overflow-y-auto py-4 px-4 custom-scrollbar-thin space-y-5">
-          {MENU_GROUPS.map((group, idx) => (
+          {filteredMenuGroups.map((group, idx) => (
             <div key={idx} className="space-y-1">
               <h3 className="px-4 text-[9px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-600 flex items-center gap-2 mb-2">
                 {group.label}
                 <div className="h-px flex-1 bg-gray-100 dark:bg-gray-800/60" />
               </h3>
-              {group.items
-                .filter(item => !searchQuery || item.name.includes(searchQuery))
-                .map(item => (
-                  <NavLink key={item.name} item={item} active={isActive(item.path)} onClick={closeSidebar} />
-                ))}
+              {group.items.map(item => (
+                <NavLink key={item.name} item={item} active={isActive(item.path)} onClick={closeSidebar} />
+              ))}
             </div>
           ))}
+          {filteredMenuGroups.length === 0 && (
+            <div className="px-4 py-8 text-center">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">لا توجد نتائج للبحث</p>
+            </div>
+          )}
         </div>
 
 
@@ -835,4 +843,4 @@ const ShopHeader = () => {
   );
 };
 
-export default ShopHeader;
+export default memo(ShopHeader);

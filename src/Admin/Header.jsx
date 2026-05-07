@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, memo, useRef } from "react";
 import {
   FiMoon, FiSun, FiUser, FiLogOut, FiMenu, FiX,
   FiActivity, FiUsers, FiBox, FiTool, FiClipboard, FiRefreshCw, FiSearch,
@@ -84,8 +84,8 @@ const Header = ({ darkMode: darkModeProp, toggleDarkMode }) => {
   const [localDarkMode, setLocalDarkMode] = useState(() => localStorage.getItem("darkMode") === "true");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [token, setToken] = useState(localStorage.getItem("authToken"));
-  const [userProfile, setUserProfile] = useState(null);
+  const tokenRef = useRef(localStorage.getItem("authToken"));
+  // const [userProfile, setUserProfile] = useState(null);
 
   const darkMode = darkModeProp !== undefined ? darkModeProp : localDarkMode;
 
@@ -107,6 +107,7 @@ const Header = ({ darkMode: darkModeProp, toggleDarkMode }) => {
   
 
   useEffect(() => {
+    const token = tokenRef.current;
     if (token && !isTokenExpired(token)) {
       
     } else {
@@ -114,11 +115,12 @@ const Header = ({ darkMode: darkModeProp, toggleDarkMode }) => {
       localStorage.removeItem("refreshToken");
       navigate("/login");
     }
-  }, [token, navigate, ]);
+  }, [navigate]);
 
  
   
   const handleLogout = useCallback(async () => {
+    const token = tokenRef.current;
     const refreshToken = localStorage.getItem("refreshToken");
     const { isConfirmed } = await Swal.fire({
       title: "Confirm Logout",
@@ -137,7 +139,7 @@ const Header = ({ darkMode: darkModeProp, toggleDarkMode }) => {
     } catch {  }
     localStorage.clear();
     navigate("/login");
-  }, [token, navigate, darkMode]);
+  }, [navigate, darkMode]);
 
   const isActive = (path) => location.pathname === path;
   const closeSidebar = () => setSidebarOpen(false);

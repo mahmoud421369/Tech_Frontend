@@ -12,16 +12,16 @@ import api from '../api';
 const ROWS_OPTIONS = [5, 10, 20, 50];
 
 const PAYMENT_STATUS_META = {
-  PAID: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600', dot: 'bg-emerald-500' },
-  ACTIVE: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600', dot: 'bg-emerald-500' },
-  PENDING: { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-600', dot: 'bg-amber-500' },
-  FAILED: { bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-600', dot: 'bg-red-500' },
+  PAID:    { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600', dot: 'bg-emerald-500' },
+  ACTIVE:  { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600', dot: 'bg-emerald-500' },
+  PENDING: { bg: 'bg-amber-50 dark:bg-amber-900/20',   text: 'text-amber-600',   dot: 'bg-amber-500'   },
+  FAILED:  { bg: 'bg-red-50 dark:bg-red-900/20',         text: 'text-red-600',     dot: 'bg-red-500'     },
 };
 const getPayStatusMeta = (s) => PAYMENT_STATUS_META[s] || PAYMENT_STATUS_META.PENDING;
 
 const METHOD_META = {
   CASH: { bg: 'bg-orange-50 dark:bg-orange-900/20', text: 'text-orange-600', dot: 'bg-orange-500' },
-  CARD: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600', dot: 'bg-blue-500' },
+  CARD: { bg: 'bg-blue-50 dark:bg-blue-900/20',     text: 'text-blue-600',   dot: 'bg-blue-500'   },
 };
 const getMethodMeta = (m) => METHOD_META[m] || METHOD_META.CARD;
 
@@ -32,6 +32,9 @@ const formatDate = (d) => {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 };
+
+
+
 
 const StatCard = memo(({ icon: Icon, label, value, color }) => (
   <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-sm hover:shadow-xl hover:shadow-lime-500/5 transition-all duration-500 group relative overflow-hidden">
@@ -50,8 +53,21 @@ const StatCard = memo(({ icon: Icon, label, value, color }) => (
 
 const SortIcon = memo(({ field, sortField, sortDir }) => {
   if (sortField !== field) return <FiChevronDown size={11} className="text-gray-400 dark:text-gray-500" />;
-  return sortDir === 'asc' ? <FiChevronUp size={11} className="text-lime-600" /> : <FiChevronDown size={11} className="text-lime-600" />;
+  return sortDir === 'asc'
+    ? <FiChevronUp size={11} className="text-lime-600" />
+    : <FiChevronDown size={11} className="text-lime-600" />;
 });
+
+const Th = memo(({ field, label, center = true, onSort, sortField, sortDir }) => (
+  <th
+    onClick={() => onSort(field)}
+    className={`px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${center ? 'text-center' : 'text-left'}`}
+  >
+    <span className={`flex items-center gap-1.5 ${center ? 'justify-center' : ''}`}>
+      {label} <SortIcon field={field} sortField={sortField} sortDir={sortDir} />
+    </span>
+  </th>
+));
 
 const RowsDropdown = memo(({ value, options, onChange }) => {
   const [open, setOpen] = useState(false);
@@ -72,8 +88,7 @@ const RowsDropdown = memo(({ value, options, onChange }) => {
         <div className="absolute right-0 z-20 mt-1 w-32 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
           {options.map(n => (
             <button key={n} onClick={() => { onChange(n); setOpen(false); }}
-              className={`w-full flex items-center justify-between px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition
-                ${value === n ? 'bg-lime-50 dark:bg-lime-900/30 text-lime-600' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
+              className={`w-full flex items-center justify-between px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition ${value === n ? 'bg-lime-50 dark:bg-lime-900/30 text-lime-600' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
               {n} Rows
               {value === n && <FiCheck size={12} className="text-lime-500" />}
             </button>
@@ -88,13 +103,13 @@ const SubscriptionModal = memo(({ sub, onClose }) => {
   if (!sub) return null;
   const fmt = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
   const rows = [
-    { icon: FiFileText, label: 'Shop Entity', value: sub.shopName || '—' },
-    { icon: FiActivity, label: 'Shop ID', value: sub.shopId || '—', mono: true },
-    { icon: FiCalendar, label: 'Start Date', value: fmt(sub.startDate) },
-    { icon: FiCalendar, label: 'End Date', value: fmt(sub.endDate) },
-    { icon: FiClock, label: 'Duration', value: sub.months ? `${sub.months} Month(s)` : '—' },
-    { icon: FiDollarSign, label: 'Amount', value: sub.amount ? `${sub.amount.toLocaleString()} EGP` : '—', color: 'lime' },
-    { icon: FiCreditCard, label: 'Method', value: (sub.paymentMethod || 'CARD').toUpperCase(), color: 'blue' },
+    { icon: FiFileText,   label: 'Shop Entity', value: sub.shopName || '—' },
+    { icon: FiActivity,   label: 'Shop ID',     value: sub.shopId || '—', mono: true },
+    { icon: FiCalendar,   label: 'Start Date',  value: fmt(sub.startDate) },
+    { icon: FiCalendar,   label: 'End Date',    value: fmt(sub.endDate) },
+    { icon: FiClock,      label: 'Duration',    value: sub.months ? `${sub.months} Month(s)` : '—' },
+    { icon: FiDollarSign, label: 'Amount',      value: sub.amount ? `${sub.amount.toLocaleString()} EGP` : '—', color: 'lime' },
+    { icon: FiCreditCard, label: 'Method',      value: (sub.paymentMethod || 'CARD').toUpperCase(), color: 'blue' },
   ];
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-md p-4">
@@ -133,13 +148,16 @@ const SubscriptionModal = memo(({ sub, onClose }) => {
   );
 });
 
+
+
 const AdminSubscriptions = ({ darkMode }) => {
   const navigate = useNavigate();
-  const token = localStorage.getItem('authToken');
+  const tokenRef = useRef(localStorage.getItem('authToken'));
 
   const [subscriptions, setSubscriptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [viewMode, setViewMode] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -151,7 +169,13 @@ const AdminSubscriptions = ({ darkMode }) => {
 
   useEffect(() => { document.title = 'Admin - Subscriptions'; }, []);
 
+  useEffect(() => {
+    const id = setTimeout(() => { setDebouncedSearch(search); setCurrentPage(1); }, 300);
+    return () => clearTimeout(id);
+  }, [search]);
+
   const fetchAll = useCallback(async (pageNum = 0) => {
+    const token = tokenRef.current;
     if (!token) { navigate('/login'); return; }
     setLoading(true);
     try {
@@ -161,30 +185,31 @@ const AdminSubscriptions = ({ darkMode }) => {
       });
       const d = res.data;
       const normalized = (d.content || []).map(item => ({
-        id: item.id || item.subscriptionId,
+        id:             item.id || item.subscriptionId,
         subscriptionId: item.subscriptionId || item.id,
-        shopId: item.shop?.id || item.shopId,
-        shopName: item.shop?.name || item.shopName || 'Unknown Shop',
-        shopEmail: item.shop?.email || item.shopEmail,
-        startDate: item.startDate,
-        endDate: item.endDate,
-        months: item.months || 0,
-        status: item.status || 'PENDING',
-        paymentMethod: item.payment?.method || item.paymentMethod || 'CARD',
-        paymentStatus: item.payment?.paymentStatus || item.paymentStatus || 'PENDING',
-        amount: item.amount || item.payment?.amount || 0,
-        paymentId: item.payment?.id || item.paymentId,
+        shopId:         item.shop?.id || item.shopId,
+        shopName:       item.shop?.name || item.shopName || 'Unknown Shop',
+        shopEmail:      item.shop?.email || item.shopEmail,
+        startDate:      item.startDate,
+        endDate:        item.endDate,
+        months:         item.months || 0,
+        status:         item.status || 'PENDING',
+        paymentMethod:  item.payment?.method || item.paymentMethod || 'CARD',
+        paymentStatus:  item.payment?.paymentStatus || item.paymentStatus || 'PENDING',
+        amount:         item.amount || item.payment?.amount || 0,
+        paymentId:      item.payment?.id || item.paymentId,
       }));
       setSubscriptions(normalized);
       setTotalServerPages(d.totalPages || 1);
       setServerPage(d.number || 0);
     } catch (err) {
-      if (err?.response?.status === 401) { navigate('/login'); }
+      if (err?.response?.status === 401) navigate('/login');
       else showToast('Sync failed', 'error');
     } finally { setLoading(false); }
-  }, [token, navigate]);
+  }, [navigate]);
 
   const fetchCashPending = useCallback(async () => {
+    const token = tokenRef.current;
     if (!token) { navigate('/login'); return; }
     setLoading(true);
     try {
@@ -192,17 +217,17 @@ const AdminSubscriptions = ({ darkMode }) => {
       const list = Array.isArray(res.data) ? res.data : res.data?.content || [];
       setSubscriptions(list.map(item => ({
         ...item,
-        paymentId: item.id,
+        paymentId:     item.id,
         paymentMethod: 'CASH',
         paymentStatus: item.paymentStatus || 'PENDING',
-        shopName: item.shop?.name || item.shopName || 'Unknown Shop',
-        shopEmail: item.shop?.email || item.shopEmail,
+        shopName:      item.shop?.name || item.shopName || 'Unknown Shop',
+        shopEmail:     item.shop?.email || item.shopEmail,
       })));
     } catch (err) {
-      if (err?.response?.status === 401) { navigate('/login'); }
+      if (err?.response?.status === 401) navigate('/login');
       else showToast('Sync failed', 'error');
     } finally { setLoading(false); }
-  }, [token, navigate]);
+  }, [navigate]);
 
   const loadData = useCallback(() => {
     setCurrentPage(1);
@@ -212,81 +237,92 @@ const AdminSubscriptions = ({ darkMode }) => {
   useEffect(() => { loadData(); }, [viewMode]);
 
   const stats = useMemo(() => ({
-    total: subscriptions.length,
-    active: subscriptions.filter(s => s.status === 'ACTIVE').length,
-    pending: subscriptions.filter(s => s.paymentStatus === 'PENDING' || s.status === 'PENDING').length,
+    total:       subscriptions.length,
+    active:      subscriptions.filter(s => s.status === 'ACTIVE').length,
+    pending:     subscriptions.filter(s => s.paymentStatus === 'PENDING' || s.status === 'PENDING').length,
     cashPending: subscriptions.filter(s => s.paymentMethod === 'CASH' && s.paymentStatus === 'PENDING').length,
   }), [subscriptions]);
 
   const handleSort = useCallback((field) => {
-    setSortField(prev => { if (prev === field) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return prev; } setSortDir('asc'); return field; });
+    setSortField(prev => {
+      if (prev === field) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return prev; }
+      setSortDir('asc'); return field;
+    });
     setCurrentPage(1);
   }, []);
 
   const processed = useMemo(() => {
-    const t = search.toLowerCase();
-    let list = subscriptions.filter(s =>
-      !t || (s.shopName || '').toLowerCase().includes(t) || (s.shopEmail || '').toLowerCase().includes(t) || String(s.shopId || '').includes(t)
+    const t = debouncedSearch.toLowerCase();
+    const list = subscriptions.filter(s =>
+      !t ||
+      (s.shopName || '').toLowerCase().includes(t) ||
+      (s.shopEmail || '').toLowerCase().includes(t) ||
+      String(s.shopId || '').includes(t)
     );
     return [...list].sort((a, b) => {
       let av = String(a[sortField] || '').toLowerCase(), bv = String(b[sortField] || '').toLowerCase();
       if (sortField === 'amount' || sortField === 'months') { av = Number(a[sortField] || 0); bv = Number(b[sortField] || 0); }
       if (av < bv) return sortDir === 'asc' ? -1 : 1;
-      if (av > bv) return sortDir === 'asc' ? 1 : -1;
+      if (av > bv) return sortDir === 'asc' ?  1 : -1;
       return 0;
     });
-  }, [subscriptions, search, sortField, sortDir]);
+  }, [subscriptions, debouncedSearch, sortField, sortDir]);
 
   const totalPages = Math.ceil(processed.length / rowsPerPage);
-  const paginated = processed.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+  const paginated = useMemo(
+    () => processed.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage),
+    [processed, currentPage, rowsPerPage]
+  );
 
   const confirmCash = useCallback(async (paymentId) => {
-    const { isConfirmed } = await Swal.fire({ title: 'Authorize Cash Payment?', text: 'This will instantly activate the shop subscription.', icon: 'question', showCancelButton: true, confirmButtonText: 'Confirm Payment', background: darkMode ? '#111827' : '#fff', color: darkMode ? '#fff' : '#000', });
+    const token = tokenRef.current;
+    const { isConfirmed } = await Swal.fire({
+      title: 'Authorize Cash Payment?', text: 'This will instantly activate the shop subscription.',
+      icon: 'question', showCancelButton: true, confirmButtonText: 'Confirm Payment',
+      background: darkMode ? '#111827' : '#fff', color: darkMode ? '#fff' : '#000',
+    });
     if (!isConfirmed) return;
     try {
       await api.post(`/api/admin/subscriptions/cash/confirm/${paymentId}`, {}, { headers: { Authorization: `Bearer ${token}` } });
       showToast('Payment Confirmed', 'success'); loadData();
     } catch (err) { showToast(err?.response?.data?.message || 'Confirmation failed', 'error'); }
-  }, [token, loadData, darkMode]);
+  }, [loadData, darkMode]);
 
   const rejectCash = useCallback(async (paymentId) => {
-    const { isConfirmed } = await Swal.fire({ title: 'Reject Cash Entry?', text: 'This will cancel the subscription request.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Confirm Rejection', confirmButtonColor: '#ef4444', background: darkMode ? '#111827' : '#fff', color: darkMode ? '#fff' : '#000', });
+    const token = tokenRef.current;
+    const { isConfirmed } = await Swal.fire({
+      title: 'Reject Cash Entry?', text: 'This will cancel the subscription request.',
+      icon: 'warning', showCancelButton: true, confirmButtonText: 'Confirm Rejection',
+      confirmButtonColor: '#ef4444', background: darkMode ? '#111827' : '#fff', color: darkMode ? '#fff' : '#000',
+    });
     if (!isConfirmed) return;
     try {
       await api.post(`/api/admin/subscriptions/cash/reject/${paymentId}`, {}, { headers: { Authorization: `Bearer ${token}` } });
       showToast('Payment Rejected', 'success'); loadData();
     } catch (err) { showToast(err?.response?.data?.message || 'Rejection failed', 'error'); }
-  }, [token, loadData, darkMode]);
+  }, [loadData, darkMode]);
 
   const viewDetails = useCallback(async (subscriptionId) => {
+    const token = tokenRef.current;
     try {
       const { data: s } = await api.get(`/api/admin/subscriptions/${subscriptionId}`, { headers: { Authorization: `Bearer ${token}` } });
       setSelectedSub(s);
     } catch (err) { showToast(err?.response?.data?.message || 'Sync failed', 'error'); }
-  }, [token]);
+  }, []);
 
-  const Th = ({ field, label, center = true }) => (
-    <th onClick={() => handleSort(field)}
-      className={`px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${center ? 'text-center' : 'text-left'}`}>
-      <span className={`flex items-center gap-1.5 ${center ? 'justify-center' : ''}`}>
-        {label} <SortIcon field={field} sortField={sortField} sortDir={sortDir} />
-      </span>
-    </th>
-  );
-
-  const statCards = [
-    { icon: FiFileText, label: 'Total Subscriptions', value: stats.total, color: 'lime' },
-    { icon: FiCheckCircle, label: 'Active Plans', value: stats.active, color: 'emerald' },
-    { icon: FiClock, label: 'Awaiting Settlement', value: stats.pending, color: 'amber' },
-    { icon: FiDollarSign, label: 'Pending Cash', value: stats.cashPending, color: 'rose' },
-  ];
+  const statCards = useMemo(() => [
+    { icon: FiFileText,    label: 'Total Subscriptions',  value: stats.total,       color: 'lime'    },
+    { icon: FiCheckCircle, label: 'Active Plans',         value: stats.active,      color: 'emerald' },
+    { icon: FiClock,       label: 'Awaiting Settlement',  value: stats.pending,     color: 'amber'   },
+    { icon: FiDollarSign,  label: 'Pending Cash',         value: stats.cashPending, color: 'rose'    },
+  ], [stats]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
 
-        
-        
+       
+       
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -308,31 +344,33 @@ const AdminSubscriptions = ({ darkMode }) => {
           </div>
         </div>
 
-        
-        
+       
+       
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {statCards.map(s => <StatCard key={s.label} {...s} />)}
         </div>
 
-        
-        
+       
+       
         <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
           <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
             
             <div className="relative flex-1 group">
               <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={16} />
-              <input type="text" placeholder="Search by shop ..." value={search} onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
+              <input type="text" placeholder="Search by shop ..." value={search}
+                onChange={e => setSearch(e.target.value)}
                 className="w-full pl-12 pr-10 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/5 transition-all" />
-              {search && <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors"><FiX size={16} title="Clear Registry Filter" /></button>}
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors">
+                  <FiX size={16} title="Clear" />
+                </button>
+              )}
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
               {[{ v: 'all', l: 'All Plans' }, { v: 'cash_pending', l: 'Cash Queue' }].map(({ v, l }) => (
                 <button key={v} onClick={() => setViewMode(v)}
-                  className={`px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all
-                    ${viewMode === v 
-                      ? 'bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20' 
-                      : 'border-transparent bg-gray-50 dark:bg-gray-900/50 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+                  className={`px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${viewMode === v ? 'bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20' : 'border-transparent bg-gray-50 dark:bg-gray-900/50 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
                   {l}
                 </button>
               ))}
@@ -340,7 +378,7 @@ const AdminSubscriptions = ({ darkMode }) => {
 
             <div className="flex items-center gap-2">
                <button onClick={loadData} className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 hover:text-lime-500 border border-transparent hover:border-lime-500/20 transition-all">
-                 <FiRefreshCw size={16} title="Refresh Registry" />
+                 <FiRefreshCw size={16} className={loading ? 'animate-spin' : ''} title="Refresh Registry" />
                </button>
                <div className="flex items-center gap-3 px-4 border-l border-gray-100 dark:border-gray-800">
                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">View</span>
@@ -354,8 +392,8 @@ const AdminSubscriptions = ({ darkMode }) => {
           </div>
         </div>
 
-      
-      
+        
+        
         <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
           {loading ? (
             <div className="py-32 text-center space-y-4">
@@ -365,7 +403,7 @@ const AdminSubscriptions = ({ darkMode }) => {
           ) : (
             <>
               <div className="overflow-x-auto custom-scrollbar-thin">
-                <table className="w-full min-w-[850px] ">
+                <table className="w-full min-w-[850px]">
                   <thead className="bg-gray-50 dark:bg-gray-900/50">
                     <tr>
                       {viewMode === 'cash_pending' ? (
@@ -374,16 +412,16 @@ const AdminSubscriptions = ({ darkMode }) => {
                           <th className="px-8 py-5 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">Status</th>
                           <th className="px-8 py-5 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">Date</th>
                           <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-widest text-gray-400">Notes</th>
-                          <Th field="amount" label="Value" />
+                          <Th field="amount" label="Value" onSort={handleSort} sortField={sortField} sortDir={sortDir} />
                         </>
                       ) : (
                         <>
-                          <Th field="shopId" label=" ID" center={true} />
-                          <Th field="shopName" label="Shop " center={false} />
+                          <Th field="shopId"        label=" ID"      center={true}  onSort={handleSort} sortField={sortField} sortDir={sortDir} />
+                          <Th field="shopName"      label="Shop "    center={false} onSort={handleSort} sortField={sortField} sortDir={sortDir} />
                           <th className="px-8 py-5 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">Validity</th>
                           <th className="px-8 py-5 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">Duration</th>
-                          <Th field="paymentMethod" label="Method" />
-                          <Th field="paymentStatus" label="Status" />
+                          <Th field="paymentMethod" label="Method"                  onSort={handleSort} sortField={sortField} sortDir={sortDir} />
+                          <Th field="paymentStatus" label="Status"                  onSort={handleSort} sortField={sortField} sortDir={sortDir} />
                         </>
                       )}
                       <th className="px-8 py-5 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">Operations</th>
@@ -420,7 +458,10 @@ const AdminSubscriptions = ({ darkMode }) => {
                               <td className="px-8 py-6">
                                 <div className="flex items-center gap-3">
                                   <code className="text-[10px] font-black bg-gray-50 dark:bg-gray-900 px-3 py-1.5 rounded-lg text-gray-500 max-w-[100px] truncate block border border-transparent group-hover:border-lime-500/20 transition-all">{sub.shopId}</code>
-                                  <button onClick={() => navigator.clipboard.writeText(sub.shopId).then(() => showToast('ID Copied', 'success'))} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-lime-500 transition-all"><FiCopy size={14} title="Copy Shop ID" /></button>
+                                  <button onClick={() => navigator.clipboard.writeText(sub.shopId).then(() => showToast('ID Copied', 'success'))}
+                                    className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-lime-500 transition-all">
+                                    <FiCopy size={14} title="Copy Shop ID" />
+                                  </button>
                                 </div>
                               </td>
                               <td className="px-8 py-6">
@@ -487,15 +528,14 @@ const AdminSubscriptions = ({ darkMode }) => {
                   <div className="flex items-center gap-2">
                     <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
                       className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all">
-                      <FiChevronLeft size={16} title="Previous Page" />
+                      <FiChevronLeft size={16} />
                     </button>
                     <div className="flex gap-1">
                       {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
                         const p = i + 1;
                         return (
                           <button key={p} onClick={() => setCurrentPage(p)}
-                            className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all border
-                              ${currentPage === p ? 'bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20' : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-500 hover:border-lime-500/50'}`}>
+                            className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all border ${currentPage === p ? 'bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20' : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-500 hover:border-lime-500/50'}`}>
                             {p}
                           </button>
                         );
@@ -503,7 +543,7 @@ const AdminSubscriptions = ({ darkMode }) => {
                     </div>
                     <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
                       className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all">
-                      <FiChevronRight size={16} title="Next Page" />
+                      <FiChevronRight size={16} />
                     </button>
                   </div>
                 </div>
@@ -515,7 +555,7 @@ const AdminSubscriptions = ({ darkMode }) => {
 
       {selectedSub && <SubscriptionModal sub={selectedSub} onClose={() => setSelectedSub(null)} />}
 
-        <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{ __html: `
         .custom-scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
         .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }

@@ -57,15 +57,21 @@ const Subscriptions = () => {
         api.get('/api/subscriptions'),
         api.get('/api/subscriptions/all'),
       ]);
-      if (currentRes.status === 'fulfilled') setCurrentSub(currentRes.value.data?.[0] || currentRes.value.data);
-      if (allRes.status === 'fulfilled') setAllSubs(Array.isArray(allRes.value.data) ? allRes.value.data : allRes.value.data?.content || []);
+      if (currentRes.status === 'fulfilled') {
+        const data = currentRes.value.data;
+        setCurrentSub(Array.isArray(data) ? data[0] : data);
+      }
+      if (allRes.status === 'fulfilled') {
+        const data = allRes.value.data;
+        setAllSubs(Array.isArray(data) ? data : data?.content || []);
+      }
     } catch { showToast('فشل تحميل بيانات الاشتراكات', 'error'); }
     finally { setLoading(false); }
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handleSubscribe = async (method) => {
+  const handleSubscribe = useCallback(async (method) => {
     setSubmitting(true);
     try {
       const payload = { months: duration, type: type.toUpperCase() };
@@ -80,16 +86,16 @@ const Subscriptions = () => {
       }
     } catch { showToast('فشل إتمام العملية', 'error'); }
     finally { setSubmitting(false); }
-  };
+  }, [duration, type, fetchData]);
 
-  const isActive = (date) => date && new Date(date) > new Date();
+  const isActive = useCallback((date) => date && new Date(date) > new Date(), []);
 
-  const statCards = [
+  const statCards = useMemo(() => [
     { icon: FiShield, label: 'حالة الحساب', value: isActive(currentSub?.endDate) ? "نشط" : "منتهي", color: "emerald", description: "بناءً على اشتراكك الحالي" },
     { icon: FiClock, label: 'تاريخ الانتهاء', value: currentSub?.endDate ? new Date(currentSub.endDate).toLocaleDateString('ar-EG') : "—", color: "orange", description: "موعد تجديد الاشتراك" },
     { icon: FiZap, label: 'الخطة الحالية', value: currentSub?.type ? (TYPE_LABELS[currentSub.type] || currentSub.type) : "لا يوجد", color: "blue", description: "نوع الاشتراك المفعل" },
     { icon: FiActivity, label: 'العمليات', value: allSubs.length.toLocaleString('ar-EG'), color: "indigo", description: "إجمالي سجل المدفوعات" },
-  ];
+  ], [currentSub, allSubs.length, isActive]);
 
   return (
     <div dir="rtl" className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pr-64 mt-16 transition-all duration-500 font-cairo text-right">
@@ -112,8 +118,8 @@ const Subscriptions = () => {
        
        
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-           {statCards.map(s => <StatCard key={s.label} {...s} />)}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4  gap-6">
+           {statCards.map(s => <StatCard  key={s.label} {...s} />)}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -168,7 +174,7 @@ const Subscriptions = () => {
               <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden">
                  <div className="px-8 py-6 border-b border-gray-50 dark:border-gray-700 flex items-center justify-between bg-gray-50/30 dark:bg-gray-900/30">
                     <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">سجل المدفوعات والاشتراكات</h3>
-                    {/* <FiMoreHorizontal size={20} className="text-gray-400" /> */}
+                    
                  </div>
                  <div className="overflow-x-auto custom-scrollbar-thin">
                     <table className="w-full text-right border-collapse">
@@ -239,4 +245,4 @@ const Subscriptions = () => {
   );
 };
 
-export default Subscriptions;
+export default memo(Subscriptions);

@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FiTag, FiSearch, FiX, FiCopy, FiTrash2,
-  FiCheckCircle, FiXCircle, FiCalendar, FiPercent, FiDollarSign,
-  FiChevronLeft, FiChevronRight, FiChevronUp, FiChevronDown, FiActivity
+  FiCheckCircle, FiXCircle, FiChevronDown,
+  FiChevronLeft, FiChevronRight, FiChevronUp, FiActivity, FiRefreshCw
 } from 'react-icons/fi';
 import { FaStore } from 'react-icons/fa';
 import Swal from 'sweetalert2';
-import { debounce } from 'lodash';
 import api from '../api';
 
 const ROWS_OPTIONS = [5, 10, 20, 50];
@@ -28,9 +27,9 @@ const getOfferStatus = (offer) => {
 };
 
 const STATUS_META_O = {
-  ACTIVE: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600', dot: 'bg-emerald-500' },
-  INACTIVE: { bg: 'bg-gray-50 dark:bg-gray-900/50', text: 'text-gray-500', dot: 'bg-gray-400' },
-  EXPIRED: { bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-600', dot: 'bg-red-500' },
+  ACTIVE:   { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600', dot: 'bg-emerald-500' },
+  INACTIVE: { bg: 'bg-gray-50 dark:bg-gray-900/50',       text: 'text-gray-500',    dot: 'bg-gray-400'    },
+  EXPIRED:  { bg: 'bg-red-50 dark:bg-red-900/20',         text: 'text-red-600',     dot: 'bg-red-500'     },
 };
 
 
@@ -53,110 +52,135 @@ const StatCard = memo(({ icon: Icon, label, value, color }) => (
 
 const SortIcon = memo(({ field, sortField, sortDir }) => {
   if (sortField !== field) return <FiChevronDown size={11} className="text-gray-400 dark:text-gray-500" />;
-  return sortDir === 'asc' ? <FiChevronUp size={11} className="text-lime-600" /> : <FiChevronDown size={11} className="text-lime-600" />;
+  return sortDir === 'asc'
+    ? <FiChevronUp size={11} className="text-lime-600" />
+    : <FiChevronDown size={11} className="text-lime-600" />;
 });
+
+const Th = memo(({ field, label, center = true, onSort, sortField, sortDir }) => (
+  <th
+    onClick={() => onSort(field)}
+    className={`px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${center ? 'text-center' : 'text-left'}`}
+  >
+    <span className={`flex items-center gap-1.5 ${center ? 'justify-center' : ''}`}>
+      {label} <SortIcon field={field} sortField={sortField} sortDir={sortDir} />
+    </span>
+  </th>
+));
 
 
 
 const AdminOffers = ({ darkMode }) => {
-  const navigate = useNavigate();
-  const token = localStorage.getItem('authToken');
+  const navigate  = useNavigate();
+  const tokenRef  = useRef(localStorage.getItem('authToken'));
 
-  const [offers, setOffers] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebounced] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [sortField, setSortField] = useState('name');
-  const [sortDir, setSortDir] = useState('asc');
+  const [offers,          setOffers]          = useState([]);
+  const [loading,         setLoading]         = useState(false);
+  const [search,          setSearch]          = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [statusFilter,    setStatusFilter]    = useState('all');
+  const [currentPage,     setCurrentPage]     = useState(1);
+  const [rowsPerPage,     setRowsPerPage]     = useState(10);
+  const [sortField,       setSortField]       = useState('name');
+  const [sortDir,         setSortDir]         = useState('asc');
 
   useEffect(() => { document.title = 'Admin - Offers'; }, []);
 
-  const debouncedSet = useMemo(() => debounce((v) => { setDebounced(v); setCurrentPage(1); }, 300), []);
-  useEffect(() => () => debouncedSet.cancel(), [debouncedSet]);
-  useEffect(() => { debouncedSet(search); }, [search, debouncedSet]);
+  
+  
+  useEffect(() => {
+    const id = setTimeout(() => { setDebouncedSearch(search); setCurrentPage(1); }, 300);
+    return () => clearTimeout(id);
+  }, [search]);
 
   const fetchOffers = useCallback(async () => {
+    const token = tokenRef.current;
     if (!token) { navigate('/login'); return; }
     setLoading(true);
     try {
       const { data } = await api.get('/api/admin/offers', { headers: { Authorization: `Bearer ${token}` } });
       setOffers(Array.isArray(data) ? data : data?.content || []);
     } catch (err) {
-      if (err?.response?.status === 401) { navigate('/login'); }
+      if (err?.response?.status === 401) navigate('/login');
       else showToast('Sync failed', 'error');
       setOffers([]);
     } finally { setLoading(false); }
-  }, [token, navigate]);
+  }, [navigate]);
 
   useEffect(() => { fetchOffers(); }, [fetchOffers]);
 
   const stats = useMemo(() => {
     const now = new Date();
-    const active = offers.filter(o => o.status === 'ACTIVE' && (!o.endDate || new Date(o.endDate) >= now)).length;
-    return { total: offers.length, active, expired: offers.filter(o => o.endDate && new Date(o.endDate) < now).length };
+    const active  = offers.filter(o => o.status === 'ACTIVE' && (!o.endDate || new Date(o.endDate) >= now)).length;
+    const expired = offers.filter(o => o.endDate && new Date(o.endDate) < now).length;
+    return { total: offers.length, active, expired };
   }, [offers]);
 
   const handleSort = useCallback((field) => {
-    setSortField(prev => { if (prev === field) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return prev; } setSortDir('asc'); return field; });
+    setSortField(prev => {
+      if (prev === field) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return prev; }
+      setSortDir('asc'); return field;
+    });
     setCurrentPage(1);
   }, []);
 
   const processed = useMemo(() => {
     const t = debouncedSearch.toLowerCase();
-    let list = offers.filter(o => {
+    const list = offers.filter(o => {
       const status = getOfferStatus(o);
       const matchStatus = statusFilter === 'all' || status === statusFilter.toUpperCase();
-      const matchSearch = !t || (o.name || '').toLowerCase().includes(t) || (o.description || '').toLowerCase().includes(t) || (o.shopName || '').toLowerCase().includes(t);
+      const matchSearch = !t ||
+        (o.name        || '').toLowerCase().includes(t) ||
+        (o.description || '').toLowerCase().includes(t) ||
+        (o.shopName    || '').toLowerCase().includes(t);
       return matchStatus && matchSearch;
     });
     return [...list].sort((a, b) => {
       let av = a[sortField], bv = b[sortField];
       if (sortField === 'discountValue') { av = Number(av || 0); bv = Number(bv || 0); }
-      else if (sortField === 'endDate') { av = new Date(av || 0).getTime(); bv = new Date(bv || 0).getTime(); }
+      else if (sortField === 'endDate')  { av = new Date(av || 0).getTime(); bv = new Date(bv || 0).getTime(); }
       else { av = String(av || '').toLowerCase(); bv = String(bv || '').toLowerCase(); }
       if (av < bv) return sortDir === 'asc' ? -1 : 1;
-      if (av > bv) return sortDir === 'asc' ? 1 : -1;
+      if (av > bv) return sortDir === 'asc' ?  1 : -1;
       return 0;
     });
   }, [offers, debouncedSearch, statusFilter, sortField, sortDir]);
 
   const totalPages = Math.ceil(processed.length / rowsPerPage);
-  const paginated = processed.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+  const paginated  = useMemo(
+    () => processed.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage),
+    [processed, currentPage, rowsPerPage]
+  );
 
   const deleteOffer = useCallback(async (id) => {
-    const { isConfirmed } = await Swal.fire({ title: 'Delete Promotion Entry?', text: 'This will remove the offer from all platform catalogues.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Confirm Purge', confirmButtonColor: '#ef4444', background: darkMode ? '#111827' : '#fff', color: darkMode ? '#fff' : '#000', });
+    const token = tokenRef.current;
+    const { isConfirmed } = await Swal.fire({
+      title: 'Delete Promotion Entry?',
+      text: 'This will remove the offer from all platform catalogues.',
+      icon: 'warning', showCancelButton: true,
+      confirmButtonText: 'Confirm Purge', confirmButtonColor: '#ef4444',
+      background: darkMode ? '#111827' : '#fff', color: darkMode ? '#fff' : '#000',
+    });
     if (!isConfirmed) return;
     try {
       await api.delete(`/api/admin/offers/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      showToast('Promotion Deleted', 'success'); fetchOffers();
+      showToast('Promotion Deleted', 'success');
+      fetchOffers();
     } catch { showToast('Action failed', 'error'); }
-  }, [token, fetchOffers, darkMode]);
+  }, [fetchOffers, darkMode]);
 
-  const Th = ({ field, label, center = true }) => (
-    <th onClick={() => handleSort(field)}
-      className={`px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${center ? 'text-center' : 'text-left'}`}>
-      <span className={`flex items-center gap-1.5 ${center ? 'justify-center' : ''}`}>
-        {label} <SortIcon field={field} sortField={sortField} sortDir={sortDir} />
-      </span>
-    </th>
-  );
-
-  const statCards = [
-    { icon: FiTag, label: 'Total Promotions', value: stats.total, color: 'lime' },
-    { icon: FiCheckCircle, label: 'Active Campaign', value: stats.active, color: 'emerald' },
-    { icon: FiXCircle, label: 'Terminated / Expired', value: stats.expired, color: 'rose' },
-  ];
+  const statCards = useMemo(() => [
+    { icon: FiTag,         label: 'Total Promotions',      value: stats.total,   color: 'lime'    },
+    { icon: FiCheckCircle, label: 'Active Campaign',       value: stats.active,  color: 'emerald' },
+    { icon: FiXCircle,     label: 'Terminated / Expired',  value: stats.expired, color: 'rose'    },
+  ], [stats]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
 
-
-
-
+       
+       
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -166,47 +190,52 @@ const AdminOffers = ({ darkMode }) => {
             <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">Offers</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Coordinate and audit platform-wide promotional campaigns and discount tiers</p>
           </div>
-
-          <div className="p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-sm flex items-center gap-4">
-            <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center text-gray-400">
-              <FiActivity size={18} />
-            </div>
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Campaign State</p>
-              <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Active Audit</p>
+          <div className="flex items-center gap-3">
+            <button onClick={fetchOffers} disabled={loading} title="Refresh"
+              className="w-10 h-10 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-lime-500 hover:border-lime-500/30 transition-all disabled:opacity-40">
+              <FiRefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            </button>
+            <div className="p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-sm flex items-center gap-4">
+              <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center text-gray-400">
+                <FiActivity size={18} />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Campaign State</p>
+                <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Active Audit</p>
+              </div>
             </div>
           </div>
         </div>
 
-
-
+        
+        
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {statCards.map(s => <StatCard key={s.label} {...s} />)}
         </div>
 
-
+      
+      
         <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
           <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
-
             <div className="relative flex-1 group">
               <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={16} />
-              <input type="text" placeholder="Search by campaign title, or shop ..." value={search} onChange={e => setSearch(e.target.value)}
+              <input type="text" placeholder="Search by campaign title, or shop ..." value={search}
+                onChange={e => setSearch(e.target.value)}
                 className="w-full pl-12 pr-10 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/5 transition-all" />
-              {search && <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors"><FiX size={16} title="Clear Registry Filter" /></button>}
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors">
+                  <FiX size={16} title="Clear" />
+                </button>
+              )}
             </div>
-
             <div className="flex items-center gap-2 flex-wrap">
               {[{ v: 'all', l: 'All' }, { v: 'active', l: 'Active' }, { v: 'expired', l: 'Expired' }].map(({ v, l }) => (
                 <button key={v} onClick={() => { setStatusFilter(v); setCurrentPage(1); }}
-                  className={`px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all
-                    ${statusFilter === v
-                      ? 'bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20'
-                      : 'border-transparent bg-gray-50 dark:bg-gray-900/50 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+                  className={`px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${statusFilter === v ? 'bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20' : 'border-transparent bg-gray-50 dark:bg-gray-900/50 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
                   {l}
                 </button>
               ))}
             </div>
-
             <div className="flex items-center gap-3 px-4 border-l border-gray-100 dark:border-gray-800">
               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Rows</span>
               <select value={rowsPerPage} onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
@@ -217,8 +246,8 @@ const AdminOffers = ({ darkMode }) => {
           </div>
         </div>
 
-
-
+      
+      
         <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
           {loading ? (
             <div className="py-32 text-center space-y-4">
@@ -232,11 +261,11 @@ const AdminOffers = ({ darkMode }) => {
                   <thead className="bg-gray-50 dark:bg-gray-900/50">
                     <tr>
                       <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-widest text-gray-400">ID</th>
-                      <Th field="name" label="Title" center={false} />
-                      <Th field="discountValue" label="Value" />
-                      <Th field="status" label="Status" />
-                      <Th field="shopName" label="Shop" center={false} />
-                      <Th field="endDate" label="Validity" />
+                      <Th field="name"          label="Title"    center={false} onSort={handleSort} sortField={sortField} sortDir={sortDir} />
+                      <Th field="discountValue" label="Value"                   onSort={handleSort} sortField={sortField} sortDir={sortDir} />
+                      <Th field="status"        label="Status"                  onSort={handleSort} sortField={sortField} sortDir={sortDir} />
+                      <Th field="shopName"      label="Shop"     center={false} onSort={handleSort} sortField={sortField} sortDir={sortDir} />
+                      <Th field="endDate"       label="Validity"                onSort={handleSort} sortField={sortField} sortDir={sortDir} />
                       <th className="px-8 py-5 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">Operations</th>
                     </tr>
                   </thead>
@@ -250,15 +279,20 @@ const AdminOffers = ({ darkMode }) => {
                       </td></tr>
                     ) : paginated.map(offer => {
                       const status = getOfferStatus(offer);
-                      const meta = STATUS_META_O[status];
+                      const meta   = STATUS_META_O[status];
                       const discountText = offer.discountType === 'PERCENTAGE'
-                        ? `${offer.discountValue}%` : `${(offer.discountValue || 0).toFixed(2)}`;
+                        ? `${offer.discountValue}%`
+                        : `${(offer.discountValue || 0).toFixed(2)}`;
                       return (
                         <tr key={offer.id} className="hover:bg-lime-50/10 dark:hover:bg-lime-900/5 transition-colors group">
                           <td className="px-8 py-6">
                             <div className="flex items-center gap-3">
                               <code className="text-[10px] font-black bg-gray-50 dark:bg-gray-900 px-3 py-1.5 rounded-lg text-gray-500 max-w-[80px] truncate block border border-transparent group-hover:border-lime-500/20 transition-all">{offer.id}</code>
-                              <button onClick={() => navigator.clipboard.writeText(offer.id).then(() => showToast('ID Copied', 'success'))} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-lime-500 transition-all"><FiCopy size={14} title="Copy Entry ID" /></button>
+                              <button
+                                onClick={() => navigator.clipboard.writeText(offer.id).then(() => showToast('ID Copied', 'success'))}
+                                className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-lime-500 transition-all">
+                                <FiCopy size={14} title="Copy Entry ID" />
+                              </button>
                             </div>
                           </td>
                           <td className="px-8 py-6">
@@ -266,7 +300,6 @@ const AdminOffers = ({ darkMode }) => {
                           </td>
                           <td className="px-8 py-6 text-center">
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-lime-50 dark:bg-lime-900/20 text-lime-600 border border-lime-500/10">
-
                               {discountText} OFF
                             </span>
                           </td>
@@ -309,15 +342,14 @@ const AdminOffers = ({ darkMode }) => {
                   <div className="flex items-center gap-2">
                     <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
                       className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all">
-                      <FiChevronLeft size={16} title="Previous Page" />
+                      <FiChevronLeft size={16} />
                     </button>
                     <div className="flex gap-1">
                       {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
                         const p = i + 1;
                         return (
                           <button key={p} onClick={() => setCurrentPage(p)}
-                            className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all border
-                              ${currentPage === p ? 'bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20' : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-500 hover:border-lime-500/50'}`}>
+                            className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all border ${currentPage === p ? 'bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20' : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-500 hover:border-lime-500/50'}`}>
                             {p}
                           </button>
                         );
@@ -325,7 +357,7 @@ const AdminOffers = ({ darkMode }) => {
                     </div>
                     <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
                       className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all">
-                      <FiChevronRight size={16} title="Next Page" />
+                      <FiChevronRight size={16} />
                     </button>
                   </div>
                 </div>
@@ -333,12 +365,8 @@ const AdminOffers = ({ darkMode }) => {
             </>
           )}
         </div>
-
-
       </div>
-
-      <style dangerouslySetInnerHTML={{
-        __html: `
+      <style dangerouslySetInnerHTML={{ __html: `
         .custom-scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
         .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }

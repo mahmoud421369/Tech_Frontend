@@ -38,9 +38,9 @@ const AvailableOrders = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [token]                     = useState(localStorage.getItem("authToken"));
 
-  const showToast = (text, icon) => {
+  const showToast = useCallback((text, icon) => {
     Swal.fire({ text, icon, toast: true, position: "top-end", timer: 3000, showConfirmButton: false });
-  };
+  }, []);
 
     useEffect(() => { document.title = ' Available Orders | TechBazaar'; }, []);
   
@@ -60,7 +60,7 @@ const AvailableOrders = () => {
     return () => clearInterval(t); 
   }, [loadOrders]);
 
-  const handleAccept = async (id) => {
+  const handleAccept = useCallback(async (id) => {
     const { isConfirmed } = await Swal.fire({
       title: 'Accept Delivery?',
       text: "This order will be assigned to you.",
@@ -70,15 +70,18 @@ const AvailableOrders = () => {
       confirmButtonText: 'Accept Now'
     });
     if (!isConfirmed) return;
-
+    // Optimistic: remove from list immediately
+    setOrders(prev => prev.filter(o => o.id !== id));
     try { 
       await acceptOrder(id); 
       showToast("Order accepted successfully", "success"); 
-      loadOrders(); 
-    } catch { showToast("Failed to accept order", "error"); }
-  };
+    } catch { 
+      showToast("Failed to accept order", "error"); 
+      loadOrders(); // restore on failure
+    }
+  }, [showToast, loadOrders]);
 
-  const handleReject = async (id) => {
+  const handleReject = useCallback(async (id) => {
     const { isConfirmed } = await Swal.fire({
       title: 'Reject Order?',
       text: "Are you sure you want to pass on this order?",
@@ -88,18 +91,21 @@ const AvailableOrders = () => {
       confirmButtonText: 'Yes, Reject'
     });
     if (!isConfirmed) return;
-
+    // Optimistic: remove from list immediately
+    setOrders(prev => prev.filter(o => o.id !== id));
     try { 
       await rejectOrder(id); 
       showToast("Order rejected", "info"); 
-      loadOrders(); 
-    } catch { showToast("Failed to reject order", "error"); }
-  };
+    } catch { 
+      showToast("Failed to reject order", "error"); 
+      loadOrders(); // restore on failure
+    }
+  }, [showToast, loadOrders]);
 
-  const copyToClipboard = (text) => {
+  const copyToClipboard = useCallback((text) => {
     navigator.clipboard.writeText(text);
     showToast("Copied to clipboard", "success");
-  };
+  }, [showToast]);
 
   const filtered = useMemo(() => {
     return orders.filter(o => 

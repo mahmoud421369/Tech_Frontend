@@ -608,4 +608,4 @@ const Signup = () => {
   );
 };
 
-export default Signup;
+export default memo(Signup);

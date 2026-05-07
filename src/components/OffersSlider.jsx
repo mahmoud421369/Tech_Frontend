@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef,memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiChevronLeft, FiChevronRight, FiTag, FiCalendar, FiPercent } from 'react-icons/fi';
 import { RiStore2Line } from 'react-icons/ri';
@@ -18,7 +18,9 @@ const CARD_GRADIENTS = [
   { from: 'from-pink-500',   to: 'to-red-600'     },
 ];
 
-/* ── Offer card ─────────────────────────────────────────────── */
+
+
+
 const OfferCard = ({ offer, darkMode, gradientIndex = 0 }) => {
   const { from, to } = CARD_GRADIENTS[gradientIndex % CARD_GRADIENTS.length];
   const isPercentage = offer.discountType === 'PERCENTAGE';
@@ -36,10 +38,14 @@ const OfferCard = ({ offer, darkMode, gradientIndex = 0 }) => {
           darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-100'
         }`}
     >
-      {/* top accent */}
+      
+      
+
       <div className={`h-1.5 w-full bg-gradient-to-r ${from} ${to} flex-shrink-0`} />
 
-      {/* discount badge */}
+     
+     
+
       {offer.discountValue && (
         <div className="absolute top-4 right-4 z-10">
           <div className={`bg-gradient-to-r ${from} ${to} text-white font-extrabold text-sm
@@ -96,7 +102,9 @@ const SkeletonCard = ({ darkMode }) => (
   </div>
 );
 
-/* ── Visible count hook ─────────────────────────────────────── */
+
+
+
 const useVisibleCount = () => {
   const [count, setCount] = useState(3);
   useEffect(() => {
@@ -111,7 +119,9 @@ const useVisibleCount = () => {
   return count;
 };
 
-/* ── Main OffersSlider ─────────────────────────────────────── */
+
+
+
 const OffersSlider = ({ darkMode }) => {
   const [offers, setOffers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -120,7 +130,9 @@ const OffersSlider = ({ darkMode }) => {
   const visibleCount = useVisibleCount();
 
   const maxIndex = Math.max(0, offers.length - visibleCount);
-  /* dots only when > 3 offers */
+ 
+  
+
   const showDots   = offers.length > 3;
   const showArrows = offers.length > visibleCount;
 
@@ -132,7 +144,7 @@ const OffersSlider = ({ darkMode }) => {
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         .slice(0, 20);
       setOffers(latest);
-    } catch { /* silently fail */ }
+    } catch { }
     finally { setIsLoading(false); }
   }, []);
 
@@ -150,7 +162,9 @@ const OffersSlider = ({ darkMode }) => {
     setCurrentIndex((prev) => (prev <= 0 ? maxIndex : prev - 1));
   }, [maxIndex]);
 
-  /* auto-play */
+
+  
+
   const startAutoPlay = useCallback(() => {
     clearInterval(autoPlayRef.current);
     if (offers.length > visibleCount) {
@@ -166,7 +180,9 @@ const OffersSlider = ({ darkMode }) => {
   const pauseAutoPlay = () => clearInterval(autoPlayRef.current);
   const resumeAutoPlay = () => startAutoPlay();
 
-  /* ── Loading ── */
+
+  
+
   if (isLoading) {
     return (
       <section className={`py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
@@ -180,7 +196,9 @@ const OffersSlider = ({ darkMode }) => {
     );
   }
 
-  /* ── Empty ── */
+
+  
+  
   if (offers.length === 0) {
     return (
       <section className={`py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
@@ -201,7 +219,10 @@ const OffersSlider = ({ darkMode }) => {
   return (
     <section className={`py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
       <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
-        {/* Header */}
+       
+       
+
+
         <div className="flex items-end justify-between mb-10 flex-wrap gap-4">
           <div>
             <motion.h2
@@ -245,7 +266,9 @@ const OffersSlider = ({ darkMode }) => {
           )}
         </div>
 
-        {/* Track */}
+       
+       
+
         <div className="overflow-hidden" onMouseEnter={pauseAutoPlay} onMouseLeave={resumeAutoPlay}>
           <motion.div
             className="flex"
@@ -263,7 +286,9 @@ const OffersSlider = ({ darkMode }) => {
           </motion.div>
         </div>
 
-        {/* Dots — only if > 3 offers */}
+      
+      
+
         <AnimatePresence>
           {showDots && (
             <motion.div
@@ -291,4 +316,4 @@ const OffersSlider = ({ darkMode }) => {
   );
 };
 
-export default OffersSlider;
+export default memo(OffersSlider);

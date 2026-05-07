@@ -1,32 +1,24 @@
-import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  FiSearch, FiX, FiCopy, FiTrash2, FiInfo, FiFlag, FiMessageCircle,
-  FiCheckCircle, FiChevronLeft, FiChevronRight, FiChevronUp, FiChevronDown,
-  FiStar, FiZap, FiClock, FiActivity
+  FiSearch, FiX, FiCopy, FiTrash2, FiInfo, FiMessageCircle,
+  FiChevronLeft, FiChevronRight, FiChevronUp, FiChevronDown,
+  FiStar, FiClock, FiActivity, FiRefreshCw,FiCheck
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import DOMPurify from 'dompurify';
-import { debounce } from 'lodash';
 import api from '../api';
 
 const ROWS_OPTIONS = [5, 10, 20, 50];
-
-// const STATUS_META = {
-//   APPROVED: { bg: 'bg-emerald-50 dark:bg-emerald-900/30', border: 'border-emerald-200 dark:border-emerald-700', text: 'text-emerald-700 dark:text-emerald-400', dot: 'bg-emerald-500' },
-//   PENDING: { bg: 'bg-amber-50 dark:bg-amber-900/30', border: 'border-amber-200 dark:border-amber-700', text: 'text-amber-700 dark:text-amber-400', dot: 'bg-amber-500' },
-//   FLAGGED: { bg: 'bg-red-50 dark:bg-red-900/30', border: 'border-red-200 dark:border-red-700', text: 'text-red-700 dark:text-red-400', dot: 'bg-red-500' },
-// };
-
-// const getStatusMeta = (status, flagged) => {
-//   if (flagged) return STATUS_META.FLAGGED;
-//   return STATUS_META[status] || STATUS_META.PENDING;
-// };
 
 const showToast = (text, icon) =>
   Swal.fire({ text, icon, toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
 
 const sanitize = (s) => DOMPurify.sanitize(String(s ?? ''));
+
+
+
+
 
 const StarRating = memo(({ rating, size = 14 }) => (
   <div className="flex items-center justify-center gap-0.5">
@@ -35,9 +27,6 @@ const StarRating = memo(({ rating, size = 14 }) => (
     ))}
   </div>
 ));
-
-
-
 
 const StatCard = memo(({ icon: Icon, label, value, color }) => (
   <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-sm hover:shadow-xl hover:shadow-lime-500/5 transition-all duration-500 group relative overflow-hidden">
@@ -59,55 +48,94 @@ const SortIcon = memo(({ field, sortField, sortDir }) => {
   return sortDir === 'asc' ? <FiChevronUp size={11} className="text-lime-600" /> : <FiChevronDown size={11} className="text-lime-600" />;
 });
 
+const Th = memo(({ field, label, center = true, onSort, sortField, sortDir }) => (
+  <th onClick={() => onSort(field)}
+    className={`px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${center ? 'text-center' : 'text-right'}`}>
+    <span className={`flex items-center gap-1.5 ${center ? 'justify-center' : ''}`}>
+      {label} <SortIcon field={field} sortField={sortField} sortDir={sortDir} />
+    </span>
+  </th>
+));
+
+const RowsDropdown = memo(({ value, options, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+  return (
+    <div className="relative inline-block" ref={ref}>
+      <button onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-transparent hover:border-lime-500/20 transition-all focus:outline-none focus:ring-2 focus:ring-lime-500/20">
+        <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">{value} Rows</span>
+        <FiChevronDown size={12} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute right-0 z-20 mt-1 w-32 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+          {options.map(n => (
+            <button key={n} onClick={() => { onChange(n); setOpen(false); }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition ${value === n ? 'bg-lime-50 dark:bg-lime-900/30 text-lime-600' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
+              {n} Rows
+              {value === n && <FiCheck size={12} className="text-lime-500" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
+
 const ReviewModal = memo(({ review, onClose }) => {
   if (!review) return null;
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-md p-4">
-      <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-none shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
-        <div className="flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/80 px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-          <div className="flex items-center gap-3">
-            <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Feedback Dossier</h3>
-            <code className="text-[10px] font-black bg-lime-500 text-white px-2 py-0.5 rounded-lg">
-              {String(review.id).slice(0, 8)}
+      <div className="w-full max-w-[320px] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
+        <div className="flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/80 px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+          <div className="flex items-center gap-2">
+            <h3 className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">Feedback Dossier</h3>
+            <code className="text-[9px] font-black bg-lime-500 text-white px-1.5 py-0.5 rounded-lg">
+              {String(review.id).slice(0, 6)}
             </code>
           </div>
-          <button onClick={onClose} className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-red-500 transition-all">
-            <FiX size={18} title="Close" />
+          <button onClick={onClose} className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-red-500 transition-all">
+            <FiX size={16} title="Close" />
           </button>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-4 space-y-3">
           {[
             { l: 'Customer ID', v: sanitize(review.userId || 'N/A') },
             { l: 'Target Shop ID', v: sanitize(review.shopId || 'N/A') },
             { l: 'Submission Date', v: new Date(review.createdAt).toLocaleString() },
           ].map(f => (
-            <div key={f.l} className="p-4 bg-gray-50 dark:bg-gray-900/40 border border-transparent">
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{f.l}</p>
-              <p className="text-sm font-bold text-gray-800 dark:text-gray-100 mt-1">{f.v}</p>
+            <div key={f.l} className="p-3 bg-gray-50 dark:bg-gray-900/40 border border-transparent rounded-xl">
+              <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em] mb-0.5">{f.l}</p>
+              <p className="text-xs font-bold text-gray-800 dark:text-gray-100 truncate">{f.v}</p>
             </div>
           ))}
 
-          <div className="p-4 bg-gray-50 dark:bg-gray-900/40 border border-transparent flex items-center justify-between">
+          <div className="p-3 bg-gray-50 dark:bg-gray-900/40 border border-transparent rounded-xl flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Platform Rating</p>
-              <div className="mt-2"><StarRating rating={review.rating} size={18} /></div>
+              <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">Platform Rating</p>
+              <StarRating rating={review.rating} size={14} />
             </div>
             <div className="text-right">
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Sentiment</p>
-              <p className="text-sm font-black text-lime-600 uppercase tracking-widest mt-1">{review.rating >= 4 ? 'Positive' : review.rating <= 2 ? 'Critical' : 'Neutral'}</p>
+              <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em] mb-0.5">Sentiment</p>
+              <p className="text-[11px] font-black text-lime-600 uppercase tracking-widest">{review.rating >= 4 ? 'Positive' : review.rating <= 2 ? 'Critical' : 'Neutral'}</p>
             </div>
           </div>
 
           <div className="p-4 bg-lime-50 dark:bg-lime-900/20 border border-lime-500/10 rounded-2xl">
-            <p className="text-[10px] font-black text-lime-700 dark:text-lime-400 uppercase tracking-widest mb-2">Customer Narrative</p>
-            <p className="text-sm text-gray-700 dark:text-gray-300 font-medium leading-relaxed italic">"{sanitize(review.comment || 'No written testimony provided.')}"</p>
+            <p className="text-[8px] font-black text-lime-700 dark:text-lime-400 uppercase tracking-widest mb-1.5">Customer Narrative</p>
+            <p className="text-xs text-gray-700 dark:text-gray-300 font-medium leading-relaxed italic">"{sanitize(review.comment || 'No written testimony provided.')}"</p>
           </div>
         </div>
 
-        <div className="px-6 pb-6 pt-2">
+        <div className="px-4 pb-4 pt-1">
           <button onClick={onClose}
-            className="w-full py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-[0.2em] hover:bg-lime-500 dark:hover:bg-lime-500 dark:hover:text-white transition-all active:scale-[0.98]">
+            className="w-full py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[9px] font-black uppercase tracking-[0.2em] hover:bg-lime-500 dark:hover:bg-lime-500 dark:hover:text-white transition-all active:scale-[0.98] rounded-xl">
             Close
           </button>
         </div>
@@ -116,14 +144,16 @@ const ReviewModal = memo(({ review, onClose }) => {
   );
 });
 
+
+
+
 const Reviews = ({ darkMode }) => {
   const navigate = useNavigate();
-  const token = localStorage.getItem('authToken');
+  const tokenRef = useRef(localStorage.getItem('authToken'));
 
   const [reviews, setReviews] = useState([]);
   const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebounced] = useState('');
-  // const [statusFilter, setStatusFilter] = useState('all');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -133,11 +163,13 @@ const Reviews = ({ darkMode }) => {
 
   useEffect(() => { document.title = 'Admin - Reviews'; }, []);
 
-  const debouncedSet = useMemo(() => debounce((v) => { setDebounced(v); setCurrentPage(1); }, 300), []);
-  useEffect(() => () => debouncedSet.cancel(), [debouncedSet]);
-  useEffect(() => { debouncedSet(search); }, [search, debouncedSet]);
+  useEffect(() => {
+    const id = setTimeout(() => { setDebouncedSearch(search); setCurrentPage(1); }, 300);
+    return () => clearTimeout(id);
+  }, [search]);
 
   const fetchReviews = useCallback(async () => {
+    const token = tokenRef.current;
     if (!token) { navigate('/login'); return; }
     setLoading(true);
     try {
@@ -147,15 +179,12 @@ const Reviews = ({ darkMode }) => {
       if (err?.response?.status === 401) { navigate('/login'); }
       else showToast('Sync failed', 'error');
     } finally { setLoading(false); }
-  }, [token, navigate]);
+  }, [navigate]);
 
   useEffect(() => { fetchReviews(); }, [fetchReviews]);
 
   const stats = useMemo(() => ({
     total: reviews.length,
-    // approved: reviews.filter(r => r.status === 'APPROVED').length,
-    // pending: reviews.filter(r => r.status === 'PENDING').length,
-    // flagged: reviews.filter(r => r.flagged).length,
   }), [reviews]);
 
   const handleSort = useCallback((field) => {
@@ -166,9 +195,7 @@ const Reviews = ({ darkMode }) => {
   const processed = useMemo(() => {
     const t = debouncedSearch.toLowerCase();
     let list = reviews.filter(r => {
-
-      const matchSearch = !t || (r.userId || '').toLowerCase().includes(t) || (r.shopId || '').toLowerCase().includes(t) || (r.comment || '').toLowerCase().includes(t);
-      return matchSearch;
+      return !t || (r.userId || '').toLowerCase().includes(t) || (r.shopId || '').toLowerCase().includes(t) || (r.comment || '').toLowerCase().includes(t);
     });
     return [...list].sort((a, b) => {
       let av = a[sortField], bv = b[sortField];
@@ -182,9 +209,10 @@ const Reviews = ({ darkMode }) => {
   }, [reviews, debouncedSearch, sortField, sortDir]);
 
   const totalPages = Math.ceil(processed.length / rowsPerPage);
-  const paginated = processed.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+  const paginated = useMemo(() => processed.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage), [processed, currentPage, rowsPerPage]);
 
   const deleteReview = useCallback(async (id) => {
+    const token = tokenRef.current;
     const { isConfirmed } = await Swal.fire({
       title: 'Purge Review?', text: 'This will permanently remove the feedback.', icon: 'warning',
       showCancelButton: true, confirmButtonText: 'Confirm Purge', confirmButtonColor: '#ef4444',
@@ -195,27 +223,15 @@ const Reviews = ({ darkMode }) => {
       await api.delete(`/api/admin/reviews/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       showToast('Feedback Deleted', 'success'); fetchReviews();
     } catch { showToast('Deletion failed', 'error'); }
-  }, [token, fetchReviews, darkMode]);
+  }, [fetchReviews, darkMode]);
 
-  const Th = ({ field, label, center = true }) => (
-    <th onClick={() => handleSort(field)}
-      className={`px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${center ? 'text-center' : 'text-right'}`}>
-      <span className={`flex items-center gap-1.5 ${center ? 'justify-center' : ''}`}>
-        {label} <SortIcon field={field} sortField={sortField} sortDir={sortDir} />
-      </span>
-    </th>
-  );
-
-  const statCards = [
+  const statCards = useMemo(() => [
     { icon: FiMessageCircle, label: 'Total Reviews', value: stats.total, color: 'lime' },
-
-  ];
+  ], [stats]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
-
-
 
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-1">
@@ -228,6 +244,10 @@ const Reviews = ({ darkMode }) => {
           </div>
 
           <div className="flex items-center gap-3">
+            <button onClick={fetchReviews} disabled={loading} title="Refresh"
+              className="w-10 h-10 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-lime-500 hover:border-lime-500/30 transition-all disabled:opacity-40">
+              <FiRefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            </button>
             <div className="p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-sm flex items-center gap-4">
               <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center text-gray-400">
                 <FiActivity size={18} />
@@ -240,37 +260,24 @@ const Reviews = ({ darkMode }) => {
           </div>
         </div>
 
-
-
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {statCards.map(s => <StatCard key={s.label} {...s} />)}
         </div>
 
-
-
         <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
           <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
-
             <div className="relative flex-1 group">
               <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={16} />
-              <input type="text" placeholder="Search by customer ID, shop ID, or sentiment keyword..." value={search} onChange={e => setSearch(e.target.value)}
+              <input type="text" placeholder="Search by customer ID, shop ID, or keyword..." value={search} onChange={e => setSearch(e.target.value)}
                 className="w-full pl-12 pr-10 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/5 transition-all" />
               {search && <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors"><FiX size={16} title="Clear Search" /></button>}
             </div>
-
-
-
             <div className="flex items-center gap-3 px-4 border-l border-gray-100 dark:border-gray-800">
               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Rows</span>
-              <select value={rowsPerPage} onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                className="bg-transparent text-sm font-black text-gray-900 dark:text-white focus:outline-none cursor-pointer">
-                {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
+              <RowsDropdown value={rowsPerPage} options={ROWS_OPTIONS} onChange={n => { setRowsPerPage(n); setCurrentPage(1); }} />
             </div>
           </div>
         </div>
-
-
 
         <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
           {loading ? (
@@ -280,14 +287,14 @@ const Reviews = ({ darkMode }) => {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto custom-scrollbar-thin">
                 <table className="w-full min-w-[850px]">
                   <thead className="bg-gray-50 dark:bg-gray-900/50">
                     <tr>
                       <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-gray-400">ID</th>
-                      <Th field="rating" label="Rating" />
-                      <Th field="comment" label="Comment" center={false} />
-                      <Th field="createdAt" label="Date" />
+                      <Th field="rating" label="Rating" onSort={handleSort} sortField={sortField} sortDir={sortDir} />
+                      <Th field="comment" label="Comment" center={false} onSort={handleSort} sortField={sortField} sortDir={sortDir} />
+                      <Th field="createdAt" label="Date" onSort={handleSort} sortField={sortField} sortDir={sortDir} />
                       <th className="px-6 py-4 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">Operations</th>
                     </tr>
                   </thead>
@@ -346,7 +353,7 @@ const Reviews = ({ darkMode }) => {
               {totalPages > 1 && (
                 <div className="flex flex-col sm:flex-row items-center justify-between border-t border-gray-50 dark:border-gray-800 bg-gray-50/30 dark:bg-gray-800/20 px-8 py-6 gap-6">
                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                    Showing {Math.min(paginated.length, rowsPerPage)} records of {processed.length}
+                    Showing {paginated.length} records of {processed.length}
                   </p>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
@@ -358,8 +365,7 @@ const Reviews = ({ darkMode }) => {
                         const p = i + 1;
                         return (
                           <button key={p} onClick={() => setCurrentPage(p)}
-                            className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all border
-                              ${currentPage === p ? 'bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20' : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-500 hover:border-lime-500/50'}`}>
+                            className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all border ${currentPage === p ? 'bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20' : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-500 hover:border-lime-500/50'}`}>
                             {p}
                           </button>
                         );
@@ -378,6 +384,13 @@ const Reviews = ({ darkMode }) => {
       </div>
 
       {selected && <ReviewModal review={selected} onClose={() => setSelected(null)} />}
+      <style dangerouslySetInnerHTML={{ __html: `
+        .custom-scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
+        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
+        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
+      `}} />
     </div>
   );
 };

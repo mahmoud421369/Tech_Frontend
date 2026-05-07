@@ -39,9 +39,9 @@ const MyDeliveries = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [selectedOrder, setSelectedOrder] = useState(null);
 
-  const showToast = (text, icon) => {
+  const showToast = useCallback((text, icon) => {
     Swal.fire({ text, icon, toast: true, position: "top-end", timer: 3000, showConfirmButton: false });
-  };
+  }, []);
 
     useEffect(() => { document.title = ' My Orders | TechBazaar'; }, []);
   
@@ -62,7 +62,7 @@ const MyDeliveries = () => {
     return () => clearInterval(t); 
   }, [loadDeliveries]);
 
-  const handleMarkDelivered = async (id) => {
+  const handleMarkDelivered = useCallback(async (id) => {
     const { isConfirmed } = await Swal.fire({
       title: 'Confirm Delivery?',
       text: "Mark this order as successfully delivered?",
@@ -72,18 +72,21 @@ const MyDeliveries = () => {
       confirmButtonText: 'Yes, Delivered'
     });
     if (!isConfirmed) return;
-
+    // Optimistic: update status in UI immediately
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'DELIVERED' } : o));
     try { 
       await updateOrderStatus(id, { status: "DELIVERED" }); 
-      showToast("Order status updated", "success"); 
-      loadDeliveries(); 
-    } catch { showToast("Failed to update status", "error"); }
-  };
+      showToast("Order marked as delivered", "success"); 
+    } catch { 
+      showToast("Failed to update status", "error"); 
+      loadDeliveries(); // rollback
+    }
+  }, [showToast, loadDeliveries]);
 
-  const copyToClipboard = (text) => {
+  const copyToClipboard = useCallback((text) => {
     navigator.clipboard.writeText(text);
     showToast("Copied to clipboard", "success");
-  };
+  }, [showToast]);
 
   const filtered = useMemo(() => {
     return orders.filter(o => 

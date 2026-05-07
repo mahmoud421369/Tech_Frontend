@@ -1,8 +1,7 @@
-import React, { useEffect, useState, memo } from 'react';
-import ShopChatModal from '../components/ShopChatModal';
-import { FiMessageSquare, FiBell, FiClock, FiZap, FiChevronLeft, FiArrowRight } from 'react-icons/fi';
+import React, { useEffect, useState, memo, lazy, Suspense } from 'react';
+import { FiMessageSquare, FiBell, FiClock, FiZap, FiChevronLeft } from 'react-icons/fi';
 
-
+const ShopChatModal = lazy(() => import('../components/ShopChatModal'));
 
 const FeatureCard = memo(({ icon: Icon, label, color, description }) => (
   <div className="relative group bg-white dark:bg-gray-800 rounded-[2rem] border border-gray-100 dark:border-gray-700 p-6 transition-all duration-500 hover:shadow-2xl hover:shadow-gray-200/50 dark:hover:shadow-none overflow-hidden">
@@ -17,26 +16,21 @@ const FeatureCard = memo(({ icon: Icon, label, color, description }) => (
   </div>
 ));
 
-
-
+const FEATURE_CARDS = [
+  { icon: FiZap, label: 'محادثة فورية', color: 'orange', description: 'تواصل مباشر وسريع' },
+  { icon: FiBell, label: 'إشعارات ذكية', color: 'blue', description: 'تنبيهات الرسائل الجديدة' },
+  { icon: FiClock, label: 'سجل كامل', color: 'purple', description: 'أرشيف المحادثات السابقة' },
+];
 
 const Chat = () => {
   const [openChat, setOpenChat] = useState(false);
 
   useEffect(() => { document.title = 'إدارة المحادثات'; }, []);
 
-  const featureCards = [
-    { icon: FiZap, label: 'محادثة فورية', color: 'orange', description: 'تواصل مباشر وسريع' },
-    { icon: FiBell, label: 'إشعارات ذكية', color: 'blue', description: 'تنبيهات الرسائل الجديدة' },
-    { icon: FiClock, label: 'سجل كامل', color: 'purple', description: 'أرشيف المحادثات السابقة' },
-  ];
-
   return (
     <div dir="rtl" className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pr-64 mt-16 transition-all duration-500 font-cairo text-right">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-10">
-
-       
-       
+        
         <div className="flex flex-col md:flex-row md:items-end justify-between mt-3 gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
@@ -48,16 +42,11 @@ const Chat = () => {
           </div>
         </div>
 
-        
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-           {featureCards.map(f => <FeatureCard key={f.label} {...f} />)}
+           {FEATURE_CARDS.map(f => <FeatureCard key={f.label} {...f} />)}
         </div>
 
-       
-       
         <div className="bg-white dark:bg-gray-800 rounded-[3rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden relative group">
-         
-         
            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-lime-500/5 rounded-full translate-x-1/2 -translate-y-1/2 group-hover:scale-110 transition-transform duration-1000" />
            
            <div className="relative z-10 px-8 py-24 flex flex-col items-center text-center space-y-8">
@@ -95,8 +84,6 @@ const Chat = () => {
            </div>
         </div>
 
-        
-        
         <div className="bg-gradient-to-r from-gray-900 to-gray-800 dark:from-lime-500 dark:to-emerald-600 rounded-[2.5rem] p-10 text-white relative overflow-hidden group">
            <div className="absolute top-0 left-0 w-64 h-64 bg-white/5 rounded-full -translate-x-16 -translate-y-16 group-hover:scale-110 transition-transform duration-700" />
            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
@@ -114,9 +101,11 @@ const Chat = () => {
 
       </div>
 
-      <ShopChatModal open={openChat} onClose={() => setOpenChat(false)} />
+      <Suspense fallback={null}>
+        <ShopChatModal open={openChat} onClose={() => setOpenChat(false)} />
+      </Suspense>
     </div>
   );
 };
 
-export default Chat;
+export default memo(Chat);

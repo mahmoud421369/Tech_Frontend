@@ -4,13 +4,11 @@ import {
   FiBox, FiEdit3, FiTrash2, FiSearch, FiX, FiCopy,
   FiPackage, FiCheckCircle, FiXCircle, FiChevronDown,
   FiChevronLeft, FiChevronRight, FiChevronUp, FiCheck, FiInfo,
-  FiTag, FiDollarSign, FiImage, FiActivity, FiAlignLeft,
+  FiActivity, FiDollarSign, FiAlignLeft, FiRefreshCw
 } from 'react-icons/fi';
-
 import { AnimatePresence, motion } from 'framer-motion';
 import Swal from 'sweetalert2';
 import DOMPurify from 'dompurify';
-import { debounce } from 'lodash';
 import api from '../api';
 
 const ROWS_OPTIONS = [5, 10, 20, 50];
@@ -28,8 +26,7 @@ const showToast = (text, icon) =>
 
 const sanitize = (s) => DOMPurify.sanitize(String(s ?? ''));
 
-
-
+/* ── Stable sub-components (defined outside parent) ── */
 
 const StatCard = memo(({ icon: Icon, label, value, color }) => (
   <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-sm hover:shadow-xl hover:shadow-lime-500/5 transition-all duration-500 group relative overflow-hidden">
@@ -44,6 +41,24 @@ const StatCard = memo(({ icon: Icon, label, value, color }) => (
       </div>
     </div>
   </div>
+));
+
+const SortIcon = memo(({ field, sortField, sortDir }) => {
+  if (sortField !== field) return <FiChevronDown size={11} className="text-gray-400 dark:text-gray-500" />;
+  return sortDir === 'asc'
+    ? <FiChevronUp size={11} className="text-lime-600" />
+    : <FiChevronDown size={11} className="text-lime-600" />;
+});
+
+const Th = memo(({ field, label, center = true, onSort, sortField, sortDir }) => (
+  <th
+    onClick={() => onSort(field)}
+    className={`px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${center ? 'text-center' : 'text-left'}`}
+  >
+    <span className={`flex items-center gap-1.5 ${center ? 'justify-center' : ''}`}>
+      {label} <SortIcon field={field} sortField={sortField} sortDir={sortDir} />
+    </span>
+  </th>
 ));
 
 const Dropdown = memo(({ label, value, options, onSelect, renderOption, renderSelected }) => {
@@ -68,8 +83,7 @@ const Dropdown = memo(({ label, value, options, onSelect, renderOption, renderSe
             className="absolute z-[110] mt-2 w-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden py-2">
             {options.map(opt => (
               <button key={opt.value ?? opt} type="button" onClick={() => { onSelect(opt); setOpen(false); }}
-                className={`w-full flex items-center justify-between px-5 py-3 text-[10px] font-black uppercase tracking-widest transition-all
-                  ${(opt.value ?? opt) === value ? 'bg-lime-500 text-white' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-900/50'}`}>
+                className={`w-full flex items-center justify-between px-5 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${(opt.value ?? opt) === value ? 'bg-lime-500 text-white' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-900/50'}`}>
                 {renderOption ? renderOption(opt) : opt}
                 {(opt.value ?? opt) === value && <FiCheck size={12} />}
               </button>
@@ -94,9 +108,7 @@ const DetailsModal = memo(({ product: p, onClose }) => {
         <div className="flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/80 px-6 py-4 border-b border-gray-100 dark:border-gray-700">
           <div className="flex items-center gap-3">
             <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Product Details</h3>
-            <code className="text-[10px] font-black bg-lime-500 text-white px-2 py-0.5 rounded-lg">
-              {String(p.id).slice(0, 8)}
-            </code>
+            <code className="text-[10px] font-black bg-lime-500 text-white px-2 py-0.5 rounded-lg">{String(p.id).slice(0, 8)}</code>
           </div>
           <button onClick={onClose} className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-red-500 transition-all">
             <FiX size={18} title="Close" />
@@ -188,15 +200,18 @@ const EditModal = memo(({ form, setForm, categories, onClose, onSubmit }) => (
   </div>
 ));
 
-const ProductsPage = ({ darkMode }) => {
+
+
+
+const AdminProducts = ({ darkMode }) => {
   const navigate = useNavigate();
-  const token = localStorage.getItem('authToken');
+  const tokenRef = useRef(localStorage.getItem('authToken'));
 
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebounced] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [stockFilter, setStockFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -208,31 +223,36 @@ const ProductsPage = ({ darkMode }) => {
 
   useEffect(() => { document.title = 'Admin - Products'; }, []);
 
-  const debouncedSet = useMemo(() => debounce((v) => { setDebounced(v); setCurrentPage(1); }, 300), []);
-  useEffect(() => () => debouncedSet.cancel(), [debouncedSet]);
-  useEffect(() => { debouncedSet(search); }, [search, debouncedSet]);
+  useEffect(() => {
+    const id = setTimeout(() => { setDebouncedSearch(search); setCurrentPage(1); }, 300);
+    return () => clearTimeout(id);
+  }, [search]);
 
   const fetchProducts = useCallback(async () => {
+    const token = tokenRef.current;
     if (!token) { navigate('/login'); return; }
     setLoading(true);
     try {
       const { data } = await api.get('/api/admin/products', { headers: { Authorization: `Bearer ${token}` } });
       setProducts(Array.isArray(data) ? data : data?.content || []);
     } catch (err) {
-      if (err?.response?.status === 401) { navigate('/login'); }
+      if (err?.response?.status === 401) navigate('/login');
       else showToast('Sync failed', 'error');
       setProducts([]);
     } finally { setLoading(false); }
-  }, [token, navigate]);
+  }, [navigate]);
 
   const fetchCategories = useCallback(async () => {
+    const token = tokenRef.current;
+    if (!token) return;
     try {
       const { data } = await api.get('/api/admin/categories', { headers: { Authorization: `Bearer ${token}` } });
       setCategories(Array.isArray(data) ? data : data?.content || []);
     } catch { }
-  }, [token]);
+  }, []);
 
   const fetchById = useCallback(async (id) => {
+    const token = tokenRef.current;
     try {
       const { data } = await api.get(`/api/admin/products/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       setDetailProduct(data);
@@ -241,7 +261,7 @@ const ProductsPage = ({ darkMode }) => {
       if (found) setDetailProduct(found);
       else showToast('Sync failed', 'error');
     }
-  }, [token, products]);
+  }, [products]);
 
   useEffect(() => { fetchProducts(); fetchCategories(); }, [fetchProducts, fetchCategories]);
 
@@ -252,13 +272,16 @@ const ProductsPage = ({ darkMode }) => {
   }), [products]);
 
   const handleSort = useCallback((field) => {
-    setSortField(prev => { if (prev === field) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return prev; } setSortDir('asc'); return field; });
+    setSortField(prev => {
+      if (prev === field) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return prev; }
+      setSortDir('asc'); return field;
+    });
     setCurrentPage(1);
   }, []);
 
   const processed = useMemo(() => {
     const t = debouncedSearch.toLowerCase();
-    let list = products.filter(p => {
+    const list = products.filter(p => {
       const matchSearch = !t || (p.name || '').toLowerCase().includes(t) || (p.description || '').toLowerCase().includes(t);
       const matchStock = stockFilter === 'all' || (stockFilter === 'inStock' ? (p.stock ?? 0) > 0 : (p.stock ?? 0) === 0);
       return matchSearch && matchStock;
@@ -274,7 +297,10 @@ const ProductsPage = ({ darkMode }) => {
   }, [products, debouncedSearch, stockFilter, sortField, sortDir]);
 
   const totalPages = Math.ceil(processed.length / rowsPerPage);
-  const paginated = processed.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+  const paginated = useMemo(
+    () => processed.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage),
+    [processed, currentPage, rowsPerPage]
+  );
 
   const openEdit = useCallback(async (p) => {
     await fetchCategories();
@@ -287,6 +313,7 @@ const ProductsPage = ({ darkMode }) => {
   }, [fetchCategories]);
 
   const handleUpdate = useCallback(async () => {
+    const token = tokenRef.current;
     if (!editForm.name || !editForm.price || !editForm.categoryName || !editForm.stockQuantity) {
       showToast('Validation failed', 'error'); return;
     }
@@ -300,38 +327,36 @@ const ProductsPage = ({ darkMode }) => {
       showToast('Registry Updated', 'success');
       setEditModal(false); fetchProducts();
     } catch { showToast('Action failed', 'error'); }
-  }, [editForm, token, fetchProducts]);
+  }, [editForm, fetchProducts]);
 
   const deleteProduct = useCallback(async (id) => {
-    const { isConfirmed } = await Swal.fire({ title: 'Delete Product Registry?', text: 'This will remove the product from all catalogues.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Confirm Purge', confirmButtonColor: '#ef4444', background: darkMode ? '#111827' : '#fff', color: darkMode ? '#fff' : '#000', });
+    const token = tokenRef.current;
+    const { isConfirmed } = await Swal.fire({
+      title: 'Delete Product Registry?',
+      text: 'This will remove the product from all catalogues.',
+      icon: 'warning', showCancelButton: true,
+      confirmButtonText: 'Confirm Purge', confirmButtonColor: '#ef4444',
+      background: darkMode ? '#111827' : '#fff', color: darkMode ? '#fff' : '#000',
+    });
     if (!isConfirmed) return;
     try {
       await api.delete(`/api/admin/products/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       showToast('Product Deleted', 'success'); fetchProducts();
     } catch { showToast('Action failed', 'error'); }
-  }, [token, fetchProducts, darkMode]);
+  }, [fetchProducts, darkMode]);
 
-  const Th = ({ field, label, center = true }) => (
-    <th onClick={() => handleSort(field)}
-      className={`px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${center ? 'text-center' : 'text-left'}`}>
-      <span className={`flex items-center gap-1.5 ${center ? 'justify-center' : ''}`}>
-        {label}
-
-      </span>
-    </th>
-  );
-
-  const statCards = [
-    { icon: FiPackage, label: 'Total Products', value: stats.total, color: 'lime' },
-    { icon: FiCheckCircle, label: 'Live Stock', value: stats.inStock, color: 'emerald' },
-    { icon: FiXCircle, label: 'Out of Stock', value: stats.outOfStock, color: 'rose' },
-  ];
+  const statCards = useMemo(() => [
+    { icon: FiPackage,     label: 'Total Products', value: stats.total,      color: 'lime'    },
+    { icon: FiCheckCircle, label: 'Live Stock',     value: stats.inStock,    color: 'emerald' },
+    { icon: FiXCircle,     label: 'Out of Stock',   value: stats.outOfStock, color: 'rose'    },
+  ], [stats]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
 
-
+       
+       
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -341,47 +366,52 @@ const ProductsPage = ({ darkMode }) => {
             <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">Products</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Manage and audit global product listings and inventory levels</p>
           </div>
-
-          <div className="p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-sm flex items-center gap-4">
-            <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center text-gray-400">
-              <FiActivity size={18} />
-            </div>
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Inventory State</p>
-              <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Synchronized</p>
+          <div className="flex items-center gap-3">
+            <button onClick={fetchProducts} disabled={loading} title="Refresh"
+              className="w-10 h-10 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-lime-500 hover:border-lime-500/30 transition-all disabled:opacity-40">
+              <FiRefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            </button>
+            <div className="p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-sm flex items-center gap-4">
+              <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center text-gray-400">
+                <FiActivity size={18} />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Inventory State</p>
+                <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Synchronized</p>
+              </div>
             </div>
           </div>
         </div>
 
-
+       
+       
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {statCards.map(s => <StatCard key={s.label} {...s} />)}
         </div>
 
-
-
+        
+        
         <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
           <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
-
             <div className="relative flex-1 group">
               <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={16} />
-              <input type="text" placeholder="Search by name or technical description..." value={search} onChange={e => setSearch(e.target.value)}
+              <input type="text" placeholder="Search by name or technical description..." value={search}
+                onChange={e => setSearch(e.target.value)}
                 className="w-full pl-12 pr-10 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/5 transition-all" />
-              {search && <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors"><FiX size={16} title="Clear Registry Filter" /></button>}
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors">
+                  <FiX size={16} title="Clear" />
+                </button>
+              )}
             </div>
-
             <div className="flex items-center gap-2 flex-wrap">
-              {[{ v: 'all', l: 'All' }, { v: 'inStock', l: 'In Stock' }, { v: 'outOfStock', l: 'out of stock' }].map(({ v, l }) => (
+              {[{ v: 'all', l: 'All' }, { v: 'inStock', l: 'In Stock' }, { v: 'outOfStock', l: 'Out of Stock' }].map(({ v, l }) => (
                 <button key={v} onClick={() => { setStockFilter(v); setCurrentPage(1); }}
-                  className={`px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all
-                    ${stockFilter === v
-                      ? 'bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20'
-                      : 'border-transparent bg-gray-50 dark:bg-gray-900/50 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+                  className={`px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${stockFilter === v ? 'bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20' : 'border-transparent bg-gray-50 dark:bg-gray-900/50 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
                   {l}
                 </button>
               ))}
             </div>
-
             <div className="flex items-center gap-3 px-4 border-l border-gray-100 dark:border-gray-800">
               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Rows</span>
               <select value={rowsPerPage} onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
@@ -392,8 +422,8 @@ const ProductsPage = ({ darkMode }) => {
           </div>
         </div>
 
-
-
+        
+        
         <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
           {loading ? (
             <div className="py-32 text-center space-y-4">
@@ -402,15 +432,15 @@ const ProductsPage = ({ darkMode }) => {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto custom-scrollbar-thin">
                 <table className="w-full min-w-[850px]">
                   <thead className="bg-gray-50 dark:bg-gray-900/50">
                     <tr>
                       <th className="px-8 py-5 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">ID</th>
-                      <Th field="name" label="Product Name" center={false} />
-                      <Th field="price" label="Price" />
-                      <Th field="condition" label="Condition" />
-                      <Th field="stock" label="Stock" />
+                      <Th field="name"      label="Product Name" center={false} onSort={handleSort} sortField={sortField} sortDir={sortDir} />
+                      <Th field="price"     label="Price"                       onSort={handleSort} sortField={sortField} sortDir={sortDir} />
+                      <Th field="condition" label="Condition"                   onSort={handleSort} sortField={sortField} sortDir={sortDir} />
+                      <Th field="stock"     label="Stock"                       onSort={handleSort} sortField={sortField} sortDir={sortDir} />
                       <th className="px-8 py-5 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">Operations</th>
                     </tr>
                   </thead>
@@ -429,13 +459,15 @@ const ProductsPage = ({ darkMode }) => {
                           <td className="px-8 py-6">
                             <div className="flex items-center gap-3">
                               <code className="text-[10px] font-black bg-gray-50 dark:bg-gray-900 px-3 py-1.5 rounded-lg text-gray-500 max-w-[80px] truncate block border border-transparent group-hover:border-lime-500/20 transition-all">{p.id}</code>
-                              <button onClick={() => navigator.clipboard.writeText(p.id).then(() => showToast('ID Copied', 'success'))} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-lime-500 transition-all"><FiCopy size={14} title="Copy Product ID" /></button>
+                              <button onClick={() => navigator.clipboard.writeText(p.id).then(() => showToast('ID Copied', 'success'))}
+                                className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-lime-500 transition-all">
+                                <FiCopy size={14} title="Copy Product ID" />
+                              </button>
                             </div>
                           </td>
                           <td className="px-8 py-4">
                             <div className="space-y-0.5">
                               <p className="text-xs font-bold text-gray-900 dark:text-white tracking-tight max-w-[180px] truncate">{sanitize(p.name)}</p>
-
                             </div>
                           </td>
                           <td className="px-8 py-4 text-center font-mono font-bold text-xs text-lime-600">{p.price ? `${p.price} EGP` : '—'}</td>
@@ -445,8 +477,8 @@ const ProductsPage = ({ darkMode }) => {
                               {p.condition || 'UNSET'}
                             </span>
                           </td>
-                          <td className="px-4 py-2  text-center">
-                            <span className={`font-mono  font-bold text-xs px-3 py-1 rounded-full ${(p.stock ?? 0) > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                          <td className="px-4 py-2 text-center">
+                            <span className={`font-mono font-bold text-xs px-3 py-1 rounded-full ${(p.stock ?? 0) > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                               {p.stock ?? 0} Units
                             </span>
                           </td>
@@ -481,15 +513,14 @@ const ProductsPage = ({ darkMode }) => {
                   <div className="flex items-center gap-2">
                     <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
                       className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all">
-                      <FiChevronLeft size={16} title="Previous Page" />
+                      <FiChevronLeft size={16} />
                     </button>
                     <div className="flex gap-1">
                       {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
                         const p = i + 1;
                         return (
                           <button key={p} onClick={() => setCurrentPage(p)}
-                            className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all border
-                              ${currentPage === p ? 'bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20' : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-500 hover:border-lime-500/50'}`}>
+                            className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all border ${currentPage === p ? 'bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20' : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-500 hover:border-lime-500/50'}`}>
                             {p}
                           </button>
                         );
@@ -497,7 +528,7 @@ const ProductsPage = ({ darkMode }) => {
                     </div>
                     <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
                       className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all">
-                      <FiChevronRight size={16} title="Next Page" />
+                      <FiChevronRight size={16} />
                     </button>
                   </div>
                 </div>
@@ -511,8 +542,16 @@ const ProductsPage = ({ darkMode }) => {
         {detailProduct && <DetailsModal product={detailProduct} onClose={() => setDetailProduct(null)} />}
         {editModal && <EditModal form={editForm} setForm={setEditForm} categories={categories} onClose={() => setEditModal(false)} onSubmit={handleUpdate} />}
       </AnimatePresence>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        .custom-scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
+        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
+        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
+      `}} />
     </div>
   );
 };
 
-export default ProductsPage;
+export default AdminProducts;

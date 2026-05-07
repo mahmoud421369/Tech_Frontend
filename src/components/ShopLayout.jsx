@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect,memo } from "react";
 import ShopHeader from "../Shop/ShopHeader";
 
 const ShopLayout = ({ children }) => {
@@ -32,4 +32,4 @@ const ShopLayout = ({ children }) => {
   );
 };
 
-export default ShopLayout;
+export default memo(ShopLayout);

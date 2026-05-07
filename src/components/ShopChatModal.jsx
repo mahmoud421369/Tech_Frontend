@@ -487,4 +487,4 @@ const ShopChatModal = memo(({ open, onClose }) => {
 });
 
 ShopChatModal.displayName = 'ShopChatModal';
-export default ShopChatModal;
+export default memo(ShopChatModal);

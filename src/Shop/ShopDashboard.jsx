@@ -112,14 +112,14 @@ const ShopDashboard = () => {
     showToast("تمت إعادة تعيين الفلتر", "success");
   };
 
-  const dashboardMetrics = [
+  const dashboardMetrics = useMemo(() => [
     { label: "إجمالي المبيعات", value: `EGP ${stats.totalSales.toLocaleString('ar-EG')}`, icon: FiActivity, color: "lime", to: "/shop/transactions", description: "إجمالي الأرباح" },
     { label: "مبيعات اليوم", value: `EGP ${stats.todaySales.toLocaleString('ar-EG')}`, icon: FiZap, color: "emerald", to: "/shop/transactions", description: "النشاط الحالي" },
     { label: "إجمالي الطلبات", value: stats.totalOrders.toLocaleString('ar-EG'), icon: FiShoppingBag, color: "blue", to: "/shop/orders", description: "طلبات المنتجات" },
     { label: "تصليحات اليوم", value: stats.todayRepairs.toLocaleString('ar-EG'), icon: FiTool, color: "orange", to: "/shop/repair-requests", description: "الصيانة الجارية" },
     { label: "إجمالي التصليحات", value: stats.totalRepairs.toLocaleString('ar-EG'), icon: RiToolsLine, color: "amber", to: "/shop/repair-requests", description: "سجل التصليح" },
     { label: "حالة الخدمة", value: "نشط", icon: FiActivity, color: "indigo", to: "/shop/subscriptions", description: "نظام التشغيل" },
-  ];
+  ], [stats]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pr-64 mt-16 transition-all duration-500 font-cairo" dir="rtl">
@@ -221,9 +221,7 @@ const ShopDashboard = () => {
                   يتم الآن معالجة بيانات المبيعات والطلبات لتزويدك بتقارير دقيقة.
                 </p>
               </div>
-              {/* <button className="flex items-center gap-2 px-8 py-4 bg-gray-50 dark:bg-gray-900 rounded-2xl text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-lime-500 transition-all">
-                تنزيل تقرير شامل <FiArrowRight className="rotate-180" />
-              </button> */}
+             
            </div>
 
            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-[2.5rem] p-10 text-white relative overflow-hidden group">
@@ -250,4 +248,4 @@ const ShopDashboard = () => {
   );
 };
 
-export default ShopDashboard;
+export default memo(ShopDashboard);

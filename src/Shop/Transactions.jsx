@@ -9,7 +9,7 @@ import api from '../api';
 
 
 
-const ROWS_OPTIONS = [10, 25, 50];
+const ROWS_OPTIONS = [5,10, 25, 50];
 
 const generateUUID = () =>
   'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -34,7 +34,7 @@ const getServiceType = (txn) => {
 
 const getPaymentMethod = (txn) => {
   if (txn.paymentMethod === 'CASH') return 'نقدي';
-  if (txn.paymentMethod === 'CARD') return 'بطاقة ائتمان';
+  if (txn.paymentMethod === 'CREDIT_CARD') return 'بطاقة ائتمان';
   return txn.paymentMethod || '-';
 };
 
@@ -65,6 +65,8 @@ const Transactions = () => {
   const [searchTerm, setSearchTerm]       = useState('');
   const [currentPage, setCurrentPage]     = useState(1);
   const [rowsPerPage, setRowsPerPage]     = useState(10);
+  const [filterType, setFilterType]       = useState('ALL');
+  const [filterMethod, setFilterMethod]   = useState('ALL');
 
   useEffect(() => { document.title = 'السجل المالي للمتجر'; }, []);
 
@@ -94,14 +96,19 @@ const Transactions = () => {
     return { total, repair, order };
   }, [financialReport, transactions]);
 
-  const filtered = useMemo(() => transactions.filter(t => 
-    [t.details, t.paymentReference, t.paymentType].join(' ').toLowerCase().includes(searchTerm.toLowerCase())
-  ), [transactions, searchTerm]);
+  const filtered = useMemo(() => {
+    return transactions.filter(t => {
+      const matchesSearch = [t.details, t.paymentReference, t.paymentType].join(' ').toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesType = filterType === 'ALL' || t.paymentType === filterType;
+      const matchesMethod = filterMethod === 'ALL' || t.paymentMethod === filterMethod;
+      return matchesSearch && matchesType && matchesMethod;
+    });
+  }, [transactions, searchTerm, filterType, filterMethod]);
 
   const paginated = useMemo(() => filtered.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage), [filtered, currentPage, rowsPerPage]);
   const totalPages = Math.ceil(filtered.length / rowsPerPage);
 
-  const exportToCSV = () => {
+  const exportToCSV = useCallback(() => {
     const headers = ['التاريخ', 'نوع الخدمة', 'طريقة الدفع', 'المبلغ (ج.م)'];
     const rows = filtered.map(t => [formatDate(t.paidAt), getServiceType(t), getPaymentMethod(t), t.amount]);
     const BOM = '\uFEFF';
@@ -112,14 +119,15 @@ const Transactions = () => {
     link.href = url;
     link.download = `transactions_${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
-  };
+    URL.revokeObjectURL(url);
+  }, [filtered]);
 
-  const statCards = [
+  const statCards = useMemo(() => [
     { icon: FiDollarSign, label: 'إجمالي الأرباح', value: `${stats.total.toLocaleString('ar-EG')} ج.م`, color: "lime", description: "إجمالي الدخل المحقق" },
     { icon: FiTool, label: 'أرباح الصيانة', value: `${stats.repair.toLocaleString('ar-EG')} ج.م`, color: "orange", description: "من طلبات الإصلاح" },
     { icon: FiShoppingCart, label: 'أرباح المبيعات', value: `${stats.order.toLocaleString('ar-EG')} ج.م`, color: "blue", description: "من مبيعات المنتجات" },
     { icon: FiActivity, label: 'العمليات المكتملة', value: transactions.length.toLocaleString('ar-EG'), color: "emerald", description: "إجمالي الفواتير" },
-  ];
+  ], [stats, transactions.length]);
 
   return (
     <div dir="rtl" className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pr-64 mt-16 transition-all duration-500 font-cairo text-right">
@@ -167,11 +175,29 @@ const Transactions = () => {
               />
             </div>
             <select
+              value={filterType}
+              onChange={e => { setFilterType(e.target.value); setCurrentPage(1); }}
+              className="px-5 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-xs font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-4 focus:ring-lime-500/10 cursor-pointer transition-all"
+            >
+              <option value="ALL">جميع الخدمات</option>
+              <option value="REPAIR_PAYMENT">طلبات الإصلاح</option>
+              <option value="ORDER_PAYMENT">طلبات البيع</option>
+            </select>
+            <select
+              value={filterMethod}
+              onChange={e => { setFilterMethod(e.target.value); setCurrentPage(1); }}
+              className="px-5 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-xs font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-4 focus:ring-lime-500/10 cursor-pointer transition-all"
+            >
+              <option value="ALL">جميع طرق الدفع</option>
+              <option value="CASH">نقدي</option>
+              <option value="CARD">بطاقة ائتمان</option>
+            </select>
+            <select
               value={rowsPerPage}
               onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
               className="px-5 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-xs font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-4 focus:ring-lime-500/10 cursor-pointer transition-all"
             >
-              {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n} صفوف لكل صفحة</option>)}
+              {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n} صفوف</option>)}
             </select>
           </div>
         </div>
@@ -283,4 +309,4 @@ const Transactions = () => {
   );
 };
 
-export default Transactions;
+export default memo(Transactions);

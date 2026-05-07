@@ -37,6 +37,11 @@ const formatTime = (date) => {
   return d.toLocaleDateString();
 };
 
+const showToast = (text, icon) => {
+  Swal.fire({ text, icon, toast: true, position: "top-end", timer: 3000, showConfirmButton: false });
+};
+
+
 
 
 
@@ -55,9 +60,6 @@ const StatCard = memo(({ icon: Icon, label, value, color }) => (
   </div>
 ));
 
-
-
-
 const FeatureCard = memo(({ title, icon, desc, path, navigate, color }) => (
   <div onClick={() => navigate(path)}
     className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-sm hover:shadow-2xl hover:shadow-lime-500/10 transition-all duration-500 cursor-pointer group flex flex-col h-full">
@@ -75,9 +77,6 @@ const FeatureCard = memo(({ title, icon, desc, path, navigate, color }) => (
     </div>
   </div>
 ));
-
-
-
 
 const NotifItem = memo(({ notif, onDelete }) => (
   <div className={`flex items-start gap-4 p-5 border-b border-gray-50 dark:border-gray-700 last:border-0 hover:bg-lime-50/10 dark:hover:bg-lime-900/5 transition-all group
@@ -108,7 +107,7 @@ const NotifItem = memo(({ notif, onDelete }) => (
 
 const Dashboard = ({ darkMode }) => {
   const navigate = useNavigate();
-  const token = localStorage.getItem('authToken');
+  const tokenRef = useRef(localStorage.getItem('authToken'));
 
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
@@ -117,31 +116,31 @@ const Dashboard = ({ darkMode }) => {
 
   const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
 
-  useEffect(() => { 
-    document.title = "Platform Admin Dashboard"; 
+  useEffect(() => {
+    document.title = "Platform Admin Dashboard";
   }, []);
 
   useEffect(() => {
+    const token = tokenRef.current;
     if (!token || isTokenExpired(token)) { localStorage.clear(); navigate("/login"); }
-  }, [token, navigate]);
+  }, [navigate]);
 
   const fetchData = useCallback(async () => {
+    const token = tokenRef.current;
     if (!token) return;
     setLoading(true);
     try {
       const [statsRes, usersRes] = await Promise.allSettled([
         api.get('/api/admin/stats', { headers: { Authorization: `Bearer ${token}` } }),
         api.get('/api/admin/users?page=0&size=100', { headers: { Authorization: `Bearer ${token}` } }),
-        
       ]);
 
       if (statsRes.status === 'fulfilled') setStats(statsRes.value.data);
       if (usersRes.status === 'fulfilled') setUsers(Array.isArray(usersRes.value.data) ? usersRes.value.data : usersRes.value.data?.content || []);
-     
     } catch {
       showToast("Sync issue detected", "warning");
     } finally { setLoading(false); }
-  }, [token]);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -149,11 +148,8 @@ const Dashboard = ({ darkMode }) => {
     return () => clearInterval(id);
   }, [fetchData]);
 
-  const showToast = (text, icon) => {
-    Swal.fire({ text, icon, toast: true, position: "top-end", timer: 3000, showConfirmButton: false });
-  };
-
   const deleteNotification = useCallback(async (id) => {
+    const token = tokenRef.current;
     try {
       await api.delete(`/api/admin/notification/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       setNotifs(prev => prev.filter(n => n.id !== id));
@@ -161,23 +157,23 @@ const Dashboard = ({ darkMode }) => {
     } catch {
       showToast("Could not clear notification", "error");
     }
-  }, [token]);
+  }, []);
 
-  const statCardsData = [
-    { icon: FiUsers, label: 'Total Users', value: stats?.users || 0, color: 'lime' },
-    { icon: FiShoppingBag, label: 'Total Shops', value: stats?.shops || 0, color: 'blue' },
-    { icon: FiTool, label: 'Repair Requests', value: stats?.repairs || 0, color: 'orange' },
-    { icon: FiPackage, label: 'Total Orders', value: stats?.orders || 0, color: 'emerald' },
-  ];
+  const statCardsData = useMemo(() => [
+    { icon: FiUsers,       label: 'Total Users',     value: stats?.users || 0,   color: 'lime' },
+    { icon: FiShoppingBag, label: 'Total Shops',     value: stats?.shops || 0,   color: 'blue' },
+    { icon: FiTool,        label: 'Repair Requests', value: stats?.repairs || 0, color: 'orange' },
+    { icon: FiPackage,     label: 'Total Orders',    value: stats?.orders || 0,  color: 'emerald' },
+  ], [stats]);
 
-  const featureCards = [
-    { title: "User Management", icon: <FiUsers size={24} />, desc: "Control accounts and permissions", path: "/admin/users", color: "lime" },
-    { title: "Merchant Stores", icon: <FiShoppingBag size={24} />, desc: "Oversee shop registrations and status", path: "/admin/shops", color: "blue" },
-    { title: "Subscriptions", icon: <FiCreditCard size={24} />, desc: "Manage shop plans and billing", path: "/admin/subscriptions", color: "purple" },
-    { title: "Global Products", icon: <FiPackage size={24} />, desc: "Inventory and catalog oversight", path: "/admin/products", color: "emerald" },
-    { title: "Logistics Hub", icon: <FiTruck size={24} />, desc: "Manage delivery and assigner network", path: "/admin/deliveries", color: "orange" },
-    { title: "Platform Logs", icon: <FiClipboard size={24} />, desc: "Historical audit and activity feed", path: "/admin/assignment-logs", color: "rose" },
-  ];
+  const featureCards = useMemo(() => [
+    { title: "User Management", icon: <FiUsers size={24} />,       desc: "Control accounts and permissions",       path: "/admin/users",           color: "lime" },
+    { title: "Merchant Stores", icon: <FiShoppingBag size={24} />, desc: "Oversee shop registrations and status",  path: "/admin/shops",           color: "blue" },
+    { title: "Subscriptions",   icon: <FiCreditCard size={24} />,  desc: "Manage shop plans and billing",          path: "/admin/subscriptions",   color: "purple" },
+    { title: "Global Products", icon: <FiPackage size={24} />,     desc: "Inventory and catalog oversight",        path: "/admin/products",        color: "emerald" },
+    { title: "Logistics Hub",   icon: <FiTruck size={24} />,       desc: "Manage delivery and assigner network",   path: "/admin/deliveries",      color: "orange" },
+    { title: "Platform Logs",   icon: <FiClipboard size={24} />,   desc: "Historical audit and activity feed",     path: "/admin/assignment-logs", color: "rose" },
+  ], []);
 
   const pieData = useMemo(() => ({
     labels: ['Users', 'Shops', 'Repairs', 'Orders'],
@@ -190,14 +186,14 @@ const Dashboard = ({ darkMode }) => {
     }],
   }), [stats, darkMode]);
 
-  const pieOptions = {
+  const pieOptions = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: { position: 'right', labels: { font: { size: 12 }, padding: 14, color: darkMode ? '#d1d5db' : '#374151' } },
       tooltip: { backgroundColor: darkMode ? '#374151' : '#1f2937', titleColor: '#fff', bodyColor: '#e5e7eb' },
     },
-  };
+  }), [darkMode]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
@@ -205,6 +201,7 @@ const Dashboard = ({ darkMode }) => {
 
        
        
+
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -216,6 +213,10 @@ const Dashboard = ({ darkMode }) => {
           </div>
 
           <div className="flex items-center gap-3">
+            <button onClick={fetchData} disabled={loading} title="Refresh Dashboard"
+              className="w-10 h-10 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-lime-500 hover:border-lime-500/30 transition-all disabled:opacity-40">
+              <FiRefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            </button>
             <div className="p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-sm flex items-center gap-4">
               <div className="relative">
                 <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center text-gray-400">
@@ -235,20 +236,18 @@ const Dashboard = ({ darkMode }) => {
           </div>
         </div>
 
-      
-      
+        
+        
+        
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {statCardsData.map(card => (
             <StatCard key={card.label} {...card} />
           ))}
         </div>
 
-       
-       
+        
+        
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-         
-         
           <div className="lg:col-span-2 space-y-8">
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                {featureCards.map(card => (
@@ -256,8 +255,6 @@ const Dashboard = ({ darkMode }) => {
                ))}
              </div>
 
-            
-            
              <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
                 <div className="px-8 py-6 border-b border-gray-50 dark:border-gray-700 flex items-center justify-between">
                   <h2 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">Recent Users</h2>
@@ -300,11 +297,7 @@ const Dashboard = ({ darkMode }) => {
              </div>
           </div>
 
-          
-          
           <div className="space-y-8">
-            
-            
              <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl p-8">
                 <div className="flex items-center justify-between mb-8">
                   <h2 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">Platform Mix</h2>
@@ -314,30 +307,6 @@ const Dashboard = ({ darkMode }) => {
                    <Pie data={pieData} options={pieOptions} />
                 </div>
              </div>
-
-             
-             
-             {/* <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
-                <div className="px-8 py-6 border-b border-gray-50 dark:border-gray-700 flex items-center justify-between">
-                  <h2 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">Recent Feed</h2>
-                  <button onClick={fetchData} className="text-gray-400 hover:text-lime-500 transition-colors">
-                    <FiRefreshCw size={16} />
-                  </button>
-                </div>
-                <div className="max-h-[500px] overflow-y-auto custom-scrollbar-thin">
-                  {loading ? (
-                    <div className="py-20 text-center animate-pulse">
-                      <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Syncing Feed...</p>
-                    </div>
-                  ) : notifications.length === 0 ? (
-                    <div className="py-20 text-center">
-                      <p className="text-xs font-bold text-gray-400">No recent activity</p>
-                    </div>
-                  ) : notifications.map(n => (
-                    <NotifItem key={n.id} notif={n} onDelete={deleteNotification} />
-                  ))}
-                </div>
-             </div> */}
           </div>
 
         </div>

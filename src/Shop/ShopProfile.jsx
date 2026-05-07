@@ -13,20 +13,20 @@ import useAuthStore from '../store/Auth';
 const showToast = (text, icon) =>
   Swal.fire({ text, icon, toast: true, position: 'top-start', showConfirmButton: false, timer: 3000 });
 
+const EMPTY_SHOP = {
+  id: '', email: '', name: '', description: '', password: '',
+  verified: false, phone: '', rating: 0,
+  createdAt: '', updatedAt: '', shopType: '', activate: false,
+};
+const EMPTY_ADDR = { state: '', city: '', street: '', building: '', isDefault: false };
+
 
 
 
 const ShopProfile = () => {
   const { accessToken, user } = useAuthStore();
   const shopId = localStorage.getItem('id') || user?.id || user?.shopId;
-  const hasFetched = useRef(false);
-
-  const EMPTY_SHOP = {
-    id: '', email: '', name: '', description: '', password: '',
-    verified: false, phone: '', rating: 0,
-    createdAt: '', updatedAt: '', shopType: '', activate: false,
-  };
-  const EMPTY_ADDR = { state: '', city: '', street: '', building: '', isDefault: false };
+  const logoInputRef = useRef(null);
 
   const [shop, setShop]                       = useState(EMPTY_SHOP);
   const [addresses, setAddresses]             = useState([]);
@@ -63,7 +63,7 @@ const ShopProfile = () => {
 
   useEffect(() => { fetchAllData(); }, [fetchAllData]);
 
-  const updateShop = async () => {
+  const updateShop = useCallback(async () => {
     if (!shop.name.trim()) { showToast('اسم المتجر مطلوب', 'warning'); return; }
     setSaving(true);
     try {
@@ -75,7 +75,19 @@ const ShopProfile = () => {
       fetchAllData();
     } catch { showToast('فشل التحديث', 'error'); }
     finally { setSaving(false); }
-  };
+  }, [shop.name, shop.description, shop.password, shopId, fetchAllData]);
+
+  const handleLogoUpload = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      await api.post(`/api/shops/${shopId}/logo`, fd);
+      showToast('تم تحديث الشعار بنجاح', 'success');
+      fetchAllData();
+    } catch { showToast('فشل تحميل الشعار', 'error'); }
+  }, [shopId, fetchAllData]);
 
   const addAddress = async () => {
     setAddrSaving(true);
@@ -122,14 +134,17 @@ const ShopProfile = () => {
            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10" />
            <div className="absolute bottom-0 left-0 right-0 p-8 lg:p-12 flex flex-col md:flex-row items-center md:items-end justify-between gap-6">
               <div className="flex flex-col md:flex-row items-center md:items-end gap-6 text-center md:text-right">
-                 <div className="relative group/avatar">
-                    <div className="w-32 h-32 lg:w-40 h-40 rounded-none  p-2 ">
-                       <div className="w-full h-full rounded-[2rem] bg-gray-100 flex items-center justify-center text-lime-600 overflow-hidden">
-                          {shop.name ? <span className="text-5xl font-black">{shop.name[0]}</span> : <FaStore size={48} />}
+                  <div className="relative group/avatar cursor-pointer" onClick={() => logoInputRef.current?.click()}>
+                    <div className="w-32 h-32 lg:w-40 h-40 rounded-none p-2 relative">
+                       <div className="w-full h-full rounded-[2rem] bg-gray-100 flex items-center justify-center text-lime-600 overflow-hidden relative">
+                          {shop.logo ? <img src={shop.logo} alt="Logo" className="w-full h-full object-cover" /> : shop.name ? <span className="text-5xl font-black">{shop.name[0]}</span> : <FaStore size={48} />}
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
+                             <FiCamera className="text-white" size={32} />
+                          </div>
                        </div>
                     </div>
-                    
-                 </div>
+                    <input ref={logoInputRef} type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                  </div>
                  <div className="text-white space-y-2 mb-2">
                     <div className="flex items-center justify-center md:justify-start gap-2">
                        <h1 className="text-3xl lg:text-5xl font-black tracking-tighter">{shop.name || "متجر جديد"}</h1>
@@ -289,4 +304,4 @@ const ShopProfile = () => {
   );
 };
 
-export default ShopProfile;
+export default memo(ShopProfile);

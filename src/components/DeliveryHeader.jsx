@@ -141,8 +141,8 @@ const DeliveryHeader = () => {
     navigate("/login");
   }, [token, navigate, darkMode]);
 
-  const isActive   = (path) => location.pathname === path;
-  const closeSidebar = () => setSidebarOpen(false);
+  const isActive = useCallback((path) => location.pathname === path, [location.pathname]);
+  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
   return (
     <>
@@ -177,8 +177,8 @@ const DeliveryHeader = () => {
               <h3 className="px-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">{group.label}</h3>
               <div className="space-y-1">
                 {group.items.map(item => (
-                    <NavLink key={item.name} item={item} active={isActive(item.path)} onClick={closeSidebar} />
-                  ))}
+                  <NavLink key={item.name} item={item} active={isActive(item.path)} onClick={closeSidebar} />
+                ))}
               </div>
             </div>
           ))}
@@ -248,4 +248,4 @@ const DeliveryHeader = () => {
   );
 };
 
-export default DeliveryHeader;
+export default memo(DeliveryHeader);

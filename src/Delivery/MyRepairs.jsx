@@ -48,9 +48,9 @@ const MyRepairs = () => {
   const [rowsPerPage, setRowsPerPage]   = useState(10);
   const [selectedRepair, setSelectedRepair] = useState(null);
 
-  const showToast = (text, icon) => {
+  const showToast = useCallback((text, icon) => {
     Swal.fire({ text, icon, toast: true, position: "top-end", timer: 3000, showConfirmButton: false });
-  };
+  }, []);
 
     useEffect(() => { document.title = 'My Repairs | TechBazaar'; }, []);
   
@@ -71,7 +71,7 @@ const MyRepairs = () => {
     return () => clearInterval(t); 
   }, [loadRepairs]);
 
-  const handleUpdate = async (id, newStatus) => {
+  const handleUpdate = useCallback(async (id, newStatus) => {
     const { isConfirmed } = await Swal.fire({
       title: 'Update Status?',
       text: `Change repair status to ${STATUS_LABEL[newStatus]}?`,
@@ -81,18 +81,21 @@ const MyRepairs = () => {
       confirmButtonText: 'Confirm'
     });
     if (!isConfirmed) return;
-
+    // Optimistic: update status badge in-place immediately
+    setRepairs(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));
     try {
       await updateRepairStatus(id, { status: newStatus });
       showToast("Repair status updated", "success");
-      loadRepairs();
-    } catch { showToast("Failed to update status", "error"); }
-  };
+    } catch { 
+      showToast("Failed to update status", "error");
+      loadRepairs(); // rollback
+    }
+  }, [showToast, loadRepairs]);
 
-  const copyToClipboard = (text) => {
+  const copyToClipboard = useCallback((text) => {
     navigator.clipboard.writeText(text);
     showToast("Copied to clipboard", "success");
-  };
+  }, [showToast]);
 
   const filtered = useMemo(() => {
     return repairs.filter(r => 

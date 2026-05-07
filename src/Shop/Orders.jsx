@@ -16,7 +16,7 @@ import debounce from 'lodash/debounce';
 
 
 
-const ROWS_OPTIONS = [10, 25, 50];
+const ROWS_OPTIONS = [5,10, 25, 50];
 
 const STATUS_TRANSLATIONS = {
   PENDING: 'معلق',
@@ -68,6 +68,64 @@ const StatCard = memo(({ icon: Icon, label, value, color, description }) => (
     </div>
   </div>
 ));
+
+const OrderRow = memo(({ order, onDetails, onCopy, onUpdateStatus }) => {
+  const cs = getStatusStyle(order.status);
+  const totalQty = (order.orderItems || []).reduce((sum, i) => sum + i.quantity, 0);
+  return (
+    <tr className="hover:bg-lime-50/10 dark:hover:bg-lime-900/5 transition-colors group">
+      <td className="px-8 py-6 whitespace-nowrap">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400">
+            <FiHash size={18} />
+          </div>
+          <div>
+            <p className="text-xs font-black text-gray-900 dark:text-white">#{String(order.id).slice(0, 8)}</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{totalQty} منتجات</p>
+          </div>
+        </div>
+      </td>
+      <td className="px-8 py-6 whitespace-nowrap text-center">
+        <p className="text-xs font-black text-gray-900 dark:text-white">{order.firstName} {order.lastName}</p>
+        <p dir='ltr' className="text-[10px] font-bold text-gray-400 tracking-tight">{order.phoneNumber || "بدون هاتف"}</p>
+      </td>
+      <td className="px-8 py-6 whitespace-nowrap text-center font-mono font-black text-xs text-lime-600">
+        EGP {Number(order.totalPrice)}
+      </td>
+      <td className="px-8 py-6 whitespace-nowrap text-center">
+        <p className="text-[10px] font-black text-gray-900 dark:text-white">{new Date(order.createdAt).toLocaleDateString('ar-EG')}</p>
+        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{new Date(order.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</p>
+      </td>
+      <td className="px-8 py-6 whitespace-nowrap text-center">
+        <span onClick={() => onUpdateStatus(order)} className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest ${cs.bg} ${cs.text}`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${cs.dot} animate-pulse`} />
+          {STATUS_TRANSLATIONS[order.status] || order.status}
+        </span>
+      </td>
+      <td className="px-8 py-6 whitespace-nowrap text-left">
+        <div className="flex items-center justify-start gap-2">
+          <button title="تفاصيل الطلب" onClick={() => onDetails(order)} className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 transition-all active:scale-95">
+            <FiInfo size={16} />
+          </button>
+          <button title='نسخ' onClick={() => onCopy(order.id)} className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 transition-all active:scale-95">
+            <FiCopy size={14} />
+          </button>
+
+          {order.status === 'PENDING' && (
+            <div className="flex gap-2">
+              <button title="قبول الطلب" onClick={() => onUpdateStatus(order, 'CONFIRMED')} className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 hover:bg-emerald-100 transition-all active:scale-95">
+                <FiCheck size={16} />
+              </button>
+              <button title="رفض الطلب" onClick={() => onUpdateStatus(order, 'CANCELLED')} className="p-3 rounded-2xl bg-red-50 dark:bg-red-900/20 text-red-600 hover:bg-red-100 transition-all active:scale-95">
+                <FiX size={16} />
+              </button>
+            </div>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+});
 
 
 
@@ -139,6 +197,14 @@ const Orders = () => {
   }), [orders]);
 
   const updateOrderStatus = async (orderId, newStatus) => {
+   
+    
+    const applyOptimistic = (id, status) => {
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
+    };
+
+    const previousOrders = [...orders];
+
     try {
       if (newStatus === 'CONFIRMED') {
         const { isConfirmed } = await Swal.fire({
@@ -147,6 +213,8 @@ const Orders = () => {
           confirmButtonColor: '#84cc16',
         });
         if (!isConfirmed) return;
+        
+        applyOptimistic(orderId, 'CONFIRMED');
         await api.post(`/api/shops/orders/control/${orderId}/accept`);
       } else if (newStatus === 'CANCELLED') {
         const { isConfirmed } = await Swal.fire({
@@ -155,23 +223,29 @@ const Orders = () => {
           confirmButtonColor: '#ef4444',
         });
         if (!isConfirmed) return;
+        
+        applyOptimistic(orderId, 'CANCELLED');
         await api.post(`/api/shops/orders/control/${orderId}/reject`);
       } else {
+        applyOptimistic(orderId, newStatus);
         await api.put(`/api/shops/orders/control/${orderId}/status`, { status: newStatus });
       }
       showToast('تم تحديث الحالة بنجاح', 'success');
+      
+      
       fetchOrders(statusFilter, searchTerm);
     } catch {
+      setOrders(previousOrders);
       showToast('فشل تحديث الحالة', 'error');
     }
   };
 
-  const statCards = [
+  const statCards = useMemo(() => [
     { icon: RiShoppingCartLine, label: 'إجمالي الطلبات', value: stats.total.toLocaleString('ar-EG'), color: "lime", description: "طلبات قيد المعالجة" },
     { icon: FiClock, label: 'طلبات معلقة', value: stats.pending.toLocaleString('ar-EG'), color: "blue", description: "بانتظار المراجعة" },
     { icon: FiCheckCircle, label: 'طلبات مؤكدة', value: stats.confirmed.toLocaleString('ar-EG'), color: "emerald", description: "في مرحلة التنفيذ" },
     { icon: FiTruck, label: 'تم التسليم', value: stats.delivered.toLocaleString('ar-EG'), color: "indigo", description: "عمليات مكتملة" },
-  ];
+  ], [stats]);
 
   return (
     <div dir="rtl" className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pr-64 mt-16 transition-all duration-500 font-cairo text-right">
@@ -263,63 +337,22 @@ const Orders = () => {
                     </td>
                   </tr>
                 ) : (
-                  paginated.map(o => {
-                    const cs = getStatusStyle(o.status);
-                    const totalQty = (o.orderItems || []).reduce((sum, i) => sum + i.quantity, 0);
-                    return (
-                      <tr key={o.id} className="hover:bg-lime-50/10 dark:hover:bg-lime-900/5 transition-colors group">
-                        <td className="px-8 py-6 whitespace-nowrap">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400">
-                              <FiHash size={18} />
-                            </div>
-                            <div>
-                              <p className="text-xs font-black text-gray-900 dark:text-white">#{String(o.id).slice(0, 8)}</p>
-                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{totalQty} منتجات</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-8 py-6 whitespace-nowrap text-center">
-                          <p className="text-xs font-black text-gray-900 dark:text-white">{o.firstName} {o.lastName}</p>
-                          <p dir='ltr' className="text-[10px] font-bold text-gray-400 tracking-tight">{o.phoneNumber || "بدون هاتف"}</p>
-                        </td>
-                        <td className="px-8 py-6 whitespace-nowrap text-center font-mono font-black text-xs text-lime-600">
-                          EGP {Number(o.totalPrice)}
-                        </td>
-                        <td className="px-8 py-6 whitespace-nowrap text-center">
-                          <p className="text-[10px] font-black text-gray-900 dark:text-white">{new Date(o.createdAt).toLocaleDateString('ar-EG')}</p>
-                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{new Date(o.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</p>
-                        </td>
-                        <td className="px-8 py-6 whitespace-nowrap text-center">
-                          <span onClick={() => { setStatusModalOrder(o); setShowStatusModal(true); }} className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest ${cs.bg} ${cs.text}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${cs.dot} animate-pulse`} />
-                            {STATUS_TRANSLATIONS[o.status] || o.status}
-                          </span>
-                        </td>
-                        <td className="px-8 py-6 whitespace-nowrap text-left">
-                          <div className="flex items-center justify-start gap-2">
-                            <button title="تفاصيل الطلب" onClick={() => { setSelectedOrder(o); setShowDetailsModal(true); }} className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 transition-all active:scale-95">
-                              <FiInfo size={16} />
-                            </button>
-                            <button title='نسخ' onClick={() => { navigator.clipboard.writeText(o.id); showToast('تم نسخ رقم الطلب', 'success'); }} className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 transition-all active:scale-95">
-                              <FiCopy size={14} />  
-                            </button>
-
-                            {o.status === 'PENDING' && (
-                              <div className="flex gap-2">
-                                <button title="قبول الطلب" onClick={() => updateOrderStatus(o.id, 'CONFIRMED')} className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 hover:bg-emerald-100 transition-all active:scale-95">
-                                  <FiCheck size={16} />
-                                </button>
-                                <button title="رفض الطلب" onClick={() => updateOrderStatus(o.id, 'CANCELLED')} className="p-3 rounded-2xl bg-red-50 dark:bg-red-900/20 text-red-600 hover:bg-red-100 transition-all active:scale-95">
-                                  <FiX size={16} />
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
+                  paginated.map(o => (
+                    <OrderRow
+                      key={o.id}
+                      order={o}
+                      onDetails={(order) => { setSelectedOrder(order); setShowDetailsModal(true); }}
+                      onCopy={(id) => { navigator.clipboard.writeText(id); showToast('تم نسخ رقم الطلب', 'success'); }}
+                      onUpdateStatus={(order, nextStatus) => {
+                        if (nextStatus) {
+                          updateOrderStatus(order.id, nextStatus);
+                        } else {
+                          setStatusModalOrder(order);
+                          setShowStatusModal(true);
+                        }
+                      }}
+                    />
+                  ))
                 )}
               </tbody>
             </table>
@@ -429,8 +462,8 @@ const Orders = () => {
                   key={s}
                   onClick={() => { setStatusFilter(s); setShowFilterPanel(false); setCurrentPage(1); }}
                   className={`px-4 py-4 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all ${statusFilter === s
-                      ? "bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20"
-                      : "bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-700 text-gray-500 hover:border-lime-500 hover:text-lime-600"
+                    ? "bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20"
+                    : "bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-700 text-gray-500 hover:border-lime-500 hover:text-lime-600"
                     }`}
                 >
                   {STATUS_TRANSLATIONS[s]}
@@ -494,4 +527,4 @@ const Orders = () => {
   );
 };
 
-export default Orders;
+export default memo(Orders);

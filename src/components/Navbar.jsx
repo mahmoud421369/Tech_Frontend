@@ -757,4 +757,4 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
   );
 };
 
-export default Navbar;
+export default memo(Navbar);

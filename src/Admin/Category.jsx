@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   FiList, FiPlus, FiEdit3, FiTrash2, FiCopy,
   FiSearch, FiXCircle, FiChevronLeft, FiChevronRight,
-  FiGrid, FiX, FiCheck, FiActivity, FiTag, FiChevronDown
+  FiGrid, FiX, FiCheck, FiActivity, FiTag, FiChevronDown, FiRefreshCw
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import api from '../api';
@@ -19,6 +19,9 @@ const copyToClipboard = (id) =>
   navigator.clipboard.writeText(id)
     .then(() => showToast('Category ID copied!', 'success'))
     .catch(() => showToast('Failed to copy', 'error'));
+
+
+
 
 const StatCard = memo(({ icon: Icon, label, value, color }) => (
   <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-sm hover:shadow-xl hover:shadow-lime-500/5 transition-all duration-500 group relative overflow-hidden">
@@ -47,24 +50,16 @@ const RowsDropdown = memo(({ value, options, onChange }) => {
 
   return (
     <div className="relative inline-block" ref={ref}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-transparent hover:border-lime-500/20 transition-all focus:outline-none focus:ring-2 focus:ring-lime-500/20"
-      >
+      <button onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-transparent hover:border-lime-500/20 transition-all focus:outline-none focus:ring-2 focus:ring-lime-500/20">
         <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">{value} Rows</span>
         <FiChevronDown size={12} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <div className="absolute right-0 z-20 mt-1 w-32 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
           {options.map(n => (
-            <button
-              key={n}
-              onClick={() => { onChange(n); setOpen(false); }}
-              className={`w-full flex items-center justify-between px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition
-                ${value === n
-                  ? 'bg-lime-50 dark:bg-lime-900/30 text-lime-600'
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
-            >
+            <button key={n} onClick={() => { onChange(n); setOpen(false); }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition ${value === n ? 'bg-lime-50 dark:bg-lime-900/30 text-lime-600' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
               {n} Rows
               {value === n && <FiCheck size={12} className="text-lime-500" />}
             </button>
@@ -102,15 +97,9 @@ const CategoryModal = memo(({ editingCategory, value, onChange, onClose, onSubmi
         )}
         <div className="space-y-1">
           <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Category Title</label>
-          <input
-            type="text"
-            value={value}
-            onChange={e => onChange(e.target.value)}
-            placeholder="e.g. Smartphones"
+          <input type="text" value={value} onChange={e => onChange(e.target.value)} placeholder="e.g. Smartphones"
             className="w-full px-3 py-2.5 rounded-xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-xs font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/5 transition-all"
-            autoFocus
-            onKeyDown={e => e.key === 'Enter' && onSubmit()}
-          />
+            autoFocus onKeyDown={e => e.key === 'Enter' && onSubmit()} />
         </div>
       </div>
       <div className="px-4 pb-4 pt-1 flex gap-2">
@@ -129,12 +118,14 @@ const CategoryModal = memo(({ editingCategory, value, onChange, onClose, onSubmi
 
 
 
+
 const Categories = ({ darkMode }) => {
   const navigate = useNavigate();
-  const token = localStorage.getItem('authToken');
+  const tokenRef = useRef(localStorage.getItem('authToken'));
 
   const [categories, setCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [categoryName, setCategoryName] = useState('');
@@ -145,36 +136,37 @@ const Categories = ({ darkMode }) => {
 
   useEffect(() => { document.title = 'Admin - Categories'; }, []);
 
+  useEffect(() => {
+    const id = setTimeout(() => { setDebouncedSearch(searchTerm); setCurrentPage(1); }, 300);
+    return () => clearTimeout(id);
+  }, [searchTerm]);
+
   const fetchCategories = useCallback(async () => {
+    const token = tokenRef.current;
     if (!token) { navigate('/login'); return; }
     setLoading(true);
     try {
-      const { data } = await api.get('/api/admin/categories', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const { data } = await api.get('/api/admin/categories', { headers: { Authorization: `Bearer ${token}` } });
       setCategories(Array.isArray(data) ? data : data?.content || []);
     } catch (err) {
-      if (err?.response?.status === 401) { navigate('/login'); }
+      if (err?.response?.status === 401) navigate('/login');
       else showToast('Sync failed', 'error');
     } finally { setLoading(false); }
-  }, [token, navigate]);
+  }, [navigate]);
 
   useEffect(() => { fetchCategories(); }, [fetchCategories]);
 
   const saveCategory = useCallback(async () => {
+    const token = tokenRef.current;
     const name = categoryName.trim();
     if (!name) { showToast('Name is mandatory', 'warning'); return; }
     setSaving(true);
     try {
       if (editingCategory) {
-        await api.put(`/api/admin/categories/${editingCategory.id}`, { name: sanitize(name) }, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await api.put(`/api/admin/categories/${editingCategory.id}`, { name: sanitize(name) }, { headers: { Authorization: `Bearer ${token}` } });
         showToast('Category updated', 'success');
       } else {
-        await api.post('/api/admin/categories', { name: sanitize(name) }, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await api.post('/api/admin/categories', { name: sanitize(name) }, { headers: { Authorization: `Bearer ${token}` } });
         showToast('Category created', 'success');
       }
       setCategoryName('');
@@ -183,9 +175,10 @@ const Categories = ({ darkMode }) => {
       fetchCategories();
     } catch { showToast('Commit failed', 'error'); }
     finally { setSaving(false); }
-  }, [categoryName, editingCategory, token, fetchCategories]);
+  }, [categoryName, editingCategory, fetchCategories]);
 
   const deleteCategory = useCallback(async (id) => {
+    const token = tokenRef.current;
     const { isConfirmed } = await Swal.fire({
       title: 'Delete Category?', text: 'This action will delete the category from registry.',
       icon: 'warning', showCancelButton: true, confirmButtonText: 'Confirm Delete', confirmButtonColor: '#ef4444',
@@ -196,13 +189,13 @@ const Categories = ({ darkMode }) => {
       await api.delete(`/api/admin/categories/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       showToast('Category deleted', 'success'); fetchCategories();
     } catch { showToast('Deleted failed', 'error'); }
-  }, [token, fetchCategories, darkMode]);
+  }, [fetchCategories, darkMode]);
 
   const filtered = useMemo(() => {
-    if (!searchTerm.trim()) return categories;
-    const t = searchTerm.toLowerCase();
+    if (!debouncedSearch.trim()) return categories;
+    const t = debouncedSearch.toLowerCase();
     return categories.filter(c => c.name?.toLowerCase().includes(t));
-  }, [categories, searchTerm]);
+  }, [categories, debouncedSearch]);
 
   const totalPages = Math.ceil(filtered.length / rowsPerPage);
   const paginated = useMemo(() => {
@@ -214,8 +207,8 @@ const Categories = ({ darkMode }) => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 space-y-8">
 
-        
-        
+       
+       
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -226,16 +219,21 @@ const Categories = ({ darkMode }) => {
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Define and organize the platform catalog structure</p>
           </div>
 
-          <button
-            onClick={() => { setEditingCategory(null); setCategoryName(''); setIsModalOpen(true); }}
-            className="flex items-center justify-center gap-2 px-6 py-3.5 bg-lime-500 text-white rounded-2xl shadow-lg shadow-lime-500/20 hover:scale-105 active:scale-95 transition-all text-xs font-black uppercase tracking-widest"
-          >
-            <FiPlus size={16} /> New Category
-          </button>
+          <div className="flex gap-2">
+            <button onClick={fetchCategories} disabled={loading} title="Refresh"
+              className="w-11 h-11 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-lime-500 hover:border-lime-500/30 transition-all disabled:opacity-40">
+              <FiRefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            </button>
+            <button onClick={() => { setEditingCategory(null); setCategoryName(''); setIsModalOpen(true); }}
+              className="flex items-center justify-center gap-2 px-6 py-3.5 bg-lime-500 text-white rounded-2xl shadow-lg shadow-lime-500/20 hover:scale-105 active:scale-95 transition-all text-xs font-black uppercase tracking-widest">
+              <FiPlus size={16} /> New Category
+            </button>
+          </div>
         </div>
 
        
        
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <StatCard icon={FiGrid} label="Total Categories" value={categories.length} color="lime" />
           <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-sm flex items-center gap-4">
@@ -251,37 +249,28 @@ const Categories = ({ darkMode }) => {
 
         
         
+
         <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
           <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
             <div className="relative flex-1 group">
               <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={16} />
-              <input
-                type="text"
-                placeholder="Search category..."
-                value={searchTerm}
-                onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                className="w-full pl-12 pr-10 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/5 transition-all"
-              />
+              <input type="text" placeholder="Search category..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                className="w-full pl-12 pr-10 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/5 transition-all" />
               {searchTerm && (
                 <button onClick={() => setSearchTerm('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors">
                   <FiXCircle size={16} title="Clear Search" />
                 </button>
               )}
             </div>
-
             <div className="flex items-center gap-3 px-4">
                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">View</span>
-               <RowsDropdown
-                 value={rowsPerPage}
-                 options={ROWS_OPTIONS}
-                 onChange={n => { setRowsPerPage(n); setCurrentPage(1); }}
-               />
+               <RowsDropdown value={rowsPerPage} options={ROWS_OPTIONS} onChange={n => { setRowsPerPage(n); setCurrentPage(1); }} />
             </div>
           </div>
         </div>
 
-       
-       
+        
+        
         <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
           {loading ? (
             <div className="py-32 text-center space-y-4">
@@ -290,7 +279,7 @@ const Categories = ({ darkMode }) => {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto custom-scrollbar-thin">
                 <table className="w-full min-w-[500px]">
                   <thead className="bg-gray-50 dark:bg-gray-900/50">
                     <tr>
@@ -316,10 +305,7 @@ const Categories = ({ darkMode }) => {
                             <code className="text-[10px] font-black bg-gray-50 dark:bg-gray-900 px-3 py-1.5 rounded-lg text-gray-500 max-w-[150px] truncate block border border-transparent group-hover:border-lime-500/20 transition-all">
                               {c.id}
                             </code>
-                            <button
-                              onClick={() => copyToClipboard(c.id)}
-                              className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-lime-500 transition-all"
-                            >
+                            <button onClick={() => copyToClipboard(c.id)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-lime-500 transition-all">
                               <FiCopy size={14} title="Copy Identity ID" />
                             </button>
                           </div>
@@ -332,16 +318,12 @@ const Categories = ({ darkMode }) => {
                         </td>
                         <td className="px-8 py-6">
                           <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => { setEditingCategory(c); setCategoryName(c.name || ''); setIsModalOpen(true); }}
-                              className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 hover:scale-110 transition-all"
-                            >
+                            <button onClick={() => { setEditingCategory(c); setCategoryName(c.name || ''); setIsModalOpen(true); }}
+                              className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 hover:scale-110 transition-all">
                               <FiEdit3 size={16} title="Edit Category" />
                             </button>
-                            <button
-                              onClick={() => deleteCategory(c.id)}
-                              className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500 hover:scale-110 transition-all"
-                            >
+                            <button onClick={() => deleteCategory(c.id)}
+                              className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500 hover:scale-110 transition-all">
                               <FiTrash2 size={16} title="Delete Category" />
                             </button>
                           </div>
@@ -367,8 +349,7 @@ const Categories = ({ darkMode }) => {
                         const p = i + 1;
                         return (
                           <button key={p} onClick={() => setCurrentPage(p)}
-                            className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all border
-                              ${currentPage === p ? 'bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20' : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-500 hover:border-lime-500/50'}`}>
+                            className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all border ${currentPage === p ? 'bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20' : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-500 hover:border-lime-500/50'}`}>
                             {p}
                           </button>
                         );
@@ -396,6 +377,13 @@ const Categories = ({ darkMode }) => {
           loading={saving}
         />
       )}
+      <style dangerouslySetInnerHTML={{ __html: `
+        .custom-scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
+        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
+        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
+      `}} />
     </div>
   );
 };

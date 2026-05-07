@@ -20,8 +20,8 @@ const nextStatuses = {
   QUOTE_REJECTED: ['CANCELLED'],
   DEVICE_COLLECTED: ['REPAIRING'],
   REPAIRING: ['REPAIR_COMPLETED'],
-  REPAIR_COMPLETED: ['DEVICE_DELIVERED'],
-  DEVICE_DELIVERED: [],
+  REPAIR_COMPLETED: [],
+  // DEVICE_DELIVERED: [],
   CANCELLED: [],
   FAILED: [],
 };
@@ -41,7 +41,7 @@ const STATUS_META = {
 
 const getStatusMeta = (status) => STATUS_META[(status || '').toUpperCase()] || { label: status || '—', bg: 'bg-gray-50', text: 'text-gray-700', dot: 'bg-gray-400' };
 
-const ROWS_OPTIONS = [10, 25, 50];
+const ROWS_OPTIONS = [5,10, 25, 50];
 
 
 
@@ -86,11 +86,11 @@ const RepairRequests = () => {
 
   useEffect(() => { document.title = 'إدارة طلبات التصليح'; }, []);
 
-  const showToast = (text, icon) =>
+  const showToast = useCallback((text, icon) =>
     Swal.fire({
       text, icon, toast: true, position: 'top-start',
       showConfirmButton: false, timer: 3000,
-    });
+    }), []);
 
   const fetchRepairs = useCallback(async () => {
     setLoading(true);
@@ -114,33 +114,48 @@ const RepairRequests = () => {
   const debouncedFetch = useMemo(() => debounce(fetchRepairs, 400), [fetchRepairs]);
   useEffect(() => { debouncedFetch(); return () => debouncedFetch.cancel(); }, [debouncedFetch]);
 
-  const updateRepairStatus = async (repairId, newStatus) => {
+  const updateRepairStatus = useCallback(async (repairId, newStatus) => {
+    const previousRepairs = [...repairs];
+    setRepairs(prev => prev.map(r => r.id === repairId ? { ...r, status: newStatus } : r));
+
     try {
       await api.put(`/api/shops/repair-request/${repairId}/status`, { status: newStatus });
       showToast('تم تحديث الحالة بنجاح', 'success');
       fetchRepairs();
-    } catch { showToast('فشل تحديث الحالة', 'error'); }
-  };
+    } catch { 
+      setRepairs(previousRepairs);
+      showToast('فشل تحديث الحالة', 'error'); 
+    }
+  }, [repairs, fetchRepairs, showToast]);
 
-  const updateRepairPrice = async () => {
+  const updateRepairPrice = useCallback(async () => {
     if (!newPrice || newPrice <= 0) { showToast('يرجى إدخال سعر صحيح', 'error'); return; }
+    const repairId = priceModalRepair.id;
+    const priceVal = Number(newPrice);
+
+    const previousRepairs = [...repairs];
+    setRepairs(prev => prev.map(r => r.id === repairId ? { ...r, price: priceVal } : r));
+    setShowPriceModal(false);
+
     try {
-      await api.put(`/api/shops/repair-request/${priceModalRepair.id}/price`, { price: Number(newPrice) });
+      await api.put(`/api/shops/repair-request/${repairId}/price`, { price: priceVal });
       showToast('تم تحديد السعر بنجاح', 'success');
-      setShowPriceModal(false);
       fetchRepairs();
-    } catch { showToast('فشل في تحديد السعر', 'error'); }
-  };
+    } catch { 
+      setRepairs(previousRepairs);
+      showToast('فشل في تحديد السعر', 'error'); 
+    }
+  }, [newPrice, priceModalRepair, repairs, fetchRepairs, showToast]);
 
   const paginated = useMemo(() => repairs.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage), [repairs, currentPage, rowsPerPage]);
   const totalPages = Math.ceil(repairs.length / rowsPerPage);
 
-  const statCards = [
+  const statCards = useMemo(() => [
     { icon: FiPackage, label: 'إجمالي الطلبات', value: stats.totalRepairs.toLocaleString('ar-EG'), color: "lime", description: "جميع الطلبات المستلمة" },
     { icon: FiClock, label: 'بانتظار عرض سعر', value: stats.pendingQuote.toLocaleString('ar-EG'), color: "orange", description: "تحتاج إلى تسعير فوراً" },
     { icon: FiTool, label: 'قيد الإصلاح', value: stats.underRepair.toLocaleString('ar-EG'), color: "blue", description: "داخل الورشة الآن" },
     { icon: FiCheckCircle, label: 'تم الانتهاء', value: stats.completed.toLocaleString('ar-EG'), color: "emerald", description: "طلبات جاهزة للتسليم" },
-  ];
+  ], [stats]);
 
   return (
     <div dir="rtl" className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pr-64 mt-16 transition-all duration-500 font-cairo text-right">
@@ -167,7 +182,8 @@ const RepairRequests = () => {
           </button>
         </div>
 
-        {/* ── Stats ── */}
+        
+        
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {statCards.map(s => <StatCard key={s.label} {...s} />)}
         </div>
@@ -463,4 +479,4 @@ const RepairRequests = () => {
   );
 };
 
-export default RepairRequests;
+export default memo(RepairRequests);

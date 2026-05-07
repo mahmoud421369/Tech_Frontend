@@ -4,11 +4,10 @@ import {
   FiUsers, FiEye, FiCheckCircle, FiXCircle, FiTrash2,
   FiChevronLeft, FiChevronRight, FiCopy, FiSearch,
   FiX, FiHash, FiMail, FiPhone, FiBriefcase,
-  FiChevronUp, FiChevronDown, FiUser, FiCheck, FiActivity, FiShield, FiClock
+  FiChevronUp, FiChevronDown, FiUser, FiCheck, FiActivity, FiShield, FiClock, FiRefreshCw
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import DOMPurify from 'dompurify';
-import { debounce } from 'lodash';
 import api from '../api';
 import { RiCheckLine } from 'react-icons/ri';
 
@@ -19,6 +18,12 @@ const sanitize = (str) => DOMPurify.sanitize(String(str ?? ''));
 
 const showToast = (text, icon) =>
   Swal.fire({ text, icon, toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
+
+const getValue = (obj, key) => {
+  if (key === 'name') return `${obj.firstName || ''} ${obj.lastName || ''}`.toLowerCase();
+  if (key === 'activate') return obj.activate ? 1 : 0;
+  return String(obj[key] || '').toLowerCase();
+};
 
 
 
@@ -44,6 +49,17 @@ const SortIcon = memo(({ field, sortField, sortDir }) => {
     ? <FiChevronUp size={11} className="text-lime-600" />
     : <FiChevronDown size={11} className="text-lime-600" />;
 });
+
+const Th = memo(({ field, label, center = true, onSort, sortField, sortDir }) => (
+  <th
+    onClick={() => onSort(field)}
+    className={`px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${center ? 'text-center' : 'text-right'}`}
+  >
+    <span className={`flex items-center gap-1.5 ${center ? 'justify-center' : ''}`}>
+      {label} <SortIcon field={field} sortField={sortField} sortDir={sortDir} />
+    </span>
+  </th>
+));
 
 const RoleDropdown = memo(({ userId, currentRole, pendingRole, onSelect }) => {
   const [open, setOpen] = useState(false);
@@ -187,13 +203,16 @@ const UserModal = memo(({ user, onClose }) => {
   );
 });
 
+
+
+
 const UsersPage = ({ darkMode }) => {
   const navigate = useNavigate();
-  const token = localStorage.getItem('authToken');
+  const tokenRef = useRef(localStorage.getItem('authToken'));
 
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebounced] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -205,11 +224,13 @@ const UsersPage = ({ darkMode }) => {
 
   useEffect(() => { document.title = 'Admin - Users'; }, []);
 
-  const debouncedSet = useMemo(() => debounce((v) => { setDebounced(v); setCurrentPage(1); }, 300), []);
-  useEffect(() => () => debouncedSet.cancel(), [debouncedSet]);
-  useEffect(() => { debouncedSet(search); }, [search, debouncedSet]);
+  useEffect(() => {
+    const id = setTimeout(() => { setDebouncedSearch(search); setCurrentPage(1); }, 300);
+    return () => clearTimeout(id);
+  }, [search]);
 
   const fetchUsers = useCallback(async () => {
+    const token = tokenRef.current;
     if (!token) { navigate('/login'); return; }
     setLoading(true);
     try {
@@ -221,7 +242,7 @@ const UsersPage = ({ darkMode }) => {
       if (err?.response?.status === 401) { navigate('/login'); }
       else showToast('Failed to sync users', 'error');
     } finally { setLoading(false); }
-  }, [token, navigate]);
+  }, [navigate]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
@@ -239,12 +260,6 @@ const UsersPage = ({ darkMode }) => {
     });
     setCurrentPage(1);
   }, []);
-
-  const getValue = (obj, key) => {
-    if (key === 'name') return `${obj.firstName || ''} ${obj.lastName || ''}`.toLowerCase();
-    if (key === 'activate') return obj.activate ? 1 : 0;
-    return String(obj[key] || '').toLowerCase();
-  };
 
   const processed = useMemo(() => {
     const t = debouncedSearch.toLowerCase();
@@ -264,23 +279,26 @@ const UsersPage = ({ darkMode }) => {
   }, [users, debouncedSearch, sortField, sortDir]);
 
   const totalPages = Math.ceil(processed.length / rowsPerPage);
-  const paginated = processed.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+  const paginated = useMemo(() => processed.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage), [processed, currentPage, rowsPerPage]);
 
   const activateUser = useCallback(async (id) => {
+    const token = tokenRef.current;
     try {
       await api.put(`/api/admin/users/${id}/activate`, {}, { headers: { Authorization: `Bearer ${token}` } });
       showToast('User authorized', 'success'); fetchUsers();
     } catch { showToast('Auth failed', 'error'); }
-  }, [token, fetchUsers]);
+  }, [fetchUsers]);
 
   const deactivateUser = useCallback(async (id) => {
+    const token = tokenRef.current;
     try {
       await api.put(`/api/admin/users/${id}/deactivate`, {}, { headers: { Authorization: `Bearer ${token}` } });
       showToast('User suspended', 'warning'); fetchUsers();
     } catch { showToast('Action failed', 'error'); }
-  }, [token, fetchUsers]);
+  }, [fetchUsers]);
 
   const deleteUser = useCallback(async (id) => {
+    const token = tokenRef.current;
     const { isConfirmed } = await Swal.fire({
       title: 'Purge User?', text: 'This will permanently remove the account.',
       icon: 'warning', showCancelButton: true,
@@ -292,16 +310,18 @@ const UsersPage = ({ darkMode }) => {
       await api.delete(`/api/admin/users/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       showToast('User purged', 'success'); fetchUsers();
     } catch { showToast('Purge failed', 'error'); }
-  }, [token, fetchUsers, darkMode]);
+  }, [fetchUsers, darkMode]);
 
   const viewUser = useCallback(async (id) => {
+    const token = tokenRef.current;
     try {
       const { data } = await api.get(`/api/admin/users/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       setSelectedUser(data);
     } catch { showToast('Sync error', 'error'); }
-  }, [token]);
+  }, []);
 
   const saveRole = useCallback(async (id, role) => {
+    const token = tokenRef.current;
     setSavingRole(id);
     try {
       await api.put(`/api/admin/users/${id}`, { role }, { headers: { Authorization: `Bearer ${token}` } });
@@ -310,24 +330,17 @@ const UsersPage = ({ darkMode }) => {
       fetchUsers();
     } catch { showToast('Update failed', 'error'); }
     finally { setSavingRole(null); }
-  }, [token, fetchUsers]);
+  }, [fetchUsers]);
 
-  const Th = ({ field, label, center = true }) => (
-    <th
-      onClick={() => handleSort(field)}
-      className={`px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${center ? 'text-center' : 'text-right'}`}
-    >
-      <span className={`flex items-center gap-1.5 ${center ? 'justify-center' : ''}`}>
-        {label} <SortIcon field={field} sortField={sortField} sortDir={sortDir} />
-      </span>
-    </th>
-  );
+  const statCards = useMemo(() => [
+    { icon: FiUsers, label: 'Total Users', value: stats.total, color: 'lime' },
+    { icon: RiCheckLine, label: 'Authorized', value: stats.active, color: 'emerald' },
+    { icon: FiShield, label: 'Suspended', value: stats.inactive, color: 'rose' },
+  ], [stats]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
-
-
 
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-1">
@@ -340,6 +353,10 @@ const UsersPage = ({ darkMode }) => {
           </div>
 
           <div className="flex items-center gap-3">
+            <button onClick={fetchUsers} disabled={loading} title="Refresh"
+              className="w-10 h-10 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-lime-500 hover:border-lime-500/30 transition-all disabled:opacity-40">
+              <FiRefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            </button>
             <div className="p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-sm flex items-center gap-4">
               <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center text-gray-400">
                 <FiActivity size={18} />
@@ -352,15 +369,9 @@ const UsersPage = ({ darkMode }) => {
           </div>
         </div>
 
-
-
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <StatCard icon={FiUsers} label="Total Users" value={stats.total} color="lime" />
-          <StatCard icon={RiCheckLine} label="Authorized" value={stats.active} color="emerald" />
-          <StatCard icon={FiShield} label="Suspended" value={stats.inactive} color="rose" />
+          {statCards.map(s => <StatCard key={s.label} {...s} />)}
         </div>
-
-
 
         <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
           <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
@@ -391,7 +402,6 @@ const UsersPage = ({ darkMode }) => {
           </div>
         </div>
 
-
         <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
           {loading ? (
             <div className="py-32 text-center space-y-4">
@@ -404,10 +414,10 @@ const UsersPage = ({ darkMode }) => {
                 <table className="w-full  min-w-[900px]">
                   <thead className="bg-gray-50 dark:bg-gray-900/50">
                     <tr>
-                      <Th field="id" label="ID" center={true} />
-                      <Th field="name" label="Name" />
-                      <Th field="role" label="Authority" />
-                      <Th field="activate" label="Status" />
+                      <Th field="id" label="ID" center={true} onSort={handleSort} sortField={sortField} sortDir={sortDir} />
+                      <Th field="name" label="Name" center={false} onSort={handleSort} sortField={sortField} sortDir={sortDir} />
+                      <Th field="role" label="Authority" onSort={handleSort} sortField={sortField} sortDir={sortDir} />
+                      <Th field="activate" label="Status" onSort={handleSort} sortField={sortField} sortDir={sortDir} />
                       <th className="px-6 py-4 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">Operations</th>
                     </tr>
                   </thead>
@@ -437,7 +447,7 @@ const UsersPage = ({ darkMode }) => {
                           </div>
                         </td>
 
-                        <td className="px-6 py-5 text-center">
+                        <td className="px-6 py-5">
                           <div className="space-y-0.5">
                             <p className="text-sm font-bold text-gray-900 dark:text-white tracking-tight">{sanitize(`${user.firstName || ''} ${user.lastName || ''}`.trim()) || 'Unnamed Entity'}</p>
                             <p className="text-[10px] text-gray-400 font-medium">{sanitize(user.email)}</p>
@@ -486,21 +496,21 @@ const UsersPage = ({ darkMode }) => {
                             {user.activate ? (
                               <button
                                 onClick={() => deactivateUser(user.id)}
-                                className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 hover:scale-110 transition-all"
+                                className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 hover:scale-110 transition-all border border-transparent hover:border-amber-500/20"
                               >
                                 <FiXCircle size={16} title="Deactivate Account" />
                               </button>
                             ) : (
                               <button
                                 onClick={() => activateUser(user.id)}
-                                className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-500 hover:scale-110 transition-all"
+                                className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-500 hover:scale-110 transition-all border border-transparent hover:border-emerald-500/20"
                               >
                                 <FiCheckCircle size={16} title="Activate Account" />
                               </button>
                             )}
                             <button
                               onClick={() => deleteUser(user.id)}
-                              className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500 hover:scale-110 transition-all"
+                              className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500 hover:scale-110 transition-all border border-transparent hover:border-red-500/20"
                             >
                               <FiTrash2 size={16} title="Purge Record" />
                             </button>

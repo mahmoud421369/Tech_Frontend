@@ -501,4 +501,4 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
 });
 
 UserChatModal.displayName = 'UserChatModal';
-export default UserChatModal;
+export default memo(UserChatModal);

@@ -15,7 +15,7 @@ import debounce from 'lodash/debounce';
 
 
 
-const ROWS_OPTIONS = [10, 25, 50];
+const ROWS_OPTIONS = [5, 10, 25, 50];
 
 const STATUS_TRANSLATIONS = { ACTIVE: 'نشط', SCHEDULED: 'قادم', EXPIRED: 'منتهي' };
 
@@ -80,11 +80,11 @@ const ShopOffers = () => {
 
   useEffect(() => { document.title = 'إدارة العروض'; }, []);
 
-  const showToast = (text, icon) =>
+  const showToast = useCallback((text, icon) =>
     Swal.fire({
       text, icon, toast: true, position: 'top-start',
       showConfirmButton: false, timer: 3000,
-    });
+    }), []);
 
   const fetchOffers = useCallback(async () => {
     setLoading(true);
@@ -134,7 +134,7 @@ const ShopOffers = () => {
     } catch { showToast('حدث خطأ أثناء الحفظ', 'error'); }
   };
 
-  const deleteOffer = async (offerId) => {
+  const deleteOffer = useCallback(async (offerId) => {
     const { isConfirmed } = await Swal.fire({
       title: 'تأكيد الحذف', text: 'هل أنت متأكد من حذف هذا العرض نهائياً؟', icon: 'warning',
       showCancelButton: true, confirmButtonText: 'نعم، احذف', cancelButtonText: 'إلغاء',
@@ -146,14 +146,23 @@ const ShopOffers = () => {
       showToast('تم حذف العرض بنجاح', 'success');
       fetchOffers();
     } catch { showToast('فشل حذف العرض', 'error'); }
-  };
+  }, [fetchOffers, showToast]);
 
-  const statCards = [
+  const toggleOfferStatus = useCallback(async (offer) => {
+    const nextStatus = offer.status === 'ACTIVE' ? 'EXPIRED' : 'ACTIVE';
+    try {
+      await api.put(`/api/shop/offers/${offer.id}`, { ...offer, status: nextStatus });
+      showToast(`تم ${nextStatus === 'ACTIVE' ? 'تفعيل' : 'إيقاف'} العرض`, 'success');
+      fetchOffers();
+    } catch { showToast('فشل تغيير الحالة', 'error'); }
+  }, [fetchOffers, showToast]);
+
+  const statCards = useMemo(() => [
     { icon: FiTag, label: 'إجمالي العروض', value: stats.total.toLocaleString('ar-EG'), color: "lime", description: "جميع الحملات الترويجية" },
     { icon: FiCheckCircle, label: 'العروض النشطة', value: stats.active.toLocaleString('ar-EG'), color: "emerald", description: "متاحة للعملاء الآن" },
     { icon: FiPercent, label: 'خصم مئوي', value: stats.percentage.toLocaleString('ar-EG'), color: "blue", description: "عروض بنسبة مئوية" },
     { icon: FiDollarSign, label: 'خصم ثابت', value: stats.fixed.toLocaleString('ar-EG'), color: "orange", description: "خصم مبالغ محددة" },
-  ];
+  ], [stats]);
 
   return (
     <div dir="rtl" className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pr-64 mt-16 transition-all duration-500 font-cairo text-right">
@@ -276,22 +285,16 @@ const ShopOffers = () => {
                              <button title="تفاصيل العرض" onClick={() => { setDetailsOffer(o); }} className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 transition-all active:scale-95">
                                 <FiInfo size={16} />
                              </button>
-                             <button title="تعديل العرض" onClick={() => { setEditingOffer(o); setFormData({...o, startDate: new Date(o.startDate), endDate: new Date(o.endDate)}); setShowAddEdit(true); }} className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-amber-500 transition-all active:scale-95">
-                                <FiEdit3 size={16} />
-                             </button>
-                              <button title="حذف العرض" onClick={() => deleteOffer(o.id)} className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-red-500 transition-all active:scale-95">
-                                 <FiTrash2 size={16} />
+                              <button title={o.status === 'ACTIVE' ? "إيقاف العرض" : "تفعيل العرض"} onClick={() => toggleOfferStatus(o)} className={`p-3 rounded-2xl transition-all active:scale-95 ${o.status === 'ACTIVE' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500' : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-emerald-500'}`}>
+                                 <FiCheckCircle size={16} />
                               </button>
-                              {/* <div className="relative group/menu">
-                                 <button title="المزيد" className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all active:scale-95">
-                                    <FiMoreHorizontal size={16} />
-                                 </button>
-                                 <div className="absolute left-0 top-full mt-2 w-48 bg-white dark:bg-gray-800 rounded-none shadow-2xl border border-gray-100 dark:border-gray-700 p-2 hidden group-hover/menu:block animate-in fade-in slide-in-from-top-2 duration-300 z-50">
-                                    <button onClick={() => { navigator.clipboard.writeText(o.id); showToast('تم نسخ رقم العرض', 'success'); }} className="w-full flex items-center gap-2 p-3 text-[10px] font-black text-gray-500 hover:text-lime-600 hover:bg-lime-50 dark:hover:bg-lime-900/10 rounded-xl transition-all">
-                                       <FiCopy size={14} /> نسخ الرقم
-                                    </button>
-                                 </div>
-                              </div> */}
+                              <button title="تعديل العرض" onClick={() => { setEditingOffer(o); setFormData({...o, startDate: new Date(o.startDate), endDate: new Date(o.endDate)}); setShowAddEdit(true); }} className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-amber-500 transition-all active:scale-95">
+                                 <FiEdit3 size={16} />
+                              </button>
+                               <button title="حذف العرض" onClick={() => deleteOffer(o.id)} className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-red-500 transition-all active:scale-95">
+                                  <FiTrash2 size={16} />
+                               </button>
+                            
                            </div>
                         </td>
                       </tr>
@@ -441,4 +444,4 @@ const ShopOffers = () => {
   );
 };
 
-export default ShopOffers;
+export default memo(ShopOffers);

@@ -61,9 +61,9 @@ const DeliveryProfile = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors]       = useState({});
 
-  const showToast = (text, icon) => {
+  const showToast = useCallback((text, icon) => {
     Swal.fire({ text, icon, toast: true, position: "top-end", timer: 3000, showConfirmButton: false });
-  };
+  }, []);
 
     useEffect(() => { document.title = 'Delivery Profile | TechBazaar'; }, []);
   
@@ -80,7 +80,7 @@ const DeliveryProfile = () => {
 
   useEffect(() => { loadProfile(); }, [loadProfile]);
 
-  const validate = () => {
+  const validate = useCallback(() => {
     const e = {};
     if (!form.name.trim()) e.name = "Name is required";
     if (!form.address.trim()) e.address = "Address is required";
@@ -88,9 +88,9 @@ const DeliveryProfile = () => {
     else if (!/^\+?\d{10,15}$/.test(form.phone.trim())) e.phone = "Invalid phone format";
     setErrors(e);
     return Object.keys(e).length === 0;
-  };
+  }, [form]);
 
-  const handleUpdate = async () => {
+  const handleUpdate = useCallback(async () => {
     if (!validate()) return;
     setIsLoading(true);
     try {
@@ -101,13 +101,13 @@ const DeliveryProfile = () => {
       showToast("Profile synchronized successfully", "success");
     } catch (err) { showToast(err.response?.data?.message || "Update failed", "error"); }
     finally { setIsLoading(false); }
-  };
+  }, [form, validate, showToast]);
 
-  const cancelEdit = () => {
-    setForm({ name: profile.name || "", address: profile.address || "", phone: profile.phone || "" });
+  const cancelEdit = useCallback(() => {
+    setForm({ name: profile?.name || "", address: profile?.address || "", phone: profile?.phone || "" });
     setErrors({});
     setIsEditing(false);
-  };
+  }, [profile]);
 
   if (isLoading && !profile) {
     return (

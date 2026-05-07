@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef,memo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useInView } from 'framer-motion';
 import { FiMail, FiPhone, FiClock, FiArrowUpRight } from 'react-icons/fi';
@@ -68,10 +68,14 @@ const Footer = ({ darkMode }) => {
   return (
     <footer ref={ref} className="relative overflow-hidden bg-gray-100 dark:bg-gray-950">
 
-      {/* ── Light-mode decorative top band ── */}
+    
+    
+
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-500" />
 
-      {/* Wave divider */}
+     
+     
+
       <div className="absolute top-0 left-0 right-0 pointer-events-none">
         <svg viewBox="0 0 1440 80" xmlns="http://www.w3.org/2000/svg" className="w-full h-16" preserveAspectRatio="none">
           <path d="M0,40 C360,80 720,0 1080,40 C1260,60 1380,20 1440,40 L1440,0 L0,0 Z"
@@ -79,7 +83,9 @@ const Footer = ({ darkMode }) => {
         </svg>
       </div>
 
-      {/* Dot grid — slightly more visible in light mode */}
+     
+     
+
       <div className="absolute inset-0 pointer-events-none"
         style={{
           backgroundImage: 'radial-gradient(circle, rgba(101,163,13,0.18) 1px, transparent 1px)',
@@ -87,7 +93,9 @@ const Footer = ({ darkMode }) => {
           opacity: darkMode ? 0.06 : 0.5,
         }} />
 
-      {/* Glow accents */}
+      
+      
+
       <div className="absolute top-1/4 left-0 w-72 h-72 rounded-full bg-lime-400/10 dark:bg-lime-500/5 blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 right-0 w-96 h-96 rounded-full bg-emerald-400/10 dark:bg-emerald-500/5 blur-3xl pointer-events-none" />
 
@@ -96,7 +104,8 @@ const Footer = ({ darkMode }) => {
           variants={containerVariants} initial="hidden" animate={inView ? 'visible' : 'hidden'}
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-12 mb-14"
         >
-          {/* ── Brand ── */}
+        
+        
           <motion.div variants={itemVariants} className="sm:col-span-2 lg:col-span-1 space-y-5">
             <div className="flex items-center gap-3">
               <img src={logo} alt="Tech Bazaar" className="h-12 w-auto rounded-xl shadow-md" />
@@ -126,7 +135,8 @@ const Footer = ({ darkMode }) => {
             </div>
           </motion.div>
 
-          {/* ── Quick Links ── */}
+        
+        
           <motion.div variants={itemVariants}>
             <h3 className="text-gray-900 dark:text-white font-bold text-base mb-5 flex items-center gap-2">
               <span className="w-1 h-4 rounded-full bg-gradient-to-b from-lime-400 to-emerald-500 inline-block" />
@@ -137,7 +147,8 @@ const Footer = ({ darkMode }) => {
             </ul>
           </motion.div>
 
-          {/* ── Services ── */}
+         
+         
           <motion.div variants={itemVariants}>
             <h3 className="text-gray-900 dark:text-white font-bold text-base mb-5 flex items-center gap-2">
               <span className="w-1 h-4 rounded-full bg-gradient-to-b from-lime-400 to-emerald-500 inline-block" />
@@ -148,7 +159,9 @@ const Footer = ({ darkMode }) => {
             </ul>
           </motion.div>
 
-          {/* ── Contact ── */}
+        
+        
+
           <motion.div variants={itemVariants}>
             <h3 className="text-gray-900 dark:text-white font-bold text-base mb-5 flex items-center gap-2">
               <span className="w-1 h-4 rounded-full bg-gradient-to-b from-lime-400 to-emerald-500 inline-block" />
@@ -180,10 +193,13 @@ const Footer = ({ darkMode }) => {
           </motion.div>
         </motion.div>
 
-        {/* ── Divider ── */}
+       
+       
         <div className="border-t border-gray-200 dark:border-gray-800" />
 
-        {/* ── Bottom bar ── */}
+      
+      
+
         <motion.div
           initial={{ opacity: 0 }}
           animate={inView ? { opacity: 1 } : {}}
@@ -192,7 +208,7 @@ const Footer = ({ darkMode }) => {
         >
           <p className="text-gray-500 dark:text-gray-500 text-center sm:text-left">
             © {new Date().getFullYear()}{' '}
-            <span className="font-bold text-lime-600 dark:text-lime-400">Tech Bazaar</span>. All rights reserved.
+            <span className="font-bold text-lime-600 dark:text-lime-400">Tech Restore</span>. All rights reserved.
           </p>
           <div className="flex flex-wrap justify-center gap-5">
             {[
@@ -212,4 +228,4 @@ const Footer = ({ darkMode }) => {
   );
 };
 
-export default Footer;
+export default memo(Footer);

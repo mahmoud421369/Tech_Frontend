@@ -58,7 +58,7 @@ api.interceptors.response.use(
       originalRequest.url?.includes('/api/subscriptions/renew') ||
       originalRequest.url?.includes('/api/subscriptions/cash');
 
-    if (error.response?.status === 403 && !originalRequest._retry && !isRenewalRoute) {
+    if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry && !isRenewalRoute) {
       originalRequest._retry = true;
 
       if (isRefreshing) {
@@ -92,7 +92,13 @@ api.interceptors.response.use(
         const store = useAuthStore.getState();
         store.clearAuth();
         processQueue(refreshErr);
-        window.location.href = '/login';
+        const isInventoryOrOrders = 
+          originalRequest.url?.includes('/api/shop/inventory') || 
+          originalRequest.url?.includes('/api/shops/orders');
+
+        if (!isInventoryOrOrders) {
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshErr);
       } finally {
         isRefreshing = false;

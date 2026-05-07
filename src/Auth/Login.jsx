@@ -7,8 +7,8 @@ import { RiEyeLine, RiEyeOffLine } from "@remixicon/react";
 import { Award, BookOpen } from "lucide-react";
 import {
   FiMail, FiArrowLeft, FiRefreshCw, FiCreditCard,
-  FiDollarSign, FiCheckCircle, FiClock, FiAlertTriangle,FiLock
-  , FiX,FiShield
+  FiDollarSign, FiCheckCircle, FiClock, FiAlertTriangle, FiLock
+  , FiX, FiShield
 } from "react-icons/fi";
 import api from "../api";
 
@@ -430,17 +430,15 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-gray-900/60 dark:bg-black/80 backdrop-blur-sm" onClick={handleLogout} />
-      
+
       <div className="relative w-full max-w-md bg-white dark:bg-gray-950 rounded-[2rem] shadow-2xl overflow-hidden border border-gray-200 dark:border-white/10 transform transition-all animate-in zoom-in-95 duration-300">
-        
-       
-        <div className={`px-6 py-6 border-b border-gray-100 dark:border-white/5 flex items-center justify-between ${
-          view === 'pending' ? 'bg-amber-50/50 dark:bg-amber-500/5' : 'bg-red-50/50 dark:bg-red-500/5'
-        }`}>
+
+
+        <div className={`px-6 py-6 border-b border-gray-100 dark:border-white/5 flex items-center justify-between ${view === 'pending' ? 'bg-amber-50/50 dark:bg-amber-500/5' : 'bg-red-50/50 dark:bg-red-500/5'
+          }`}>
           <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-              view === 'pending' ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-red-100 dark:bg-red-900/30'
-            }`}>
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${view === 'pending' ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-red-100 dark:bg-red-900/30'
+              }`}>
               {view === 'pending' ? (
                 <FiClock size={24} className="text-amber-600 animate-pulse" />
               ) : (
@@ -460,7 +458,7 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
               </p>
             </div>
           </div>
-          <button 
+          <button
             onClick={handleLogout}
             className="p-2 rounded-full bg-gray-100 dark:bg-white/5 text-gray-500 hover:text-red-500 transition-colors"
           >
@@ -477,7 +475,7 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
                   Your cash renewal is being verified. This usually takes a few hours.
                 </p>
               </div>
-              
+
               <div className="bg-gray-50 dark:bg-white/5 rounded-2xl p-5 border border-gray-100 dark:border-white/5 text-left">
                 <h5 className="font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2 text-xs uppercase tracking-widest">
                   <FiClock className="text-amber-500" /> Next Steps
@@ -488,7 +486,7 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
                 </ul>
               </div>
 
-              <button 
+              <button
                 onClick={handleLogout}
                 className="w-full h-12 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold text-sm uppercase tracking-widest hover:bg-gray-800 dark:hover:bg-gray-100 transition-all shadow-lg"
               >
@@ -501,8 +499,8 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
             <div className="space-y-6">
               {error && <ErrorBanner message={error} />}
 
-              
-              
+
+
               <div className="bg-gray-50 dark:bg-white/5 rounded-2xl p-6 border border-gray-100 dark:border-white/5">
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
@@ -512,16 +510,16 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
                     <FiShield size={12} /> SECURE
                   </div>
                 </div>
-                
+
                 <div className="flex items-end justify-between">
                   <div>
                     <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">
                       {totalPrice.toLocaleString()} <span className="text-sm font-medium text-gray-400">{CURRENCY}</span>
                     </h2>
                   </div>
-                  
+
                   <div className="flex items-center gap-2 bg-white dark:bg-gray-900 p-1 rounded-xl shadow-sm border border-gray-100 dark:border-white/5">
-                    <button 
+                    <button
                       onClick={() => setMonths(m => Math.max(1, m - 1))}
                       className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/5 transition text-lg font-bold text-gray-400 hover:text-gray-900 dark:hover:text-white"
                     >
@@ -531,7 +529,7 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
                       <p className="text-sm font-black text-gray-900 dark:text-white leading-none">{months}</p>
                       <p className="text-[8px] uppercase font-bold text-gray-400 mt-0.5">Mo</p>
                     </div>
-                    <button 
+                    <button
                       onClick={() => setMonths(m => Math.min(12, m + 1))}
                       className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/5 transition text-lg font-bold text-gray-400 hover:text-gray-900 dark:hover:text-white"
                     >
@@ -541,24 +539,24 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
                 </div>
               </div>
 
-              {/* Payment Methods */}
+            
+            
+
               <div className="grid grid-cols-2 gap-3">
                 {[
                   { k: "card", l: "Card", icon: <FiCreditCard size={18} />, color: "blue" },
                   { k: "cash", l: "Cash", icon: <FiDollarSign size={18} />, color: "emerald" },
                 ].map(({ k, l, icon, color }) => (
-                  <button 
-                    key={k} 
+                  <button
+                    key={k}
                     onClick={() => setActiveTab(k)}
-                    className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-300 ${
-                      activeTab === k
-                        ? `border-${color}-500 bg-${color}-50/50 dark:bg-${color}-500/10`
-                        : "border-gray-100 dark:border-white/5 bg-white dark:bg-gray-900/50 hover:border-gray-200"
-                    }`}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-300 ${activeTab === k
+                      ? `border-${color}-500 bg-${color}-50/50 dark:bg-${color}-500/10`
+                      : "border-gray-100 dark:border-white/5 bg-white dark:bg-gray-900/50 hover:border-gray-200"
+                      }`}
                   >
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                      activeTab === k ? `bg-${color}-500 text-white shadow-lg` : "bg-gray-100 dark:bg-white/5 text-gray-400"
-                    }`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${activeTab === k ? `bg-${color}-500 text-white shadow-lg` : "bg-gray-100 dark:bg-white/5 text-gray-400"
+                      }`}>
                       {icon}
                     </div>
                     <span className={`text-[10px] font-black uppercase tracking-widest ${activeTab === k ? `text-${color}-600 dark:text-${color}-400` : "text-gray-500"}`}>
@@ -571,9 +569,8 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
               <button
                 onClick={activeTab === "card" ? renewCard : renewCash}
                 disabled={loading}
-                className={`w-full h-12 rounded-xl text-white text-[11px] font-black uppercase tracking-[0.15em] transition-all shadow-xl active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 ${
-                  activeTab === "card" ? "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20" : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20"
-                }`}
+                className={`w-full h-12 rounded-xl text-white text-[11px] font-black uppercase tracking-[0.15em] transition-all shadow-xl active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 ${activeTab === "card" ? "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20" : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20"
+                  }`}
               >
                 {loading ? <Spinner /> : activeTab === "card" ? "Continue to Payment" : "Submit Cash Request"}
               </button>
@@ -596,28 +593,28 @@ function checkLatestSubscription(subs) {
   const now = new Date();
 
 
-  
+
 
   const activeSub = subs.find(s => {
     const rawEnd = s.endDate || s.end_date || s.expiryDate;
     const end = rawEnd ? new Date(rawEnd) : null;
-    
-   
-    
-    const isNotExpired = end && end.getTime() > (now.getTime() - 86400000); 
-    
+
+
+
+    const isNotExpired = end && end.getTime() > (now.getTime() - 86400000);
+
     const sStatus = (s.status || '').toUpperCase();
     const pStatus = (s.paymentStatus || s.payment_status || '').toUpperCase();
-    
+
     const isPaid = ['PAID', 'ACTIVE', 'SETTLED', 'COMPLETED', 'SUCCESS', 'APPROVED', 'CONFIRMED', 'SUCCESSFUL'].some(
       term => sStatus === term || pStatus === term
     );
-    
+
     return isNotExpired && isPaid;
   });
 
- 
-  
+
+
   if (activeSub) {
     return {
       expired: false,
@@ -626,19 +623,19 @@ function checkLatestSubscription(subs) {
     };
   }
 
-  
-  
+
+
 
   const pendingSub = subs.find(s => {
     const sStatus = (s.status || '').toUpperCase();
     const pStatus = (s.paymentStatus || s.payment_status || '').toUpperCase();
     const pMethod = (s.paymentMethod || s.payment_method || s.payment?.method || '').toUpperCase();
-    
+
     return (sStatus === 'PENDING' || pStatus === 'PENDING') && pMethod === 'CASH';
   });
 
-  
-  
+
+
   const sorted = [...subs].sort(
     (a, b) => {
       const dateA = new Date(a.endDate || a.end_date || 0).getTime();
@@ -656,6 +653,19 @@ function checkLatestSubscription(subs) {
 }
 
 
+
+
+
+const REDIRECT_MAP = {
+  ROLE_ADMIN: "/admin/dashboard",
+  ROLE_REPAIRER: "/shop/dashboard",
+  ROLE_SELLER: "/shop/dashboard",
+  ROLE_SHOP_OWNER: "/shop/dashboard",
+  ROLE_ASSIGNER: "/assigner/dashboard",
+  ROLE_DELIVERY: "/delivery/dashboard",
+  ROLE_GUEST: "/",
+};
+const SHOP_ROLES = new Set(["ROLE_SHOP_OWNER", "ROLE_REPAIRER", "ROLE_SELLER"]);
 
 
 
@@ -782,7 +792,7 @@ const Login = ({ darkMode }) => {
         const shopId =
           err.response?.data?.shopId ||
           err.response?.data?.shop?.id ||
-          err.response?.data?.id || 
+          err.response?.data?.id ||
           null;
 
         const accessToken = err.response?.data?.access_token || null;
@@ -995,4 +1005,4 @@ const Login = ({ darkMode }) => {
   );
 };
 
-export default Login;
+export default memo(Login);

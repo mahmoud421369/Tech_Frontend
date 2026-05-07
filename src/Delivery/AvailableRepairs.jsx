@@ -30,9 +30,9 @@ const AvailableRepairs = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  const showToast = (text, icon) => {
+  const showToast = useCallback((text, icon) => {
     Swal.fire({ text, icon, toast: true, position: "top-end", timer: 3000, showConfirmButton: false });
-  };
+  }, []);
 
     useEffect(() => { document.title = ' Available Repairs | TechBazaar'; }, []);
   
@@ -52,7 +52,7 @@ const AvailableRepairs = () => {
     return () => clearInterval(t); 
   }, [loadRepairs]);
 
-  const handleAccept = async (id) => {
+  const handleAccept = useCallback(async (id) => {
     const { isConfirmed } = await Swal.fire({
       title: 'Accept Repair Job?',
       text: "This repair request will be assigned to you for delivery.",
@@ -62,15 +62,18 @@ const AvailableRepairs = () => {
       confirmButtonText: 'Accept Now'
     });
     if (!isConfirmed) return;
-
+    // Optimistic: remove from list immediately
+    setRepairs(prev => prev.filter(r => r.id !== id));
     try { 
       await acceptRepair(id); 
       showToast("Repair job accepted successfully", "success"); 
-      loadRepairs(); 
-    } catch { showToast("Failed to accept repair job", "error"); }
-  };
+    } catch { 
+      showToast("Failed to accept repair job", "error"); 
+      loadRepairs(); // restore on failure
+    }
+  }, [showToast, loadRepairs]);
 
-  const handleReject = async (id) => {
+  const handleReject = useCallback(async (id) => {
     const { isConfirmed } = await Swal.fire({
       title: 'Reject Repair Job?',
       text: "Pass on this repair delivery?",
@@ -80,18 +83,21 @@ const AvailableRepairs = () => {
       confirmButtonText: 'Yes, Reject'
     });
     if (!isConfirmed) return;
-
+    // Optimistic: remove from list immediately
+    setRepairs(prev => prev.filter(r => r.id !== id));
     try { 
       await rejectRepair(id); 
       showToast("Repair job rejected", "info"); 
-      loadRepairs(); 
-    } catch { showToast("Failed to reject repair job", "error"); }
-  };
+    } catch { 
+      showToast("Failed to reject repair job", "error"); 
+      loadRepairs(); // restore on failure
+    }
+  }, [showToast, loadRepairs]);
 
-  const copyToClipboard = (text) => {
+  const copyToClipboard = useCallback((text) => {
     navigator.clipboard.writeText(text);
     showToast("Copied to clipboard", "success");
-  };
+  }, [showToast]);
 
   const filtered = useMemo(() => {
     return repairs.filter(r => 

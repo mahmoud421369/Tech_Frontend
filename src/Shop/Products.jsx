@@ -19,9 +19,11 @@ const CONDITION_STYLE = {
   USED:        { bg: 'bg-amber-50 dark:bg-amber-900/20',   text: 'text-amber-600',   dot: 'bg-amber-500' },
   REFURBISHED: { bg: 'bg-blue-50 dark:bg-blue-900/20',    text: 'text-blue-600',    dot: 'bg-blue-500' },
 };
-const ROWS_OPTIONS = [10, 25, 50];
+const ROWS_OPTIONS = [5, 10, 25, 50];
 
 const getCondStyle = (c) => CONDITION_STYLE[c] || { bg: 'bg-gray-50', text: 'text-gray-600', dot: 'bg-gray-400' };
+
+const EMPTY_PRODUCT = { name: '', description: '', price: '', imageUrl: '', category: { id: '', name: '' }, stockQuantity: '', condition: 'NEW' };
 
 
 
@@ -93,40 +95,83 @@ const ProductForm = memo(({ data, onChange, categories }) => {
 
 
 const Products = () => {
-  const [products, setProducts]       = useState([]);
-  const [categories, setCategories]   = useState([]);
-  const [searchTerm, setSearchTerm]   = useState('');
-  const [loading, setLoading]         = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  
+  
+  const [allProducts, setAllProducts]   = useState([]);
+  const [categories, setCategories]     = useState([]);
+  const [searchTerm, setSearchTerm]     = useState('');
+  const [loading, setLoading]           = useState(true);
+  const [currentPage, setCurrentPage]   = useState(1);
+  const [rowsPerPage, setRowsPerPage]   = useState(10);
   const [selectedImage, setSelectedImage] = useState(null);
 
-  const emptyProduct = { name: '', description: '', price: '', imageUrl: '', category: { id: '', name: '' }, stockQuantity: '', condition: 'NEW' };
-  const [newProduct, setNewProduct]     = useState(emptyProduct);
+  const [newProduct, setNewProduct]         = useState(EMPTY_PRODUCT);
   const [editingProduct, setEditingProduct] = useState(null);
-  const [stockTarget, setStockTarget]   = useState(null);   
-  const [newStockValue, setNewStockValue] = useState('');
+  const [stockTarget, setStockTarget]       = useState(null);
+  const [newStockValue, setNewStockValue]   = useState('');
 
-  const [showAddModal, setShowAddModal]   = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [showAddModal, setShowAddModal]     = useState(false);
+  const [showEditModal, setShowEditModal]   = useState(false);
   const [showStockModal, setShowStockModal] = useState(false);
 
   useEffect(() => { document.title = 'إدارة المنتجات'; }, []);
 
-  const showToast = (text, icon) =>
+  const showToast = useCallback((text, icon) =>
     Swal.fire({
       text, icon, toast: true, position: 'top-start',
       showConfirmButton: false, timer: 3000,
-    });
+    }), []);
+
+
+    
+
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get('/api/shops/products', { params: { query: searchTerm } });
-      setProducts(Array.isArray(res.data) ? res.data : res.data.content || []);
+      const res = await api.get('/api/shops/products');
+      setAllProducts(Array.isArray(res.data) ? res.data : res.data.content || []);
     } catch { }
     finally { setLoading(false); }
-  }, [searchTerm]);
+  }, []);
+
+
+  
+
+  const debouncedApiSearch = useRef(
+    debounce(async (q) => {
+      if (!q) return; 
+      try {
+        const res = await api.get('/api/shops/products', { params: { query: q } });
+        setAllProducts(Array.isArray(res.data) ? res.data : res.data.content || []);
+      } catch {  }
+    }, 400)
+  ).current;
+
+
+  
+  useEffect(() => {
+    fetchProducts();
+    return () => debouncedApiSearch.cancel();
+  }, [fetchProducts, debouncedApiSearch]);
+
+
+  
+
+  useEffect(() => {
+    if (searchTerm.trim()) {
+      debouncedApiSearch(searchTerm.trim());
+    } else {
+      debouncedApiSearch.cancel();
+   
+      
+      fetchProducts();
+    }
+    
+    
+    setCurrentPage(1);
+  }, [searchTerm]); 
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -135,81 +180,129 @@ const Products = () => {
     } catch { }
   }, []);
 
-  useEffect(() => {
-    fetchProducts(); fetchCategories();
-  }, [fetchProducts, fetchCategories]);
+  useEffect(() => { fetchCategories(); }, [fetchCategories]);
+
+
+  
+
+
+  const products = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return allProducts;
+    return allProducts.filter(p =>
+      (p.name        || '').toLowerCase().includes(q) ||
+      (p.categoryName|| '').toLowerCase().includes(q) ||
+      (p.description || '').toLowerCase().includes(q)
+    );
+  }, [allProducts, searchTerm]);
 
   const stats = useMemo(() => ({
-    total:        products.length,
-    inStock:      products.filter(p => (p.stock ?? 0) > 0).length,
-    newCond:      products.filter(p => p.condition === 'NEW').length,
-    usedOrRefurb: products.filter(p => p.condition !== 'NEW').length,
-  }), [products]);
+    total:        allProducts.length,
+    inStock:      allProducts.filter(p => (p.stock ?? 0) > 0).length,
+    newCond:      allProducts.filter(p => p.condition === 'NEW').length,
+    usedOrRefurb: allProducts.filter(p => p.condition !== 'NEW').length,
+  }), [allProducts]);
 
-  const paginated = useMemo(() => products.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage), [products, currentPage, rowsPerPage]);
+  const paginated  = useMemo(() => products.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage), [products, currentPage, rowsPerPage]);
   const totalPages = Math.ceil(products.length / rowsPerPage);
 
-  const addProduct = async () => {
+  const addProduct = useCallback(async () => {
     if (!newProduct.category?.id) { showToast('يرجى اختيار فئة', 'error'); return; }
+    const productPayload = {
+      ...newProduct, price: Number(newProduct.price) || 0,
+      stockQuantity: Number(newProduct.stockQuantity) || 0,
+      category: { id: newProduct.category.id },
+    };
+
+    const tempId = Date.now();
+    const optimisticProduct = { ...productPayload, id: tempId, stock: productPayload.stockQuantity, categoryName: newProduct.category.name };
+    setAllProducts(prev => [optimisticProduct, ...prev]);
+    setShowAddModal(false);
+    setNewProduct(EMPTY_PRODUCT);
+
     try {
-      await api.post('/api/shops/products', {
-        ...newProduct, price: Number(newProduct.price) || 0,
-        stockQuantity: Number(newProduct.stockQuantity) || 0,
-        category: { id: newProduct.category.id },
-      });
+      const res = await api.post('/api/shops/products', productPayload);
+      setAllProducts(prev => prev.map(p => p.id === tempId ? res.data : p));
       showToast('تم إضافة المنتج بنجاح', 'success');
-      setShowAddModal(false); setNewProduct(emptyProduct); fetchProducts();
-    } catch { showToast('فشل في الإضافة', 'error'); }
-  };
+    } catch {
+      setAllProducts(prev => prev.filter(p => p.id !== tempId));
+      showToast('فشل في الإضافة', 'error');
+    }
+  }, [newProduct, showToast]);
 
-  const updateProduct = async () => {
+  const updateProduct = useCallback(async () => {
     if (!editingProduct.category?.id) { showToast('يرجى اختيار فئة', 'error'); return; }
+    const productPayload = {
+      ...editingProduct, price: Number(editingProduct.price) || 0,
+      stockQuantity: Number(editingProduct.stockQuantity) || 0,
+      category: { id: editingProduct.category.id },
+    };
+
+    const previousProducts = [...allProducts];
+    setAllProducts(prev => prev.map(p => p.id === editingProduct.id ? { ...p, ...productPayload, stock: productPayload.stockQuantity, categoryName: editingProduct.category.name } : p));
+    setShowEditModal(false);
+
     try {
-      await api.put(`/api/shops/products/${editingProduct.id}`, {
-        ...editingProduct, price: Number(editingProduct.price) || 0,
-        stockQuantity: Number(editingProduct.stockQuantity) || 0,
-        category: { id: editingProduct.category.id },
-      });
+      const res = await api.put(`/api/shops/products/${editingProduct.id}`, productPayload);
+      setAllProducts(prev => prev.map(p => p.id === editingProduct.id ? res.data : p));
       showToast('تم تعديل المنتج بنجاح', 'success');
-      setShowEditModal(false); fetchProducts();
-    } catch { showToast('خطأ في تعديل المنتج', 'error'); }
-  };
+    } catch {
+      setAllProducts(previousProducts);
+      showToast('خطأ في تعديل المنتج', 'error');
+    }
+  }, [editingProduct, allProducts, showToast]);
 
-  const updateStock = async () => {
+  const updateStock = useCallback(async () => {
     if (newStockValue === '' || newStockValue < 0) return;
-    try {
-      await api.patch(`/api/shops/products/${stockTarget.id}/stock`, { newStock: parseInt(newStockValue) });
-      showToast('تم تحديث المخزون', 'success');
-      setShowStockModal(false); fetchProducts();
-    } catch { showToast('خطأ في تحديث المخزون', 'error'); }
-  };
+    const targetId  = stockTarget.id;
+    const nextStock = parseInt(newStockValue);
 
-  const deleteProduct = async (id) => {
+    const previousProducts = [...allProducts];
+    setAllProducts(prev => prev.map(p => p.id === targetId ? { ...p, stock: nextStock } : p));
+    setShowStockModal(false);
+
+    try {
+      await api.patch(`/api/shops/products/${targetId}/stock`, { newStock: nextStock });
+      showToast('تم تحديث المخزون', 'success');
+    } catch {
+      setAllProducts(previousProducts);
+      showToast('خطأ في تحديث المخزون', 'error');
+    }
+  }, [newStockValue, stockTarget, allProducts, showToast]);
+
+  const deleteProduct = useCallback(async (id) => {
     const result = await Swal.fire({
       title: 'تأكيد الحذف', text: 'هل تريد حذف المنتج نهائياً؟', icon: 'warning',
       showCancelButton: true, confirmButtonText: 'نعم، احذف', cancelButtonText: 'إلغاء',
       confirmButtonColor: '#ef4444',
     });
     if (!result.isConfirmed) return;
+
+    const previousProducts = [...allProducts];
+    setAllProducts(prev => prev.filter(p => p.id !== id));
+
     try {
       await api.delete(`/api/shops/products/${id}`);
       showToast('تم حذف المنتج', 'success');
-      fetchProducts();
-    } catch { showToast('خطأ في حذف المنتج', 'error'); }
-  };
+    } catch {
+      setAllProducts(previousProducts);
+      showToast('خطأ في حذف المنتج', 'error');
+    }
+  }, [allProducts, showToast]);
 
-  const statCards = [
-    { icon: FiPackage, label: 'إجمالي المنتجات', value: stats.total.toLocaleString('ar-EG'), color: "lime", description: "جميع المنتجات المسجلة" },
-    { icon: FiCheckCircle, label: 'متوفر حالياً', value: stats.inStock.toLocaleString('ar-EG'), color: "emerald", description: "منتجات متاحة للبيع" },
-    { icon: FiTag, label: 'حالة جديدة', value: stats.newCond.toLocaleString('ar-EG'), color: "blue", description: "منتجات بحالة المصنع" },
-    { icon: FiActivity, label: 'مستعمل / مجدد', value: stats.usedOrRefurb.toLocaleString('ar-EG'), color: "orange", description: "منتجات مجددة أو مستعملة" },
-  ];
+  const statCards = useMemo(() => [
+    { icon: FiPackage,      label: 'إجمالي المنتجات', value: stats.total.toLocaleString('ar-EG'),        color: "lime",    description: "جميع المنتجات المسجلة" },
+    { icon: FiCheckCircle,  label: 'متوفر حالياً',    value: stats.inStock.toLocaleString('ar-EG'),      color: "emerald", description: "منتجات متاحة للبيع" },
+    { icon: FiTag,          label: 'حالة جديدة',      value: stats.newCond.toLocaleString('ar-EG'),      color: "blue",    description: "منتجات بحالة المصنع" },
+    { icon: FiActivity,     label: 'مستعمل / مجدد',   value: stats.usedOrRefurb.toLocaleString('ar-EG'), color: "orange",  description: "منتجات مجددة أو مستعملة" },
+  ], [stats]);
 
   return (
     <div dir="rtl" className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pr-64 mt-16 transition-all duration-500 font-cairo text-right">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-10">
 
-       
+        
+        
         <div className="flex flex-col md:flex-row md:items-end mt-3 justify-between gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
@@ -220,7 +313,7 @@ const Products = () => {
             <p className="text-sm font-bold text-gray-500 dark:text-gray-400">تحكم في منتجات متجرك، حدث الأسعار، وراقب توفر المخزون</p>
           </div>
 
-          <button 
+          <button
             title="إضافة منتج جديد"
             onClick={() => setShowAddModal(true)}
             className="flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-widest hover:bg-lime-500 dark:hover:bg-lime-500 hover:text-white transition-all shadow-xl shadow-gray-900/10 active:scale-95"
@@ -229,9 +322,10 @@ const Products = () => {
           </button>
         </div>
 
-     
+       
+       
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-           {statCards.map(s => <StatCard key={s.label} {...s} />)}
+          {statCards.map(s => <StatCard key={s.label} {...s} />)}
         </div>
 
        
@@ -247,6 +341,16 @@ const Products = () => {
                 onChange={e => setSearchTerm(e.target.value)}
                 className="w-full pr-12 pl-4 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-sm text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/10 focus:border-lime-200 transition-all"
               />
+              
+              
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-red-400 transition-colors"
+                >
+                  <FiX size={16} />
+                </button>
+              )}
             </div>
             <select
               value={rowsPerPage}
@@ -256,10 +360,20 @@ const Products = () => {
               {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n} صفوف لكل صفحة</option>)}
             </select>
           </div>
+
+         
+         
+          {searchTerm && (
+            <p className="mt-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">
+              {products.length === 0
+                ? 'لا توجد نتائج مطابقة'
+                : `${products.length} نتيجة لـ "${searchTerm}"`}
+            </p>
+          )}
         </div>
 
-       
-       
+        
+        
         <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden">
           <div className="overflow-x-auto custom-scrollbar-thin">
             <table className="w-full text-right border-collapse">
@@ -274,7 +388,7 @@ const Products = () => {
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {loading ? (
-                   [...Array(rowsPerPage)].map((_, i) => (
+                  [...Array(rowsPerPage)].map((_, i) => (
                     <tr key={i} className="animate-pulse">
                       {[...Array(5)].map((_, j) => (
                         <td key={j} className="px-8 py-6"><div className="h-4 bg-gray-100 dark:bg-gray-700 rounded-lg w-full" /></td>
@@ -287,8 +401,12 @@ const Products = () => {
                       <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-3xl flex items-center justify-center mx-auto mb-6 text-gray-200 dark:text-gray-800">
                         <FiPackage size={40} />
                       </div>
-                      <p className="text-lg font-black text-gray-900 dark:text-white tracking-tight">لا توجد منتجات</p>
-                      <p className="text-sm font-bold text-gray-400 mt-1 uppercase tracking-widest">كتالوج المنتجات فارغ حالياً</p>
+                      <p className="text-lg font-black text-gray-900 dark:text-white tracking-tight">
+                        {searchTerm ? 'لا توجد نتائج مطابقة' : 'لا توجد منتجات'}
+                      </p>
+                      <p className="text-sm font-bold text-gray-400 mt-1 uppercase tracking-widest">
+                        {searchTerm ? `لم يتم العثور على "${searchTerm}"` : 'كتالوج المنتجات فارغ حالياً'}
+                      </p>
                     </td>
                   </tr>
                 ) : (
@@ -299,45 +417,43 @@ const Products = () => {
                         <td className="px-8 py-6 whitespace-nowrap">
                           <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-300 overflow-hidden border border-gray-100 dark:border-gray-700">
-                               {p.imageUrl ? (
-                                  <img src={p.imageUrl} className="w-full h-full object-cover" alt={p.name} />
-                               ) : (
-                                  <FiImage size={20} />
-                               )}
+                              {p.imageUrl ? (
+                                <img src={p.imageUrl} className="w-full h-full object-cover" alt={p.name} />
+                              ) : (
+                                <FiImage size={20} />
+                              )}
                             </div>
                             <div>
-                               <p className="text-xs font-black text-gray-900 dark:text-white">{p.name}</p>
-                               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{p.categoryName || "غير مصنف"}</p>
+                              <p className="text-xs font-black text-gray-900 dark:text-white">{p.name}</p>
+                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{p.categoryName || "غير مصنف"}</p>
                             </div>
                           </div>
                         </td>
                         <td className="px-8 py-6 whitespace-nowrap text-center">
-                           <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest ${cs.bg} ${cs.text}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${cs.dot}`} />
-                              {CONDITION_LABELS[p.condition] || p.condition}
-                           </span>
+                          <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest ${cs.bg} ${cs.text}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${cs.dot}`} />
+                            {CONDITION_LABELS[p.condition] || p.condition}
+                          </span>
                         </td>
                         <td className="px-8 py-6 whitespace-nowrap text-center font-mono font-black text-xs text-lime-600">
-                           {Number(p.price).toFixed(2)} EGP
+                          {Number(p.price).toFixed(2)} EGP
                         </td>
                         <td className="px-8 py-6 whitespace-nowrap text-center">
-                           <p className={`text-sm font-black ${(p.stock ?? 0) > 0 ? 'text-gray-900 dark:text-white' : 'text-red-500'}`}>{p.stock ?? 0}</p>
-                           <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">وحدة متوفرة</p>
+                          <p className={`text-sm font-black ${(p.stock ?? 0) > 0 ? 'text-gray-900 dark:text-white' : 'text-red-500'}`}>{p.stock ?? 0}</p>
+                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">وحدة متوفرة</p>
                         </td>
                         <td className="px-8 py-6 whitespace-nowrap text-left">
-                           <div className="flex items-center justify-start gap-2">
-                             <button title="تعديل المنتج" onClick={() => { setEditingProduct({ ...p, stockQuantity: p.stock, category: { id: p.categoryId, name: p.categoryName || '' } }); setShowEditModal(true); }} className="flex items-center text-xs gap-2 font-cairo font-bold p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-amber-500 transition-all active:scale-95">
-                                <FiEdit3 size={16} /> 
-                             </button>
-                            
-                             <button title="حذف المنتج" onClick={() => deleteProduct(p.id)} className="flex items-center text-xs gap-2 font-cairo font-bold p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-red-500 transition-all active:scale-95">
-                                <FiTrash2 size={16} />
-                             </button>
-                              <button title='نسخ اسم المنتج' onClick={() => { navigator.clipboard.writeText(p.name); showToast('تم نسخ اسم المنتج', 'success'); }} className="rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 flex items-center text-xs gap-2 font-cairo font-bold w-full  p-3 text-[10px]  hover:text-lime-600 hover:bg-lime-50 dark:hover:bg-lime-900/10  transition-all">
-                                      <FiCopy size={14} />  
-                                   </button>
-                           
-                           </div>
+                          <div className="flex items-center justify-start gap-2">
+                            <button title="تعديل المنتج" onClick={() => { setEditingProduct({ ...p, stockQuantity: p.stock, category: { id: p.categoryId, name: p.categoryName || '' } }); setShowEditModal(true); }} className="flex items-center text-xs gap-2 font-cairo font-bold p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-amber-500 transition-all active:scale-95">
+                              <FiEdit3 size={16} />
+                            </button>
+                            <button title="حذف المنتج" onClick={() => deleteProduct(p.id)} className="flex items-center text-xs gap-2 font-cairo font-bold p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-red-500 transition-all active:scale-95">
+                              <FiTrash2 size={16} />
+                            </button>
+                            <button title='نسخ اسم المنتج' onClick={() => { navigator.clipboard.writeText(p.name); showToast('تم نسخ اسم المنتج', 'success'); }} className="rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 flex items-center text-xs gap-2 font-cairo font-bold w-full p-3 text-[10px] hover:text-lime-600 hover:bg-lime-50 dark:hover:bg-lime-900/10 transition-all">
+                              <FiCopy size={14} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -347,21 +463,21 @@ const Products = () => {
             </table>
           </div>
 
-         
-         
+          
+          
           {totalPages > 1 && (
             <div className="px-8 py-6 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest order-2 sm:order-1">
-                 عرض <span className="text-gray-900 dark:text-white">{(currentPage - 1) * rowsPerPage + 1}</span> إلى <span className="text-gray-900 dark:text-white">{Math.min(currentPage * rowsPerPage, products.length)}</span> من <span className="text-gray-900 dark:text-white">{products.length}</span> منتج
-               </p>
-               <div className="flex items-center gap-2 order-1 sm:order-2">
-                  <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all">
-                     <FiChevronRight size={20} />
-                  </button>
-                  <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all">
-                     <FiChevronLeft size={20} />
-                  </button>
-               </div>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest order-2 sm:order-1">
+                عرض <span className="text-gray-900 dark:text-white">{(currentPage - 1) * rowsPerPage + 1}</span> إلى <span className="text-gray-900 dark:text-white">{Math.min(currentPage * rowsPerPage, products.length)}</span> من <span className="text-gray-900 dark:text-white">{products.length}</span> منتج
+              </p>
+              <div className="flex items-center gap-2 order-1 sm:order-2">
+                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all">
+                  <FiChevronRight size={20} />
+                </button>
+                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all">
+                  <FiChevronLeft size={20} />
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -372,29 +488,35 @@ const Products = () => {
       <AnimatePresence>
         {(showAddModal || showEditModal) && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-             <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={() => { setShowAddModal(false); setShowEditModal(false); }} />
-             <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative w-full max-w-2xl bg-white dark:bg-gray-800 rounded-none shadow-2xl overflow-hidden overflow-y-auto max-h-[90vh] custom-scrollbar-thin">
-                <div className="px-8 py-6 border-b border-gray-50 dark:border-gray-700 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-800 z-10">
-                   <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-lime-500/10 text-lime-600 flex items-center justify-center">
-                         <FiBox size={20} />
-                      </div>
-                      <h3 className="text-base font-black text-gray-900 dark:text-white">{showAddModal ? "إضافة منتج جديد" : "تعديل بيانات المنتج"}</h3>
-                   </div>
-                   <button onClick={() => { setShowAddModal(false); setShowEditModal(false); }} className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-400 hover:text-red-500 transition-all">
-                      <FiX size={18} />
-                   </button>
+            <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={() => { setShowAddModal(false); setShowEditModal(false); }} />
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative w-full max-w-2xl bg-white dark:bg-gray-800 rounded-none shadow-2xl overflow-hidden overflow-y-auto max-h-[90vh] custom-scrollbar-thin">
+              <div className="px-8 py-6 border-b border-gray-50 dark:border-gray-700 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-800 z-10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-lime-500/10 text-lime-600 flex items-center justify-center">
+                    <FiBox size={20} />
+                  </div>
+                  <h3 className="text-base font-black text-gray-900 dark:text-white">{showAddModal ? "إضافة منتج جديد" : "تعديل بيانات المنتج"}</h3>
                 </div>
+                <button onClick={() => { setShowAddModal(false); setShowEditModal(false); }} className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-400 hover:text-red-500 transition-all">
+                  <FiX size={18} />
+                </button>
+              </div>
 
-                <div className="p-8">
-                   <ProductForm data={showAddModal ? newProduct : editingProduct} categories={categories} onChange={showAddModal ? (f,v) => setNewProduct(prev=>({...prev, [f]:v})) : (f,v) => setEditingProduct(prev=>({...prev, [f]:v}))} />
-                </div>
+              <div className="p-8">
+                <ProductForm
+                  data={showAddModal ? newProduct : editingProduct}
+                  categories={categories}
+                  onChange={showAddModal
+                    ? (f, v) => setNewProduct(prev => ({ ...prev, [f]: v }))
+                    : (f, v) => setEditingProduct(prev => ({ ...prev, [f]: v }))}
+                />
+              </div>
 
-                <div className="px-8 py-6 bg-gray-50 dark:bg-gray-900/30 border-t border-gray-50 dark:border-gray-700 flex gap-4">
-                   <button onClick={() => { setShowAddModal(false); setShowEditModal(false); }} className="flex-1 py-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl text-[10px] font-black text-gray-500 uppercase tracking-widest hover:text-red-500 transition-all">إلغاء</button>
-                   <button onClick={showAddModal ? addProduct : updateProduct} className="flex-1 py-4 bg-lime-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-lime-600 transition-all shadow-lg shadow-lime-500/20">{showAddModal ? "إضافة المنتج" : "حفظ التعديلات"}</button>
-                </div>
-             </motion.div>
+              <div className="px-8 py-6 bg-gray-50 dark:bg-gray-900/30 border-t border-gray-50 dark:border-gray-700 flex gap-4">
+                <button onClick={() => { setShowAddModal(false); setShowEditModal(false); }} className="flex-1 py-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl text-[10px] font-black text-gray-500 uppercase tracking-widest hover:text-red-500 transition-all">إلغاء</button>
+                <button onClick={showAddModal ? addProduct : updateProduct} className="flex-1 py-4 bg-lime-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-lime-600 transition-all shadow-lg shadow-lime-500/20">{showAddModal ? "إضافة المنتج" : "حفظ التعديلات"}</button>
+              </div>
+            </motion.div>
           </div>
         )}
       </AnimatePresence>
@@ -403,27 +525,27 @@ const Products = () => {
       
       {showStockModal && stockTarget && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-           <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={() => setShowStockModal(false)} />
-           <div className="relative w-full max-w-sm bg-white dark:bg-gray-800 rounded-none shadow-2xl overflow-hidden animate-in zoom-in duration-300">
-              <div className="p-8 border-b border-gray-50 dark:border-gray-700">
-                 <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">تعديل المخزون</h3>
-                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">تحديث الكمية المتوفرة</p>
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={() => setShowStockModal(false)} />
+          <div className="relative w-full max-w-sm bg-white dark:bg-gray-800 rounded-none shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+            <div className="p-8 border-b border-gray-50 dark:border-gray-700">
+              <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">تعديل المخزون</h3>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">تحديث الكمية المتوفرة</p>
+            </div>
+            <div className="p-8 space-y-6 text-right">
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-2xl">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">الكمية الحالية</span>
+                <span className="text-sm font-black text-gray-900 dark:text-white">{stockTarget.current} وحدة</span>
               </div>
-              <div className="p-8 space-y-6 text-right">
-                 <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-2xl">
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">الكمية الحالية</span>
-                    <span className="text-sm font-black text-gray-900 dark:text-white">{stockTarget.current} وحدة</span>
-                 </div>
-                 <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">الكمية الجديدة</label>
-                    <input type="number" value={newStockValue} onChange={e => setNewStockValue(e.target.value)} className="w-full px-5 py-4 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-lime-200 text-lg font-black text-gray-900 dark:text-white focus:outline-none transition-all text-center" />
-                 </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">الكمية الجديدة</label>
+                <input type="number" value={newStockValue} onChange={e => setNewStockValue(e.target.value)} className="w-full px-5 py-4 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-lime-200 text-lg font-black text-gray-900 dark:text-white focus:outline-none transition-all text-center" />
               </div>
-              <div className="px-8 pb-8 flex gap-3">
-                 <button onClick={() => setShowStockModal(false)} className="flex-1 py-4 bg-gray-50 dark:bg-gray-900 rounded-2xl text-[10px] font-black text-gray-400 uppercase tracking-widest">إلغاء</button>
-                 <button onClick={updateStock} className="flex-1 py-4 bg-lime-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-lime-600 transition-all shadow-lg shadow-lime-500/20">تحديث</button>
-              </div>
-           </div>
+            </div>
+            <div className="px-8 pb-8 flex gap-3">
+              <button onClick={() => setShowStockModal(false)} className="flex-1 py-4 bg-gray-50 dark:bg-gray-900 rounded-2xl text-[10px] font-black text-gray-400 uppercase tracking-widest">إلغاء</button>
+              <button onClick={updateStock} className="flex-1 py-4 bg-lime-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-lime-600 transition-all shadow-lg shadow-lime-500/20">تحديث</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -438,4 +560,4 @@ const Products = () => {
   );
 };
 
-export default Products;
+export default memo(Products);

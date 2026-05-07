@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, memo } from "react";
+import React, { useEffect, useState, useCallback, useMemo, memo } from "react";
 import { 
   FiPackage, FiTool, FiClock, FiCheckCircle, 
   FiBell, FiX, FiHome, FiTrendingUp, FiActivity, FiArrowRight,
@@ -105,9 +105,9 @@ const DeliveryDashboard = () => {
   const [isLoading, setIsLoading]       = useState(true);
   const [token]                         = useState(localStorage.getItem("authToken"));
 
-  const showToast = (text, icon) => {
+  const showToast = useCallback((text, icon) => {
     Swal.fire({ text, icon, toast: true, position: "top-end", timer: 3000, showConfirmButton: false });
-  };
+  }, []);
 
     useEffect(() => { document.title = ' Delivery Dasboard | TechBazaar'; }, []);
   
@@ -162,13 +162,13 @@ const DeliveryDashboard = () => {
     }
   }, [fetchNotifications]);
 
-  const dismissNotification = async (id) => {
+  const dismissNotification = useCallback(async (id) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
     try {
       await api.delete(`/api/notifications/delivery/${id}`);
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
       showToast("Notification cleared", "success");
     } catch { showToast("Could not clear notification", "error"); }
-  };
+  }, [showToast]);
 
   useEffect(() => { loadData(false); }, [loadData]);
   
@@ -178,12 +178,12 @@ const DeliveryDashboard = () => {
     return () => { clearInterval(a); clearInterval(b); };
   }, [loadData, fetchNotifications]);
 
-  const statCardsData = [
+  const statCardsData = useMemo(() => [
     { label: "Available Orders",  value: stats.availableOrders,  icon: FiTruck,    color: "lime",   to: "/delivery/available-orders",         description: "Ready for Pickup" },
     { label: "Active Deliveries", value: stats.myOrders,         icon: FiActivity, color: "blue",   to: "/delivery/my-deliveries",            description: "In Progress" },
     { label: "Pending Repairs",   value: stats.availableRepairs, icon: FiZap,      color: "amber",  to: "/delivery/available-repair-requests", description: "Awaiting Service" },
     { label: "Active Repairs",    value: stats.myRepairs,        icon: FiShield,   color: "indigo", to: "/delivery/my-repairs",               description: "Being Handled" },
-  ];
+  ], [stats]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">

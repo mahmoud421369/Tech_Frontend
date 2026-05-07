@@ -4,11 +4,10 @@ import {
   FiTruck, FiSearch, FiX, FiCopy, FiCheckCircle, FiXCircle,
   FiUser, FiMail, FiPhone, FiMapPin, FiPackage, FiTool,
   FiCheckSquare, FiTrash2, FiInfo, FiUserCheck, FiUserX, FiClock,
-  FiChevronLeft, FiChevronRight, FiChevronUp, FiChevronDown, FiActivity
+  FiChevronLeft, FiChevronRight, FiChevronUp, FiChevronDown, FiActivity, FiCheck, FiRefreshCw
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import DOMPurify from 'dompurify';
-import { debounce } from 'lodash';
 import api from '../api';
 
 const ROWS_OPTIONS = [5, 10, 20, 50];
@@ -24,6 +23,7 @@ const showToast = (text, icon) =>
   Swal.fire({ text, icon, toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
 
 const sanitize = (s) => DOMPurify.sanitize(String(s ?? ''));
+
 
 
 
@@ -58,6 +58,45 @@ const SortIcon = memo(({ field, sortField, sortDir }) => {
   return sortDir === 'asc' ? <FiChevronUp size={11} className="text-lime-600" /> : <FiChevronDown size={11} className="text-lime-600" />;
 });
 
+const Th = memo(({ field, label, center = true, onSort, sortField, sortDir }) => (
+  <th onClick={() => onSort(field)}
+    className={`px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${center ? 'text-center' : 'text-left'}`}>
+    <span className={`flex items-center gap-1.5 ${center ? 'justify-center' : ''}`}>
+      {label} <SortIcon field={field} sortField={sortField} sortDir={sortDir} />
+    </span>
+  </th>
+));
+
+const RowsDropdown = memo(({ value, options, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+  return (
+    <div className="relative inline-block" ref={ref}>
+      <button onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-transparent hover:border-lime-500/20 transition-all focus:outline-none focus:ring-2 focus:ring-lime-500/20">
+        <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">{value} Rows</span>
+        <FiChevronDown size={12} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute right-0 z-20 mt-1 w-32 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+          {options.map(n => (
+            <button key={n} onClick={() => { onChange(n); setOpen(false); }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition ${value === n ? 'bg-lime-50 dark:bg-lime-900/30 text-lime-600' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
+              {n} Rows
+              {value === n && <FiCheck size={12} className="text-lime-500" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
+
 const DeliveryModal = memo(({ delivery, onClose }) => {
   if (!delivery) return null;
   const fields = [
@@ -71,41 +110,36 @@ const DeliveryModal = memo(({ delivery, onClose }) => {
   ];
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-md p-4">
-      <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-none shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
-        <div className="flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/80 px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-          <div className="flex items-center gap-3">
-            <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Delivery Details</h3>
-            <code className="text-[10px] font-black bg-lime-500 text-white px-2 py-0.5 rounded-lg">
-              {String(delivery.id).slice(0, 8)}
-            </code>
-          </div>
-          <button onClick={onClose} className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-red-500 transition-all">
-            <FiX size={18} title="Close" />
+      <div className="w-full max-w-[280px] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
+        <div className="flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/80 px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+          <h3 className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">Agent Dossier</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-red-500 transition-all">
+            <FiX size={16} title="Close" />
           </button>
         </div>
-        <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+        <div className="p-4 space-y-2 max-h-[60vh] overflow-y-auto custom-scrollbar-thin">
           {fields.map(({ icon: Icon, label, value }) => (
-            <div key={label} className="group p-4 bg-gray-50 dark:bg-gray-900/40 border border-transparent hover:border-lime-500/20 transition-all duration-300">
-               <div className="flex items-center gap-4">
-                 <div className="w-10 h-10 rounded-xl bg-white dark:bg-gray-800 flex items-center justify-center text-lime-500 shadow-sm group-hover:rotate-6 transition-transform">
-                   <Icon size={18} />
-                 </div>
-                 <div>
-                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{label}</p>
-                   <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{String(value)}</p>
-                 </div>
-               </div>
+            <div key={label} className="group p-2.5 bg-gray-50 dark:bg-gray-900/40 rounded-xl border border-transparent hover:border-lime-500/10 transition-all">
+              <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">{label}</p>
+              <div className="flex items-center gap-2">
+                <Icon size={12} className="text-lime-500 group-hover:scale-110 transition-transform" />
+                <p className="text-[11px] font-bold text-gray-800 dark:text-gray-100 truncate">{String(value)}</p>
+              </div>
             </div>
           ))}
-          <div className="p-4 bg-gray-50 dark:bg-gray-900/40 border border-transparent">
-             <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Status</p>
+          <div className="p-3 bg-gray-50 dark:bg-gray-900/40 rounded-xl border border-transparent flex items-center justify-between mt-2">
+             <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Authority</p>
              <StatusBadge status={delivery.status} />
           </div>
         </div>
-        <div className="px-6 pb-6 pt-2">
+        <div className="px-4 pb-4 pt-2 flex gap-2">
+          <button onClick={() => navigator.clipboard.writeText(delivery.id).then(() => showToast('ID Copied', 'success'))}
+            className="flex-1 py-2.5 bg-gray-50 dark:bg-gray-900 text-gray-500 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all">
+            Copy ID
+          </button>
           <button onClick={onClose}
-            className="w-full py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-[0.2em] hover:bg-lime-500 dark:hover:bg-lime-500 dark:hover:text-white transition-all active:scale-[0.98]">
-            Close 
+            className="flex-[2] py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-lime-500 dark:hover:bg-lime-500 dark:hover:text-white transition-all active:scale-[0.98]">
+            Dismiss
           </button>
         </div>
       </div>
@@ -113,13 +147,16 @@ const DeliveryModal = memo(({ delivery, onClose }) => {
   );
 });
 
+
+
+
 const Deliveries = ({ darkMode }) => {
   const navigate = useNavigate();
-  const token = localStorage.getItem('authToken');
+  const tokenRef = useRef(localStorage.getItem('authToken'));
 
   const [deliveries, setDeliveries] = useState([]);
   const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebounced] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(null);
@@ -130,11 +167,13 @@ const Deliveries = ({ darkMode }) => {
 
   useEffect(() => { document.title = 'Admin - Deliveries'; }, []);
 
-  const debouncedSet = useMemo(() => debounce((v) => { setDebounced(v); setCurrentPage(1); }, 300), []);
-  useEffect(() => () => debouncedSet.cancel(), [debouncedSet]);
-  useEffect(() => { debouncedSet(search); }, [search, debouncedSet]);
+  useEffect(() => {
+    const id = setTimeout(() => { setDebouncedSearch(search); setCurrentPage(1); }, 300);
+    return () => clearTimeout(id);
+  }, [search]);
 
   const fetchDeliveries = useCallback(async () => {
+    const token = tokenRef.current;
     if (!token) { navigate('/login'); return; }
     setLoading(true);
     try {
@@ -144,7 +183,7 @@ const Deliveries = ({ darkMode }) => {
       if (err?.response?.status === 401) { navigate('/login'); }
       else showToast('Sync failed', 'error');
     } finally { setLoading(false); }
-  }, [token, navigate]);
+  }, [navigate]);
 
   useEffect(() => { fetchDeliveries(); }, [fetchDeliveries]);
 
@@ -176,16 +215,21 @@ const Deliveries = ({ darkMode }) => {
   }, [deliveries, debouncedSearch, statusFilter, sortField, sortDir]);
 
   const totalPages = Math.ceil(processed.length / rowsPerPage);
-  const paginated = processed.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+  const paginated = useMemo(
+    () => processed.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage),
+    [processed, currentPage, rowsPerPage]
+  );
 
   const fetchById = useCallback(async (id) => {
+    const token = tokenRef.current;
     try {
       const { data } = await api.get(`/api/admin/deliveries/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       setSelected(data);
     } catch { showToast('Sync failed', 'error'); }
-  }, [token]);
+  }, []);
 
   const updateStatus = useCallback(async (id, action) => {
+    const token = tokenRef.current;
     if (action === 'delete') {
       const { isConfirmed } = await Swal.fire({ title: 'Delete Personnel?', text: 'This will purge the delivery person from fleet registry.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Confirm Purge', confirmButtonColor: '#ef4444', background: darkMode ? '#111827' : '#fff', color: darkMode ? '#fff' : '#000', });
       if (!isConfirmed) return;
@@ -196,29 +240,21 @@ const Deliveries = ({ darkMode }) => {
       showToast(`Agents ${action}d`, 'success');
       fetchDeliveries();
     } catch { showToast(`Action failed`, 'error'); }
-  }, [token, fetchDeliveries, darkMode]);
+  }, [fetchDeliveries, darkMode]);
 
-  const Th = ({ field, label, center = true }) => (
-    <th onClick={() => handleSort(field)}
-      className={`px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${center ? 'text-center' : 'text-left'}`}>
-      <span className={`flex items-center gap-1.5 ${center ? 'justify-center' : ''}`}>
-        {label} <SortIcon field={field} sortField={sortField} sortDir={sortDir} />
-      </span>
-    </th>
-  );
-
-  const statCards = [
+  const statCards = useMemo(() => [
     { icon: FiTruck, label: 'Total Agents', value: stats.total, color: 'lime' },
     { icon: FiUserCheck, label: 'Active Agents', value: stats.approved, color: 'emerald' },
     { icon: FiClock, label: 'In Review', value: stats.pending, color: 'amber' },
     { icon: FiUserX, label: 'Grounded', value: stats.suspended, color: 'rose' },
-  ];
+  ], [stats]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
 
-       
+        
+        
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -229,23 +265,31 @@ const Deliveries = ({ darkMode }) => {
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Manage platform logistics agents and fleet authorization</p>
           </div>
 
-          <div className="p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-sm flex items-center gap-4">
-             <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center text-gray-400">
-               <FiActivity size={18} />
-             </div>
-             <div>
-               <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Fleet Status</p>
-               <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Operational</p>
-             </div>
+          <div className="flex items-center gap-3">
+            <button onClick={fetchDeliveries} disabled={loading} title="Refresh"
+              className="w-10 h-10 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-lime-500 hover:border-lime-500/30 transition-all disabled:opacity-40">
+              <FiRefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            </button>
+            <div className="p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-sm flex items-center gap-4">
+               <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center text-gray-400">
+                 <FiActivity size={18} />
+               </div>
+               <div>
+                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Fleet Status</p>
+                 <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Operational</p>
+               </div>
+            </div>
           </div>
         </div>
 
+       
        
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {statCards.map(s => <StatCard key={s.label} {...s} />)}
         </div>
 
-        
+       
+       
         <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
           <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
             
@@ -270,15 +314,13 @@ const Deliveries = ({ darkMode }) => {
 
             <div className="flex items-center gap-3 px-4 border-l border-gray-100 dark:border-gray-800">
                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Rows</span>
-               <select value={rowsPerPage} onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                 className="bg-transparent text-sm font-black text-gray-900 dark:text-white focus:outline-none cursor-pointer">
-                 {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
-               </select>
+               <RowsDropdown value={rowsPerPage} options={ROWS_OPTIONS} onChange={n => { setRowsPerPage(n); setCurrentPage(1); }} />
             </div>
           </div>
         </div>
 
-        
+       
+       
         <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
           {loading ? (
             <div className="py-32 text-center space-y-4">
@@ -292,10 +334,10 @@ const Deliveries = ({ darkMode }) => {
                   <thead className="bg-gray-50 dark:bg-gray-900/50">
                     <tr>
                       <th className="px-8 py-5 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">ID</th>
-                      <Th field="name" label="Name" center={false} />
-                      <Th field="phone" label="Contact" />
-                      <Th field="status" label="Status" />
-                      <Th field="totalCompletedDeliveries" label="Performance" />
+                      <Th field="name" label="Name" center={false} onSort={handleSort} sortField={sortField} sortDir={sortDir} />
+                      <Th field="phone" label="Contact"            onSort={handleSort} sortField={sortField} sortDir={sortDir} />
+                      <Th field="status" label="Status"            onSort={handleSort} sortField={sortField} sortDir={sortDir} />
+                      <Th field="totalCompletedDeliveries" label="Performance" onSort={handleSort} sortField={sortField} sortDir={sortDir} />
                       <th className="px-8 py-5 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">Operations</th>
                     </tr>
                   </thead>
@@ -390,7 +432,7 @@ const Deliveries = ({ darkMode }) => {
 
       {selected && <DeliveryModal delivery={selected} onClose={() => setSelected(null)} />}
 
-             <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{ __html: `
         .custom-scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
         .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }

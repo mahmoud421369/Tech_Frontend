@@ -270,4 +270,4 @@ const AssignerHeader = () => {
   );
 };
 
-export default AssignerHeader;
+export default memo(AssignerHeader);
