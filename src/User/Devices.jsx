@@ -734,4 +734,4 @@ const Products = memo(({ darkMode }) => {
    );
 });
 
-export default Products;
+export default memo(Products);

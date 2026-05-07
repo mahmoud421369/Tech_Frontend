@@ -109,7 +109,7 @@ const DeliveryDashboard = () => {
     Swal.fire({ text, icon, toast: true, position: "top-end", timer: 3000, showConfirmButton: false });
   }, []);
 
-    useEffect(() => { document.title = ' Delivery Dasboard | TechBazaar'; }, []);
+    useEffect(() => { document.title = ' Delivery Dasboard | Tech Restore'; }, []);
   
 
   const fetchNotifications = useCallback(async () => {
@@ -329,4 +329,4 @@ const DeliveryDashboard = () => {
   );
 };
 
-export default DeliveryDashboard;
+export default memo(DeliveryDashboard);

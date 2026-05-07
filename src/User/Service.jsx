@@ -151,4 +151,4 @@ const Service = memo(({ darkMode = false }) => {
   );
 });
 
-export default Service;
+export default memo(Service);

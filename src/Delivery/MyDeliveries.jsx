@@ -13,7 +13,7 @@ import api from "../api";
 
 
 
-const ROWS_OPTIONS = [10, 25, 50];
+const ROWS_OPTIONS = [5,10, 25, 50];
 
 const STATUS_STYLE = {
   DELIVERED:        { bg: "bg-emerald-50 dark:bg-emerald-900/20", text: "text-emerald-700 dark:text-emerald-400", dot: "bg-emerald-500" },
@@ -72,14 +72,15 @@ const MyDeliveries = () => {
       confirmButtonText: 'Yes, Delivered'
     });
     if (!isConfirmed) return;
-    // Optimistic: update status in UI immediately
+   
+    
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'DELIVERED' } : o));
     try { 
       await updateOrderStatus(id, { status: "DELIVERED" }); 
       showToast("Order marked as delivered", "success"); 
     } catch { 
       showToast("Failed to update status", "error"); 
-      loadDeliveries(); // rollback
+      loadDeliveries();
     }
   }, [showToast, loadDeliveries]);
 
@@ -400,4 +401,4 @@ const MyDeliveries = () => {
   );
 };
 
-export default MyDeliveries;
+export default memo(MyDeliveries);

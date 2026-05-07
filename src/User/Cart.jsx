@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback,useMemo } from 'react';
+import React, { useState, useEffect, useCallback,useMemo,memo } from 'react';
 import {
   FiX, FiShoppingCart, FiCreditCard, FiTruck, FiTrash2,
   FiZap, FiChevronDown, FiCheck, FiMapPin, FiPackage,
@@ -629,4 +629,4 @@ const Cart = ({ show, onClose, darkMode }) => {
   );
 };
 
-export default Cart;
+export default memo(Cart);

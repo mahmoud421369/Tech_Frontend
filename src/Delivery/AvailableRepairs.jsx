@@ -12,7 +12,7 @@ import api from "../api";
 
 
 
-const ROWS_OPTIONS = [10, 25, 50];
+const ROWS_OPTIONS = [5,10, 25, 50];
 
 
 
@@ -62,14 +62,16 @@ const AvailableRepairs = () => {
       confirmButtonText: 'Accept Now'
     });
     if (!isConfirmed) return;
-    // Optimistic: remove from list immediately
+ 
+    
+
     setRepairs(prev => prev.filter(r => r.id !== id));
     try { 
       await acceptRepair(id); 
       showToast("Repair job accepted successfully", "success"); 
     } catch { 
       showToast("Failed to accept repair job", "error"); 
-      loadRepairs(); // restore on failure
+      loadRepairs(); 
     }
   }, [showToast, loadRepairs]);
 
@@ -83,14 +85,15 @@ const AvailableRepairs = () => {
       confirmButtonText: 'Yes, Reject'
     });
     if (!isConfirmed) return;
-    // Optimistic: remove from list immediately
+    
+    
     setRepairs(prev => prev.filter(r => r.id !== id));
     try { 
       await rejectRepair(id); 
       showToast("Repair job rejected", "info"); 
     } catch { 
       showToast("Failed to reject repair job", "error"); 
-      loadRepairs(); // restore on failure
+      loadRepairs(); 
     }
   }, [showToast, loadRepairs]);
 
@@ -325,4 +328,4 @@ const AvailableRepairs = () => {
   );
 };
 
-export default AvailableRepairs;
+export default memo(AvailableRepairs);

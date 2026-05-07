@@ -1133,4 +1133,4 @@ const Account = ({ darkMode }) => {
 };
 
 Account.displayName = 'Account';
-export default Account;
+export default memo(Account);

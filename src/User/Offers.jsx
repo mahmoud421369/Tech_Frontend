@@ -591,4 +591,4 @@ const Offers = memo(({ darkMode }) => {
   );
 });
 
-export default Offers;
+export default memo(Offers);

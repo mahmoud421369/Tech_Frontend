@@ -767,4 +767,4 @@ const Homepage = memo(({ darkMode }) => {
    );
 });
 
-export default Homepage;
+export default memo(Homepage);

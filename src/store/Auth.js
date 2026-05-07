@@ -7,12 +7,14 @@ const useAuthStore = create((set) => ({
   email: localStorage.getItem('userEmail') || null,  
 
   // -------------------------------------------------
+
   setAccessToken: (token) => {
     localStorage.setItem('authToken', token);
     set({ accessToken: token });
   },
 
   // -------------------------------------------------
+
   setUserData: (token, roles, userId, email) => {
     localStorage.setItem('authToken', token);
     localStorage.setItem('roles', JSON.stringify(roles));
@@ -22,6 +24,7 @@ const useAuthStore = create((set) => ({
   },
 
   // -------------------------------------------------
+
   clearAuth: () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('roles');
@@ -32,7 +35,6 @@ const useAuthStore = create((set) => ({
 }));
 
 // -----------------------------------------------------------------
-// OPTIONAL: load any missing data from localStorage on app start
 
 const loadInitialUser = () => {
   const token = localStorage.getItem('authToken');
@@ -47,8 +49,8 @@ const loadInitialUser = () => {
 loadInitialUser();
 
 // -----------------------------------------------------------------
-useAuthStore.subscribe((state) => {
+// useAuthStore.subscribe((state) => {
   
-});
+// });
 
 export default useAuthStore;

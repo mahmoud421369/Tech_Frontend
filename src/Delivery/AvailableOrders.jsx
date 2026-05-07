@@ -12,7 +12,7 @@ import api from "../api";
 
 
 
-const ROWS_OPTIONS = [10, 25, 50];
+const ROWS_OPTIONS = [5,10, 25, 50];
 
 const STATUS_STYLE = {
   PREPARING:        { bg: "bg-amber-50 dark:bg-amber-900/20",    text: "text-amber-700 dark:text-amber-400",  dot: "bg-amber-500"  },
@@ -70,14 +70,14 @@ const AvailableOrders = () => {
       confirmButtonText: 'Accept Now'
     });
     if (!isConfirmed) return;
-    // Optimistic: remove from list immediately
+    
     setOrders(prev => prev.filter(o => o.id !== id));
     try { 
       await acceptOrder(id); 
       showToast("Order accepted successfully", "success"); 
     } catch { 
       showToast("Failed to accept order", "error"); 
-      loadOrders(); // restore on failure
+      loadOrders(); 
     }
   }, [showToast, loadOrders]);
 
@@ -91,14 +91,15 @@ const AvailableOrders = () => {
       confirmButtonText: 'Yes, Reject'
     });
     if (!isConfirmed) return;
-    // Optimistic: remove from list immediately
+   
+    
     setOrders(prev => prev.filter(o => o.id !== id));
     try { 
       await rejectOrder(id); 
       showToast("Order rejected", "info"); 
     } catch { 
       showToast("Failed to reject order", "error"); 
-      loadOrders(); // restore on failure
+      loadOrders(); 
     }
   }, [showToast, loadOrders]);
 
@@ -334,4 +335,4 @@ const AvailableOrders = () => {
   );
 };
 
-export default AvailableOrders;
+export default memo(AvailableOrders);

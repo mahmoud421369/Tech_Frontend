@@ -477,4 +477,4 @@ const DeviceDetail = memo(({ addToCart, darkMode }) => {
   );
 });
 
-export default DeviceDetail;
+export default memo(DeviceDetail);

@@ -947,4 +947,4 @@ const Shop = memo(({ darkMode, addToCart }) => {
 });
 
 Shop.displayName = "Shop";
-export default Shop;
+export default memo(Shop);

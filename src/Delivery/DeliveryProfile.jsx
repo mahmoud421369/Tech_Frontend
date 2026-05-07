@@ -261,4 +261,4 @@ const DeliveryProfile = () => {
   );
 };
 
-export default DeliveryProfile;
+export default memo(DeliveryProfile);

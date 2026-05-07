@@ -718,4 +718,4 @@ const Shops = memo(({ darkMode }) => {
 });
 
 Shops.displayName = 'Shops';
-export default Shops;
+export default memo(Shops);

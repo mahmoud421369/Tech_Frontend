@@ -12,7 +12,7 @@ import api from "../api";
 
 
 
-const ROWS_OPTIONS = [10, 25, 50];
+const ROWS_OPTIONS = [5, 10, 25, 50];
 
 const STATUS_STYLE = {
   REPAIR_COMPLETED: { bg: "bg-emerald-50 dark:bg-emerald-900/20", text: "text-emerald-700 dark:text-emerald-400", dot: "bg-emerald-500" },
@@ -81,14 +81,16 @@ const MyRepairs = () => {
       confirmButtonText: 'Confirm'
     });
     if (!isConfirmed) return;
-    // Optimistic: update status badge in-place immediately
+   
+    
+    
     setRepairs(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));
     try {
       await updateRepairStatus(id, { status: newStatus });
       showToast("Repair status updated", "success");
     } catch { 
       showToast("Failed to update status", "error");
-      loadRepairs(); // rollback
+      loadRepairs(); 
     }
   }, [showToast, loadRepairs]);
 
@@ -366,13 +368,7 @@ const MyRepairs = () => {
                           <p className="text-sm font-black text-gray-900 dark:text-white font-cairo truncate max-w-[200px]">{selectedRepair.shopAddress?.street + "," + selectedRepair.shopAddress?.state + "," +  selectedRepair.shopAddress?.city || "Merchant Hub"}</p>
                         </div>
                           </div>
-                          {/* <div className="flex items-start gap-3">
-                            <FiMapPin className="text-blue-500 mt-1" size={14} />
-                           <div>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase">Destination</p>
-                          <p className="text-sm font-black text-gray-900 dark:text-white font-cairo truncate max-w-[200px]">{selectedRepair.userAddress?.street + "," + selectedRepair.userAddress?.state + "," +  selectedRepair.userAddress?.city || "Customer Site"}</p>
-                        </div>
-                          </div> */}
+                         
                        </div>
                     </div>
                   </div>
@@ -412,4 +408,4 @@ const MyRepairs = () => {
   );
 };
 
-export default MyRepairs;
+export default memo(MyRepairs);

@@ -582,4 +582,4 @@ const RepairRequest = memo(({ darkMode }) => {
   );
 });
 
-export default RepairRequest;
+export default memo(RepairRequest);

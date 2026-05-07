@@ -560,4 +560,4 @@ const Track = memo(({ darkMode }) => {
 });
 
 Track.displayName = 'Track';
-export default Track;
+export default memo(Track);
