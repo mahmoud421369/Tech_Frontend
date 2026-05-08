@@ -8,7 +8,7 @@ import {
   RiTruckLine, RiStore2Line, RiShieldCheckLine,
   RiVerifiedBadgeLine,
 } from 'react-icons/ri';
-import logo from '../images/logo-bg.png';
+import logo from '../images/final-logobg.webp';
 
 const containerVariants = {
   hidden: {},
@@ -108,9 +108,9 @@ const Footer = ({ darkMode }) => {
         
           <motion.div variants={itemVariants} className="sm:col-span-2 lg:col-span-1 space-y-5">
             <div className="flex items-center gap-3">
-              <img src={logo} alt="Tech Bazaar" className="h-12 w-auto rounded-xl shadow-md" />
+              <img src={logo} alt="Tech & Restore" className="h-12 w-auto rounded-xl" />
               <div>
-                <p className="text-gray-900 dark:text-white font-extrabold text-lg leading-tight">Tech Bazaar</p>
+                <p className="text-gray-900 dark:text-white font-extrabold text-lg leading-tight">Tech & Restore</p>
                 <p className="text-lime-600 dark:text-lime-400 text-xs font-semibold">Repair & Buy with Confidence</p>
               </div>
             </div>
@@ -179,7 +179,7 @@ const Footer = ({ darkMode }) => {
               <li className="flex items-center gap-3">
                 <FiMail className="w-4 h-4 text-lime-500 flex-shrink-0" />
                 <a href="mailto:support@techbazaar.com" className="text-gray-500 dark:text-gray-400 text-sm hover:text-lime-600 dark:hover:text-lime-400 transition-colors break-all">
-                  support@techbazaar.com
+                  support@techrestore.com
                 </a>
               </li>
               <li className="flex items-start gap-3">

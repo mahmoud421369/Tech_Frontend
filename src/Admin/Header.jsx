@@ -8,7 +8,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { jwtDecode } from "jwt-decode";
 import api from "../api";
-import logo from "../images/logo-bg.png";
+import logo from "../images/final-logobg.webp";
 
 
 
@@ -233,7 +233,7 @@ const Header = ({ darkMode: darkModeProp, toggleDarkMode }) => {
                          src={logo}
                          alt="Tech & Restore"
                          className="h-16 w-auto rounded-xl object-cover transition-transform duration-500 group-hover:scale-105"
-                         style={{ transform: "scale(1.35)", transformOrigin: "left center" }}
+                         style={{ transformOrigin: "left center" }}
                        />
           </div>
         </div>

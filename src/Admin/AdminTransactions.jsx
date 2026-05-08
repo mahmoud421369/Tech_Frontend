@@ -67,7 +67,11 @@ const TransactionModal = memo(({ transaction, onClose }) => {
   if (!transaction) return null;
   const rows = [
     { icon: FiHash, label: 'Tx ID', value: transaction.id },
-    { icon: FiUser, label: 'User ID', value: transaction.userId },
+    { 
+      icon: FiUser, 
+      label: transaction.paymentType === 'SUBSCRIPTION_PAYMENT' ? 'Shop ID' : 'User ID', 
+      value: transaction.paymentType === 'SUBSCRIPTION_PAYMENT' ? transaction.shopId : transaction.userId 
+    },
     { icon: FiDollarSign, label: 'Amount', value: `${transaction.amount?.toLocaleString()} EGP` },
     { icon: FiCreditCard, label: 'Method', value: transaction.paymentMethod || 'CASH' },
     { icon: FiCheckCircle, label: 'Status', value: transaction.paymentStatus || transaction.status },
@@ -78,7 +82,7 @@ const TransactionModal = memo(({ transaction, onClose }) => {
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-md p-4">
       <div className="w-full max-w-[280px] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
         <div className="flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/80 px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-          <h3 className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">Tx Details</h3>
+          <h3 className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">Transaction Details</h3>
           <button onClick={onClose} className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-red-500 transition-all">
             <FiX size={16} title="Close" />
           </button>
@@ -218,10 +222,11 @@ const TransactionsPage = ({ darkMode }) => {
   );
 
   const exportCSV = useCallback(() => {
-    const headers = 'Transaction ID,User ID,Amount,Status,Date,Type';
-    const rows = transactions.map(t =>
-      `${t.id || ''},${t.userId || ''},${t.amount?.toFixed(2) || ''},${t.paymentStatus || t.status || ''},${t.createdAt || t.paidAt ? formatDate(t.createdAt || t.paidAt) : ''},${t.paymentMethod || t.type || ''}`
-    ).join('\n');
+    const headers = 'Transaction ID,User/Shop ID,Amount,Status,Date,Type';
+    const rows = transactions.map(t => {
+      const displayId = t.paymentType === 'SUBSCRIPTION_PAYMENT' ? t.shopId : t.userId;
+      return `${t.id || ''},${displayId || ''},${t.amount?.toFixed(2) || ''},${t.paymentStatus || t.status || ''},${t.createdAt || t.paidAt ? formatDate(t.createdAt || t.paidAt) : ''},${t.paymentMethod || t.type || ''}`;
+    }).join('\n');
     const blob = new Blob([`${headers}\n${rows}`], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = 'financial_registry.csv';
@@ -309,12 +314,12 @@ const TransactionsPage = ({ darkMode }) => {
                 <table className="w-full min-w-[900px]">
                   <thead className="bg-gray-50 dark:bg-gray-900/50">
                     <tr>
-                      <th className="px-8 py-5 text-center text-[10px] font-black uppercase tracking-widest text-gray-400"> ID</th>
+                      <th className="px-8 py-5 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">ID</th>
                       <Th field="amount"    label="Value"  onSort={handleSort} sortField={sortField} sortDir={sortDir} />
                       <Th field="status"    label="Status" onSort={handleSort} sortField={sortField} sortDir={sortDir} />
                       <Th field="createdAt" label="Date"   onSort={handleSort} sortField={sortField} sortDir={sortDir} />
                       <th className="px-8 py-5 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">Method</th>
-                      <th className="px-8 py-5 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">Ops</th>
+                      <th className="px-8 py-5 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">Operations</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
@@ -330,14 +335,19 @@ const TransactionsPage = ({ darkMode }) => {
                       return (
                         <tr key={t.id} className="hover:bg-lime-50/10 dark:hover:bg-lime-900/5 transition-colors group">
                           <td className="px-8 py-6">
+                            
                             <div className="flex items-center gap-3">
-                              <code className="text-[10px] font-black bg-gray-50 dark:bg-gray-900 px-3 py-1.5 rounded-lg text-gray-500 max-w-[120px] truncate block border border-transparent group-hover:border-lime-500/20 transition-all">{DOMPurify.sanitize(String(t.userId))}</code>
+                              <code className="text-[10px] font-black bg-gray-50 dark:bg-gray-900 px-3 py-1.5 rounded-lg text-gray-500 max-w-[120px] truncate block border border-transparent group-hover:border-lime-500/20 transition-all">
+                                {t.paymentType === 'SUBSCRIPTION_PAYMENT' 
+                                  ? DOMPurify.sanitize(String(t.shopId || 'N/A')) 
+                                  : DOMPurify.sanitize(String(t.userId || 'N/A'))}
+                              </code>
                               <button onClick={() => navigator.clipboard.writeText(t.id).then(() => showToast('ID Copied', 'success'))}
                                 className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-lime-500 transition-all"><FiCopy size={14} title="Copy Transaction ID" /></button>
                             </div>
                           </td>
-                          <td className="px-8 py-6 text-center">
-                            <p className="text-sm font-black text-gray-900 dark:text-white tracking-tight">{t.amount !== undefined ? `${t.amount.toLocaleString()} EGP` : '—'}</p>
+                          <td className="px-4 py-6 text-center">
+                            <p className="text-xs font-black text-gray-900 dark:text-white tracking-tight">{t.amount !== undefined ? `${t.amount.toLocaleString()} EGP` : '—'}</p>
                           </td>
                           <td className="px-8 py-6 text-center">
                             <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${getStatusMeta(t.paymentStatus || t.status).bg} ${getStatusMeta(t.paymentStatus || t.status).text}`}>

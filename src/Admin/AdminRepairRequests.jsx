@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   FiTool, FiSearch, FiX, FiCopy, FiClock, FiCheckCircle, FiPackage,
   FiChevronLeft, FiChevronRight, FiChevronUp, FiChevronDown, FiActivity,
-  FiCreditCard, FiTruck, FiRefreshCw
+  FiCreditCard, FiTruck, FiRefreshCw, FiCheck
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import DOMPurify from 'dompurify';
@@ -12,9 +12,9 @@ import api from '../api';
 const ROWS_OPTIONS = [5, 10, 20, 50];
 
 const STATUS_META_R = {
-  PENDING:   { bg: 'bg-amber-50 dark:bg-amber-900/20',   text: 'text-amber-600',   dot: 'bg-amber-500'   },
+  PENDING:   { bg: 'bg-amber-50 dark:bg-amber-900/20',     text: 'text-amber-600',   dot: 'bg-amber-500'   },
   COMPLETED: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600', dot: 'bg-emerald-500' },
-  CANCELLED: { bg: 'bg-red-50 dark:bg-red-900/20',       text: 'text-red-600',     dot: 'bg-red-500'     },
+  CANCELLED: { bg: 'bg-red-50 dark:bg-red-900/20',         text: 'text-red-600',     dot: 'bg-red-500'     },
 };
 const getRStatusMeta = (s) => STATUS_META_R[(s || '').toUpperCase()] || { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600', dot: 'bg-blue-500' };
 
@@ -22,9 +22,6 @@ const showToastR = (text, icon) =>
   Swal.fire({ text, icon, toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
 
 const sanitize = (s) => DOMPurify.sanitize(String(s ?? ''));
-
-
-
 
 const StatCard = memo(({ icon: Icon, label, value, color }) => (
   <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-sm hover:shadow-xl hover:shadow-lime-500/5 transition-all duration-500 group relative overflow-hidden">
@@ -59,7 +56,38 @@ const Th = memo(({ field, label, center = true, onSort, sortField, sortDir }) =>
   </th>
 ));
 
-
+const RowsDropdown = memo(({ value, options, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+  return (
+    <div className="relative inline-block" ref={ref}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-transparent hover:border-lime-500/20 transition-all focus:outline-none focus:ring-2 focus:ring-lime-500/20">
+        <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">{value} Rows</span>
+        <FiChevronDown size={12} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute right-0 z-20 mt-1 w-32 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+          {options.map(n => (
+            <button
+              key={n}
+              onClick={() => { onChange(n); setOpen(false); }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition ${value === n ? 'bg-lime-50 dark:bg-lime-900/30 text-lime-600' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
+              {n} Rows
+              {value === n && <FiCheck size={12} className="text-lime-500" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
 
 const RepairRequestsPage = ({ darkMode }) => {
   const navigate = useNavigate();
@@ -130,8 +158,8 @@ const RepairRequestsPage = ({ darkMode }) => {
   );
 
   const statCards = useMemo(() => [
-    { icon: FiPackage,     label: 'Total Tickets',  value: stats.total,     color: 'lime'    },
-    { icon: FiClock,       label: 'Awaiting Action',value: stats.pending,   color: 'amber'   },
+    { icon: FiPackage,     label: 'Total Tickets',   value: stats.total,     color: 'lime'    },
+    { icon: FiClock,       label: 'Awaiting Action', value: stats.pending,   color: 'amber'   },
     { icon: FiCheckCircle, label: 'Resolved Tickets',value: stats.completed, color: 'emerald' },
   ], [stats]);
 
@@ -139,8 +167,6 @@ const RepairRequestsPage = ({ darkMode }) => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
 
-        
-        
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -167,14 +193,10 @@ const RepairRequestsPage = ({ darkMode }) => {
           </div>
         </div>
 
-        
-        
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {statCards.map(s => <StatCard key={s.label} {...s} />)}
         </div>
 
-       
-       
         <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
           <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
             <div className="relative flex-1 group">
@@ -190,16 +212,11 @@ const RepairRequestsPage = ({ darkMode }) => {
             </div>
             <div className="flex items-center gap-3 px-4 border-l border-gray-100 dark:border-gray-800">
               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Rows</span>
-              <select value={rowsPerPage} onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                className="bg-transparent text-sm font-black text-gray-900 dark:text-white focus:outline-none cursor-pointer">
-                {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
+              <RowsDropdown value={rowsPerPage} options={ROWS_OPTIONS} onChange={n => { setRowsPerPage(n); setCurrentPage(1); }} />
             </div>
           </div>
         </div>
 
-       
-       
         <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
           {loading ? (
             <div className="py-32 text-center space-y-4">

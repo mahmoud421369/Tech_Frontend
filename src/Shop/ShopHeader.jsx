@@ -10,7 +10,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { jwtDecode } from "jwt-decode";
 import api from "../api";
-import logo from "../images/logo-bg.png";
+import logo from "../images/final-logobg.webp";
 import { ToastContainer, toast } from "react-toastify";
 import { RiBellLine, RiNotification2Line, RiCheckDoubleLine } from "react-icons/ri";
 
@@ -641,9 +641,9 @@ const ShopHeader = () => {
 
         <div className="relative h-32 flex flex-col items-center justify-center px-6 border-b border-gray-50 dark:border-gray-800/50">
           <Link to="/shop/dashboard" className="flex flex-col items-center group" onClick={closeSidebar}>
-            <div className="w-32 h-24 rounded-3xl p-1 group-hover:scale-105 transition-transform duration-500 overflow-hidden">
+            <div className="w-44 h-28 rounded-3xl p-1 group-hover:scale-95 transition-transform duration-500 overflow-hidden">
               <div className="w-full h-full rounded-2xl flex items-center justify-center overflow-hidden">
-                <img src={logo} alt="شعار" className="w-full h-full object-cover scale-110 group-hover:scale-125 transition-transform duration-700" />
+                <img src={logo} alt="شعار" className="w-full h-full object-cover scale-95 group-hover:scale-95 transition-transform duration-700" />
               </div>
             </div>
           </Link>

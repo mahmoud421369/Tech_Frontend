@@ -108,14 +108,14 @@ const SubscriptionModal = memo(({ sub, onClose }) => {
     { icon: FiCalendar,   label: 'Start Date',  value: fmt(sub.startDate) },
     { icon: FiCalendar,   label: 'End Date',    value: fmt(sub.endDate) },
     { icon: FiClock,      label: 'Duration',    value: sub.months ? `${sub.months} Month(s)` : '—' },
-    { icon: FiDollarSign, label: 'Amount',      value: sub.amount ? `${sub.amount.toLocaleString()} EGP` : '—', color: 'lime' },
+    { icon: FiDollarSign, label: 'Amount',      value: sub.months ? `${sub.months * 1000} EGP` : '—', color: 'lime' },
     { icon: FiCreditCard, label: 'Method',      value: (sub.paymentMethod || 'CARD').toUpperCase(), color: 'blue' },
   ];
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-md p-4">
       <div className="w-full max-w-[280px] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
         <div className="flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/80 px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-          <h3 className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">Plan Dossier</h3>
+          <h3 className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">Subscription Details</h3>
           <button onClick={onClose} className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-red-500 transition-all">
             <FiX size={16} title="Close" />
           </button>
@@ -140,7 +140,7 @@ const SubscriptionModal = memo(({ sub, onClose }) => {
         <div className="px-4 pb-4 pt-2">
           <button onClick={onClose}
             className="w-full py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-lime-500 dark:hover:bg-lime-500 dark:hover:text-white transition-all active:scale-[0.98]">
-            Dismiss
+            Close
           </button>
         </div>
       </div>
@@ -470,7 +470,7 @@ const AdminSubscriptions = ({ darkMode }) => {
                                    <p className="text-[10px] text-gray-400 font-medium">{sub.shopEmail}</p>
                                  </div>
                               </td>
-                              <td className="px-8 py-6 text-center">
+                              <td className="px-4 py-6 text-center">
                                  <div className="flex flex-col items-center gap-1">
                                     <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">{formatDate(sub.startDate)}</span>
                                     <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">{formatDate(sub.endDate)}</span>

@@ -5,7 +5,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { jwtDecode } from "jwt-decode";
 import api from "../api";
-import logo from "../images/logo-bg.png";
+import logo from "../images/final-logobg.webp";
 import {
   RiAccountBoxLine, RiBellLine, RiDeviceLine, RiHome3Line,
   RiLoginBoxLine, RiRegisteredLine, RiShoppingCartLine,
