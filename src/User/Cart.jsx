@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback,useMemo,memo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo, useTransition } from 'react';
 import {
   FiX, FiShoppingCart, FiCreditCard, FiTruck, FiTrash2,
   FiZap, FiChevronDown, FiCheck, FiMapPin, FiPackage,
@@ -8,8 +8,17 @@ import { jwtDecode } from 'jwt-decode';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import api from '../api';
+import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+const queryClient = new QueryClient();
 
+const CartSkeleton = ({ darkMode }) => (
+  <div className="space-y-4">
+    {[1, 2, 3].map(i => (
+      <div key={i} className={`h-20 sm:h-24 rounded-2xl animate-pulse ${darkMode ? 'bg-gray-800' : 'bg-gray-200'}`} />
+    ))}
+  </div>
+);
 
 
 const STEPS = [
@@ -77,6 +86,7 @@ const CartItem = React.memo(({ item, darkMode, onUpdate, onRemove }) => (
       <img
         src={item.productImageUrl}
         alt={item.productName}
+        loading="lazy"
         className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-contain bg-gray-100 dark:bg-gray-700 flex-shrink-0"
       />
     ) : (
@@ -161,19 +171,15 @@ const PaymentOption = React.memo(({ value, selected, onSelect, Icon, title, subt
 
 
 
-const Cart = ({ show, onClose, darkMode }) => {
+const CartContent = ({ show, onClose, darkMode }) => {
   const [checkoutStep, setCheckoutStep] = useState('cart');
-  const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState('');
-  const [cartItems, setCartItems] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const navigate = useNavigate();
-
-  const cartTotal = useMemo(() => {
-    return cartItems.reduce((sum, item) => sum + (item.productPrice * (item.quantity || 1)), 0);
-  }, [cartItems]);
+  const queryClientLocal = useQueryClient();
 
   const safeDecodeJwt = useCallback((token) => {
     if (!token || typeof token !== 'string' || !token.trim()) return null;
@@ -188,68 +194,88 @@ const Cart = ({ show, onClose, darkMode }) => {
   const token = localStorage.getItem('authToken');
   const isAuthenticated = !!token && !isTokenExpired(token);
 
-  const fetchCart = useCallback(async () => {
-    if (!token || !isAuthenticated) { setCartItems([]); return; }
-    const ctrl = new AbortController();
-    try {
-      setIsLoading(true);
-      const res = await api.get('/api/cart', { headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal });
-      const items = res.data.items || [];
-      setCartItems(items);
-    } catch (err) {
-      if (err.name !== 'AbortError') { setCartItems([]); }
-    } finally { setIsLoading(false); }
-    return () => ctrl.abort();
-  }, [token, isAuthenticated]);
+  const { data: cartItems = [], isLoading: isCartLoading } = useQuery({
+    queryKey: ['cartItems'],
+    queryFn: async () => {
+      const res = await api.get('/api/cart', { headers: { Authorization: `Bearer ${token}` } });
+      return res.data.items || [];
+    },
+    enabled: show && isAuthenticated,
+    staleTime: 0,
+  });
 
-  const fetchAddresses = useCallback(async () => {
-    if (!token || !isAuthenticated) return;
-    const ctrl = new AbortController();
-    try {
-      const res = await api.get('/api/users/addresses', { headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal });
-      const list = res.data.content || [];
-      setAddresses(list);
-      if (list.length) setSelectedAddress(list[0].id);
-    } catch (err) {
-      if (err.name !== 'AbortError') console.error(err);
+  const { data: addresses = [], isLoading: isAddressLoading } = useQuery({
+    queryKey: ['addresses'],
+    queryFn: async () => {
+      const res = await api.get('/api/users/addresses', { headers: { Authorization: `Bearer ${token}` } });
+      return res.data.content || [];
+    },
+    enabled: show && isAuthenticated,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  useEffect(() => {
+    if (addresses.length > 0 && !selectedAddress) {
+      setSelectedAddress(addresses[0].id);
     }
-    return () => ctrl.abort();
-  }, [token, isAuthenticated]);
+  }, [addresses, selectedAddress]);
 
-  const updateQuantity = useCallback(async (itemId, qty) => {
-    const newQty = Number(qty);
-    if (newQty < 1) return removeFromCart(itemId);
-    
-    setCartItems(prev => prev.map(i => i.id === itemId ? { ...i, quantity: newQty } : i));
+  const cartTotal = useMemo(() => {
+    return cartItems.reduce((sum, item) => sum + (item.productPrice * (item.quantity || 1)), 0);
+  }, [cartItems]);
 
-    try {
-      await api.put(`/api/cart/items/${itemId}`, { quantity: newQty }, { 
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } 
-      });
-    } catch (err) {
-      fetchCart();
-    }
-  }, [token, fetchCart]);
+  const updateQuantityMut = useMutation({
+    mutationFn: ({ itemId, qty }) => api.put(`/api/cart/items/${itemId}`, { quantity: qty }, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }),
+    onMutate: async ({ itemId, qty }) => {
+      await queryClientLocal.cancelQueries({ queryKey: ['cartItems'] });
+      const previousCart = queryClientLocal.getQueryData(['cartItems']);
+      queryClientLocal.setQueryData(['cartItems'], old => old?.map(i => i.id === itemId ? { ...i, quantity: qty } : i));
+      return { previousCart };
+    },
+    onError: (err, newTodo, context) => queryClientLocal.setQueryData(['cartItems'], context.previousCart),
+    onSettled: () => queryClientLocal.invalidateQueries({ queryKey: ['cartItems'] }),
+  });
 
-  const removeFromCart = useCallback(async (itemId) => {
-    setCartItems(prev => prev.filter(i => i.id !== itemId));
+  const removeMut = useMutation({
+    mutationFn: (itemId) => api.delete(`/api/cart/items/${itemId}`, { headers: { Authorization: `Bearer ${token}` } }),
+    onMutate: async (itemId) => {
+      await queryClientLocal.cancelQueries({ queryKey: ['cartItems'] });
+      const previousCart = queryClientLocal.getQueryData(['cartItems']);
+      queryClientLocal.setQueryData(['cartItems'], old => old?.filter(i => i.id !== itemId));
+      return { previousCart };
+    },
+    onSuccess: () => Swal.fire({ title: 'Removed', icon: 'success', toast: true, position: 'top-end', timer: 1200, showConfirmButton: false }),
+    onError: (err, newTodo, context) => queryClientLocal.setQueryData(['cartItems'], context.previousCart),
+    onSettled: () => queryClientLocal.invalidateQueries({ queryKey: ['cartItems'] }),
+  });
 
-    try {
-      await api.delete(`/api/cart/items/${itemId}`, { headers: { Authorization: `Bearer ${token}` } });
-      Swal.fire({ title: 'Removed', icon: 'success', toast: true, position: 'top-end', timer: 1200, showConfirmButton: false });
-    } catch {
-      fetchCart();
-    }
-  }, [token, fetchCart]);
+  const clearMut = useMutation({
+    mutationFn: () => api.delete('/api/cart', { headers: { Authorization: `Bearer ${token}` } }),
+    onMutate: async () => {
+      await queryClientLocal.cancelQueries({ queryKey: ['cartItems'] });
+      const previousCart = queryClientLocal.getQueryData(['cartItems']);
+      queryClientLocal.setQueryData(['cartItems'], []);
+      return { previousCart };
+    },
+    onError: (err, newTodo, context) => queryClientLocal.setQueryData(['cartItems'], context.previousCart),
+    onSettled: () => queryClientLocal.invalidateQueries({ queryKey: ['cartItems'] }),
+  });
 
-  const clearCart = useCallback(async () => {
-    setCartItems([]);
-    try {
-      await api.delete('/api/cart', { headers: { Authorization: `Bearer ${token}` } });
-    } catch {
-      fetchCart();
-    }
-  }, [token, fetchCart]);
+  const updateQuantity = useCallback((itemId, qty) => {
+    startTransition(() => {
+      const newQty = Number(qty);
+      if (newQty < 1) removeMut.mutate(itemId);
+      else updateQuantityMut.mutate({ itemId, qty: newQty });
+    });
+  }, [removeMut, updateQuantityMut]);
+
+  const removeFromCart = useCallback((itemId) => {
+    startTransition(() => removeMut.mutate(itemId));
+  }, [removeMut]);
+
+  const clearCart = useCallback(() => {
+    startTransition(() => clearMut.mutate());
+  }, [clearMut]);
 
   const createOrder = useCallback(async () => {
     if (!isAuthenticated) {
@@ -259,7 +285,7 @@ const Cart = ({ show, onClose, darkMode }) => {
     if (!selectedAddress) { Swal.fire({ icon: 'warning', title: 'Select Address' }); return; }
     if (!paymentMethod)   { Swal.fire({ icon: 'warning', title: 'Select Payment Method' }); return; }
 
-    setIsLoading(true);
+    setIsProcessing(true);
     try {
       const orderRes = await api.post('/api/users/orders',
         { deliveryAddressId: selectedAddress, paymentMethod: paymentMethod === 'visa' ? 'CREDIT_CARD' : 'CASH' },
@@ -275,19 +301,12 @@ const Cart = ({ show, onClose, darkMode }) => {
       } else {
         await Swal.fire({ icon: 'success', title: 'Order Confirmed!', text: `Order #${orderId} placed!`, confirmButtonColor: '#22c55e' });
       }
-      setCartItems([]); setCheckoutStep('complete');
+      queryClientLocal.setQueryData(['cartItems'], []);
+      setCheckoutStep('complete');
     } catch (err) {
       Swal.fire({ icon: 'error', title: 'Order Failed', text: err.response?.data?.message || 'Something went wrong', confirmButtonColor: '#ef4444' });
-    } finally { setIsLoading(false); }
-  }, [token, isAuthenticated, selectedAddress, paymentMethod, navigate]);
-
-  useEffect(() => {
-    if (show && isAuthenticated) {
-      Promise.all([fetchCart(), fetchAddresses()]).catch(console.error);
-    } else if (show && !isAuthenticated) {
-      setCartItems([]); setAddresses([]);
-    }
-  }, [show, isAuthenticated, fetchCart, fetchAddresses]);
+    } finally { setIsProcessing(false); }
+  }, [token, isAuthenticated, selectedAddress, paymentMethod, navigate, queryClientLocal]);
 
   const handleClose = () => {
     onClose();
@@ -363,13 +382,11 @@ const Cart = ({ show, onClose, darkMode }) => {
        
        
         <div className="flex-1 p-4 sm:p-5 overflow-y-auto">
-          {isLoading && checkoutStep !== 'complete' ? (
-            <div className="flex justify-center items-center h-64">
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                className="w-12 h-12 border-4 border-lime-500 border-t-transparent rounded-full"
-              />
+          {(isCartLoading || isAddressLoading) && checkoutStep !== 'complete' ? (
+            <div className="flex justify-center items-center h-64 w-full">
+              <div className="w-full">
+                <CartSkeleton darkMode={darkMode} />
+              </div>
             </div>
           ) : (
             <AnimatePresence mode="wait">
@@ -559,14 +576,14 @@ const Cart = ({ show, onClose, darkMode }) => {
                   <motion.button
                     whileTap={{ scale: 0.98 }}
                     onClick={createOrder}
-                    disabled={!paymentMethod || !selectedAddress || isLoading}
+                    disabled={!paymentMethod || !selectedAddress || isProcessing}
                     className={`w-full py-3.5 sm:py-4 rounded-2xl font-extrabold text-white transition-all flex items-center justify-center gap-2 sm:gap-3 text-sm ${
-                      paymentMethod && selectedAddress && !isLoading
+                      paymentMethod && selectedAddress && !isProcessing
                         ? 'bg-gradient-to-r from-lime-500 to-emerald-600 shadow-lg shadow-lime-500/25 hover:shadow-lime-500/40'
                         : 'bg-gray-400 dark:bg-gray-700 cursor-not-allowed'
                     }`}
                   >
-                    {isLoading ? (
+                    {isProcessing ? (
                       <>
                         <motion.div
                           animate={{ rotate: 360 }}
@@ -629,4 +646,10 @@ const Cart = ({ show, onClose, darkMode }) => {
   );
 };
 
-export default memo(Cart);
+const Cart = memo((props) => (
+  <QueryClientProvider client={queryClient}>
+    <CartContent {...props} />
+  </QueryClientProvider>
+));
+
+export default Cart;

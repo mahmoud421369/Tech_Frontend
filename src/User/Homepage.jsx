@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, memo, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, memo, useMemo, Suspense, useTransition } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
    FiStar, FiTool, FiMonitor, FiTag, FiDollarSign,
@@ -6,18 +6,28 @@ import {
    FiChevronLeft, FiChevronRight, FiMapPin, FiPhone, FiTruck, FiEye,
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
-import Service from './Service';
 import '../styles/style.css';
 import Swal from 'sweetalert2';
 import { jwtDecode } from 'jwt-decode';
 import api from '../api';
-import { OffersSlider } from '../components';
 import {
    RiBattery2ChargeLine, RiCamera2Line, RiCheckFill, RiCheckLine,
    RiDeviceLine, RiHeadphoneLine, RiPriceTagLine, RiSettings3Line,
    RiShieldCheckLine, RiStarFill, RiVerifiedBadgeLine, RiWaterFlashLine,
    RiStoreLine,
 } from 'react-icons/ri';
+import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const Service = React.lazy(() => import('./Service'));
+const OffersSlider = React.lazy(() => import('../components').then(module => ({ default: module.OffersSlider })));
+const queryClient = new QueryClient();
+
+const SkeletonScreen = ({ darkMode }) => (
+   <div className={`w-full py-12 px-4 animate-pulse flex flex-col items-center gap-6 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+      <div className={`h-8 sm:h-12 w-64 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-gray-200'}`} />
+      <div className={`h-48 sm:h-64 w-full max-w-6xl rounded-2xl ${darkMode ? 'bg-gray-800' : 'bg-gray-200'}`} />
+   </div>
+);
 
 
 
@@ -379,16 +389,13 @@ const HScrollSection = memo(({ title, items, darkMode, renderCard, loading, skel
    </section>
 ));
 
-const Homepage = memo(({ darkMode }) => {
-   const [shops, setShops] = useState([]);
-   const [products, setProducts] = useState([]);
+const HomepageContent = memo(({ darkMode }) => {
    const [isAuthenticated, setIsAuthenticated] = useState(false);
-   const [productsLoading, setProductsLoading] = useState(false);
-
    const [canScrollLeftShops, setCanScrollLeftShops] = useState(false);
    const [canScrollRightShops, setCanScrollRightShops] = useState(false);
    const [canScrollLeftProds, setCanScrollLeftProds] = useState(false);
    const [canScrollRightProds, setCanScrollRightProds] = useState(false);
+   const [isPending, startTransition] = useTransition();
 
    const navigate = useNavigate();
    const shopScrollRef = useRef(null);
@@ -396,63 +403,64 @@ const Homepage = memo(({ darkMode }) => {
 
    useEffect(() => { document.title = 'Home | Tech-Restore'; }, []);
 
-   const safeDecodeJwt = useCallback((token) => {
-      if (!token || typeof token !== 'string' || token.trim() === '') return null;
-      try { return jwtDecode(token); } catch { return null; }
-   }, []);
-
-   const isTokenExpired = useCallback((token) => {
-      const decoded = safeDecodeJwt(token);
-      return !decoded || !decoded.exp || decoded.exp < Date.now() / 1000;
-   }, [safeDecodeJwt]);
-
    useEffect(() => {
       const token = localStorage.getItem('authToken');
-      if (!token || token.trim() === '') { localStorage.removeItem('authToken'); setIsAuthenticated(false); return; }
-      setIsAuthenticated(!isTokenExpired(token));
-   }, [isTokenExpired]);
+      if (!token || token.trim() === '') {
+         localStorage.removeItem('authToken');
+         setIsAuthenticated(false);
+      } else {
+         try {
+            const decoded = jwtDecode(token);
+            setIsAuthenticated(decoded && decoded.exp && decoded.exp > Date.now() / 1000);
+         } catch {
+            setIsAuthenticated(false);
+         }
+      }
+   }, []);
 
-   const fetchShopsAndProducts = useCallback(async () => {
-      const controller = new AbortController();
-      setProductsLoading(true);
-      try {
+   const { data, isLoading: productsLoading, isError, error } = useQuery({
+      queryKey: ['homeData'],
+      queryFn: async () => {
          const token = localStorage.getItem('authToken');
-         if (!token || isTokenExpired(token)) throw new Error('Unauthorized');
+         if (!token) throw new Error('Unauthorized');
+         let decoded;
+         try { decoded = jwtDecode(token); } catch { throw new Error('Unauthorized'); }
+         if (!decoded || !decoded.exp || decoded.exp < Date.now() / 1000) throw new Error('Unauthorized');
 
-        
          const [shopRes, productRes] = await Promise.all([
-            api.get('/api/users/shops/all', {
-               headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
-            }),
-            api.get('/api/products', {
-               headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
-            }).catch(() => ({ data: { content: [] } })) 
+            api.get('/api/users/shops/all', { headers: { Authorization: `Bearer ${token}` } }),
+            api.get('/api/products', { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { content: [] } }))
          ]);
 
-         const shopsData = shopRes.data.content || [];
-         const allProducts = productRes.data.content || [];
+         return {
+            shops: (shopRes.data.content || []).map(shop => ({ ...shop, devices: [], services: shop.services || [] })),
+            products: (productRes.data.content || []).slice(0, 12)
+         };
+      },
+      retry: false,
+      staleTime: 5 * 60 * 1000,
+   });
 
-         setShops(shopsData.map(shop => ({ ...shop, devices: [], services: shop.services || [] })));
-         setProducts(allProducts.slice(0, 12));
-         
-      } catch (err) {
-         if (err.name !== 'AbortError') {
-            if (err.response?.status === 401 || err.message === 'Unauthorized') {
-               localStorage.clear(); setIsAuthenticated(false);
-               Swal.fire({ icon: 'warning', title: 'Session Expired', text: 'Please log in again', position: 'top-end', toast: true, timer: 2000 })
-                  .then(() => navigate('/login'));
-            }
-         }
-      } finally { setProductsLoading(false); }
-      return () => controller.abort();
-   }, [navigate, isTokenExpired]);
+   useEffect(() => {
+      if (isError && (error?.response?.status === 401 || error?.message === 'Unauthorized')) {
+         localStorage.clear();
+         setIsAuthenticated(false);
+         Swal.fire({ icon: 'warning', title: 'Session Expired', text: 'Please log in again', position: 'top-end', toast: true, timer: 2000 })
+            .then(() => navigate('/login'));
+      }
+   }, [isError, error, navigate]);
 
-   useEffect(() => { fetchShopsAndProducts(); }, [fetchShopsAndProducts]);
+   const shops = data?.shops || [];
+   const products = data?.products || [];
 
    const handleAddToCart = useCallback(async (product) => {
       try {
          const token = localStorage.getItem('authToken');
-         if (!token || isTokenExpired(token)) { Swal.fire({ icon: 'warning', title: 'Please log in' }); navigate('/login'); return; }
+         if (!token) { Swal.fire({ icon: 'warning', title: 'Please log in' }); navigate('/login'); return; }
+         let decoded;
+         try { decoded = jwtDecode(token); } catch { Swal.fire({ icon: 'warning', title: 'Please log in' }); navigate('/login'); return; }
+         if (!decoded || !decoded.exp || decoded.exp < Date.now() / 1000) { Swal.fire({ icon: 'warning', title: 'Please log in' }); navigate('/login'); return; }
+         
          await api.post('/api/cart/items',
             { productId: product.id, quantity: 1, price: product.price, name: product.name, imageUrl: product.image },
             { headers: { Authorization: `Bearer ${token}` } }
@@ -461,13 +469,15 @@ const Homepage = memo(({ darkMode }) => {
       } catch {
          Swal.fire({ title: 'Error', text: 'Failed to add to cart!', icon: 'error', toast: true, position: 'top-end', timer: 1500 });
       }
-   }, [navigate, isTokenExpired]);
+   }, [navigate]);
 
    const updateScrollState = useCallback((ref, setLeft, setRight) => {
       if (!ref.current) return;
       const { scrollLeft, clientWidth, scrollWidth } = ref.current;
-      setLeft(scrollLeft > 2);
-      setRight(scrollLeft + clientWidth < scrollWidth - 5);
+      startTransition(() => {
+         setLeft(scrollLeft > 2);
+         setRight(scrollLeft + clientWidth < scrollWidth - 5);
+      });
    }, []);
 
    useEffect(() => {
@@ -730,7 +740,9 @@ const Homepage = memo(({ darkMode }) => {
             </div>
          </section>
 
-         <Service darkMode={darkMode} />
+         <Suspense fallback={<SkeletonScreen darkMode={darkMode} />}>
+            <Service darkMode={darkMode} />
+         </Suspense>
 
          <HScrollSection
             title="Featured Products"
@@ -762,9 +774,17 @@ const Homepage = memo(({ darkMode }) => {
             renderCard={renderShopCard}
          />
 
-         <OffersSlider darkMode={darkMode} />
+         <Suspense fallback={<SkeletonScreen darkMode={darkMode} />}>
+            <OffersSlider darkMode={darkMode} />
+         </Suspense>
       </>
    );
 });
 
-export default memo(Homepage);
+const Homepage = memo((props) => (
+   <QueryClientProvider client={queryClient}>
+      <HomepageContent {...props} />
+   </QueryClientProvider>
+));
+
+export default Homepage;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, memo, Suspense, useTransition } from 'react';
 import {
   FiSearch, FiFilter, FiShoppingCart, FiChevronLeft, FiChevronRight,
   FiX, FiChevronDown, FiPackage, FiUsers, FiZap, FiSliders, FiEye,
@@ -7,8 +7,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { RiStarFill } from 'react-icons/ri';
 import api from '../api';
 import Swal from 'sweetalert2';
+import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+const queryClient = new QueryClient();
 
+const SkeletonProducts = ({ darkMode }) => (
+  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5 lg:gap-6">
+    {Array.from({ length: 9 }).map((_, i) => (
+      <div key={i} className={`h-[280px] sm:h-[380px] md:h-[420px] rounded-2xl animate-pulse shadow-md ${darkMode ? 'bg-gray-800' : 'bg-white'}`} />
+    ))}
+  </div>
+);
 const cardVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: (i) => ({
@@ -333,13 +342,10 @@ const SidebarContent = memo(({ darkMode, searchTerm, setSearchTerm, sortBy, setS
   </div>
 ));
 
-const Products = memo(({ darkMode }) => {
-  const [products, setProducts]             = useState([]);
-  const [categories, setCategories]         = useState([]);        
+const ProductsContent = memo(({ darkMode }) => {
   const [searchTerm, setSearchTerm]         = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState('all');
   const [priceRange, setPriceRange]         = useState([0, 50000]);
-  const [isLoading, setIsLoading]           = useState(true);
   const [currentPage, setCurrentPage]       = useState(1);
   const [isSidebarOpen, setIsSidebarOpen]   = useState(false);
   const [canScrollLeft, setCanScrollLeft]   = useState(false);
@@ -352,53 +358,50 @@ const Products = memo(({ darkMode }) => {
   const [isCondOpen, setIsCondOpen]   = useState(true);
   const [isPriceOpen, setIsPriceOpen] = useState(true);
 
+  const [isPending, startTransition] = useTransition();
+
   const pageSize    = 12;
   const sliderRef   = useRef(null);
-  const abortCtrlRef = useRef(new AbortController());
   const token       = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
 
   useEffect(() => { document.title = 'Our Products | Tech-Restore'; }, []);
 
-  useEffect(() => {
-    const ctrl = new AbortController();
-    api.get('/api/categories', { headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal })
-      .then((res) => {
-        const cats = res.data.content || res.data || [];
-        setCategories(cats.map((c) => ({ id: c.id, name: c.name || String(c.id) })));
-      })
-      .catch((err) => {
-        if (err.name !== 'AbortError') setCategories([]);
-      });
-    return () => ctrl.abort();
-  }, [token]);
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const res = await api.get('/api/categories', { headers: { Authorization: `Bearer ${token}` } });
+      const cats = res.data.content || res.data || [];
+      return cats.map((c) => ({ id: c.id, name: c.name || String(c.id) }));
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
 
-  const fetchProducts = useCallback(async (categoryId) => {
-    abortCtrlRef.current.abort();
-    abortCtrlRef.current = new AbortController();
-    setIsLoading(true);
-    try {
-      const url = categoryId === 'all' ? '/api/products' : `/api/products/category/${categoryId}`;
-      const res = await api.get(url, { signal: abortCtrlRef.current.signal });
-      setProducts(res.data.content || res.data || []);
-    } catch (err) {
-      if (err.name !== 'AbortError') console.error(err);
-    } finally { setIsLoading(false); }
-  }, []);
+  const { data: products = [], isLoading } = useQuery({
+    queryKey: ['products', selectedCategoryId],
+    queryFn: async () => {
+      const url = selectedCategoryId === 'all' ? '/api/products' : `/api/products/category/${selectedCategoryId}`;
+      const res = await api.get(url);
+      return res.data.content || res.data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
   useEffect(() => {
-    fetchProducts(selectedCategoryId);
     setCurrentPage(1);
-  }, [selectedCategoryId, fetchProducts]);
+  }, [selectedCategoryId]);
 
   const handleAddToCart = useCallback(async (product) => {
-    try {
-      await api.post('/api/cart/items',
-        { productId: product.id, quantity: 1, price: product.price, name: product.name, imageUrl: product.image || '/placeholder.png' },
-        { headers: { Authorization: `Bearer ${token}` } });
-      Swal.fire({ title: 'Added!', text: `${product.name} added to cart`, icon: 'success', toast: true, position: 'top-end', timer: 1500, timerProgressBar: true });
-    } catch {
-      Swal.fire({ title: 'Error', text: 'Failed to add to cart', icon: 'error', toast: true, position: 'top-end', timer: 1500 });
-    }
+    startTransition(async () => {
+      try {
+        await api.post('/api/cart/items',
+          { productId: product.id, quantity: 1, price: product.price, name: product.name, imageUrl: product.image || '/placeholder.png' },
+          { headers: { Authorization: `Bearer ${token}` } });
+        Swal.fire({ title: 'Added!', text: `${product.name} added to cart`, icon: 'success', toast: true, position: 'top-end', timer: 1500, timerProgressBar: true });
+      } catch {
+        Swal.fire({ title: 'Error', text: 'Failed to add to cart', icon: 'error', toast: true, position: 'top-end', timer: 1500 });
+      }
+    });
   }, [token]);
 
   const latestProducts = useMemo(() =>
@@ -428,7 +431,9 @@ const Products = memo(({ darkMode }) => {
 
   const scrollSlider = useCallback((dir) => {
     if (!sliderRef.current) return;
-    sliderRef.current.scrollBy({ left: dir === 'left' ? -340 : 340, behavior: 'smooth' });
+    startTransition(() => {
+      sliderRef.current.scrollBy({ left: dir === 'left' ? -340 : 340, behavior: 'smooth' });
+    });
   }, []);
 
   useEffect(() => {
@@ -438,8 +443,10 @@ const Products = memo(({ darkMode }) => {
     const check = () => {
       if (timeout) return;
       timeout = setTimeout(() => {
-        setCanScrollLeft(slider.scrollLeft > 2);
-        setCanScrollRight(slider.scrollLeft + slider.clientWidth < slider.scrollWidth - 5);
+        startTransition(() => {
+          setCanScrollLeft(slider.scrollLeft > 2);
+          setCanScrollRight(slider.scrollLeft + slider.clientWidth < slider.scrollWidth - 5);
+        });
         timeout = null;
       }, 100);
     };
@@ -450,12 +457,16 @@ const Products = memo(({ darkMode }) => {
   }, [latestProducts]);
 
   const clearFilters = useCallback(() => {
-    setSearchTerm(''); setPriceRange([0, 50000]); setSelectedCategoryId('all');
-    setSelectedConditions([]); setSortBy('relevance'); setCurrentPage(1);
+    startTransition(() => {
+      setSearchTerm(''); setPriceRange([0, 50000]); setSelectedCategoryId('all');
+      setSelectedConditions([]); setSortBy('relevance'); setCurrentPage(1);
+    });
   }, []);
 
   const toggleCondition = useCallback((c) =>
-    setSelectedConditions((prev) => prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]), []);
+    startTransition(() => {
+      setSelectedConditions((prev) => prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]);
+    }), []);
 
   const showSliderArrows = useMemo(() => latestProducts.length > 3 && (canScrollLeft || canScrollRight), [latestProducts.length, canScrollLeft, canScrollRight]);
 
@@ -644,11 +655,7 @@ const Products = memo(({ darkMode }) => {
             </div>
 
             {isLoading ? (
-              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5 lg:gap-6">
-                {Array.from({ length: 9 }).map((_, i) => (
-                  <div key={i} className={`h-[280px] sm:h-[380px] md:h-[420px] rounded-2xl animate-pulse shadow-md ${darkMode ? 'bg-gray-800' : 'bg-white'}`} />
-                ))}
-              </div>
+              <SkeletonProducts darkMode={darkMode} />
             ) : filteredProducts.length === 0 ? (
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center py-20 sm:py-32">
                 <div className="w-16 h-16 sm:w-24 sm:h-24 mx-auto mb-4 sm:mb-6 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
@@ -734,4 +741,10 @@ const Products = memo(({ darkMode }) => {
    );
 });
 
-export default memo(Products);
+const Products = memo((props) => (
+  <QueryClientProvider client={queryClient}>
+    <ProductsContent {...props} />
+  </QueryClientProvider>
+));
+
+export default Products;

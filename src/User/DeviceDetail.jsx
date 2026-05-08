@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, memo } from 'react';
+import React, { useState, useEffect, useCallback, memo, useTransition } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FaChevronLeft, FaShoppingCart } from 'react-icons/fa';
 import {
@@ -10,8 +10,9 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import Swal from 'sweetalert2';
 import api from '../api';
+import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-
+const queryClient = new QueryClient();
 const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap');
   .detail-root * { box-sizing: border-box; }
@@ -64,7 +65,36 @@ const WaveTop = memo(({ darkMode }) => (
   </div>
 ));
 
-
+const DeviceDetailSkeleton = ({ darkMode }) => (
+  <div className={`detail-root min-h-screen ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+    <section className={`relative overflow-hidden pt-14 sm:pt-16 pb-24 sm:pb-28 ${darkMode ? 'bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950' : 'bg-gradient-to-br from-lime-50 via-white to-emerald-50'}`}>
+      <WaveTop darkMode={darkMode} />
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10">
+        <div className="grid md:grid-cols-2 gap-8 sm:gap-10 items-center">
+          <div className="space-y-4">
+            <div className={`h-10 sm:h-12 w-3/4 rounded-2xl animate-pulse skeleton-shimmer ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
+            <div className={`h-5 sm:h-6 w-1/2 rounded-xl animate-pulse ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              {[...Array(3)].map((_, i) => <div key={i} className={`h-16 sm:h-20 rounded-xl sm:rounded-2xl animate-pulse skeleton-shimmer ${darkMode ? 'bg-gray-800' : 'bg-white'}`} />)}
+            </div>
+          </div>
+          <div className={`hidden md:block h-56 sm:h-72 rounded-2xl sm:rounded-3xl animate-pulse skeleton-shimmer ${darkMode ? 'bg-gray-800' : 'bg-gray-200'}`} />
+        </div>
+      </div>
+      <WaveBottom darkMode={darkMode} />
+    </section>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+      <div className={`rounded-xl sm:rounded-2xl border shadow-xl p-5 sm:p-8 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+          <div className={`h-56 sm:h-72 sm:h-80 rounded-xl sm:rounded-2xl animate-pulse skeleton-shimmer ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`} />
+          <div className="space-y-3 sm:space-y-4">
+            {[...Array(5)].map((_, i) => <div key={i} className={`h-5 sm:h-6 rounded-xl animate-pulse ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} style={{ width: `${[80, 50, 70, 40, 90][i]}%` }} />)}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
 
 
 const StatCard = memo(({ icon, value, label, accent, delay, darkMode }) => (
@@ -166,95 +196,75 @@ const RelatedSection = memo(({ title, icon: Icon, products, darkMode, currentPag
 
 
 
-const DeviceDetail = memo(({ addToCart, darkMode }) => {
+const DeviceDetailContent = memo(({ addToCart, darkMode }) => {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [product, setProduct] = useState(null);
-  const [allProducts, setAllProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [catPage, setCatPage] = useState(1);
   const [condPage, setCondPage] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   const itemsPerPage = 8;
 
-  useEffect(() => {
-    if (product?.name) document.title = `${product.name} | Tech-Restore`;
-  }, [product?.name]);
-
-  const fetchProductAndAll = useCallback(async () => {
-    try {
-      setLoading(true);
+  const { data, isLoading: loading, isError } = useQuery({
+    queryKey: ['productDetail', id],
+    queryFn: async () => {
       const [prodRes, allRes] = await Promise.all([
         api.get(`/api/products/${id}`),
         api.get('/api/products'),
       ]);
       const cur = prodRes.data;
-      setProduct(cur);
       const all = allRes.data.content || allRes.data || [];
-      setAllProducts(all.filter((p) => p.id !== cur.id));
-    } catch {
-      setProduct(null);
+      return { product: cur, allProducts: all.filter((p) => p.id !== cur.id) };
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
+  const product = data?.product;
+  const allProducts = data?.allProducts || [];
+
+  useEffect(() => {
+    if (product?.name) document.title = `${product.name} | Tech-Restore`;
+  }, [product?.name]);
+
+  useEffect(() => {
+    if (isError) {
       Swal.fire({ title: 'Error', text: 'Product not found', icon: 'error', toast: true, position: 'top-end', timer: 2000 });
-    } finally { setLoading(false); }
-  }, [id]);
+    }
+  }, [isError]);
 
   const handleAddToCart = useCallback(async () => {
-    setAddingToCart(true);
-    try {
-      await api.post('/api/cart/items', {
-        productId: product.id, quantity,
-        price: product.price, name: product.name,
-        imageUrl: product.imageUrl || product.imageUrls?.[0],
-      });
-      addToCart?.({ ...product, quantity });
-      Swal.fire({ icon: 'success', title: 'Added to cart!', toast: true, position: 'top-end', timer: 1800, timerProgressBar: true });
-    } catch (error) {
-      Swal.fire({ icon: 'error', title: 'Error', text: error.response?.data?.message || 'Failed to add to cart', toast: true, position: 'top-end', timer: 2000 });
-    } finally { setAddingToCart(false); }
+    startTransition(async () => {
+      setAddingToCart(true);
+      try {
+        await api.post('/api/cart/items', {
+          productId: product.id, quantity,
+          price: product.price, name: product.name,
+          imageUrl: product.imageUrl || product.imageUrls?.[0],
+        });
+        addToCart?.({ ...product, quantity });
+        Swal.fire({ icon: 'success', title: 'Added to cart!', toast: true, position: 'top-end', timer: 1800, timerProgressBar: true });
+      } catch (error) {
+        Swal.fire({ icon: 'error', title: 'Error', text: error.response?.data?.message || 'Failed to add to cart', toast: true, position: 'top-end', timer: 2000 });
+      } finally { setAddingToCart(false); }
+    });
   }, [addToCart, product, quantity]);
 
   const handleQuantityChange = useCallback((delta) => {
-    const n = quantity + delta;
-    if (n >= 1 && n <= (product?.stock || 1)) setQuantity(n);
+    startTransition(() => {
+      const n = quantity + delta;
+      if (n >= 1 && n <= (product?.stock || 1)) setQuantity(n);
+    });
   }, [quantity, product?.stock]);
-
-  useEffect(() => { fetchProductAndAll(); }, [fetchProductAndAll]);
 
   if (loading) return (
     <>
       <style>{STYLES}</style>
-      <div className={`detail-root min-h-screen ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
-        <section className={`relative overflow-hidden pt-14 sm:pt-16 pb-24 sm:pb-28 ${darkMode ? 'bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950' : 'bg-gradient-to-br from-lime-50 via-white to-emerald-50'}`}>
-          <WaveTop darkMode={darkMode} />
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10">
-            <div className="grid md:grid-cols-2 gap-8 sm:gap-10 items-center">
-              <div className="space-y-4">
-                <div className={`h-10 sm:h-12 w-3/4 rounded-2xl animate-pulse skeleton-shimmer ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
-                <div className={`h-5 sm:h-6 w-1/2 rounded-xl animate-pulse ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
-                <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                  {[...Array(3)].map((_, i) => <div key={i} className={`h-16 sm:h-20 rounded-xl sm:rounded-2xl animate-pulse skeleton-shimmer ${darkMode ? 'bg-gray-800' : 'bg-white'}`} />)}
-                </div>
-              </div>
-              <div className={`hidden md:block h-56 sm:h-72 rounded-2xl sm:rounded-3xl animate-pulse skeleton-shimmer ${darkMode ? 'bg-gray-800' : 'bg-gray-200'}`} />
-            </div>
-          </div>
-          <WaveBottom darkMode={darkMode} />
-        </section>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
-          <div className={`rounded-xl sm:rounded-2xl border shadow-xl p-5 sm:p-8 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
-              <div className={`h-56 sm:h-72 sm:h-80 rounded-xl sm:rounded-2xl animate-pulse skeleton-shimmer ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`} />
-              <div className="space-y-3 sm:space-y-4">
-                {[...Array(5)].map((_, i) => <div key={i} className={`h-5 sm:h-6 rounded-xl animate-pulse ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} style={{ width: `${[80, 50, 70, 40, 90][i]}%` }} />)}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <DeviceDetailSkeleton darkMode={darkMode} />
     </>
   );
 
@@ -384,6 +394,7 @@ const DeviceDetail = memo(({ addToCart, darkMode }) => {
                     <img
                       src={product.imageUrls?.[selectedImage] || product.imageUrl || '/placeholder.png'}
                       alt={product.name}
+                      loading="lazy"
                       className="max-h-[200px] sm:max-h-[260px] max-w-full object-contain rounded-lg sm:rounded-xl hover:scale-105 transition-transform duration-500"
                     />
                   </div>
@@ -477,4 +488,10 @@ const DeviceDetail = memo(({ addToCart, darkMode }) => {
   );
 });
 
-export default memo(DeviceDetail);
+const DeviceDetail = memo((props) => (
+  <QueryClientProvider client={queryClient}>
+    <DeviceDetailContent {...props} />
+  </QueryClientProvider>
+));
+
+export default DeviceDetail;

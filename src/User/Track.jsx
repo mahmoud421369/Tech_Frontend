@@ -1,4 +1,5 @@
-import React, { useState, useEffect, memo, useCallback, useMemo } from "react";
+import React, { useState, useEffect, memo, useCallback, useMemo, useTransition } from "react";
+import { useQuery, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   FiPackage, FiCheckCircle, FiTruck, FiXCircle,
   FiClock, FiChevronDown, FiHome, FiStar,
@@ -7,6 +8,8 @@ import {
 import { RiCarLine, RiMotorbikeLine } from "react-icons/ri";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "../api";
+
+const queryClient = new QueryClient();
 
 const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap');
@@ -220,33 +223,27 @@ const HeroSection = memo(({ darkMode, heroStats }) => (
   </div>
 ));
 
-const Track = memo(({ darkMode }) => {
+const TrackContent = ({ darkMode }) => {
   const token = localStorage.getItem("authToken");
-  const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => { document.title = "Track your order | Tech-Restore"; }, []);
 
-  const fetchOrders = useCallback(async () => {
-    if (!token) { setIsLoading(false); return; }
-    setIsLoading(true);
-    try {
+  const { data: orders = [], isLoading } = useQuery({
+    queryKey: ['track_orders'],
+    queryFn: async () => {
       const res = await api.get("/api/users/orders", { headers: { Authorization: `Bearer ${token}` } });
-      const data = res.data.content || res.data || [];
-      setOrders(data);
-      if (data.length > 0) setSelectedOrder(data[0]);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [token]);
+      return res.data.content || res.data || [];
+    },
+    enabled: !!token
+  });
 
   useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+    if (orders.length > 0 && !selectedOrder) {
+      setSelectedOrder(orders[0]);
+    }
+  }, [orders, selectedOrder]);
 
   const heroStats = useMemo(() => [
     { icon: <FiZap size={15} />, value: "98.9%", label: "On-time delivery", accent: "#0d9488", delay: 0.1 },
@@ -557,7 +554,12 @@ const Track = memo(({ darkMode }) => {
       </div>
     </>
   );
-});
+};
 
-Track.displayName = 'Track';
-export default memo(Track);
+export default function Track(props) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TrackContent {...props} />
+    </QueryClientProvider>
+  );
+}

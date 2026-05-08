@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback, useMemo, useRef, memo } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef, memo, useTransition } from "react";
+import { useQuery, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { FiX, FiShoppingCart, FiBell } from "react-icons/fi";
 import { ToastContainer, toast } from "react-toastify";
@@ -12,6 +13,8 @@ import {
   RiStore2Line, RiSunLine, RiMoonLine, RiTruckLine, RiHome2Line,
   RiLogoutBoxRLine, RiNotificationLine
 } from "react-icons/ri";
+
+const queryClient = new QueryClient();
 
 
 
@@ -229,19 +232,19 @@ const formatTime = (ts) => {
 
 
 
-const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
+const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const notifRef = useRef(null);
 
   const [token, setToken] = useState(localStorage.getItem("authToken"));
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [loadingNotifs, setLoadingNotifs] = useState(true);
   const [scrolled, setScrolled] = useState(false);
   const [badgeKey, setBadgeKey] = useState(0);
+  const [isPending, startTransition] = useTransition();
+
+  const queryClient = useQueryClient();
 
 
   
@@ -298,37 +301,31 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
     }
   }, [location.pathname, navigate, isTokenExpired]);
 
-  const fetchNotifications = useCallback(async () => {
-    if (!token) return;
-    setLoadingNotifs(true);
-    try {
-      const res = await api.get("/api/notifications/users");
-      const data = res.data?.content || res.data || [];
-      const prevUnread = unreadCount;
-      const newUnread = data.filter(n => !n.read).length;
-      setNotifications(data);
-      if (newUnread > prevUnread) setBadgeKey(k => k + 1);
-      setUnreadCount(newUnread);
-    } catch { console.warn("Failed to load notifications"); }
-    finally { setLoadingNotifs(false); }
-  }, [token, unreadCount]);
+  const { data: notifications = [], isLoading: loadingNotifs } = useQuery({
+    queryKey: ['notifications', token],
+    queryFn: async () => {
+      const res = await api.get("/api/notifications/users", { headers: { Authorization: `Bearer ${token}` } });
+      return res.data?.content || res.data || [];
+    },
+    enabled: isAuthenticated && !!token,
+    refetchInterval: 30000,
+  });
+
+  const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
+
+  useEffect(() => {
+    if (unreadCount > 0) {
+      setBadgeKey(k => k + 1);
+    }
+  }, [unreadCount]);
 
   const deleteNotification = async (notifId) => {
     try {
-      await api.delete(`/api/notifications/users/${notifId}`);
-      setNotifications(prev => prev.filter(n => n.id !== notifId));
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      await api.delete(`/api/notifications/users/${notifId}`, { headers: { Authorization: `Bearer ${token}` } });
+      queryClient.setQueryData(['notifications', token], (old) => old ? old.filter(n => n.id !== notifId) : []);
       toast.success("Notification removed");
     } catch { toast.error("Failed to delete"); }
   };
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchNotifications();
-      const iv = setInterval(fetchNotifications, 30000);
-      return () => clearInterval(iv);
-    }
-  }, [isAuthenticated, fetchNotifications]);
 
   const navItems = useMemo(() =>
     isAuthenticated
@@ -440,7 +437,7 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
             
               <div className="relative" ref={notifRef}>
                 <button
-                  onClick={() => setShowNotifications(v => !v)}
+                  onClick={() => startTransition(() => setShowNotifications(v => !v))}
                   className={`icon-btn ${darkMode ? "dark-icon-btn" : "light-icon-btn"}`}
                   aria-label="Notifications"
                 >
@@ -493,7 +490,7 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
                         </div>
                       </div>
                       <button
-                        onClick={() => setShowNotifications(false)}
+                        onClick={() => startTransition(() => setShowNotifications(false))}
                         className={`p-1.5 rounded-lg transition ${darkMode ? "hover:bg-white/10 text-gray-400 hover:text-white" : "hover:bg-gray-100 text-gray-400 hover:text-gray-700"}`}
                       >
                         <FiX size={16} />
@@ -631,7 +628,7 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
                
                
                 <button
-                  onClick={() => setShowNotifications(v => !v)}
+                  onClick={() => startTransition(() => setShowNotifications(v => !v))}
                   className={`icon-btn ${darkMode ? "dark-icon-btn" : "light-icon-btn"}`}
                 >
                   <FiBell size={19} className={darkMode ? "text-emerald-400" : "text-emerald-600"} />
@@ -672,7 +669,7 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
               <span className={`text-sm font-bold ${darkMode ? "text-white" : "text-gray-900"}`} style={{ fontFamily: "'Outfit',sans-serif" }}>
                 Notifications {unreadCount > 0 && <span className="text-emerald-500">({unreadCount})</span>}
               </span>
-              <button onClick={() => setShowNotifications(false)}>
+              <button onClick={() => startTransition(() => setShowNotifications(false))}>
                 <FiX size={16} className={darkMode ? "text-gray-400" : "text-gray-500"} />
               </button>
             </div>
@@ -757,4 +754,10 @@ const Navbar = ({ onCartClick, darkMode, toggleDarkMode }) => {
   );
 };
 
-export default memo(Navbar);
+export default function Navbar(props) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <NavbarContent {...props} />
+    </QueryClientProvider>
+  );
+}

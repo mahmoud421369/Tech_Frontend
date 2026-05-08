@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, memo, useMemo } from "react";
+import React, { useEffect, useState, useCallback, memo, useMemo, useTransition } from "react";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import sanitizeHtml from "sanitize-html";
@@ -14,6 +14,9 @@ import {
   RiCheckDoubleLine, RiCheckLine, RiCloseLine,
   RiPhoneLine, RiStore2Line, RiStarFill,
 } from "react-icons/ri";
+import { useQuery, useMutation, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient();
 
 const WaveBottom = memo(({ darkMode }) => (
   <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-none pointer-events-none">
@@ -188,7 +191,7 @@ const getCategoryIcon = (name) => {
   return map[name] || <RiDeviceLine className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12" />;
 };
 
-const RepairRequest = memo(({ darkMode }) => {
+const RepairRequestContent = ({ darkMode }) => {
   const navigate = useNavigate();
   const token = localStorage.getItem("authToken");
 
@@ -196,10 +199,9 @@ const RepairRequest = memo(({ darkMode }) => {
   const [description, setDescription] = useState("");
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedShop, setSelectedShop] = useState(null);
-  const [categories, setCategories] = useState([]);
-  const [shops, setShops] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitProgress, setSubmitProgress] = useState(0);
+  const [isPending, startTransition] = useTransition();
 
   const bgCard = useMemo(() => darkMode ? "bg-gray-800/90" : "bg-white", [darkMode]);
   const border = useMemo(() => darkMode ? "border-gray-700" : "border-gray-200", [darkMode]);
@@ -210,44 +212,35 @@ const RepairRequest = memo(({ darkMode }) => {
   const sanitizeDescription = useCallback((input) =>
     sanitizeHtml(input, { allowedTags: [], allowedAttributes: {} }).trim(), []);
 
-  useEffect(() => {
-    let cancelled = false;
-    const fetchCategories = async () => {
-      setIsLoading(true);
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
       try {
         const res = await api.get("/api/categories", { headers: { Authorization: `Bearer ${token}` } });
-        if (cancelled) return;
         const data = (res.data.content || res.data || []).map((cat) => ({ ...cat, icon: getCategoryIcon(cat.name) }));
-        setCategories(data.length > 0 ? data : fallbackCategories.map(c => ({ ...c, icon: getCategoryIcon(c.name) })));
+        return data.length > 0 ? data : fallbackCategories.map(c => ({ ...c, icon: getCategoryIcon(c.name) }));
       } catch {
-        if (!cancelled) setCategories(fallbackCategories.map(c => ({ ...c, icon: getCategoryIcon(c.name) })));
-      } finally {
-        if (!cancelled) setIsLoading(false);
+        return fallbackCategories.map(c => ({ ...c, icon: getCategoryIcon(c.name) }));
       }
-    };
-    fetchCategories();
-    return () => { cancelled = true; };
-  }, [token]);
+    },
+    enabled: !!token,
+    staleTime: 5 * 60 * 1000,
+  });
 
-  useEffect(() => {
-    if (step !== 3 || !selectedCategory) return;
-    let cancelled = false;
-    const fetchShops = async () => {
-      setIsLoading(true);
+  const { data: shops = [], isLoading: shopsLoading } = useQuery({
+    queryKey: ['shops'],
+    queryFn: async () => {
       try {
         const res = await api.get("/api/users/shops/all", { headers: { Authorization: `Bearer ${token}` } });
-        if (cancelled) return;
         const data = res.data.content || res.data || [];
-        setShops(data.length > 0 ? data : fallbackShops);
+        return data.length > 0 ? data : fallbackShops;
       } catch {
-        if (!cancelled) setShops(fallbackShops);
-      } finally {
-        if (!cancelled) setIsLoading(false);
+        return fallbackShops;
       }
-    };
-    fetchShops();
-    return () => { cancelled = true; };
-  }, [step, selectedCategory, token]);
+    },
+    enabled: step === 3 && !!selectedCategory && !!token,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const handleNext = useCallback(() => {
     if (step === 1) {
@@ -255,21 +248,21 @@ const RepairRequest = memo(({ darkMode }) => {
         Swal.fire({ icon: "warning", title: "Description required", text: "Please describe what's wrong with your device", confirmButtonColor: "#84cc16" });
         return;
       }
-      setStep(2);
+      startTransition(() => setStep(2));
     } else if (step === 2) {
       if (!selectedCategory) {
         Swal.fire({ icon: "warning", title: "Select Device Type", confirmButtonColor: "#84cc16" });
         return;
       }
-      setStep(3);
+      startTransition(() => setStep(3));
     }
   }, [step, description, selectedCategory]);
 
-  const handleBack = useCallback(() => setStep((s) => Math.max(1, s - 1)), []);
+  const handleBack = useCallback(() => startTransition(() => setStep((s) => Math.max(1, s - 1))), []);
 
   const sendRepairRequest = useCallback(async () => {
     if (!selectedShop) return;
-    setIsLoading(true);
+    setIsSubmitting(true);
     setSubmitProgress(0);
     const duration = 2000;
     const interval = 80;
@@ -305,7 +298,7 @@ const RepairRequest = memo(({ darkMode }) => {
       setSubmitProgress(0);
       Swal.fire({ icon: "error", title: "Failed to Send", toast: true, position: "top-end", text: err.response?.data?.message || "Something went wrong.", confirmButtonColor: "#ef4444" });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   }, [selectedShop, description, selectedCategory, token, sanitizeDescription, navigate]);
 
@@ -441,7 +434,7 @@ const RepairRequest = memo(({ darkMode }) => {
               <p className={`text-center text-xs sm:text-sm mb-6 sm:mb-8 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
                 Choose the category that best matches your device
               </p>
-              {isLoading ? <LoadingSpinner darkMode={darkMode} /> : (
+              {categoriesLoading ? <LoadingSpinner darkMode={darkMode} /> : (
                 <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5 mt-4 sm:mt-6">
                   {categories.map((cat) => (
                     <motion.div key={cat.id} whileHover={{ y: -5, scale: 1.03 }} whileTap={{ scale: 0.97 }}
@@ -483,15 +476,19 @@ const RepairRequest = memo(({ darkMode }) => {
               <p className={`text-center text-xs sm:text-sm mb-6 sm:mb-8 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
                 Select the shop you'd like to send your repair request to
               </p>
-              {isLoading ? <LoadingSpinner darkMode={darkMode} /> : (
+              {shopsLoading ? <LoadingSpinner darkMode={darkMode} /> : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                  {shops.map((shop) => (
-                    <motion.div key={shop.id} whileHover={{ y: -4 }} whileTap={{ scale: 0.99 }}
-                      onClick={() => setSelectedShop(shop)}
-                      className={`group p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-md cursor-pointer transition-all duration-300 border-2 ${
+                  {shops.filter(shop => shop.shopType === "BOTH" || shop.shopType === "REPAIRER").map((shop) => (
+                    <motion.div key={shop.id} 
+                      whileHover={shop.activate ? { y: -4 } : {}} 
+                      whileTap={shop.activate ? { scale: 0.99 } : {}}
+                      onClick={() => shop.activate && setSelectedShop(shop)}
+                      className={`group p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-md transition-all duration-300 border-2 ${
+                        !shop.activate ? "opacity-50 cursor-not-allowed grayscale" : "cursor-pointer"
+                      } ${
                         selectedShop?.id === shop.id
                           ? "bg-gradient-to-br from-lime-500 to-emerald-600 text-white border-lime-400 shadow-lime-500/30 shadow-xl"
-                          : `${bgCard} ${darkMode ? "border-gray-700 hover:border-lime-500" : "border-gray-200 hover:border-lime-400"}`
+                          : `${bgCard} ${!shop.activate ? (darkMode ? "border-gray-800" : "border-gray-200") : (darkMode ? "border-gray-700 hover:border-lime-500" : "border-gray-200 hover:border-lime-400")}`
                       }`}>
                       <div className="flex items-start justify-between mb-4 sm:mb-5">
                         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -561,9 +558,9 @@ const RepairRequest = memo(({ darkMode }) => {
               )}
 
               <NavButtons onBack={handleBack} onNext={sendRepairRequest} nextLabel="Send Repair Request"
-                nextDisabled={!selectedShop} isLoading={isLoading} darkMode={darkMode} />
+                nextDisabled={!selectedShop} isLoading={isSubmitting} darkMode={darkMode} />
 
-              {isLoading && submitProgress > 0 && (
+              {isSubmitting && submitProgress > 0 && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-md mx-auto mt-6 sm:mt-8">
                   <div className={`w-full rounded-full h-2.5 overflow-hidden ${darkMode ? "bg-gray-700" : "bg-gray-200"}`}>
                     <motion.div className="h-full rounded-full bg-gradient-to-r from-lime-500 to-emerald-500"
@@ -580,6 +577,12 @@ const RepairRequest = memo(({ darkMode }) => {
       </div>
     </div>
   );
-});
+};
 
-export default memo(RepairRequest);
+const RepairRequest = memo((props) => (
+  <QueryClientProvider client={queryClient}>
+    <RepairRequestContent {...props} />
+  </QueryClientProvider>
+));
+
+export default RepairRequest;

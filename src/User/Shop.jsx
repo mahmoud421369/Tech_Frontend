@@ -1,6 +1,6 @@
 import React, {
   useEffect, useState, useRef, useMemo,
-  useCallback, memo, lazy, Suspense,
+  useCallback, memo, lazy, Suspense, useTransition
 } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -13,6 +13,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import Swal from "sweetalert2";
 import api from "../api";
 import { RiStarFill, RiPhoneLine, RiMapPinLine } from "react-icons/ri";
+import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient();
 
 const ChatModal = lazy(() => import("../components/UserChatModal"));
 
@@ -227,28 +230,72 @@ const FilterPill = memo(({ label, isActive, onClick, darkMode }) => (
   </button>
 ));
 
-const Shop = memo(({ darkMode, addToCart }) => {
+const ShopContent = ({ darkMode, addToCart }) => {
   const { shopId } = useParams();
   const token = localStorage.getItem("authToken");
   const userId = localStorage.getItem("userId");
   const navigate = useNavigate();
 
-  const [shop, setShop] = useState(null);
-  const [products, setProducts] = useState([]);
   const [search, setSearch] = useState("");
-  const [categories, setCategories] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [selectedCondition, setSelectedCondition] = useState("all");
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
   const [sortBy, setSortBy] = useState("default");
   const [inStockOnly, setInStockOnly] = useState(false);
-  const [reviews, setReviews] = useState([]);
   const [newReview, setNewReview] = useState({ rating: 0, comment: "" });
   const [editingReview, setEditingReview] = useState(null);
-  const [isLoading, setIsLoading] = useState({ shop: true, products: true, reviews: true });
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [openChat, setOpenChat] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const queryClientLocal = useQueryClient();
+
+  const { data: shop, isLoading: shopLoading } = useQuery({
+    queryKey: ['shop', shopId],
+    queryFn: async () => {
+      try {
+        const { data } = await api.get(`/api/shops/${encodeURIComponent(shopId)}`);
+        return data;
+      } catch { return null; }
+    },
+    enabled: !!shopId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      try {
+        const { data } = await api.get("/api/categories");
+        return data.content || data || [];
+      } catch { return []; }
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: products = [], isLoading: productsLoading } = useQuery({
+    queryKey: ['products', shopId],
+    queryFn: async () => {
+      try {
+        const { data } = await api.get(`/api/products/shop/${encodeURIComponent(shopId)}`);
+        return data.content || data || [];
+      } catch { return []; }
+    },
+    enabled: !!shopId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: reviews = [], isLoading: reviewsLoading } = useQuery({
+    queryKey: ['reviews', shopId],
+    queryFn: async () => {
+      try {
+        const { data } = await api.get(`/api/reviews/${encodeURIComponent(shopId)}/reviews`);
+        return data.content || data || [];
+      } catch { return []; }
+    },
+    enabled: !!shopId,
+    staleTime: 0,
+  });
 
   useEffect(() => {
     document.title = shop?.name  ? sanitizeText(shop.name) + " | Tech-Restore" : "Loading Shop...";
@@ -264,40 +311,6 @@ const Shop = memo(({ darkMode, addToCart }) => {
     if (inStockOnly) count++;
     return count;
   }, [selectedCategories, selectedCondition, priceMin, priceMax, sortBy, inStockOnly]);
-
-  const fetchShopProfile = useCallback(async () => {
-    setIsLoading(p => ({ ...p, shop: true }));
-    try {
-      const { data } = await api.get(`/api/shops/${encodeURIComponent(shopId)}`);
-      setShop(data);
-    } catch { setShop(null); }
-    finally { setIsLoading(p => ({ ...p, shop: false })); }
-  }, [shopId]);
-
-  const fetchCategories = useCallback(async () => {
-    try {
-      const { data } = await api.get("/api/categories");
-      setCategories(data.content || data || []);
-    } catch { setCategories([]); }
-  }, []);
-
-  const fetchProductsByShop = useCallback(async () => {
-    setIsLoading(p => ({ ...p, products: true }));
-    try {
-      const { data } = await api.get(`/api/products/shop/${encodeURIComponent(shopId)}`);
-      setProducts(data.content || data || []);
-    } catch { setProducts([]); }
-    finally { setIsLoading(p => ({ ...p, products: false })); }
-  }, [shopId]);
-
-  const fetchShopReviews = useCallback(async () => {
-    setIsLoading(p => ({ ...p, reviews: true }));
-    try {
-      const { data } = await api.get(`/api/reviews/${encodeURIComponent(shopId)}/reviews`);
-      setReviews(data.content || data || []);
-    } catch { setReviews([]); }
-    finally { setIsLoading(p => ({ ...p, reviews: false })); }
-  }, [shopId]);
 
   const handleAddToCart = useCallback(async (product) => {
     if (!token) {
@@ -330,12 +343,12 @@ const Shop = memo(({ darkMode, addToCart }) => {
     try {
       await api.post(`/api/reviews/${encodeURIComponent(shopId)}`, { rating: newReview.rating, comment: sanitizeText(comment) });
       setNewReview({ rating: 0, comment: "" });
-      fetchShopReviews();
+      queryClientLocal.invalidateQueries({ queryKey: ['reviews', shopId] });
       Swal.fire({ toast: true, position: "top-end", icon: "success", title: "Review added!", timer: 2000, timerProgressBar: true, showConfirmButton: false });
     } catch {
       Swal.fire({ icon: "error", toast: true, position: "top-end", timer: 2000, title: "Failed to submit review", showConfirmButton: false });
     }
-  }, [newReview, shopId, fetchShopReviews]);
+  }, [newReview, shopId, queryClientLocal]);
 
   const updateReview = useCallback(async () => {
     const comment = editingReview?.comment?.trim();
@@ -343,29 +356,28 @@ const Shop = memo(({ darkMode, addToCart }) => {
     if (comment.length > 1000) { Swal.fire({ icon: "warning", title: "Too long", text: "Comment must be under 1000 characters" }); return; }
     try {
       await api.put(`/api/reviews/${encodeURIComponent(editingReview.id)}`, { rating: editingReview.rating, comment: sanitizeText(comment) });
-      setEditingReview(null); fetchShopReviews();
+      setEditingReview(null);
+      queryClientLocal.invalidateQueries({ queryKey: ['reviews', shopId] });
       Swal.fire({ toast: true, position: "top-end", icon: "success", title: "Review updated!", timer: 2000, timerProgressBar: true, showConfirmButton: false });
     } catch { Swal.fire("Error", "Could not update review", "error"); }
-  }, [editingReview, fetchShopReviews]);
+  }, [editingReview, queryClientLocal, shopId]);
 
   const deleteReview = useCallback(async (reviewId) => {
     const result = await Swal.fire({ title: "Delete Review?", text: "This action cannot be undone", icon: "warning", showCancelButton: true, confirmButtonColor: "#ef4444", confirmButtonText: "Yes, delete" });
     if (result.isConfirmed) {
       try {
         await api.delete(`/api/reviews/cancel/${encodeURIComponent(reviewId)}`);
-        fetchShopReviews();
+        queryClientLocal.invalidateQueries({ queryKey: ['reviews', shopId] });
         Swal.fire({ toast: true, position: "top-end", icon: "success", title: "Review removed!", timer: 2000, timerProgressBar: true, showConfirmButton: false });
       } catch { Swal.fire("Error", "Could not delete review", "error"); }
     }
-  }, [fetchShopReviews]);
+  }, [queryClientLocal, shopId]);
 
   const handleCategoryCheckbox = useCallback((catName) => {
-    setSelectedCategories(prev => prev.includes(catName) ? prev.filter(c => c !== catName) : [...prev, catName]);
+    startTransition(() => {
+      setSelectedCategories(prev => prev.includes(catName) ? prev.filter(c => c !== catName) : [...prev, catName]);
+    });
   }, []);
-
-  useEffect(() => {
-    if (shopId) { fetchShopProfile(); fetchCategories(); fetchProductsByShop(); fetchShopReviews(); }
-  }, [shopId, fetchShopProfile, fetchCategories, fetchProductsByShop, fetchShopReviews]);
 
   const filteredProducts = useMemo(() => {
     let result = [...products];
@@ -390,8 +402,10 @@ const Shop = memo(({ darkMode, addToCart }) => {
   }, [products, search, selectedCondition, selectedCategories, priceMin, priceMax, sortBy, inStockOnly]);
 
   const resetFilters = useCallback(() => {
-    setSearch(""); setSelectedCategories([]); setSelectedCondition("all");
-    setPriceMin(""); setPriceMax(""); setSortBy("default"); setInStockOnly(false); setIsFilterOpen(false);
+    startTransition(() => {
+      setSearch(""); setSelectedCategories([]); setSelectedCondition("all");
+      setPriceMin(""); setPriceMax(""); setSortBy("default"); setInStockOnly(false); setIsFilterOpen(false);
+    });
   }, []);
 
   const heroStats = useMemo(() => [
@@ -404,7 +418,7 @@ const Shop = memo(({ darkMode, addToCart }) => {
     ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
     : "–", [reviews]);
 
-  if (isLoading.shop) return (
+  if (shopLoading) return (
     <div className={`min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"} flex items-center justify-center`}>
       <div className="w-14 h-14 border-4 border-lime-500 border-t-transparent rounded-full animate-spin" />
     </div>
@@ -551,7 +565,7 @@ const Shop = memo(({ darkMode, addToCart }) => {
             <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
               <select
                 value={sortBy}
-                onChange={e => setSortBy(e.target.value)}
+                onChange={e => startTransition(() => setSortBy(e.target.value))}
                 className={`flex-1 sm:flex-none py-2.5 px-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-lime-500 transition ${
                   darkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-white border-gray-200 text-gray-900"
                 }`}
@@ -567,14 +581,14 @@ const Shop = memo(({ darkMode, addToCart }) => {
               <div className="relative sm:flex-none">
                 <FiSearch className={`absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
                 <input
-                  type="text" value={search} onChange={e => setSearch(e.target.value)}
+                  type="text" value={search} onChange={e => startTransition(() => setSearch(e.target.value))}
                   placeholder="Search products..." maxLength={100}
                   className={`w-full sm:w-52 md:w-64 pl-9 sm:pl-11 pr-9 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-lime-500 transition ${
                     darkMode ? "bg-gray-800 border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-200 text-gray-900 placeholder-gray-400"
                   }`}
                 />
                 {search && (
-                  <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition" aria-label="Clear">
+                  <button onClick={() => startTransition(() => setSearch(""))} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition" aria-label="Clear">
                     <FiX size={14} />
                   </button>
                 )}
@@ -600,7 +614,7 @@ const Shop = memo(({ darkMode, addToCart }) => {
             </div>
           </div>
 
-          {isLoading.products ? (
+          {productsLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
               {[...Array(8)].map((_, i) => <ProductSkeleton key={i} darkMode={darkMode} />)}
             </div>
@@ -675,7 +689,7 @@ const Shop = memo(({ darkMode, addToCart }) => {
               </div>
 
               <div className="space-y-3 sm:space-y-4">
-                {isLoading.reviews ? (
+                {reviewsLoading ? (
                   [...Array(3)].map((_, i) => (
                     <div key={i} className={`h-24 sm:h-28 rounded-xl sm:rounded-2xl animate-pulse ${darkMode ? "bg-gray-800" : "bg-white"}`} />
                   ))
@@ -944,7 +958,14 @@ const Shop = memo(({ darkMode, addToCart }) => {
       </div>
     </>
   );
-});
+};
+
+const Shop = memo((props) => (
+  <QueryClientProvider client={queryClient}>
+    <ShopContent {...props} />
+  </QueryClientProvider>
+));
 
 Shop.displayName = "Shop";
-export default memo(Shop);
+
+export default Shop;

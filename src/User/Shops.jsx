@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo, useTransition, startTransition } from 'react';
+import { useQuery, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   FiSearch, FiMapPin, FiPhone, FiTruck, FiZap,
   FiFilter, FiUsers, FiSliders, FiChevronDown,
@@ -8,7 +9,7 @@ import { RiStore2Line, RiStarFill, RiVerifiedBadgeLine } from 'react-icons/ri';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../api';
 
-
+const queryClient = new QueryClient();
 
 
 const cardVariants = {
@@ -241,13 +242,13 @@ const SidebarContent = memo(({
         type="text"
         placeholder="Search shops..."
         value={searchTerm}
-        onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+        onChange={(e) => { startTransition(() => { setSearchTerm(e.target.value); setCurrentPage(1); }); }}
         className={`w-full pl-11 pr-10 py-3 rounded-xl border text-sm ${
           darkMode ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
         } focus:outline-none focus:ring-2 focus:ring-lime-500 focus:border-transparent transition`}
       />
       {searchTerm && (
-        <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 hover:text-gray-600 transition">
+        <button onClick={() => startTransition(() => setSearchTerm(''))} className="absolute right-3 top-1/2 -translate-y-1/2 hover:text-gray-600 transition">
           <FiX className="text-gray-400 w-4 h-4" />
         </button>
       )}
@@ -256,7 +257,7 @@ const SidebarContent = memo(({
     <FilterSection title="Sort By" isOpen={isSortSectionOpen} onToggle={() => setIsSortSectionOpen(!isSortSectionOpen)} darkMode={darkMode}>
       <div className="space-y-2">
         {Object.entries(sortLabels).map(([value, label]) => (
-          <RadioOption key={value} value={value} label={label} selected={sortBy === value} onSelect={setSortBy} darkMode={darkMode} />
+          <RadioOption key={value} value={value} label={label} selected={sortBy === value} onSelect={(val) => startTransition(() => setSortBy(val))} darkMode={darkMode} />
         ))}
       </div>
     </FilterSection>
@@ -289,14 +290,14 @@ const SidebarContent = memo(({
           { value: 4.5, label: '4.5+ Stars', icon: <RiStarFill className="text-amber-400 w-3.5 h-3.5" /> },
           { value: 4.8, label: '4.8+ Stars', icon: <RiStarFill className="text-amber-400 w-3.5 h-3.5" /> },
         ].map(opt => (
-          <RadioOption key={opt.value} value={opt.value} label={opt.label} icon={opt.icon} selected={minRating === opt.value} onSelect={setMinRating} darkMode={darkMode} />
+          <RadioOption key={opt.value} value={opt.value} label={opt.label} icon={opt.icon} selected={minRating === opt.value} onSelect={(val) => startTransition(() => setMinRating(val))} darkMode={darkMode} />
         ))}
       </div>
     </FilterSection>
 
     <FilterSection title="Verified Only" isOpen={isVerifiedSectionOpen} onToggle={() => setIsVerifiedSectionOpen(!isVerifiedSectionOpen)} darkMode={darkMode}>
       <button
-        onClick={() => setShowVerifiedOnly(!showVerifiedOnly)}
+        onClick={() => startTransition(() => setShowVerifiedOnly(!showVerifiedOnly))}
         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all duration-200 ${
           showVerifiedOnly
             ? 'bg-lime-500/10 border-lime-500 text-lime-600 dark:text-lime-400'
@@ -344,10 +345,8 @@ const PaginationButton = memo(({ children, onClick, disabled, active, darkMode }
   </button>
 ));
 
-const Shops = memo(({ darkMode }) => {
-  const [shops, setShops] = useState([]);
+const ShopsContent = ({ darkMode }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedShopTypes, setSelectedShopTypes] = useState([]);
   const [selectedCities, setSelectedCities] = useState([]);
@@ -366,28 +365,25 @@ const Shops = memo(({ darkMode }) => {
 
   useEffect(() => { document.title = 'Verified Shops | Tech-Restore'; }, []);
 
-  const fetchShops = useCallback(async () => {
-    const controller = new AbortController();
-    setIsLoading(true);
-    try {
-      const res = await api.get('/api/users/shops/all', { signal: controller.signal });
-      setShops(res.data.content || res.data || []);
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        setShops([
+  const [isPending, startTransition] = useTransition();
+
+  const { data: shops = [], isLoading } = useQuery({
+    queryKey: ['shopsList'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/api/users/shops/all');
+        return res.data.content || res.data || [];
+      } catch (err) {
+        return [
           { id: 1, name: 'TechFix Pro', shopType: 'Mobile & Laptop Repair', shopAddress: { street: '123 Main St', city: 'Cairo' }, phone: '+20 123 456 7890', description: 'Professional repair services for all devices with 6-month warranty.', rating: 4.8, verified: true },
           { id: 2, name: 'Gadget Hub', shopType: 'Electronics Store', shopAddress: { street: '456 Nile Ave', city: 'Alexandria' }, phone: '+20 987 654 3210', description: 'New & refurbished phones, tablets, and accessories at best prices.', rating: 4.6, verified: true },
           { id: 3, name: 'Quick Repair', shopType: 'Express Service', shopAddress: { street: '789 Tech Rd', city: 'Giza' }, phone: '+20 555 123 4567', description: 'Same-day repair for screens, batteries, and software issues.', rating: 4.5, verified: false },
           { id: 4, name: 'Smart Solutions', shopType: 'Repair & Sales', shopAddress: { street: '321 Smart St', city: 'Mansoura' }, phone: '+20 101 222 3334', description: 'Full-service electronics repair and genuine parts supplier.', rating: 4.9, verified: true },
-        ]);
+        ];
       }
-    } finally {
-      setIsLoading(false);
-    }
-    return () => controller.abort();
-  }, []);
-
-  useEffect(() => { fetchShops(); }, [fetchShops]);
+    },
+    staleTime: 5 * 60 * 1000
+  });
 
   const shopTypes = useMemo(() => [...new Set(shops.map(s => s.shopType).filter(Boolean))], [shops]);
   const cities = useMemo(() => [...new Set(shops.map(s => s.shopAddress?.city).filter(Boolean))], [shops]);
@@ -421,18 +417,24 @@ const Shops = memo(({ darkMode }) => {
   const totalPages = Math.ceil(filteredShops.length / pageSize);
 
   const toggleShopType = useCallback((type) => {
-    setCurrentPage(1);
-    setSelectedShopTypes(prev => prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]);
+    startTransition(() => {
+      setCurrentPage(1);
+      setSelectedShopTypes(prev => prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]);
+    });
   }, []);
   
   const toggleCity = useCallback((city) => {
-    setCurrentPage(1);
-    setSelectedCities(prev => prev.includes(city) ? prev.filter(c => c !== city) : [...prev, city]);
+    startTransition(() => {
+      setCurrentPage(1);
+      setSelectedCities(prev => prev.includes(city) ? prev.filter(c => c !== city) : [...prev, city]);
+    });
   }, []);
 
   const clearFilters = useCallback(() => {
-    setSearchTerm(''); setSelectedShopTypes([]); setSelectedCities([]);
-    setMinRating(0); setShowVerifiedOnly(false); setSortBy('relevance'); setCurrentPage(1);
+    startTransition(() => {
+      setSearchTerm(''); setSelectedShopTypes([]); setSelectedCities([]);
+      setMinRating(0); setShowVerifiedOnly(false); setSortBy('relevance'); setCurrentPage(1);
+    });
   }, []);
 
   const activeFiltersCount = useMemo(() => [
@@ -647,15 +649,15 @@ const Shops = memo(({ darkMode }) => {
 
             {totalPages > 1 && (
               <div className="flex justify-center mt-10 sm:mt-14 gap-1.5 sm:gap-2 flex-wrap">
-                <PaginationButton onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} darkMode={darkMode}>
+                <PaginationButton onClick={() => startTransition(() => setCurrentPage(p => Math.max(1, p - 1)))} disabled={currentPage === 1} darkMode={darkMode}>
                   <FiChevronLeft className="w-4 h-4" />
                 </PaginationButton>
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                  <PaginationButton key={page} onClick={() => setCurrentPage(page)} active={currentPage === page} darkMode={darkMode}>
+                  <PaginationButton key={page} onClick={() => startTransition(() => setCurrentPage(page))} active={currentPage === page} darkMode={darkMode}>
                     {page}
                   </PaginationButton>
                 ))}
-                <PaginationButton onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} darkMode={darkMode}>
+                <PaginationButton onClick={() => startTransition(() => setCurrentPage(p => Math.min(totalPages, p + 1)))} disabled={currentPage === totalPages} darkMode={darkMode}>
                   <FiChevronRight className="w-4 h-4" />
                 </PaginationButton>
               </div>
@@ -715,7 +717,12 @@ const Shops = memo(({ darkMode }) => {
       </AnimatePresence>
     </div>
   );
-});
+};
 
-Shops.displayName = 'Shops';
-export default memo(Shops);
+export default function Shops(props) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ShopsContent {...props} />
+    </QueryClientProvider>
+  );
+}

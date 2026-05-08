@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback, memo, useMemo } from "react";
+import React, { useState, useEffect, useCallback, memo, useMemo, useTransition } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Swal from "sweetalert2";
 import {
   FiUser, FiMapPin, FiBox, FiTool, FiEdit2, FiTrash2,
@@ -14,6 +15,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { jwtDecode } from "jwt-decode";
 import { RiLogoutBoxRLine, RiVerifiedBadgeLine, RiStarFill } from "react-icons/ri";
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from "@headlessui/react";
+
+const queryClient = new QueryClient();
 
 const STYLES = `
   .lime-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
@@ -578,18 +581,14 @@ const RepairsTab = memo(({ repairRequests, repairsPage, setRepairsPage, handleVi
   );
 });
 
-const Account = ({ darkMode }) => {
+const AccountContent = ({ darkMode }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
+  const [isPending, startTransition] = useTransition();
 
   const [token, setToken] = useState(localStorage.getItem("authToken"));
   const [activeSection, setActiveSection] = useState("profile");
-  const [userProfile, setUserProfile] = useState(null);
-  const [addresses, setAddresses] = useState([]);
-  const [orders, setOrders] = useState([]);
-  const [repairRequests, setRepairRequests] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -621,30 +620,25 @@ const Account = ({ darkMode }) => {
       : "bg-white/70 border-gray-300 text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-lime-500 focus:border-lime-500"
     }`;
 
-  const fetchAll = useCallback(async () => {
-    if (!token) { navigate("/login"); return; }
-    setIsLoading(true);
-    try {
-      const [profRes, addrRes, ordRes, repRes, catRes] = await Promise.all([
-        api.get("/api/users/profile", { headers: { Authorization: `Bearer ${token}` } }),
-        api.get("/api/users/addresses", { headers: { Authorization: `Bearer ${token}` } }),
-        api.get("/api/users/orders", { headers: { Authorization: `Bearer ${token}` } }),
-        api.get("/api/users/repair-request", { headers: { Authorization: `Bearer ${token}` } }),
-        api.get("/api/categories", { headers: { Authorization: `Bearer ${token}` } }),
-      ]);
-      setUserProfile(profRes.data);
-      setProfileForm({ first_name: profRes.data.first_name || "", last_name: profRes.data.last_name || "", phone: profRes.data.phone || "" });
-      setAddresses(addrRes.data.content || []);
-      setOrders(ordRes.data.content || []);
-      setRepairRequests(repRes.data.content || []);
-      setCategories(catRes.data.content || []);
-    } catch (err) {
-      console.error(err);
-      Swal.fire({ title: "Error", text: "Failed to load data", icon: "error", toast: true, position: "top-end", timer: 1500 });
-    } finally { setIsLoading(false); }
-  }, [token, navigate]);
+  const { data: userProfile, isLoading: profileLoading } = useQuery({
+    queryKey: ['profile'],
+    queryFn: async () => {
+      const res = await api.get("/api/users/profile", { headers: { Authorization: `Bearer ${token}` } });
+      const data = res.data;
+      setProfileForm({ first_name: data.first_name || "", last_name: data.last_name || "", phone: data.phone || "" });
+      return data;
+    },
+    enabled: !!token
+  });
 
-  useEffect(() => { document.title = "My Account | Tech-Restore"; fetchAll(); }, [fetchAll]);
+  const { data: addresses = [], isLoading: addressesLoading } = useQuery({ queryKey: ['addresses'], queryFn: async () => (await api.get("/api/users/addresses", { headers: { Authorization: `Bearer ${token}` } })).data.content || [], enabled: !!token });
+  const { data: orders = [], isLoading: ordersLoading } = useQuery({ queryKey: ['orders'], queryFn: async () => (await api.get("/api/users/orders", { headers: { Authorization: `Bearer ${token}` } })).data.content || [], enabled: !!token });
+  const { data: repairRequests = [], isLoading: repairsLoading } = useQuery({ queryKey: ['repairs'], queryFn: async () => (await api.get("/api/users/repair-request", { headers: { Authorization: `Bearer ${token}` } })).data.content || [], enabled: !!token });
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery({ queryKey: ['categories'], queryFn: async () => (await api.get("/api/categories", { headers: { Authorization: `Bearer ${token}` } })).data.content || [], enabled: !!token });
+
+  const isLoading = profileLoading || addressesLoading || ordersLoading || repairsLoading || categoriesLoading;
+
+  useEffect(() => { document.title = "My Account | Tech-Restore"; }, []);
 
   const safeDecodeJwt = useCallback((tk) => { try { return jwtDecode(tk); } catch { return null; } }, []);
   const isTokenExpired = useCallback((tk) => { const d = safeDecodeJwt(tk); return !d || !d.exp || d.exp < Date.now() / 1000; }, [safeDecodeJwt]);
@@ -662,7 +656,8 @@ const Account = ({ darkMode }) => {
     e.preventDefault();
     try {
       await api.put("/api/users/profile", profileForm, { headers: { Authorization: `Bearer ${token}` } });
-      setUserProfile((p) => ({ ...p, ...profileForm })); setIsEditingProfile(false);
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      setIsEditingProfile(false);
       Swal.fire({ title: "Updated!", icon: "success", toast: true, position: "top-end", timer: 1500 });
     } catch { Swal.fire({ title: "Error", text: "Update failed", icon: "error", toast: true, position: "top-end", timer: 1500 }); }
   };
@@ -676,29 +671,29 @@ const Account = ({ darkMode }) => {
 
   const handleAddAddress = async (e) => {
     e.preventDefault();
-    try { await api.post("/api/users/addresses", addressForm, { headers: { Authorization: `Bearer ${token}` } }); fetchAll(); resetAddressForm(); Swal.fire({ title: "Added!", icon: "success", toast: true, position: "top-end", timer: 1500 }); }
+    try { await api.post("/api/users/addresses", addressForm, { headers: { Authorization: `Bearer ${token}` } }); queryClient.invalidateQueries({ queryKey: ['addresses'] }); resetAddressForm(); Swal.fire({ title: "Added!", icon: "success", toast: true, position: "top-end", timer: 1500 }); }
     catch { Swal.fire({ title: "Error", text: "Failed to add", icon: "error", toast: true, position: "top-end", timer: 1500 }); }
   };
 
   const handleUpdateAddress = async (e) => {
     e.preventDefault();
-    try { await api.put(`/api/users/addresses/${editingAddressId}`, addressForm, { headers: { Authorization: `Bearer ${token}` } }); fetchAll(); resetAddressForm(); Swal.fire({ title: "Updated!", icon: "success", toast: true, position: "top-end", timer: 1500 }); }
+    try { await api.put(`/api/users/addresses/${editingAddressId}`, addressForm, { headers: { Authorization: `Bearer ${token}` } }); queryClient.invalidateQueries({ queryKey: ['addresses'] }); resetAddressForm(); Swal.fire({ title: "Updated!", icon: "success", toast: true, position: "top-end", timer: 1500 }); }
     catch { Swal.fire({ title: "Error", text: "Failed to update", icon: "error", toast: true, position: "top-end", timer: 1500 }); }
   };
 
   const handleDeleteAddress = useCallback(async (id) => {
     const c = await Swal.fire({ title: "Delete Address?", icon: "warning", showCancelButton: true });
     if (!c.isConfirmed) return;
-    try { await api.delete(`/api/users/addresses/${id}`, { headers: { Authorization: `Bearer ${token}` } }); fetchAll(); Swal.fire({ title: "Deleted!", icon: "success", toast: true, position: "top-end", timer: 1500 }); }
+    try { await api.delete(`/api/users/addresses/${id}`, { headers: { Authorization: `Bearer ${token}` } }); queryClient.invalidateQueries({ queryKey: ['addresses'] }); Swal.fire({ title: "Deleted!", icon: "success", toast: true, position: "top-end", timer: 1500 }); }
     catch { Swal.fire({ title: "Error", text: "Failed to delete", icon: "error", toast: true, position: "top-end", timer: 1500 }); }
-  }, [token, fetchAll]);
+  }, [token, queryClient]);
 
   const handleCancelOrder = useCallback(async (id) => {
     const c = await Swal.fire({ title: "Cancel Order?", icon: "warning", showCancelButton: true });
     if (!c.isConfirmed) return;
-    try { await api.delete(`/api/users/orders/${id}/cancel`, { headers: { Authorization: `Bearer ${token}` } }); fetchAll(); Swal.fire({ title: "Cancelled!", icon: "success", toast: true, position: "top-end", timer: 1500 }); }
+    try { await api.delete(`/api/users/orders/${id}/cancel`, { headers: { Authorization: `Bearer ${token}` } }); queryClient.invalidateQueries({ queryKey: ['orders'] }); Swal.fire({ title: "Cancelled!", icon: "success", toast: true, position: "top-end", timer: 1500 }); }
     catch { Swal.fire({ title: "Error", text: "Failed to cancel", icon: "error", toast: true, position: "top-end", timer: 1500 }); }
-  }, [token, fetchAll]);
+  }, [token, queryClient]);
 
   const handleViewRepair = useCallback(async (id) => {
     try { const res = await api.get(`/api/users/repair-request/${id}`, { headers: { Authorization: `Bearer ${token}` } }); setSelectedRepair(res.data); setIsRepairModalOpen(true); }
@@ -715,7 +710,8 @@ const Account = ({ darkMode }) => {
         { description: editDescription, deviceCategory: selectedCategory.id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      fetchAll(); setIsEditRepairModalOpen(false); setEditingRepair(null);
+      queryClient.invalidateQueries({ queryKey: ['repairs'] });
+      setIsEditRepairModalOpen(false); setEditingRepair(null);
       Swal.fire({ icon: "success", title: "Updated!", toast: true, position: "top-end", timer: 2500, showConfirmButton: false });
     } catch { Swal.fire({ icon: "error", title: "Failed", toast: true, position: "top-end", timer: 2500, showConfirmButton: false }); }
   };
@@ -725,18 +721,18 @@ const Account = ({ darkMode }) => {
     if (!result.isConfirmed) return;
     try {
       await api.put(`/api/users/repair-request/${req.id}/status`, { status: "QUOTE_APPROVED" }, { headers: { Authorization: `Bearer ${token}` } });
-      fetchAll();
+      queryClient.invalidateQueries({ queryKey: ['repairs'] });
       Swal.fire({ icon: "success", title: "Quote Accepted!", toast: true, position: "top-end", timer: 2000, showConfirmButton: false });
       setConfirmRepairReq(req); setIsConfirmRepairOpen(true);
     } catch (err) { Swal.fire("Error", err.response?.data?.message || "Failed to accept quote", "error"); }
-  }, [token, fetchAll]);
+  }, [token, queryClient]);
 
   const handleCancelRepair = useCallback(async (id) => {
     const result = await Swal.fire({ title: "Cancel Request?", icon: "warning", showCancelButton: true, confirmButtonText: "Yes, Cancel", confirmButtonColor: "#ef4444" });
     if (!result.isConfirmed) return;
-    try { await api.delete(`/api/users/repair-request/${id}/cancel`, { headers: { Authorization: `Bearer ${token}` } }); fetchAll(); Swal.fire({ title: "Cancelled", icon: "success", toast: true, position: "top-end", timer: 2000 }); }
+    try { await api.delete(`/api/users/repair-request/${id}/cancel`, { headers: { Authorization: `Bearer ${token}` } }); queryClient.invalidateQueries({ queryKey: ['repairs'] }); Swal.fire({ title: "Cancelled", icon: "success", toast: true, position: "top-end", timer: 2000 }); }
     catch { Swal.fire("Error", "Failed to cancel request", "error"); }
-  }, [token, fetchAll]);
+  }, [token, queryClient]);
 
   const handleLogout = useCallback(async () => {
     const refreshToken = localStorage.getItem("refreshToken");
@@ -845,7 +841,7 @@ const Account = ({ darkMode }) => {
             </div>
             <div className="px-3 py-4 flex flex-col gap-1 flex-1">
               {tabs.map((tab) => (
-                <motion.button key={tab.id} whileTap={{ scale: 0.97 }} onClick={() => setActiveSection(tab.id)}
+                <motion.button key={tab.id} whileTap={{ scale: 0.97 }} onClick={() => startTransition(() => setActiveSection(tab.id))}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 ${activeSection === tab.id
                       ? "bg-gradient-to-r from-lime-500 to-emerald-500 text-white shadow-lg shadow-lime-500/25"
                       : darkMode ? "text-gray-300 hover:bg-gray-700/60 hover:text-white" : "text-gray-600 hover:bg-lime-50 hover:text-lime-700"
@@ -881,7 +877,7 @@ const Account = ({ darkMode }) => {
             <div className="lg:hidden mb-5 -mx-0.5">
               <div className="tabs-scroll flex gap-2 overflow-x-auto pb-1 px-0.5">
                 {tabs.map((tab) => (
-                  <motion.button key={tab.id} whileTap={{ scale: 0.96 }} onClick={() => setActiveSection(tab.id)}
+                  <motion.button key={tab.id} whileTap={{ scale: 0.96 }} onClick={() => startTransition(() => setActiveSection(tab.id))}
                     className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-full font-bold text-xs sm:text-sm transition-all shadow-sm whitespace-nowrap ${activeSection === tab.id
                         ? "bg-gradient-to-r from-lime-500 to-emerald-500 text-white shadow-lime-500/20"
                         : darkMode ? "bg-gray-800 border border-gray-700 text-gray-300 hover:text-white" : "bg-white border border-gray-200 text-gray-700 hover:bg-lime-50"
@@ -1125,12 +1121,18 @@ const Account = ({ darkMode }) => {
         onClose={() => setIsConfirmRepairOpen(false)}
         req={confirmRepairReq}
         token={token}
-        onSuccess={fetchAll}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ['repairs'] })}
         darkMode={darkMode}
       />
     </div>
   );
 };
 
-Account.displayName = 'Account';
-export default memo(Account);
+AccountContent.displayName = 'AccountContent';
+export default function Account(props) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AccountContent {...props} />
+    </QueryClientProvider>
+  );
+}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, memo, useMemo } from "react";
+import React, { useState, useEffect, useCallback, memo, useMemo, useTransition, Suspense } from "react";
 import {
   FaTag, FaPercent, FaCalendarAlt, FaStore,
   FaShieldAlt, FaClock, FaCheckCircle, FaGift,
@@ -9,9 +9,11 @@ import Swal from "sweetalert2";
 import api from "../api";
 import { RiStarFill, RiTimeLine, RiStore2Line, RiShieldCheckLine, RiPriceTag2Line } from "react-icons/ri";
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from "@headlessui/react";
-
+import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import * as FiIcons from "react-icons/fi";
+
+const queryClient = new QueryClient();
 const { FiChevronLeft, FiChevronRight, FiTag, FiX, FiExternalLink, FiClock: FiClockIcon } = FiIcons;
 
 const WaveBottom = memo(({ darkMode }) => (
@@ -198,19 +200,19 @@ const OfferCard = memo(({ offer, index, darkMode, onViewDetail }) => {
 });
 
 const OfferDetailModal = memo(({ open, onClose, offerId, token, darkMode }) => {
-  const [offer, setOffer] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!open || !offerId) return;
-    let cancelled = false;
-    setLoading(true);
-    api.get(`/api/users/offers/${offerId}`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((res) => { if (!cancelled) setOffer(res.data); })
-      .catch(() => Swal.fire({ icon: "error", title: "Failed to load offer", toast: true, position: "top-end", timer: 2000, showConfirmButton: false }))
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [open, offerId, token]);
+  const { data: offer, isLoading: loading } = useQuery({
+    queryKey: ['offerDetail', offerId],
+    queryFn: async () => {
+      try {
+        const res = await api.get(`/api/users/offers/${offerId}`, { headers: { Authorization: `Bearer ${token}` } });
+        return res.data;
+      } catch (err) {
+        Swal.fire({ icon: "error", title: "Failed to load offer", toast: true, position: "top-end", timer: 2000, showConfirmButton: false });
+        throw err;
+      }
+    },
+    enabled: open && !!offerId && !!token,
+  });
 
   const isPercentage = useMemo(() => offer?.discountType === "PERCENTAGE", [offer]);
   const isActive = useMemo(() => offer?.status === "ACTIVE", [offer]);
@@ -372,39 +374,36 @@ const MOCK_OFFER = {
   shopId: "01998efa-6127-7218-bcd3-f701a640df92", shopName: "Star",
 };
 
-const Offers = memo(({ darkMode }) => {
-  const [offers, setOffers] = useState([]);
+const OffersContent = ({ darkMode }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(6);
-  const [isLoading, setIsLoading] = useState(false);
   const [detailOfferId, setDetailOfferId] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const token = localStorage.getItem("authToken");
 
   useEffect(() => { document.title = "Exclusive Offers | Tech-Restore"; }, []);
 
   useEffect(() => {
-    const controller = new AbortController();
-    const fetchOffers = async () => {
-      setIsLoading(true);
-      try {
-        const res = await api.get("/api/users/offers", {
-          headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
-        });
-        const data = res.data.content || res.data || [];
-        setOffers(data.length > 0 ? data : [MOCK_OFFER]);
-      } catch (err) {
-        if (err.name !== "AbortError") setOffers([MOCK_OFFER]);
-      } finally { setIsLoading(false); }
-    };
-    if (token) { fetchOffers(); }
-    else {
-      setOffers([MOCK_OFFER]);
+    if (!token) {
       Swal.fire({ icon: "warning", title: "Please Log In", text: "Log in to see personalized offers", confirmButtonColor: "#84cc16" })
         .then(() => { window.location.href = "/login"; });
     }
-    return () => controller.abort();
   }, [token]);
+
+  const { data: offers = [MOCK_OFFER], isLoading } = useQuery({
+    queryKey: ['offers'],
+    queryFn: async () => {
+      try {
+        const res = await api.get("/api/users/offers", { headers: { Authorization: `Bearer ${token}` } });
+        const data = res.data.content || res.data || [];
+        return data.length > 0 ? data : [MOCK_OFFER];
+      } catch {
+        return [MOCK_OFFER];
+      }
+    },
+    enabled: !!token,
+  });
 
   const openDetail = useCallback((id) => { setDetailOfferId(id); setIsDetailOpen(true); }, []);
   const closeDetail = useCallback(() => { setIsDetailOpen(false); setDetailOfferId(null); }, []);
@@ -425,8 +424,8 @@ const Offers = memo(({ darkMode }) => {
     { icon: <FaCheckCircle className="w-7 h-7 sm:w-9 sm:h-9" />, title: "Easy Redemption", desc: "Apply instantly at checkout, no code needed", accent: "#16a34a" },
   ], []);
 
-  const handlePrevPage = useCallback(() => setCurrentPage((p) => Math.max(1, p - 1)), []);
-  const handleNextPage = useCallback(() => setCurrentPage((p) => Math.min(totalPages, p + 1)), [totalPages]);
+  const handlePrevPage = useCallback(() => startTransition(() => setCurrentPage((p) => Math.max(1, p - 1))), []);
+  const handleNextPage = useCallback(() => startTransition(() => setCurrentPage((p) => Math.min(totalPages, p + 1))), [totalPages]);
 
   return (
     <div className={`min-h-screen overflow-x-hidden ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
@@ -589,6 +588,12 @@ const Offers = memo(({ darkMode }) => {
         offerId={detailOfferId} token={token} darkMode={darkMode} />
     </div>
   );
-});
+};
 
-export default memo(Offers);
+const Offers = memo((props) => (
+  <QueryClientProvider client={queryClient}>
+    <OffersContent {...props} />
+  </QueryClientProvider>
+));
+
+export default Offers;
