@@ -400,7 +400,7 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
       const res = await api.post(
         `/api/subscriptions/renew/card/${shopEmail}`,
         { months, type: "COMMISSION" },
-        { headers: { Authorization: `Bearer ${accessToken}` } }
+
       );
       if (res.data.paymentURL) {
         setView("redirect");
@@ -419,7 +419,7 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
       await api.post(
         `/api/subscriptions/renew/cash/${shopEmail}`,
         { months, type: "COMMISSION" },
-        { headers: { Authorization: `Bearer ${accessToken}` } }
+
       );
       setView("pending");
     } catch (err) {
@@ -539,8 +539,8 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
                 </div>
               </div>
 
-            
-            
+
+
 
               <div className="grid grid-cols-2 gap-3">
                 {[

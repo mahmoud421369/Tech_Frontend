@@ -112,7 +112,7 @@ const StatCard = memo(({ icon, value, label, accent, delay, darkMode }) => (
 
 const HeroSection = memo(({ darkMode, heroStats }) => (
   <div className="min-h-screen">
-    <section className={`relative overflow-hidden pt-10 pb-32 md:pt-24 -mt-8 md:pb-40  ${darkMode ? 'bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950' : 'bg-gradient-to-br from-lime-50 via-white to-emerald-50'
+    <section className={`relative overflow-hidden font-sans pt-10 pb-32 md:pt-24 -mt-8 md:pb-40  ${darkMode ? 'bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950' : 'bg-gradient-to-br from-lime-50 via-white to-emerald-50'
       }`}>
       <div className="blob1 absolute w-[400px] h-[400px] -top-32 -left-24 rounded-full blur-3xl opacity-20 bg-lime-400 pointer-events-none" />
       <div className="blob2 absolute w-[350px] h-[350px] top-8 -right-16 rounded-full blur-3xl opacity-15 bg-emerald-500 pointer-events-none" />
@@ -131,12 +131,12 @@ const HeroSection = memo(({ darkMode, heroStats }) => (
             </motion.div>
 
             <motion.h1 initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }}
-              className="text-4xl sm:text-5xl md:text-6xl font-extrabold leading-[1.08]"
-              style={{ fontFamily: "'Outfit', sans-serif" }}
+              className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold leading-[1.1]"
+              
             >
               <span className="bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-500 bg-clip-text text-transparent">Track Your</span>
               <br />
-              <span className={darkMode ? 'text-white' : 'text-gray-900'}>Order in</span>
+              <span className={darkMode ? "text-white" : "text-gray-900"}>Order in</span>
               <br />
               <span style={{ WebkitTextStroke: darkMode ? '2px #84cc16' : '2px #16a34a', color: 'transparent' }}>Real Time</span>
             </motion.h1>

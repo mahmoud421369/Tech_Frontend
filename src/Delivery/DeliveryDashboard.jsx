@@ -8,6 +8,8 @@ import { Link } from "react-router-dom";
 import Swal from "sweetalert2";
 import { getAvailableOrders, getAvailableRepairs, getMyDeliveries, getMyRepairs } from "../api/deliveryApi";
 import api from "../api";
+import { DashboardSkeleton } from "../components";
+
 
 
 
@@ -15,6 +17,7 @@ import api from "../api";
 const StatCard = memo(({ label, value, icon: Icon, color, to, description }) => (
   <Link
     to={to}
+    aria-label={`View details for ${label}`}
     className="relative group bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 p-8 hover:shadow-2xl hover:shadow-gray-200/50 dark:hover:shadow-none transition-all duration-500 overflow-hidden"
   >
     <div className={`absolute top-0 right-0 w-32 h-32 bg-${color}-500/5 rounded-bl-full translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-700`} />
@@ -72,6 +75,7 @@ const NotifCard = memo(({ notif, onDismiss }) => (
   <div className="relative group p-5 bg-white dark:bg-gray-800/50 rounded-3xl border border-gray-100 dark:border-gray-700 hover:border-lime-200 dark:hover:border-lime-900/50 transition-all duration-300">
     <button
       onClick={() => onDismiss(notif.id)}
+      aria-label="Dismiss Alert"
       className="absolute top-4 right-4 w-8 h-8 rounded-xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
     >
       <FiX size={14} />
@@ -109,7 +113,16 @@ const DeliveryDashboard = () => {
     Swal.fire({ text, icon, toast: true, position: "top-end", timer: 3000, showConfirmButton: false });
   }, []);
 
-    useEffect(() => { document.title = ' Delivery Dasboard | Tech Restore'; }, []);
+  useEffect(() => {
+    document.title = 'Delivery Dashboard | Tech Restore';
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement('meta');
+      metaDesc.name = 'description';
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.content = 'Live operational console for Tech Restore delivery personnel. Manage active deliveries, repairs and track tasks.';
+  }, []);
   
 
   const fetchNotifications = useCallback(async () => {
@@ -185,6 +198,10 @@ const DeliveryDashboard = () => {
     { label: "Active Repairs",    value: stats.myRepairs,        icon: FiShield,   color: "indigo", to: "/delivery/my-repairs",               description: "Being Handled" },
   ], [stats]);
 
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-10">
@@ -209,6 +226,7 @@ const DeliveryDashboard = () => {
             </div>
             <button 
               onClick={() => loadData(false)}
+              aria-label="Refresh Dashboard State"
               className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 hover:text-lime-500 hover:rotate-180 transition-all duration-700"
             >
               <FiActivity size={18} />

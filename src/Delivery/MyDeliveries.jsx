@@ -9,6 +9,7 @@ import { RiAccountBox2Line, RiStore2Line, RiTruckLine } from "react-icons/ri";
 import Swal from "sweetalert2";
 import { getMyDeliveries, updateOrderStatus } from "../api/deliveryApi";
 import api from "../api";
+import { TableSkeleton } from "../components";
 
 
 
@@ -43,7 +44,16 @@ const MyDeliveries = () => {
     Swal.fire({ text, icon, toast: true, position: "top-end", timer: 3000, showConfirmButton: false });
   }, []);
 
-    useEffect(() => { document.title = ' My Orders | TechBazaar'; }, []);
+  useEffect(() => {
+    document.title = 'My Assigned Deliveries | Tech Restore';
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement('meta');
+      metaDesc.name = 'description';
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.content = 'Track, manage, and finalize your active assigned courier and technical deliveries on Tech Restore.';
+  }, []);
   
 
   const loadDeliveries = useCallback(async () => {
@@ -100,6 +110,10 @@ const MyDeliveries = () => {
   const paginated = useMemo(() => filtered.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage), [filtered, currentPage, rowsPerPage]);
   const totalPages = Math.ceil(filtered.length / rowsPerPage);
 
+  if (isLoading && orders.length === 0) {
+    return <TableSkeleton title="My Deliveries" />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
@@ -127,6 +141,7 @@ const MyDeliveries = () => {
             </div>
             <button 
               onClick={loadDeliveries}
+              aria-label="Refresh active deliveries queue"
               className={`w-12 h-12 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 hover:text-lime-500 transition-all duration-700 ${isLoading ? 'rotate-180' : ''}`}
             >
               <FiRefreshCw size={18} className={isLoading ? "animate-spin" : ""} />
@@ -146,6 +161,7 @@ const MyDeliveries = () => {
                 placeholder="Search by ID, Customer or Status..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
+                aria-label="Search my deliveries"
                 className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-sm text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/10 focus:border-lime-200 transition-all"
               />
             </div>
@@ -156,6 +172,7 @@ const MyDeliveries = () => {
                 <select
                   value={rowsPerPage}
                   onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                  aria-label="Select rows per page"
                   className="px-5 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-xs font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-4 focus:ring-lime-500/10 cursor-pointer transition-all"
                 >
                   {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n} rows</option>)}
@@ -211,7 +228,11 @@ const MyDeliveries = () => {
                         <td className="px-8 py-6 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-mono font-black text-gray-800 dark:text-gray-200">#{order.id?.slice(-8)}</span>
-                            <button onClick={() => copyToClipboard(order.id)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-400 hover:text-lime-500 transition-all">
+                            <button 
+                              onClick={() => copyToClipboard(order.id)} 
+                              aria-label={`Copy reference for order ${order.id}`}
+                              className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-400 hover:text-lime-500 transition-all"
+                            >
                               <FiCopy size={12} />
                             </button>
                           </div>
@@ -241,6 +262,7 @@ const MyDeliveries = () => {
                           <div className="flex items-center justify-end gap-2">
                             <button 
                               onClick={() => setSelectedOrder(order)}
+                              aria-label={`View details for order ${order.id}`}
                               className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-700 text-gray-400 hover:text-lime-500 transition-all"
                             >
                               <FiInfo size={18} />
@@ -248,6 +270,7 @@ const MyDeliveries = () => {
                             {order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && (
                               <button 
                                 onClick={() => handleMarkDelivered(order.id)}
+                                aria-label={`Complete delivery for order ${order.id}`}
                                 className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-lime-500 text-white text-xs font-black uppercase tracking-widest hover:bg-lime-600 transition-all shadow-lg shadow-lime-500/20 active:scale-95"
                               >
                                 <FiCheckCircle size={16} /> Complete
@@ -266,6 +289,7 @@ const MyDeliveries = () => {
           
           
 
+
           {totalPages > 1 && (
             <div className="px-8 py-6 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
@@ -275,6 +299,7 @@ const MyDeliveries = () => {
                 <button 
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
+                  aria-label="Previous page"
                   className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all"
                 >
                   <FiChevronLeft size={20} />
@@ -284,6 +309,7 @@ const MyDeliveries = () => {
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page)}
+                      aria-label={`Go to page ${page}`}
                       className={`w-10 h-10 rounded-xl text-xs font-black transition-all ${
                         currentPage === page 
                           ? "bg-lime-500 text-white shadow-lg shadow-lime-500/20" 
@@ -297,6 +323,7 @@ const MyDeliveries = () => {
                 <button 
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
+                  aria-label="Next page"
                   className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all"
                 >
                   <FiChevronRight size={20} />
@@ -323,7 +350,11 @@ const MyDeliveries = () => {
                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Ref: #{selectedOrder.id}</p>
                     </div>
                   </div>
-                  <button onClick={() => setSelectedOrder(null)} className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 hover:text-red-500 transition-all">
+                  <button 
+                    onClick={() => setSelectedOrder(null)} 
+                    aria-label="Close details modal"
+                    className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 hover:text-red-500 transition-all"
+                  >
                     <FiX size={20} />
                   </button>
                 </div>
@@ -378,6 +409,7 @@ const MyDeliveries = () => {
                    {selectedOrder.status !== 'DELIVERED' && (
                      <button 
                         onClick={() => { handleMarkDelivered(selectedOrder.id); setSelectedOrder(null); }}
+                        aria-label="Confirm final delivery to customer"
                         className="w-full py-4 bg-lime-500 text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-lime-600 transition-all shadow-xl shadow-lime-500/20"
                      >
                        Confirm Final Delivery

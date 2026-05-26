@@ -9,6 +9,7 @@ import { FaStore } from "react-icons/fa";
 import Swal from "sweetalert2";
 import { getMyRepairs, updateRepairStatus } from "../api/deliveryApi";
 import api from "../api";
+import { TableSkeleton } from "../components";
 
 
 
@@ -52,7 +53,16 @@ const MyRepairs = () => {
     Swal.fire({ text, icon, toast: true, position: "top-end", timer: 3000, showConfirmButton: false });
   }, []);
 
-    useEffect(() => { document.title = 'My Repairs | TechBazaar'; }, []);
+  useEffect(() => {
+    document.title = 'My Assigned Repair Services | Tech Restore';
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement('meta');
+      metaDesc.name = 'description';
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.content = 'Track, manage, update, and finalize your active assigned technical repair delivery operations on Tech Restore.';
+  }, []);
   
 
   const loadRepairs = useCallback(async () => {
@@ -110,6 +120,10 @@ const MyRepairs = () => {
   const paginated = useMemo(() => filtered.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage), [filtered, currentPage, rowsPerPage]);
   const totalPages = Math.ceil(filtered.length / rowsPerPage);
 
+  if (isLoading && repairs.length === 0) {
+    return <TableSkeleton title="My Repairs" />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
@@ -135,6 +149,7 @@ const MyRepairs = () => {
             </div>
             <button 
               onClick={loadRepairs}
+              aria-label="Refresh active repairs queue"
               className={`w-12 h-12 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 hover:text-lime-500 transition-all duration-700 ${isLoading ? 'rotate-180' : ''}`}
             >
               <FiRefreshCw size={18} className={isLoading ? "animate-spin" : ""} />
@@ -153,6 +168,7 @@ const MyRepairs = () => {
                 placeholder="Search by Repair ID, Tech or Customer..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
+                aria-label="Search my assigned repairs"
                 className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-sm text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/10 focus:border-lime-200 transition-all"
               />
             </div>
@@ -163,6 +179,7 @@ const MyRepairs = () => {
                 <select
                   value={rowsPerPage}
                   onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                  aria-label="Select rows per page"
                   className="px-5 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-xs font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-4 focus:ring-lime-500/10 cursor-pointer transition-all"
                 >
                   {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n} rows</option>)}
@@ -218,7 +235,11 @@ const MyRepairs = () => {
                         <td className="px-8 py-6 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-mono font-black text-gray-800 dark:text-gray-200">#{repair.id?.slice(-8)}</span>
-                            <button onClick={() => copyToClipboard(repair.id)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-400 hover:text-lime-500 transition-all">
+                            <button 
+                              onClick={() => copyToClipboard(repair.id)} 
+                              aria-label={`Copy reference for repair ${repair.id}`}
+                              className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-400 hover:text-lime-500 transition-all"
+                            >
                               <FiCopy size={12} />
                             </button>
                           </div>
@@ -248,6 +269,7 @@ const MyRepairs = () => {
                           <div className="flex items-center justify-end gap-2">
                             <button 
                               onClick={() => setSelectedRepair(repair)}
+                              aria-label={`View details for repair ${repair.id}`}
                               className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-700 text-gray-400 hover:text-lime-500 transition-all"
                             >
                               <FiInfo size={18} />
@@ -255,6 +277,7 @@ const MyRepairs = () => {
                             {["REPAIR_COMPLETED", "DEVICE_DELIVERED", "CANCELLED"].indexOf(repair.status) === -1 && (
                               <button 
                                 onClick={() => handleUpdate(repair.id, "DEVICE_DELIVERED")}
+                                aria-label={`Complete repair delivery for ticket ${repair.id}`}
                                 className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-lime-500 text-white text-xs font-black uppercase tracking-widest hover:bg-lime-600 transition-all shadow-lg shadow-lime-500/20 active:scale-95"
                               >
                                 <FiCheckCircle size={16} /> Complete
@@ -281,6 +304,7 @@ const MyRepairs = () => {
                 <button 
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
+                  aria-label="Previous page"
                   className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all"
                 >
                   <FiChevronLeft size={20} />
@@ -290,6 +314,7 @@ const MyRepairs = () => {
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page)}
+                      aria-label={`Go to page ${page}`}
                       className={`w-10 h-10 rounded-xl text-xs font-black transition-all ${
                         currentPage === page 
                           ? "bg-lime-500 text-white shadow-lg shadow-lime-500/20" 
@@ -303,6 +328,7 @@ const MyRepairs = () => {
                 <button 
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
+                  aria-label="Next page"
                   className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all"
                 >
                   <FiChevronRight size={20} />
@@ -329,7 +355,11 @@ const MyRepairs = () => {
                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Ticket: #{selectedRepair.id}</p>
                     </div>
                   </div>
-                  <button onClick={() => setSelectedRepair(null)} className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 hover:text-red-500 transition-all">
+                  <button 
+                    onClick={() => setSelectedRepair(null)} 
+                    aria-label="Close details modal"
+                    className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 hover:text-red-500 transition-all"
+                  >
                     <FiX size={20} />
                   </button>
                 </div>
@@ -364,9 +394,9 @@ const MyRepairs = () => {
                           <div className="flex items-start gap-3">
                             <FaStore className="text-amber-500 mt-1" size={14} />
                             <div>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase">Origin</p>
-                          <p className="text-sm font-black text-gray-900 dark:text-white font-cairo truncate max-w-[200px]">{selectedRepair.shopAddress?.street + "," + selectedRepair.shopAddress?.state + "," +  selectedRepair.shopAddress?.city || "Merchant Hub"}</p>
-                        </div>
+                           <p className="text-[10px] font-bold text-gray-400 uppercase">Origin</p>
+                           <p className="text-sm font-black text-gray-900 dark:text-white font-cairo truncate max-w-[200px]">{selectedRepair.shopAddress?.street + "," + selectedRepair.shopAddress?.state + "," +  selectedRepair.shopAddress?.city || "Merchant Hub"}</p>
+                         </div>
                           </div>
                          
                        </div>
@@ -374,7 +404,7 @@ const MyRepairs = () => {
                   </div>
                 </div>
 
-                <div className="p-6 bg-gray-50 dark:bg-gray-900/50 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-6">
+                <div className="p-6 bg-gray-50 dark:bg-gray-900/50 rounded-3xl space-y-4">
                    <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-lime-500/10 flex items-center justify-center text-lime-500"><FiActivity size={18} /></div>
                       <div>
@@ -385,7 +415,8 @@ const MyRepairs = () => {
                    {["REPAIR_COMPLETED", "DEVICE_DELIVERED", "CANCELLED"].indexOf(selectedRepair.status) === -1 && (
                      <button 
                         onClick={() => { handleUpdate(selectedRepair.id, "DEVICE_DELIVERED"); setSelectedRepair(null); }}
-                        className="flex items-center gap-2 px-8 py-4 bg-lime-500 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-lime-600 transition-all shadow-xl shadow-lime-500/20"
+                        aria-label="Confirm repair delivery finalized to customer"
+                        className="w-full py-4 bg-lime-500 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-lime-600 transition-all shadow-xl shadow-lime-500/20"
                      >
                        Mark Finalized <FiArrowRight />
                      </button>

@@ -7,6 +7,7 @@ import {
 import Swal from "sweetalert2";
 import { getDeliveryProfile, updateDeliveryProfile } from "../api/deliveryApi";
 import api from "../api";
+import { ProfileSkeleton } from "../components";
 
 
 
@@ -65,7 +66,16 @@ const DeliveryProfile = () => {
     Swal.fire({ text, icon, toast: true, position: "top-end", timer: 3000, showConfirmButton: false });
   }, []);
 
-    useEffect(() => { document.title = 'Delivery Profile | TechBazaar'; }, []);
+  useEffect(() => {
+    document.title = 'Delivery Agent Profile | Tech Restore';
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement('meta');
+      metaDesc.name = 'description';
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.content = 'Manage your Tech Restore delivery dispatcher profile, secure credentials, phone number, operating area and career analytics.';
+  }, []);
   
 
   const loadProfile = useCallback(async () => {
@@ -110,14 +120,7 @@ const DeliveryProfile = () => {
   }, [profile]);
 
   if (isLoading && !profile) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-8 animate-pulse">
-          <div className="h-48 bg-white dark:bg-gray-800 rounded-[2.5rem]" />
-          <div className="h-64 bg-white dark:bg-gray-800 rounded-[2.5rem]" />
-        </div>
-      </div>
-    );
+    return <ProfileSkeleton />;
   }
   if (!profile) return null;
 
@@ -157,6 +160,7 @@ const DeliveryProfile = () => {
               {!isEditing ? (
                 <button 
                   onClick={() => setIsEditing(true)}
+                  aria-label="Edit Profile Details"
                   className="flex items-center gap-2 px-6 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-lime-500 dark:hover:bg-lime-500 hover:text-white transition-all active:scale-95 shadow-xl shadow-gray-900/10"
                 >
                   <FiEdit3 size={16} /> Edit Profile
@@ -165,12 +169,14 @@ const DeliveryProfile = () => {
                 <div className="flex items-center justify-center md:justify-start gap-3">
                   <button 
                     onClick={handleUpdate}
+                    aria-label="Save Profile Changes"
                     className="flex items-center gap-2 px-6 py-3 bg-lime-500 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-lime-600 transition-all active:scale-95 shadow-xl shadow-lime-500/20"
                   >
                     <FiCheckCircle size={16} /> {isLoading ? "Saving..." : "Apply Changes"}
                   </button>
                   <button 
                     onClick={cancelEdit}
+                    aria-label="Cancel Profile Editing"
                     className="px-6 py-3 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-gray-200 dark:hover:bg-gray-600 transition-all"
                   >
                     Cancel

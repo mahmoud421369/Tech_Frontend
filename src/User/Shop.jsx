@@ -51,9 +51,8 @@ const StatCard = memo(({ icon, value, label, accent, delay, darkMode }) => (
     transition={{ duration: 0.45, delay }}
     viewport={{ once: true }}
     whileHover={{ y: -4, scale: 1.02 }}
-    className={`relative group overflow-hidden rounded-xl sm:rounded-2xl p-3 sm:p-5 shadow-lg border transition-all duration-300 ${
-      darkMode ? "bg-gray-800/80 border-gray-700/60 backdrop-blur-md" : "bg-white/90 border-gray-100 backdrop-blur-md"
-    }`}
+    className={`relative group overflow-hidden rounded-xl sm:rounded-2xl p-3 sm:p-5 shadow-lg border transition-all duration-300 ${darkMode ? "bg-gray-800/80 border-gray-700/60 backdrop-blur-md" : "bg-white/90 border-gray-100 backdrop-blur-md"
+      }`}
   >
     <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl"
       style={{ background: `linear-gradient(90deg, ${accent}, ${accent}88)` }} />
@@ -90,9 +89,8 @@ const ProductCard = memo(({ product, darkMode, onAddToCart }) => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
       onClick={() => (window.location.href = `/device/${product.id}`)}
-      className={`group flex flex-col h-full rounded-xl sm:rounded-2xl shadow-md transition-all duration-300 hover:shadow-2xl cursor-pointer border overflow-hidden ${
-        darkMode ? "bg-gray-800 border-gray-700 hover:border-lime-700/50" : "bg-white border-gray-200 hover:border-lime-300"
-      }`}
+      className={`group flex flex-col h-full rounded-xl sm:rounded-2xl shadow-md transition-all duration-300 hover:shadow-2xl cursor-pointer border overflow-hidden ${darkMode ? "bg-gray-800 border-gray-700 hover:border-lime-700/50" : "bg-white border-gray-200 hover:border-lime-300"
+        }`}
     >
       <div className="relative flex-shrink-0 h-40 sm:h-48 md:h-52 overflow-hidden bg-gray-100 dark:bg-gray-900/50">
         <AnimatePresence>
@@ -102,9 +100,8 @@ const ProductCard = memo(({ product, darkMode, onAddToCart }) => {
               exit={{ opacity: 0 }}
               className="absolute inset-0 flex items-center justify-center"
             >
-              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full border-4 border-t-transparent animate-spin ${
-                darkMode ? 'border-lime-500/40 border-t-lime-500' : 'border-lime-200 border-t-lime-500'
-              }`} />
+              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full border-4 border-t-transparent animate-spin ${darkMode ? 'border-lime-500/40 border-t-lime-500' : 'border-lime-200 border-t-lime-500'
+                }`} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -133,18 +130,16 @@ const ProductCard = memo(({ product, darkMode, onAddToCart }) => {
       </div>
 
       <div className="flex flex-col flex-grow p-3 sm:p-4 gap-1.5 sm:gap-2">
-        <h3 className={`font-bold text-sm sm:text-base line-clamp-2 leading-snug min-h-[2.5rem] sm:min-h-[3rem] ${
-          darkMode ? "text-white" : "text-gray-900"
-        }`}>
+        <h3 className={`font-bold text-sm sm:text-base line-clamp-2 leading-snug min-h-[2.5rem] sm:min-h-[3rem] ${darkMode ? "text-white" : "text-gray-900"
+          }`}>
           {safeProduct.name}
         </h3>
 
         <div className="flex flex-wrap gap-1 text-xs">
-          <span className={`px-2 py-0.5 rounded-full font-semibold ${
-            safeProduct.condition === "New"
-              ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
-              : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300"
-          }`}>
+          <span className={`px-2 py-0.5 rounded-full font-semibold ${safeProduct.condition === "New"
+            ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+            : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300"
+            }`}>
             {safeProduct.condition}
           </span>
           <span className="px-2 py-0.5 rounded-full bg-lime-100 text-lime-700 dark:bg-lime-900/40 dark:text-lime-300 font-semibold truncate max-w-[110px] sm:max-w-[140px]">
@@ -209,9 +204,8 @@ const StarRating = memo(({ value, onChange, size = "w-7 h-7 sm:w-9 sm:h-9" }) =>
         whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.95 }}
         onClick={() => onChange(star)} aria-label={`Rate ${star} stars`}
       >
-        <RiStarFill className={`${size} transition-all duration-200 ${
-          value >= star ? "text-amber-400 drop-shadow-md" : "text-gray-300 dark:text-gray-600"
-        }`} />
+        <RiStarFill className={`${size} transition-all duration-200 ${value >= star ? "text-amber-400 drop-shadow-md" : "text-gray-300 dark:text-gray-600"
+          }`} />
       </motion.button>
     ))}
   </div>
@@ -220,11 +214,10 @@ const StarRating = memo(({ value, onChange, size = "w-7 h-7 sm:w-9 sm:h-9" }) =>
 const FilterPill = memo(({ label, isActive, onClick, darkMode }) => (
   <button
     onClick={onClick}
-    className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold border-2 transition-all ${
-      isActive
-        ? "bg-lime-500 border-lime-500 text-white shadow-sm"
-        : darkMode ? "border-gray-700 text-gray-300 hover:border-lime-500 bg-gray-800/60" : "border-gray-200 text-gray-600 hover:border-lime-400 bg-white"
-    }`}
+    className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold border-2 transition-all ${isActive
+      ? "bg-lime-500 border-lime-500 text-white shadow-sm"
+      : darkMode ? "border-gray-700 text-gray-300 hover:border-lime-500 bg-gray-800/60" : "border-gray-200 text-gray-600 hover:border-lime-400 bg-white"
+      }`}
   >
     {label}
   </button>
@@ -298,7 +291,7 @@ const ShopContent = ({ darkMode, addToCart }) => {
   });
 
   useEffect(() => {
-    document.title = shop?.name  ? sanitizeText(shop.name) + " | Tech-Restore" : "Loading Shop...";
+    document.title = shop?.name ? sanitizeText(shop.name) + " | Tech-Restore" : "Loading Shop...";
   }, [shop?.name]);
 
   const activeFiltersCount = useMemo(() => {
@@ -391,13 +384,13 @@ const ShopContent = ({ darkMode, addToCart }) => {
     const min = priceMin !== "" ? Number(priceMin) : -Infinity;
     const max = priceMax !== "" ? Number(priceMax) : Infinity;
     if (priceMin !== "" || priceMax !== "") result = result.filter(p => Number(p.price) >= min && Number(p.price) <= max);
-    
+
     if (sortBy === "price-asc") result.sort((a, b) => Number(a.price) - Number(b.price));
     else if (sortBy === "price-desc") result.sort((a, b) => Number(b.price) - Number(a.price));
     else if (sortBy === "name-asc") result.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
     else if (sortBy === "discount") result.sort((a, b) => (b.discount || 0) - (a.discount || 0));
     else if (sortBy === "newest") result.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-    
+
     return result;
   }, [products, search, selectedCondition, selectedCategories, priceMin, priceMax, sortBy, inStockOnly]);
 
@@ -434,9 +427,8 @@ const ShopContent = ({ darkMode, addToCart }) => {
   return (
     <>
       <div className={`min-h-screen overflow-x-hidden ${darkMode ? "bg-gray-900 text-white" : "bg-gray-50"}`}>
-        <section className={`relative overflow-hidden pt-16 sm:pt-20 pb-24 sm:pb-32 md:pb-40 ${
-          darkMode ? "bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950" : "bg-gradient-to-br from-lime-50 via-white to-emerald-50"
-        }`}>
+        <section className={`relative overflow-hidden pt-16 sm:pt-20 pb-24 sm:pb-32 md:pb-40 ${darkMode ? "bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950" : "bg-gradient-to-br from-lime-50 via-white to-emerald-50"
+          }`}>
           <div className="absolute w-72 h-72 sm:w-[500px] sm:h-[500px] -top-32 -left-20 rounded-full blur-3xl opacity-20 bg-lime-400 animate-pulse pointer-events-none" style={{ animationDuration: "5s" }} />
           <div className="absolute w-56 h-56 sm:w-[400px] sm:h-[400px] top-10 -right-16 rounded-full blur-3xl opacity-15 bg-emerald-500 animate-pulse pointer-events-none" style={{ animationDuration: "7s" }} />
           <div className="absolute inset-0 pointer-events-none opacity-[0.025]"
@@ -566,9 +558,8 @@ const ShopContent = ({ darkMode, addToCart }) => {
               <select
                 value={sortBy}
                 onChange={e => startTransition(() => setSortBy(e.target.value))}
-                className={`flex-1 sm:flex-none py-2.5 px-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-lime-500 transition ${
-                  darkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-white border-gray-200 text-gray-900"
-                }`}
+                className={`flex-1 sm:flex-none py-2.5 px-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-lime-500 transition ${darkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-white border-gray-200 text-gray-900"
+                  }`}
               >
                 <option value="default">Sort: Default</option>
                 <option value="price-asc">Price: Low → High</option>
@@ -583,9 +574,8 @@ const ShopContent = ({ darkMode, addToCart }) => {
                 <input
                   type="text" value={search} onChange={e => startTransition(() => setSearch(e.target.value))}
                   placeholder="Search products..." maxLength={100}
-                  className={`w-full sm:w-52 md:w-64 pl-9 sm:pl-11 pr-9 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-lime-500 transition ${
-                    darkMode ? "bg-gray-800 border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-200 text-gray-900 placeholder-gray-400"
-                  }`}
+                  className={`w-full sm:w-52 md:w-64 pl-9 sm:pl-11 pr-9 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-lime-500 transition ${darkMode ? "bg-gray-800 border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-200 text-gray-900 placeholder-gray-400"
+                    }`}
                 />
                 {search && (
                   <button onClick={() => startTransition(() => setSearch(""))} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition" aria-label="Clear">
@@ -597,11 +587,10 @@ const ShopContent = ({ darkMode, addToCart }) => {
               <motion.button
                 whileTap={{ scale: 0.96 }}
                 onClick={() => setIsFilterOpen(true)}
-                className={`relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 rounded-xl border-2 font-semibold text-xs sm:text-sm transition-all shadow-sm hover:shadow-md flex-shrink-0 ${
-                  activeFiltersCount > 0
-                    ? 'border-lime-500 bg-lime-500/10 text-lime-600 dark:text-lime-400'
-                    : darkMode ? "bg-gray-800 border-gray-700 text-white hover:border-lime-500" : "bg-white border-gray-200 text-gray-700 hover:border-lime-400"
-                }`}
+                className={`relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 rounded-xl border-2 font-semibold text-xs sm:text-sm transition-all shadow-sm hover:shadow-md flex-shrink-0 ${activeFiltersCount > 0
+                  ? 'border-lime-500 bg-lime-500/10 text-lime-600 dark:text-lime-400'
+                  : darkMode ? "bg-gray-800 border-gray-700 text-white hover:border-lime-500" : "bg-white border-gray-200 text-gray-700 hover:border-lime-400"
+                  }`}
               >
                 <FiSliders className="w-4 h-4 text-lime-500" />
                 Filters
@@ -669,9 +658,8 @@ const ShopContent = ({ darkMode, addToCart }) => {
                   onChange={e => setNewReview(p => ({ ...p, comment: e.target.value }))}
                   placeholder="How was your experience with this shop?..."
                   maxLength={1000}
-                  className={`mt-3 sm:mt-4 w-full p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 resize-none text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-lime-500/50 focus:border-lime-500 transition-all ${
-                    darkMode ? "bg-gray-900/70 border-gray-700 text-gray-100 placeholder-gray-500" : "bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400"
-                  }`}
+                  className={`mt-3 sm:mt-4 w-full p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 resize-none text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-lime-500/50 focus:border-lime-500 transition-all ${darkMode ? "bg-gray-900/70 border-gray-700 text-gray-100 placeholder-gray-500" : "bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400"
+                    }`}
                   rows={3}
                 />
                 <span className={`text-[10px] ${darkMode ? "text-gray-500" : "text-gray-400"}`}>{newReview.comment.length}/1000</span>
@@ -867,11 +855,10 @@ const ShopContent = ({ darkMode, addToCart }) => {
                     </label>
                     <button
                       onClick={() => setInStockOnly(v => !v)}
-                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${
-                        inStockOnly
-                          ? "bg-lime-500 border-lime-500 text-white"
-                          : darkMode ? "border-gray-700 text-gray-300 hover:border-lime-500 bg-gray-800/60" : "border-gray-200 text-gray-600 hover:border-lime-400 bg-white"
-                      }`}
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${inStockOnly
+                        ? "bg-lime-500 border-lime-500 text-white"
+                        : darkMode ? "border-gray-700 text-gray-300 hover:border-lime-500 bg-gray-800/60" : "border-gray-200 text-gray-600 hover:border-lime-400 bg-white"
+                        }`}
                     >
                       <FiCheckCircle className="w-4 h-4" /> In Stock Only
                     </button>

@@ -17,27 +17,27 @@ const MENU_GROUPS = [
   {
     label: "Main Dashboard",
     items: [
-      { name: "Console",           path: "/delivery/dashboard",                icon: <FiHome size={18} />      },
+      { name: "Console", path: "/delivery/dashboard", icon: <FiHome size={18} /> },
     ]
   },
   {
     label: "Availability",
     items: [
-      { name: "Orders",       path: "/delivery/available-orders",         icon: <FiPackage size={18} />   },
-      { name: "Repairs",      path: "/delivery/available-repair-requests",icon: <FiTool size={18} />      },
+      { name: "Orders", path: "/delivery/available-orders", icon: <FiPackage size={18} /> },
+      { name: "Repairs", path: "/delivery/available-repair-requests", icon: <FiTool size={18} /> },
     ]
   },
   {
     label: "My Assignments",
     items: [
-      { name: "Assigned Orders",   path: "/delivery/my-deliveries",            icon: <FiClipboard size={18} /> },
-      { name: "Assigned Repairs",  path: "/delivery/my-repairs",               icon: <FiTool size={18} />      },
+      { name: "Assigned Orders", path: "/delivery/my-deliveries", icon: <FiClipboard size={18} /> },
+      { name: "Assigned Repairs", path: "/delivery/my-repairs", icon: <FiTool size={18} /> },
     ]
   },
   {
     label: "Management",
     items: [
-      { name: "Agent Profile",     path: "/delivery/profile",                  icon: <FiSettings size={18} />  },
+      { name: "Agent Profile", path: "/delivery/profile", icon: <FiSettings size={18} /> },
     ]
   }
 ];
@@ -79,16 +79,16 @@ const NavLink = memo(({ item, active, onClick }) => (
 
 
 const DeliveryHeader = () => {
-  const navigate   = useNavigate();
-  const location   = useLocation();
-  const [darkMode, setDarkMode]         = useState(() => localStorage.getItem("darkMode") === "true");
-  const [sidebarOpen, setSidebarOpen]   = useState(false);
-  const [token, setToken]               = useState(localStorage.getItem("authToken"));
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("darkMode") === "true");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [token, setToken] = useState(localStorage.getItem("authToken"));
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userProfile, setUserProfile]   = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
 
- 
-  
+
+
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
@@ -97,18 +97,18 @@ const DeliveryHeader = () => {
 
   const toggleDark = useCallback(() => setDarkMode(d => !d), []);
 
-  
+
 
   useEffect(() => {
     if (token && !isTokenExpired(token)) {
       setIsAuthenticated(true);
       if (!userProfile) {
-       
-        
+
+
         setUserProfile({ name: "Delivery Agent", email: "Active Personnel" });
         api.get('/api/delivery/profile', { headers: { Authorization: `Bearer ${token}` } })
           .then(res => setUserProfile(res.data))
-          .catch(() => {});
+          .catch(() => { });
       }
     } else {
       localStorage.removeItem("authToken");
@@ -119,7 +119,7 @@ const DeliveryHeader = () => {
   }, [token, navigate, userProfile]);
 
 
-  
+
   const handleLogout = useCallback(async () => {
     const refreshToken = localStorage.getItem("refreshToken");
     const { isConfirmed } = await Swal.fire({
@@ -136,7 +136,7 @@ const DeliveryHeader = () => {
     if (!isConfirmed) return;
     try {
       if (token && refreshToken) await api.post("/api/auth/logout", { refreshToken }, { headers: { Authorization: `Bearer ${token}` } });
-    } catch {  }
+    } catch { }
     localStorage.clear();
     navigate("/login");
   }, [token, navigate, darkMode]);
@@ -146,31 +146,33 @@ const DeliveryHeader = () => {
 
   return (
     <>
-      
-      
+
+
       {sidebarOpen && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-md z-[60] lg:hidden transition-all duration-500" onClick={closeSidebar} aria-hidden="true" />
       )}
 
-      
+
       <aside
-        className={`fixed inset-y-0 left-0 z-[70] w-64 bg-white/80 dark:bg-gray-900/90 backdrop-blur-2xl border-r border-gray-100 dark:border-gray-800 shadow-2xl flex flex-col transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1)
+        role="navigation"
+        aria-label="Delivery Portal Sidebar"
+        className={`fixed inset-y-0 left-0 z-[70] w-64 bg-white dark:bg-gray-900/90 backdrop-blur-2xl border-r border-gray-100 dark:border-gray-800 shadow-2xl flex flex-col transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1)
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
       >
-        
+
         <div className="relative h-20 flex items-center justify-between px-6 border-b border-gray-50 dark:border-gray-800/50">
-          <Link to="/delivery/dashboard" className="flex items-center gap-2 group" onClick={closeSidebar}>
+          <Link to="/delivery/dashboard" aria-label="Go to Delivery Dashboard" className="flex items-center gap-2 group" onClick={closeSidebar}>
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-lime-500 to-emerald-600 flex items-center justify-center group-hover:rotate-12 transition-transform duration-500 shadow-lg shadow-lime-500/20">
               <FiTruck className="text-white" size={20} />
             </div>
             <span className="text-lg font-black text-gray-900 dark:text-white tracking-tighter">Delivery<span className="text-lime-500">Hub</span></span>
           </Link>
-          <button onClick={closeSidebar} className="lg:hidden p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-red-500 transition-all">
+          <button onClick={closeSidebar} aria-label="Close Navigation Sidebar" className="lg:hidden p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-red-500 transition-all">
             <FiX size={18} />
           </button>
         </div>
 
-      
+
         <div className="flex-1 overflow-y-auto py-6 px-4 custom-scrollbar-thin space-y-8">
           {MENU_GROUPS.map((group, idx) => (
             <div key={idx} className="space-y-2">
@@ -184,15 +186,15 @@ const DeliveryHeader = () => {
           ))}
         </div>
 
-       
+
         <div className="p-4 mt-auto border-t border-gray-50 dark:border-gray-800/50 bg-gray-50/30 dark:bg-gray-800/20">
           <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-4 space-y-3">
-          
+
             <div className="flex gap-2">
-              <button onClick={toggleDark} className="flex-1 h-10 rounded-xl bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-500 hover:text-lime-500 transition-all">
+              <button onClick={toggleDark} aria-label="Toggle Dark Mode" className="flex-1 h-10 rounded-xl bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-500 hover:text-lime-500 transition-all">
                 {darkMode ? <FiSun size={16} /> : <FiMoon size={16} />}
               </button>
-              <button onClick={handleLogout} className="flex-1 h-10 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500 hover:bg-red-100 transition-all">
+              <button onClick={handleLogout} aria-label="Logout" className="flex-1 h-10 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500 hover:bg-red-100 transition-all">
                 <FiLogOut size={16} />
               </button>
             </div>
@@ -200,32 +202,34 @@ const DeliveryHeader = () => {
         </div>
       </aside>
 
-      
-      <header className="fixed top-0 left-0 right-0 h-20 z-[40] bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-50 dark:border-gray-800 flex items-center justify-between px-6 lg:pl-[280px] transition-all duration-500">
+
+      <header role="banner" className="fixed top-0 left-0 right-0 h-20 z-[40] bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-50 dark:border-gray-800 flex items-center justify-between px-6 lg:pl-[280px] transition-all duration-500">
         <div className="flex items-center gap-4">
-          
-          <button onClick={() => setSidebarOpen(true)} className="lg:hidden w-11 h-11 rounded-2xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-lime-500 hover:text-white transition-all shadow-sm">
+
+          <button onClick={() => setSidebarOpen(true)} aria-label="Open Navigation Sidebar" className="lg:hidden w-11 h-11 rounded-2xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-lime-500 hover:text-white transition-all shadow-sm">
             <FiMenu size={20} />
           </button>
-          
+
           <div className="hidden sm:block">
-     <img
-                                     src={logo}
-                                     alt="Tech & Restore"
-                                     className="h-16 w-auto rounded-xl object-cover transition-transform duration-500 group-hover:scale-105"
-                                     style={{ transformOrigin: "left center" }}
-                                   />
-           
+            <img
+              src={logo}
+              alt="Tech & Restore Logo"
+              width="160"
+              height="64"
+              className="h-16 w-auto rounded-xl object-cover transition-transform duration-500 group-hover:scale-105"
+              style={{ transformOrigin: "left center" }}
+            />
+
           </div>
         </div>
 
-        
+
         <div className="flex items-center gap-3">
-        
-          
+
+
           <div className="h-8 w-[1px] bg-gray-100 dark:bg-gray-800 mx-1" />
 
-          <Link to="/delivery/profile" className="flex items-center gap-3 pl-1 pr-3 py-1 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all group">
+          <Link to="/delivery/profile" aria-label="View Profile" className="flex items-center gap-3 pl-1 pr-3 py-1 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all group">
             <div className="w-10 h-10 rounded-2xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400 group-hover:text-lime-500 transition-colors">
               <FiUser size={18} />
             </div>
@@ -237,7 +241,8 @@ const DeliveryHeader = () => {
         </div>
       </header>
 
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .custom-scrollbar-thin::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }

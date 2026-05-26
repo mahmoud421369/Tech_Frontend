@@ -1,14 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { Footer, Navbar, AssignerHeader, DeliveryHeader } from './components';
+import { Footer, Navbar, AssignerHeader, DeliveryHeader, DashboardSkeleton, TableSkeleton, ProfileSkeleton } from './components';
 import { Login, Signup, SuccessGoogle } from './Auth';
+import Shop from './User/Shop';
 import { Repair, Track, Account, Homepage, Cart, DeviceDetail, Offers, Devices, Stores } from './User';
 import { Header, Shops, Users, Reviews, Category, Deliveries, Assigners, AdminOffers, AdminRepairRequests, AdminProducts, AdminAssignmentLogs, AdminSubscriptions, AdminTransactions } from './Admin';
-import  Dashboard  from './Admin/Dashboard';
-import { AssignerDashboard, DeliveryPersons, AssignerProfile, AssignedOrders, AssignedRepairs, AssignmentLogs, ReassignRepairs, ReassignOrders, OrdersForAssignment, RepairsForAssignment } from './Assigner';
-import { DeliveryDashboard, DeliveryProfile, MyDeliveries, MyRepairs, AvailableOrders, AvailableRepairs } from './Delivery';
+import Dashboard from './Admin/Dashboard';
 import { ShopHeader, ShopDashboard, RepairRequests, Products, Transactions, ShopOffers, ShopProfile, Inventory, Chat, Orders, Subscriptions } from './Shop';
-import Shop from './User/Shop';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AssignerDashboard, DeliveryPersons, AssignerProfile, AssignedOrders, AssignedRepairs, AssignmentLogs, ReassignRepairs, ReassignOrders, OrdersForAssignment, RepairsForAssignment } from './Assigner';
+
+const DeliveryDashboard = React.lazy(() => import('./Delivery/DeliveryDashboard'));
+const DeliveryProfile = React.lazy(() => import('./Delivery/DeliveryProfile'));
+const AvailableOrders = React.lazy(() => import('./Delivery/AvailableOrders'));
+const AvailableRepairs = React.lazy(() => import('./Delivery/AvailableRepairs'));
+const MyDeliveries = React.lazy(() => import('./Delivery/MyDeliveries'));
+const MyRepairs = React.lazy(() => import('./Delivery/MyRepairs'));
+
+
+
+const queryClient = new QueryClient();
 
 function App() {
   const [authToken, setAuthToken] = useState(null);
@@ -17,8 +28,8 @@ function App() {
   const [showCart, setShowCart] = useState(false);
   const [activePage, setActivePage] = useState('admin-dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [cartCount, setCartCount] = useState(0); 
- 
+  const [cartCount, setCartCount] = useState(0);
+
 
   useEffect(() => {
     const token = localStorage.getItem("authToken");
@@ -37,7 +48,7 @@ function App() {
     localStorage.setItem('darkMode', darkMode ? 'true' : 'false');
   }, [darkMode]);
 
- 
+
   useEffect(() => {
     setCartCount(cartItems.length);
   }, [cartItems]);
@@ -65,7 +76,7 @@ function App() {
   };
 
   const updateCartCount = (items) => {
-    setCartItems(items || []); 
+    setCartItems(items || []);
   };
   const removeFromCart = (id) => {
     setCartItems((prev) => prev.filter((item) => item.id !== id));
@@ -94,10 +105,16 @@ function App() {
     </>
   );
 
-  const withDeliveryLayout = (Component) => (
+  const withDeliveryLayout = (Component, Fallback = null) => (
     <>
       <DeliveryHeader darkMode={darkMode} onToggleDarkMode={() => setDarkMode(!darkMode)} />
-      <Component darkMode={darkMode} />
+      {Fallback ? (
+        <Suspense fallback={Fallback}>
+          <Component darkMode={darkMode} />
+        </Suspense>
+      ) : (
+        <Component darkMode={darkMode} />
+      )}
     </>
   );
 
@@ -111,14 +128,14 @@ function App() {
   const withNavbarLayout = (Component, extraProps = {}) => (
     <>
       <Navbar
-          cartItems={cartItems}
-          setCartItems={setCartItems}
-          onCartClick={() => setShowCart(true)}
-          addToCart={addToCart}
-          darkMode={darkMode}
-          toggleDarkMode={() => setDarkMode((prev) => !prev)}
-          updateCartCount={updateCartCount}
-        />
+        cartItems={cartItems}
+        setCartItems={setCartItems}
+        onCartClick={() => setShowCart(true)}
+        addToCart={addToCart}
+        darkMode={darkMode}
+        toggleDarkMode={() => setDarkMode((prev) => !prev)}
+        updateCartCount={updateCartCount}
+      />
       <Component darkMode={darkMode} {...extraProps} />
       <Footer darkMode={darkMode} />
     </>
@@ -133,7 +150,7 @@ function App() {
       <Routes>
 
 
-        
+
         {/* User Routes */}
         <Route path="/" element={withNavbarLayout(Homepage, { addToCart })} />
         <Route path="/login" element={<Login darkMode={darkMode} />} />
@@ -145,7 +162,7 @@ function App() {
         <Route path="/repair" element={withNavbarLayout(Repair)} />
         <Route path="/offers" element={withNavbarLayout(Offers)} />
         <Route path="/device/:id" element={withNavbarLayout(DeviceDetail, { addToCart })} />
-        <Route path="/shops/:shopId" element={withNavbarLayout(Shop,{addToCart})} />
+        <Route path="/shops/:shopId" element={withNavbarLayout(Shop, { addToCart })} />
         {/* <Route path="/repair-request/:requestId/update" element={withNavbarLayout(RepairRequest)} /> */}
         <Route path="/oauth2/success" element={<SuccessGoogle />} />
 
@@ -163,7 +180,7 @@ function App() {
         <Route path="/admin/repair-requests" element={withAdminLayout(AdminRepairRequests)} />
         <Route path="/admin/products" element={withAdminLayout(AdminProducts)} />
         <Route path="/admin/assignment-logs" element={withAdminLayout(AdminAssignmentLogs)} />
-     
+
 
         {/* Assigner Routes */}
         <Route path="/assigner/dashboard" element={withAssignerLayout(AssignerDashboard)} />
@@ -178,13 +195,13 @@ function App() {
         <Route path="/assigner/reassign-orders" element={withAssignerLayout(ReassignOrders)} />
 
         {/* Delivery Routes */}
-        <Route path="/delivery/dashboard" element={withDeliveryLayout(DeliveryDashboard)} />
-        <Route path="/delivery/profile" element={withDeliveryLayout(DeliveryProfile)} />
-        <Route path="/delivery/available-orders" element={withDeliveryLayout(AvailableOrders)} />
-        <Route path="/delivery/available-repair-requests" element={withDeliveryLayout(AvailableRepairs)} />
-        <Route path="/delivery/my-deliveries" element={withDeliveryLayout(MyDeliveries)} />
-        <Route path="/delivery/my-repairs" element={withDeliveryLayout(MyRepairs)} />
-        
+        <Route path="/delivery/dashboard" element={withDeliveryLayout(DeliveryDashboard, <DashboardSkeleton />)} />
+        <Route path="/delivery/profile" element={withDeliveryLayout(DeliveryProfile, <ProfileSkeleton />)} />
+        <Route path="/delivery/available-orders" element={withDeliveryLayout(AvailableOrders, <TableSkeleton title="Orders" />)} />
+        <Route path="/delivery/available-repair-requests" element={withDeliveryLayout(AvailableRepairs, <TableSkeleton title="Repairs" />)} />
+        <Route path="/delivery/my-deliveries" element={withDeliveryLayout(MyDeliveries, <TableSkeleton title="Deliveries" />)} />
+        <Route path="/delivery/my-repairs" element={withDeliveryLayout(MyRepairs, <TableSkeleton title="Repairs" />)} />
+
         {/* Shop Routes */}
         <Route path="/shop/dashboard" element={withShopLayout(ShopDashboard)} />
         <Route path="/shop/chats" element={withShopLayout(Chat)} />
@@ -200,14 +217,14 @@ function App() {
       </Routes>
 
 
-    <Cart
-          show={showCart}
-          onClose={() => setShowCart(false)}
-          darkMode={darkMode}
-          cartItems={cartItems}
-          setCartItems={setCartItems}
-          updateCartCount={updateCartCount}
-        />
+      <Cart
+        show={showCart}
+        onClose={() => setShowCart(false)}
+        darkMode={darkMode}
+        cartItems={cartItems}
+        setCartItems={setCartItems}
+        updateCartCount={updateCartCount}
+      />
     </Router>
   );
 }

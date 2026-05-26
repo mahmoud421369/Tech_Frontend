@@ -11,33 +11,33 @@ import {
 } from "react-icons/ri";
 import { FiArrowLeft, FiCheck } from "react-icons/fi";
 
-const EMAIL_REGEX         = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_REGEX         = /^\d{10,15}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^\d{10,15}$/;
 const MIN_PASSWORD_LENGTH = 6;
 
 const SHOP_TYPE_OPTIONS = [
   { value: "REPAIRER", label: "Repairer" },
-  { value: "SELLER",   label: "Seller"   },
-  { value: "BOTH",     label: "Both"     },
+  { value: "SELLER", label: "Seller" },
+  { value: "BOTH", label: "Both" },
 ];
 
 const TAB_CONFIG = [
-  { key: "user",     label: "User",       icon: <RiUserLine size={15} />,         color: "from-lime-500 to-emerald-500",   bg: "bg-lime-50 dark:bg-lime-900/20",   border: "border-lime-200 dark:border-lime-800",   text: "text-lime-700 dark:text-lime-400" },
-  { key: "shop",     label: "Shop Owner", icon: <RiStore2Line size={15} />,       color: "from-emerald-500 to-teal-500",   bg: "bg-emerald-50 dark:bg-emerald-900/20", border: "border-emerald-200 dark:border-emerald-800", text: "text-emerald-700 dark:text-emerald-400" },
-  { key: "delivery", label: "Delivery",   icon: <RiTruckLine size={15} />,        color: "from-blue-500 to-indigo-500",    bg: "bg-blue-50 dark:bg-blue-900/20",    border: "border-blue-200 dark:border-blue-800",   text: "text-blue-700 dark:text-blue-400" },
-  { key: "assigner", label: "Assigner",   icon: <RiUserSettingsLine size={15} />, color: "from-purple-500 to-violet-500", bg: "bg-purple-50 dark:bg-purple-900/20", border: "border-purple-200 dark:border-purple-800", text: "text-purple-700 dark:text-purple-400" },
+  { key: "user", label: "User", icon: <RiUserLine size={15} />, color: "from-lime-500 to-emerald-500", bg: "bg-lime-50 dark:bg-lime-900/20", border: "border-lime-200 dark:border-lime-800", text: "text-lime-700 dark:text-lime-400" },
+  { key: "shop", label: "Shop Owner", icon: <RiStore2Line size={15} />, color: "from-emerald-500 to-teal-500", bg: "bg-emerald-50 dark:bg-emerald-900/20", border: "border-emerald-200 dark:border-emerald-800", text: "text-emerald-700 dark:text-emerald-400" },
+  { key: "delivery", label: "Delivery", icon: <RiTruckLine size={15} />, color: "from-blue-500 to-indigo-500", bg: "bg-blue-50 dark:bg-blue-900/20", border: "border-blue-200 dark:border-blue-800", text: "text-blue-700 dark:text-blue-400" },
+  { key: "assigner", label: "Assigner", icon: <RiUserSettingsLine size={15} />, color: "from-purple-500 to-violet-500", bg: "bg-purple-50 dark:bg-purple-900/20", border: "border-purple-200 dark:border-purple-800", text: "text-purple-700 dark:text-purple-400" },
 ];
 
-const INPUT_BASE   = "w-full px-3 sm:px-4 py-2.5 rounded-xl bg-white dark:bg-gray-900 border-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 transition-all text-sm outline-none focus:ring-4 focus:ring-lime-300/50 dark:focus:ring-lime-500/30 focus:border-lime-500 dark:focus:border-lime-500";
+const INPUT_BASE = "w-full px-3 sm:px-4 py-2.5 rounded-xl bg-white dark:bg-gray-900 border-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 transition-all text-sm outline-none focus:ring-4 focus:ring-lime-300/50 dark:focus:ring-lime-500/30 focus:border-lime-500 dark:focus:border-lime-500";
 const INPUT_NORMAL = "border-gray-200 dark:border-gray-700";
-const INPUT_ERR    = "border-red-300 dark:border-red-600 focus:border-red-500 focus:ring-red-300/50";
-const OTP_INPUT    = "w-10 h-11 sm:w-11 sm:h-12 text-center text-lg sm:text-xl font-bold rounded-xl bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-4 focus:ring-lime-300/50 focus:border-lime-500 transition-all";
+const INPUT_ERR = "border-red-300 dark:border-red-600 focus:border-red-500 focus:ring-red-300/50";
+const OTP_INPUT = "w-10 h-11 sm:w-11 sm:h-12 text-center text-lg sm:text-xl font-bold rounded-xl bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-4 focus:ring-lime-300/50 focus:border-lime-500 transition-all";
 
 const toast = (icon, title, text) =>
   Swal.fire({ icon, title, text, toast: true, position: "top-end", timer: 2500, showConfirmButton: false, timerProgressBar: true });
 
-const validateEmail    = (v) => !v.trim() ? "Email is required" : !EMAIL_REGEX.test(v) ? "Valid email required" : "";
-const validatePhone    = (v) => { if (!v.trim()) return "Phone is required"; const c = v.replace(/\D/g, ""); return PHONE_REGEX.test(c) ? "" : "Valid phone required (10-15 digits)"; };
+const validateEmail = (v) => !v.trim() ? "Email is required" : !EMAIL_REGEX.test(v) ? "Valid email required" : "";
+const validatePhone = (v) => { if (!v.trim()) return "Phone is required"; const c = v.replace(/\D/g, ""); return PHONE_REGEX.test(c) ? "" : "Valid phone required (10-15 digits)"; };
 const validatePassword = (v) => !v ? "Password is required" : v.length < MIN_PASSWORD_LENGTH ? `Min ${MIN_PASSWORD_LENGTH} characters` : "";
 
 const DotsBackground = () => (
@@ -123,9 +123,9 @@ const ErrorBanner = memo(({ message }) =>
 );
 
 const OTPStep = memo(({ email, onSuccess, onBack }) => {
-  const [otp, setOtp]         = useState(["","","","","",""]);
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState("");
+  const [error, setError] = useState("");
   const inputsRef = React.useRef([]);
 
   const handleOtpChange = useCallback((i, v) => {
@@ -149,7 +149,7 @@ const OTPStep = memo(({ email, onSuccess, onBack }) => {
     if (code.length !== 6) { setError("Please enter all 6 digits"); return; }
     setLoading(true);
     try {
-      await api.post("/api/auth/verify-email", { email, optCode: code  });
+      await api.post("/api/auth/verify-email", { email, optCode: code });
       await toast("success", "Email Verified!", "Your account is ready. Redirecting to login...");
       onSuccess();
     } catch (err) {
@@ -195,23 +195,23 @@ const OTPStep = memo(({ email, onSuccess, onBack }) => {
   );
 });
 
-const mkErrors  = () => ({ user: {}, shop: {}, delivery: {}, assigner: {} });
+const mkErrors = () => ({ user: {}, shop: {}, delivery: {}, assigner: {} });
 const mkTouched = () => ({ user: {}, shop: {}, delivery: {}, assigner: {} });
 
 const Signup = () => {
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab]         = useState("user");
-  const [loading, setLoading]             = useState(false);
-  const [errors, setErrors]               = useState(mkErrors);
-  const [touched, setTouched]             = useState(mkTouched);
+  const [activeTab, setActiveTab] = useState("user");
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState(mkErrors);
+  const [touched, setTouched] = useState(mkTouched);
   const [showPasswords, setShowPasswords] = useState({ user: false, shop: false, delivery: false, assigner: false });
-  const [shopTypeOpen, setShopTypeOpen]   = useState(false);
-  const [otpStep, setOtpStep]             = useState(false);
-  const [pendingEmail, setPendingEmail]   = useState("");
+  const [shopTypeOpen, setShopTypeOpen] = useState(false);
+  const [otpStep, setOtpStep] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState("");
 
-  const [userData,     setUserData]     = useState({ first_name: "", last_name: "", email: "", phone: "", password: "" });
-  const [shopData,     setShopData]     = useState({ name: "", email: "", password: "", description: "", phone: "", shopAddress: { state: "", city: "", street: "", building: "", isDefault: true }, shopType: "" });
+  const [userData, setUserData] = useState({ first_name: "", last_name: "", email: "", phone: "", password: "" });
+  const [shopData, setShopData] = useState({ name: "", email: "", password: "", description: "", phone: "", shopAddress: { state: "", city: "", street: "", building: "", isDefault: true }, shopType: "" });
   const [deliveryData, setDeliveryData] = useState({ name: "", email: "", phone: "", password: "", address: "" });
   const [assignerData, setAssignerData] = useState({ name: "", email: "", phone: "", password: "", department: "" });
 
@@ -226,14 +226,14 @@ const Signup = () => {
     if (addrFields.includes(name)) setter(prev => ({ ...prev, shopAddress: { ...prev.shopAddress, [name]: value } }));
     else setter(prev => ({ ...prev, [name]: value }));
     let fe = "";
-    if (name === "email")    fe = validateEmail(value);
-    if (name === "phone")    fe = validatePhone(value);
+    if (name === "email") fe = validateEmail(value);
+    if (name === "phone") fe = validatePhone(value);
     if (name === "password") fe = validatePassword(value);
     setErrors(prev => ({ ...prev, [formType]: { ...prev[formType], [name]: fe } }));
   }, []);
 
-  const handleUserChange     = useMemo(() => makeChangeHandler(setUserData,     "user"),     [makeChangeHandler]);
-  const handleShopChange     = useMemo(() => makeChangeHandler(setShopData,     "shop",     ["state","city","street","building"]), [makeChangeHandler]);
+  const handleUserChange = useMemo(() => makeChangeHandler(setUserData, "user"), [makeChangeHandler]);
+  const handleShopChange = useMemo(() => makeChangeHandler(setShopData, "shop", ["state", "city", "street", "building"]), [makeChangeHandler]);
   const handleDeliveryChange = useMemo(() => makeChangeHandler(setDeliveryData, "delivery"), [makeChangeHandler]);
   const handleAssignerChange = useMemo(() => makeChangeHandler(setAssignerData, "assigner"), [makeChangeHandler]);
 
@@ -241,23 +241,23 @@ const Signup = () => {
     const { name, value } = e.target;
     setTouched(prev => ({ ...prev, [formType]: { ...prev[formType], [name]: true } }));
     let fe = "";
-    if (name === "email")         fe = validateEmail(value);
-    else if (name === "phone")    fe = validatePhone(value);
+    if (name === "email") fe = validateEmail(value);
+    else if (name === "phone") fe = validatePhone(value);
     else if (name === "password") fe = validatePassword(value);
-    else if (!value.trim())       fe = "Required";
+    else if (!value.trim()) fe = "Required";
     setErrors(prev => ({ ...prev, [formType]: { ...prev[formType], [name]: fe } }));
   }, []);
 
   const makeToggle = useCallback((t) => () => setShowPasswords(prev => ({ ...prev, [t]: !prev[t] })), []);
-  const toggleUser     = useMemo(() => makeToggle("user"),     [makeToggle]);
-  const toggleShop     = useMemo(() => makeToggle("shop"),     [makeToggle]);
+  const toggleUser = useMemo(() => makeToggle("user"), [makeToggle]);
+  const toggleShop = useMemo(() => makeToggle("shop"), [makeToggle]);
   const toggleDelivery = useMemo(() => makeToggle("delivery"), [makeToggle]);
   const toggleAssigner = useMemo(() => makeToggle("assigner"), [makeToggle]);
 
   const handleShopTypeSelect = useCallback((value) => {
-    setShopData(prev  => ({ ...prev, shopType: value }));
-    setErrors(prev    => ({ ...prev, shop: { ...prev.shop, shopType: "" } }));
-    setTouched(prev   => ({ ...prev, shop: { ...prev.shop, shopType: true } }));
+    setShopData(prev => ({ ...prev, shopType: value }));
+    setErrors(prev => ({ ...prev, shop: { ...prev.shop, shopType: "" } }));
+    setTouched(prev => ({ ...prev, shop: { ...prev.shop, shopType: true } }));
     setShopTypeOpen(false);
   }, []);
 
@@ -301,9 +301,9 @@ const Signup = () => {
     setTouched(prev => ({ ...prev, user: { first_name: true, last_name: true, email: true, phone: true, password: true } }));
     const ne = {};
     if (!userData.first_name.trim()) ne.first_name = "Required";
-    if (!userData.last_name.trim())  ne.last_name  = "Required";
-    const ee = validateEmail(userData.email);       if (ee) ne.email    = ee;
-    const pe = validatePhone(userData.phone);       if (pe) ne.phone    = pe;
+    if (!userData.last_name.trim()) ne.last_name = "Required";
+    const ee = validateEmail(userData.email); if (ee) ne.email = ee;
+    const pe = validatePhone(userData.phone); if (pe) ne.phone = pe;
     const pw = validatePassword(userData.password); if (pw) ne.password = pw;
     if (Object.keys(ne).length) { setErrors(prev => ({ ...prev, user: ne })); return; }
     registerAndVerify("/api/auth/register/user", userData, "user");
@@ -313,16 +313,16 @@ const Signup = () => {
     e.preventDefault();
     setTouched(prev => ({ ...prev, shop: { name: true, email: true, phone: true, description: true, shopType: true, state: true, city: true, street: true, building: true, password: true } }));
     const ne = {};
-    if (!shopData.name)                 ne.name        = "Required";
-    const ee = validateEmail(shopData.email);       if (ee) ne.email    = ee;
-    const pe = validatePhone(shopData.phone);       if (pe) ne.phone    = pe;
+    if (!shopData.name) ne.name = "Required";
+    const ee = validateEmail(shopData.email); if (ee) ne.email = ee;
+    const pe = validatePhone(shopData.phone); if (pe) ne.phone = pe;
     const pw = validatePassword(shopData.password); if (pw) ne.password = pw;
-    if (!shopData.description)          ne.description = "Required";
-    if (!shopData.shopType)             ne.shopType    = "Required";
-    if (!shopData.shopAddress.state)    ne.state       = "Required";
-    if (!shopData.shopAddress.city)     ne.city        = "Required";
-    if (!shopData.shopAddress.street)   ne.street      = "Required";
-    if (!shopData.shopAddress.building) ne.building    = "Required";
+    if (!shopData.description) ne.description = "Required";
+    if (!shopData.shopType) ne.shopType = "Required";
+    if (!shopData.shopAddress.state) ne.state = "Required";
+    if (!shopData.shopAddress.city) ne.city = "Required";
+    if (!shopData.shopAddress.street) ne.street = "Required";
+    if (!shopData.shopAddress.building) ne.building = "Required";
     if (Object.keys(ne).length) { setErrors(prev => ({ ...prev, shop: ne })); return; }
     registerAndVerify("/api/auth/register/shop", shopData, "shop");
   }, [shopData, registerAndVerify]);
@@ -331,9 +331,9 @@ const Signup = () => {
     e.preventDefault();
     setTouched(prev => ({ ...prev, delivery: { name: true, email: true, phone: true, address: true, password: true } }));
     const ne = {};
-    if (!deliveryData.name.trim())    ne.name    = "Required";
-    const ee = validateEmail(deliveryData.email);       if (ee) ne.email    = ee;
-    const pe = validatePhone(deliveryData.phone);       if (pe) ne.phone    = pe;
+    if (!deliveryData.name.trim()) ne.name = "Required";
+    const ee = validateEmail(deliveryData.email); if (ee) ne.email = ee;
+    const pe = validatePhone(deliveryData.phone); if (pe) ne.phone = pe;
     const pw = validatePassword(deliveryData.password); if (pw) ne.password = pw;
     if (!deliveryData.address.trim()) ne.address = "Required";
     if (Object.keys(ne).length) { setErrors(prev => ({ ...prev, delivery: ne })); return; }
@@ -344,9 +344,9 @@ const Signup = () => {
     e.preventDefault();
     setTouched(prev => ({ ...prev, assigner: { name: true, email: true, phone: true, department: true, password: true } }));
     const ne = {};
-    if (!assignerData.name.trim())       ne.name       = "Required";
-    const ee = validateEmail(assignerData.email);       if (ee) ne.email    = ee;
-    const pe = validatePhone(assignerData.phone);       if (pe) ne.phone    = pe;
+    if (!assignerData.name.trim()) ne.name = "Required";
+    const ee = validateEmail(assignerData.email); if (ee) ne.email = ee;
+    const pe = validatePhone(assignerData.phone); if (pe) ne.phone = pe;
     const pw = validatePassword(assignerData.password); if (pw) ne.password = pw;
     if (!assignerData.department.trim()) ne.department = "Required";
     if (Object.keys(ne).length) { setErrors(prev => ({ ...prev, assigner: ne })); return; }
@@ -354,7 +354,7 @@ const Signup = () => {
   }, [assignerData, registerAndVerify]);
 
   const handleOtpSuccess = useCallback(() => navigate("/login"), [navigate]);
-  const handleOtpBack    = useCallback(() => { setOtpStep(false); setPendingEmail(""); }, []);
+  const handleOtpBack = useCallback(() => { setOtpStep(false); setPendingEmail(""); }, []);
 
   const inp = (formType, name, type, value, onChange, onBlur, placeholder, autoComplete) => {
     const err = getError(formType, name);
@@ -432,11 +432,10 @@ const Signup = () => {
                             role="tab"
                             aria-selected={isActive}
                             onClick={() => setActiveTab(key)}
-                            className={`relative flex items-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-3xl justify-center border-2 font-semibold text-xs sm:text-sm transition-all duration-200 overflow-hidden ${
-                              isActive
+                            className={`relative flex items-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-3xl justify-center border-2 font-semibold text-xs sm:text-sm transition-all duration-200 overflow-hidden ${isActive
                                 ? `border-transparent text-white shadow-lg`
                                 : `bg-gray-50 dark:bg-gray-900 dark:border-gray-800 dark:text-white border text-gray-800 hover:shadow-sm`
-                            }`}
+                              }`}
                           >
                             {isActive && (
                               <span className={`absolute inset-0 bg-gradient-to-r ${color}`} />
@@ -466,20 +465,20 @@ const Signup = () => {
                   {activeTab === "user" && (
                     <form onSubmit={handleUserSignup} className="space-y-3 sm:space-y-4" noValidate>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <Field label="First Name" icon={<RiUserLine size={15} />} error={getError("user","first_name")}>
-                          {inp("user","first_name","text",userData.first_name,handleUserChange,handleBlur,"First name","given-name")}
+                        <Field label="First Name" icon={<RiUserLine size={15} />} error={getError("user", "first_name")}>
+                          {inp("user", "first_name", "text", userData.first_name, handleUserChange, handleBlur, "First name", "given-name")}
                         </Field>
-                        <Field label="Last Name" icon={<RiUserLine size={15} />} error={getError("user","last_name")}>
-                          {inp("user","last_name","text",userData.last_name,handleUserChange,handleBlur,"Last name","family-name")}
+                        <Field label="Last Name" icon={<RiUserLine size={15} />} error={getError("user", "last_name")}>
+                          {inp("user", "last_name", "text", userData.last_name, handleUserChange, handleBlur, "Last name", "family-name")}
                         </Field>
-                        <Field label="Email Address" icon={<RiMailLine size={15} />} error={getError("user","email")}>
-                          {inp("user","email","email",userData.email,handleUserChange,handleBlur,"you@example.com","email")}
+                        <Field label="Email Address" icon={<RiMailLine size={15} />} error={getError("user", "email")}>
+                          {inp("user", "email", "email", userData.email, handleUserChange, handleBlur, "you@example.com", "email")}
                         </Field>
-                        <Field label="Phone Number" icon={<RiPhoneLine size={15} />} error={getError("user","phone")}>
-                          {inp("user","phone","tel",userData.phone,handleUserChange,handleBlur,"Phone number","tel")}
+                        <Field label="Phone Number" icon={<RiPhoneLine size={15} />} error={getError("user", "phone")}>
+                          {inp("user", "phone", "tel", userData.phone, handleUserChange, handleBlur, "Phone number", "tel")}
                         </Field>
                       </div>
-                      <PasswordInput formType="user" value={userData.password} onChange={handleUserChange} onBlur={handleBlur} showPassword={showPasswords.user} onToggle={toggleUser} error={getError("user","password")} />
+                      <PasswordInput formType="user" value={userData.password} onChange={handleUserChange} onBlur={handleBlur} showPassword={showPasswords.user} onToggle={toggleUser} error={getError("user", "password")} />
                       <ErrorBanner message={errors.user.general} />
                       <SubmitBtn label="Sign Up as User" loading={loading} />
                     </form>
@@ -488,24 +487,24 @@ const Signup = () => {
                   {activeTab === "shop" && (
                     <form onSubmit={handleShopSignup} className="space-y-3 sm:space-y-4" noValidate>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <Field label="Shop Name" icon={<RiStore2Line size={15} />} error={getError("shop","name")}>
-                          {inp("shop","name","text",shopData.name,handleShopChange,handleBlur,"Shop name",undefined)}
+                        <Field label="Shop Name" icon={<RiStore2Line size={15} />} error={getError("shop", "name")}>
+                          {inp("shop", "name", "text", shopData.name, handleShopChange, handleBlur, "Shop name", undefined)}
                         </Field>
-                        <Field label="Email" icon={<RiMailLine size={15} />} error={getError("shop","email")}>
-                          {inp("shop","email","email",shopData.email,handleShopChange,handleBlur,"you@example.com","email")}
+                        <Field label="Email" icon={<RiMailLine size={15} />} error={getError("shop", "email")}>
+                          {inp("shop", "email", "email", shopData.email, handleShopChange, handleBlur, "you@example.com", "email")}
                         </Field>
-                        <Field label="Phone" icon={<RiPhoneLine size={15} />} error={getError("shop","phone")}>
-                          {inp("shop","phone","tel",shopData.phone,handleShopChange,handleBlur,"Phone","tel")}
+                        <Field label="Phone" icon={<RiPhoneLine size={15} />} error={getError("shop", "phone")}>
+                          {inp("shop", "phone", "tel", shopData.phone, handleShopChange, handleBlur, "Phone", "tel")}
                         </Field>
-                        <Field label="Description" icon={<RiFileListLine size={15} />} error={getError("shop","description")}>
-                          {inp("shop","description","text",shopData.description,handleShopChange,handleBlur,"Brief description",undefined)}
+                        <Field label="Description" icon={<RiFileListLine size={15} />} error={getError("shop", "description")}>
+                          {inp("shop", "description", "text", shopData.description, handleShopChange, handleBlur, "Brief description", undefined)}
                         </Field>
 
                         <div className="space-y-1">
                           <label className="block text-[10px] sm:text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Shop Type</label>
                           <div className="relative">
                             <div role="combobox" tabIndex={0}
-                              className={`${INPUT_BASE} pl-9 sm:pl-10 cursor-pointer flex items-center justify-between ${getError("shop","shopType") ? INPUT_ERR : INPUT_NORMAL}`}
+                              className={`${INPUT_BASE} pl-9 sm:pl-10 cursor-pointer flex items-center justify-between ${getError("shop", "shopType") ? INPUT_ERR : INPUT_NORMAL}`}
                               onClick={() => setShopTypeOpen(o => !o)}
                               onBlur={() => { setTouched(prev => ({ ...prev, shop: { ...prev.shop, shopType: true } })); setShopTypeOpen(false); }}
                               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShopTypeOpen(o => !o); } }}>
@@ -528,23 +527,23 @@ const Signup = () => {
                               </ul>
                             )}
                           </div>
-                          {getError("shop","shopType") && <p className="text-[10px] sm:text-xs text-red-600 dark:text-red-400 font-medium">{errors.shop.shopType}</p>}
+                          {getError("shop", "shopType") && <p className="text-[10px] sm:text-xs text-red-600 dark:text-red-400 font-medium">{errors.shop.shopType}</p>}
                         </div>
 
-                        <Field label="State" icon={<RiMapPinLine size={15} />} error={getError("shop","state")}>
-                          {inp("shop","state","text",shopData.shopAddress.state,handleShopChange,handleBlur,"e.g. Cairo",undefined)}
+                        <Field label="State" icon={<RiMapPinLine size={15} />} error={getError("shop", "state")}>
+                          {inp("shop", "state", "text", shopData.shopAddress.state, handleShopChange, handleBlur, "e.g. Cairo", undefined)}
                         </Field>
-                        <Field label="City" icon={<RiMapPinLine size={15} />} error={getError("shop","city")}>
-                          {inp("shop","city","text",shopData.shopAddress.city,handleShopChange,handleBlur,"e.g. Giza",undefined)}
+                        <Field label="City" icon={<RiMapPinLine size={15} />} error={getError("shop", "city")}>
+                          {inp("shop", "city", "text", shopData.shopAddress.city, handleShopChange, handleBlur, "e.g. Giza", undefined)}
                         </Field>
-                        <Field label="Street" icon={<RiMapPinLine size={15} />} error={getError("shop","street")}>
-                          {inp("shop","street","text",shopData.shopAddress.street,handleShopChange,handleBlur,"Street name",undefined)}
+                        <Field label="Street" icon={<RiMapPinLine size={15} />} error={getError("shop", "street")}>
+                          {inp("shop", "street", "text", shopData.shopAddress.street, handleShopChange, handleBlur, "Street name", undefined)}
                         </Field>
-                        <Field label="Building" icon={<RiMapPinLine size={15} />} error={getError("shop","building")}>
-                          {inp("shop","building","text",shopData.shopAddress.building,handleShopChange,handleBlur,"Building no.",undefined)}
+                        <Field label="Building" icon={<RiMapPinLine size={15} />} error={getError("shop", "building")}>
+                          {inp("shop", "building", "text", shopData.shopAddress.building, handleShopChange, handleBlur, "Building no.", undefined)}
                         </Field>
                       </div>
-                      <PasswordInput formType="shop" value={shopData.password} onChange={handleShopChange} onBlur={handleBlur} showPassword={showPasswords.shop} onToggle={toggleShop} error={getError("shop","password")} />
+                      <PasswordInput formType="shop" value={shopData.password} onChange={handleShopChange} onBlur={handleBlur} showPassword={showPasswords.shop} onToggle={toggleShop} error={getError("shop", "password")} />
                       <ErrorBanner message={errors.shop.general} />
                       <SubmitBtn label="Sign Up as Shop Owner" loading={loading} />
                     </form>
@@ -553,20 +552,20 @@ const Signup = () => {
                   {activeTab === "delivery" && (
                     <form onSubmit={handleDeliverySignup} className="space-y-3 sm:space-y-4" noValidate>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <Field label="Full Name" icon={<RiUserLine size={15} />} error={getError("delivery","name")}>
-                          {inp("delivery","name","text",deliveryData.name,handleDeliveryChange,handleBlur,"Full name",undefined)}
+                        <Field label="Full Name" icon={<RiUserLine size={15} />} error={getError("delivery", "name")}>
+                          {inp("delivery", "name", "text", deliveryData.name, handleDeliveryChange, handleBlur, "Full name", undefined)}
                         </Field>
-                        <Field label="Email" icon={<RiMailLine size={15} />} error={getError("delivery","email")}>
-                          {inp("delivery","email","email",deliveryData.email,handleDeliveryChange,handleBlur,"you@example.com","email")}
+                        <Field label="Email" icon={<RiMailLine size={15} />} error={getError("delivery", "email")}>
+                          {inp("delivery", "email", "email", deliveryData.email, handleDeliveryChange, handleBlur, "you@example.com", "email")}
                         </Field>
-                        <Field label="Phone" icon={<RiPhoneLine size={15} />} error={getError("delivery","phone")}>
-                          {inp("delivery","phone","tel",deliveryData.phone,handleDeliveryChange,handleBlur,"Phone","tel")}
+                        <Field label="Phone" icon={<RiPhoneLine size={15} />} error={getError("delivery", "phone")}>
+                          {inp("delivery", "phone", "tel", deliveryData.phone, handleDeliveryChange, handleBlur, "Phone", "tel")}
                         </Field>
-                        <Field label="Address" icon={<RiHome4Line size={15} />} error={getError("delivery","address")}>
-                          {inp("delivery","address","text",deliveryData.address,handleDeliveryChange,handleBlur,"Address",undefined)}
+                        <Field label="Address" icon={<RiHome4Line size={15} />} error={getError("delivery", "address")}>
+                          {inp("delivery", "address", "text", deliveryData.address, handleDeliveryChange, handleBlur, "Address", undefined)}
                         </Field>
                       </div>
-                      <PasswordInput formType="delivery" value={deliveryData.password} onChange={handleDeliveryChange} onBlur={handleBlur} showPassword={showPasswords.delivery} onToggle={toggleDelivery} error={getError("delivery","password")} />
+                      <PasswordInput formType="delivery" value={deliveryData.password} onChange={handleDeliveryChange} onBlur={handleBlur} showPassword={showPasswords.delivery} onToggle={toggleDelivery} error={getError("delivery", "password")} />
                       <ErrorBanner message={errors.delivery.general} />
                       <SubmitBtn label="Sign Up as Delivery" loading={loading} />
                     </form>
@@ -575,20 +574,20 @@ const Signup = () => {
                   {activeTab === "assigner" && (
                     <form onSubmit={handleAssignerSignup} className="space-y-3 sm:space-y-4" noValidate>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <Field label="Full Name" icon={<RiUserLine size={15} />} error={getError("assigner","name")}>
-                          {inp("assigner","name","text",assignerData.name,handleAssignerChange,handleBlur,"Full name","name")}
+                        <Field label="Full Name" icon={<RiUserLine size={15} />} error={getError("assigner", "name")}>
+                          {inp("assigner", "name", "text", assignerData.name, handleAssignerChange, handleBlur, "Full name", "name")}
                         </Field>
-                        <Field label="Department" icon={<RiUserSettingsLine size={15} />} error={getError("assigner","department")}>
-                          {inp("assigner","department","text",assignerData.department,handleAssignerChange,handleBlur,"Department",undefined)}
+                        <Field label="Department" icon={<RiUserSettingsLine size={15} />} error={getError("assigner", "department")}>
+                          {inp("assigner", "department", "text", assignerData.department, handleAssignerChange, handleBlur, "Department", undefined)}
                         </Field>
-                        <Field label="Email" icon={<RiMailLine size={15} />} error={getError("assigner","email")}>
-                          {inp("assigner","email","email",assignerData.email,handleAssignerChange,handleBlur,"you@example.com","email")}
+                        <Field label="Email" icon={<RiMailLine size={15} />} error={getError("assigner", "email")}>
+                          {inp("assigner", "email", "email", assignerData.email, handleAssignerChange, handleBlur, "you@example.com", "email")}
                         </Field>
-                        <Field label="Phone" icon={<RiPhoneLine size={15} />} error={getError("assigner","phone")}>
-                          {inp("assigner","phone","tel",assignerData.phone,handleAssignerChange,handleBlur,"Phone","tel")}
+                        <Field label="Phone" icon={<RiPhoneLine size={15} />} error={getError("assigner", "phone")}>
+                          {inp("assigner", "phone", "tel", assignerData.phone, handleAssignerChange, handleBlur, "Phone", "tel")}
                         </Field>
                       </div>
-                      <PasswordInput formType="assigner" value={assignerData.password} onChange={handleAssignerChange} onBlur={handleBlur} showPassword={showPasswords.assigner} onToggle={toggleAssigner} error={getError("assigner","password")} />
+                      <PasswordInput formType="assigner" value={assignerData.password} onChange={handleAssignerChange} onBlur={handleBlur} showPassword={showPasswords.assigner} onToggle={toggleAssigner} error={getError("assigner", "password")} />
                       <ErrorBanner message={errors.assigner.general} />
                       <SubmitBtn label="Sign Up as Assigner" loading={loading} />
                     </form>
