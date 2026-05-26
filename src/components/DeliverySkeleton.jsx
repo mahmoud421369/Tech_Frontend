@@ -4,7 +4,7 @@ export const DashboardSkeleton = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-10">
-        {/* Header Skeleton */}
+  
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 animate-pulse">
           <div className="space-y-3">
             <div className="flex items-center gap-2">
@@ -17,7 +17,8 @@ export const DashboardSkeleton = () => {
           <div className="w-48 h-16 bg-white dark:bg-gray-800 rounded-[2rem] border border-gray-100 dark:border-gray-700 shadow-sm" />
         </div>
 
-        {/* Stats Grid Skeleton */}
+    
+    
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[...Array(4)].map((_, i) => (
             <div
@@ -37,9 +38,11 @@ export const DashboardSkeleton = () => {
           ))}
         </div>
 
-        {/* Two Columns Grid Skeleton */}
+       
+       
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* Recent Activity Skeleton */}
+          
+          
           <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 p-8 space-y-8 animate-pulse">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -71,9 +74,11 @@ export const DashboardSkeleton = () => {
             </div>
           </div>
 
-          {/* Right Sidebar Skeleton */}
+          
+          
           <div className="space-y-6">
-            {/* System Feed */}
+           
+           
             <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 p-8 space-y-6 animate-pulse">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -100,7 +105,8 @@ export const DashboardSkeleton = () => {
               </div>
             </div>
 
-            {/* Promo Card */}
+           
+           
             <div className="h-64 bg-lime-100 dark:bg-lime-950/20 rounded-[2.5rem] border border-lime-200 dark:border-lime-900/50 p-8 space-y-6" />
           </div>
         </div>
@@ -113,7 +119,8 @@ export const TableSkeleton = ({ title = "Orders" }) => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
-        {/* Header Skeleton */}
+       
+       
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 animate-pulse">
           <div className="space-y-3">
             <div className="flex items-center gap-2">
@@ -126,7 +133,8 @@ export const TableSkeleton = ({ title = "Orders" }) => {
           <div className="w-52 h-16 bg-white dark:bg-gray-800 rounded-[2rem] border border-gray-100 dark:border-gray-700 shadow-sm" />
         </div>
 
-        {/* Filter Bar Skeleton */}
+      
+      
         <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 p-6 animate-pulse">
           <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
             <div className="w-full lg:w-2/3 h-12 bg-gray-100 dark:bg-gray-700 rounded-2xl" />
@@ -134,7 +142,8 @@ export const TableSkeleton = ({ title = "Orders" }) => {
           </div>
         </div>
 
-        {/* Table Skeleton */}
+        
+        
         <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -150,18 +159,21 @@ export const TableSkeleton = ({ title = "Orders" }) => {
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {[...Array(5)].map((_, i) => (
                   <tr key={i} className="animate-pulse">
-                    {/* Date Column */}
+                    
+                    
                     <td className="px-8 py-6">
                       <div className="space-y-2">
                         <div className="w-24 h-4 bg-gray-200 dark:bg-gray-700 rounded-md" />
                         <div className="w-16 h-3 bg-gray-150 dark:bg-gray-700/80 rounded-sm" />
                       </div>
                     </td>
-                    {/* Ref Column */}
+                  
+                  
                     <td className="px-8 py-6">
                       <div className="w-20 h-4 bg-gray-200 dark:bg-gray-700 rounded-mono" />
                     </td>
-                    {/* Shop Info Column */}
+                    
+                    
                     <td className="px-8 py-6">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-2xl bg-gray-200 dark:bg-gray-700" />
@@ -171,7 +183,8 @@ export const TableSkeleton = ({ title = "Orders" }) => {
                         </div>
                       </div>
                     </td>
-                    {/* User Delivery Column */}
+                    
+                    
                     <td className="px-8 py-6">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-2xl bg-gray-200 dark:bg-gray-700" />
@@ -181,14 +194,16 @@ export const TableSkeleton = ({ title = "Orders" }) => {
                         </div>
                       </div>
                     </td>
-                    {/* Amount Column */}
+                    
+                    
                     <td className="px-8 py-6">
                       <div className="space-y-2">
                         <div className="w-16 h-4 bg-gray-200 dark:bg-gray-700 rounded-md" />
                         <div className="w-12 h-3 bg-lime-200 dark:bg-lime-900/40 rounded-sm" />
                       </div>
                     </td>
-                    {/* Actions Column */}
+                  
+                  
                     <td className="px-8 py-6">
                       <div className="flex items-center justify-end gap-2">
                         <div className="w-12 h-12 bg-red-100 dark:bg-red-950/20 rounded-2xl" />
@@ -210,7 +225,8 @@ export const ProfileSkeleton = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-8 animate-pulse">
-        {/* Header Block Skeleton */}
+        
+        
         <div className="relative bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 p-8 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden">
           <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
             <div className="w-32 h-32 rounded-[2.5rem] bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
@@ -226,7 +242,8 @@ export const ProfileSkeleton = () => {
           </div>
         </div>
 
-        {/* Stats Grid Skeleton */}
+       
+       
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-[2.5rem] p-6 shadow-xl shadow-gray-200/20 dark:shadow-none space-y-4">
@@ -237,7 +254,8 @@ export const ProfileSkeleton = () => {
           ))}
         </div>
 
-        {/* Configuration Block Skeleton */}
+       
+       
         <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none p-8 space-y-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gray-200 dark:bg-gray-700" />
