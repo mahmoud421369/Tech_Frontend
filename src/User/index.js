@@ -8,6 +8,7 @@ export { default as Service } from './Service';
 export { default as Track } from './Track';
 export { default as Devices } from './Devices';
 export { default as Stores } from './Shops';
+export { default as CategoryProducts } from './CategoryProducts';
 
 
 

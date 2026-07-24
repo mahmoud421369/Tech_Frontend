@@ -28,6 +28,58 @@ const sanitize = (str) =>
     ? DOMPurify.sanitize(str, { ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'br'], ALLOWED_ATTR: [] })
     : '';
 
+const NoChatsIllustration = memo(({ darkMode }) => (
+  <svg viewBox="0 0 140 110" className="w-32 h-24 sm:w-36 sm:h-28 mx-auto">
+    <ellipse cx="70" cy="96" rx="42" ry="6" fill={darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'} />
+    <rect x="24" y="28" width="60" height="46" rx="10" fill={darkMode ? '#1f2937' : '#f3f4f6'} stroke={darkMode ? '#374151' : '#e5e7eb'} strokeWidth="2" />
+    <path d="M34 62 L34 76 L48 62 Z" fill={darkMode ? '#1f2937' : '#f3f4f6'} stroke={darkMode ? '#374151' : '#e5e7eb'} strokeWidth="2" />
+    <rect x="34" y="38" width="40" height="4" rx="2" fill={darkMode ? '#4b5563' : '#d1d5db'} />
+    <rect x="34" y="48" width="28" height="4" rx="2" fill={darkMode ? '#4b5563' : '#d1d5db'} />
+    <rect x="70" y="16" width="46" height="36" rx="10" fill="none" stroke={darkMode ? '#34d399' : '#10b981'} strokeWidth="2.4" />
+    <path d="M84 52 L84 62 L96 52 Z" fill="none" stroke={darkMode ? '#34d399' : '#10b981'} strokeWidth="2.4" />
+    <circle cx="86" cy="32" r="2.4" fill={darkMode ? '#34d399' : '#10b981'} />
+    <circle cx="94" cy="32" r="2.4" fill={darkMode ? '#34d399' : '#10b981'} />
+    <circle cx="102" cy="32" r="2.4" fill={darkMode ? '#34d399' : '#10b981'} />
+    <circle cx="120" cy="14" r="2.2" fill="#fbbf24" />
+  </svg>
+));
+
+const FreshStartIllustration = memo(({ darkMode }) => (
+  <svg viewBox="0 0 140 110" className="w-32 h-24 sm:w-36 sm:h-28 mx-auto">
+    <ellipse cx="70" cy="96" rx="40" ry="6" fill={darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'} />
+    <path d="M32 24 H108 C114 24 118 28 118 34 V62 C118 68 114 72 108 72 H58 L38 88 V72 H32 C26 72 22 68 22 62 V34 C22 28 26 24 32 24 Z"
+      fill={darkMode ? '#1f2937' : '#f3f4f6'} stroke={darkMode ? '#374151' : '#e5e7eb'} strokeWidth="2.2" />
+    <path d="M62 46 H98" stroke={darkMode ? '#4b5563' : '#d1d5db'} strokeWidth="3" strokeLinecap="round" />
+    <path d="M62 56 H86" stroke={darkMode ? '#4b5563' : '#d1d5db'} strokeWidth="3" strokeLinecap="round" />
+    <g transform="translate(38,36)">
+      <circle r="14" fill={darkMode ? 'rgba(52,211,153,0.16)' : 'rgba(16,185,129,0.14)'} />
+      <path d="M-6 0 H6 M0 -6 V6" stroke={darkMode ? '#34d399' : '#059669'} strokeWidth="3" strokeLinecap="round" />
+    </g>
+    <path d="M108 16 L112 10 L116 16 L111 16 Z" fill="#fbbf24" />
+    <circle cx="20" cy="86" r="2.2" fill="#fbbf24" />
+  </svg>
+));
+
+const SelectChatIllustration = memo(({ darkMode }) => (
+  <svg viewBox="0 0 140 110" className="w-32 h-24 sm:w-36 sm:h-28 mx-auto">
+    <ellipse cx="70" cy="96" rx="40" ry="6" fill={darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'} />
+    <rect x="18" y="22" width="38" height="62" rx="10" fill={darkMode ? '#1f2937' : '#f3f4f6'} stroke={darkMode ? '#374151' : '#e5e7eb'} strokeWidth="2" />
+    <rect x="26" y="32" width="22" height="6" rx="3" fill={darkMode ? '#34d399' : '#10b981'} fillOpacity="0.5" />
+    <rect x="26" y="44" width="22" height="10" rx="4" fill={darkMode ? '#374151' : '#e5e7eb'} />
+    <rect x="26" y="58" width="22" height="10" rx="4" fill={darkMode ? '#374151' : '#e5e7eb'} />
+    <path d="M62 52 H96" stroke={darkMode ? '#34d399' : '#10b981'} strokeWidth="2.6" strokeLinecap="round" strokeDasharray="1 7" />
+    <path d="M90 44 L100 52 L90 60" fill="none" stroke={darkMode ? '#34d399' : '#10b981'} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+    <rect x="100" y="30" width="30" height="44" rx="9" fill="none" stroke={darkMode ? '#4b5563' : '#d1d5db'} strokeWidth="2" />
+    <circle cx="115" cy="52" r="7" fill={darkMode ? 'rgba(52,211,153,0.18)' : 'rgba(16,185,129,0.14)'} />
+  </svg>
+));
+
+const EmptyIllustration = memo(({ variant, darkMode }) => {
+  if (variant === 'fresh-start') return <FreshStartIllustration darkMode={darkMode} />;
+  if (variant === 'select-chat') return <SelectChatIllustration darkMode={darkMode} />;
+  return <NoChatsIllustration darkMode={darkMode} />;
+});
+
 const SessionItem = memo(({ session, isActive, onClick }) => (
   <motion.div
     whileHover={{ x: 4 }}
@@ -36,18 +88,18 @@ const SessionItem = memo(({ session, isActive, onClick }) => (
     className={clsx(
       'group relative p-4 rounded-[1.5rem] cursor-pointer transition-all duration-300 border mb-2 select-none overflow-hidden text-left',
       isActive
-        ? 'bg-white dark:bg-gray-800 border-lime-500 shadow-xl shadow-lime-500/10'
+        ? 'bg-white dark:bg-gray-800 border-emerald-400 shadow-xl shadow-emerald-400/10'
         : 'bg-gray-50/50 dark:bg-gray-900/30 border-transparent hover:border-gray-200 dark:hover:border-gray-700 hover:bg-white dark:hover:bg-gray-800'
     )}
   >
     {isActive && (
-      <div className="absolute top-0 left-0 w-1 h-full bg-lime-500" />
+      <div className="absolute top-0 left-0 w-1 h-full bg-emerald-400" />
     )}
     <div className="flex items-center gap-4">
       <div className={clsx(
         'w-12 h-12 rounded-2xl flex items-center justify-center font-black text-sm shrink-0 transition-transform duration-500 group-hover:-rotate-6 shadow-sm',
         isActive
-          ? 'bg-lime-500 text-white'
+          ? 'bg-emerald-400 text-white'
           : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400',
       )}>
         {initial(session.shopName)}
@@ -58,7 +110,7 @@ const SessionItem = memo(({ session, isActive, onClick }) => (
             {session.shopName}
           </h4>
           {session.unreadCount > 0 && (
-            <span className="shrink-0 min-w-[20px] h-5 bg-lime-500 text-white text-[9px] font-black rounded-full flex items-center justify-center px-1.5 animate-bounce">
+            <span className="shrink-0 min-w-[20px] h-5 bg-emerald-400 text-white text-[9px] font-black rounded-full flex items-center justify-center px-1.5 animate-bounce">
               {session.unreadCount}
             </span>
           )}
@@ -94,7 +146,7 @@ const MessageBubble = memo(({ msg, isOwn }) => {
         'w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black shrink-0 shadow-sm transition-transform',
         isOwn
           ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 translate-y-1'
-          : 'bg-lime-500 text-white -translate-y-1',
+          : 'bg-emerald-400 text-white -translate-y-1',
       )}>
         {initial(msg.senderName)}
       </div>
@@ -103,7 +155,7 @@ const MessageBubble = memo(({ msg, isOwn }) => {
         'relative px-5 py-4 rounded-[1.75rem] text-sm leading-relaxed shadow-sm max-w-[80%] group text-left',
         isOwn
           ? 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700 rounded-br-none'
-          : 'bg-lime-500 text-white rounded-bl-none',
+          : 'bg-emerald-400 text-white rounded-bl-none',
         msg._optimistic && 'opacity-60'
       )}>
         <div
@@ -115,7 +167,7 @@ const MessageBubble = memo(({ msg, isOwn }) => {
           'flex items-center gap-1.5 mt-2 text-[9px] font-black uppercase tracking-widest',
           isOwn ? 'justify-end text-gray-400' : 'justify-start text-white/80',
         )}>
-          {isOwn && <FiCheckCircle size={10} className={msg.read ? 'text-lime-500' : 'text-gray-300'} />}
+          {isOwn && <FiCheckCircle size={10} className={msg.read ? 'text-emerald-400' : 'text-gray-300'} />}
           <span>{formatTime(msg.createdAt)}</span>
         </div>
       </div>
@@ -123,12 +175,12 @@ const MessageBubble = memo(({ msg, isOwn }) => {
   );
 });
 
-const EmptyHero = memo(({ icon: Icon, title, sub }) => (
+const EmptyHero = memo(({ variant, title, sub }) => (
   <div className="h-full flex flex-col items-center justify-center p-12 text-center space-y-6">
     <div className="relative">
-      <div className="absolute inset-0 bg-lime-500/20 blur-3xl rounded-full" />
-      <div className="relative w-24 h-24 rounded-[2rem] bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex items-center justify-center text-lime-500 shadow-2xl">
-        <Icon size={40} className="animate-pulse" />
+      <div className="absolute inset-0 bg-emerald-400/20 blur-3xl rounded-full" />
+      <div className="relative">
+        <EmptyIllustration variant={variant} />
       </div>
     </div>
     <div className="space-y-2">
@@ -379,8 +431,8 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
           <div className="p-8 border-b border-gray-100 dark:border-gray-800 space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-1.5 rounded-full bg-lime-500" />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-600">Support Hub</span>
+                <div className="w-8 h-1.5 rounded-full bg-emerald-400" />
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500">Support Hub</span>
               </div>
               <button onClick={onClose} className="sm:hidden p-2 bg-gray-100 dark:bg-gray-800 rounded-xl text-gray-500"><FiX size={16} /></button>
             </div>
@@ -390,9 +442,9 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
 
           <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar-thin">
             {isLoadingSessions ? (
-              <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-lime-500 border-t-transparent rounded-full animate-spin" /></div>
+              <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin" /></div>
             ) : sessions.length === 0 ? (
-              <EmptyHero icon={RiChatSmile2Line} title="No Chats Found" sub="You haven't contacted any shops yet" />
+              <EmptyHero variant="no-chats" title="No Chats Found" sub="You haven't contacted any shops yet" />
             ) : (
               sessions.map(s => <SessionItem key={s.id} session={s} isActive={activeSession?.shopId === s.shopId} onClick={() => { setActiveSession(s); setIsSidebarOpen(false); }} />)
             )}
@@ -404,7 +456,7 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
                 <div className={clsx("w-3 h-3 rounded-full animate-pulse", isConnected ? "bg-emerald-500" : "bg-red-500")} />
                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{isConnected ? "Server Connected" : "Disconnected"}</span>
               </div>
-              <RiVerifiedBadgeLine className="text-lime-500" size={20} />
+              <RiVerifiedBadgeLine className="text-emerald-400" size={20} />
             </div>
           </div>
         </aside>
@@ -426,8 +478,8 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
 
               <div className="px-8 py-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-white/80 dark:bg-gray-900/80 backdrop-blur-md sticky top-0 z-40">
                 <div className="flex items-center gap-4">
-                  <button onClick={() => setIsSidebarOpen(true)} className="sm:hidden p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500"><FiArrowLeft size={20} /></button>
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-lime-500 to-emerald-500 flex items-center justify-center text-white font-black text-sm shadow-lg shadow-lime-500/20">
+                  <button onClick={() => setIsSidebarOpen(true)} className="sm:hidden p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-emerald-400"><FiArrowLeft size={20} /></button>
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-black text-sm shadow-lg shadow-emerald-400/20">
                     {initial(activeSession.shopName)}
                   </div>
                   <div>
@@ -447,9 +499,9 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
 
               <div className="flex-1 overflow-y-auto px-8 py-10 space-y-2 custom-scrollbar-thin bg-[radial-gradient(circle_at_center,_#f1f5f9_1px,_transparent_1px)] dark:bg-[radial-gradient(circle_at_center,_#1e293b_1px,_transparent_1px)] bg-[size:32px_32px]">
                 {isLoadingMessages ? (
-                  <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-lime-500 border-t-transparent rounded-full animate-spin" /></div>
+                  <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin" /></div>
                 ) : messages.length === 0 ? (
-                  <EmptyHero icon={RiHistoryLine} title="Fresh Start" sub={`Start chatting with ${activeSession.shopName} now`} />
+                  <EmptyHero variant="fresh-start" title="Fresh Start" sub={`Start chatting with ${activeSession.shopName} now`} />
                 ) : (
                   messages.map(m => <MessageBubble key={m.id} msg={m} isOwn={m.senderType === 'USER'} />)
                 )}
@@ -466,7 +518,7 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())}
                     placeholder="Type your message here..."
-                    className="w-full pl-6 pr-24 py-5 rounded-[2rem] bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-lime-500 text-sm font-bold text-gray-900 dark:text-white placeholder-gray-400 placeholder:text-center placeholder:mb-6 focus:outline-none transition-all resize-none shadow-sm"
+                    className="w-full pl-6 pr-24 py-5 rounded-[2rem] bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-emerald-400 text-sm font-bold text-gray-900 dark:text-white placeholder-gray-400 placeholder:text-center placeholder:mb-6 focus:outline-none transition-all resize-none shadow-sm"
                     rows={1}
                   />
                   <button
@@ -474,7 +526,7 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
                     disabled={!isConnected || !input.trim()}
                     className={clsx(
                       "absolute right-4 top-1/2 -translate-y-1/2 p-4 rounded-2xl transition-all duration-300",
-                      input.trim() ? "bg-lime-500 text-white shadow-xl shadow-lime-500/20 active:scale-95" : "bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed"
+                      input.trim() ? "bg-emerald-400 text-white shadow-xl shadow-emerald-400/20 active:scale-95" : "bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed"
                     )}
                   >
                     <FiSend size={18} />
@@ -483,7 +535,7 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
               </div>
             </>
           ) : (
-            <EmptyHero icon={RiChatSmile2Line} title="Select a chat" sub="Please select a shop from the sidebar to start messaging" />
+            <EmptyHero variant="select-chat" title="Select a chat" sub="Please select a shop from the sidebar to start messaging" />
           )}
         </main>
       </motion.div>
@@ -494,7 +546,7 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
         .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
         .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #1f2937; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #34d399; }
       `}} />
     </div>
   );

@@ -48,18 +48,18 @@ const SessionItem = memo(({ session, isActive, onClick }) => (
     className={clsx(
       'group relative p-4 rounded-[1.5rem] cursor-pointer transition-all duration-300 border mb-2 select-none overflow-hidden text-right',
       isActive
-        ? 'bg-white dark:bg-gray-800 border-lime-500 shadow-xl shadow-lime-500/10'
+        ? 'bg-white dark:bg-gray-800 border-emerald-500 shadow-xl shadow-emerald-500/10'
         : 'bg-gray-50/50 dark:bg-gray-900/30 border-transparent hover:border-gray-200 dark:hover:border-gray-700 hover:bg-white dark:hover:bg-gray-800'
     )}
   >
     {isActive && (
-       <div className="absolute top-0 right-0 w-1 h-full bg-lime-500" />
+       <div className="absolute top-0 right-0 w-1 h-full bg-emerald-500" />
     )}
     <div className="flex items-center gap-4">
       <div className={clsx(
         'w-12 h-12 rounded-2xl flex items-center justify-center font-black text-sm shrink-0 transition-transform duration-500 group-hover:rotate-6 shadow-sm',
         isActive
-          ? 'bg-lime-500 text-white'
+          ? 'bg-emerald-500 text-white'
           : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400',
       )}>
         {initial(session.userName)}
@@ -70,7 +70,7 @@ const SessionItem = memo(({ session, isActive, onClick }) => (
             {session.userName}
           </h4>
           {session.unreadCount > 0 && (
-            <span className="shrink-0 min-w-[20px] h-5 bg-lime-500 text-white text-[9px] font-black rounded-full flex items-center justify-center px-1.5 animate-bounce">
+            <span className="shrink-0 min-w-[20px] h-5 bg-emerald-500 text-white text-[9px] font-black rounded-full flex items-center justify-center px-1.5 animate-bounce">
               {session.unreadCount}
             </span>
           )}
@@ -109,7 +109,7 @@ const MessageBubble = memo(({ msg, isOwn }) => {
         'w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black shrink-0 shadow-sm transition-transform',
         isOwn
           ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 translate-y-1'
-          : 'bg-lime-500 text-white -translate-y-1',
+          : 'bg-emerald-500 text-white -translate-y-1',
       )}>
         {initial(msg.senderName)}
       </div>
@@ -118,7 +118,7 @@ const MessageBubble = memo(({ msg, isOwn }) => {
         'relative px-5 py-4 rounded-[1.75rem] text-sm leading-relaxed shadow-sm max-w-[80%] group text-right',
         isOwn
           ? 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700 rounded-br-none'
-          : 'bg-lime-500 text-white rounded-bl-none',
+          : 'bg-emerald-500 text-white rounded-bl-none',
         msg._optimistic && 'opacity-60'
       )}>
         <div
@@ -131,7 +131,7 @@ const MessageBubble = memo(({ msg, isOwn }) => {
           isOwn ? 'justify-start text-gray-400' : 'justify-end text-white/80',
         )}>
           <span>{formatTime(msg.createdAt)}</span>
-          {isOwn && <FiCheckCircle size={10} className={msg.read ? 'text-lime-500' : 'text-gray-300'} />}
+          {isOwn && <FiCheckCircle size={10} className={msg.read ? 'text-emerald-500' : 'text-gray-300'} />}
         </div>
       </div>
     </motion.div>
@@ -144,8 +144,8 @@ const MessageBubble = memo(({ msg, isOwn }) => {
 const EmptyHero = memo(({ icon: Icon, title, sub }) => (
   <div className="h-full flex flex-col items-center justify-center p-12 text-center space-y-6">
     <div className="relative">
-       <div className="absolute inset-0 bg-lime-500/20 blur-3xl rounded-full" />
-       <div className="relative w-24 h-24 rounded-[2rem] bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex items-center justify-center text-lime-500 shadow-2xl">
+       <div className="absolute inset-0 bg-emerald-500/20 blur-3xl rounded-full" />
+       <div className="relative w-24 h-24 rounded-[2rem] bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex items-center justify-center text-emerald-500 shadow-2xl">
           <Icon size={40} className="animate-pulse" />
        </div>
     </div>
@@ -358,7 +358,7 @@ const ShopChatModal = memo(({ open, onClose }) => {
       <motion.div
         initial={{ opacity: 0, scale: 0.9, y: 30 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="relative w-full max-w-6xl h-full sm:h-[85vh] bg-white dark:bg-gray-900 sm:rounded-[3rem] shadow-2xl overflow-hidden flex border border-gray-100 dark:border-gray-800"
+        className="relative w-full max-w-6xl h-full sm:h-[85vh] bg-white dark:bg-gray-900 sm:rounded-md shadow-2xl overflow-hidden flex border border-gray-100 dark:border-gray-800"
       >
         
         
@@ -368,8 +368,8 @@ const ShopChatModal = memo(({ open, onClose }) => {
         )}>
           <div className="p-8 border-b border-gray-100 dark:border-gray-800 space-y-2">
             <div className="flex items-center gap-2">
-               <div className="w-8 h-1.5 rounded-full bg-lime-500" />
-               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-600">مركز المحادثات</span>
+               <div className="w-8 h-1.5 rounded-full bg-emerald-500" />
+               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">مركز المحادثات</span>
             </div>
             <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">المراسلات</h2>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">تواصل مع عملائك في الوقت الفعلي</p>
@@ -377,7 +377,7 @@ const ShopChatModal = memo(({ open, onClose }) => {
 
           <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar-thin">
             {isLoadingSessions ? (
-               <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-lime-500 border-t-transparent rounded-full animate-spin" /></div>
+               <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" /></div>
             ) : sessions.length === 0 ? (
                <EmptyHero icon={RiChatSmile2Line} title="لا توجد محادثات" sub="لم يقم أي عميل بمراسلتك حتى الآن" />
             ) : (
@@ -391,7 +391,7 @@ const ShopChatModal = memo(({ open, onClose }) => {
                    <div className={clsx("w-3 h-3 rounded-full animate-pulse", isConnected ? "bg-emerald-500" : "bg-red-500")} />
                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{isConnected ? "متصل بالخادم" : "غير متصل"}</span>
                 </div>
-                <RiVerifiedBadgeLine className="text-lime-500" size={20} />
+                <RiVerifiedBadgeLine className="text-emerald-500" size={20} />
              </div>
           </div>
         </aside>
@@ -413,8 +413,8 @@ const ShopChatModal = memo(({ open, onClose }) => {
               
                <div className="px-8 py-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-white/80 dark:bg-gray-900/80 backdrop-blur-md sticky top-0 z-40">
                   <div className="flex items-center gap-4">
-                     <button onClick={() => setIsSidebarOpen(true)} className="sm:hidden p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500"><FiArrowRight size={20} /></button>
-                     <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-lime-500 to-emerald-500 flex items-center justify-center text-white font-black text-sm shadow-lg shadow-lime-500/20">
+                     <button onClick={() => setIsSidebarOpen(true)} className="sm:hidden p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-emerald-500"><FiArrowRight size={20} /></button>
+                     <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-500 flex items-center justify-center text-white font-black text-sm shadow-lg shadow-emerald-500/20">
                         {initial(activeSession.userName)}
                      </div>
                      <div>
@@ -434,7 +434,7 @@ const ShopChatModal = memo(({ open, onClose }) => {
                
                <div className="flex-1 overflow-y-auto px-8 py-10 space-y-2 custom-scrollbar-thin bg-[radial-gradient(circle_at_center,_#f1f5f9_1px,_transparent_1px)] dark:bg-[radial-gradient(circle_at_center,_#1e293b_1px,_transparent_1px)] bg-[size:32px_32px]">
                   {isLoadingMessages ? (
-                     <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-lime-500 border-t-transparent rounded-full animate-spin" /></div>
+                     <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" /></div>
                   ) : messages.length === 0 ? (
                      <EmptyHero icon={RiHistoryLine} title="بداية جديدة" sub={`ابدأ المحادثة مع ${activeSession.userName} الآن`} />
                   ) : (
@@ -453,7 +453,7 @@ const ShopChatModal = memo(({ open, onClose }) => {
                         onChange={e => setInput(e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())}
                         placeholder="اكتب رسالتك هنا..."
-                        className="w-full pl-24 pr-6 py-5 rounded-[2rem] bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-lime-500 text-sm font-bold text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none transition-all resize-none shadow-sm"
+                        className="w-full pl-24 pr-6 py-5 cursor-pointer rounded-[2rem] bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-emerald-500 text-sm font-bold text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none transition-all resize-none shadow-sm"
                         rows={1}
                      />
                      <button
@@ -461,7 +461,7 @@ const ShopChatModal = memo(({ open, onClose }) => {
                         disabled={!isConnected || !input.trim()}
                         className={clsx(
                            "absolute left-4 top-1/2 -translate-y-1/2 p-4 text-center rounded-2xl transition-all duration-300",
-                           input.trim() ? "bg-lime-500 text-white shadow-xl shadow-lime-500/20 active:scale-95" : "bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed"
+                           input.trim() ? "bg-emerald-500 text-white shadow-xl shadow-emerald-500/20 active:scale-95" : "bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed"
                         )}
                      >
                         <FiSend size={18} />

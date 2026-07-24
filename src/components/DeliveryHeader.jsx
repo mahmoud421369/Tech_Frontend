@@ -17,7 +17,7 @@ const MENU_GROUPS = [
   {
     label: "Main Dashboard",
     items: [
-      { name: "Console", path: "/delivery/dashboard", icon: <FiHome size={18} /> },
+      { name: "Dashboard", path: "/delivery/dashboard", icon: <FiHome size={18} /> },
     ]
   },
   {
@@ -60,9 +60,9 @@ const NavLink = memo(({ item, active, onClick }) => (
   <Link
     to={item.path}
     onClick={onClick}
-    className={`group flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all duration-300 relative overflow-hidden
+    className={`group flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold transition-all duration-300 relative overflow-hidden
       ${active
-        ? "bg-lime-500 text-white shadow-lg shadow-lime-500/20 active:scale-95"
+        ? "bg-emerald-400 text-white shadow-lg shadow-emerald-500/20 active:scale-95"
         : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"}`}
   >
     <span className={`flex-shrink-0 transition-transform duration-500 ${active ? "scale-110" : "group-hover:scale-110 group-hover:rotate-6"}`}>
@@ -162,10 +162,10 @@ const DeliveryHeader = () => {
 
         <div className="relative h-20 flex items-center justify-between px-6 border-b border-gray-50 dark:border-gray-800/50">
           <Link to="/delivery/dashboard" aria-label="Go to Delivery Dashboard" className="flex items-center gap-2 group" onClick={closeSidebar}>
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-lime-500 to-emerald-600 flex items-center justify-center group-hover:rotate-12 transition-transform duration-500 shadow-lg shadow-lime-500/20">
-              <FiTruck className="text-white" size={20} />
+            <div className="w-10 h-10 rounded-2xl  flex items-center justify-center group-hover:rotate-12 transition-transform duration-500 ">
+              <FiTruck className="text-emerald-500" size={20} />
             </div>
-            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tighter">Delivery<span className="text-lime-500">Hub</span></span>
+            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tighter">Delivery<span className="text-emerald-500">Hub</span></span>
           </Link>
           <button onClick={closeSidebar} aria-label="Close Navigation Sidebar" className="lg:hidden p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-red-500 transition-all">
             <FiX size={18} />
@@ -203,10 +203,10 @@ const DeliveryHeader = () => {
       </aside>
 
 
-      <header role="banner" className="fixed top-0 left-0 right-0 h-20 z-[40] bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-50 dark:border-gray-800 flex items-center justify-between px-6 lg:pl-[280px] transition-all duration-500">
+      <header role="banner" className="fixed top-0 left-0 right-0 h-20 z-[40] bg-white/80 dark:bg-gray-900  border-b-2 border-gray-50 dark:border-gray-800 flex items-center justify-between px-6 lg:pl-[280px] transition-all duration-500">
         <div className="flex items-center gap-4">
 
-          <button onClick={() => setSidebarOpen(true)} aria-label="Open Navigation Sidebar" className="lg:hidden w-11 h-11 rounded-2xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-lime-500 hover:text-white transition-all shadow-sm">
+          <button onClick={() => setSidebarOpen(true)} aria-label="Open Navigation Sidebar" className="lg:hidden w-11 h-11 rounded-2xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-emerald-500 hover:text-white transition-all shadow-sm">
             <FiMenu size={20} />
           </button>
 
@@ -230,7 +230,7 @@ const DeliveryHeader = () => {
           <div className="h-8 w-[1px] bg-gray-100 dark:bg-gray-800 mx-1" />
 
           <Link to="/delivery/profile" aria-label="View Profile" className="flex items-center gap-3 pl-1 pr-3 py-1 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all group">
-            <div className="w-10 h-10 rounded-2xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400 group-hover:text-lime-500 transition-colors">
+            <div className="w-10 h-10 rounded-3xl bg-gray-100 dark:bg-gray-900 flex items-center justify-center text-gray-400 group-hover:text-emerald-500 transition-colors">
               <FiUser size={18} />
             </div>
             <div className="hidden md:block text-right">

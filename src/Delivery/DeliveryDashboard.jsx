@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo, memo } from "react";
-import { 
-  FiPackage, FiTool, FiClock, FiCheckCircle, 
+import {
+  FiPackage, FiTool, FiClock, FiCheckCircle,
   FiBell, FiX, FiHome, FiTrendingUp, FiActivity, FiArrowRight,
   FiZap, FiTruck, FiMapPin, FiShield
 } from "react-icons/fi";
@@ -18,15 +18,15 @@ const StatCard = memo(({ label, value, icon: Icon, color, to, description }) => 
   <Link
     to={to}
     aria-label={`View details for ${label}`}
-    className="relative group bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 p-8 hover:shadow-2xl hover:shadow-gray-200/50 dark:hover:shadow-none transition-all duration-500 overflow-hidden"
+    className="relative group bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 p-8 hover:shadow-2xl hover:shadow-gray-200/50 dark:hover:shadow-none transition-all duration-500 overflow-hidden"
   >
     <div className={`absolute top-0 right-0 w-32 h-32 bg-${color}-500/5 rounded-bl-full translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-700`} />
-    
+
     <div className="relative z-10 flex flex-col h-full">
       <div className={`w-14 h-14 rounded-2xl bg-${color}-50 dark:bg-${color}-900/20 flex items-center justify-center text-${color}-600 dark:text-${color}-400 mb-6 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-500`}>
         <Icon size={28} />
       </div>
-      
+
       <div className="space-y-1">
         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">{label}</p>
         <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">{value}</p>
@@ -44,19 +44,17 @@ const StatCard = memo(({ label, value, icon: Icon, color, to, description }) => 
 
 const ActivityRow = memo(({ act }) => (
   <div className="group flex items-center gap-4 p-4 rounded-[1.5rem] hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all duration-300">
-    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110 ${
-      act.type === "order"
+    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110 ${act.type === "order"
         ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600"
         : "bg-amber-50 dark:bg-amber-900/20 text-amber-600"
-    }`}>
+      }`}>
       <act.icon size={20} />
     </div>
     <div className="flex-1 min-w-0">
       <div className="flex items-center gap-2">
         <p className="text-sm font-black text-gray-900 dark:text-white truncate">{act.title}</p>
-        <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-tighter ${
-          act.type === 'order' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-        }`}>
+        <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-tighter ${act.type === 'order' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+          }`}>
           {act.type}
         </span>
       </div>
@@ -72,7 +70,7 @@ const ActivityRow = memo(({ act }) => (
 ));
 
 const NotifCard = memo(({ notif, onDismiss }) => (
-  <div className="relative group p-5 bg-white dark:bg-gray-800/50 rounded-3xl border border-gray-100 dark:border-gray-700 hover:border-lime-200 dark:hover:border-lime-900/50 transition-all duration-300">
+  <div className="relative group p-5 bg-gray-100 dark:bg-gray-800/50 rounded-3xl border border-gray-100 dark:border-gray-700 hover:border-gray-200 dark:hover:border-gray-900/50 transition-all duration-300">
     <button
       onClick={() => onDismiss(notif.id)}
       aria-label="Dismiss Alert"
@@ -80,8 +78,8 @@ const NotifCard = memo(({ notif, onDismiss }) => (
     >
       <FiX size={14} />
     </button>
-    <div className="flex gap-4">
-      <div className="w-10 h-10 rounded-2xl bg-lime-50 dark:bg-lime-900/20 flex items-center justify-center text-lime-600 flex-shrink-0">
+    <div className="flex flex-wrap gap-4">
+      <div className="w-10 h-10 rounded-3xl bg-white border border-gray-200 dark:border-gray-900 dark:bg-gray-900/20 flex items-center justify-center text-emerald-600 flex-shrink-0">
         <FiBell size={18} />
       </div>
       <div className="flex-1">
@@ -103,11 +101,11 @@ const NotifCard = memo(({ notif, onDismiss }) => (
 
 
 const DeliveryDashboard = () => {
-  const [stats, setStats]               = useState({ availableOrders: 0, myOrders: 0, availableRepairs: 0, myRepairs: 0 });
+  const [stats, setStats] = useState({ availableOrders: 0, myOrders: 0, availableRepairs: 0, myRepairs: 0 });
   const [notifications, setNotifications] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
-  const [isLoading, setIsLoading]       = useState(true);
-  const [token]                         = useState(localStorage.getItem("authToken"));
+  const [isLoading, setIsLoading] = useState(true);
+  const [token] = useState(localStorage.getItem("authToken"));
 
   const showToast = useCallback((text, icon) => {
     Swal.fire({ text, icon, toast: true, position: "top-end", timer: 3000, showConfirmButton: false });
@@ -123,13 +121,13 @@ const DeliveryDashboard = () => {
     }
     metaDesc.content = 'Live operational console for Tech Restore delivery personnel. Manage active deliveries, repairs and track tasks.';
   }, []);
-  
+
 
   const fetchNotifications = useCallback(async () => {
     try {
       const res = await api.get("/api/notifications/delivery");
       setNotifications(res.data.content || res.data || []);
-    } catch {}
+    } catch { }
   }, []);
 
   const loadData = useCallback(async (silent = false) => {
@@ -141,7 +139,7 @@ const DeliveryDashboard = () => {
         getMyDeliveries().catch(() => []),
         getMyRepairs().catch(() => []),
       ]);
-      
+
       const ao = availOrders?.content || availOrders || [];
       const ar = availRepairs?.content || availRepairs || [];
       const mo = myOrdersRes?.content || myOrdersRes || [];
@@ -184,7 +182,7 @@ const DeliveryDashboard = () => {
   }, [showToast]);
 
   useEffect(() => { loadData(false); }, [loadData]);
-  
+
   useEffect(() => {
     const a = setInterval(() => loadData(true), 30000);
     const b = setInterval(fetchNotifications, 60000);
@@ -192,10 +190,10 @@ const DeliveryDashboard = () => {
   }, [loadData, fetchNotifications]);
 
   const statCardsData = useMemo(() => [
-    { label: "Available Orders",  value: stats.availableOrders,  icon: FiTruck,    color: "lime",   to: "/delivery/available-orders",         description: "Ready for Pickup" },
-    { label: "Active Deliveries", value: stats.myOrders,         icon: FiActivity, color: "blue",   to: "/delivery/my-deliveries",            description: "In Progress" },
-    { label: "Pending Repairs",   value: stats.availableRepairs, icon: FiZap,      color: "amber",  to: "/delivery/available-repair-requests", description: "Awaiting Service" },
-    { label: "Active Repairs",    value: stats.myRepairs,        icon: FiShield,   color: "indigo", to: "/delivery/my-repairs",               description: "Being Handled" },
+    { label: "Available Orders", value: stats.availableOrders, icon: FiTruck, color: "lime", to: "/delivery/available-orders", description: "Ready for Pickup" },
+    { label: "Active Deliveries", value: stats.myOrders, icon: FiActivity, color: "blue", to: "/delivery/my-deliveries", description: "In Progress" },
+    { label: "Pending Repairs", value: stats.availableRepairs, icon: FiZap, color: "amber", to: "/delivery/available-repair-requests", description: "Awaiting Service" },
+    { label: "Active Repairs", value: stats.myRepairs, icon: FiShield, color: "indigo", to: "/delivery/my-repairs", description: "Being Handled" },
   ], [stats]);
 
   if (isLoading) {
@@ -206,25 +204,25 @@ const DeliveryDashboard = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-10">
 
-      
+
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-1.5 rounded-full bg-lime-500" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-600">Personnel Hub</span>
+              <div className="w-8 h-1.5 rounded-full bg-emerald-500" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">Personnel Hub</span>
             </div>
-            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">Delivery <span className="text-lime-500">Console</span></h1>
+            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">Delivery <span className="text-emerald-500">Console</span></h1>
             <p className="text-sm font-bold text-gray-500 dark:text-gray-400">Live operational overview for active agents</p>
           </div>
-          <div className="flex items-center gap-3 bg-white dark:bg-gray-800 p-2 rounded-[2rem] border border-gray-100 dark:border-gray-700 shadow-sm">
+          <div className="flex items-center gap-3 bg-white dark:bg-gray-800 p-2 rounded-md border border-gray-100 dark:border-gray-700 shadow-sm">
             <div className="px-5 py-2">
               <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-0.5">System Status</p>
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-lime-500 animate-pulse" />
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-tighter">Connected</span>
               </div>
             </div>
-            <button 
+            <button
               onClick={() => loadData(false)}
               aria-label="Refresh Dashboard State"
               className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 hover:text-lime-500 hover:rotate-180 transition-all duration-700"
@@ -234,8 +232,8 @@ const DeliveryDashboard = () => {
           </div>
         </div>
 
-       
-       
+
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {isLoading ? (
             [...Array(4)].map((_, i) => (
@@ -246,14 +244,14 @@ const DeliveryDashboard = () => {
           )}
         </div>
 
-        
-        
-        
+
+
+
         <div className="grid lg:grid-cols-3 gap-8">
-          
-         
-         
-          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none p-8">
+
+
+
+          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none p-8">
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-lime-50 dark:bg-lime-900/20 flex items-center justify-center text-lime-600">
@@ -287,13 +285,13 @@ const DeliveryDashboard = () => {
             </div>
           </div>
 
-          
-          
+
+
 
           <div className="space-y-6">
-            <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 p-8">
+            <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 p-8">
               <div className="flex items-center gap-3 mb-8">
-                <div className="w-10 h-10 rounded-2xl bg-lime-50 dark:bg-lime-900/20 flex items-center justify-center text-lime-600">
+                <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900/20 flex items-center justify-center text-gray-600">
                   <FiBell size={20} />
                 </div>
                 <div className="flex-1">
@@ -311,7 +309,7 @@ const DeliveryDashboard = () => {
                 {notifications.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
                     <FiShield size={40} className="text-gray-100 dark:text-gray-700" />
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-relaxed">Your console is clear<br/>No active alerts</p>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-relaxed">Your console is clear<br />No active alerts</p>
                   </div>
                 ) : (
                   notifications.map((n) => <NotifCard key={n.id} notif={n} onDismiss={dismissNotification} />)
@@ -319,9 +317,9 @@ const DeliveryDashboard = () => {
               </div>
             </div>
 
-            
-            
-            
+
+
+
             <div className="bg-gradient-to-br from-lime-500 to-emerald-600 rounded-[2.5rem] p-8 text-white shadow-xl shadow-lime-500/20 relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-bl-full translate-x-8 -translate-y-8" />
               <FiZap className="relative z-10 mb-4" size={32} />
@@ -336,7 +334,8 @@ const DeliveryDashboard = () => {
         </div>
       </div>
 
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .custom-scrollbar-thin::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }

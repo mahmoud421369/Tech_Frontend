@@ -119,6 +119,39 @@ const CategoryModal = memo(({ editingCategory, value, onChange, onClose, onSubmi
 
 
 
+const CategorySkeleton = () => (
+  <div className="animate-pulse space-y-8">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      {[1, 2].map(i => (
+        <div key={i} className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-sm flex items-center gap-4 h-28">
+          <div className="w-12 h-12 rounded-2xl bg-gray-150 dark:bg-gray-700" />
+          <div className="space-y-2 flex-1">
+            <div className="h-3 w-24 bg-gray-200 dark:bg-gray-700 rounded-full" />
+            <div className="h-5 w-32 bg-gray-300 dark:bg-gray-650 rounded-md" />
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-4 h-20" />
+
+    <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
+      <div className="p-6 space-y-4">
+        {[1, 2, 3, 4, 5].map(i => (
+          <div key={i} className="flex items-center justify-between border-b border-gray-50 dark:border-gray-800 pb-4 last:border-0">
+            <div className="h-4 w-32 bg-gray-250 dark:bg-gray-700 rounded-md" />
+            <div className="h-6 w-24 bg-gray-150 dark:bg-gray-700 rounded-full" />
+            <div className="flex gap-2">
+              <div className="w-10 h-10 bg-gray-150 dark:bg-gray-700 rounded-xl" />
+              <div className="w-10 h-10 bg-gray-150 dark:bg-gray-700 rounded-xl" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
 const Categories = ({ darkMode }) => {
   const navigate = useNavigate();
   const tokenRef = useRef(localStorage.getItem('authToken'));
@@ -146,7 +179,7 @@ const Categories = ({ darkMode }) => {
     if (!token) { navigate('/login'); return; }
     setLoading(true);
     try {
-      const { data } = await api.get('/api/admin/categories', { headers: { Authorization: `Bearer ${token}` } });
+      const { data } = await api.get('/api/admin/categories?page=0&size=200', { headers: { Authorization: `Bearer ${token}` } });
       setCategories(Array.isArray(data) ? data : data?.content || []);
     } catch (err) {
       if (err?.response?.status === 401) navigate('/login');
@@ -225,7 +258,7 @@ const Categories = ({ darkMode }) => {
               <FiRefreshCw size={16} className={loading ? 'animate-spin' : ''} />
             </button>
             <button onClick={() => { setEditingCategory(null); setCategoryName(''); setIsModalOpen(true); }}
-              className="flex items-center justify-center gap-2 px-6 py-3.5 bg-lime-500 text-white rounded-2xl shadow-lg shadow-lime-500/20 hover:scale-105 active:scale-95 transition-all text-xs font-black uppercase tracking-widest">
+              className="flex items-center justify-center gap-2 px-6 py-3.5 bg-green-500 text-white rounded-2xl shadow-lg shadow-lime-500/20 hover:scale-105 active:scale-95 transition-all text-xs font-black uppercase tracking-widest">
               <FiPlus size={16} /> New Category
             </button>
           </div>
@@ -234,51 +267,43 @@ const Categories = ({ darkMode }) => {
        
        
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <StatCard icon={FiGrid} label="Total Categories" value={categories.length} color="lime" />
-          <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-sm flex items-center gap-4">
-             <div className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center text-gray-400">
-               <FiActivity size={20} />
-             </div>
-             <div>
-               <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">System Integrity</p>
-               <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Schema Validated</p>
-             </div>
-          </div>
-        </div>
-
-        
-        
-
-        <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
-          <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
-            <div className="relative flex-1 group">
-              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={16} />
-              <input type="text" placeholder="Search category..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-10 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/5 transition-all" />
-              {searchTerm && (
-                <button onClick={() => setSearchTerm('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors">
-                  <FiXCircle size={16} title="Clear Search" />
-                </button>
-              )}
+        {loading && categories.length === 0 ? (
+          <CategorySkeleton />
+        ) : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <StatCard icon={FiGrid} label="Total Categories" value={categories.length} color="lime" />
+              <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-sm flex items-center gap-4">
+                 <div className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center text-gray-400">
+                   <FiActivity size={20} />
+                 </div>
+                 <div>
+                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">System Integrity</p>
+                   <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Schema Validated</p>
+                 </div>
+              </div>
             </div>
-            <div className="flex items-center gap-3 px-4">
-               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">View</span>
-               <RowsDropdown value={rowsPerPage} options={ROWS_OPTIONS} onChange={n => { setRowsPerPage(n); setCurrentPage(1); }} />
-            </div>
-          </div>
-        </div>
 
-        
-        
-        <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
-          {loading ? (
-            <div className="py-32 text-center space-y-4">
-              <div className="w-12 h-12 border-4 border-lime-500 border-t-transparent rounded-full animate-spin mx-auto shadow-lg" />
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 animate-pulse">Syncing schema...</p>
+            <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
+              <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
+                <div className="relative flex-1 group">
+                  <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={16} />
+                  <input type="text" placeholder="Search category..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                    className="w-full pl-12 pr-10 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/5 transition-all" />
+                  {searchTerm && (
+                    <button onClick={() => setSearchTerm('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors">
+                      <FiXCircle size={16} title="Clear Search" />
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 px-4">
+                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">View</span>
+                   <RowsDropdown value={rowsPerPage} options={ROWS_OPTIONS} onChange={n => { setRowsPerPage(n); setCurrentPage(1); }} />
+                </div>
+              </div>
             </div>
-          ) : (
-            <>
+
+            <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
               <div className="overflow-x-auto custom-scrollbar-thin">
                 <table className="w-full min-w-[500px]">
                   <thead className="bg-gray-50 dark:bg-gray-900/50">
@@ -362,9 +387,9 @@ const Categories = ({ darkMode }) => {
                   </div>
                 </div>
               )}
-            </>
-          )}
-        </div>
+            </div>
+          </>
+        )}
       </div>
 
       {isModalOpen && (

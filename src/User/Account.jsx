@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, memo, useMemo, useTransition, useRef, createContext, useContext } from "react";
+import React, { useState, useEffect, useCallback, memo, useMemo, useTransition, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Swal from "sweetalert2";
@@ -12,182 +12,58 @@ import {
   FiNavigation,
   FiList,
   FiBell,
-  FiGlobe,
-  FiLock,
-  FiMonitor,
-  FiActivity,
-  FiAlertTriangle,
   FiDownload,
   FiFilter,
   FiSearch,
   FiChevronDown,
-  FiLogOut,
   FiClock,
-  FiEye,
-  FiToggleLeft,
-  FiToggleRight,
+  FiArrowRight,
+  FiExternalLink,
+  FiCrosshair,
+  FiLoader,
+  FiPieChart,
+  FiTrendingUp,
+  FiTarget,
+  FiSend,
+  FiAward,
+  FiCompass,
 } from "react-icons/fi";
 import api from "../api";
 import { motion, AnimatePresence } from "framer-motion";
 import { jwtDecode } from "jwt-decode";
 import { RiLogoutBoxRLine, RiVerifiedBadgeLine, RiStarFill } from "react-icons/ri";
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from "@headlessui/react";
-
-
-
-
-export const AppSettingsContext = createContext({
-  darkMode: false,
-  setDarkMode: () => {},
-  lang: "en",
-  setLang: () => {},
-  t: (k) => k,
-});
-
-export const useAppSettings = () => useContext(AppSettingsContext);
-
-
-
-
-const TRANSLATIONS = {
-  en: {
-    myAccount: "My Account", dashboard: "Dashboard", settings: "Settings",
-    profile: "Profile", addresses: "Addresses", orders: "Orders", repairs: "Repairs",
-    notifications: "Notifications", security: "Security",
-    editProfile: "Edit Profile", saveChanges: "Save Changes", cancel: "Cancel",
-    firstName: "First Name", lastName: "Last Name", phone: "Phone Number",
-    email: "Email", accountStatus: "Account Status", active: "Active", inactive: "Inactive",
-    logout: "Logout", deleteAccount: "Delete Account",
-    addAddress: "Add Address", editAddress: "Edit Address", deleteAddress: "Delete Address",
-    addressInfo: "Address Information", pickOnMap: "Pick on Map",
-    state: "State / Governorate", city: "City", street: "Street", building: "Building / Apartment",
-    notes: "Additional Notes (optional)", setDefault: "Set as default address",
-    noAddresses: "No saved addresses yet", noOrders: "No orders placed yet", noRepairs: "No repair requests yet",
-    noNotifications: "No notifications yet", details: "Details", cancelOrder: "Cancel Order",
-    viewRepair: "View", editRepair: "Edit", acceptQuote: "Accept Quote", cancelRepair: "Cancel Request",
-    downloadInvoice: "Download Invoice", filterStatus: "Filter by Status",
-    filterDate: "Filter by Date", searchPlaceholder: "Search...",
-    all: "All", orderStatuses: { PENDING: "Pending", CONFIRMED: "Confirmed", PROCESSING: "Processing", FINISHPROCESSING: "Finish Processing", SHIPPED: "Shipped", DELIVERED: "Delivered", CANCELLED: "Cancelled" },
-    repairStatuses: { SUBMITTED: "Submitted", QUOTE_SENT: "Quote Sent", QUOTE_APPROVED: "Quote Approved", QUOTE_REJECTED: "Quote Rejected", DEVICE_COLLECTED: "Device Collected", REPAIRING: "Repairing", REPAIR_COMPLETED: "Repair Completed", DEVICE_DELIVERED: "Device Delivered", CANCELLED: "Cancelled", FAILED: "Failed" },
-    activeSessions: "Active Sessions", accountActivity: "Account Activity Log", dangerZone: "Danger Zone",
-    currentSession: "Current Session", thisDevice: "This Device",
-    deleteAccountWarning: "This action is irreversible. All your data will be permanently deleted.",
-    confirmDelete: "Yes, Delete My Account", deleteNotification: "Delete",
-    unread: "Unread",
-    personalDashboard: "Your personal dashboard",
-    manageParagraph: "Manage your profile, addresses, orders, and repair requests — all in one place.",
-    dailyActivity: "Daily activity", activeUsers: "Active users", avgRating: "Avg rating",
-    quickStats: "Quick Stats", myProfile: "My Profile",
-    confirmRepair: "Confirm Repair Order", deliveryAddress: "Delivery Address",
-    deliveryMethod: "Delivery Method", paymentMethod: "Payment Method",
-    homeDelivery: "Home Delivery", visitShop: "Visit Shop", courier: "Courier",
-    cash: "Cash", creditCard: "Credit Card", confirm: "Confirm", processing: "Processing...",
-    useMylocation: "Use My Location", clickToSet: "Click on the map or drag the pin to set your location",
-    update: "Update", save: "Save", inUse: "In Use", usedInActive: "Used in active order/repair",
-    default: "Default", orderItems: "Order Items", grandTotal: "Grand Total",
-    shop: "Shop", issueDescription: "Issue Description", status: "Status", quote: "Quote",
-    total: "Total", close: "Close", deviceCategory: "Device Category", description: "Description",
-    describeIssue: "Describe the issue...", noItems: "No items",
-    orderDate: "Order Date", from: "From", payWith: "Pay with",
-    redirectPayment: "You'll be redirected to a secure payment gateway.",
-    noAddressFound: "No addresses found. Please add one in your profile.",
-    loadingMap: "Loading map...",
-    stillNeedManual: "You still need to fill in the manual address fields. Switch to Manual Entry to complete the street details.",
-    language: "Language", darkModeLabel: "Dark Mode",
-    sessionInfo: "Session Information", ipAddress: "IP Address", browser: "Browser",
-    location: "Location", lastActive: "Last Active", terminate: "Terminate",
-    activityType: "Activity", activityTime: "Time", activityDetails: "Details",
-    login: "Login", passwordChange: "Password Changed", profileUpdate: "Profile Updated",
-    addressAdded: "Address Added",
-  },
-  ar: {
-    myAccount: "حسابي", dashboard: "لوحة التحكم", settings: "الإعدادات",
-    profile: "الملف الشخصي", addresses: "العناوين", orders: "الطلبات", repairs: "الإصلاحات",
-    notifications: "الإشعارات", security: "الأمان",
-    editProfile: "تعديل الملف", saveChanges: "حفظ التغييرات", cancel: "إلغاء",
-    firstName: "الاسم الأول", lastName: "اسم العائلة", phone: "رقم الهاتف",
-    email: "البريد الإلكتروني", accountStatus: "حالة الحساب", active: "نشط", inactive: "غير نشط",
-    logout: "تسجيل الخروج", deleteAccount: "حذف الحساب",
-    addAddress: "إضافة عنوان", editAddress: "تعديل العنوان", deleteAddress: "حذف العنوان",
-    addressInfo: "معلومات العنوان", pickOnMap: "اختر على الخريطة",
-    state: "المحافظة / الولاية", city: "المدينة", street: "الشارع", building: "المبنى / الشقة",
-    notes: "ملاحظات إضافية (اختياري)", setDefault: "تعيين كعنوان افتراضي",
-    noAddresses: "لا توجد عناوين محفوظة", noOrders: "لا توجد طلبات بعد", noRepairs: "لا توجد طلبات إصلاح",
-    noNotifications: "لا توجد إشعارات", details: "التفاصيل", cancelOrder: "إلغاء الطلب",
-    viewRepair: "عرض", editRepair: "تعديل", acceptQuote: "قبول العرض", cancelRepair: "إلغاء الطلب",
-    downloadInvoice: "تحميل الفاتورة", filterStatus: "تصفية حسب الحالة",
-    filterDate: "تصفية حسب التاريخ", searchPlaceholder: "بحث...",
-    all: "الكل",
-    orderStatuses: { PENDING: "قيد الانتظار", CONFIRMED: "مؤكد", PROCESSING: "جارٍ المعالجة", FINISHPROCESSING: "اكتملت المعالجة", SHIPPED: "تم الشحن", DELIVERED: "تم التسليم", CANCELLED: "ملغي" },
-    repairStatuses: { SUBMITTED: "مُقدَّم", QUOTE_SENT: "تم إرسال العرض", QUOTE_APPROVED: "تم قبول العرض", QUOTE_REJECTED: "تم رفض العرض", DEVICE_COLLECTED: "تم استلام الجهاز", REPAIRING: "جارٍ الإصلاح", REPAIR_COMPLETED: "اكتمل الإصلاح", DEVICE_DELIVERED: "تم تسليم الجهاز", CANCELLED: "ملغي", FAILED: "فشل" },
-    activeSessions: "الجلسات النشطة", accountActivity: "سجل نشاط الحساب", dangerZone: "منطقة الخطر",
-    currentSession: "الجلسة الحالية", thisDevice: "هذا الجهاز",
-    deleteAccountWarning: "هذا الإجراء لا يمكن التراجع عنه. سيتم حذف جميع بياناتك بشكل دائم.",
-    confirmDelete: "نعم، احذف حسابي", deleteNotification: "حذف",
-    unread: "غير مقروء",
-    personalDashboard: "لوحتك الشخصية",
-    manageParagraph: "أدر ملفك الشخصي وعناوينك وطلباتك وطلبات الإصلاح — كل ذلك في مكان واحد.",
-    dailyActivity: "النشاط اليومي", activeUsers: "المستخدمون النشطون", avgRating: "متوسط التقييم",
-    quickStats: "إحصائيات سريعة", myProfile: "ملفي الشخصي",
-    confirmRepair: "تأكيد طلب الإصلاح", deliveryAddress: "عنوان التسليم",
-    deliveryMethod: "طريقة التسليم", paymentMethod: "طريقة الدفع",
-    homeDelivery: "توصيل للمنزل", visitShop: "زيارة المتجر", courier: "مندوب توصيل",
-    cash: "نقداً", creditCard: "بطاقة ائتمان", confirm: "تأكيد", processing: "جارٍ المعالجة...",
-    useMylocation: "استخدم موقعي", clickToSet: "انقر على الخريطة أو اسحب الدبوس لتحديد موقعك",
-    update: "تحديث", save: "حفظ", inUse: "قيد الاستخدام", usedInActive: "مستخدم في طلب نشط",
-    default: "افتراضي", orderItems: "عناصر الطلب", grandTotal: "المجموع الكلي",
-    shop: "المتجر", issueDescription: "وصف المشكلة", status: "الحالة", quote: "العرض",
-    total: "الإجمالي", close: "إغلاق", deviceCategory: "فئة الجهاز", description: "الوصف",
-    describeIssue: "صف المشكلة...", noItems: "لا توجد عناصر",
-    orderDate: "تاريخ الطلب", from: "من", payWith: "ادفع بـ",
-    redirectPayment: "سيتم تحويلك إلى بوابة دفع آمنة.",
-    noAddressFound: "لم يتم العثور على عناوين. يرجى إضافة واحد في ملفك الشخصي.",
-    loadingMap: "جارٍ تحميل الخريطة...",
-    stillNeedManual: "لا تزال بحاجة إلى ملء حقول العنوان اليدوية. انتقل إلى الإدخال اليدوي لإكمال تفاصيل الشارع.",
-    language: "اللغة", darkModeLabel: "الوضع الداكن",
-    sessionInfo: "معلومات الجلسة", ipAddress: "عنوان IP", browser: "المتصفح",
-    location: "الموقع", lastActive: "آخر نشاط", terminate: "إنهاء",
-    activityType: "النشاط", activityTime: "الوقت", activityDetails: "التفاصيل",
-    login: "تسجيل دخول", passwordChange: "تغيير كلمة المرور", profileUpdate: "تحديث الملف الشخصي",
-    addressAdded: "إضافة عنوان",
-  }
-};
+import Hero from "../components/Hero";
 
 const queryClient = new QueryClient();
 
+const isEmptyVal = (val) => {
+  if (val === null || val === undefined) return true;
+  if (typeof val === "string" && val.trim() === "") return true;
+  if (typeof val === "number" && val === 0) return true;
+  return false;
+};
 
+const isEmptyCoord = (val) => val === null || val === undefined || val === 0;
 
+const toDateOnlyString = (val) => {
+  if (!val) return null;
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+};
 
 const STYLES = `
-  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
   @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
 
-  /* Apply Cairo font globally when RTL (Arabic) */
-  html[dir="rtl"],
-  html[dir="rtl"] body,
-  html[dir="rtl"] * {
-    font-family: 'Cairo', sans-serif !important;
-  }
-
-  /* Light gray scrollbars everywhere */
   * {
     scrollbar-width: thin;
     scrollbar-color: #d1d5db transparent;
   }
-  *::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
-  }
-  *::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  *::-webkit-scrollbar-thumb {
-    background: #d1d5db;
-    border-radius: 999px;
-  }
-  *::-webkit-scrollbar-thumb:hover {
-    background: #9ca3af;
-  }
+  *::-webkit-scrollbar { width: 5px; height: 5px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 999px; }
+  *::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 
   .lime-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
   .lime-scroll::-webkit-scrollbar-track { background: transparent; }
@@ -196,7 +72,12 @@ const STYLES = `
   .tabs-scroll::-webkit-scrollbar { display: none; }
   .tabs-scroll { -ms-overflow-style: none; scrollbar-width: none; }
   .leaflet-container { font-family: inherit; }
-  [dir="rtl"] .rtl-flip { transform: scaleX(-1); }
+  .pin-pulse { animation: pinpulse 1.8s ease-out infinite; }
+  @keyframes pinpulse {
+    0% { transform: scale(0.6); opacity: 0.55; }
+    70% { transform: scale(2.1); opacity: 0; }
+    100% { transform: scale(2.1); opacity: 0; }
+  }
 `;
 
 const LEAFLET_CSS = `https://unpkg.com/leaflet@1.9.4/dist/leaflet.css`;
@@ -207,9 +88,6 @@ const cardVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
   exit: { opacity: 0, y: -20, transition: { duration: 0.2 } }
 };
-
-
-
 
 const ORDER_STEPS = ["PENDING","CONFIRMED","PROCESSING","FINISHPROCESSING","SHIPPED","DELIVERED"];
 const REPAIR_STEPS = ["SUBMITTED","QUOTE_SENT","QUOTE_APPROVED","DEVICE_COLLECTED","REPAIRING","REPAIR_COMPLETED","DEVICE_DELIVERED"];
@@ -226,113 +104,103 @@ const getRepairProgress = (status) => {
   return idx === -1 ? 0 : Math.round((idx / (REPAIR_STEPS.length - 1)) * 100);
 };
 
-
-const ProgressBar = memo(({ progress, status }) => {
+const ProgressBar = memo(({ progress, status, darkMode }) => {
   if (progress === -1) return (
-    <div className="mt-2 mb-1">
-      <div className="h-1.5 w-full rounded-full bg-red-100 dark:bg-red-900/30 overflow-hidden">
+    <div className="mt-2.5 mb-1">
+      <div className={`h-1.5 w-full rounded-full overflow-hidden ${darkMode ? "bg-red-950/40" : "bg-red-100"}`}>
         <div className="h-full w-full bg-gradient-to-r from-red-400 to-red-500 rounded-full" />
       </div>
-      <p className="text-[9px] text-red-500 font-semibold mt-0.5 uppercase tracking-wide">{status?.replace(/_/g, " ")}</p>
+      <p className="text-[10px] text-red-500 font-bold mt-1.5 uppercase tracking-wide">{status?.replace(/_/g, " ")}</p>
     </div>
   );
   return (
-    <div className="mt-2 mb-1">
-      <div className="flex justify-between items-center mb-1">
-        <span className="text-[9px] font-bold text-lime-600 dark:text-lime-400 uppercase tracking-wide">{status?.replace(/_/g," ")}</span>
-        <span className="text-[9px] font-bold text-gray-400">{progress}%</span>
+    <div className="mt-2.5 mb-1">
+      <div className="flex justify-between items-center mb-1.5">
+        <span className={`text-[10px] font-bold uppercase tracking-wide ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>{status?.replace(/_/g," ")}</span>
+        <span className={`text-[10px] font-bold ${darkMode ? "text-gray-500" : "text-gray-400"}`}>{progress}%</span>
       </div>
-      <div className="h-1.5 w-full rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
+      <div className={`h-1.5 w-full rounded-full overflow-hidden ${darkMode ? "bg-gray-700" : "bg-gray-100"}`}>
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${progress}%` }}
           transition={{ duration: 0.8, ease: "easeOut" }}
-          className="h-full rounded-full bg-gradient-to-r from-lime-400 via-emerald-500 to-teal-500"
+          className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500"
         />
       </div>
     </div>
   );
 });
 
-
-
-const WaveBottom = memo(({ darkMode }) => (
-  <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-none pointer-events-none">
-    <svg viewBox="0 0 1440 100" xmlns="http://www.w3.org/2000/svg" className="relative block w-full h-10 md:h-20" preserveAspectRatio="none">
-      <path d="M0,50 C180,100 360,0 540,50 C720,100 900,0 1080,50 C1260,100 1380,20 1440,50 L1440,100 L0,100 Z" fill={darkMode ? "#111827" : "#f9fafb"} />
-    </svg>
-  </div>
-));
-
-const WaveTop = memo(({ darkMode }) => (
-  <div className="absolute top-0 left-0 w-full overflow-hidden leading-none pointer-events-none">
-    <svg viewBox="0 0 1440 80" xmlns="http://www.w3.org/2000/svg" className="relative block w-full h-8 md:h-16" preserveAspectRatio="none">
-      <path d="M0,40 C360,80 720,0 1080,40 C1260,60 1380,20 1440,40 L1440,0 L0,0 Z" fill={darkMode ? "#111827" : "#f9fafb"} />
-    </svg>
-  </div>
-));
-
-const StatCard = memo(({ icon, value, label, accent, delay, darkMode }) => (
-  <motion.div initial={{ opacity: 0, y: 20, scale: 0.95 }} whileInView={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.45, delay }} viewport={{ once: true }} whileHover={{ y: -4, scale: 1.02 }}
-    className={`relative group overflow-hidden rounded-xl p-3 sm:p-4 shadow-lg border transition-all duration-300 ${darkMode ? "bg-gray-800/80 border-gray-700/60" : "bg-white/90 border-gray-100"}`}>
-    <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl" style={{ background: `linear-gradient(90deg, ${accent}, ${accent}88)` }} />
-    <div className="flex items-center gap-2 mb-1">
-      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-white shadow-sm" style={{ background: `linear-gradient(135deg, ${accent}, ${accent}aa)` }}>{icon}</div>
-      <span className="text-lg sm:text-xl font-extrabold tracking-tight" style={{ color: accent }}>{value}</span>
-    </div>
-    <p className={`text-[10px] sm:text-xs font-semibold ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{label}</p>
-  </motion.div>
-));
-
-const LoadingSpinner = memo(() => (
+const LoadingSpinner = memo(({ darkMode }) => (
   <div className="flex justify-center items-center py-16">
-    <div className="w-10 h-10 border-4 border-lime-500 border-t-transparent rounded-full animate-spin" />
+    <div className={`w-10 h-10 border-[3px] ${darkMode ? "border-emerald-400" : "border-emerald-500"} border-t-transparent rounded-full animate-spin`} />
   </div>
 ));
 
-const StatusBadge = memo(({ status, type = "order" }) => {
-  const orderMap = { DELIVERED: "bg-emerald-100 text-emerald-700", CANCELLED: "bg-red-100 text-red-700", CONFIRMED: "bg-blue-100 text-blue-700", SHIPPED: "bg-purple-100 text-purple-700", PROCESSING: "bg-cyan-100 text-cyan-700", FINISHPROCESSING: "bg-teal-100 text-teal-700" };
-  const repairMap = { DEVICE_DELIVERED: "bg-emerald-100 text-emerald-700", CANCELLED: "bg-red-100 text-red-700", FAILED: "bg-red-100 text-red-700", QUOTE_APPROVED: "bg-emerald-100 text-emerald-700", QUOTE_SENT: "bg-purple-100 text-purple-700", QUOTE_REJECTED: "bg-red-100 text-red-700", REPAIRING: "bg-cyan-100 text-cyan-700", REPAIR_COMPLETED: "bg-teal-100 text-teal-700", DEVICE_COLLECTED: "bg-blue-100 text-blue-700" };
-  const map = type === "repair" ? repairMap : orderMap;
+const StatusBadge = memo(({ status, type = "order", darkMode }) => {
+  const orderMapLight = { DELIVERED: "bg-emerald-100 text-emerald-700", CANCELLED: "bg-red-100 text-red-700", CONFIRMED: "bg-blue-100 text-blue-700", SHIPPED: "bg-purple-100 text-purple-700", PROCESSING: "bg-cyan-100 text-cyan-700", FINISHPROCESSING: "bg-teal-100 text-teal-700" };
+  const orderMapDark = { DELIVERED: "bg-emerald-500/15 text-emerald-300", CANCELLED: "bg-red-500/15 text-red-300", CONFIRMED: "bg-blue-500/15 text-blue-300", SHIPPED: "bg-purple-500/15 text-purple-300", PROCESSING: "bg-cyan-500/15 text-cyan-300", FINISHPROCESSING: "bg-teal-500/15 text-teal-300" };
+  const repairMapLight = { DEVICE_DELIVERED: "bg-emerald-100 text-emerald-700", CANCELLED: "bg-red-100 text-red-700", FAILED: "bg-red-100 text-red-700", QUOTE_APPROVED: "bg-emerald-100 text-emerald-700", QUOTE_SENT: "bg-purple-100 text-purple-700", QUOTE_REJECTED: "bg-red-100 text-red-700", REPAIRING: "bg-cyan-100 text-cyan-700", REPAIR_COMPLETED: "bg-teal-100 text-teal-700", DEVICE_COLLECTED: "bg-blue-100 text-blue-700" };
+  const repairMapDark = { DEVICE_DELIVERED: "bg-emerald-500/15 text-emerald-300", CANCELLED: "bg-red-500/15 text-red-300", FAILED: "bg-red-500/15 text-red-300", QUOTE_APPROVED: "bg-emerald-500/15 text-emerald-300", QUOTE_SENT: "bg-purple-500/15 text-purple-300", QUOTE_REJECTED: "bg-red-500/15 text-red-300", REPAIRING: "bg-cyan-500/15 text-cyan-300", REPAIR_COMPLETED: "bg-teal-500/15 text-teal-300", DEVICE_COLLECTED: "bg-blue-500/15 text-blue-300" };
+  const map = darkMode
+    ? (type === "repair" ? repairMapDark : orderMapDark)
+    : (type === "repair" ? repairMapLight : orderMapLight);
+  const fallback = darkMode ? "bg-amber-500/15 text-amber-300" : "bg-amber-100 text-amber-700";
   return (
-    <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider flex-shrink-0 ${map[status] || "bg-amber-100 text-amber-700"}`}>
+    <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider flex-shrink-0 ${map[status] || fallback}`}>
       {status?.replace(/_/g, " ")}
     </span>
   );
 });
 
-const Pagination = memo(({ page, total, setPage, darkMode }) => (
-  <div className="flex justify-center mt-8 gap-1.5 flex-wrap">
-    <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className={`p-2 rounded-xl border transition-all ${page === 1 ? "opacity-40 cursor-not-allowed" : darkMode ? "bg-gray-800 border-gray-700 text-white hover:bg-gray-700" : "bg-white border-gray-200 hover:bg-gray-50"}`}><FiChevronLeft size={14} /></button>
-    {Array.from({ length: total }, (_, i) => i + 1).map((p) => (
-      <button key={p} onClick={() => setPage(p)} className={`w-9 h-9 rounded-xl font-bold text-sm transition-all border ${page === p ? "bg-gradient-to-r from-lime-500 to-emerald-500 text-white border-transparent shadow-lg" : darkMode ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700" : "bg-white border-gray-200 text-gray-700 hover:bg-lime-50"}`}>{p}</button>
-    ))}
-    <button onClick={() => setPage((p) => Math.min(total, p + 1))} disabled={page === total} className={`p-2 rounded-xl border transition-all ${page === total ? "opacity-40 cursor-not-allowed" : darkMode ? "bg-gray-800 border-gray-700 text-white hover:bg-gray-700" : "bg-white border-gray-200 hover:bg-gray-50"}`}><FiChevronRight size={14} /></button>
-  </div>
-));
+const Pagination = memo(({ page, total, setPage, darkMode }) => {
+  if (total <= 1) return null;
+  return (
+    <div className="flex justify-center mt-8 gap-1.5 flex-wrap">
+      <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
+        className={`p-2 rounded-xl border transition-all ${page === 1 ? "opacity-40 cursor-not-allowed" : darkMode ? "bg-gray-800 border-gray-700 text-gray-200 hover:bg-gray-700" : "bg-white border-gray-200 hover:bg-gray-50"}`}>
+        <FiChevronLeft size={14} />
+      </button>
+      {Array.from({ length: total }, (_, i) => i + 1).map((p) => (
+        <button key={p} onClick={() => setPage(p)}
+          className={`w-9 h-9 rounded-xl font-bold text-sm transition-all border ${
+            page === p ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-transparent shadow-lg shadow-emerald-500/20"
+              : darkMode ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-emerald-900/30" : "bg-white border-gray-200 text-gray-700 hover:bg-emerald-50"
+          }`}>{p}</button>
+      ))}
+      <button onClick={() => setPage((p) => Math.min(total, p + 1))} disabled={page === total}
+        className={`p-2 rounded-xl border transition-all ${page === total ? "opacity-40 cursor-not-allowed" : darkMode ? "bg-gray-800 border-gray-700 text-gray-200 hover:bg-gray-700" : "bg-white border-gray-200 hover:bg-gray-50"}`}>
+        <FiChevronRight size={14} />
+      </button>
+    </div>
+  );
+});
 
-
-
-
-const FilterBar = memo(({ statusOptions, statusFilter, setStatusFilter, dateFilter, setDateFilter, search, setSearch, darkMode, t }) => {
-  const inputCls = `px-3 py-2 rounded-xl border text-xs font-semibold outline-none transition-all ${darkMode ? "bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-lime-500" : "bg-white border-gray-200 text-gray-800 placeholder-gray-400 focus:border-lime-500"}`;
+const FilterBar = memo(({ statusOptions, statusFilter, setStatusFilter, dateFilter, setDateFilter, search, setSearch, darkMode }) => {
+  const inputCls = `px-3 py-2 rounded-xl border text-xs font-semibold outline-none transition-all ${
+    darkMode ? "bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-500 focus:border-emerald-400"
+      : "bg-white border-gray-200 text-gray-800 placeholder-gray-400 focus:border-emerald-500"
+  }`;
   return (
     <div className="flex flex-wrap gap-2 mb-5">
       <div className="relative flex-1 min-w-[160px]">
-        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={13} />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t("searchPlaceholder")} className={`${inputCls} pl-8 w-full`} />
+        <FiSearch className={`absolute left-3 top-1/2 -translate-y-1/2 ${darkMode ? "text-gray-500" : "text-gray-400"}`} size={13} />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." className={`${inputCls} pl-8 w-full`} />
       </div>
       <div className="relative">
-        <FiFilter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={11} />
+        <FiFilter className={`absolute left-3 top-1/2 -translate-y-1/2 ${darkMode ? "text-gray-500" : "text-gray-400"}`} size={11} />
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={`${inputCls} pl-8 pr-8 appearance-none cursor-pointer`}>
-          <option value="">{t("all")}</option>
+          <option value="">All</option>
           {statusOptions.map(s => <option key={s} value={s}>{s.replace(/_/g, " ")}</option>)}
         </select>
-        <FiChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={11} />
+        <FiChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${darkMode ? "text-gray-500" : "text-gray-400"}`} size={11} />
       </div>
       <input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)} className={inputCls} />
       {(statusFilter || dateFilter || search) && (
-        <button onClick={() => { setStatusFilter(""); setDateFilter(""); setSearch(""); }} className="flex items-center gap-1 px-3 py-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-500 text-xs font-bold border border-red-200 dark:border-red-800 hover:bg-red-100 transition-all">
+        <button onClick={() => { setStatusFilter(""); setDateFilter(""); setSearch(""); }}
+          className={`flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
+            darkMode ? "bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20" : "bg-red-50 text-red-500 border-red-200 hover:bg-red-100"
+          }`}>
           <FiX size={11} /> Clear
         </button>
       )}
@@ -340,11 +208,60 @@ const FilterBar = memo(({ statusOptions, statusFilter, setStatusFilter, dateFilt
   );
 });
 
+const EmptyState = memo(({ illustration, title, subtitle, darkMode }) => (
+  <div className={`text-center py-14 rounded-2xl border ${darkMode ? "bg-gray-800/60 border-gray-700" : "bg-white border-gray-200"}`}>
+    <div className="mx-auto mb-4 w-40 h-40">{illustration}</div>
+    <p className={`text-lg font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>{title}</p>
+    {subtitle && <p className={`text-sm mt-1 max-w-xs mx-auto ${darkMode ? "text-gray-500" : "text-gray-400"}`}>{subtitle}</p>}
+  </div>
+));
 
+const IllustrationBox = memo(({ darkMode }) => (
+  <svg viewBox="0 0 200 200" className="w-full h-full">
+    <circle cx="100" cy="100" r="90" fill={darkMode ? "#052e21" : "#ecfdf5"} />
+    <rect x="55" y="80" width="90" height="65" rx="8" fill="#10b981" opacity="0.15" />
+    <rect x="55" y="80" width="90" height="24" rx="8" fill="#10b981" />
+    <path d="M55 100 L100 60 L145 100" fill="none" stroke="#0d9488" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="100" cy="115" r="9" fill={darkMode ? "#0b1a12" : "#ffffff"} stroke="#10b981" strokeWidth="3" />
+  </svg>
+));
+
+const IllustrationPin = memo(({ darkMode }) => (
+  <svg viewBox="0 0 200 200" className="w-full h-full">
+    <circle cx="100" cy="100" r="90" fill={darkMode ? "#052e21" : "#ecfdf5"} />
+    <ellipse cx="100" cy="155" rx="34" ry="8" fill="#10b981" opacity="0.15" />
+    <path d="M100 45c-24 0-42 18-42 42 0 32 42 68 42 68s42-36 42-68c0-24-18-42-42-42z" fill="#10b981" />
+    <circle cx="100" cy="87" r="16" fill={darkMode ? "#0b1a12" : "#ffffff"} />
+  </svg>
+));
+
+const IllustrationTool = memo(({ darkMode }) => (
+  <svg viewBox="0 0 200 200" className="w-full h-full">
+    <circle cx="100" cy="100" r="90" fill={darkMode ? "#052e21" : "#ecfdf5"} />
+    <rect x="70" y="55" width="60" height="90" rx="10" fill={darkMode ? "#0b1a12" : "#ffffff"} stroke="#10b981" strokeWidth="4" />
+    <rect x="82" y="70" width="36" height="6" rx="3" fill="#10b981" />
+    <rect x="82" y="84" width="24" height="6" rx="3" fill="#a7f3d0" />
+    <path d="M120 120 l16 16 m0 -16 l-16 16" stroke="#0d9488" strokeWidth="6" strokeLinecap="round" />
+  </svg>
+));
+
+const IllustrationBell = memo(({ darkMode }) => (
+  <svg viewBox="0 0 200 200" className="w-full h-full">
+    <circle cx="100" cy="100" r="90" fill={darkMode ? "#052e21" : "#ecfdf5"} />
+    <path d="M100 55c-18 0-28 14-28 32v20l-10 16h76l-10-16V87c0-18-10-32-28-32z" fill="#10b981" />
+    <circle cx="100" cy="50" r="7" fill="#0d9488" />
+    <path d="M88 132a12 12 0 0024 0" fill="none" stroke="#0d9488" strokeWidth="5" strokeLinecap="round" />
+  </svg>
+));
+
+const IllustrationHeart = memo(({ darkMode }) => (
+  <svg viewBox="0 0 200 200" className="w-full h-full">
+    <circle cx="100" cy="100" r="90" fill={darkMode ? "#052e21" : "#ecfdf5"} />
+    <path d="M100 145s-40-24-40-54c0-16 13-27 28-27 8 0 15 4 20 12 5-8 12-12 20-12 15 0 28 11 28 27 0 30-40 54-40 54z" fill="#10b981" />
+  </svg>
+));
 
 const generateInvoicePDF = async (order) => {
- 
-  
   if (!window.jspdf) {
     await new Promise((res, rej) => {
       const s = document.createElement("script");
@@ -358,13 +275,8 @@ const generateInvoicePDF = async (order) => {
   const doc = new jsPDF();
   const pageW = doc.internal.pageSize.getWidth();
 
-  
-  
-
   const loadPoppinsFont = async () => {
     try {
-    
-      
       const fontUrl = "https://fonts.gstatic.com/s/poppins/v20/pxiEyp8kv8JHgFVrJJfecg.woff2";
       const resp = await fetch(fontUrl);
       const buf = await resp.arrayBuffer();
@@ -378,7 +290,6 @@ const generateInvoicePDF = async (order) => {
       const base64B = btoa(String.fromCharCode(...new Uint8Array(bufB)));
       doc.addFileToVFS("Poppins-Bold.woff2", base64B);
       doc.addFont("Poppins-Bold.woff2", "Poppins", "bold");
-
       return true;
     } catch {
       return false;
@@ -388,9 +299,7 @@ const generateInvoicePDF = async (order) => {
   const poppinsLoaded = await loadPoppinsFont();
   const fontFamily = poppinsLoaded ? "Poppins" : "helvetica";
 
-  
-
-  doc.setFillColor(132, 204, 22);
+  doc.setFillColor(16, 185, 129);
   doc.rect(0, 0, pageW, 28, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(18);
@@ -401,9 +310,6 @@ const generateInvoicePDF = async (order) => {
   doc.text("Order Invoice", 14, 20);
   doc.setTextColor(255, 255, 255);
   doc.text(`#${order.id?.slice(0, 8).toUpperCase()}`, pageW - 14, 20, { align: "right" });
-
-  
-  
 
   doc.setTextColor(50, 50, 50);
   doc.setFontSize(10);
@@ -418,25 +324,17 @@ const generateInvoicePDF = async (order) => {
   y += 6;
   doc.text(`Payment: ${order.paymentMethod?.replace(/_/g, " ")}`, 14, y);
 
- 
-  
-
   y += 14;
-  doc.setFillColor(240, 253, 244);
+  doc.setFillColor(236, 253, 245);
   doc.rect(14, y - 5, pageW - 28, 9, "F");
   doc.setFont(fontFamily, "bold");
   doc.setFontSize(9);
   doc.text("Item", 16, y);
   doc.text("Shop", 85, y);
   doc.text("Qty", 132, y);
-
-  
-
   doc.text("Unit Price", 148, y);
   doc.text("Total", pageW - 14, y, { align: "right" });
 
-  
-  
   doc.setFont(fontFamily, "normal");
   y += 8;
   (order.orderItems || []).forEach((item, i) => {
@@ -450,21 +348,16 @@ const generateInvoicePDF = async (order) => {
     y += 8;
   });
 
- 
-  
   y += 4;
-  doc.setDrawColor(132, 204, 22);
+  doc.setDrawColor(16, 185, 129);
   doc.setLineWidth(0.5);
   doc.line(14, y, pageW - 14, y);
   y += 6;
   doc.setFont(fontFamily, "bold");
   doc.setFontSize(11);
-  doc.setTextColor(22, 163, 74);
+  doc.setTextColor(5, 150, 105);
   doc.text(`Grand Total: ${order.totalPrice} EGP`, pageW - 14, y, { align: "right" });
 
- 
-  
-  
   doc.setTextColor(150, 150, 150);
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(8);
@@ -472,9 +365,6 @@ const generateInvoicePDF = async (order) => {
 
   doc.save(`Invoice_${order.id?.slice(0, 8).toUpperCase()}.pdf`);
 };
-
-
-
 
 const useLeaflet = () => {
   const [leafletReady, setLeafletReady] = useState(typeof window !== "undefined" && !!window.L);
@@ -492,92 +382,218 @@ const useLeaflet = () => {
   return leafletReady;
 };
 
+const reverseGeocode = async (lat, lng, signal) => {
+  const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, { signal, headers: { Accept: "application/json" } });
+  if (!res.ok) throw new Error("reverse geocode failed");
+  return res.json();
+};
 
+const searchAddress = async (query, signal) => {
+  const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`, { signal, headers: { Accept: "application/json" } });
+  if (!res.ok) throw new Error("search failed");
+  return res.json();
+};
 
+const buildDirectionsUrl = (lat, lng, originLat, originLng) => {
+  const dest = `${lat},${lng}`;
+  if (originLat != null && originLng != null) {
+    return `https://www.google.com/maps/dir/?api=1&origin=${originLat},${originLng}&destination=${dest}&travelmode=driving`;
+  }
+  return `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`;
+};
 
-
-const MapPicker = memo(({ latitude, longitude, onChange, darkMode, t }) => {
+const MapPicker = memo(({ latitude, longitude, onChange, darkMode }) => {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
+  const tileLayerRef = useRef(null);
   const leafletReady = useLeaflet();
   const defaultLat = latitude && latitude !== 0 ? latitude : 30.0444;
   const defaultLng = longitude && longitude !== 0 ? longitude : 31.2357;
+
+  const [resolvedAddress, setResolvedAddress] = useState("");
+  const [resolving, setResolving] = useState(false);
+  const [query, setQuery] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [originCoords, setOriginCoords] = useState(null);
+  const debounceRef = useRef(null);
+  const abortRef = useRef(null);
+
+  const buildIcon = useCallback(() => {
+    const L = window.L;
+    return L.divIcon({
+      html: `<div style="position:relative;display:flex;flex-direction:column;align-items:center">
+        <div class="pin-pulse" style="position:absolute;top:6px;width:34px;height:34px;border-radius:50%;background:#10b981"></div>
+        <div style="position:relative;filter:drop-shadow(0 6px 10px rgba(0,0,0,0.4))">
+          <div style="width:38px;height:38px;border-radius:50% 50% 50% 0;background:linear-gradient(135deg,#10b981,#0d9488);transform:rotate(-45deg);border:3px solid white;display:flex;align-items:center;justify-content:center">
+            <div style="width:12px;height:12px;border-radius:50%;background:white;transform:rotate(45deg)"></div>
+          </div>
+        </div>
+        <div style="width:2px;height:6px;background:linear-gradient(to bottom,#0d9488,transparent);margin-top:-2px"></div>
+      </div>`,
+      className: "", iconSize: [38, 54], iconAnchor: [19, 54],
+    });
+  }, []);
 
   useEffect(() => {
     if (!leafletReady || !mapRef.current) return;
     if (mapInstanceRef.current) return;
     const L = window.L;
-    const map = L.map(mapRef.current, { center: [defaultLat, defaultLng], zoom: 13, zoomControl: true });
+    const map = L.map(mapRef.current, { center: [defaultLat, defaultLng], zoom: latitude ? 16 : 12, zoomControl: false });
+    L.control.zoom({ position: "bottomright" }).addTo(map);
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom: 22, maxNativeZoom: 19, tileSize: 256, zoomOffset: 0, detectRetina: true,
+    tileLayerRef.current = L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
+      maxZoom: 20, maxNativeZoom: 19, tileSize: 256, detectRetina: true,
     }).addTo(map);
 
-    const customIcon = L.divIcon({
-      html: `<div style="display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.35))"><div style="width:36px;height:36px;border-radius:50% 50% 50% 0;background:linear-gradient(135deg,#84cc16,#10b981);transform:rotate(-45deg);border:3px solid white;display:flex;align-items:center;justify-content:center"><div style="width:10px;height:10px;border-radius:50%;background:white;transform:rotate(45deg)"></div></div><div style="width:2px;height:8px;background:linear-gradient(to bottom,#84cc16,transparent);margin-top:-2px"></div></div>`,
-      className: "", iconSize: [36, 52], iconAnchor: [18, 52],
-    });
-
-    const marker = L.marker([defaultLat, defaultLng], { icon: customIcon, draggable: true }).addTo(map);
+    const marker = L.marker([defaultLat, defaultLng], { icon: buildIcon(), draggable: true }).addTo(map);
     marker.on("dragend", (e) => { const { lat, lng } = e.target.getLatLng(); onChange(lat, lng); });
     map.on("click", (e) => { const { lat, lng } = e.latlng; marker.setLatLng([lat, lng]); onChange(lat, lng); });
 
     mapInstanceRef.current = map;
     markerRef.current = marker;
-    return () => { if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; markerRef.current = null; } };
+    return () => { if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; markerRef.current = null; tileLayerRef.current = null; } };
   }, [leafletReady]);
 
   useEffect(() => {
     if (!mapInstanceRef.current || !markerRef.current) return;
     if (latitude && longitude && (latitude !== 0 || longitude !== 0)) {
       markerRef.current.setLatLng([latitude, longitude]);
-      mapInstanceRef.current.setView([latitude, longitude], mapInstanceRef.current.getZoom());
+      mapInstanceRef.current.setView([latitude, longitude], Math.max(mapInstanceRef.current.getZoom(), 16));
     }
   }, [latitude, longitude]);
+
+  useEffect(() => {
+    if (!latitude || !longitude || (latitude === 0 && longitude === 0)) { setResolvedAddress(""); return; }
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setResolving(true);
+    const timer = setTimeout(() => {
+      reverseGeocode(latitude, longitude, controller.signal)
+        .then((data) => setResolvedAddress(data?.display_name || ""))
+        .catch(() => {})
+        .finally(() => setResolving(false));
+    }, 350);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [latitude, longitude]);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!query.trim() || query.trim().length < 3) { setSuggestions([]); return; }
+    debounceRef.current = setTimeout(async () => {
+      const controller = new AbortController();
+      setSearching(true);
+      try {
+        const results = await searchAddress(query, controller.signal);
+        setSuggestions(results || []);
+      } catch { }
+      finally { setSearching(false); }
+    }, 400);
+    return () => clearTimeout(debounceRef.current);
+  }, [query]);
 
   const handleLocateMe = () => {
     if (!navigator.geolocation || !mapInstanceRef.current) return;
     navigator.geolocation.getCurrentPosition(
-      (pos) => { const { latitude: lat, longitude: lng } = pos.coords; onChange(lat, lng); if (markerRef.current) markerRef.current.setLatLng([lat, lng]); if (mapInstanceRef.current) mapInstanceRef.current.setView([lat, lng], 16); },
-      () => Swal.fire({ title: "Location Error", text: "Could not get your location.", icon: "error", toast: true, position: "top-end", timer: 2000 })
+      (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        setOriginCoords({ lat, lng });
+        onChange(lat, lng);
+        if (markerRef.current) markerRef.current.setLatLng([lat, lng]);
+        if (mapInstanceRef.current) mapInstanceRef.current.setView([lat, lng], 17);
+      },
+      () => Swal.fire({ title: "Location Error", text: "Could not get your location.", icon: "error", toast: true, position: "top-end", timer: 2000 }),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
     );
   };
 
+  const selectSuggestion = (s) => {
+    const lat = parseFloat(s.lat), lng = parseFloat(s.lon);
+    onChange(lat, lng);
+    if (markerRef.current) markerRef.current.setLatLng([lat, lng]);
+    if (mapInstanceRef.current) mapInstanceRef.current.setView([lat, lng], 17);
+    setQuery(s.display_name);
+    setSuggestions([]);
+  };
+
+  const directionsUrl = (latitude || longitude)
+    ? buildDirectionsUrl(latitude, longitude, originCoords?.lat, originCoords?.lng)
+    : null;
+
   return (
     <div className="space-y-2">
+      <div className="relative">
+        <FiSearch className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-500" : "text-gray-500"}`} />
+        <input
+          type="text" value={query} onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search for an address"
+          className={`w-full pl-9 pr-9 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 transition ${
+            darkMode ? "bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-500" : "bg-white border-gray-200 text-gray-900 placeholder-gray-400"
+          }`}
+        />
+        {searching && <FiLoader className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-emerald-500" />}
+        {suggestions.length > 0 && (
+          <div className={`absolute z-30 mt-1 w-full rounded-xl border shadow-xl overflow-hidden ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+            {suggestions.map((s, i) => (
+              <button key={i} type="button" onClick={() => selectSuggestion(s)}
+                className={`w-full text-left px-3.5 py-2.5 text-xs font-medium border-b last:border-b-0 transition ${
+                  darkMode ? "border-gray-700 text-gray-300 hover:bg-gray-700" : "border-gray-100 text-gray-600 hover:bg-gray-50"
+                }`}>
+                {s.display_name}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       {!leafletReady && (
-        <div className={`flex items-center justify-center h-64 rounded-xl border-2 border-dashed ${darkMode ? "border-gray-600 bg-gray-800/50" : "border-gray-300 bg-gray-50"}`}>
+        <div className={`flex items-center justify-center h-64 rounded-xl border-2 border-dashed ${darkMode ? "border-gray-700 bg-gray-800/50" : "border-gray-300 bg-gray-50"}`}>
           <div className="flex flex-col items-center gap-2">
-            <div className="w-8 h-8 border-4 border-lime-500 border-t-transparent rounded-full animate-spin" />
-            <span className={`text-xs font-semibold ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{t("loadingMap")}</span>
+            <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            <span className={`text-xs font-semibold ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Loading map...</span>
           </div>
         </div>
       )}
-      <div ref={mapRef} className={`w-full rounded-xl overflow-hidden border-2 transition-all ${darkMode ? "border-gray-600" : "border-gray-200"} ${!leafletReady ? "hidden" : ""}`} style={{ height: "300px", zIndex: 0 }} />
+      <div ref={mapRef} className={`w-full rounded-xl overflow-hidden border-2 transition-all ${darkMode ? "border-gray-700" : "border-gray-200"} ${!leafletReady ? "hidden" : ""}`} style={{ height: "300px", zIndex: 0 }} />
+
       {leafletReady && (
         <div className="flex flex-col sm:flex-row gap-2">
           <button type="button" onClick={handleLocateMe} className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-bold text-xs shadow-md hover:shadow-lg transition-all">
-            <FiNavigation size={12} /> {t("useMylocation")}
+            <FiCrosshair size={12} /> Use My Location
           </button>
+          {directionsUrl && (
+            <a href={directionsUrl} target="_blank" rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold text-xs shadow-md hover:shadow-lg transition-all">
+              <FiExternalLink size={12} /> Get Directions
+            </a>
+          )}
           {(latitude !== 0 || longitude !== 0) && (
-            <div className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-semibold flex-1 truncate ${darkMode ? "bg-gray-800 border-gray-700 text-gray-300" : "bg-lime-50 border-lime-200 text-lime-700"}`}>
-              <FiLocation size={11} className="text-lime-500 flex-shrink-0" />
-              <span className="truncate">{latitude?.toFixed(5)}, {longitude?.toFixed(5)}</span>
+            <div className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-semibold flex-1 truncate ${
+              darkMode ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300" : "bg-emerald-50 border-emerald-200 text-emerald-700"
+            }`}>
+              <FiLocation size={11} className="text-emerald-500 flex-shrink-0" />
+              <span className="truncate">{latitude?.toFixed(6)}, {longitude?.toFixed(6)}</span>
             </div>
           )}
         </div>
       )}
-      <p className={`text-[10px] ${darkMode ? "text-gray-500" : "text-gray-400"}`}>{t("clickToSet")}</p>
+
+      {(resolving || resolvedAddress) && (
+        <div className={`flex items-start gap-2 px-3.5 py-2.5 rounded-xl border text-xs ${darkMode ? "bg-gray-800 border-gray-700 text-gray-300" : "bg-gray-50 border-gray-200 text-gray-600"}`}>
+          <FiMapPin className="text-emerald-500 flex-shrink-0 mt-0.5" size={12} />
+          {resolving ? <span>Locating address...</span> : <span className="leading-relaxed">{resolvedAddress}</span>}
+        </div>
+      )}
+
+      <p className={`text-[10px] ${darkMode ? "text-gray-500" : "text-gray-400"}`}>Click on the map or drag the pin to set your location</p>
     </div>
   );
 });
 
-
-
-
-const ConfirmRepairModal = memo(({ open, onClose, req, token, onSuccess, darkMode, t }) => {
+const ConfirmRepairModal = memo(({ open, onClose, req, token, onSuccess, darkMode }) => {
   const [addresses, setAddresses] = useState([]);
   const [selectedAddrId, setSelectedAddrId] = useState("");
   const [deliveryMethod, setDeliveryMethod] = useState("HOME_DELIVERY");
@@ -608,56 +624,60 @@ const ConfirmRepairModal = memo(({ open, onClose, req, token, onSuccess, darkMod
     finally { setSubmitting(false); }
   };
 
-  const selCls = `w-full px-4 py-3 rounded-xl border-2 text-sm font-semibold transition-all outline-none focus:ring-2 focus:ring-lime-500 focus:border-lime-500 ${darkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-white border-gray-200 text-gray-900"}`;
-  const optBtn = (active) => `flex-1 py-2.5 rounded-xl border-2 text-xs sm:text-sm font-bold transition-all ${active ? "border-lime-500 bg-lime-500 text-white" : darkMode ? "border-gray-600 text-gray-300 hover:border-lime-500/60" : "border-gray-200 text-gray-600 hover:border-lime-400"}`;
+  const selCls = `w-full px-4 py-3 rounded-xl border-2 text-sm font-semibold transition-all outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${
+    darkMode ? "bg-gray-800 border-gray-700 text-gray-100" : "bg-white border-gray-200 text-gray-900"
+  }`;
+  const optBtn = (active) => `flex-1 py-2.5 rounded-xl border-2 text-xs sm:text-sm font-bold transition-all ${
+    active ? "border-emerald-500 bg-emerald-500 text-white" : darkMode ? "border-gray-700 text-gray-300 hover:border-emerald-400" : "border-gray-200 text-gray-600 hover:border-emerald-400"
+  }`;
 
   return (
     <Dialog open={open} onClose={onClose} className="relative z-50">
       <DialogBackdrop className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
       <div className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
-        <DialogPanel className={`relative w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden ${darkMode ? "bg-gray-900 border border-gray-700" : "bg-white border border-gray-200"}`}>
-          <div className="h-1 bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-500" />
-          <div className="sm:hidden flex justify-center pt-3 pb-1"><div className="w-10 h-1 rounded-full bg-gray-300" /></div>
-          <div className={`flex items-center justify-between px-5 py-4 border-b ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
-            <DialogTitle className={`text-lg font-extrabold flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}><FiCheckCircle className="text-lime-500" /> {t("confirmRepair")}</DialogTitle>
+        <DialogPanel className={`relative w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden border ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"}`}>
+          <div className="h-1 bg-gradient-to-r from-emerald-500 via-emerald-500 to-teal-500" />
+          <div className={`sm:hidden flex justify-center pt-3 pb-1`}><div className={`w-10 h-1 rounded-full ${darkMode ? "bg-gray-600" : "bg-gray-300"}`} /></div>
+          <div className={`flex items-center justify-between px-5 py-4 border-b ${darkMode ? "border-gray-800" : "border-gray-100"}`}>
+            <DialogTitle className={`text-lg font-extrabold flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}><FiCheckCircle className="text-emerald-500" /> Confirm Repair Order</DialogTitle>
             <button onClick={onClose} className={`p-2 rounded-xl transition ${darkMode ? "hover:bg-gray-800 text-gray-400" : "hover:bg-gray-100 text-gray-500"}`}><FiX className="w-5 h-5" /></button>
           </div>
           {req && (
-            <div className={`mx-5 mt-4 p-4 rounded-xl border ${darkMode ? "bg-gray-800/60 border-gray-700" : "bg-lime-50 border-lime-100"}`}>
+            <div className={`mx-5 mt-4 p-4 rounded-xl border ${darkMode ? "bg-emerald-500/10 border-emerald-500/20" : "bg-emerald-50 border-emerald-100"}`}>
               <p className={`font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>{req.shopName}</p>
-              <p className="text-2xl font-black text-lime-600 mt-0.5">{req.price} <span className="text-sm font-medium">EGP</span></p>
+              {!isEmptyVal(req.price) && <p className={`text-2xl font-black mt-0.5 ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>{req.price} <span className="text-sm font-medium">EGP</span></p>}
             </div>
           )}
           <form onSubmit={handleSubmit} className="px-5 py-4 space-y-4">
             <div>
-              <label className={`block text-sm font-bold mb-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}><FiLocation className="inline mr-1 text-lime-500" /> {t("deliveryAddress")}</label>
-              {addresses.length === 0 ? <p className="text-sm text-red-500 font-medium">{t("noAddressFound")}</p> : (
+              <label className={`block text-sm font-bold mb-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}><FiLocation className="inline mr-1 text-emerald-500" /> Delivery Address</label>
+              {addresses.length === 0 ? <p className="text-sm text-red-500 font-medium">No addresses found. Please add one in your profile.</p> : (
                 <select value={selectedAddrId} onChange={(e) => setSelectedAddrId(e.target.value)} className={selCls} required>
-                  {addresses.map((a) => <option key={a.id} value={a.id}>{a.street}, {a.building} — {a.city}{a.isDefault ? ` (${t("default")})` : ""}</option>)}
+                  {addresses.map((a) => <option key={a.id} value={a.id}>{a.street}, {a.building} — {a.city}{a.isDefault ? " (Default)" : ""}</option>)}
                 </select>
               )}
             </div>
             <div>
-              <label className={`block text-sm font-bold mb-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}><FiTruck className="inline mr-1 text-lime-500" /> {t("deliveryMethod")}</label>
+              <label className={`block text-sm font-bold mb-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}><FiTruck className="inline mr-1 text-emerald-500" /> Delivery Method</label>
               <div className="flex gap-2">
-                {[["HOME_DELIVERY", t("homeDelivery")], ["SHOP_VISIT", t("visitShop")], ["PICKUP", t("courier")]].map(([val, lbl]) => (
+                {[["HOME_DELIVERY", "Home Delivery"], ["SHOP_VISIT", "Visit Shop"], ["PICKUP", "Courier"]].map(([val, lbl]) => (
                   <button type="button" key={val} onClick={() => setDeliveryMethod(val)} className={optBtn(deliveryMethod === val)}>{lbl}</button>
                 ))}
               </div>
             </div>
             <div>
-              <label className={`block text-sm font-bold mb-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}><FiCreditCard className="inline mr-1 text-lime-500" /> {t("paymentMethod")}</label>
+              <label className={`block text-sm font-bold mb-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}><FiCreditCard className="inline mr-1 text-emerald-500" /> Payment Method</label>
               <div className="flex gap-3">
-                {[["CASH", t("cash")], ["CREDIT_CARD", t("creditCard")]].map(([val, lbl]) => (
+                {[["CASH", "Cash"], ["CREDIT_CARD", "Credit Card"]].map(([val, lbl]) => (
                   <button type="button" key={val} onClick={() => setPaymentMethod(val)} className={optBtn(paymentMethod === val)}>{lbl}</button>
                 ))}
               </div>
-              {paymentMethod === "CREDIT_CARD" && <p className={`text-xs mt-2 px-3 py-2 rounded-lg ${darkMode ? "bg-blue-900/30 text-blue-400" : "bg-blue-50 text-blue-600"}`}>{t("redirectPayment")}</p>}
+              {paymentMethod === "CREDIT_CARD" && <p className={`text-xs mt-2 px-3 py-2 rounded-lg ${darkMode ? "bg-blue-500/10 text-blue-300" : "bg-blue-50 text-blue-600"}`}>You'll be redirected to a secure payment gateway.</p>}
             </div>
             <div className="flex gap-3 pt-1 pb-1">
-              <button type="button" onClick={onClose} className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${darkMode ? "border-gray-600 text-gray-300 hover:bg-gray-800" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>{t("cancel")}</button>
-              <motion.button whileTap={{ scale: 0.97 }} type="submit" disabled={submitting || addresses.length === 0} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-lime-500 to-emerald-500 text-white font-bold shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-60">
-                {submitting ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> {t("processing")}</> : <><FiCheckCircle size={14} /> {t("confirm")}</>}
+              <button type="button" onClick={onClose} className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${darkMode ? "border-gray-700 text-gray-300 hover:bg-gray-800" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>Cancel</button>
+              <motion.button whileTap={{ scale: 0.97 }} type="submit" disabled={submitting || addresses.length === 0} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-60">
+                {submitting ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Processing...</> : <><FiCheckCircle size={14} /> Confirm</>}
               </motion.button>
             </div>
           </form>
@@ -667,117 +687,130 @@ const ConfirmRepairModal = memo(({ open, onClose, req, token, onSuccess, darkMod
   );
 });
 
-
-
-
-const ProfileTab = memo(({ isEditingProfile, setIsEditingProfile, userProfile, profileForm, setProfileForm, handleUpdateProfile, handleDeleteAccount, handleLogout, darkMode, isAuthenticated, inputCls, t }) => {
+const ProfileTab = memo(({ isEditingProfile, setIsEditingProfile, userProfile, profileForm, setProfileForm, handleUpdateProfile, handleDeleteAccount, handleLogout, isAuthenticated, inputCls, darkMode }) => {
   if (isEditingProfile) return (
-    <motion.div variants={cardVariants} initial="hidden" animate="visible" exit="exit" className={`rounded-2xl shadow-xl border overflow-hidden ${darkMode ? "bg-gray-800/80 border-gray-700/60" : "bg-white border-gray-100"}`}>
-      <div className="h-1 bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-500" />
+    <motion.div variants={cardVariants} initial="hidden" animate="visible" exit="exit" className={`rounded-md shadow-xl border-2 overflow-hidden ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"}`}>
+      
       <div className="p-5 sm:p-7">
-        <h3 className={`text-xl font-extrabold flex items-center gap-3 mb-6 ${darkMode ? "text-white" : "text-gray-900"}`}><FiEdit2 className="text-lime-500" /> {t("editProfile")}</h3>
+        <h3 className={`text-xl font-extrabold flex items-center gap-3 mb-6 ${darkMode ? "text-white" : "text-gray-900"}`}><FiEdit2 className="text-emerald-500" /> Edit Profile</h3>
         <div className="flex justify-center mb-6">
-          <div className={`w-20 h-20 rounded-full border-4 border-lime-500/40 shadow-lg flex items-center justify-center ${darkMode ? "bg-gray-700" : "bg-gray-100"}`}><FiUser className="text-3xl text-lime-500" /></div>
+          <div className={`w-20 h-20 rounded-full border-4 border-gray-500/40 shadow-lg flex items-center justify-center ${darkMode ? "bg-gray-700" : "bg-gray-100"}`}><FiUser className="text-3xl text-gray-500" /></div>
         </div>
         <form onSubmit={handleUpdateProfile} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div><label className={`block text-xs font-semibold mb-1.5 ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{t("firstName")}</label><input type="text" placeholder={t("firstName")} value={profileForm.first_name} onChange={(e) => setProfileForm({ ...profileForm, first_name: e.target.value })} className={inputCls} required /></div>
-            <div><label className={`block text-xs font-semibold mb-1.5 ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{t("lastName")}</label><input type="text" placeholder={t("lastName")} value={profileForm.last_name} onChange={(e) => setProfileForm({ ...profileForm, last_name: e.target.value })} className={inputCls} required /></div>
+            <div><label className={`block text-xs font-semibold mb-1.5 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>First Name</label><input type="text" placeholder="First Name" value={profileForm.first_name} onChange={(e) => setProfileForm({ ...profileForm, first_name: e.target.value })} className={inputCls} required /></div>
+            <div><label className={`block text-xs font-semibold mb-1.5 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Last Name</label><input type="text" placeholder="Last Name" value={profileForm.last_name} onChange={(e) => setProfileForm({ ...profileForm, last_name: e.target.value })} className={inputCls} required /></div>
           </div>
-          <div><label className={`block text-xs font-semibold mb-1.5 ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{t("phone")}</label><input type="tel" placeholder={t("phone")} value={profileForm.phone} onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })} className={inputCls} required /></div>
+          <div><label className={`block text-xs font-semibold mb-1.5 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Phone Number</label><input type="tel" placeholder="Phone Number" value={profileForm.phone} onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })} className={inputCls} required /></div>
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
-            <motion.button whileTap={{ scale: 0.97 }} type="submit" className="flex-1 py-3 rounded-xl bg-gradient-to-r from-lime-500 to-emerald-500 text-white font-bold shadow-md transition-all flex items-center justify-center gap-2 text-sm"><FiCheck size={14} /> {t("saveChanges")}</motion.button>
-            <motion.button whileTap={{ scale: 0.97 }} type="button" onClick={() => setIsEditingProfile(false)} className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${darkMode ? "border-gray-600 text-gray-300 hover:bg-gray-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>{t("cancel")}</motion.button>
+            <motion.button whileTap={{ scale: 0.97 }} type="submit" className="flex-1 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold shadow-md transition-all flex items-center justify-center gap-2 text-sm"><FiCheck size={14} /> Save Changes</motion.button>
+            <motion.button whileTap={{ scale: 0.97 }} type="button" onClick={() => setIsEditingProfile(false)} className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${darkMode ? "border-gray-700 text-gray-300 hover:bg-gray-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>Cancel</motion.button>
           </div>
         </form>
       </div>
     </motion.div>
   );
 
+  const infoRows = [
+    { icon: <FiUser size={15} />, value: `${userProfile?.first_name || ""} ${userProfile?.last_name || ""}`.trim() },
+    { icon: <FiMail size={15} />, value: userProfile?.email },
+    { icon: <FiPhone size={15} />, value: userProfile?.phone },
+  ].filter((row) => !isEmptyVal(row.value));
+
   return (
-    <motion.div variants={cardVariants} initial="hidden" animate="visible" exit="exit" className={`rounded-2xl shadow-xl border overflow-hidden ${darkMode ? "bg-gray-800/80 border-gray-700/60" : "bg-white border-gray-100"}`}>
-      <div className="h-1 bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-500" />
-      <div className="p-5 sm:p-7">
-        <div className="flex flex-wrap justify-between items-start gap-3 mb-6">
-          <h3 className={`text-xl font-extrabold flex items-center gap-3 ${darkMode ? "text-white" : "text-gray-900"}`}><FiUser className="text-lime-500" /> {t("myProfile")}</h3>
-          <div className="flex gap-2">
-            <motion.button whileTap={{ scale: 0.96 }} onClick={() => setIsEditingProfile(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-3xl bg-green-500 font-bold text-sm text-white hover:bg-green-600 transition-all"><FiEdit2 size={13} /> {t("editProfile")}</motion.button>
-            <motion.button whileTap={{ scale: 0.96 }} onClick={handleDeleteAccount} className="flex items-center gap-1.5 px-3 py-2 rounded-md border-2 border-red-400 text-red-500 font-bold text-sm hover:bg-red-500 hover:text-white transition-all"><FiTrash2 size={13} /></motion.button>
-          </div>
-        </div>
-        <div className="flex justify-center mb-6">
-          <div className={`w-24 h-24 rounded-full border-4 border-green-500/40 shadow-xl flex items-center justify-center ${darkMode ? "bg-gray-700" : "bg-gray-100"}`}><FiUser className="text-4xl text-green-500" /></div>
-        </div>
-        <div className="space-y-2.5">
-          {[
-            { icon: <FiUser className="text-lime-500" />, value: `${userProfile?.first_name || ""} ${userProfile?.last_name || ""}` },
-            { icon: <FiMail className="text-lime-500" />, value: userProfile?.email },
-            { icon: <FiPhone className="text-lime-500" />, value: userProfile?.phone || "— Not provided" },
-          ].map((row, i) => (
-            <div key={i} className={`flex items-center gap-3 p-3.5 rounded-xl ${darkMode ? "bg-gray-700/50" : "bg-gray-50"}`}>
-              {row.icon}<span className={`font-medium text-sm truncate ${darkMode ? "text-gray-200" : "text-gray-800"}`}>{row.value}</span>
+    <motion.div variants={cardVariants} initial="hidden" animate="visible" exit="exit" className="space-y-5">
+      <div className={`rounded-md shadow-xl border-2 overflow-hidden ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-100"}`}>
+
+        <div className="p-5 sm:p-7">
+          <div className="flex flex-wrap justify-between items-start gap-3 mb-6">
+            <h3 className={`text-xl font-extrabold flex items-center gap-3 ${darkMode ? "text-white" : "text-gray-900"}`}><FiUser className="text-emerald-500" /> My Profile</h3>
+            <div className="flex gap-2">
+              <motion.button whileTap={{ scale: 0.96 }} onClick={() => setIsEditingProfile(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 font-bold text-sm text-white hover:bg-emerald-600 shadow-sm transition-all"><FiEdit2 size={13} /> Edit Profile</motion.button>
             </div>
-          ))}
-          <div className={`flex items-center flex-wrap justify-between gap-2 p-3.5 rounded-xl ${darkMode ? "bg-gray-700/50" : "bg-gray-50"}`}>
-            <div className="flex items-center gap-3"><FiShield className="text-lime-500" /><span className={`font-medium text-sm ${darkMode ? "text-gray-200" : "text-gray-800"}`}>{t("accountStatus")}</span></div>
-            <span className={`px-3 py-1 rounded-full text-xs font-bold ${userProfile?.activate ? "bg-lime-500/10 text-lime-600 border border-lime-500/30" : "bg-red-100 text-red-700"}`}>{userProfile?.activate ? `● ${t("active")}` : `● ${t("inactive")}`}</span>
           </div>
-          {isAuthenticated && (
-            <motion.button whileTap={{ scale: 0.97 }} onClick={handleLogout} className="w-full mt-1 flex items-center justify-center gap-3 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-xl shadow-lg transition-all text-sm">
-              <RiLogoutBoxRLine size={16} /> {t("logout")}
-            </motion.button>
-          )}
+          <div className="flex flex-col items-center mb-6">
+            <div className={`w-24 h-24 rounded-full border-4 border-gray-500/40 shadow-xl flex items-center justify-center ${darkMode ? "bg-gray-800" : "bg-gray-100"}`}><FiUser className="text-4xl text-gray-500" /></div>
+            {!isEmptyVal(userProfile?.first_name) && (
+              <p className={`mt-3 text-lg font-extrabold ${darkMode ? "text-white" : "text-gray-900"}`}>{userProfile?.first_name} {userProfile?.last_name}</p>
+            )}
+          </div>
+          <div className="space-y-2.5">
+            {infoRows.map((row, i) => (
+              <div key={i} className={`flex items-center gap-3 p-3.5 rounded-md ${darkMode ? "bg-gray-950" : "bg-gray-50"}`}>
+                <span className="text-emerald-500 flex-shrink-0">{row.icon}</span><span className={`font-medium text-sm truncate ${darkMode ? "text-gray-200" : "text-gray-800"}`}>{row.value}</span>
+              </div>
+            ))}
+            <div className={`flex items-center flex-wrap justify-between gap-2 p-3.5 rounded-xl ${darkMode ? "bg-gray-700/50" : "bg-gray-50"}`}>
+              <div className="flex items-center gap-3"><FiShield className="text-emerald-500" /><span className={`font-medium text-sm ${darkMode ? "text-gray-200" : "text-gray-800"}`}>Account Status</span></div>
+              <span className={`px-3 py-1 rounded-full text-xs font-bold ${userProfile?.activate ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/30" : darkMode ? "bg-red-500/15 text-red-300" : "bg-red-100 text-red-700"}`}>{userProfile?.activate ? "● Active" : "● Inactive"}</span>
+            </div>
+            {isAuthenticated && (
+              <div className="flex justify-end pt-1">
+                <motion.button whileTap={{ scale: 0.96 }} onClick={handleLogout} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-semibold text-xs transition-all ${darkMode ? "bg-gray-700 hover:bg-red-500/15 text-gray-300 hover:text-red-400" : "bg-gray-100 hover:bg-red-50 text-gray-500 hover:text-red-500"}`}>
+                  <RiLogoutBoxRLine size={13} /> Logout
+                </motion.button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className={`rounded-md border-t overflow-hidden shadow-lg ${darkMode ? "bg-gray-800 border-gray-800" : "bg-white"}`}>
+       
+        <div className="p-5 sm:p-6">
+          <h3 className={`text-base font-extrabold flex items-center gap-2.5 mb-2 ${darkMode ? "text-red-400" : "text-red-600"}`}><FiTrash2 size={15} /> Danger Zone</h3>
+          <p className={`text-sm mb-4 ${darkMode ? "text-red-300/80" : "text-red-600/80"}`}>This action is irreversible. All your data will be permanently deleted.</p>
+          <motion.button whileTap={{ scale: 0.97 }} onClick={handleDeleteAccount} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 text-white font-bold shadow-lg hover:shadow-red-500/30 transition-all text-sm">
+            <FiTrash2 size={14} /> Yes, Delete My Account
+          </motion.button>
         </div>
       </div>
     </motion.div>
   );
 });
 
-
-
-
-const AddressesTab = memo(({ isAddingAddress, setIsAddingAddress, editingAddressId, setEditingAddressId, addressForm, setAddressForm, handleUpdateAddress, handleAddAddress, resetAddressForm, addresses, startEditAddress, handleDeleteAddress, isAddressInUse, darkMode, inputCls, t }) => {
+const AddressesTab = memo(({ isAddingAddress, setIsAddingAddress, editingAddressId, setEditingAddressId, addressForm, setAddressForm, handleUpdateAddress, handleAddAddress, resetAddressForm, addresses, startEditAddress, handleDeleteAddress, isAddressInUse, inputCls, darkMode }) => {
   const [addressInputMode, setAddressInputMode] = useState("manual");
   const handleMapChange = useCallback((lat, lng) => { setAddressForm((prev) => ({ ...prev, latitude: lat, longitude: lng })); }, [setAddressForm]);
 
   if (isAddingAddress || editingAddressId) return (
-    <motion.div variants={cardVariants} initial="hidden" animate="visible" exit="exit" className={`rounded-2xl shadow-xl border overflow-hidden ${darkMode ? "bg-gray-800/80 border-gray-700/60" : "bg-white border-gray-100"}`}>
-      <div className="h-1 bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-500" />
+    <motion.div variants={cardVariants} initial="hidden" animate="visible" exit="exit" className={`rounded-md shadow-xl border-2 overflow-hidden ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"}`}>
+      
       <div className="p-5 sm:p-7">
-        <h3 className={`text-xl font-extrabold flex items-center gap-3 mb-5 ${darkMode ? "text-white" : "text-gray-900"}`}><FiMapPin className="text-lime-500" /> {editingAddressId ? t("editAddress") : t("addAddress")}</h3>
-        <div className={`flex gap-1 p-1 rounded-xl mb-5 ${darkMode ? "bg-gray-700/60" : "bg-gray-100"}`}>
-          <button type="button" onClick={() => setAddressInputMode("manual")} className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-bold text-xs sm:text-sm transition-all ${addressInputMode === "manual" ? "bg-green-500 text-white shadow-md" : darkMode ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-gray-800"}`}><FiList size={13} /> {t("addressInfo")}</button>
-          <button type="button" onClick={() => setAddressInputMode("map")} className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-bold text-xs sm:text-sm transition-all ${addressInputMode === "map" ? "bg-green-500 text-white shadow-md" : darkMode ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-gray-800"}`}><FiNavigation size={13} /> {t("pickOnMap")}</button>
+        <h3 className={`text-xl font-extrabold flex items-center gap-3 mb-5 ${darkMode ? "text-white" : "text-gray-900"}`}><FiMapPin className="text-emerald-500" /> {editingAddressId ? "Edit Address" : "Add Address"}</h3>
+        <div className={`flex gap-1 p-1 rounded-xl mb-5 ${darkMode ? "bg-gray-900" : "bg-gray-100"}`}>
+          <button type="button" onClick={() => setAddressInputMode("manual")} className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-3xl font-bold text-xs sm:text-sm transition-all ${addressInputMode === "manual" ? "bg-emerald-500 text-white shadow-md" : darkMode ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-800"}`}><FiList size={13} /> Address Information</button>
+          <button type="button" onClick={() => setAddressInputMode("map")} className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-3xl font-bold text-xs sm:text-sm transition-all ${addressInputMode === "map" ? "bg-emerald-500 text-white shadow-md" : darkMode ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-800"}`}><FiNavigation size={13} /> Pick on Map</button>
         </div>
         <form onSubmit={editingAddressId ? handleUpdateAddress : handleAddAddress} className="space-y-4">
           <AnimatePresence mode="wait">
             {addressInputMode === "manual" ? (
               <motion.div key="manual" initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 12 }} transition={{ duration: 0.2 }} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {[{ label: t("state"), key: "state", ph: "e.g., Cairo" }, { label: t("city"), key: "city", ph: "e.g., Giza" }, { label: t("street"), key: "street", ph: "e.g., Tahrir Street" }, { label: t("building"), key: "building", ph: "e.g., Bldg 12" }].map(({ label, key, ph }) => (
-                    <div key={key}><label className={`block text-xs font-semibold mb-1.5 ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{label}</label><input type="text" placeholder={ph} value={addressForm[key]} onChange={(e) => setAddressForm({ ...addressForm, [key]: e.target.value })} className={inputCls} required /></div>
+                  {[{ label: "State / Governorate", key: "state", ph: "e.g., Cairo" }, { label: "City", key: "city", ph: "e.g., Giza" }, { label: "Street", key: "street", ph: "e.g., Tahrir Street" }, { label: "Building / Apartment", key: "building", ph: "e.g., Bldg 12" }].map(({ label, key, ph }) => (
+                    <div key={key}><label className={`block text-xs font-semibold mb-1.5 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{label}</label><input type="text" placeholder={ph} value={addressForm[key]} onChange={(e) => setAddressForm({ ...addressForm, [key]: e.target.value })} className={inputCls} required /></div>
                   ))}
                 </div>
-                <div><label className={`block text-xs font-semibold mb-1.5 ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{t("notes")}</label><textarea placeholder={t("notes")} value={addressForm.notes} onChange={(e) => setAddressForm({ ...addressForm, notes: e.target.value })} className={`${inputCls} resize-none`} rows={3} /></div>
+                <div><label className={`block text-xs font-semibold mb-1.5 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Additional Notes (optional)</label><textarea placeholder="Additional Notes (optional)" value={addressForm.notes} onChange={(e) => setAddressForm({ ...addressForm, notes: e.target.value })} className={`${inputCls} resize-none`} rows={3} /></div>
               </motion.div>
             ) : (
               <motion.div key="map" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.2 }} className="space-y-4">
-                <MapPicker latitude={addressForm.latitude} longitude={addressForm.longitude} onChange={handleMapChange} darkMode={darkMode} t={t} />
+                <MapPicker latitude={addressForm.latitude} longitude={addressForm.longitude} onChange={handleMapChange} darkMode={darkMode} />
                 <div className="grid grid-cols-2 gap-3">
-                  <div><label className={`block text-xs font-semibold mb-1.5 ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Latitude</label><input type="number" step="any" placeholder="0.00000" value={addressForm.latitude || ""} onChange={(e) => setAddressForm({ ...addressForm, latitude: parseFloat(e.target.value) || 0 })} className={inputCls} /></div>
-                  <div><label className={`block text-xs font-semibold mb-1.5 ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Longitude</label><input type="number" step="any" placeholder="0.00000" value={addressForm.longitude || ""} onChange={(e) => setAddressForm({ ...addressForm, longitude: parseFloat(e.target.value) || 0 })} className={inputCls} /></div>
+                  <div><label className={`block text-xs font-semibold mb-1.5 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Latitude</label><input type="number" step="any" placeholder="0.00000" value={addressForm.latitude || ""} onChange={(e) => setAddressForm({ ...addressForm, latitude: parseFloat(e.target.value) || 0 })} className={inputCls} /></div>
+                  <div><label className={`block text-xs font-semibold mb-1.5 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Longitude</label><input type="number" step="any" placeholder="0.00000" value={addressForm.longitude || ""} onChange={(e) => setAddressForm({ ...addressForm, longitude: parseFloat(e.target.value) || 0 })} className={inputCls} /></div>
                 </div>
-                <div className={`p-3 rounded-xl border text-xs font-medium ${darkMode ? "bg-blue-900/20 border-blue-800/40 text-blue-400" : "bg-blue-50 border-blue-100 text-blue-600"}`}><FiInfo className="inline mr-1.5" size={11} />{t("stillNeedManual")}</div>
+                <div className={`p-3 rounded-xl border text-xs font-medium ${darkMode ? "bg-blue-500/10 border-blue-500/20 text-blue-300" : "bg-blue-50 border-blue-100 text-blue-600"}`}><FiInfo className="inline mr-1.5" size={11} />You still need to fill in the manual address fields. Switch to Manual Entry to complete the street details.</div>
               </motion.div>
             )}
           </AnimatePresence>
           <label className="flex items-center gap-3 cursor-pointer">
-            <input type="checkbox" checked={addressForm.isDefault} onChange={(e) => setAddressForm({ ...addressForm, isDefault: e.target.checked })} className="w-4 h-4 rounded accent-lime-500" />
-            <span className={`text-sm font-semibold ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{t("setDefault")}</span>
+            <input type="checkbox" checked={addressForm.isDefault} onChange={(e) => setAddressForm({ ...addressForm, isDefault: e.target.checked })} className="w-4 h-4 rounded accent-emerald-500" />
+            <span className={`text-sm font-semibold ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Set as default address</span>
           </label>
           <div className="flex gap-3 pt-1">
-            <motion.button whileTap={{ scale: 0.97 }} type="submit" className="flex-1 py-3 rounded-xl bg-gradient-to-r from-lime-500 to-emerald-500 text-white font-bold shadow-md transition-all flex items-center justify-center gap-2 text-sm"><FiCheck size={13} /> {editingAddressId ? t("update") : t("save")}</motion.button>
-            <motion.button whileTap={{ scale: 0.97 }} type="button" onClick={() => { resetAddressForm(); setAddressInputMode("manual"); }} className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${darkMode ? "border-gray-600 text-gray-300 hover:bg-gray-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>{t("cancel")}</motion.button>
+            <motion.button whileTap={{ scale: 0.97 }} type="submit" className="flex-1 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold shadow-md transition-all flex items-center justify-center gap-2 text-sm"><FiCheck size={13} /> {editingAddressId ? "Update" : "Save"}</motion.button>
+            <motion.button whileTap={{ scale: 0.97 }} type="button" onClick={() => { resetAddressForm(); setAddressInputMode("manual"); }} className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${darkMode ? "border-gray-700 text-gray-300 hover:bg-gray-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>Cancel</motion.button>
           </div>
         </form>
       </div>
@@ -787,30 +820,39 @@ const AddressesTab = memo(({ isAddingAddress, setIsAddingAddress, editingAddress
   return (
     <motion.div variants={cardVariants} initial="hidden" animate="visible" exit="exit">
       <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
-        <h3 className={`text-xl font-extrabold flex items-center gap-3 ${darkMode ? "text-white" : "text-gray-900"}`}><FiMapPin className="text-lime-500" /> {t("addresses")}</h3>
-        <motion.button whileTap={{ scale: 0.96 }} onClick={() => setIsAddingAddress(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-3xl border-2 border-green-500 text-green-600 dark:text-green-400 font-bold text-sm hover:bg-green-500 hover:text-white transition-all"><FiPlus size={13} /> {t("addAddress")}</motion.button>
+        <h3 className={`text-xl font-extrabold flex items-center gap-3 ${darkMode ? "text-white" : "text-gray-900"}`}><FiMapPin className="text-emerald-500" /> Addresses</h3>
+        <motion.button whileTap={{ scale: 0.96 }} onClick={() => setIsAddingAddress(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl border-2 border-emerald-500 text-emerald-500 font-bold text-sm hover:bg-emerald-500 hover:text-white transition-all"><FiPlus size={13} /> Add Address</motion.button>
       </div>
       {addresses.length === 0 ? (
-        <div className={`text-center py-16 rounded-2xl border ${darkMode ? "bg-gray-800/50 border-gray-700" : "bg-white border-gray-200"}`}><FiMapPin className="mx-auto text-5xl text-gray-300 mb-3" /><p className={`text-lg font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>{t("noAddresses")}</p></div>
+        <EmptyState illustration={<IllustrationPin darkMode={darkMode} />} title="No saved addresses yet" subtitle="Add an address to speed up checkout and repair pickups." darkMode={darkMode} />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {addresses.map((addr) => {
             const inUse = isAddressInUse(addr.id);
+            const hasCoords = !isEmptyCoord(addr.latitude) && !isEmptyCoord(addr.longitude);
             return (
               <motion.div key={addr.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -3 }}
-                className={`relative rounded-2xl shadow-md hover:shadow-xl border-2 transition-all duration-300 overflow-hidden ${addr.isDefault ? (darkMode ? "border-lime-500 bg-gray-800/80" : "border-lime-500 bg-white") : (darkMode ? "border-gray-700 bg-gray-800/80" : "border-gray-200 bg-white")}`}>
-                <div className={`h-1 ${addr.isDefault ? "bg-gradient-to-r from-lime-500 to-emerald-500" : "bg-gray-200 dark:bg-gray-700"}`} />
-                {addr.isDefault && <span className="absolute top-3 right-3 flex items-center gap-1 bg-lime-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md"><RiVerifiedBadgeLine size={10} /> {t("default")}</span>}
+                className={`relative rounded-md shadow-md hover:shadow-xl border-2 transition-all duration-300 overflow-hidden ${darkMode ? "bg-gray-800" : "bg-white"} ${addr.isDefault ? "border-emerald-500" : darkMode ? "border-gray-700" : "border-gray-200"}`}>
+                <div className={`h-1 ${addr.isDefault ? "bg-gradient-to-r from-emerald-500 to-teal-500" : darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
+                {addr.isDefault && <span className="absolute top-3 right-3 flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md"><RiVerifiedBadgeLine size={10} /> Default</span>}
                 <div className="p-4 sm:p-5">
                   <h4 className={`text-base font-bold mb-0.5 pr-16 ${darkMode ? "text-white" : "text-gray-900"}`}>{addr.street}, {addr.building}</h4>
                   <p className={`text-sm mb-3 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{addr.city}, {addr.state}</p>
-                  {addr.notes && <p className={`text-xs italic px-3 py-2 rounded-xl mb-3 ${darkMode ? "bg-gray-700/50 text-gray-400" : "bg-gray-50 text-gray-500"}`}>"{addr.notes}"</p>}
-                  {(addr.latitude !== undefined && addr.latitude !== 0) && <p className={`text-[10px] mb-3 flex items-center gap-1 font-mono ${darkMode ? "text-gray-500" : "text-gray-400"}`}><FiNavigation size={9} className="text-lime-500" />{addr.latitude?.toFixed(5)}, {addr.longitude?.toFixed(5)}</p>}
+                  {!isEmptyVal(addr.notes) && <p className={`text-xs italic px-3 py-2 rounded-xl mb-3 ${darkMode ? "bg-gray-700/50 text-gray-400" : "bg-gray-50 text-gray-500"}`}>"{addr.notes}"</p>}
+                  {hasCoords && (
+                    <div className="flex items-center gap-2 mb-3">
+                      <p className={`text-[10px] flex items-center gap-1 font-mono ${darkMode ? "text-gray-500" : "text-gray-400"}`}><FiNavigation size={9} className="text-emerald-500" />{addr.latitude?.toFixed(5)}, {addr.longitude?.toFixed(5)}</p>
+                      <a href={buildDirectionsUrl(addr.latitude, addr.longitude)} target="_blank" rel="noopener noreferrer"
+                        className={`ml-auto flex items-center gap-1 text-[10px] font-bold hover:underline ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>
+                        <FiExternalLink size={9} /> Get Directions
+                      </a>
+                    </div>
+                  )}
                   <div className="flex gap-2">
-                    <motion.button whileTap={{ scale: 0.96 }} onClick={() => !inUse && startEditAddress(addr)} disabled={inUse} className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 font-bold text-xs transition-all ${inUse ? "opacity-50 cursor-not-allowed border-gray-300 text-gray-400" : "border-lime-500 text-lime-600 dark:text-lime-400 hover:bg-lime-500 hover:text-white"}`}><FiEdit2 size={11} /> {inUse ? t("inUse") : t("editRepair")}</motion.button>
-                    <motion.button whileTap={{ scale: 0.96 }} onClick={() => !inUse && handleDeleteAddress(addr.id)} disabled={inUse} className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 font-bold text-xs transition-all ${inUse ? "opacity-50 cursor-not-allowed border-gray-300 text-gray-400" : "border-red-400 text-red-500 hover:bg-red-500 hover:text-white"}`}><FiTrash2 size={11} /></motion.button>
+                    <motion.button whileTap={{ scale: 0.96 }} onClick={() => !inUse && startEditAddress(addr)} disabled={inUse} className={`flex items-center gap-1.5 px-3 py-2 rounded-3xl border-2 font-bold text-xs transition-all ${inUse ? `opacity-50 cursor-not-allowed ${darkMode ? "border-gray-700 text-gray-500" : "border-gray-300 text-gray-400"}` : "border-emerald-500 text-emerald-500 hover:bg-emerald-500 hover:text-white"}`}><FiEdit2 size={11} /> {inUse ? "In Use" : "Edit"}</motion.button>
+                    <motion.button whileTap={{ scale: 0.96 }} onClick={() => !inUse && handleDeleteAddress(addr.id)} disabled={inUse} className={`flex items-center gap-1.5 px-3 py-2 rounded-md border-2 font-bold text-xs transition-all ${inUse ? `opacity-50 cursor-not-allowed ${darkMode ? "border-gray-700 text-gray-500" : "border-gray-300 text-gray-400"}` : "border-red-400 text-red-500 hover:bg-red-500 hover:text-white"}`}><FiTrash2 size={11} /></motion.button>
                   </div>
-                  {inUse && <p className="text-[10px] mt-2 text-amber-500 font-semibold flex items-center gap-1"><FiInfo size={10} /> {t("usedInActive")}</p>}
+                  {inUse && <p className="text-[10px] mt-2 text-amber-500 font-semibold flex items-center gap-1"><FiInfo size={10} /> Used in active order/repair</p>}
                 </div>
               </motion.div>
             );
@@ -821,31 +863,29 @@ const AddressesTab = memo(({ isAddingAddress, setIsAddingAddress, editingAddress
   );
 });
 
-
-
-
-const OrdersTab = memo(({ orders, ordersPage, setOrdersPage, setSelectedOrder, setIsOrderModalOpen, handleCancelOrder, darkMode, t }) => {
+const OrdersTab = memo(({ orders, ordersPage, setOrdersPage, setSelectedOrder, setIsOrderModalOpen, handleCancelOrder, darkMode }) => {
   const [statusFilter, setStatusFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [search, setSearch] = useState("");
-  const ipp = 3;
+  const ipp = 4;
 
   const filtered = useMemo(() => orders.filter(o => {
     if (statusFilter && o.status !== statusFilter) return false;
-    if (dateFilter && !new Date(o.createdAt).toISOString().startsWith(dateFilter)) return false;
+    if (dateFilter && toDateOnlyString(o.createdAt) !== dateFilter) return false;
     if (search && !o.id?.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   }), [orders, statusFilter, dateFilter, search]);
 
   const total = Math.ceil(filtered.length / ipp);
   const pageOrders = filtered.slice((ordersPage - 1) * ipp, ordersPage * ipp);
+  const statusKeys = ["PENDING","CONFIRMED","PROCESSING","FINISHPROCESSING","SHIPPED","DELIVERED","CANCELLED"];
 
   return (
     <motion.div variants={cardVariants} initial="hidden" animate="visible" exit="exit">
-      <h3 className={`text-xl font-extrabold flex items-center gap-3 mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}><FiBox className="text-lime-500" /> {t("orders")}</h3>
-      <FilterBar statusOptions={Object.keys(TRANSLATIONS.en.orderStatuses)} statusFilter={statusFilter} setStatusFilter={setStatusFilter} dateFilter={dateFilter} setDateFilter={setDateFilter} search={search} setSearch={setSearch} darkMode={darkMode} t={t} />
+      <h3 className={`text-xl font-extrabold flex items-center gap-3 mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}><FiBox className="text-emerald-500" /> Orders</h3>
+      <FilterBar statusOptions={statusKeys} statusFilter={statusFilter} setStatusFilter={setStatusFilter} dateFilter={dateFilter} setDateFilter={setDateFilter} search={search} setSearch={setSearch} darkMode={darkMode} />
       {filtered.length === 0 ? (
-        <div className={`text-center py-16 rounded-2xl border ${darkMode ? "bg-gray-800/50 border-gray-700" : "bg-white border-gray-200"}`}><FiBox className="mx-auto text-5xl text-gray-300 mb-3" /><p className={`text-lg font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>{t("noOrders")}</p></div>
+        <EmptyState illustration={<IllustrationBox darkMode={darkMode} />} title="No orders placed yet" subtitle="Everything you order will show up here with live status." darkMode={darkMode} />
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -853,25 +893,26 @@ const OrdersTab = memo(({ orders, ordersPage, setOrdersPage, setSelectedOrder, s
               const isDelivered = order.status === "DELIVERED";
               const isCancelled = order.status === "CANCELLED";
               const progress = getOrderProgress(order.status);
+              const hasTotal = !isEmptyVal(order.totalPrice);
               return (
-                <motion.div key={order.id} whileHover={{ y: -3 }} className={`rounded-2xl shadow-md hover:shadow-xl border transition-all overflow-hidden flex flex-col ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-                  <div className="h-1 bg-gradient-to-r from-lime-400 to-teal-500" />
+                <motion.div key={order.id} whileHover={{ y: -3 }} className={`rounded-md shadow-md hover:shadow-xl border transition-all overflow-hidden flex flex-col ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+                 
                   <div className="p-4 sm:p-5 flex flex-col flex-1">
                     <div className="flex justify-between items-start mb-2 gap-2">
-                      <div><p className="font-mono text-[10px] text-lime-600 dark:text-lime-400 tracking-[2px] uppercase">ORD #{order.id.slice(0, 6)}</p><p className={`text-base font-bold mt-0.5 ${darkMode ? "text-white" : "text-gray-900"}`}>{t("orders")}</p></div>
-                      <StatusBadge status={order.status} type="order" />
+                      <div><p className={`font-mono text-[10px] tracking-[2px] uppercase ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>ORD #{order.id.slice(0, 6)}</p><p className={`text-base font-bold mt-0.5 ${darkMode ? "text-white" : "text-gray-900"}`}>Order</p></div>
+                      <StatusBadge status={order.status} type="order" darkMode={darkMode} />
                     </div>
-                    <ProgressBar progress={progress} status={order.status} />
+                    <ProgressBar progress={progress} status={order.status} darkMode={darkMode} />
                     <div className="mb-3 mt-1 space-y-1.5">
-                      <div className={`flex items-center gap-2 text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}><FiCalendar className="text-lime-500 flex-shrink-0" size={11} />{new Date(order.createdAt).toLocaleDateString("en-EG", { month: "short", day: "numeric", year: "numeric" })}</div>
-                      <div className="flex items-center gap-2 text-lime-600 dark:text-lime-400 text-xs"><FiCreditCard size={11} className="flex-shrink-0" /><span className="font-medium uppercase tracking-wide">{order.paymentMethod?.replace("_", " ")}</span></div>
+                      {!isEmptyVal(order.createdAt) && <div className={`flex items-center gap-2 text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}><FiCalendar className="text-emerald-500 flex-shrink-0" size={11} />{new Date(order.createdAt).toLocaleDateString("en-EG", { month: "short", day: "numeric", year: "numeric" })}</div>}
+                      {!isEmptyVal(order.paymentMethod) && <div className={`flex items-center gap-2 text-xs ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}><FiCreditCard size={11} className="flex-shrink-0" /><span className="font-medium uppercase tracking-wide">{order.paymentMethod?.replace("_", " ")}</span></div>}
                     </div>
-                    <div className="mb-3"><span className="text-2xl sm:text-3xl font-black text-lime-600 dark:text-lime-400">{order.totalPrice}</span><span className={`text-xs ml-1 ${darkMode ? "text-gray-400" : "text-gray-400"}`}>EGP</span></div>
+                    {hasTotal && <div className="mb-3"><span className={`text-2xl sm:text-3xl font-black ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>{order.totalPrice}</span><span className={`text-xs ml-1 ${darkMode ? "text-gray-500" : "text-gray-400"}`}>EGP</span></div>}
                     <div className="flex gap-2 mt-auto flex-wrap">
-                      <motion.button whileTap={{ scale: 0.96 }} onClick={() => { setSelectedOrder(order); setIsOrderModalOpen(true); }} className="flex-1 bg-blue-50 hover:bg-blue-100 dark:bg-gray-700 text-blue-600 dark:text-blue-400 font-bold text-xs py-2.5 rounded-xl transition-all flex items-center justify-center gap-1"><FiInfo size={11} /> {t("details")}</motion.button>
-                      <motion.button whileTap={{ scale: 0.96 }} onClick={() => generateInvoicePDF(order)} className="flex-1 bg-emerald-50 hover:bg-emerald-100 dark:bg-gray-700 text-emerald-600 dark:text-emerald-400 font-bold text-xs py-2.5 rounded-xl transition-all flex items-center justify-center gap-1"><FiDownload size={11} /> PDF</motion.button>
+                      <motion.button whileTap={{ scale: 0.96 }} onClick={() => { setSelectedOrder(order); setIsOrderModalOpen(true); }} className={`flex-1 font-bold text-xs py-2.5 rounded-xl transition-all flex items-center justify-center gap-1 ${darkMode ? "bg-blue-500/15 hover:bg-blue-500/25 text-blue-300" : "bg-blue-50 hover:bg-blue-100 text-blue-600"}`}><FiInfo size={11} /> Details</motion.button>
+      
                       {!isDelivered && !isCancelled && (
-                        <motion.button whileTap={{ scale: 0.96 }} onClick={() => handleCancelOrder(order.id)} className="flex-1 bg-red-50 hover:bg-red-100 dark:bg-gray-700 text-red-600 dark:text-red-400 font-bold text-xs py-2.5 rounded-xl transition-all flex items-center justify-center gap-1"><FiXCircle size={11} /> {t("cancelOrder")}</motion.button>
+                        <motion.button whileTap={{ scale: 0.96 }} onClick={() => handleCancelOrder(order.id)} className={`flex-1 font-bold text-xs py-2.5 rounded-xl transition-all flex items-center justify-center gap-1 ${darkMode ? "bg-red-500/15 hover:bg-red-500/25 text-red-300" : "bg-red-50 hover:bg-red-100 text-red-600"}`}><FiXCircle size={11} /> Cancel Order</motion.button>
                       )}
                     </div>
                   </div>
@@ -879,65 +920,63 @@ const OrdersTab = memo(({ orders, ordersPage, setOrdersPage, setSelectedOrder, s
               );
             })}
           </div>
-          {total > 1 && <Pagination page={ordersPage} total={total} setPage={setOrdersPage} darkMode={darkMode} />}
+          <Pagination page={ordersPage} total={total} setPage={setOrdersPage} darkMode={darkMode} />
         </>
       )}
     </motion.div>
   );
 });
 
-
-
-
-const RepairsTab = memo(({ repairRequests, repairsPage, setRepairsPage, handleViewRepair, handleEditRepair, handleAcceptQuote, handleCancelRepair, darkMode, t }) => {
+const RepairsTab = memo(({ repairRequests, repairsPage, setRepairsPage, handleViewRepair, handleEditRepair, handleAcceptQuote, handleCancelRepair, darkMode }) => {
   const [statusFilter, setStatusFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [search, setSearch] = useState("");
-  const ipp = 3;
+  const ipp = 4;
 
   const filtered = useMemo(() => repairRequests.filter(r => {
     if (statusFilter && r.status !== statusFilter) return false;
-    if (dateFilter && !new Date(r.createdAt).toISOString().startsWith(dateFilter)) return false;
+    if (dateFilter && toDateOnlyString(r.createdAt) !== dateFilter) return false;
     if (search && !(r.shopName?.toLowerCase().includes(search.toLowerCase()) || r.description?.toLowerCase().includes(search.toLowerCase()) || r.id?.toLowerCase().includes(search.toLowerCase()))) return false;
     return true;
   }), [repairRequests, statusFilter, dateFilter, search]);
 
   const totalPages = Math.ceil(filtered.length / ipp);
   const pageRepairs = filtered.slice((repairsPage - 1) * ipp, repairsPage * ipp);
+  const statusKeys = ["SUBMITTED","QUOTE_SENT","QUOTE_APPROVED","QUOTE_REJECTED","DEVICE_COLLECTED","REPAIRING","REPAIR_COMPLETED","DEVICE_DELIVERED","CANCELLED","FAILED"];
 
   return (
     <motion.div variants={cardVariants} initial="hidden" animate="visible" exit="exit">
-      <h3 className={`text-xl font-extrabold flex items-center gap-3 mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}><FiTool className="text-lime-500" /> {t("repairs")}</h3>
-      <FilterBar statusOptions={Object.keys(TRANSLATIONS.en.repairStatuses)} statusFilter={statusFilter} setStatusFilter={setStatusFilter} dateFilter={dateFilter} setDateFilter={setDateFilter} search={search} setSearch={setSearch} darkMode={darkMode} t={t} />
+      <h3 className={`text-xl font-extrabold flex items-center gap-3 mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}><FiTool className="text-emerald-500" /> Repairs</h3>
+      <FilterBar statusOptions={statusKeys} statusFilter={statusFilter} setStatusFilter={setStatusFilter} dateFilter={dateFilter} setDateFilter={setDateFilter} search={search} setSearch={setSearch} darkMode={darkMode} />
       {filtered.length === 0 ? (
-        <div className={`text-center py-16 rounded-2xl border ${darkMode ? "bg-gray-800/50 border-gray-700" : "bg-white border-gray-200"}`}><FiTool className="mx-auto text-5xl text-gray-300 mb-3" /><p className={`text-lg font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>{t("noRepairs")}</p></div>
+        <EmptyState illustration={<IllustrationTool darkMode={darkMode} />} title="No repair requests yet" subtitle="Submit a repair request and track it from quote to delivery." darkMode={darkMode} />
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {pageRepairs.map((req) => {
               const isQuoteSent = req.status === "QUOTE_SENT";
               const canCancel = ["QUOTE_APPROVED", "QUOTE_SENT", "SUBMITTED"].includes(req.status);
-              const hasPrice = req.price;
+              const hasPrice = !isEmptyVal(req.price);
               const progress = getRepairProgress(req.status);
               return (
-                <motion.div key={req.id} whileHover={{ y: -3 }} className={`rounded-2xl shadow-md hover:shadow-xl border transition-all overflow-hidden flex flex-col ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-                  <div className="h-1 bg-gradient-to-r from-lime-400 to-teal-500" />
+                <motion.div key={req.id} whileHover={{ y: -3 }} className={`rounded-md shadow-md hover:shadow-xl border transition-all overflow-hidden flex flex-col ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+                  
                   <div className="p-4 sm:p-5 flex flex-col flex-1">
                     <div className="flex justify-between items-start mb-2 gap-2">
-                      <div className="min-w-0"><p className="font-mono text-[10px] text-lime-600 dark:text-lime-400 tracking-[2px] uppercase">REQ #{req.id.slice(0, 6)}</p><p className={`text-base font-bold mt-0.5 truncate ${darkMode ? "text-white" : "text-gray-900"}`}>{req.shopName}</p></div>
-                      <StatusBadge status={req.status} type="repair" />
+                      <div className="min-w-0"><p className={`font-mono text-[10px] tracking-[2px] uppercase ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>REQ #{req.id.slice(0, 6)}</p><p className={`text-base font-bold mt-0.5 truncate ${darkMode ? "text-white" : "text-gray-900"}`}>{req.shopName}</p></div>
+                      <StatusBadge status={req.status} type="repair" darkMode={darkMode} />
                     </div>
-                    <ProgressBar progress={progress} status={req.status} />
-                    <p className={`text-xs sm:text-sm line-clamp-2 mb-3 mt-1 flex-1 leading-relaxed ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{req.description}</p>
-                    {hasPrice && <div className="mb-3 flex items-end gap-1"><span className="text-2xl font-black text-lime-600 dark:text-lime-400">{req.price}</span><span className={`text-xs mb-0.5 ${darkMode ? "text-gray-400" : "text-gray-400"}`}>EGP</span></div>}
+                    <ProgressBar progress={progress} status={req.status} darkMode={darkMode} />
+                    {!isEmptyVal(req.description) && <p className={`text-xs sm:text-sm line-clamp-2 mb-3 mt-1 flex-1 leading-relaxed ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{req.description}</p>}
+                    {hasPrice && <div className="mb-3 flex items-end gap-1"><span className={`text-2xl font-black ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>{req.price}</span><span className={`text-xs mb-0.5 ${darkMode ? "text-gray-500" : "text-gray-400"}`}>EGP</span></div>}
                     <div className="grid grid-cols-2 gap-2 mt-auto">
-                      <motion.button whileTap={{ scale: 0.96 }} onClick={() => handleViewRepair(req.id)} className="bg-blue-50 hover:bg-blue-100 dark:bg-gray-700 text-blue-600 dark:text-blue-400 font-bold text-xs py-2 rounded-xl flex items-center justify-center gap-1"><FiInfo size={10} /> {t("viewRepair")}</motion.button>
-                      <motion.button whileTap={{ scale: 0.96 }} onClick={() => handleEditRepair(req)} className="bg-amber-50 hover:bg-amber-100 dark:bg-gray-700 text-amber-600 dark:text-amber-400 font-bold text-xs py-2 rounded-xl flex items-center justify-center gap-1"><FiEdit size={10} /> {t("editRepair")}</motion.button>
+                      <motion.button whileTap={{ scale: 0.96 }} onClick={() => handleViewRepair(req.id)} className={`font-bold text-xs py-2 rounded-xl flex items-center justify-center gap-1 ${darkMode ? "bg-blue-500/15 hover:bg-blue-500/25 text-blue-300" : "bg-blue-50 hover:bg-blue-100 text-blue-600"}`}><FiInfo size={10} /> View</motion.button>
+                      <motion.button whileTap={{ scale: 0.96 }} onClick={() => handleEditRepair(req)} className={`font-bold text-xs py-2 rounded-xl flex items-center justify-center gap-1 ${darkMode ? "bg-amber-500/15 hover:bg-amber-500/25 text-amber-300" : "bg-amber-50 hover:bg-amber-100 text-amber-600"}`}><FiEdit size={10} /> Edit</motion.button>
                       {isQuoteSent && hasPrice && (
-                        <motion.button whileTap={{ scale: 0.96 }} onClick={() => handleAcceptQuote(req)} className="col-span-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold text-xs py-2 rounded-xl flex items-center justify-center gap-1 shadow-sm"><FiCheckCircle size={10} /> {t("acceptQuote")}</motion.button>
+                        <motion.button whileTap={{ scale: 0.96 }} onClick={() => handleAcceptQuote(req)} className="col-span-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold text-xs py-2 rounded-xl flex items-center justify-center gap-1 shadow-sm"><FiCheckCircle size={10} /> Accept Quote</motion.button>
                       )}
                       {canCancel && (
-                        <motion.button whileTap={{ scale: 0.96 }} onClick={() => handleCancelRepair(req.id)} className="col-span-2 bg-red-50 hover:bg-red-100 dark:bg-gray-700 text-red-600 dark:text-red-400 font-bold text-xs py-2 rounded-xl flex items-center justify-center gap-1.5"><FiXCircle size={10} /> {t("cancelRepair")}</motion.button>
+                        <motion.button whileTap={{ scale: 0.96 }} onClick={() => handleCancelRepair(req.id)} className={`col-span-2 font-bold text-xs py-2 rounded-xl flex items-center justify-center gap-1.5 ${darkMode ? "bg-red-500/15 hover:bg-red-500/25 text-red-300" : "bg-red-50 hover:bg-red-100 text-red-600"}`}><FiXCircle size={10} /> Cancel Request</motion.button>
                       )}
                     </div>
                   </div>
@@ -945,17 +984,18 @@ const RepairsTab = memo(({ repairRequests, repairsPage, setRepairsPage, handleVi
               );
             })}
           </div>
-          {totalPages > 1 && <Pagination page={repairsPage} total={totalPages} setPage={setRepairsPage} darkMode={darkMode} />}
+          <Pagination page={repairsPage} total={totalPages} setPage={setRepairsPage} darkMode={darkMode} />
         </>
       )}
     </motion.div>
   );
 });
 
-
-
-const NotificationsTab = memo(({ token, darkMode, t }) => {
+const NotificationsTab = memo(({ token, darkMode }) => {
   const queryClient = useQueryClient();
+  const [page, setPage] = useState(1);
+  const ipp = 5;
+
   const { data: notifications = [], isLoading } = useQuery({
     queryKey: ['notifications'],
     queryFn: async () => {
@@ -974,218 +1014,296 @@ const NotificationsTab = memo(({ token, darkMode, t }) => {
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;
+  const totalPages = Math.ceil(notifications.length / ipp);
+  const pageNotifications = notifications.slice((page - 1) * ipp, page * ipp);
+
+  useEffect(() => {
+    if (page > totalPages && totalPages > 0) setPage(totalPages);
+  }, [totalPages, page]);
 
   return (
     <motion.div variants={cardVariants} initial="hidden" animate="visible" exit="exit">
       <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
         <h3 className={`text-xl font-extrabold flex items-center gap-3 ${darkMode ? "text-white" : "text-gray-900"}`}>
-          <FiBell className="text-lime-500" /> {t("notifications")}
+          <FiBell className="text-emerald-500" /> Notifications
           {unreadCount > 0 && <span className="bg-red-500 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">{unreadCount}</span>}
         </h3>
       </div>
-      {isLoading ? <LoadingSpinner /> : notifications.length === 0 ? (
-        <div className={`text-center py-16 rounded-2xl border ${darkMode ? "bg-gray-800/50 border-gray-700" : "bg-white border-gray-200"}`}>
-          <FiBell className="mx-auto text-5xl text-gray-300 mb-3" />
-          <p className={`text-lg font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>{t("noNotifications")}</p>
-        </div>
+      {isLoading ? <LoadingSpinner darkMode={darkMode} /> : notifications.length === 0 ? (
+        <EmptyState illustration={<IllustrationBell darkMode={darkMode} />} title="No notifications yet" subtitle="Updates about your orders and repairs will land here." darkMode={darkMode} />
       ) : (
-        <div className="space-y-3">
-          {notifications.map((notif) => (
-            <motion.div key={notif.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-              className={`relative rounded-2xl border p-4 sm:p-5 transition-all bg-white ${darkMode ? "border-gray-700" : "border-gray-200"} shadow-sm`}>
-              {!notif.read && <span className="absolute top-4 right-4 w-2.5 h-2.5 bg-lime-500 rounded-full animate-pulse" />}
-              <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center bg-gray-100">
-                  <FiBell className="text-lime-500" size={15} />
+        <>
+          <div className="space-y-3">
+            {pageNotifications.map((notif) => (
+              <motion.div key={notif.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                className={`relative rounded-md border p-4 sm:p-5 transition-all shadow-sm ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+                {!notif.read && <span className="absolute top-4 right-4 w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />}
+                <div className="flex items-start gap-3">
+                  <div className={`w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center ${darkMode ? "bg-gray-700" : "bg-gray-100"}`}>
+                    <FiBell className="text-emerald-500" size={15} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>{notif.title || notif.subject || "Notification"}</p>
+                    {!isEmptyVal(notif.message || notif.body) && <p className={`text-xs mt-0.5 leading-relaxed ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{notif.message || notif.body}</p>}
+                    {!isEmptyVal(notif.createdAt) && <p className={`text-[10px] mt-1.5 flex items-center gap-1 ${darkMode ? "text-gray-500" : "text-gray-400"}`}><FiClock size={9} />{new Date(notif.createdAt).toLocaleString("en-EG", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>}
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm text-gray-900">{notif.title || notif.subject || "Notification"}</p>
-                  <p className="text-xs mt-0.5 leading-relaxed text-gray-500">{notif.message || notif.body}</p>
-                  {notif.createdAt && <p className="text-[10px] mt-1.5 flex items-center gap-1 text-gray-400"><FiClock size={9} />{new Date(notif.createdAt).toLocaleString("en-EG", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>}
+                <div className="flex gap-2 mt-3">
+                  <button onClick={() => deleteNotif(notif.id)} className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${darkMode ? "bg-red-500/15 text-red-300 hover:bg-red-500/25" : "bg-red-50 text-red-500 hover:bg-red-100"}`}>
+                    <FiTrash2 size={10} /> Delete
+                  </button>
                 </div>
-              </div>
-              <div className="flex gap-2 mt-3">
-                <button onClick={() => deleteNotif(notif.id)} className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-red-50 text-red-500 hover:bg-red-100">
-                  <FiTrash2 size={10} /> {t("deleteNotification")}
-                </button>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+              </motion.div>
+            ))}
+          </div>
+          <Pagination page={page} total={totalPages} setPage={setPage} darkMode={darkMode} />
+        </>
       )}
     </motion.div>
   );
 });
 
+const CHART_COLORS = ["#10b981", "#0d9488", "#3b82f6", "#8b5cf6", "#f59e0b", "#ef4444", "#06b6d4", "#f97316"];
 
+const DonutChart = memo(({ data, size = 168, thickness = 24, darkMode }) => {
+  const total = data.reduce((s, d) => s + d.value, 0);
+  const radius = (size - thickness) / 2;
+  const circumference = 2 * Math.PI * radius;
+  let cumulative = 0;
 
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
+        {total === 0 ? (
+          <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={darkMode ? "#374151" : "#e5e7eb"} strokeWidth={thickness} />
+        ) : data.map((d, i) => {
+          const fraction = d.value / total;
+          const dash = fraction * circumference;
+          const offset = -cumulative * circumference;
+          cumulative += fraction;
+          return (
+            <circle key={i} cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={d.color}
+              strokeWidth={thickness} strokeDasharray={`${dash} ${circumference - dash}`} strokeDashoffset={offset} />
+          );
+        })}
+      </g>
+      <text x="50%" y="47%" textAnchor="middle" fill={darkMode ? "#ffffff" : "#111827"} style={{ fontSize: 26, fontWeight: 800 }}>{total}</text>
+      <text x="50%" y="62%" textAnchor="middle" fill={darkMode ? "#9ca3af" : "#9ca3af"} style={{ fontSize: 11, fontWeight: 600 }}>Total</text>
+    </svg>
+  );
+});
 
-const SecurityTab = memo(({ darkMode, handleDeleteAccount, handleLogout, token, t }) => {
-  const mockSessions = [
-    { id: "sess_1", device: "Chrome on Windows", ip: "102.45.67.89", location: "Cairo, Egypt", lastActive: new Date().toISOString(), current: true },
-    { id: "sess_2", device: "Safari on iPhone", ip: "197.55.12.34", location: "Alexandria, Egypt", lastActive: new Date(Date.now() - 3600000).toISOString(), current: false },
-  ];
+const ChartLegend = memo(({ data, darkMode }) => {
+  const total = data.reduce((s, d) => s + d.value, 0) || 1;
+  return (
+    <div className="space-y-2 flex-1 min-w-[160px]">
+      {data.map((d, i) => (
+        <div key={i} className="flex items-center gap-2.5 text-xs">
+          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }} />
+          <span className={`font-semibold flex-1 truncate ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{d.label}</span>
+          <span className={`font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>{d.value}</span>
+          <span className={`w-10 text-right ${darkMode ? "text-gray-500" : "text-gray-400"}`}>{Math.round((d.value / total) * 100)}%</span>
+        </div>
+      ))}
+    </div>
+  );
+});
 
-  const mockActivity = [
-    { id: 1, type: "login", details: "Login from Chrome on Windows", time: new Date().toISOString(), icon: <FiLogOut className="text-lime-500" />, color: "lime" },
-    { id: 2, type: "profileUpdate", details: "Profile information updated", time: new Date(Date.now() - 86400000).toISOString(), icon: <FiUser className="text-blue-500" />, color: "blue" },
-    { id: 3, type: "addressAdded", details: "New address added: Cairo, Tahrir St.", time: new Date(Date.now() - 172800000).toISOString(), icon: <FiMapPin className="text-purple-500" />, color: "purple" },
-    { id: 4, type: "login", details: "Login from Safari on iPhone", time: new Date(Date.now() - 259200000).toISOString(), icon: <FiLogOut className="text-lime-500" />, color: "lime" },
-  ];
+const StatCard = memo(({ icon, value, label, accent, darkMode }) => (
+  <div className={`rounded-md border p-4 sm:p-5 shadow-sm ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+    <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3" style={{ backgroundColor: `${accent}1a`, color: accent }}>{icon}</div>
+    <p className={`text-2xl font-black ${darkMode ? "text-white" : "text-gray-900"}`}>{value}</p>
+    <p className={`text-xs font-semibold mt-0.5 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{label}</p>
+  </div>
+));
 
-  const [sessions, setSessions] = useState(mockSessions);
+const StatProgressRow = memo(({ label, value, total, color, darkMode }) => {
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-1.5">
+        <span className={`text-xs font-bold ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{label}</span>
+        <span className={`text-xs font-bold ${darkMode ? "text-gray-500" : "text-gray-400"}`}>{value}/{total} · {pct}%</span>
+      </div>
+      <div className={`h-2 w-full rounded-full overflow-hidden ${darkMode ? "bg-gray-700" : "bg-gray-100"}`}>
+        <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, ease: "easeOut" }}
+          className="h-full rounded-full" style={{ background: `linear-gradient(to right, ${color}, ${color}cc)` }} />
+      </div>
+    </div>
+  );
+});
 
-  const terminateSession = (id) => {
-    setSessions(prev => prev.filter(s => s.id !== id));
-    Swal.fire({ icon: "success", title: "Session terminated", toast: true, position: "top-end", timer: 1500, showConfirmButton: false });
-  };
+const AnalyticsTab = memo(({ orders, repairRequests, addresses, darkMode }) => {
+  const orderTotal = orders.length;
+  const repairTotal = repairRequests.length;
+  const totalSpent = orders.reduce((s, o) => s + (Number(o.totalPrice) || 0), 0) + repairRequests.reduce((s, r) => s + (Number(r.price) || 0), 0);
 
-  const cardCls = `rounded-2xl border overflow-hidden ${darkMode ? "bg-gray-800/80 border-gray-700/60" : "bg-white border-gray-100"} shadow-lg`;
-  const sectionTitle = `text-lg font-extrabold flex items-center gap-2.5 mb-5 ${darkMode ? "text-white" : "text-gray-900"}`;
+  const orderStatusData = useMemo(() => {
+    const counts = {};
+    orders.forEach((o) => { counts[o.status] = (counts[o.status] || 0) + 1; });
+    return Object.entries(counts).map(([label, value], i) => ({ label: label.replace(/_/g, " "), value, color: CHART_COLORS[i % CHART_COLORS.length] }));
+  }, [orders]);
+
+  const repairStatusData = useMemo(() => {
+    const counts = {};
+    repairRequests.forEach((r) => { counts[r.status] = (counts[r.status] || 0) + 1; });
+    return Object.entries(counts).map(([label, value], i) => ({ label: label.replace(/_/g, " "), value, color: CHART_COLORS[i % CHART_COLORS.length] }));
+  }, [repairRequests]);
+
+  const deliveredOrders = orders.filter((o) => o.status === "DELIVERED").length;
+  const cancelledOrders = orders.filter((o) => o.status === "CANCELLED").length;
+  const completedRepairs = repairRequests.filter((r) => r.status === "DEVICE_DELIVERED").length;
+  const cancelledRepairs = repairRequests.filter((r) => ["CANCELLED", "FAILED", "QUOTE_REJECTED"].includes(r.status)).length;
+
+  const hasData = orderTotal > 0 || repairTotal > 0;
 
   return (
     <motion.div variants={cardVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
-     
-     
-      <div className={cardCls}>
-        <div className="h-1 bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-500" />
-        <div className="p-5 sm:p-6">
-          <h3 className={sectionTitle}><FiMonitor className="text-lime-500" /> {t("activeSessions")}</h3>
-          <div className="space-y-3">
-            {sessions.map((session) => (
-              <div key={session.id} className={`flex flex-wrap items-center justify-between gap-3 p-4 rounded-xl border ${session.current ? (darkMode ? "border-lime-600/40 bg-lime-900/20" : "border-lime-200 bg-lime-50") : (darkMode ? "border-gray-700 bg-gray-700/30" : "border-gray-100 bg-gray-50")}`}>
-                <div className="flex items-start gap-3">
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${darkMode ? "bg-gray-600" : "bg-white"} shadow-sm`}><FiMonitor className={session.current ? "text-lime-500" : "text-gray-400"} size={16} /></div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className={`text-sm font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>{session.device}</p>
-                      {session.current && <span className="text-[9px] bg-lime-500 text-white px-2 py-0.5 rounded-full font-extrabold uppercase">{t("currentSession")}</span>}
-                    </div>
-                    <p className={`text-xs mt-0.5 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{session.ip} · {session.location}</p>
-                    <p className={`text-[10px] mt-0.5 flex items-center gap-1 ${darkMode ? "text-gray-500" : "text-gray-400"}`}><FiClock size={9} /> {t("lastActive")}: {new Date(session.lastActive).toLocaleString("en-EG", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
-                  </div>
+      <h3 className={`text-xl font-extrabold flex items-center gap-3 ${darkMode ? "text-white" : "text-gray-900"}`}><FiPieChart className="text-emerald-500" /> Account Analytics</h3>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <StatCard icon={<FiBox size={16} />} value={orderTotal} label="Total Orders" accent="#10b981" darkMode={darkMode} />
+        <StatCard icon={<FiTool size={16} />} value={repairTotal} label="Total Repairs" accent="#0d9488" darkMode={darkMode} />
+        <StatCard icon={<FiDollarSign size={16} />} value={`${totalSpent.toFixed(0)} EGP`} label="Total Spent" accent="#3b82f6" darkMode={darkMode} />
+        <StatCard icon={<FiMapPin size={16} />} value={addresses.length} label="Saved Addresses" accent="#8b5cf6" darkMode={darkMode} />
+      </div>
+
+      {!hasData ? (
+        <EmptyState illustration={<IllustrationBox darkMode={darkMode} />} title="Not enough activity yet" subtitle="Place an order or submit a repair request to see your analytics here." darkMode={darkMode} />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className={`rounded-md border p-5 sm:p-6 shadow-sm ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+              <h4 className={`text-sm font-bold mb-4 flex items-center gap-2 ${darkMode ? "text-gray-200" : "text-gray-800"}`}><FiBox className="text-emerald-500" size={14} /> Orders by Status</h4>
+              {orderTotal === 0 ? <p className={`text-xs py-8 text-center ${darkMode ? "text-gray-500" : "text-gray-400"}`}>No orders yet</p> : (
+                <div className="flex flex-wrap items-center gap-5">
+                  <DonutChart data={orderStatusData} darkMode={darkMode} />
+                  <ChartLegend data={orderStatusData} darkMode={darkMode} />
                 </div>
-                {!session.current && (
-                  <motion.button whileTap={{ scale: 0.96 }} onClick={() => terminateSession(session.id)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-50 dark:bg-red-900/30 text-red-500 dark:text-red-400 font-bold text-xs border border-red-200 dark:border-red-800 hover:bg-red-100 transition-all">
-                    <FiLogOut size={11} /> {t("terminate")}
-                  </motion.button>
-                )}
+              )}
+            </div>
+            <div className={`rounded-md border p-5 sm:p-6 shadow-sm ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+              <h4 className={`text-sm font-bold mb-4 flex items-center gap-2 ${darkMode ? "text-gray-200" : "text-gray-800"}`}><FiTool className="text-emerald-500" size={14} /> Repairs by Status</h4>
+              {repairTotal === 0 ? <p className={`text-xs py-8 text-center ${darkMode ? "text-gray-500" : "text-gray-400"}`}>No repair requests yet</p> : (
+                <div className="flex flex-wrap items-center gap-5">
+                  <DonutChart data={repairStatusData} darkMode={darkMode} />
+                  <ChartLegend data={repairStatusData} darkMode={darkMode} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className={`rounded-md border p-5 sm:p-7 shadow-sm ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+            <h4 className={`text-sm font-bold mb-5 flex items-center gap-2 ${darkMode ? "text-gray-200" : "text-gray-800"}`}><FiTrendingUp className="text-emerald-500" size={14} /> Performance Overview</h4>
+            <div className="space-y-5">
+              <StatProgressRow label="Orders delivered" value={deliveredOrders} total={orderTotal} color="#10b981" darkMode={darkMode} />
+              <StatProgressRow label="Orders cancelled" value={cancelledOrders} total={orderTotal} color="#ef4444" darkMode={darkMode} />
+              <StatProgressRow label="Repairs completed" value={completedRepairs} total={repairTotal} color="#0d9488" darkMode={darkMode} />
+              <StatProgressRow label="Repairs cancelled or failed" value={cancelledRepairs} total={repairTotal} color="#f59e0b" darkMode={darkMode} />
+            </div>
+          </div>
+        </>
+      )}
+    </motion.div>
+  );
+});
+
+const AboutTab = memo(({ darkMode }) => {
+  const values = [
+    { icon: <FiShield size={16} />, title: "Verified Shops", text: "Every repair shop on Tech-Restore is vetted so your device ends up in trusted hands." },
+    { icon: <FiZap size={16} />, title: "Fast Turnaround", text: "Track every step live, from quote to pickup, so repairs never feel like a black box." },
+    { icon: <FiCreditCard size={16} />, title: "Secure Payments", text: "Pay by cash or card with the same protection you'd expect from any secure checkout." },
+    { icon: <FiTruck size={16} />, title: "Doorstep Delivery", text: "Choose home delivery, courier pickup, or visit the shop yourself — whatever suits you." },
+  ];
+
+  return (
+    <motion.div variants={cardVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
+      <div className={`rounded-md shadow-xl border-2 overflow-hidden ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"}`}>
+        
+        <div className="p-6 sm:p-8 flex flex-col sm:flex-row gap-6 items-center">
+          <div className="w-36 h-36 flex-shrink-0"><IllustrationHeart darkMode={darkMode} /></div>
+          <div>
+            <h3 className={`text-xl sm:text-2xl font-extrabold mb-2 flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}><FiCompass className="text-emerald-500" /> About Tech-Restore</h3>
+            <p className={`text-sm leading-relaxed ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
+              Tech-Restore connects people who need device repairs with verified local shops, and brings retail
+              shopping for parts and accessories into the same place. Our goal is simple: make getting a device
+              fixed as easy and transparent as ordering anything else online.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className={`rounded-md shadow-xl border overflow-hidden ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"}`}>
+        <div className="p-6 sm:p-8">
+          <h4 className={`text-lg font-extrabold mb-5 flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}><FiAward className="text-emerald-500" /> Why people choose us</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {values.map((v, i) => (
+              <div key={i} className={`flex gap-3 p-4 rounded-xl ${darkMode ? "bg-gray-700/50" : "bg-gray-50"}`}>
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${darkMode ? "bg-emerald-500/15 text-emerald-400" : "bg-emerald-100 text-emerald-600"}`}>{v.icon}</div>
+                <div>
+                  <p className={`text-sm font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>{v.title}</p>
+                  <p className={`text-xs mt-0.5 leading-relaxed ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{v.text}</p>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      
-      
-      <div className={cardCls}>
-        <div className="h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
-        <div className="p-5 sm:p-6">
-          <h3 className={sectionTitle}><FiActivity className="text-blue-500" /> {t("accountActivity")}</h3>
-          <div className="relative">
-            <div className={`absolute left-5 top-0 bottom-0 w-px ${darkMode ? "bg-gray-700" : "bg-gray-100"}`} />
-            <div className="space-y-4">
-              {mockActivity.map((item) => (
-                <div key={item.id} className="flex gap-4 relative pl-1">
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 z-10 shadow-sm ${darkMode ? "bg-gray-700" : "bg-white border border-gray-100"}`}>{item.icon}</div>
-                  <div className={`flex-1 p-3 rounded-xl border ${darkMode ? "bg-gray-700/30 border-gray-700" : "bg-gray-50 border-gray-100"}`}>
-                    <p className={`text-sm font-semibold ${darkMode ? "text-gray-200" : "text-gray-800"}`}>{t(item.type) || item.type}</p>
-                    <p className={`text-xs mt-0.5 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{item.details}</p>
-                    <p className={`text-[10px] mt-1 flex items-center gap-1 ${darkMode ? "text-gray-500" : "text-gray-400"}`}><FiClock size={9} />{new Date(item.time).toLocaleString("en-EG", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
-                  </div>
-                </div>
-              ))}
+      <div className={`rounded-md shadow-xl border overflow-hidden ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"}`}>
+        <div className="p-6 sm:p-8">
+          <h4 className={`text-lg font-extrabold mb-4 flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}><FiSend className="text-emerald-500" /> Get in touch</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className={`flex items-center gap-3 p-3.5 rounded-xl ${darkMode ? "bg-gray-700/50" : "bg-gray-50"}`}>
+              <FiMail className="text-emerald-500 flex-shrink-0" size={15} />
+              <span className={`text-sm font-medium ${darkMode ? "text-gray-200" : "text-gray-700"}`}>support@tech-restore.com</span>
+            </div>
+            <div className={`flex items-center gap-3 p-3.5 rounded-xl ${darkMode ? "bg-gray-700/50" : "bg-gray-50"}`}>
+              <FiPhone className="text-emerald-500 flex-shrink-0" size={15} />
+              <span className={`text-sm font-medium ${darkMode ? "text-gray-200" : "text-gray-700"}`}>+20 100 000 0000</span>
+            </div>
+            <div className={`flex items-center gap-3 p-3.5 rounded-xl ${darkMode ? "bg-gray-700/50" : "bg-gray-50"}`}>
+              <FiMapPin className="text-emerald-500 flex-shrink-0" size={15} />
+              <span className={`text-sm font-medium ${darkMode ? "text-gray-200" : "text-gray-700"}`}>Cairo, Egypt</span>
             </div>
           </div>
-        </div>
-      </div>
-
-     
-     
-      <div className={`rounded-2xl border overflow-hidden ${darkMode ? "bg-red-900/10 border-red-800/40" : "bg-red-50 border-red-200"} shadow-lg`}>
-        <div className="h-1 bg-gradient-to-r from-red-500 to-rose-600" />
-        <div className="p-5 sm:p-6">
-          <h3 className="text-lg font-extrabold flex items-center gap-2.5 mb-2 text-red-600 dark:text-red-400"><FiAlertTriangle /> {t("dangerZone")}</h3>
-          <p className={`text-sm mb-5 ${darkMode ? "text-red-400/80" : "text-red-600/80"}`}>{t("deleteAccountWarning")}</p>
-          <motion.button whileTap={{ scale: 0.97 }} onClick={handleDeleteAccount} className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 text-white font-bold shadow-lg hover:shadow-red-500/30 transition-all text-sm">
-            <FiTrash2 size={14} /> {t("confirmDelete")}
-          </motion.button>
         </div>
       </div>
     </motion.div>
   );
 });
 
-
-
-
-const SettingsBar = memo(({ lang, setLang, t }) => (
-  <div className="flex items-center gap-3 flex-wrap px-4 py-2.5 rounded-2xl border mb-4 bg-white border-gray-200 shadow-sm dark:bg-gray-800/60 dark:border-gray-700">
-    <div className="flex items-center gap-2">
-      <FiGlobe className="text-lime-500" size={14} />
-      <span className="text-xs font-bold text-gray-600 dark:text-gray-300">{t("language")}:</span>
-      <button onClick={() => setLang("en")} className={`px-2.5 py-1 rounded-lg text-xs font-extrabold transition-all ${lang === "en" ? "bg-lime-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"}`}>EN</button>
-      <button onClick={() => setLang("ar")} className={`px-2.5 py-1 rounded-lg text-xs font-extrabold transition-all ${lang === "ar" ? "bg-lime-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"}`}>عربي</button>
+const TipsCard = memo(() => {
+  const tips = [
+    "Add more than one address so checkout and repair pickups are always ready to go.",
+    "Accept a repair quote quickly to get your device into the queue sooner.",
+    "Download invoices right after delivery so your records stay in one place.",
+    "Check Analytics after a few orders to see your spending and delivery trends.",
+  ];
+  return (
+    <div className="rounded-md border shadow-lg overflow-hidden bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
+      <div className="p-5">
+        <h4 className="text-sm font-extrabold flex items-center gap-2 mb-3"><FiTarget size={15} /> Tips for Tech-Restore</h4>
+        <ul className="space-y-2.5">
+          {tips.map((tip, i) => (
+            <li key={i} className="flex gap-2 text-xs leading-relaxed text-emerald-50">
+              <FiCheckCircle size={13} className="flex-shrink-0 mt-0.5" />
+              <span>{tip}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
-  </div>
-));
+  );
+});
 
-
-
-
-const AccountContent = ({ darkMode: externalDark, setDarkMode: externalSetDark }) => {
+const AccountContent = ({ darkMode = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
   const [isPending, startTransition] = useTransition();
 
-  const [internalDark, setInternalDark] = useState(() => {
-    const saved = localStorage.getItem("darkMode");
-    return saved !== null ? JSON.parse(saved) : (externalDark ?? false);
-  });
-  const [internalLang, setInternalLang] = useState(() => localStorage.getItem("lang") || "en");
-
-  const darkMode = externalDark !== undefined ? externalDark : internalDark;
-  const setDarkMode = (val) => {
-    if (externalSetDark) externalSetDark(val);
-    setInternalDark(val);
-    localStorage.setItem("darkMode", JSON.stringify(val));
-    document.documentElement.classList.toggle("dark", val);
-  };
-
-
-  
-  const setLang = (l) => {
-    setInternalLang(l);
-    localStorage.setItem("lang", l);
-    document.documentElement.setAttribute("dir", l === "ar" ? "rtl" : "ltr");
-   
-    
-    if (l === "ar") {
-      document.documentElement.style.fontFamily = "'Cairo', sans-serif";
-      document.body.style.fontFamily = "'Cairo', sans-serif";
-    } else {
-      document.documentElement.style.fontFamily = "";
-      document.body.style.fontFamily = "";
-    }
-  };
-
-  const lang = internalLang;
-  const t = (key, sub) => {
-    const dict = TRANSLATIONS[lang] || TRANSLATIONS.en;
-    if (sub) return dict[key]?.[sub] || TRANSLATIONS.en[key]?.[sub] || sub;
-    return dict[key] || TRANSLATIONS.en[key] || key;
-  };
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", darkMode);
-    const currentLang = localStorage.getItem("lang") || "en";
-    document.documentElement.setAttribute("dir", currentLang === "ar" ? "rtl" : "ltr");
-    if (currentLang === "ar") {
-      document.documentElement.style.fontFamily = "'Cairo', sans-serif";
-      document.body.style.fontFamily = "'Cairo', sans-serif";
-    }
-  }, []);
+  useEffect(() => { document.title = "My Account | Tech-Restore"; }, []);
 
   const [token, setToken] = useState(localStorage.getItem("authToken"));
   const [activeSection, setActiveSection] = useState("profile");
@@ -1209,9 +1327,11 @@ const AccountContent = ({ darkMode: externalDark, setDarkMode: externalSetDark }
   const [confirmRepairReq, setConfirmRepairReq] = useState(null);
 
   const safe = (val) => (val == null || val === "" ? "—" : String(val).trim());
-  const formatDate = (d) => new Date(d).toLocaleString(lang === "ar" ? "ar-EG" : "en-EG", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Africa/Cairo" });
+  const formatDate = (d) => new Date(d).toLocaleString("en-EG", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Africa/Cairo" });
 
-  const inputCls = `w-full px-4 py-3 sm:py-3.5 rounded-xl border text-sm transition-all outline-none ${darkMode ? "bg-gray-800/70 border-gray-700 text-white placeholder-gray-500 focus:ring-2 focus:ring-lime-500 focus:border-lime-500" : "bg-white/70 border-gray-300 text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-lime-500 focus:border-lime-500"}`;
+  const inputCls = `w-full px-4 py-3 sm:py-3.5 rounded-xl border text-sm transition-all outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${
+    darkMode ? "bg-gray-800/70 border-gray-700 text-gray-100 placeholder-gray-500" : "bg-white/70 border-gray-300 text-gray-900 placeholder-gray-400"
+  }`;
 
   const { data: userProfile, isLoading: profileLoading } = useQuery({
     queryKey: ['profile'],
@@ -1224,8 +1344,6 @@ const AccountContent = ({ darkMode: externalDark, setDarkMode: externalSetDark }
   const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: async () => (await api.get("/api/categories", { headers: { Authorization: `Bearer ${token}` } })).data.content || [], enabled: !!token });
 
   const isLoading = profileLoading || addressesLoading || ordersLoading || repairsLoading;
-
-  useEffect(() => { document.title = "My Account | Tech-Restore"; }, []);
 
   const safeDecodeJwt = useCallback((tk) => { try { return jwtDecode(tk); } catch { return null; } }, []);
   const isTokenExpired = useCallback((tk) => { const d = safeDecodeJwt(tk); return !d || !d.exp || d.exp < Date.now() / 1000; }, [safeDecodeJwt]);
@@ -1242,7 +1360,7 @@ const AccountContent = ({ darkMode: externalDark, setDarkMode: externalSetDark }
   const handleUpdateProfile = async (e) => { e.preventDefault(); try { await api.put("/api/users/profile", profileForm, { headers: { Authorization: `Bearer ${token}` } }); queryClient.invalidateQueries({ queryKey: ['profile'] }); setIsEditingProfile(false); Swal.fire({ title: "Updated!", icon: "success", toast: true, position: "top-end", timer: 1500 }); } catch { Swal.fire({ title: "Error", text: "Update failed", icon: "error", toast: true, position: "top-end", timer: 1500 }); } };
 
   const handleDeleteAccount = async () => {
-    const c = await Swal.fire({ title: t("deleteAccount") + "?", text: t("deleteAccountWarning"), icon: "warning", showCancelButton: true, confirmButtonColor: "#ef4444", confirmButtonText: t("confirmDelete") });
+    const c = await Swal.fire({ title: "Delete Account?", text: "This action is irreversible. All your data will be permanently deleted.", icon: "warning", showCancelButton: true, confirmButtonColor: "#ef4444", confirmButtonText: "Yes, Delete My Account" });
     if (!c.isConfirmed) return;
     try { await api.delete("/api/users/profile", { headers: { Authorization: `Bearer ${token}` } }); localStorage.removeItem("authToken"); navigate("/"); }
     catch { Swal.fire({ title: "Error", text: "Failed to delete", icon: "error", toast: true, position: "top-end", timer: 1500 }); }
@@ -1250,8 +1368,8 @@ const AccountContent = ({ darkMode: externalDark, setDarkMode: externalSetDark }
 
   const handleAddAddress = async (e) => { e.preventDefault(); try { await api.post("/api/users/addresses", { ...addressForm, latitude: addressForm.latitude || 0, longitude: addressForm.longitude || 0 }, { headers: { Authorization: `Bearer ${token}` } }); queryClient.invalidateQueries({ queryKey: ['addresses'] }); resetAddressForm(); Swal.fire({ title: "Added!", icon: "success", toast: true, position: "top-end", timer: 1500 }); } catch { Swal.fire({ title: "Error", text: "Failed to add", icon: "error", toast: true, position: "top-end", timer: 1500 }); } };
   const handleUpdateAddress = async (e) => { e.preventDefault(); try { await api.put(`/api/users/addresses/${editingAddressId}`, { ...addressForm, latitude: addressForm.latitude || 0, longitude: addressForm.longitude || 0 }, { headers: { Authorization: `Bearer ${token}` } }); queryClient.invalidateQueries({ queryKey: ['addresses'] }); resetAddressForm(); Swal.fire({ title: "Updated!", icon: "success", toast: true, position: "top-end", timer: 1500 }); } catch { Swal.fire({ title: "Error", text: "Failed to update", icon: "error", toast: true, position: "top-end", timer: 1500 }); } };
-  const handleDeleteAddress = useCallback(async (id) => { const c = await Swal.fire({ title: t("deleteAddress") + "?", icon: "warning", showCancelButton: true }); if (!c.isConfirmed) return; try { await api.delete(`/api/users/addresses/${id}`, { headers: { Authorization: `Bearer ${token}` } }); queryClient.invalidateQueries({ queryKey: ['addresses'] }); Swal.fire({ title: "Deleted!", icon: "success", toast: true, position: "top-end", timer: 1500 }); } catch { Swal.fire({ title: "Error", text: "Failed to delete", icon: "error", toast: true, position: "top-end", timer: 1500 }); } }, [token, queryClient, t]);
-  const handleCancelOrder = useCallback(async (id) => { const c = await Swal.fire({ title: t("cancelOrder") + "?", icon: "warning", showCancelButton: true }); if (!c.isConfirmed) return; try { await api.delete(`/api/users/orders/${id}/cancel`, { headers: { Authorization: `Bearer ${token}` } }); queryClient.invalidateQueries({ queryKey: ['orders'] }); Swal.fire({ title: "Cancelled!", icon: "success", toast: true, position: "top-end", timer: 1500 }); } catch { Swal.fire({ title: "Error", text: "Failed to cancel", icon: "error", toast: true, position: "top-end", timer: 1500 }); } }, [token, queryClient, t]);
+  const handleDeleteAddress = useCallback(async (id) => { const c = await Swal.fire({ title: "Delete Address?", icon: "warning", showCancelButton: true }); if (!c.isConfirmed) return; try { await api.delete(`/api/users/addresses/${id}`, { headers: { Authorization: `Bearer ${token}` } }); queryClient.invalidateQueries({ queryKey: ['addresses'] }); Swal.fire({ title: "Deleted!", icon: "success", toast: true, position: "top-end", timer: 1500 }); } catch { Swal.fire({ title: "Error", text: "Failed to delete", icon: "error", toast: true, position: "top-end", timer: 1500 }); } }, [token, queryClient]);
+  const handleCancelOrder = useCallback(async (id) => { const c = await Swal.fire({ title: "Cancel Order?", icon: "warning", showCancelButton: true }); if (!c.isConfirmed) return; try { await api.delete(`/api/users/orders/${id}/cancel`, { headers: { Authorization: `Bearer ${token}` } }); queryClient.invalidateQueries({ queryKey: ['orders'] }); Swal.fire({ title: "Cancelled!", icon: "success", toast: true, position: "top-end", timer: 1500 }); } catch { Swal.fire({ title: "Error", text: "Failed to cancel", icon: "error", toast: true, position: "top-end", timer: 1500 }); } }, [token, queryClient]);
   const handleViewRepair = useCallback(async (id) => { try { const res = await api.get(`/api/users/repair-request/${id}`, { headers: { Authorization: `Bearer ${token}` } }); setSelectedRepair(res.data); setIsRepairModalOpen(true); } catch { Swal.fire({ title: "Error", text: "Failed to load", icon: "error" }); } }, [token]);
   const handleEditRepair = useCallback((req) => { setEditingRepair(req); setEditDescription(req.description || ""); setSelectedCategory(req.deviceCategory || ""); setIsEditRepairModalOpen(true); }, []);
 
@@ -1263,18 +1381,18 @@ const AccountContent = ({ darkMode: externalDark, setDarkMode: externalSetDark }
   };
 
   const handleAcceptQuote = useCallback(async (req) => {
-    const result = await Swal.fire({ title: t("acceptQuote") + "?", text: `Accept ${req.price} EGP from ${req.shopName}?`, icon: "question", showCancelButton: true, confirmButtonText: "Yes, Accept", confirmButtonColor: "#84cc16" });
+    const result = await Swal.fire({ title: "Accept Quote?", text: `Accept ${req.price} EGP from ${req.shopName}?`, icon: "question", showCancelButton: true, confirmButtonText: "Yes, Accept", confirmButtonColor: "#10b981" });
     if (!result.isConfirmed) return;
     try { await api.put(`/api/users/repair-request/${req.id}/status`, { status: "QUOTE_APPROVED" }, { headers: { Authorization: `Bearer ${token}` } }); queryClient.invalidateQueries({ queryKey: ['repairs'] }); Swal.fire({ icon: "success", title: "Quote Accepted!", toast: true, position: "top-end", timer: 2000, showConfirmButton: false }); setConfirmRepairReq(req); setIsConfirmRepairOpen(true); }
     catch (err) { Swal.fire("Error", err.response?.data?.message || "Failed to accept quote", "error"); }
-  }, [token, queryClient, t]);
+  }, [token, queryClient]);
 
   const handleCancelRepair = useCallback(async (id) => {
-    const result = await Swal.fire({ title: t("cancelRepair") + "?", icon: "warning", showCancelButton: true, confirmButtonText: "Yes, Cancel", confirmButtonColor: "#ef4444" });
+    const result = await Swal.fire({ title: "Cancel Request?", icon: "warning", showCancelButton: true, confirmButtonText: "Yes, Cancel", confirmButtonColor: "#ef4444" });
     if (!result.isConfirmed) return;
     try { await api.delete(`/api/users/repair-request/${id}/cancel`, { headers: { Authorization: `Bearer ${token}` } }); queryClient.invalidateQueries({ queryKey: ['repairs'] }); Swal.fire({ title: "Cancelled", icon: "success", toast: true, position: "top-end", timer: 2000 }); }
     catch { Swal.fire("Error", "Failed to cancel request", "error"); }
-  }, [token, queryClient, t]);
+  }, [token, queryClient]);
 
   const handleLogout = useCallback(async () => {
     const refreshToken = localStorage.getItem("refreshToken");
@@ -1290,12 +1408,6 @@ const AccountContent = ({ darkMode: externalDark, setDarkMode: externalSetDark }
     return activeOrder || activeRepair;
   }, [orders, repairRequests]);
 
-  const heroStats = useMemo(() => [
-    { icon: <FiZap size={13} />, value: "75.2%", label: t("dailyActivity"), accent: "#f97316", delay: 0.1 },
-    { icon: <FiUsers size={13} />, value: "~20K", label: t("activeUsers"), accent: "#6366f1", delay: 0.2 },
-    { icon: <RiStarFill size={13} />, value: "4.9★", label: t("avgRating"), accent: "#f59e0b", delay: 0.3 },
-  ], [lang]);
-
   const { data: notificationsData = [] } = useQuery({
     queryKey: ['notifications'],
     queryFn: async () => { const res = await api.get("/api/notifications/users", { headers: { Authorization: `Bearer ${token}` } }); return res.data.content || res.data || []; },
@@ -1304,140 +1416,92 @@ const AccountContent = ({ darkMode: externalDark, setDarkMode: externalSetDark }
   const unreadNotifCount = notificationsData.filter(n => !n.read).length;
 
   const tabs = useMemo(() => [
-    { id: "profile", label: t("profile"), icon: <FiUser size={14} />, badge: null },
-    { id: "addresses", label: t("addresses"), icon: <FiMapPin size={14} />, badge: addresses.length || null },
-    { id: "orders", label: t("orders"), icon: <FiBox size={14} />, badge: orders.length || null },
-    { id: "repairs", label: t("repairs"), icon: <FiTool size={14} />, badge: repairRequests.length || null },
-    { id: "notifications", label: t("notifications"), icon: <FiBell size={14} />, badge: unreadNotifCount || null },
-    { id: "security", label: t("security"), icon: <FiLock size={14} />, badge: null },
-  ], [addresses.length, orders.length, repairRequests.length, unreadNotifCount, lang]);
-
-  const isRtl = lang === "ar";
+    { id: "profile", label: "Profile", icon: <FiUser size={14} />, badge: null },
+    { id: "addresses", label: "Addresses", icon: <FiMapPin size={14} />, badge: addresses.length || null },
+    { id: "orders", label: "Orders", icon: <FiBox size={14} />, badge: orders.length || null },
+    { id: "repairs", label: "Repairs", icon: <FiTool size={14} />, badge: repairRequests.length || null },
+    { id: "notifications", label: "Notifications", icon: <FiBell size={14} />, badge: unreadNotifCount || null },
+    { id: "analytics", label: "Analytics", icon: <FiPieChart size={14} />, badge: null },
+    { id: "about", label: "About Us", icon: <FiCompass size={14} />, badge: null },
+  ], [addresses.length, orders.length, repairRequests.length, unreadNotifCount]);
 
   return (
-    <div className={`min-h-screen ${darkMode ? "bg-gray-900 text-white" : "bg-gray-50"}`} dir={isRtl ? "rtl" : "ltr"}>
+    <div className={`min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
       <style>{STYLES}</style>
 
-     
-     
-      <section className={`relative overflow-hidden pt-14 pb-20 sm:pt-20 sm:pb-32 md:pt-24 md:pb-40 ${darkMode ? "bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950" : "bg-gradient-to-br from-lime-50 via-white to-emerald-50"}`}>
-        <div className="absolute w-[350px] h-[350px] -top-28 -left-20 rounded-full blur-3xl opacity-20 bg-lime-400 animate-pulse pointer-events-none" style={{ animationDuration: "5s" }} />
-        <div className="absolute w-[250px] h-[250px] top-8 -right-12 rounded-full blur-3xl opacity-15 bg-emerald-500 animate-pulse pointer-events-none" style={{ animationDuration: "7s" }} />
-        <WaveTop darkMode={darkMode} />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 gap-8 lg:gap-16 items-center">
-            <div className="space-y-5 sm:space-y-6">
-              <motion.div initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4 }}
-                className="inline-flex items-center mt-6 gap-2 px-3.5 py-1.5 rounded-full border text-xs sm:text-sm font-semibold bg-lime-500/10 border-lime-500/30 text-lime-600 dark:text-lime-400">
-                <span className="w-2 h-2 rounded-full bg-lime-500 animate-ping" /> {t("personalDashboard")}
-              </motion.div>
-              <motion.h1 initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold leading-[1.1]">
-                <span className="bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-500 bg-clip-text text-transparent">{t("myAccount")}</span>
-                <br /><span className={darkMode ? "text-white" : "text-gray-900"}>{t("dashboard")}</span>
-                <br /><span className="hidden sm:inline" style={{ WebkitTextStroke: darkMode ? "2px #84cc16" : "2px #16a34a", color: "transparent" }}>& {t("settings")}</span>
-              </motion.h1>
-              <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.2 }} className={`text-sm sm:text-base lg:text-lg leading-relaxed max-w-xl ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{t("manageParagraph")}</motion.p>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 pt-1">
-                {heroStats.map((s) => <StatCard key={s.label} {...s} darkMode={darkMode} />)}
-              </div>
-            </div>
-            <div className="relative hidden sm:block h-64 md:h-80 lg:h-[480px]">
-              <div className="absolute inset-0 bg-gradient-to-br from-lime-200/30 to-emerald-200/30 dark:from-lime-900/20 dark:to-emerald-900/20 rounded-full blur-3xl scale-125" />
-              <div className="relative w-full h-full">
-                <motion.div initial={{ opacity: 0, rotate: 8, y: 20 }} animate={{ opacity: 1, rotate: 12, y: 0 }} transition={{ duration: 0.8, delay: 0.2 }} whileHover={{ rotate: 4, scale: 1.04 }}
-                  className={`absolute top-8 left-6 w-40 sm:w-44 rounded-3xl shadow-2xl overflow-hidden border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-                  <div className="h-1 bg-gradient-to-r from-lime-400 to-emerald-500" />
-                  <div className="p-4 space-y-3">
-                    <div className={`h-2.5 rounded w-20 ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /><div className={`h-2.5 rounded w-28 ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
-                    <div className="h-7 bg-gradient-to-r from-lime-400 to-emerald-500 rounded-xl w-14" />
-                    <div className="flex gap-2"><div className={`w-7 h-7 rounded-full ${darkMode ? "bg-gray-700" : "bg-gray-300"}`} /><div className="w-7 h-7 bg-gradient-to-r from-lime-400 to-emerald-500 rounded-full" /></div>
-                  </div>
-                </motion.div>
-                <motion.div initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.7, delay: 0.15 }} whileHover={{ scale: 1.06, y: -4 }}
-                  className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-36 sm:w-40 rounded-3xl shadow-2xl overflow-hidden border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-                  <div className="h-1 bg-gradient-to-r from-lime-500 to-emerald-500" />
-                  <div className="p-4">
-                    <div className="w-14 h-14 rounded-2xl mx-auto mb-3 flex items-center justify-center"><FiUser className="text-lime-400 text-3xl" /></div>
-                    <div className={`h-2.5 rounded w-full mb-2 ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} /><div className={`h-2.5 rounded w-3/4 ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
-                    <div className="mt-2 text-center"><span className="text-xs font-bold text-lime-500">Verified ✓</span></div>
-                  </div>
-                </motion.div>
-                <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }} className="absolute top-1/4 right-3 z-20 bg-gradient-to-r from-lime-500 to-emerald-500 text-white text-xs font-bold px-3 py-2 rounded-2xl shadow-xl">
-                  👤 My Space
-                </motion.div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <WaveBottom darkMode={darkMode} />
-      </section>
+      <Hero variant="account" darkMode={darkMode} />
 
       <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-10">
         <div className="flex gap-5 lg:gap-8">
-       
-       
-          <aside className={`hidden lg:flex flex-col w-60 xl:w-68 flex-shrink-0 sticky top-20 self-start rounded-2xl border shadow-lg overflow-hidden ${darkMode ? "bg-gray-800/60 border-gray-700 backdrop-blur-md" : "bg-white border-gray-200"}`}>
-            <div className="h-1 bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-500" />
+
+          <aside className={`hidden lg:flex flex-col w-64 xl:w-72 flex-shrink-0 sticky top-20 self-start rounded-md border shadow-lg overflow-hidden ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+            
             <div className={`px-4 pt-5 pb-4 border-b ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
               <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-full border-2 border-lime-500/40 flex items-center justify-center flex-shrink-0 ${darkMode ? "bg-gray-700" : "bg-lime-50"}`}><FiUser className="text-lime-500 text-lg" /></div>
-                <div className="min-w-0">
-                  <p className={`text-sm font-extrabold truncate ${darkMode ? "text-white" : "text-gray-900"}`}>{userProfile?.first_name} {userProfile?.last_name}</p>
-                  <p className={`text-xs truncate ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{userProfile?.email}</p>
+                <div className={`w-11 h-11 rounded-full border-2 border-emerald-500/40 flex items-center justify-center flex-shrink-0 ${darkMode ? "bg-emerald-500/10" : "bg-emerald-50"}`}><FiUser className="text-emerald-500 text-lg" /></div>
+                <div className="min-w-0 flex-1">
+                  {!isEmptyVal(userProfile?.first_name) && <p className={`text-sm font-extrabold truncate ${darkMode ? "text-white" : "text-gray-900"}`}>{userProfile?.first_name} {userProfile?.last_name}</p>}
+                  {!isEmptyVal(userProfile?.email) && <p className={`text-xs truncate ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{userProfile?.email}</p>}
                 </div>
+                {isAuthenticated && (
+                  <motion.button whileTap={{ scale: 0.94 }} onClick={handleLogout} title="Logout"
+                    className={`flex-shrink-0 p-2 rounded-lg transition-all ${darkMode ? "text-gray-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`}>
+                    <RiLogoutBoxRLine size={15} />
+                  </motion.button>
+                )}
               </div>
-       
-       
-              {/* <div className="mt-3 flex items-center gap-1">
-                <button onClick={() => setLang("en")} className={`px-2 py-0.5 rounded text-[10px] font-extrabold transition-all ${lang === "en" ? "bg-lime-500 text-white" : darkMode ? "bg-gray-600 text-gray-300" : "bg-gray-100 text-gray-500"}`}>EN</button>
-                <button onClick={() => setLang("ar")} className={`px-2 py-0.5 rounded text-[10px] font-extrabold transition-all ${lang === "ar" ? "bg-lime-500 text-white" : darkMode ? "bg-gray-600 text-gray-300" : "bg-gray-100 text-gray-500"}`}>عربي</button>
-              </div> */}
             </div>
             <div className="px-3 py-4 flex flex-col gap-1 flex-1">
               {tabs.map((tab) => (
                 <motion.button key={tab.id} whileTap={{ scale: 0.97 }} onClick={() => startTransition(() => setActiveSection(tab.id))}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 ${activeSection === tab.id ? "bg-gradient-to-r from-lime-500 to-emerald-500 text-white shadow-lg shadow-lime-500/25" : darkMode ? "text-gray-300 hover:bg-gray-700/60 hover:text-white" : "text-gray-600 hover:bg-lime-50 hover:text-lime-700"}`}>
-                  <span className={activeSection === tab.id ? "text-white" : "text-lime-500"}>{tab.icon}</span>
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 ${activeSection === tab.id ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25" : darkMode ? "text-gray-300 hover:bg-emerald-500/10 hover:text-emerald-300" : "text-gray-600 hover:bg-emerald-50 hover:text-emerald-700"}`}>
+                  <span className={activeSection === tab.id ? "text-white" : "text-emerald-500"}>{tab.icon}</span>
                   <span className="flex-1 text-left">{tab.label}</span>
-                  {tab.badge !== null && <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${activeSection === tab.id ? "bg-white/20 text-white" : "bg-lime-100 dark:bg-lime-900/40 text-lime-700 dark:text-lime-400"}`}>{tab.badge}</span>}
+                  {tab.badge !== null && <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${activeSection === tab.id ? "bg-white/20 text-white" : darkMode ? "bg-emerald-500/15 text-emerald-300" : "bg-emerald-100 text-emerald-700"}`}>{tab.badge}</span>}
+                  {activeSection === tab.id && <FiArrowRight size={13} className="opacity-80" />}
                 </motion.button>
               ))}
-             
-             
-              {isAuthenticated && (
-                <motion.button whileTap={{ scale: 0.97 }} onClick={handleLogout} className={`mt-3 w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold text-sm transition-all ${darkMode ? "text-red-400 hover:bg-red-900/30" : "text-red-500 hover:bg-red-50"}`}>
-                  <RiLogoutBoxRLine className="text-lg" /> {t("logout")}
-                </motion.button>
-              )}
+            </div>
+            <div className="px-3 pb-4">
+              <TipsCard />
             </div>
           </aside>
 
           <div className="flex-1 min-w-0">
-         
-         
+
+            <div className="mb-5 bg-white border-2 border-gray-100 p-4 rounded-lg dark:bg-gray-900 dark:border-gray-700 sm:mb-7">
+              <h1 className={`text-xl sm:text-2xl font-extrabold ${darkMode ? "text-white" : "text-gray-900"}`}>
+                Welcome back{!isEmptyVal(userProfile?.first_name) ? `, ${userProfile.first_name}` : ""}
+              </h1>
+              <p className={`text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Manage your profile, addresses, orders, and repair requests — all in one place.</p>
+            </div>
+
             <div className="lg:hidden mb-5 -mx-0.5">
-              <SettingsBar lang={lang} setLang={setLang} t={t} />
               <div className="tabs-scroll flex gap-2 overflow-x-auto pb-1 px-0.5">
                 {tabs.map((tab) => (
                   <motion.button key={tab.id} whileTap={{ scale: 0.96 }} onClick={() => startTransition(() => setActiveSection(tab.id))}
-                    className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-full font-bold text-xs sm:text-sm transition-all shadow-sm whitespace-nowrap ${activeSection === tab.id ? "bg-gradient-to-r from-lime-500 to-emerald-500 text-white shadow-lime-500/20" : darkMode ? "bg-gray-800 border border-gray-700 text-gray-300 hover:text-white" : "bg-white border border-gray-200 text-gray-700 hover:bg-lime-50"}`}>
+                    className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-full font-bold text-xs sm:text-sm transition-all shadow-sm whitespace-nowrap ${activeSection === tab.id ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-emerald-500/20" : darkMode ? "bg-gray-800 border border-gray-700 text-gray-300 hover:bg-emerald-500/10" : "bg-white border border-gray-200 text-gray-700 hover:bg-emerald-50"}`}>
                     {tab.icon}{tab.label}
-                    {tab.badge !== null && <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${activeSection === tab.id ? "bg-white/25 text-white" : "bg-lime-100 dark:bg-lime-900/40 text-lime-700 dark:text-lime-400"}`}>{tab.badge}</span>}
+                    {tab.badge !== null && <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${activeSection === tab.id ? "bg-white/25 text-white" : darkMode ? "bg-emerald-500/15 text-emerald-300" : "bg-emerald-100 text-emerald-700"}`}>{tab.badge}</span>}
                   </motion.button>
                 ))}
+              </div>
+              <div className="mt-4">
+                <TipsCard />
               </div>
             </div>
 
             <div className="space-y-6">
               <AnimatePresence mode="wait">
-                {isLoading ? <LoadingSpinner key="spinner" /> : (
+                {isLoading ? <LoadingSpinner key="spinner" darkMode={darkMode} /> : (
                   <div key="content">
-                    {activeSection === "profile" && <ProfileTab isEditingProfile={isEditingProfile} setIsEditingProfile={setIsEditingProfile} userProfile={userProfile} profileForm={profileForm} setProfileForm={setProfileForm} handleUpdateProfile={handleUpdateProfile} handleDeleteAccount={handleDeleteAccount} handleLogout={handleLogout} darkMode={darkMode} isAuthenticated={isAuthenticated} inputCls={inputCls} t={t} />}
-                    {activeSection === "addresses" && <AddressesTab isAddingAddress={isAddingAddress} setIsAddingAddress={setIsAddingAddress} editingAddressId={editingAddressId} setEditingAddressId={setEditingAddressId} addressForm={addressForm} setAddressForm={setAddressForm} handleUpdateAddress={handleUpdateAddress} handleAddAddress={handleAddAddress} resetAddressForm={resetAddressForm} addresses={addresses} startEditAddress={startEditAddress} handleDeleteAddress={handleDeleteAddress} isAddressInUse={isAddressInUse} darkMode={darkMode} inputCls={inputCls} t={t} />}
-                    {activeSection === "orders" && <OrdersTab orders={orders} ordersPage={ordersPage} setOrdersPage={setOrdersPage} setSelectedOrder={setSelectedOrder} setIsOrderModalOpen={setIsOrderModalOpen} handleCancelOrder={handleCancelOrder} darkMode={darkMode} t={t} />}
-                    {activeSection === "repairs" && <RepairsTab repairRequests={repairRequests} repairsPage={repairsPage} setRepairsPage={setRepairsPage} handleViewRepair={handleViewRepair} handleEditRepair={handleEditRepair} handleAcceptQuote={handleAcceptQuote} handleCancelRepair={handleCancelRepair} darkMode={darkMode} t={t} />}
-                    {activeSection === "notifications" && <NotificationsTab token={token} darkMode={darkMode} t={t} />}
-                    {activeSection === "security" && <SecurityTab darkMode={darkMode} handleDeleteAccount={handleDeleteAccount} handleLogout={handleLogout} token={token} t={t} />}
+                    {activeSection === "profile" && <ProfileTab isEditingProfile={isEditingProfile} setIsEditingProfile={setIsEditingProfile} userProfile={userProfile} profileForm={profileForm} setProfileForm={setProfileForm} handleUpdateProfile={handleUpdateProfile} handleDeleteAccount={handleDeleteAccount} handleLogout={handleLogout} isAuthenticated={isAuthenticated} inputCls={inputCls} darkMode={darkMode} />}
+                    {activeSection === "addresses" && <AddressesTab isAddingAddress={isAddingAddress} setIsAddingAddress={setIsAddingAddress} editingAddressId={editingAddressId} setEditingAddressId={setEditingAddressId} addressForm={addressForm} setAddressForm={setAddressForm} handleUpdateAddress={handleUpdateAddress} handleAddAddress={handleAddAddress} resetAddressForm={resetAddressForm} addresses={addresses} startEditAddress={startEditAddress} handleDeleteAddress={handleDeleteAddress} isAddressInUse={isAddressInUse} inputCls={inputCls} darkMode={darkMode} />}
+                    {activeSection === "orders" && <OrdersTab orders={orders} ordersPage={ordersPage} setOrdersPage={setOrdersPage} setSelectedOrder={setSelectedOrder} setIsOrderModalOpen={setIsOrderModalOpen} handleCancelOrder={handleCancelOrder} darkMode={darkMode} />}
+                    {activeSection === "repairs" && <RepairsTab repairRequests={repairRequests} repairsPage={repairsPage} setRepairsPage={setRepairsPage} handleViewRepair={handleViewRepair} handleEditRepair={handleEditRepair} handleAcceptQuote={handleAcceptQuote} handleCancelRepair={handleCancelRepair} darkMode={darkMode} />}
+                    {activeSection === "notifications" && <NotificationsTab token={token} darkMode={darkMode} />}
+                    {activeSection === "analytics" && <AnalyticsTab orders={orders} repairRequests={repairRequests} addresses={addresses} darkMode={darkMode} />}
+                    {activeSection === "about" && <AboutTab darkMode={darkMode} />}
                   </div>
                 )}
               </AnimatePresence>
@@ -1446,68 +1510,67 @@ const AccountContent = ({ darkMode: externalDark, setDarkMode: externalSetDark }
         </div>
       </div>
 
-      
-      
       <Dialog open={isOrderModalOpen} onClose={() => setIsOrderModalOpen(false)} className="relative z-50">
         <DialogBackdrop className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
         <div className="fixed inset-0 z-50 w-screen overflow-y-auto">
           <div className="flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4">
-            <DialogPanel className={`relative transform overflow-hidden rounded-t-2xl sm:rounded-2xl text-left shadow-2xl w-full sm:max-w-4xl border ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"}`}>
+            <DialogPanel className={`relative transform overflow-hidden sm:rounded-md text-left shadow-2xl w-full sm:max-w-4xl border ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"}`}>
               {selectedOrder && (
                 <div className="lime-scroll max-h-[90dvh] overflow-y-auto">
-                  <div className="h-1 bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-500" />
-                  <div className="sm:hidden flex justify-center pt-3 pb-1"><div className="w-10 h-1 rounded-full bg-gray-300" /></div>
-                  <div className={`sticky top-0 px-4 sm:px-6 py-3 sm:py-4 border-b flex items-center justify-between z-10 ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-100"}`}>
-                    <DialogTitle className={`text-lg font-bold flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}><FiBox className="text-lime-500" /><span className="font-mono text-xs px-2 py-1 bg-lime-500 text-white rounded-lg">#{safe(selectedOrder.id).slice(0, 8).toUpperCase()}</span></DialogTitle>
+                
+                  <div className="sm:hidden flex justify-center pt-3 pb-1"><div className={`w-10 h-1 rounded-full ${darkMode ? "bg-gray-600" : "bg-gray-300"}`} /></div>
+                  <div className={`sticky top-0 px-4 sm:px-6 py-3 sm:py-4 border-b flex items-center justify-between z-10 ${darkMode ? "bg-gray-900 border-gray-800" : "bg-white border-gray-100"}`}>
+                    <DialogTitle className={`text-lg font-bold flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}><FiBox className="text-emerald-500" /><span className="font-mono text-xs px-2 py-1 bg-emerald-500 text-white rounded-lg">ORD #{safe(selectedOrder.id).slice(0, 8).toUpperCase()}</span></DialogTitle>
                     <div className="flex items-center gap-2">
-                      <motion.button whileTap={{ scale: 0.96 }} onClick={() => generateInvoicePDF(selectedOrder)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-md hover:bg-emerald-600 transition-all"><FiDownload size={12} /> {t("downloadInvoice")}</motion.button>
-                      <button onClick={() => setIsOrderModalOpen(false)} className={`p-2 rounded-xl transition ${darkMode ? "hover:bg-gray-800" : "hover:bg-gray-100"}`}><FiX className="w-5 h-5 text-gray-400" /></button>
+             
+                      <button onClick={() => setIsOrderModalOpen(false)} className={`p-2 rounded-xl transition ${darkMode ? "hover:bg-gray-800" : "hover:bg-gray-100"}`}><FiX className={`w-5 h-5 ${darkMode ? "text-gray-500" : "text-gray-400"}`} /></button>
                     </div>
                   </div>
                   <div className="p-4 sm:p-7 space-y-6 text-sm">
-                    <ProgressBar progress={getOrderProgress(selectedOrder.status)} status={selectedOrder.status} />
-                    <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 sm:p-5 rounded-2xl ${darkMode ? "bg-gray-800/50" : "bg-gray-50"}`}>
+                    <ProgressBar progress={getOrderProgress(selectedOrder.status)} status={selectedOrder.status} darkMode={darkMode} />
+                    <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 sm:p-5 rounded-2xl ${darkMode ? "bg-gray-800/60" : "bg-gray-50"}`}>
                       <div className="space-y-3">
-                        <div><span className={`text-xs uppercase tracking-widest font-medium ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{t("orderDate")}</span><p className={`font-medium mt-0.5 ${darkMode ? "text-white" : "text-gray-900"}`}>{formatDate(selectedOrder.createdAt)}</p></div>
-                        <div><span className={`text-xs uppercase tracking-widest font-medium ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{t("status")}</span><div className="mt-1"><StatusBadge status={selectedOrder.status} type="order" /></div></div>
-                        <div><span className={`text-xs uppercase tracking-widest font-medium ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{t("total")}</span><p className="text-2xl sm:text-3xl font-bold text-lime-600 dark:text-lime-400 mt-0.5">{safe(selectedOrder.totalPrice)} EGP</p></div>
+                        {!isEmptyVal(selectedOrder.createdAt) && <div><span className={`text-xs uppercase tracking-widest font-medium ${darkMode ? "text-gray-500" : "text-gray-500"}`}>Order Date</span><p className={`font-medium mt-0.5 ${darkMode ? "text-white" : "text-gray-900"}`}>{formatDate(selectedOrder.createdAt)}</p></div>}
+                        <div><span className={`text-xs uppercase tracking-widest font-medium ${darkMode ? "text-gray-500" : "text-gray-500"}`}>Status</span><div className="mt-1"><StatusBadge status={selectedOrder.status} type="order" darkMode={darkMode} /></div></div>
+                        {!isEmptyVal(selectedOrder.totalPrice) && <div><span className={`text-xs uppercase tracking-widest font-medium ${darkMode ? "text-gray-500" : "text-gray-500"}`}>Total</span><p className={`text-2xl sm:text-3xl font-bold mt-0.5 ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>{safe(selectedOrder.totalPrice)} EGP</p></div>}
                       </div>
-                      <div><p className={`font-semibold mb-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{t("paymentMethod")}</p>
-                        <div className={`flex items-center gap-3 p-3 rounded-2xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"}`}>
-                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${selectedOrder.paymentMethod === "CREDIT_CARD" ? "bg-blue-100 dark:bg-blue-900" : "bg-orange-100"}`}>{selectedOrder.paymentMethod === "CREDIT_CARD" ? <FiCreditCard className="w-4 h-4 text-blue-600" /> : <FiDollarSign className="w-4 h-4 text-orange-600" />}</div>
-                          <p className={`font-semibold capitalize text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>{safe(selectedOrder.paymentMethod).toLowerCase().replace("_", " ")}</p>
+                      {!isEmptyVal(selectedOrder.paymentMethod) && (
+                        <div><p className={`font-semibold mb-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Payment Method</p>
+                          <div className={`flex items-center gap-3 p-3 rounded-2xl border ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-100"}`}>
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${selectedOrder.paymentMethod === "CREDIT_CARD" ? darkMode ? "bg-blue-500/15" : "bg-blue-100" : darkMode ? "bg-orange-500/15" : "bg-orange-100"}`}>{selectedOrder.paymentMethod === "CREDIT_CARD" ? <FiCreditCard className={`w-4 h-4 ${darkMode ? "text-blue-300" : "text-blue-600"}`} /> : <FiDollarSign className={`w-4 h-4 ${darkMode ? "text-orange-300" : "text-orange-600"}`} />}</div>
+                            <p className={`font-semibold capitalize text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>{safe(selectedOrder.paymentMethod).toLowerCase().replace("_", " ")}</p>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                     <div>
-                      <h3 className={`font-bold text-lg mb-3 flex items-center gap-2 ${darkMode ? "text-gray-100" : "text-gray-800"}`}><FiBox className="text-lime-500" /> {t("orderItems")}</h3>
-                      <div className={`border rounded-2xl overflow-hidden ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-                        {/* Table header with explicit spacing between price and total */}
-                        <div className={`grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-6 px-4 py-2.5 text-xs font-bold uppercase tracking-widest border-b ${darkMode ? "bg-gray-700/50 border-gray-700 text-gray-400" : "bg-gray-50 border-gray-100 text-gray-500"}`}>
-                          <span>{t("orderItems")}</span>
-                          <span>{t("from")}</span>
+                      <h3 className={`font-bold text-lg mb-3 flex items-center gap-2 ${darkMode ? "text-gray-200" : "text-gray-800"}`}><FiBox className="text-emerald-500" /> Order Items</h3>
+                      <div className={`border rounded-2xl overflow-hidden ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"}`}>
+                        <div className={`grid grid-cols-[auto_auto_auto_auto_auto] gap-x-6 px-4 py-2.5 text-xs font-bold uppercase tracking-widest border-b ${darkMode ? "bg-gray-800/60 border-gray-700 text-gray-500" : "bg-gray-50 border-gray-100 text-gray-500"}`}>
+                          <span>Item</span>
+                          <span className="text-center">From</span>
                           <span className="text-center">Qty</span>
-                          <span className="text-right">Unit Price</span>
-                          <span className="text-right">{t("total")}</span>
+                          <span className="text-center">Unit Price</span>
+                          <span className="text-center">Total</span>
                         </div>
                         {selectedOrder.orderItems?.length > 0 ? selectedOrder.orderItems.map((item, index) => (
-                          <div key={index} className={`grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-6 items-center px-4 py-3 border-b last:border-b-0 ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
-                            <div className={`font-semibold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>{safe(item.productName)}</div>
-                            <div className="text-xs text-gray-500 whitespace-nowrap">{safe(item.shopName)}</div>
+                          <div key={index} className={`grid grid-cols-[auto_auto_auto_auto_auto] gap-x-6 items-center px-4 py-2.5 border-b last:border-b-0 ${darkMode ? "border-gray-800" : "border-gray-100"}`}>
+                            <div className={`font-semibold text-xs ${darkMode ? "text-white" : "text-gray-900"}`}>{safe(item.productName)}</div>
+                            <div className={`text-xs whitespace-nowrap ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{safe(item.shopName)}</div>
                             <div className={`text-center text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{safe(item.quantity)}</div>
-                            <div className={`text-right text-sm font-medium whitespace-nowrap ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{Number(item.priceAtCheckout || 0).toFixed(2)} EGP</div>
-                            <div className="text-right font-bold text-lime-600 dark:text-lime-400 text-sm whitespace-nowrap">{(Number(item.priceAtCheckout) * Number(item.quantity)).toFixed(2)} EGP</div>
+                            <div className={`text-right text-sm font-medium whitespace-nowrap ${darkMode ? "text-gray-300" : "text-gray-700"}`}>EGP {Number(item.priceAtCheckout || 0).toFixed(2)}</div>
+                            <div className={`text-right font-bold text-sm whitespace-nowrap ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>EGP {(Number(item.priceAtCheckout) * Number(item.quantity)).toFixed(2)}</div>
                           </div>
-                        )) : <div className="p-10 text-center text-gray-400 text-sm">{t("noItems")}</div>}
-                        <div className={`px-4 py-4 flex justify-between items-center border-t ${darkMode ? "bg-gray-700/50 border-gray-700" : "bg-gray-50 border-gray-100"}`}>
-                          <span className="uppercase text-xs tracking-widest text-gray-500 font-medium">{t("grandTotal")}</span>
-                          <span className="text-2xl font-bold text-lime-600 dark:text-lime-400">{safe(selectedOrder.totalPrice)} EGP</span>
+                        )) : <div className={`p-10 text-center text-sm ${darkMode ? "text-gray-500" : "text-gray-400"}`}>No items</div>}
+                        <div className={`px-4 py-4 flex justify-between items-center border-t ${darkMode ? "bg-gray-800/60 border-gray-700" : "bg-gray-50 border-gray-100"}`}>
+                          <span className={`uppercase text-xs tracking-widest font-medium ${darkMode ? "text-gray-500" : "text-gray-500"}`}>Grand Total</span>
+                          <span className={`text-2xl font-bold ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>EGP {safe(selectedOrder.totalPrice)}</span>
                         </div>
                       </div>
                     </div>
                   </div>
                   <div className={`p-4 sm:p-6 border-t flex justify-end gap-3 ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
-                    <motion.button whileTap={{ scale: 0.97 }} onClick={() => setIsOrderModalOpen(false)} className={`px-6 py-2.5 rounded-xl font-bold transition text-sm ${darkMode ? "bg-gray-800 text-gray-300 hover:bg-gray-700" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>{t("close")}</motion.button>
+                    <motion.button whileTap={{ scale: 0.97 }} onClick={() => setIsOrderModalOpen(false)} className={`px-6 py-2.5 rounded-xl font-bold transition text-sm ${darkMode ? "bg-gray-800 text-gray-200 hover:bg-gray-700" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>Close</motion.button>
                   </div>
                 </div>
               )}
@@ -1516,41 +1579,41 @@ const AccountContent = ({ darkMode: externalDark, setDarkMode: externalSetDark }
         </div>
       </Dialog>
 
-      
-      
       <Dialog open={isRepairModalOpen} onClose={() => setIsRepairModalOpen(false)} className="relative z-50">
         <DialogBackdrop className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
         <div className="fixed inset-0 z-50 w-screen overflow-y-auto">
           <div className="flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4">
-            <DialogPanel className={`relative transform overflow-hidden rounded-t-2xl sm:rounded-2xl text-left shadow-2xl w-full sm:max-w-lg border ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"}`}>
+            <DialogPanel className={`relative transform overflow-hidden rounded-t-md sm:rounded-md text-left shadow-2xl w-full sm:max-w-lg border ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"}`}>
               {selectedRepair && (
                 <div className="lime-scroll max-h-[85dvh] overflow-y-auto">
-                  <div className="h-1 bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-500" />
-                  <div className="sm:hidden flex justify-center pt-3 pb-1"><div className="w-10 h-1 rounded-full bg-gray-300" /></div>
-                  <div className={`px-5 sm:px-7 pt-5 pb-4 border-b flex items-center justify-between ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
-                    <DialogTitle className={`text-lg font-bold flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}><FiTool className="text-lime-500" /> Repair #{safe(selectedRepair.id).slice(0, 8)}</DialogTitle>
+                 
+                  <div className="sm:hidden flex justify-center pt-3 pb-1"><div className={`w-10 h-1 rounded-full ${darkMode ? "bg-gray-600" : "bg-gray-300"}`} /></div>
+                  <div className={`px-5 sm:px-7 pt-5 pb-4 border-b flex items-center justify-between ${darkMode ? "border-gray-800" : "border-gray-100"}`}>
+                    <DialogTitle className={`text-lg font-bold flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}><FiTool className="text-emerald-500" /> Repair #{safe(selectedRepair.id).slice(0, 8)}</DialogTitle>
                     <button onClick={() => setIsRepairModalOpen(false)} className={`p-2 rounded-xl transition ${darkMode ? "hover:bg-gray-800 text-gray-400" : "hover:bg-gray-100 text-gray-500"}`}><FiXCircle className="w-5 h-5" /></button>
                   </div>
                   <div className="px-5 sm:px-7 py-5 space-y-4">
-                    <ProgressBar progress={getRepairProgress(selectedRepair.status)} status={selectedRepair.status} />
-                    <div className={`rounded-2xl p-4 space-y-3.5 ${darkMode ? "bg-gray-800/60" : "bg-lime-50"}`}>
+                    <ProgressBar progress={getRepairProgress(selectedRepair.status)} status={selectedRepair.status} darkMode={darkMode} />
+                    <div className={`rounded-2xl p-4 space-y-3.5 ${darkMode ? "bg-emerald-500/10" : "bg-emerald-50"}`}>
                       <div className="flex items-start gap-3">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${darkMode ? "bg-gray-700" : "bg-lime-100"}`}><FiHome className="text-lime-500" /></div>
-                        <div><p className="text-xs uppercase tracking-widest text-lime-600 font-medium">{t("shop")}</p><p className={`text-lg font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>{selectedRepair.shopName}</p></div>
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${darkMode ? "bg-emerald-500/15" : "bg-emerald-100"}`}><FiHome className="text-emerald-500" /></div>
+                        <div><p className={`text-xs uppercase tracking-widest font-medium ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>Shop</p><p className={`text-lg font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>{selectedRepair.shopName}</p></div>
                       </div>
-                      <div><p className="text-xs uppercase tracking-widest text-lime-600 font-medium mb-1">{t("issueDescription")}</p><p className={`leading-relaxed text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{selectedRepair.description}</p></div>
+                      {!isEmptyVal(selectedRepair.description) && <div><p className={`text-xs uppercase tracking-widest font-medium mb-1 ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>Issue Description</p><p className={`leading-relaxed text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{selectedRepair.description}</p></div>}
                       <div className="grid grid-cols-2 gap-3">
-                        <div><p className="text-xs uppercase tracking-widest text-lime-600 font-medium mb-0.5">{t("status")}</p><p className="font-bold capitalize text-emerald-600 text-sm">{selectedRepair.status?.replace("_", " ")}</p></div>
-                        {selectedRepair.price && <div><p className="text-xs uppercase tracking-widest text-lime-600 font-medium mb-0.5">{t("quote")}</p><p className="text-xl font-bold text-lime-600 dark:text-lime-400">{selectedRepair.price} EGP</p></div>}
+                        <div><p className={`text-xs uppercase tracking-widest font-medium mb-0.5 ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>Status</p><p className={`font-bold capitalize text-sm ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>{selectedRepair.status?.replace("_", " ")}</p></div>
+                        {!isEmptyVal(selectedRepair.price) && <div><p className={`text-xs uppercase tracking-widest font-medium mb-0.5 ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>Quote</p><p className={`text-xl font-bold ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>{selectedRepair.price} EGP</p></div>}
                       </div>
                     </div>
-                    <div className={`flex justify-between items-center p-3.5 rounded-xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"}`}>
-                      <div><p className={`text-xs uppercase tracking-widest font-medium ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{t("paymentMethod")}</p><p className={`font-bold text-sm ${darkMode ? "text-orange-400" : "text-gray-800"}`}>{selectedRepair.paymentMethod || "Not set"}</p></div>
-                      {selectedRepair.price && <div className="text-right"><p className={`text-xs uppercase tracking-widest font-medium ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{t("total")}</p><p className="text-lg font-bold text-lime-600 dark:text-lime-400">{selectedRepair.price} EGP</p></div>}
-                    </div>
+                    {(!isEmptyVal(selectedRepair.paymentMethod) || !isEmptyVal(selectedRepair.price)) && (
+                      <div className={`flex justify-between items-center p-3.5 rounded-xl border ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-100"}`}>
+                        {!isEmptyVal(selectedRepair.paymentMethod) && <div><p className={`text-xs uppercase tracking-widest font-medium ${darkMode ? "text-gray-500" : "text-gray-500"}`}>Payment Method</p><p className={`font-bold text-sm ${darkMode ? "text-gray-200" : "text-gray-800"}`}>{selectedRepair.paymentMethod}</p></div>}
+                        {!isEmptyVal(selectedRepair.price) && <div className="text-right"><p className={`text-xs uppercase tracking-widest font-medium ${darkMode ? "text-gray-500" : "text-gray-500"}`}>Total</p><p className={`text-lg font-bold ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>{selectedRepair.price} EGP</p></div>}
+                      </div>
+                    )}
                   </div>
                   <div className={`border-t px-5 sm:px-7 py-4 flex justify-end ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
-                    <motion.button whileTap={{ scale: 0.97 }} onClick={() => setIsRepairModalOpen(false)} className="px-6 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 text-white font-bold rounded-xl shadow-md transition-all text-sm">{t("close")}</motion.button>
+                    <motion.button whileTap={{ scale: 0.97 }} onClick={() => setIsRepairModalOpen(false)} className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-xl shadow-md transition-all text-sm">Close</motion.button>
                   </div>
                 </div>
               )}
@@ -1558,40 +1621,38 @@ const AccountContent = ({ darkMode: externalDark, setDarkMode: externalSetDark }
           </div>
         </div>
       </Dialog>
-
-
 
       <Dialog open={isEditRepairModalOpen} onClose={() => setIsEditRepairModalOpen(false)} className="relative z-50">
         <DialogBackdrop className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
         <div className="fixed inset-0 z-50 w-screen overflow-y-auto">
           <div className="flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4">
-            <DialogPanel className={`relative transform overflow-hidden rounded-t-2xl sm:rounded-2xl text-left shadow-2xl w-full sm:max-w-md border ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"}`}>
+            <DialogPanel className={`relative transform overflow-hidden rounded-t-md sm:rounded-md text-left shadow-2xl w-full sm:max-w-md border ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"}`}>
               {editingRepair && (
                 <div>
-                  <div className="h-1 bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-500" />
-                  <div className="sm:hidden flex justify-center pt-3 pb-1"><div className="w-10 h-1 rounded-full bg-gray-300" /></div>
-                  <div className={`flex items-center justify-between px-5 sm:px-7 py-4 border-b ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
-                    <DialogTitle className={`text-lg font-extrabold flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}><FiEdit className="text-lime-500" /> {t("editRepair")}</DialogTitle>
+                 
+                  <div className="sm:hidden flex justify-center pt-3 pb-1"><div className={`w-10 h-1 rounded-full ${darkMode ? "bg-gray-600" : "bg-gray-300"}`} /></div>
+                  <div className={`flex items-center justify-between px-5 sm:px-7 py-4 border-b ${darkMode ? "border-gray-800" : "border-gray-100"}`}>
+                    <DialogTitle className={`text-lg font-extrabold flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}><FiEdit className="text-emerald-500" /> Edit Repair</DialogTitle>
                     <button onClick={() => { setIsEditRepairModalOpen(false); setEditingRepair(null); }} className={`p-2 rounded-xl transition ${darkMode ? "hover:bg-gray-800 text-gray-400" : "hover:bg-gray-100 text-gray-500"}`}><FiX className="w-5 h-5" /></button>
                   </div>
                   <form onSubmit={handleUpdateRepairDescription} className="p-5 sm:p-7 space-y-5">
                     <div>
-                      <label className={`block text-xs font-semibold mb-2 ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{t("deviceCategory")}</label>
+                      <label className={`block text-xs font-semibold mb-2 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Device Category</label>
                       <div className="relative">
                         <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className={`${inputCls} appearance-none`}>
                           <option value="">Select category</option>
                           {categories.map((cat) => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
                         </select>
-                        <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"><FiChevronRight className="rotate-90" size={13} /></div>
+                        <div className={`pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 ${darkMode ? "text-gray-500" : "text-gray-400"}`}><FiChevronRight className="rotate-90" size={13} /></div>
                       </div>
                     </div>
                     <div>
-                      <label className={`block text-xs font-semibold mb-2 ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{t("description")}</label>
-                      <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={5} placeholder={t("describeIssue")} className={`${inputCls} resize-y min-h-[100px]`} required />
+                      <label className={`block text-xs font-semibold mb-2 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Description</label>
+                      <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={5} placeholder="Describe the issue..." className={`${inputCls} resize-y min-h-[100px]`} required />
                     </div>
                     <div className="flex gap-3">
-                      <motion.button whileTap={{ scale: 0.97 }} type="button" onClick={() => { setIsEditRepairModalOpen(false); setEditingRepair(null); }} className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${darkMode ? "border-gray-600 text-gray-300 hover:bg-gray-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>{t("cancel")}</motion.button>
-                      <motion.button whileTap={{ scale: 0.97 }} type="submit" className="flex-1 py-3 rounded-xl bg-gradient-to-r from-lime-500 to-emerald-500 text-white font-bold shadow-md transition-all flex items-center justify-center gap-2 text-sm"><FiCheck size={13} /> {t("save")}</motion.button>
+                      <motion.button whileTap={{ scale: 0.97 }} type="button" onClick={() => { setIsEditRepairModalOpen(false); setEditingRepair(null); }} className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${darkMode ? "border-gray-700 text-gray-300 hover:bg-gray-800" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>Cancel</motion.button>
+                      <motion.button whileTap={{ scale: 0.97 }} type="submit" className="flex-1 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold shadow-md transition-all flex items-center justify-center gap-2 text-sm"><FiCheck size={13} /> Save</motion.button>
                     </div>
                   </form>
                 </div>
@@ -1601,7 +1662,7 @@ const AccountContent = ({ darkMode: externalDark, setDarkMode: externalSetDark }
         </div>
       </Dialog>
 
-      <ConfirmRepairModal open={isConfirmRepairOpen} onClose={() => setIsConfirmRepairOpen(false)} req={confirmRepairReq} token={token} onSuccess={() => queryClient.invalidateQueries({ queryKey: ['repairs'] })} darkMode={darkMode} t={t} />
+      <ConfirmRepairModal open={isConfirmRepairOpen} onClose={() => setIsConfirmRepairOpen(false)} req={confirmRepairReq} token={token} onSuccess={() => queryClient.invalidateQueries({ queryKey: ['repairs'] })} darkMode={darkMode} />
     </div>
   );
 };

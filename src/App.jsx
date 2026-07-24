@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Footer, Navbar, AssignerHeader, DeliveryHeader, DashboardSkeleton, TableSkeleton, ProfileSkeleton } from './components';
 import { Login, Signup, SuccessGoogle } from './Auth';
 import Shop from './User/Shop';
-import { Repair, Track, Account, Homepage, Cart, DeviceDetail, Offers, Devices, Stores } from './User';
+import { Repair, Track, Account, Homepage, Cart, DeviceDetail, Offers, Devices, Stores, CategoryProducts } from './User';
 import { Header, Shops, Users, Reviews, Category, Deliveries, Assigners, AdminOffers, AdminRepairRequests, AdminProducts, AdminAssignmentLogs, AdminSubscriptions, AdminTransactions } from './Admin';
 import Dashboard from './Admin/Dashboard';
 import { ShopHeader, ShopDashboard, RepairRequests, Products, Transactions, ShopOffers, ShopProfile, Inventory, Chat, Orders, Subscriptions } from './Shop';
@@ -163,6 +163,8 @@ function App() {
         <Route path="/offers" element={withNavbarLayout(Offers)} />
         <Route path="/device/:id" element={withNavbarLayout(DeviceDetail, { addToCart })} />
         <Route path="/shops/:shopId" element={withNavbarLayout(Shop, { addToCart })} />
+        <Route path="/products/category/:categoryId" element={<CategoryProducts darkMode={darkMode} />} />
+
         {/* <Route path="/repair-request/:requestId/update" element={withNavbarLayout(RepairRequest)} /> */}
         <Route path="/oauth2/success" element={<SuccessGoogle />} />
 

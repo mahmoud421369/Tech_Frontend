@@ -5,4 +5,5 @@ export { default as Modal } from './Modal';
 export { default as OffersSlider } from './OffersSlider';
 export { default as Footer } from './Footer';
 export { DashboardSkeleton, TableSkeleton, ProfileSkeleton } from './DeliverySkeleton';
+export { default as Hero } from './Hero';
 

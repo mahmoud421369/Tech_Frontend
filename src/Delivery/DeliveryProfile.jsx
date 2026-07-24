@@ -14,7 +14,7 @@ import { ProfileSkeleton } from "../components";
 
 
 const StatCard = memo(({ label, value, icon: Icon, color }) => (
-  <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-[2.5rem] p-6 shadow-xl shadow-gray-200/20 dark:shadow-none hover:shadow-2xl transition-all duration-500 group">
+  <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-md p-6 shadow-xl shadow-gray-200/20 dark:shadow-none hover:shadow-2xl transition-all duration-500 group">
     <div className="flex items-center justify-between mb-4">
       <div className={`w-12 h-12 rounded-2xl bg-${color}-50 dark:bg-${color}-900/20 flex items-center justify-center text-${color}-600 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-500`}>
         <Icon size={24} />
@@ -35,7 +35,7 @@ const StatCard = memo(({ label, value, icon: Icon, color }) => (
 const Field = memo(({ icon: Icon, label, field, value, editing, onChange, error }) => (
   <div className="space-y-2">
     <label className="flex items-center gap-2 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">
-      <Icon size={14} className="text-lime-500" /> {label}
+      <Icon size={14} className="text-emerald-500" /> {label}
     </label>
     <div className="relative group">
       <input
@@ -130,12 +130,12 @@ const DeliveryProfile = () => {
 
        
        
-        <div className="relative bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden p-8 group">
+        <div className="relative bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden p-8 group">
           <div className="absolute top-0 right-0 w-64 h-64 bg-lime-500/5 rounded-bl-full translate-x-16 -translate-y-16 group-hover:translate-x-8 group-hover:-translate-y-8 transition-transform duration-700" />
           
           <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
             <div className="relative">
-              <div className="w-32 h-32 rounded-[2.5rem] bg-gradient-to-br from-lime-500 to-emerald-600 flex items-center justify-center text-white text-4xl font-black shadow-2xl shadow-lime-500/20 group-hover:scale-105 transition-transform duration-500">
+              <div className="w-32 h-32 rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-4xl font-black shadow-2xl shadow-lime-500/20 group-hover:scale-105 transition-transform duration-500">
                 {profile.name?.charAt(0) || "A"}
               </div>
               <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-2xl bg-white dark:bg-gray-900 border-4 border-gray-50 dark:border-gray-900 flex items-center justify-center text-lime-500">
@@ -154,14 +154,14 @@ const DeliveryProfile = () => {
                   </span>
                 )}
               </div>
-              <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter mb-1">{profile.name}</h1>
-              <p className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-6">Dispatch System Personnel</p>
+              <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter mb-3">{profile.name}</h1>
+      
               
               {!isEditing ? (
                 <button 
                   onClick={() => setIsEditing(true)}
                   aria-label="Edit Profile Details"
-                  className="flex items-center gap-2 px-6 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-lime-500 dark:hover:bg-lime-500 hover:text-white transition-all active:scale-95 shadow-xl shadow-gray-900/10"
+                  className="flex items-center gap-2 px-6 py-3 bg-gray-900 dark:bg-gray-950 text-white dark:text-white rounded-lg text-xs font-black uppercase tracking-widest hover:bg-emerald-500 dark:hover:bg-emerald-500 hover:text-white transition-all active:scale-95 shadow-xl shadow-gray-900/10"
                 >
                   <FiEdit3 size={16} /> Edit Profile
                 </button>
@@ -170,7 +170,7 @@ const DeliveryProfile = () => {
                   <button 
                     onClick={handleUpdate}
                     aria-label="Save Profile Changes"
-                    className="flex items-center gap-2 px-6 py-3 bg-lime-500 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-lime-600 transition-all active:scale-95 shadow-xl shadow-lime-500/20"
+                    className="flex items-center gap-2 px-6 py-3 bg-emerald-500 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-emerald-600 transition-all active:scale-95 shadow-xl shadow-emerald-500/20"
                   >
                     <FiCheckCircle size={16} /> {isLoading ? "Saving..." : "Apply Changes"}
                   </button>
@@ -193,14 +193,14 @@ const DeliveryProfile = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard label="Active Orders"    value={profile.activeOrderDeliveries || 0}   icon={FiTrendingUp} color="blue" />
           <StatCard label="Active Repairs"   value={profile.activeRepairDeliveries || 0}  icon={FiTool}       color="indigo"  />
-          <StatCard label="Career Deliveries" value={profile.totalCompletedDeliveries || 0} icon={FiAward}     color="amber"   />
+          <StatCard label="Total Deliveries" value={profile.totalCompletedDeliveries || 0} icon={FiAward}     color="amber"   />
           <StatCard label="Account Status"   value={profile.status || "ACTIVE"}           icon={FiShield}    color="lime"    />
         </div>
 
      
      
 
-        <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none p-8">
+        <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none p-8">
           <div className="flex items-center gap-3 mb-10">
             <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400">
               <FiSettings size={20} />
@@ -214,17 +214,17 @@ const DeliveryProfile = () => {
           <div className="grid md:grid-cols-2 gap-x-12 gap-y-8">
             <div className="space-y-8">
               <div className="flex items-start gap-4 p-6 bg-gray-50/50 dark:bg-gray-900/30 rounded-3xl border border-transparent hover:border-gray-100 dark:hover:border-gray-700 transition-all group">
-                <div className="w-10 h-10 rounded-2xl bg-white dark:bg-gray-800 flex items-center justify-center text-lime-500 shadow-sm group-hover:scale-110 transition-transform">
+                <div className="w-10 h-10 rounded-2xl bg-white dark:bg-gray-800 flex items-center justify-center text-emerald-500 shadow-sm group-hover:scale-110 transition-transform">
                   <FiMail size={18} />
                 </div>
                 <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Email Access</p>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Email </p>
                   <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{profile.email}</p>
                 </div>
               </div>
               
               <div className="flex items-start gap-4 p-6 bg-gray-50/50 dark:bg-gray-900/30 rounded-3xl border border-transparent hover:border-gray-100 dark:hover:border-gray-700 transition-all group">
-                <div className="w-10 h-10 rounded-2xl bg-white dark:bg-gray-800 flex items-center justify-center text-lime-500 shadow-sm group-hover:scale-110 transition-transform">
+                <div className="w-10 h-10 rounded-2xl bg-white dark:bg-gray-800 flex items-center justify-center text-emerald-500 shadow-sm group-hover:scale-110 transition-transform">
                   <FiClock size={18} />
                 </div>
                 <div>
@@ -237,30 +237,16 @@ const DeliveryProfile = () => {
             </div>
 
             <div className="space-y-8">
-              <Field icon={FiUser}   label="Full Display Name" field="name"    value={form.name}    editing={isEditing} onChange={(f,v) => setForm(prev => ({...prev, [f]: v}))} error={errors.name} />
-              <Field icon={FiPhone}  label="Secure Phone"      field="phone"   value={form.phone}   editing={isEditing} onChange={(f,v) => setForm(prev => ({...prev, [f]: v}))} error={errors.phone} />
-              <Field icon={FiMapPin} label="Operating Area"    field="address" value={form.address} editing={isEditing} onChange={(f,v) => setForm(prev => ({...prev, [f]: v}))} error={errors.address} />
+              <Field icon={FiUser}   label="Display Name" field="name"    value={form.name}    editing={isEditing} onChange={(f,v) => setForm(prev => ({...prev, [f]: v}))} error={errors.name} />
+              <Field icon={FiPhone}  label="Phone"      field="phone"   value={form.phone}   editing={isEditing} onChange={(f,v) => setForm(prev => ({...prev, [f]: v}))} error={errors.phone} />
+              <Field icon={FiMapPin} label="Address"    field="address" value={form.address} editing={isEditing} onChange={(f,v) => setForm(prev => ({...prev, [f]: v}))} error={errors.address} />
             </div>
           </div>
         </div>
 
         
         
-        {/* <div className="bg-gray-900 dark:bg-gray-800 rounded-[2.5rem] p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative">
-          <div className="absolute top-0 left-0 w-64 h-64 bg-lime-500/10 rounded-full -translate-x-24 -translate-y-24 blur-3xl" />
-          <div className="relative z-10 flex items-center gap-6">
-            <div className="w-16 h-16 rounded-3xl bg-lime-500/10 flex items-center justify-center text-lime-500 border border-lime-500/20">
-              <FiShield size={32} />
-            </div>
-            <div>
-              <h3 className="text-xl font-black tracking-tight mb-1">Security Standards</h3>
-              <p className="text-sm font-bold text-gray-400">Keep your operational data updated for faster payouts.</p>
-            </div>
-          </div>
-          <button className="relative z-10 flex items-center gap-2 px-8 py-4 bg-lime-500 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-lime-600 transition-all shadow-xl shadow-lime-500/20">
-            Change Password <FiArrowRight />
-          </button>
-        </div> */}
+       
 
       </div>
     </div>

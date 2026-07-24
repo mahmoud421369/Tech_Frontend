@@ -153,38 +153,38 @@ const UserModal = memo(({ user, onClose }) => {
   ];
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-md p-4">
-      <div className="w-full max-w-[280px] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
-        <div className="flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/80 px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-          <h3 className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">User Profile</h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-red-500 transition-all">
-            <FiX size={16} title="Close" />
+    <div className="fixed inset-0 z-[100]   flex items-center justify-center bg-gray-900/60 backdrop-blur-md p-4">
+      <div className="w-full max-w-[350px]  bg-white dark:bg-gray-800 rounded-md shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
+        <div className="flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/80 px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+          <h3 className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">User Profile</h3>
+          <button onClick={onClose} className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-red-500 transition-all">
+            <FiX size={18} title="Close" />
           </button>
         </div>
 
-        <div className="p-4 space-y-2">
+        <div className="p-6 space-y-3">
           {rows.map(({ icon: Icon, label, value }) => (
-            <div key={label} className="group p-2 bg-gray-50 dark:bg-gray-900/40 border border-transparent hover:border-lime-500/20 rounded-xl transition-all duration-300">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center text-lime-500 shadow-sm group-hover:rotate-6 transition-transform">
-                  <Icon size={12} />
+            <div key={label} className="group p-3.5 bg-gray-50 dark:bg-gray-900/40 border border-transparent hover:border-lime-500/20 rounded-2xl transition-all duration-300">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white dark:bg-gray-800 flex items-center justify-center text-lime-500 shadow-sm group-hover:rotate-6 transition-transform">
+                  <Icon size={16} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em]">{label}</p>
-                  <p className="text-[11px] font-bold text-gray-800 dark:text-gray-100 truncate">{value}</p>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{label}</p>
+                  <p className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate">{value}</p>
                 </div>
               </div>
             </div>
           ))}
 
-          <div className="p-2 bg-gray-50 dark:bg-gray-900/40 border border-transparent rounded-xl">
-            <div className="flex items-center gap-2">
-              <div className={`w-7 h-7 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center ${user.activate ? "text-emerald-500" : "text-red-500"}`}>
-                {user.activate ? <FiCheckCircle size={12} /> : <FiXCircle size={12} />}
+          <div className="p-3.5 bg-gray-50 dark:bg-gray-900/40 border border-transparent rounded-2xl">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl bg-white dark:bg-gray-800 flex items-center justify-center ${user.activate ? "text-emerald-500" : "text-red-500"}`}>
+                {user.activate ? <FiCheckCircle size={16} /> : <FiXCircle size={16} />}
               </div>
               <div>
-                <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em]">Status</p>
-                <p className={`text-[9px] font-black uppercase tracking-widest ${user.activate ? 'text-emerald-600' : 'text-red-600'}`}>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Status</p>
+                <p className={`text-xs font-black uppercase tracking-widest ${user.activate ? 'text-emerald-600' : 'text-red-600'}`}>
                   {user.activate ? 'Active' : 'Suspended'}
                 </p>
               </div>
@@ -192,9 +192,9 @@ const UserModal = memo(({ user, onClose }) => {
           </div>
         </div>
 
-        <div className="px-4 pb-4 pt-0">
+        <div className="px-6 pb-6 pt-0">
           <button onClick={onClose}
-            className="w-full py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[9px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-lime-500 dark:hover:bg-lime-500 dark:hover:text-white transition-all active:scale-[0.98]">
+            className="w-full py-3 bg-emerald-600 text-white text-xs font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 transition-all active:scale-[0.98]">
             Close
           </button>
         </div>
@@ -205,6 +205,48 @@ const UserModal = memo(({ user, onClose }) => {
 
 
 
+
+const UsersSkeleton = () => (
+  <div className="animate-pulse space-y-8">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+      {[1, 2, 3].map(i => (
+        <div key={i} className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-sm flex items-center justify-between h-28">
+          <div className="space-y-2">
+            <div className="h-3 w-20 bg-gray-250 dark:bg-gray-700 rounded-full" />
+            <div className="h-8 w-16 bg-gray-300 dark:bg-gray-650 rounded-xl" />
+          </div>
+          <div className="w-14 h-14 rounded-2xl bg-gray-150 dark:bg-gray-700" />
+        </div>
+      ))}
+    </div>
+
+    <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-4 h-20" />
+
+    <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
+      <div className="p-6 space-y-4">
+        {[1, 2, 3, 4, 5].map(i => (
+          <div key={i} className="flex items-center justify-between border-b border-gray-50 dark:border-gray-800 pb-4 last:border-0">
+            <div className="space-y-2">
+              <div className="h-4 w-24 bg-gray-300 dark:bg-gray-600 rounded-md" />
+              <div className="h-3 w-32 bg-gray-200 dark:bg-gray-700 rounded-md" />
+            </div>
+            <div className="space-y-2">
+              <div className="h-4 w-36 bg-gray-350 dark:bg-gray-600 rounded-md" />
+              <div className="h-3 w-40 bg-gray-250 dark:bg-gray-700 rounded-md" />
+            </div>
+            <div className="h-6 w-20 bg-gray-200 dark:bg-gray-700 rounded-full" />
+            <div className="h-6 w-16 bg-gray-150 dark:bg-gray-700 rounded-full" />
+            <div className="flex gap-2">
+              <div className="w-10 h-10 bg-gray-150 dark:bg-gray-700 rounded-xl" />
+              <div className="w-10 h-10 bg-gray-150 dark:bg-gray-700 rounded-xl" />
+              <div className="w-10 h-10 bg-gray-150 dark:bg-gray-700 rounded-xl" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+);
 
 const UsersPage = ({ darkMode }) => {
   const navigate = useNavigate();
@@ -369,47 +411,44 @@ const UsersPage = ({ darkMode }) => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          {statCards.map(s => <StatCard key={s.label} {...s} />)}
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
-          <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
-            <div className="relative flex-1 group">
-              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={16} />
-              <input
-                type="text"
-                placeholder="Search by name..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="w-full pl-12 pr-10 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/5 transition-all"
-              />
-              {search && (
-                <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors">
-                  <FiX size={16} title="Clear Search" />
-                </button>
-              )}
+        {loading && users.length === 0 ? (
+          <UsersSkeleton />
+        ) : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              {statCards.map(s => <StatCard key={s.label} {...s} />)}
             </div>
 
-            <div className="flex items-center gap-3 px-4">
-              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">View</span>
-              <RowsDropdown
-                value={rowsPerPage}
-                options={ROWS_OPTIONS}
-                onChange={n => { setRowsPerPage(n); setCurrentPage(1); }}
-              />
-            </div>
-          </div>
-        </div>
+            <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
+              <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
+                <div className="relative flex-1 group">
+                  <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={16} />
+                  <input
+                    type="text"
+                    placeholder="Search by name..."
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    className="w-full pl-12 pr-10 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/5 transition-all"
+                  />
+                  {search && (
+                    <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors">
+                      <FiX size={16} title="Clear Search" />
+                    </button>
+                  )}
+                </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
-          {loading ? (
-            <div className="py-32 text-center space-y-4">
-              <div className="w-12 h-12 border-4 border-lime-500 border-t-transparent rounded-full animate-spin mx-auto shadow-lg" />
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 animate-pulse">Synchronizing identities...</p>
+                <div className="flex items-center gap-3 px-4">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">View</span>
+                  <RowsDropdown
+                    value={rowsPerPage}
+                    options={ROWS_OPTIONS}
+                    onChange={n => { setRowsPerPage(n); setCurrentPage(1); }}
+                  />
+                </div>
+              </div>
             </div>
-          ) : (
-            <>
+
+            <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
               <div className="overflow-x-auto custom-scrollbar-thin">
                 <table className="w-full  min-w-[900px]">
                   <thead className="bg-gray-50 dark:bg-gray-900/50">
@@ -553,19 +592,19 @@ const UsersPage = ({ darkMode }) => {
                   </div>
                 </div>
               )}
-            </>
-          )}
-        </div>
+            </div>
+          </>
+        )}
+        <style dangerouslySetInnerHTML={{
+          __html: `
+          .custom-scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
+          .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+          .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
+          .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; }
+          .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
+        `}} />
+        {selectedUser && <UserModal user={selectedUser} onClose={() => setSelectedUser(null)} />}
       </div>
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        .custom-scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
-        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
-        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
-      `}} />
-      {selectedUser && <UserModal user={selectedUser} onClose={() => setSelectedUser(null)} />}
     </div>
   );
 };

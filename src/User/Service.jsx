@@ -1,149 +1,201 @@
-import React, { memo, useMemo } from "react";
-import {
-  FiTool,
-  FiTruck,
-  FiShield,
-  FiCheckCircle,
-  FiStar,
-} from "react-icons/fi";
+import React, { memo } from "react";
+import { FiStar } from "react-icons/fi";
 import { motion } from "framer-motion";
-import { RiSmartphoneLine, RiShoppingCartLine } from "react-icons/ri";
 
-const cardVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: (i) => ({
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.5,
-      delay: i * 0.08,
-      ease: [0.22, 1, 0.36, 1]
-    }
-  })
-};
+const EASE = [0.16, 1, 0.3, 1];
 
-const ServiceCard = memo(({ icon: Icon, title, desc, accent, index, darkMode }) => (
+const palette = (darkMode) => ({
+  line: darkMode ? "#34d399" : "#059669",
+  lineSoft: darkMode ? "#6ee7b7" : "#10b981",
+  fillSoft: darkMode ? "rgba(16,185,129,0.14)" : "rgba(16,185,129,0.1)",
+  fillCard: darkMode ? "#0b1a12" : "#ffffff",
+  cardBorder: darkMode ? "rgba(52,211,153,0.25)" : "rgba(5,150,105,0.18)",
+  accent: "#f59e0b",
+});
+
+const RepairIllustration = memo(({ darkMode }) => {
+  const c = palette(darkMode);
+  return (
+    <svg viewBox="0 0 200 200" className="w-full h-full">
+      <motion.circle cx="100" cy="102" r="70" fill={c.fillSoft}
+        animate={{ scale: [1, 1.06, 1] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }} />
+      <rect x="70" y="55" width="60" height="96" rx="12" fill={c.fillCard} stroke={c.cardBorder} strokeWidth="2.5" />
+      <rect x="80" y="67" width="40" height="60" rx="4" fill={c.fillSoft} />
+      {[0, 1, 2].map((i) => (
+        <motion.line key={i}
+          x1={86 + i * 10} y1="76" x2={86 + i * 10} y2="118"
+          stroke={c.accent} strokeWidth="1.6"
+          animate={{ opacity: [0.15, 0.6, 0.15] }}
+          transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut", delay: i * 0.25 }}
+        />
+      ))}
+      <motion.g
+        animate={{ rotate: [-16, 6, -16] }}
+        style={{ transformOrigin: "142px 58px" }}
+        transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+      >
+        <rect x="136" y="32" width="10" height="42" rx="3" fill={c.fillCard} stroke={c.line} strokeWidth="2" />
+        <path d="M130,32 L152,32 L148,22 L134,22 Z" fill="none" stroke={c.line} strokeWidth="2" strokeLinejoin="round" />
+      </motion.g>
+    </svg>
+  );
+});
+
+const DevicesIllustration = memo(({ darkMode }) => {
+  const c = palette(darkMode);
+  return (
+    <svg viewBox="0 0 200 200" className="w-full h-full">
+      <motion.rect x="34" y="96" width="104" height="66" rx="8" fill={c.fillCard} stroke={c.cardBorder} strokeWidth="2.5"
+        animate={{ y: [96, 90, 96] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }} />
+      <rect x="44" y="104" width="84" height="44" rx="4" fill={c.fillSoft} />
+      <rect x="70" y="160" width="28" height="5" rx="2" fill={c.cardBorder} />
+      <motion.g
+        animate={{ y: [0, -8, 0] }}
+        transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
+      >
+        <rect x="108" y="42" width="52" height="90" rx="10" fill={c.fillCard} stroke={c.cardBorder} strokeWidth="2.5" />
+        <rect x="116" y="54" width="36" height="56" rx="3" fill={c.fillSoft} />
+        <circle cx="134" cy="120" r="4" fill="none" stroke={c.line} strokeWidth="1.6" />
+      </motion.g>
+      <motion.g
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: [0, 1.15, 1], opacity: 1 }}
+        transition={{ duration: 0.8, delay: 0.6, ease: EASE }}
+      >
+        <circle cx="56" cy="70" r="14" fill={c.accent} />
+        <path d="M50,70 L54,75 L63,64" stroke="#ffffff" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      </motion.g>
+    </svg>
+  );
+});
+
+const ShippingIllustration = memo(({ darkMode }) => {
+  const c = palette(darkMode);
+  return (
+    <svg viewBox="0 0 200 200" className="w-full h-full">
+      <path d="M20,150 C60,150 55,90 95,78 C130,66 130,44 170,44"
+        fill="none" stroke={c.cardBorder} strokeWidth="2.5" strokeDasharray="1 8" strokeLinecap="round" />
+      <motion.circle r="5" fill={c.line}
+        animate={{ offsetDistance: ["0%", "100%"] }}
+        style={{ offsetPath: "path('M20,150 C60,150 55,90 95,78 C130,66 130,44 170,44')" }}
+        transition={{ duration: 3.5, repeat: Infinity, ease: "linear" }}
+      />
+      <circle cx="20" cy="150" r="4.5" fill={c.fillCard} stroke={c.line} strokeWidth="2" />
+      <motion.circle cx="170" cy="44" r="9" fill="none" stroke={c.accent} strokeWidth="2"
+        animate={{ scale: [1, 1.6, 1], opacity: [1, 0, 1] }}
+        transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }} />
+      <circle cx="170" cy="44" r="5" fill={c.accent} />
+      <motion.g
+        animate={{ y: [0, -6, 0] }}
+        transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
+      >
+        <rect x="70" y="106" width="46" height="36" rx="6" fill={c.fillCard} stroke={c.cardBorder} strokeWidth="2.5" />
+        <path d="M70,116 L93,130 L116,116" fill="none" stroke={c.lineSoft} strokeWidth="1.8" />
+        <line x1="93" y1="130" x2="93" y2="142" stroke={c.lineSoft} strokeWidth="1.8" />
+      </motion.g>
+    </svg>
+  );
+});
+
+const WarrantyIllustration = memo(({ darkMode }) => {
+  const c = palette(darkMode);
+  return (
+    <svg viewBox="0 0 200 200" className="w-full h-full">
+      <motion.circle cx="100" cy="100" r="68" fill="none" stroke={c.cardBorder} strokeWidth="1.6" strokeDasharray="3 8"
+        animate={{ rotate: 360 }} style={{ transformOrigin: "100px 100px" }}
+        transition={{ duration: 30, repeat: Infinity, ease: "linear" }} />
+      <path d="M100,42 L146,60 L146,98 C146,130 126,150 100,160 C74,150 54,130 54,98 L54,60 Z"
+        fill={c.fillCard} stroke={c.cardBorder} strokeWidth="2.5" />
+      <motion.path
+        d="M78,100 L94,116 L124,82"
+        fill="none" stroke={c.line} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"
+        initial={{ pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 1.6, repeat: Infinity, repeatDelay: 1.4, ease: EASE }}
+      />
+    </svg>
+  );
+});
+
+const services = [
+  {
+    Illustration: RepairIllustration,
+    title: "Expert Repairs",
+    desc: "Certified technicians restoring your devices to factory perfection with precision and care.",
+  },
+  {
+    Illustration: DevicesIllustration,
+    title: "Premium Devices",
+    desc: "An elite selection of handpicked, fully certified smartphones and gadgets.",
+  },
+  {
+    Illustration: ShippingIllustration,
+    title: "Priority Shipping",
+    desc: "Fast nationwide delivery with real-time tracking and insurance.",
+  },
+  {
+    Illustration: WarrantyIllustration,
+    title: "Ironclad Warranty",
+    desc: "Comprehensive 12-month protection plans for complete peace of mind.",
+  },
+];
+
+const ServiceCard = memo(({ Illustration, title, desc, index, darkMode }) => (
   <motion.div
-    custom={index}
-    variants={cardVariants}
-    initial="hidden"
-    whileInView="visible"
-    viewport={{ once: true, margin: "-20px" }}
-    whileHover={{ y: -5, transition: { duration: 0.3 } }}
-    className={`relative group overflow-hidden rounded-[1.5rem] border p-6 transition-all duration-500
-      hover:shadow-xl
+    initial={{ opacity: 0, y: 30 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.5, delay: index * 0.08, ease: EASE }}
+    viewport={{ once: true }}
+    whileHover={{ y: -8, scale: 1.01 }}
+    className={`group relative rounded-md p-8 border transition-all duration-300 hover:shadow-xl h-full
+      flex flex-col sm:flex-row items-center gap-6
       ${darkMode
-        ? "bg-gray-900/40 border-gray-800 backdrop-blur-xl hover:border-gray-700"
-        : "bg-white border-gray-100 hover:border-gray-200"
+        ? "bg-gray-900 border-emerald-500/20 hover:border-emerald-500/40"
+        : "bg-white border-gray-100 hover:border-emerald-200 shadow-sm"
       }`}
   >
-    <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-[1.5rem] pointer-events-none`}
-      style={{
-        padding: '1px',
-        background: `linear-gradient(135deg, ${accent}, transparent 60%)`,
-        WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-        WebkitMaskComposite: 'xor',
-        maskComposite: 'exclude'
-      }}
-    />
-
-    <div
-      className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 shadow-lg relative transition-transform duration-500 group-hover:scale-110 overflow-hidden"
+    <motion.div
+      className="w-28 h-28 sm:w-32 sm:h-32 flex-shrink-0"
+      animate={{ y: [0, -8, 0] }}
+      transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: index * 0.3 }}
+      whileHover={{ scale: 1.06, transition: { duration: 0.3, ease: EASE } }}
     >
-        <div className="absolute inset-0 opacity-20 group-hover:opacity-40 transition-opacity duration-500" 
-             style={{ background: `linear-gradient(135deg, ${accent}, #000)` }} />
-        <div className="absolute inset-0 backdrop-blur-sm" />
-        <Icon className="w-6 h-6 relative z-10" style={{ color: accent }} />
+      <Illustration darkMode={darkMode} />
+    </motion.div>
+
+    <div className="flex-1 text-center sm:text-left">
+      <h3 className={`text-2xl font-semibold mb-2 tracking-tight ${darkMode ? "text-white" : "text-gray-900"}`}>
+        {title}
+      </h3>
+      <p className={`text-[15px] leading-relaxed ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
+        {desc}
+      </p>
+      <div className="mt-4 h-0.5 w-12 mx-auto sm:mx-0 bg-gradient-to-r from-emerald-400 to-lime-400 rounded-full opacity-60 group-hover:opacity-100 transition-opacity" />
     </div>
-
-    <h3 className={`text-xl font-bold mb-2 tracking-tight ${darkMode ? "text-white" : "text-gray-900"}`}>
-      {title}
-    </h3>
-    <p className={`text-sm leading-relaxed ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-      {desc}
-    </p>
-
-    <div
-      className="absolute bottom-4 right-4 w-1 h-1 rounded-full opacity-20 group-hover:opacity-100 transition-all duration-300 group-hover:scale-[3]"
-      style={{ background: accent }}
-    />
   </motion.div>
 ));
 
 const Service = memo(({ darkMode = false }) => {
-  const services = useMemo(() => [
-    {
-      icon: FiTool,
-      title: "Expert Repairs",
-      desc: "Certified technicians restoring your devices to factory perfection.",
-      accent: "#22c55e",
-    },
-    {
-      icon: RiSmartphoneLine,
-      title: "Premium Devices",
-      desc: "An elite selection of handpicked, fully certified smartphones.",
-      accent: "#6366f1",
-    },
-    {
-      icon: RiShoppingCartLine,
-      title: "Seamless Sales",
-      desc: "Instant checkout with flexible trade-in options.",
-      accent: "#06b6d4",
-    },
-    {
-      icon: FiTruck,
-      title: "Priority Shipping",
-      desc: "Next-day nationwide delivery with real-time tracking.",
-      accent: "#3b82f6",
-    },
-    {
-      icon: FiShield,
-      title: "Ironclad Warranty",
-      desc: "Comprehensive 12-month protection plans for peace of mind.",
-      accent: "#8b5cf6",
-    },
-    {
-      icon: FiCheckCircle,
-      title: "Quality First",
-      desc: "Our 50-point inspection protocol ensures top standards.",
-      accent: "#f59e0b",
-    },
-  ], []);
-
   return (
-    <section className={`relative overflow-hidden py-16 lg:py-24 ${darkMode ? "bg-gray-950" : "bg-white"}`}>
-     
-     
-      <div className="absolute top-1/4 -left-20 w-72 h-72 rounded-full bg-emerald-500/5 blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-1/4 -right-20 w-72 h-72 rounded-full bg-blue-500/5 blur-[100px] pointer-events-none" />
+    <section className={`py-20 lg:py-24 ${darkMode ? "bg-gray-950" : "bg-zinc-50"}`}>
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="text-center mb-16">
+        
 
-      <div className="relative max-w-7xl mx-auto px-6">
-        <div className="mb-12">
-            <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6 }}
-                viewport={{ once: true }}
-                className="max-w-2xl"
-            >
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border text-[10px] font-bold mb-4
-                    bg-emerald-500/10 border-emerald-500/20 text-emerald-500 tracking-wider uppercase">
-                    <FiStar className="w-3 h-3" />
-                    The Industry Standard
-                </div>
-
-                <h2 className={`text-4xl sm:text-5xl font-black mb-4 tracking-tighter leading-tight ${darkMode ? "text-white" : "text-gray-900"}`}>
-                    Modern <span className="bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">Tech Care.</span>
-                </h2>
-                <p className={`text-base sm:text-lg max-w-xl ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                    Luxury service and technical excellence for the next generation of device support.
-                </p>
-            </motion.div>
+          <h2 className={`text-5xl lg:text-6xl font-bold tracking-tighter mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}>
+            Modern <span className="text-emerald-500">TechCare</span>
+          </h2>
+       
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {services.map((service, i) => (
-            <ServiceCard key={i} {...service} index={i} darkMode={darkMode} />
+            <ServiceCard
+              key={service.title}
+              {...service}
+              index={i}
+              darkMode={darkMode}
+            />
           ))}
         </div>
       </div>

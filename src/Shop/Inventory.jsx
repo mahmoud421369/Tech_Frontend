@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useCallback, useMemo, memo, useRef } from 'react';
 import {
-  FiSearch, FiDownload, FiUpload, FiPackage, FiAlertTriangle,
-  FiBox, FiTrendingDown, FiChevronLeft, FiChevronRight,
-  FiInfo, FiX, FiActivity, FiShield,
-  FiInbox
+  FiSearch, FiDownload, FiUpload, FiPackage,
+  FiBox, FiChevronLeft, FiChevronRight, FiChevronDown,
+  FiInfo, FiX, FiShield, FiInbox
 } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
 import Swal from 'sweetalert2';
 import api from '../api';
 import debounce from 'lodash/debounce';
 
+const EASE = [0.16, 1, 0.3, 1];
 const ROWS_OPTIONS = [5, 10, 25, 50];
 const API_BASE = '/api/shop/inventory';
+const COLOR_HEX = { lime: '#84cc16', emerald: '#10b981', orange: '#f97316', red: '#ef4444', indigo: '#6366f1' };
 
 const sanitize = (str) => String(str ?? '').replace(/[<>"'`]/g, '');
 
@@ -30,14 +32,67 @@ const formatNumber = (n) => {
 
 
 
+const StackIllustration = memo(({ color }) => (
+  <svg viewBox="0 0 44 44" className="w-6 h-6">
+    <motion.g
+      animate={{ y: [0, -1.5, 0] }}
+      transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
+    >
+      <rect x="10" y="22" width="24" height="12" rx="2" fill="none" stroke={color} strokeWidth="2.4" />
+      <rect x="13" y="12" width="18" height="12" rx="2" fill="none" stroke={color} strokeWidth="2.2" />
+      <line x1="10" y1="28" x2="34" y2="28" stroke={color} strokeWidth="1.6" opacity="0.5" />
+    </motion.g>
+  </svg>
+));
+
+const WarningIllustration = memo(({ color }) => (
+  <svg viewBox="0 0 44 44" className="w-6 h-6">
+    <motion.path
+      d="M22,8 L38,34 L6,34 Z"
+      fill="none" stroke={color} strokeWidth="2.4" strokeLinejoin="round"
+      animate={{ opacity: [1, 0.5, 1] }}
+      transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+    />
+    <line x1="22" y1="18" x2="22" y2="26" stroke={color} strokeWidth="2.6" strokeLinecap="round" />
+    <circle cx="22" cy="30.5" r="1.6" fill={color} />
+  </svg>
+));
+
+const EmptyBoxIllustration = memo(({ color }) => (
+  <svg viewBox="0 0 44 44" className="w-6 h-6">
+    <path d="M8,16 L22,9 L36,16 L36,30 L22,37 L8,30 Z" fill="none" stroke={color} strokeWidth="2.2" strokeLinejoin="round" opacity="0.35" />
+    <motion.path
+      d="M8,16 L22,23 L36,16"
+      fill="none" stroke={color} strokeWidth="2.4" strokeLinejoin="round"
+      animate={{ opacity: [0.3, 1, 0.3] }}
+      transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+    />
+    <line x1="14" y1="27" x2="30" y2="14" stroke={color} strokeWidth="2" strokeLinecap="round" opacity="0.5" />
+  </svg>
+));
+
+const ValueIllustration = memo(({ color }) => (
+  <svg viewBox="0 0 44 44" className="w-6 h-6">
+    <circle cx="22" cy="22" r="15" fill="none" stroke={color} strokeWidth="2" opacity="0.3" />
+    <motion.circle
+      cx="22" cy="22" r="10" fill="none" stroke={color} strokeWidth="2.4"
+      animate={{ scale: [1, 1.08, 1] }}
+      transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+      style={{ transformOrigin: '22px 22px' }}
+    />
+    <text x="22" y="27" textAnchor="middle" fontSize="12" fontWeight="800" fill={color}>$</text>
+  </svg>
+));
 
 
-const StatCard = memo(({ icon: Icon, label, value, color, description }) => (
-  <div className="relative group bg-white dark:bg-gray-800 rounded-[2rem] border border-gray-100 dark:border-gray-700 p-6 transition-all duration-500 hover:shadow-2xl hover:shadow-gray-200/50 dark:hover:shadow-none overflow-hidden">
+
+
+const StatCard = memo(({ Illustration, label, value, color, description }) => (
+  <div className="relative group bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 p-6 transition-all duration-500 hover:shadow-2xl hover:shadow-gray-200/50 dark:hover:shadow-none overflow-hidden">
     <div className={`absolute top-0 right-0 w-24 h-24 bg-${color}-500/5 rounded-bl-full translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-700`} />
     <div className="flex flex-col h-full relative z-10 text-right">
-      <div className={`w-12 h-12 rounded-2xl bg-${color}-50 dark:bg-${color}-900/20 flex items-center justify-center text-${color}-600 dark:text-${color}-400 mb-4 group-hover:rotate-6 transition-transform`}>
-        <Icon size={22} />
+      <div className={`w-12 h-12 rounded-full bg-white border-2 border-gray-100 dark:border-gray-800 dark:bg-${color}-900/20 flex items-center justify-center mb-4 group-hover:rotate-6 transition-transform`}>
+        <Illustration color={COLOR_HEX[color] || '#10b981'} />
       </div>
       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">{label}</p>
       <p className="text-2xl font-black text-gray-900 dark:text-white mt-1">{value}</p>
@@ -46,53 +101,101 @@ const StatCard = memo(({ icon: Icon, label, value, color, description }) => (
   </div>
 ));
 
+const RowsPerPageDropdown = memo(({ value, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    if (open) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="w-full sm:w-auto flex items-center justify-between gap-3 px-5 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-xs font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 cursor-pointer transition-all"
+      >
+        <span>{value} عناصر لكل صفحة</span>
+        <FiChevronDown className={`transition-transform duration-150 ${open ? 'rotate-180' : ''}`} size={14} />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -6, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.97 }}
+            transition={{ duration: 0.14, ease: EASE }}
+            className="absolute z-30 mt-2 w-full sm:w-44 right-0 rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-2xl overflow-hidden"
+          >
+            {ROWS_OPTIONS.map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => { onChange(n); setOpen(false); }}
+                className={`w-full text-right px-5 py-3 text-xs font-bold transition-colors ${
+                  n === value ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                {n} عناصر لكل صفحة
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+});
+
 const InventoryRow = memo(({ item, onDetails, onUpdateStock }) => {
   const isLow = item.stock > 0 && item.stock < (item.threshold || 5);
   const isOut = item.stock === 0;
   return (
-    <tr className="hover:bg-lime-50/10 dark:hover:bg-lime-900/5 transition-colors group">
-      <td className="px-8 py-6 whitespace-nowrap">
+    <tr className="hover:bg-emerald-50/10 dark:hover:bg-emerald-900/5 transition-colors group">
+      <td className="px-4 py-3 whitespace-nowrap">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400">
-            <FiBox size={18} />
+          <div className="w-9 h-9 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400">
+            <FiBox size={16} />
           </div>
           <div>
             <p className="text-xs font-black text-gray-900 dark:text-white">{sanitize(item.name)}</p>
           </div>
         </div>
       </td>
-      <td className="px-8 py-6 whitespace-nowrap text-center font-mono font-black text-xs text-lime-600">
+      <td className="px-4 py-3 whitespace-nowrap text-center font-mono font-black text-xs text-emerald-600">
         {formatPrice(item.price)}
       </td>
-      <td className="px-8 py-6 whitespace-nowrap text-center">
+      <td className="px-4 py-3 whitespace-nowrap text-center">
         <p className="text-sm font-black text-gray-900 dark:text-white">{formatNumber(item.stock)}</p>
         <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">وحدة</p>
       </td>
-      <td className="px-8 py-6 whitespace-nowrap text-center">
+      <td className="px-4 py-3 whitespace-nowrap text-center">
      
      
 
         {isOut ? (
-          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-gray-100 dark:bg-gray-700 text-gray-500">
+          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-gray-100 dark:bg-gray-700 text-gray-500">
             <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
             نفد المخزون
           </span>
         ) : isLow ? (
-          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-red-50 dark:bg-red-900/20 text-red-600">
+          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-red-50 dark:bg-red-900/20 text-red-600">
             <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
             مخزون منخفض
           </span>
         ) : (
-          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600">
+          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             متوفر
           </span>
         )}
       </td>
-      <td className="px-8 py-6 whitespace-nowrap text-left">
+      <td className="px-4 py-3 whitespace-nowrap text-left">
         <div className="flex items-center justify-start gap-2">
           <button onClick={() => onDetails(item)}
-            className="flex items-center text-xs gap-2 font-cairo font-bold p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 transition-all active:scale-95">
+            className="flex items-center text-xs gap-2 font-cairo font-bold p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-emerald-500 transition-all active:scale-95">
             <FiInfo size={16} title="عرض التفاصيل" />
           </button>
           <button title="تحديث المخزون" onClick={() => onUpdateStock(item)}
@@ -163,7 +266,7 @@ const Inventory = () => {
       const raw = res.data;
       setInventory(Array.isArray(raw?.content) ? raw.content : Array.isArray(raw) ? raw : []);
     } catch (err) {
-      if (err?.name !== 'AbortError') showToast('فشل تحميل البيانات', 'error');
+      
     } finally {
       setLoading(false);
     }
@@ -225,6 +328,13 @@ const Inventory = () => {
   const paginated  = useMemo(() => inventory.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage), [inventory, currentPage, rowsPerPage]);
   const totalPages = Math.ceil(inventory.length / rowsPerPage);
 
+  const statCards = useMemo(() => [
+    { Illustration: StackIllustration,   label: 'إجمالي العناصر', value: formatNumber(stats.totalItems),  color: 'emerald', description: 'إجمالي الأصناف بالمخزن' },
+    { Illustration: WarningIllustration, label: 'مخزون منخفض',    value: formatNumber(stats.lowStock),    color: 'orange',  description: 'أقل من 5 وحدات (وليس صفر)' },
+    { Illustration: EmptyBoxIllustration,label: 'نفد المخزون',    value: formatNumber(stats.outOfStock),  color: 'red',     description: 'كمية صفر — يحتاج إعادة تخزين' },
+    { Illustration: ValueIllustration,   label: 'قيمة المستودع',  value: formatPrice(totalValue),         color: 'indigo',  description: 'القيمة السوقية الإجمالية' },
+  ], [stats, totalValue]);
+
   return (
     <div dir="rtl" className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pr-64 mt-16 transition-all duration-500 font-cairo text-right">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-10">
@@ -235,20 +345,20 @@ const Inventory = () => {
         <div className="flex flex-col md:flex-row md:items-end mt-3 justify-between gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-1.5 rounded-full bg-lime-500" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-600">المخزون المركزي</span>
+              <div className="w-8 h-1.5 rounded-full bg-emerald-500" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">المخزون المركزي</span>
             </div>
-            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">إدارة <span className="text-lime-500">المستودع</span></h1>
+            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">إدارة <span className="text-emerald-500">المستودع</span></h1>
             <p className="text-sm font-bold text-gray-500 dark:text-gray-400">تحكم كامل في تدفق المنتجات والكميات المتاحة والأسعار التنافسية</p>
           </div>
           <div className="flex gap-3">
             <button onClick={() => fileInputRef.current?.click()}
-              className="px-8 py-3.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-widest rounded-2xl hover:bg-lime-500 transition-all shadow-xl shadow-gray-900/10 active:scale-95">
+              className="px-8 py-3.5 bg-gray-900 dark:bg-emerald-500 text-white dark:text-white text-xs font-black uppercase tracking-widest rounded-2xl hover:bg-emerald-500 transition-all shadow-xl shadow-gray-900/10 active:scale-95">
               <FiUpload className="inline-block ml-2" size={16} /> استيراد CSV
             </button>
             <input ref={fileInputRef} type="file" className="hidden" accept=".csv" onChange={handleImport} />
             <button onClick={exportCSV}
-              className="px-8 py-3.5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-gray-900 dark:text-white text-xs font-black uppercase tracking-widest rounded-2xl hover:border-lime-500 transition-all shadow-sm active:scale-95">
+              className="px-8 py-3.5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-gray-900 dark:text-white text-xs font-black uppercase tracking-widest rounded-2xl hover:border-emerald-500 transition-all shadow-sm active:scale-95">
               <FiDownload className="inline-block ml-2" size={16} /> تصدير
             </button>
           </div>
@@ -258,50 +368,44 @@ const Inventory = () => {
         
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard icon={FiBox}           label="إجمالي العناصر" value={formatNumber(stats.totalItems)}  color="lime"   description="إجمالي الأصناف بالمخزن"          />
-          <StatCard icon={FiAlertTriangle} label="مخزون منخفض"    value={formatNumber(stats.lowStock)}   color="orange" description="أقل من 5 وحدات (وليس صفر)"        />
-          <StatCard icon={FiTrendingDown}  label="نفد المخزون"     value={formatNumber(stats.outOfStock)} color="red"    description="كمية صفر — يحتاج إعادة تخزين"   />
-          <StatCard icon={FiActivity}      label="قيمة المستودع"   value={formatPrice(totalValue)}        color="indigo" description="القيمة السوقية الإجمالية"          />
+          {statCards.map(s => <StatCard key={s.label} {...s} />)}
         </div>
 
         
         
 
-        <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none p-6">
           <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
             <div className="relative flex-1 group">
-              <FiSearch className="absolute cursor-pointer right-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={18} />
+              <FiSearch className="absolute cursor-pointer right-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
               <input type="text" placeholder="ابحث باسم المنتج..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pr-12 pl-4 py-3.5 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-lime-200 text-sm font-bold text-gray-900 dark:text-white focus:outline-none transition-all" />
+                className="w-full pr-12 pl-4 py-3.5 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-emerald-200 text-sm font-bold text-gray-900 dark:text-white focus:outline-none transition-all" />
             </div>
-            <select value={rowsPerPage} onChange={e => setRowsPerPage(Number(e.target.value))}
-              className="px-5 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-xs font-bold text-gray-700 dark:text-gray-200 focus:outline-none cursor-pointer">
-              {ROWS_OPTIONS.map(n => <option key={n} value={n}>{n} عناصر</option>)}
-            </select>
+            <RowsPerPageDropdown value={rowsPerPage} onChange={(n) => { setRowsPerPage(n); setCurrentPage(1); }} />
           </div>
         </div>
 
        
        
 
-        <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden">
           <div className="overflow-x-auto custom-scrollbar-thin">
             <table className="w-full text-right border-collapse">
               <thead>
-                <tr className="bg-gray-50/50 dark:bg-gray-900/30 border-b border-gray-100 dark:border-gray-700">
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">المنتج</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">السعر</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">الكمية</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">الحالة</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">إجراءات</th>
+                <tr className="bg-gray-100 dark:bg-gray-900  dark:border-gray-700">
+                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">المنتج</th>
+                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">السعر</th>
+                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">الكمية</th>
+                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">الحالة</th>
+                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">إجراءات</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                 {loading ? (
                   [...Array(rowsPerPage)].map((_, i) => (
                     <tr key={i} className="animate-pulse">
                       {[...Array(5)].map((_, j) => (
-                        <td key={j} className="px-8 py-6"><div className="h-4 bg-gray-100 dark:bg-gray-700 rounded-lg w-full" /></td>
+                        <td key={j} className="px-4 py-3"><div className="h-4 bg-gray-100 dark:bg-gray-700 rounded-lg w-full" /></td>
                       ))}
                     </tr>
                   ))
@@ -341,11 +445,11 @@ const Inventory = () => {
               </p>
               <div className="flex items-center gap-2 order-1 sm:order-2">
                 <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
-                  className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all">
+                  className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-emerald-500 disabled:opacity-30 transition-all">
                   <FiChevronRight size={20} />
                 </button>
                 <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
-                  className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all">
+                  className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-emerald-500 disabled:opacity-30 transition-all">
                   <FiChevronLeft size={20} />
                 </button>
               </div>
@@ -363,7 +467,7 @@ const Inventory = () => {
           <div className="relative w-full max-w-sm bg-white dark:bg-gray-800 rounded-none shadow-2xl overflow-hidden animate-in zoom-in duration-300">
             <div className="px-6 py-4 border-b border-gray-50 dark:border-gray-700 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-lime-500/10 text-lime-600 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
                   <FiInfo size={16} />
                 </div>
                 <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">تفاصيل الجرد</h3>
@@ -383,26 +487,26 @@ const Inventory = () => {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-none border border-transparent hover:border-lime-500/20 transition-all space-y-1">
+                <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-none border border-transparent hover:border-emerald-500/20 transition-all space-y-1">
                   <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">سعر الوحدة</p>
-                  <p className="text-base font-black text-lime-600">{formatPrice(detailsItem.price)}</p>
+                  <p className="text-base font-black text-emerald-600">{formatPrice(detailsItem.price)}</p>
                 </div>
-                <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-none border border-transparent hover:border-lime-500/20 transition-all space-y-1">
+                <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-none border border-transparent hover:border-emerald-500/20 transition-all space-y-1">
                   <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">الكمية</p>
                   <p className="text-base font-black text-gray-900 dark:text-white">{formatNumber(detailsItem.stock)} <span className="text-[10px]">وحدة</span></p>
                 </div>
-                <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-none border border-transparent hover:border-lime-500/20 transition-all space-y-1">
+                <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-none border border-transparent hover:border-emerald-500/20 transition-all space-y-1">
                   <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">الحد الأدنى</p>
                   <p className="text-base font-black text-red-400">{formatNumber(detailsItem.threshold || 5)} <span className="text-[10px]">وحدة</span></p>
                 </div>
               </div>
-              <div className="p-5 bg-lime-500/5 dark:bg-lime-900/10 rounded-none border border-lime-500/10 flex items-center justify-between">
+              <div className="p-5 bg-emerald-500/5 dark:bg-emerald-900/10 rounded-none border border-emerald-500/10 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-lime-500 text-white flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center">
                     <FiShield size={16} />
                   </div>
                   <div>
-                    <p className="text-[9px] font-black text-lime-600 uppercase tracking-widest leading-none">الحالة</p>
+                    <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest leading-none">الحالة</p>
                     <p className="text-[10px] font-black text-gray-900 dark:text-white">
                       {detailsItem.stock === 0 ? 'نفد المخزون' : detailsItem.stock < (detailsItem.threshold || 5) ? 'مخزون منخفض' : 'متوفر بالمستودع'}
                     </p>
@@ -413,7 +517,7 @@ const Inventory = () => {
             </div>
             <div className="px-6 pb-6 pt-2">
               <button onClick={() => setDetailsItem(null)}
-                className="w-full py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-lime-500 dark:hover:bg-lime-500 dark:hover:text-white transition-all shadow-sm">
+                className="w-full py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-500 dark:hover:bg-emerald-500 dark:hover:text-white transition-all shadow-sm">
                 إغلاق
               </button>
             </div>
@@ -439,14 +543,14 @@ const Inventory = () => {
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">الكمية الجديدة</label>
                 <input type="number" value={newStockValue} onChange={e => setNewStockValue(e.target.value)}
-                  className="w-full px-5 py-4 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-lime-200 text-lg font-black text-gray-900 dark:text-white focus:outline-none transition-all text-center" />
+                  className="w-full px-5 py-4 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-emerald-200 text-lg font-black text-gray-900 dark:text-white focus:outline-none transition-all text-center" />
               </div>
             </div>
             <div className="px-8 pb-8 flex gap-3">
               <button onClick={() => setShowStockModal(false)}
                 className="flex-1 py-4 bg-gray-50 dark:bg-gray-900 rounded-2xl text-[10px] font-black text-gray-400 uppercase tracking-widest">إلغاء</button>
               <button onClick={updateStock}
-                className="flex-1 py-4 bg-lime-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-lime-600 transition-all shadow-lg shadow-lime-500/20">تحديث</button>
+                className="flex-1 py-4 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20">تحديث</button>
             </div>
           </div>
         </div>
@@ -457,7 +561,7 @@ const Inventory = () => {
         .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
         .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #1f2937; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #10b981; }
       `}} />
     </div>
   );

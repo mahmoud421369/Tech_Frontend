@@ -55,6 +55,23 @@ const isTokenExpired = (token) => {
   } catch { return true; }
 };
 
+const AdminBadgeIllustration = memo(() => (
+  <svg viewBox="0 0 44 44" className="w-full h-full">
+    <path d="M22 4 L38 10 V21 C38 30 31 37 22 40 C13 37 6 30 6 21 V10 Z" fill="rgba(52,211,153,0.14)" stroke="#10b981" strokeWidth="2" />
+    <path d="M15 21 L20 26 L30 14" fill="none" stroke="#10b981" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+));
+
+const SearchEmptyIllustration = memo(() => (
+  <svg viewBox="0 0 120 100" className="w-20 h-16 mx-auto">
+    <ellipse cx="60" cy="86" rx="32" ry="5" fill="rgba(0,0,0,0.05)" className="dark:fill-white/5" />
+    <circle cx="52" cy="42" r="22" fill="none" stroke="#10b981" strokeWidth="3" className="dark:stroke-emerald-400" />
+    <path d="M68 58 L82 72" stroke="#10b981" strokeWidth="4" strokeLinecap="round" className="dark:stroke-emerald-400" />
+    <path d="M44 42 H60" stroke="#d1d5db" strokeWidth="2.4" strokeLinecap="round" className="dark:stroke-gray-600" />
+    <circle cx="96" cy="20" r="2.2" fill="#fbbf24" />
+  </svg>
+));
+
 
 const NavLink = memo(({ item, active, onClick }) => (
   <Link
@@ -62,7 +79,7 @@ const NavLink = memo(({ item, active, onClick }) => (
     onClick={onClick}
     className={`group flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all duration-300 relative overflow-hidden
       ${active
-        ? "bg-lime-500 text-white shadow-lg shadow-lime-500/20 active:scale-95"
+        ? "bg-emerald-400 text-white shadow-lg shadow-emerald-400/20 active:scale-95"
         : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"}`}
   >
     <span className={`flex-shrink-0 transition-transform duration-500 ${active ? "scale-110" : "group-hover:scale-110 group-hover:rotate-6"}`}>
@@ -85,7 +102,7 @@ const Header = ({ darkMode: darkModeProp, toggleDarkMode }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const tokenRef = useRef(localStorage.getItem("authToken"));
-  // const [userProfile, setUserProfile] = useState(null);
+ 
 
   const darkMode = darkModeProp !== undefined ? darkModeProp : localDarkMode;
 
@@ -127,7 +144,7 @@ const Header = ({ darkMode: darkModeProp, toggleDarkMode }) => {
       text: "Ending your administrative session?",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#84cc16",
+      confirmButtonColor: "#34d399",
       cancelButtonColor: "#ef4444",
       confirmButtonText: "Logout Now",
       background: darkMode ? '#111827' : '#fff',
@@ -143,6 +160,12 @@ const Header = ({ darkMode: darkModeProp, toggleDarkMode }) => {
 
   const isActive = (path) => location.pathname === path;
   const closeSidebar = () => setSidebarOpen(false);
+
+  const filteredGroups = useMemo(() => MENU_GROUPS.map(group => ({
+    ...group,
+    items: group.items.filter(item => !searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase())),
+  })), [searchQuery]);
+  const hasAnyResults = filteredGroups.some(g => g.items.length > 0);
 
   return (
     <>
@@ -161,11 +184,11 @@ const Header = ({ darkMode: darkModeProp, toggleDarkMode }) => {
         
         
         <div className="relative h-20 flex items-center justify-between px-6 border-b border-gray-50 dark:border-gray-800/50">
-          <Link to="/admin/dashboard" className="flex items-center  gap-2 group" onClick={closeSidebar}>
-            <div className="w-10 h-10 rounded-2xl bg-lime-500 flex items-center justify-center group-hover:rotate-12 transition-transform duration-500 shadow-lg shadow-lime-500/20">
-                         <FiGrid className="text-white" size={20} />
-                       </div>
-                       <span className="text-lg font-black text-gray-900 dark:text-white tracking-tighter">Admin<span className="text-lime-500">Panel</span></span>
+          <Link to="/admin/dashboard" className="flex items-center gap-2.5 group" onClick={closeSidebar}>
+            <div className="w-9 h-9 flex-shrink-0 group-hover:rotate-12 transition-transform duration-500">
+              <AdminBadgeIllustration />
+            </div>
+            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tighter">Tech<span className="text-emerald-400">Restore</span></span>
           </Link>
           <button onClick={closeSidebar} className="lg:hidden p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-red-500 transition-all">
             <FiX size={18} />
@@ -178,28 +201,35 @@ const Header = ({ darkMode: darkModeProp, toggleDarkMode }) => {
          
          
           <div className="relative group px-2">
-            <FiSearch className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={16} />
+            <FiSearch className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-400 transition-colors" size={16} />
             <input
               type="text"
               placeholder="Quick Search..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-transparent focus:border-lime-200 dark:focus:border-lime-900/50 text-xs font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/5 transition-all"
+              className="w-full pl-12 pr-4 py-3 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-transparent focus:border-emerald-200 dark:focus:border-emerald-900/50 text-xs font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-400/5 transition-all"
             />
           </div>
 
-          {MENU_GROUPS.map((group, idx) => (
-            <div key={idx} className="space-y-2">
-              <h3 className="px-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">{group.label}</h3>
-              <div className="space-y-1">
-                {group.items
-                  .filter(item => !searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                  .map(item => (
-                    <NavLink key={item.name} item={item} active={isActive(item.path)} onClick={closeSidebar} />
-                  ))}
-              </div>
+          {hasAnyResults ? (
+            filteredGroups.map((group, idx) => (
+              group.items.length > 0 && (
+                <div key={idx} className="space-y-2">
+                  <h3 className="px-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">{group.label}</h3>
+                  <div className="space-y-1">
+                    {group.items.map(item => (
+                      <NavLink key={item.name} item={item} active={isActive(item.path)} onClick={closeSidebar} />
+                    ))}
+                  </div>
+                </div>
+              )
+            ))
+          ) : (
+            <div className="px-4 py-6 text-center space-y-2">
+              <SearchEmptyIllustration />
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">No matching pages</p>
             </div>
-          ))}
+          )}
         </div>
 
         
@@ -207,7 +237,7 @@ const Header = ({ darkMode: darkModeProp, toggleDarkMode }) => {
         <div className="p-4 mt-auto border-t border-gray-50 dark:border-gray-800/50 bg-gray-50/30 dark:bg-gray-800/20">
           <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-4 space-y-3">
             <div className="flex gap-2">
-              <button onClick={toggleDark} className="flex-1 h-10 rounded-xl bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-500 hover:text-lime-500 transition-all">
+              <button onClick={toggleDark} className="flex-1 h-10 rounded-xl bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-500 hover:text-emerald-400 transition-all">
                 {darkMode ? <FiSun size={16} /> : <FiMoon size={16} />}
               </button>
               <button onClick={handleLogout} className="flex-1 h-10 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500 hover:bg-red-100 transition-all">
@@ -224,7 +254,7 @@ const Header = ({ darkMode: darkModeProp, toggleDarkMode }) => {
         <div className="flex items-center gap-4">
           
           
-          <button onClick={() => setSidebarOpen(true)} className="lg:hidden w-11 h-11 rounded-2xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-lime-500 hover:text-white transition-all shadow-sm">
+          <button onClick={() => setSidebarOpen(true)} className="lg:hidden w-11 h-11 rounded-2xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-emerald-400 hover:text-white transition-all shadow-sm">
             <FiMenu size={20} />
           </button>
 
@@ -240,19 +270,6 @@ const Header = ({ darkMode: darkModeProp, toggleDarkMode }) => {
 
       
       
-        {/* <div className="flex items-center gap-3">
-          <div className="h-8 w-[1px] bg-gray-100 dark:bg-gray-800 mx-1" />
-
-          <Link to="/admin/profile" className="flex items-center gap-3 pl-1 pr-3 py-1 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all group">
-            <div className="w-10 h-10 rounded-2xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400 group-hover:text-lime-500 transition-colors">
-              <FiUser size={18} />
-            </div>
-            <div className="hidden md:block text-right">
-              <p className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-widest">{userProfile?.name?.split(' ')[0] || "Admin"}</p>
-              <p className="text-[9px] font-bold text-gray-400">Master Admin</p>
-            </div>
-          </Link>
-        </div> */}
       </header>
 
       <style dangerouslySetInnerHTML={{
@@ -261,7 +278,7 @@ const Header = ({ darkMode: darkModeProp, toggleDarkMode }) => {
         .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
         .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #1f2937; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #34d399; }
       `}} />
     </>
   );

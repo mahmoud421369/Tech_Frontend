@@ -2,13 +2,16 @@ import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FiPackage, FiSearch, FiUser, FiMapPin, FiCopy,
-  FiTruck, FiCalendar, FiXCircle, FiChevronLeft, FiChevronRight, FiCheck, FiClock, FiEye, FiInfo, FiClipboard, FiUserCheck
+  FiTruck, FiCalendar, FiXCircle, FiChevronLeft, FiChevronRight, FiCheck, FiClock, FiEye, FiInfo, FiClipboard, FiUserCheck,
+  FiPhone,
+  FiDollarSign
 } from 'react-icons/fi';
-import { RiStore2Line } from '@remixicon/react';
+import { RiPhoneLine, RiStore2Line } from '@remixicon/react';
 import Swal from 'sweetalert2';
 import api from '../api';
 import Modal from '../components/Modal';
 import { uniq } from 'lodash';
+import { RiMapPin2Line } from 'react-icons/ri';
 
 
 
@@ -19,12 +22,12 @@ const ROWS_OPTIONS = [10, 25, 50];
 
 
 const STATUS_STYLE = {
-  PENDING:        { bg: 'bg-yellow-50 dark:bg-yellow-900/20',  border: 'border-yellow-200 dark:border-yellow-700',  text: 'text-yellow-700 dark:text-yellow-400',  dot: 'bg-yellow-500'  },
-  PENDING_PICKUP: { bg: 'bg-orange-50 dark:bg-orange-900/20',  border: 'border-orange-200 dark:border-orange-700',  text: 'text-orange-700 dark:text-orange-400',  dot: 'bg-orange-500'  },
-  ASSIGNED:       { bg: 'bg-purple-50 dark:bg-purple-900/20',  border: 'border-purple-200 dark:border-purple-700',  text: 'text-purple-700 dark:text-purple-400',  dot: 'bg-purple-500'  },
-  IN_TRANSIT:     { bg: 'bg-blue-50 dark:bg-blue-900/20',      border: 'border-blue-200 dark:border-blue-700',      text: 'text-blue-700 dark:text-blue-400',      dot: 'bg-blue-500'    },
-  IN_PROGRESS:    { bg: 'bg-indigo-50 dark:bg-indigo-900/20',  border: 'border-indigo-200 dark:border-indigo-700',  text: 'text-indigo-700 dark:text-indigo-400',  dot: 'bg-indigo-500'  },
-  COMPLETED:      { bg: 'bg-emerald-50 dark:bg-emerald-900/20',border: 'border-emerald-200 dark:border-emerald-700',text: 'text-emerald-700 dark:text-emerald-400',dot: 'bg-emerald-500' },
+  PENDING: { bg: 'bg-yellow-50 dark:bg-yellow-900/20', border: 'border-yellow-200 dark:border-yellow-700', text: 'text-yellow-700 dark:text-yellow-400', dot: 'bg-yellow-500' },
+  PENDING_PICKUP: { bg: 'bg-orange-50 dark:bg-orange-900/20', border: 'border-orange-200 dark:border-orange-700', text: 'text-orange-700 dark:text-orange-400', dot: 'bg-orange-500' },
+  ASSIGNED: { bg: 'bg-purple-50 dark:bg-purple-900/20', border: 'border-purple-200 dark:border-purple-700', text: 'text-purple-700 dark:text-purple-400', dot: 'bg-purple-500' },
+  IN_TRANSIT: { bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-700', text: 'text-blue-700 dark:text-blue-400', dot: 'bg-blue-500' },
+  IN_PROGRESS: { bg: 'bg-indigo-50 dark:bg-indigo-900/20', border: 'border-indigo-200 dark:border-indigo-700', text: 'text-indigo-700 dark:text-indigo-400', dot: 'bg-indigo-500' },
+  COMPLETED: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-200 dark:border-emerald-700', text: 'text-emerald-700 dark:text-emerald-400', dot: 'bg-emerald-500' },
 };
 
 const getStatusStyle = (s) =>
@@ -46,13 +49,13 @@ const formatDate = (date) => {
 
 const formatAddress = (addr) => {
   if (!addr) return 'N/A';
-  return [addr.street, addr.city, addr.state].filter(Boolean).join(', ') || 'N/A';
+  return [addr.street, addr.city, addr.state].filter(Boolean).join(', ') || 'Not specified';
 };
 
 
 
 const StatCard = ({ label, value, icon: Icon, color }) => (
-  <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-sm p-5 flex items-center justify-between group hover:shadow-lg hover:shadow-lime-500/5 transition-all duration-500">
+  <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-md shadow-sm p-5 flex items-center justify-between group hover:shadow-lg hover:shadow-lime-500/5 transition-all duration-500">
     <div className="space-y-1">
       <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">{label}</p>
       <p className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter">{value}</p>
@@ -67,17 +70,17 @@ const StatCard = ({ label, value, icon: Icon, color }) => (
 
 const ReassignOrders = ({ darkMode }) => {
   const navigate = useNavigate();
-  const token    = localStorage.getItem('authToken');
+  const token = localStorage.getItem('authToken');
 
-  const [orders, setOrders]               = useState([]);
+  const [orders, setOrders] = useState([]);
   const [deliveryPersons, setDeliveryPersons] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [viewDetail, setViewDetail]       = useState(null);
-  const [notes, setNotes]                 = useState('');
-  const [searchTerm, setSearchTerm]       = useState('');
-  const [currentPage, setCurrentPage]     = useState(1);
-  const [rowsPerPage, setRowsPerPage]     = useState(10);
-  const [loading, setLoading]             = useState(true);
+  const [viewDetail, setViewDetail] = useState(null);
+  const [notes, setNotes] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => { document.title = 'Assigner - Reassign Orders'; }, []);
 
@@ -91,7 +94,7 @@ const ReassignOrders = ({ darkMode }) => {
         api.get('/api/assigner/delivery-persons', { headers: { Authorization: `Bearer ${token}` } }),
       ]);
 
-      const current  = (ordersRes.data.content || ordersRes.data || []).map(o => ({ ...o, userName: `${o.firstName || ''} ${o.lastName || ''}`.trim() || 'Unknown Customer' }));
+      const current = (ordersRes.data.content || ordersRes.data || []).map(o => ({ ...o, userName: `${o.firstName || ''} ${o.lastName || ''}`.trim() || 'Unknown Customer' }));
       const assigned = (logsRes.data.content || logsRes.data || []).map(l => ({
         id: l.orderId || l.id, userId: l.userId,
         firstName: l.firstName, lastName: l.lastName,
@@ -102,7 +105,7 @@ const ReassignOrders = ({ darkMode }) => {
       }));
 
       const unique = Array.from(new Map([...current, ...assigned].map(o => [o.id, o])).values());
-      
+
       setOrders(unique.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
       setDeliveryPersons(deliveryRes.data.content || deliveryRes.data || []);
     } catch (err) {
@@ -137,21 +140,64 @@ const ReassignOrders = ({ darkMode }) => {
   }), [orders, searchTerm]);
 
   const totalPages = Math.ceil(filtered.length / rowsPerPage);
-  const paginated  = useMemo(() => filtered.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage), [filtered, currentPage, rowsPerPage]);
+  const paginated = useMemo(() => filtered.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage), [filtered, currentPage, rowsPerPage]);
 
   const copyToClipboard = (id) => { navigator.clipboard.writeText(id); showToast('Order ID copied', 'success'); };
 
+
+   const STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+
+  
+  html[dir="rtl"],
+  html[dir="rtl"] body,
+  html[dir="rtl"] * {
+    font-family: 'Cairo', sans-serif !important;
+  }
+
+  
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #d1d5db transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+  }
+
+  .lime-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+  .lime-scroll::-webkit-scrollbar-track { background: transparent; }
+  .lime-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 999px; }
+  .lime-scroll { scrollbar-width: thin; scrollbar-color: #d1d5db transparent; }
+  .tabs-scroll::-webkit-scrollbar { display: none; }
+  .tabs-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+  .leaflet-container { font-family: inherit; }
+  [dir="rtl"] .rtl-flip { transform: scaleX(-1); }
+`;
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
+     <style>{STYLES}</style>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
 
-        
-        
+
+
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-1.5 rounded-full bg-lime-500" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-600">Dynamic Re-routing</span>
+              <div className="w-8 h-1.5 rounded-full bg-emerald-500" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">Dynamic Re-routing</span>
             </div>
             <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Reassign Orders</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">Transfer orders between agents or fix assignment errors</p>
@@ -161,7 +207,7 @@ const ReassignOrders = ({ darkMode }) => {
           </button>
         </div>
 
-       
+
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard label="Total Orders" value={stats.total} icon={FiPackage} color="lime" />
           <StatCard label="In Progress" value={stats.assigned} icon={FiTruck} color="amber" />
@@ -169,8 +215,8 @@ const ReassignOrders = ({ darkMode }) => {
           <StatCard label="Total Value" value={`EGP ${stats.revenue.toLocaleString()}`} icon={FiClipboard} color="blue" />
         </div>
 
-        
-        
+
+
         <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-6">
           <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
             <div className="relative flex-1 group">
@@ -201,18 +247,17 @@ const ReassignOrders = ({ darkMode }) => {
           </div>
         </div>
 
-        
-        <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
           <div className="overflow-x-auto custom-scrollbar-thin">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-50/50 dark:bg-gray-900/30 border-b border-gray-100 dark:border-gray-700">
+                <tr className="bg-gray-50/50 dark:bg-gray-900/30 text-center border-b border-gray-100 dark:border-gray-700">
                   <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Date</th>
                   <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Order ID</th>
                   <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Customer</th>
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Current Agent</th>
                   <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Status</th>
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">Actions</th>
+                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -235,50 +280,46 @@ const ReassignOrders = ({ darkMode }) => {
                   paginated.map(order => {
                     const cs = getStatusStyle(order.status);
                     return (
-                      <tr key={order.id} className="hover:bg-lime-50/10 dark:hover:bg-lime-900/5 transition-colors group">
-                        <td className="px-6 py-6 whitespace-nowrap">{formatDate(order.createdAt)}</td>
-                        <td className="px-6 py-6 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
+                      <tr key={order.id} className="hover:bg-emerald-50/10 dark:hover:bg-emerald-900/5 transition-colors group">
+                        <td className="px-4 py-3 text-xs text-center whitespace-nowrap">{formatDate(order.createdAt)}</td>
+                        <td className="px-4 py-3 text-xs text-center whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-2">
                             <span className="text-xs font-mono font-bold text-gray-800 dark:text-gray-200">#{order.id?.slice(-8)}</span>
                             <button onClick={() => copyToClipboard(order.id)} className="opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-lime-500 transition-all">
                               <FiCopy size={12} />
                             </button>
                           </div>
                         </td>
-                        <td className="px-6 py-6 whitespace-nowrap font-bold text-gray-800 dark:text-gray-100 text-sm">
+                        <td className="text-xs font-black text-center text-gray-700 dark:text-gray-100 leading-none mb-1.5">
                           {order.userName}
                         </td>
-                        <td className="px-6 py-6 whitespace-nowrap">
-                          {order.deliveryId ? (
-                            <div className="flex items-center gap-2 text-xs font-bold text-blue-600">
-                              <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                              …{order.deliveryId.slice(-8)}
-                            </div>
-                          ) : (
-                            <span className="text-xs font-bold text-gray-400 italic">Not Assigned</span>
-                          )}
+                       
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="flex justify-center items-center">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border ${cs.bg} ${cs.border} ${cs.text}`}>
+                              <span className={`w-1 h-1 rounded-full ${cs.dot}`} />
+                              {order.status.replace(/_/g, ' ')}
+                            </span>
+                          </div>
                         </td>
-                        <td className="px-6 py-6 whitespace-nowrap">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border ${cs.bg} ${cs.border} ${cs.text}`}>
-                            <span className={`w-1 h-1 rounded-full ${cs.dot}`} />
-                            {order.status.replace(/_/g, ' ')}
-                          </span>
-                        </td>
-                        <td className="px-6 py-6 text-right whitespace-nowrap space-x-2">
-                          <button
-                            onClick={() => setViewDetail(order)}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-bold hover:bg-lime-500 hover:text-white transition-all shadow-sm"
-                          >
-                            <FiEye size={14} />
-                            Details
-                          </button>
-                          <button
-                            onClick={() => setSelectedOrder(order)}
-                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gray-900 dark:bg-lime-500 text-white dark:text-black text-xs font-black hover:bg-lime-500 transition-all shadow-md"
-                          >
-                            <FiUserCheck size={14} />
-                            Reassign
-                          </button>
+                        <td className="px-4 py-3 text-center whitespace-nowrap space-x-2">
+                          <div className="flex justify-center items-center gap-3">
+                            <button
+                              title="View Details"
+                              onClick={() => setViewDetail(order)}
+                              className="flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-transparent border dark:border-transparent dark:bg-gray-700 text-gray-400 dark:text-gray-300 text-xs font-bold transition-all "
+                            >
+                              <FiInfo size={14} />
+
+                            </button>
+                            <button
+                              onClick={() => setSelectedOrder(order)}
+                              className="flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-transparent border border-emerald-200 dark:border-transparent dark:bg-gray-700 hover:opacity-70 text-emerald-400 dark:text-gray-300 text-xs font-bold transition-all"
+                            >
+                              <FiUserCheck size={14} />
+                              Reassign
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -288,7 +329,7 @@ const ReassignOrders = ({ darkMode }) => {
             </table>
           </div>
 
-         
+
           {totalPages > 1 && (
             <div className="px-6 py-5 bg-gray-50/50 dark:bg-gray-900/30 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row items-center justify-between gap-4">
               <p className="text-xs font-bold text-gray-500 dark:text-gray-400">
@@ -305,19 +346,19 @@ const ReassignOrders = ({ darkMode }) => {
           )}
         </div>
 
-        
-        
+
+
         {viewDetail && (
           <Modal onClose={() => setViewDetail(null)} title="Order Case Details" darkMode={darkMode}>
             <div className="space-y-6">
-              <div className="p-5 bg-gray-50 dark:bg-gray-900/50 rounded-3xl border border-gray-100 dark:border-gray-700 flex justify-between items-center">
+              <div className="p-5 bg-gray-50 dark:bg-gray-800 rounded-md  space-y-4">
                 <div className="space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Order Ref</p>
-                  <p className="text-lg font-mono font-bold text-gray-800 dark:text-white tracking-tight">#{viewDetail.id}</p>
+                  <p className="text-xs font-mono font-bold text-gray-950 dark:text-white tracking-tight">#{viewDetail.id}</p>
                 </div>
-                <div className="text-right">
+                <div className="text-left">
                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Status</p>
-                  <span className={`inline-flex px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider border ${getStatusStyle(viewDetail.status).bg} ${getStatusStyle(viewDetail.status).border} ${getStatusStyle(viewDetail.status).text}`}>
+                  <span className={`inline-flex  px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider border ${getStatusStyle(viewDetail.status).bg} ${getStatusStyle(viewDetail.status).border} ${getStatusStyle(viewDetail.status).text}`}>
                     {viewDetail.status.replace(/_/g, ' ')}
                   </span>
                 </div>
@@ -326,35 +367,57 @@ const ReassignOrders = ({ darkMode }) => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-4">
                   <div className="flex items-center gap-2">
-                    <FiUser className="text-lime-500" />
-                    <span className="text-xs font-black uppercase tracking-wider text-gray-400">Customer</span>
+                    <FiUser className="text-gray-500" />
+                    <span className="text-xs font-black uppercase tracking-wider text-gray-400">Customer Info</span>
+                  </div><hr className="border border-gray-200 mt-3" />
+
+                  <div className="space-y-1 flex items-center gap-3 flex-row-reverse">
+                    <p className="text-xs font-semibold text-green-800 dark:text-gray-100">{viewDetail.userAddress?.city}, {viewDetail.userAddress?.state},{viewDetail.userAddress?.street},{viewDetail.userAddress?.building}</p>
+                    <FiMapPin className='text-gray-500 text-lg' />
                   </div>
-                  <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{viewDetail.userName}</p>
+
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{viewDetail.userName} </p>
+                    <p className="text-xs text-gray-500 flex items-center gap-2"><FiPhone size={12} /> {viewDetail.phone || "Not specified"}</p>
+                  </div>
+
                 </div>
-                <div className="p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-4">
+                <div className="p-5 bg-gray-50 dark:bg-gray-800 rounded-md  space-y-4">
                   <div className="flex items-center gap-2">
-                    <FiTruck className="text-blue-500" />
-                    <span className="text-xs font-black uppercase tracking-wider text-gray-400">Assigned Agent</span>
+                    <FiClipboard className="text-gray-500" />
+                    <span className="text-xs font-black uppercase tracking-widest text-gray-400">Shop Info</span>
+                  </div><hr className="border border-gray-200 mt-3" />
+
+                  <div className="space-y-1 flex items-center gap-2 flex-row-reverse justify-end">
+                    <p className="text-xs font-semibold text-green-800 dark:text-white">{viewDetail.shopName}</p>
+                    <RiStore2Line size={12} className='text-gray-500 text-xs' />
                   </div>
-                  <p className="text-sm font-mono font-bold text-blue-600">{viewDetail.deliveryId || 'Unassigned'}</p>
+
+                  <div className="space-y-1 flex items-center gap-2 flex-row-reverse justify-end">
+                    <p className="text-xs font-semibold text-green-800 dark:text-white">{formatAddress(viewDetail.shopAddress)}</p>
+                    <RiMapPin2Line className='text-gray-500 text-sm' />
+                  </div>
+
+
+
                 </div>
               </div>
 
               <div className="space-y-4">
-                <div className="p-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-3">
+                <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-md  space-y-3">
                   <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400">
-                    <RiStore2Line size={14} className="text-lime-500" /> Store Origin
+                    <FiDollarSign size={14} className="text-lime-500" /> Total Price
                   </div>
-                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{viewDetail.shopName}</p>
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{viewDetail.totalPrice}</p>
                 </div>
-                <div className="p-4 bg-lime-50/30 dark:bg-lime-900/10 rounded-2xl border border-lime-100 dark:border-lime-900/30 space-y-3">
-                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-lime-600">
+                <div className="p-4 bg-gray-50 dark:bg-gray-900/10 rounded-md  space-y-3">
+                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-600">
                     <FiMapPin size={14} /> Shipping Address
                   </div>
                   <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{formatAddress(viewDetail.userAddress)}</p>
                 </div>
               </div>
-              
+
               <div className="pt-4 flex items-center gap-2 text-[10px] text-gray-400 uppercase tracking-widest font-bold">
                 <FiClock size={12} /> Recorded on: {new Date(viewDetail.createdAt).toLocaleString()}
               </div>
@@ -362,8 +425,8 @@ const ReassignOrders = ({ darkMode }) => {
           </Modal>
         )}
 
-        
-        
+
+
         {selectedOrder && (
           <Modal onClose={() => { setSelectedOrder(null); setNotes(''); }} title="Reassign Order Agent" darkMode={darkMode}>
             <div className="space-y-6">
@@ -412,7 +475,8 @@ const ReassignOrders = ({ darkMode }) => {
         )}
       </div>
 
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .custom-scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
         .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }

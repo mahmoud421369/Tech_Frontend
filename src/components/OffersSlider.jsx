@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef,memo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiChevronLeft, FiChevronRight, FiTag, FiCalendar, FiPercent } from 'react-icons/fi';
+import { FiChevronLeft, FiChevronRight, FiCalendar, FiPercent } from 'react-icons/fi';
 import { RiStore2Line } from 'react-icons/ri';
 import api from '../api';
 
@@ -11,18 +11,72 @@ const STATUS_STYLES = {
 };
 
 const CARD_GRADIENTS = [
-  { from: 'from-lime-500',   to: 'to-emerald-600' },
-  { from: 'from-violet-500', to: 'to-purple-600'  },
-  { from: 'from-orange-500', to: 'to-rose-600'    },
-  { from: 'from-cyan-500',   to: 'to-blue-600'    },
-  { from: 'from-pink-500',   to: 'to-red-600'     },
+  { from: 'from-lime-500',   to: 'to-emerald-600', hex: '#059669' },
+  { from: 'from-violet-500', to: 'to-purple-600',  hex: '#7c3aed' },
+  { from: 'from-orange-500', to: 'to-rose-600',    hex: '#e11d48' },
+  { from: 'from-cyan-500',   to: 'to-blue-600',    hex: '#2563eb' },
+  { from: 'from-pink-500',   to: 'to-red-600',     hex: '#dc2626' },
 ];
 
+const palette = (darkMode) => ({
+  line: darkMode ? '#34d399' : '#059669',
+  lineSoft: darkMode ? '#6ee7b7' : '#10b981',
+  fillSoft: darkMode ? 'rgba(16,185,129,0.14)' : 'rgba(16,185,129,0.1)',
+  fillCard: darkMode ? '#0b1a12' : '#ffffff',
+  cardBorder: darkMode ? 'rgba(52,211,153,0.25)' : 'rgba(5,150,105,0.18)',
+  accent: '#f59e0b',
+});
 
+const OffersIllustration = memo(({ darkMode }) => {
+  const c = palette(darkMode);
+  return (
+    <svg viewBox="0 0 200 200" className="w-full h-full">
+      <motion.circle cx="100" cy="102" r="70" fill={c.fillSoft}
+        animate={{ scale: [1, 1.06, 1] }} transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }} />
+      <motion.g
+        animate={{ rotate: [-4, 4, -4] }}
+        style={{ transformOrigin: '100px 100px' }}
+        transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+      >
+        <path d="M70,52 L120,52 L148,86 L110,138 L70,138 Z" fill={c.fillCard} stroke={c.cardBorder} strokeWidth="2.5" />
+        <circle cx="86" cy="72" r="6" fill={c.accent} />
+        <text x="100" y="104" textAnchor="middle" fontSize="26" fontWeight="800" fill={c.line}>%</text>
+      </motion.g>
+      {[
+        { x: 44, y: 44, s: 6, d: 0 },
+        { x: 158, y: 58, s: 8, d: 0.4 },
+        { x: 162, y: 128, s: 5, d: 0.8 },
+        { x: 48, y: 148, s: 7, d: 1.2 },
+      ].map((sp, i) => (
+        <motion.path key={i}
+          d={`M${sp.x} ${sp.y - sp.s} L${sp.x + sp.s * 0.3} ${sp.y - sp.s * 0.3} L${sp.x + sp.s} ${sp.y} L${sp.x + sp.s * 0.3} ${sp.y + sp.s * 0.3} L${sp.x} ${sp.y + sp.s} L${sp.x - sp.s * 0.3} ${sp.y + sp.s * 0.3} L${sp.x - sp.s} ${sp.y} L${sp.x - sp.s * 0.3} ${sp.y - sp.s * 0.3} Z`}
+          fill={c.accent}
+          animate={{ opacity: [0.2, 1, 0.2], scale: [0.8, 1.2, 0.8] }}
+          transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut', delay: sp.d }}
+        />
+      ))}
+    </svg>
+  );
+});
 
+const OfferCardIllustration = memo(({ hex, isPercentage }) => (
+  <svg viewBox="0 0 100 100" className="absolute -bottom-3 -right-3 w-24 h-24 opacity-[0.09] pointer-events-none select-none">
+    <circle cx="50" cy="50" r="46" fill="none" stroke={hex} strokeWidth="3" strokeDasharray="5 8" />
+    {isPercentage ? (
+      <>
+        <circle cx="34" cy="34" r="9" fill="none" stroke={hex} strokeWidth="5" />
+        <circle cx="66" cy="66" r="9" fill="none" stroke={hex} strokeWidth="5" />
+        <line x1="68" y1="32" x2="32" y2="68" stroke={hex} strokeWidth="5" strokeLinecap="round" />
+      </>
+    ) : (
+      <path d="M30 30 H62 C67 30 70 33 70 37 V42 C64 42 60 46 60 50 C60 54 64 58 70 58 V63 C70 67 67 70 62 70 H30 C25 70 22 67 22 63 V58 C28 58 32 54 32 50 C32 46 28 42 22 42 V37 C22 33 25 30 30 30 Z"
+        fill="none" stroke={hex} strokeWidth="3.5" strokeLinejoin="round" />
+    )}
+  </svg>
+));
 
 const OfferCard = ({ offer, darkMode, gradientIndex = 0 }) => {
-  const { from, to } = CARD_GRADIENTS[gradientIndex % CARD_GRADIENTS.length];
+  const { from, to, hex } = CARD_GRADIENTS[gradientIndex % CARD_GRADIENTS.length];
   const isPercentage = offer.discountType === 'PERCENTAGE';
 
   const formatDate = (d) =>
@@ -33,18 +87,14 @@ const OfferCard = ({ offer, darkMode, gradientIndex = 0 }) => {
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.3 }}
-      className={`relative flex flex-col h-full rounded-2xl overflow-hidden shadow-lg
+      className={`relative flex flex-col h-full rounded-md overflow-hidden shadow-lg
         transition-shadow duration-300 hover:shadow-2xl hover:-translate-y-1 ${
           darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-100'
         }`}
     >
-      
-      
-
       <div className={`h-1.5 w-full bg-gradient-to-r ${from} ${to} flex-shrink-0`} />
 
-     
-     
+      <OfferCardIllustration hex={hex} isPercentage={isPercentage} />
 
       {offer.discountValue && (
         <div className="absolute top-4 right-4 z-10">
@@ -56,7 +106,7 @@ const OfferCard = ({ offer, darkMode, gradientIndex = 0 }) => {
         </div>
       )}
 
-      <div className="flex flex-col flex-1 p-5 pt-4 gap-3">
+      <div className="relative flex flex-col flex-1 p-5 pt-4 gap-3">
         <div className={`flex items-center gap-2 text-xs font-semibold ${darkMode ? 'text-lime-400' : 'text-lime-600'}`}>
           <RiStore2Line className="w-4 h-4 flex-shrink-0" />
           <span className="line-clamp-1">{offer.shopName || 'Partner Shop'}</span>
@@ -102,9 +152,6 @@ const SkeletonCard = ({ darkMode }) => (
   </div>
 );
 
-
-
-
 const useVisibleCount = () => {
   const [count, setCount] = useState(3);
   useEffect(() => {
@@ -119,9 +166,6 @@ const useVisibleCount = () => {
   return count;
 };
 
-
-
-
 const OffersSlider = ({ darkMode }) => {
   const [offers, setOffers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -130,8 +174,6 @@ const OffersSlider = ({ darkMode }) => {
   const visibleCount = useVisibleCount();
 
   const maxIndex = Math.max(0, offers.length - visibleCount);
- 
-  
 
   const showDots   = offers.length > 3;
   const showArrows = offers.length > visibleCount;
@@ -162,9 +204,6 @@ const OffersSlider = ({ darkMode }) => {
     setCurrentIndex((prev) => (prev <= 0 ? maxIndex : prev - 1));
   }, [maxIndex]);
 
-
-  
-
   const startAutoPlay = useCallback(() => {
     clearInterval(autoPlayRef.current);
     if (offers.length > visibleCount) {
@@ -180,9 +219,6 @@ const OffersSlider = ({ darkMode }) => {
   const pauseAutoPlay = () => clearInterval(autoPlayRef.current);
   const resumeAutoPlay = () => startAutoPlay();
 
-
-  
-
   if (isLoading) {
     return (
       <section className={`py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
@@ -196,15 +232,12 @@ const OffersSlider = ({ darkMode }) => {
     );
   }
 
-
-  
-  
   if (offers.length === 0) {
     return (
       <section className={`py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
-        <div className="max-w-7xl mx-auto px-5 text-center space-y-3">
-          <div className={`inline-flex p-5 rounded-full ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
-            <FiTag className={`w-8 h-8 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+        <div className="max-w-7xl mx-auto px-5 text-center">
+          <div className="w-40 h-40 mx-auto mb-2">
+            <OffersIllustration darkMode={darkMode} />
           </div>
           <p className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>No Offers Available</p>
           <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Check back soon for exciting deals!</p>
@@ -219,21 +252,27 @@ const OffersSlider = ({ darkMode }) => {
   return (
     <section className={`py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
       <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
-       
-       
-
 
         <div className="flex items-end justify-between mb-10 flex-wrap gap-4">
-          <div>
-            <motion.h2
-              initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-              className="text-3xl sm:text-4xl font-extrabold bg-gradient-to-r from-emerald-600 to-lime-500 bg-clip-text text-transparent"
+          <div className="flex items-center gap-4">
+            <motion.div
+              className="hidden sm:block w-20 h-20 flex-shrink-0"
+              animate={{ y: [0, -8, 0] }}
+              transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
             >
-              Exclusive Offers
-            </motion.h2>
-            <p className={`mt-1 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              Grab the best deals on devices and repair services
-            </p>
+              <OffersIllustration darkMode={darkMode} />
+            </motion.div>
+            <div>
+              <motion.h2
+                initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+                className="text-3xl sm:text-4xl font-extrabold text-emerald-400"
+              >
+                Exclusive Offers
+              </motion.h2>
+              <p className={`mt-1 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                Grab the best deals on devices and repair services
+              </p>
+            </div>
           </div>
 
           {showArrows && (
@@ -266,9 +305,6 @@ const OffersSlider = ({ darkMode }) => {
           )}
         </div>
 
-       
-       
-
         <div className="overflow-hidden" onMouseEnter={pauseAutoPlay} onMouseLeave={resumeAutoPlay}>
           <motion.div
             className="flex"
@@ -285,9 +321,6 @@ const OffersSlider = ({ darkMode }) => {
             ))}
           </motion.div>
         </div>
-
-      
-      
 
         <AnimatePresence>
           {showDots && (

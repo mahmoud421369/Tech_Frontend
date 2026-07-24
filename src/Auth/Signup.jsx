@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect, memo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import api from "../api";
-import { Users } from "lucide-react";
+import { Users, Wrench } from "lucide-react";
 import {
   RiUserLine, RiLockPasswordLine, RiMailLine, RiPhoneLine,
   RiHome4Line, RiMapPinLine, RiStore2Line,
@@ -22,16 +22,16 @@ const SHOP_TYPE_OPTIONS = [
 ];
 
 const TAB_CONFIG = [
-  { key: "user", label: "User", icon: <RiUserLine size={15} />, color: "from-lime-500 to-emerald-500", bg: "bg-lime-50 dark:bg-lime-900/20", border: "border-lime-200 dark:border-lime-800", text: "text-lime-700 dark:text-lime-400" },
-  { key: "shop", label: "Shop Owner", icon: <RiStore2Line size={15} />, color: "from-emerald-500 to-teal-500", bg: "bg-emerald-50 dark:bg-emerald-900/20", border: "border-emerald-200 dark:border-emerald-800", text: "text-emerald-700 dark:text-emerald-400" },
-  { key: "delivery", label: "Delivery", icon: <RiTruckLine size={15} />, color: "from-blue-500 to-indigo-500", bg: "bg-blue-50 dark:bg-blue-900/20", border: "border-blue-200 dark:border-blue-800", text: "text-blue-700 dark:text-blue-400" },
-  { key: "assigner", label: "Assigner", icon: <RiUserSettingsLine size={15} />, color: "from-purple-500 to-violet-500", bg: "bg-purple-50 dark:bg-purple-900/20", border: "border-purple-200 dark:border-purple-800", text: "text-purple-700 dark:text-purple-400" },
+  { key: "user", label: "User", icon: <RiUserLine size={16} /> },
+  { key: "shop", label: "Shop Owner", icon: <RiStore2Line size={16} /> },
+  { key: "delivery", label: "Delivery", icon: <RiTruckLine size={16} /> },
+  { key: "assigner", label: "Assigner", icon: <RiUserSettingsLine size={16} /> },
 ];
 
-const INPUT_BASE = "w-full px-3 sm:px-4 py-2.5 rounded-xl bg-white dark:bg-gray-900 border-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 transition-all text-sm outline-none focus:ring-4 focus:ring-lime-300/50 dark:focus:ring-lime-500/30 focus:border-lime-500 dark:focus:border-lime-500";
+const INPUT_BASE = "w-full px-3 sm:px-4 py-2.5 rounded-xl bg-white dark:bg-gray-900 border-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 transition-all text-sm outline-none focus:ring-4 focus:ring-emerald-300/50 dark:focus:ring-emerald-500/30 focus:border-emerald-500 dark:focus:border-emerald-500";
 const INPUT_NORMAL = "border-gray-200 dark:border-gray-700";
 const INPUT_ERR = "border-red-300 dark:border-red-600 focus:border-red-500 focus:ring-red-300/50";
-const OTP_INPUT = "w-10 h-11 sm:w-11 sm:h-12 text-center text-lg sm:text-xl font-bold rounded-xl bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-4 focus:ring-lime-300/50 focus:border-lime-500 transition-all";
+const OTP_INPUT = "w-10 h-11 sm:w-11 sm:h-12 text-center text-lg sm:text-xl font-bold rounded-xl bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-4 focus:ring-emerald-300/50 focus:border-emerald-500 transition-all";
 
 const toast = (icon, title, text) =>
   Swal.fire({ icon, title, text, toast: true, position: "top-end", timer: 2500, showConfirmButton: false, timerProgressBar: true });
@@ -40,9 +40,28 @@ const validateEmail = (v) => !v.trim() ? "Email is required" : !EMAIL_REGEX.test
 const validatePhone = (v) => { if (!v.trim()) return "Phone is required"; const c = v.replace(/\D/g, ""); return PHONE_REGEX.test(c) ? "" : "Valid phone required (10-15 digits)"; };
 const validatePassword = (v) => !v ? "Password is required" : v.length < MIN_PASSWORD_LENGTH ? `Min ${MIN_PASSWORD_LENGTH} characters` : "";
 
+const GlobalAnimations = () => (
+  <style>{`
+    @keyframes floatY { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-14px); } }
+    @keyframes spinSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes wrenchTurn { 0%, 100% { transform: rotate(-14deg); } 50% { transform: rotate(14deg); } }
+    @keyframes sparkPulse { 0%, 100% { opacity: 0.35; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1.15); } }
+    @keyframes popIn { from { opacity: 0; transform: translateY(14px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes badgePop { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+    .anim-float { animation: floatY 5s ease-in-out infinite; }
+    .anim-spin-slow { animation: spinSlow 9s linear infinite; transform-origin: center; }
+    .anim-wrench { animation: wrenchTurn 3.4s ease-in-out infinite; transform-origin: 70% 30%; }
+    .anim-spark { animation: sparkPulse 2.2s ease-in-out infinite; }
+    .anim-pop-in { animation: popIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .anim-fade-up { animation: fadeSlideUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .anim-badge { animation: badgePop 2.6s ease-in-out infinite; transform-origin: center; }
+  `}</style>
+);
+
 const DotsBackground = () => (
   <div className="fixed inset-0 pointer-events-none z-0" aria-hidden="true"
-    style={{ backgroundImage: `radial-gradient(circle, rgba(101,163,13,0.13) 1.5px, transparent 1.5px)`, backgroundSize: "28px 28px" }} />
+    style={{ backgroundImage: `radial-gradient(circle, rgba(16,185,129,0.13) 1.5px, transparent 1.5px)`, backgroundSize: "28px 28px" }} />
 );
 
 const Spinner = () => (
@@ -53,31 +72,54 @@ const Spinner = () => (
 );
 
 const CartoonIllustration = memo(() => (
-  <svg viewBox="0 0 480 520" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full max-w-[300px] sm:max-w-[380px] lg:max-w-[420px]">
-    <ellipse cx="240" cy="290" rx="205" ry="200" fill="#f0fdf4" className="dark:fill-lime-950/30" />
-    <rect x="80" y="310" width="320" height="160" rx="16" fill="#16a34a" />
-    <rect x="92" y="322" width="140" height="136" rx="8" fill="#f0fdf4" />
-    <rect x="248" y="322" width="140" height="136" rx="8" fill="white" />
-    <rect x="228" y="322" width="16" height="136" rx="4" fill="#15803d" />
-    <rect x="104" y="342" width="100" height="7" rx="3.5" fill="#86efac" opacity="0.8" />
-    <rect x="104" y="358" width="78" height="7" rx="3.5" fill="#bbf7d0" opacity="0.8" />
-    <rect x="104" y="374" width="90" height="7" rx="3.5" fill="#86efac" opacity="0.7" />
-    <rect x="104" y="390" width="64" height="7" rx="3.5" fill="#bbf7d0" opacity="0.7" />
-    <rect x="172" y="196" width="96" height="122" rx="20" fill="#22c55e" />
-    <rect x="180" y="126" width="80" height="80" rx="20" fill="#4ade80" />
-    <circle cx="200" cy="158" r="12" fill="white" />
-    <circle cx="240" cy="158" r="12" fill="white" />
-    <circle cx="203" cy="160" r="6" fill="#15803d" />
-    <circle cx="243" cy="160" r="6" fill="#15803d" />
-    <circle cx="205" cy="157" r="2" fill="white" />
-    <circle cx="245" cy="157" r="2" fill="white" />
-    <path d="M202 180 Q220 196 238 180" stroke="white" strokeWidth="3.5" strokeLinecap="round" fill="none" />
-    <line x1="220" y1="126" x2="220" y2="104" stroke="#4ade80" strokeWidth="4" strokeLinecap="round" />
-    <circle cx="220" cy="96" r="10" fill="#a3e635" />
-    <rect x="186" y="314" width="28" height="38" rx="10" fill="#16a34a" />
-    <rect x="226" y="314" width="28" height="38" rx="10" fill="#16a34a" />
-    <ellipse cx="200" cy="352" rx="18" ry="10" fill="#15803d" />
-    <ellipse cx="240" cy="352" rx="18" ry="10" fill="#15803d" />
+  <svg viewBox="0 0 480 520" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full max-w-[300px] sm:max-w-[380px] lg:max-w-[420px] anim-float">
+    <ellipse cx="240" cy="290" rx="205" ry="200" fill="#ecfdf5" className="dark:fill-emerald-950/30" />
+
+    <circle cx="390" cy="140" r="14" fill="#a7f3d0" className="anim-spark" />
+    <circle cx="80" cy="180" r="9" fill="#6ee7b7" className="anim-spark" style={{ animationDelay: "0.5s" }} />
+    <circle cx="110" cy="420" r="8" fill="#34d399" className="anim-spark" style={{ animationDelay: "1s" }} />
+
+    <rect x="104" y="332" width="272" height="22" rx="11" fill="#047857" />
+    <rect x="122" y="354" width="20" height="42" rx="5" fill="#a7f3d0" />
+    <rect x="338" y="354" width="20" height="42" rx="5" fill="#a7f3d0" />
+
+    <rect x="140" y="228" width="132" height="88" rx="12" fill="#10b981" />
+    <rect x="152" y="240" width="108" height="60" rx="6" fill="#ecfdf5" className="dark:fill-gray-900" />
+    <rect x="128" y="316" width="156" height="14" rx="7" fill="#059669" />
+
+    <g transform="translate(268,222) rotate(16)" className="anim-badge">
+      <path d="M0 10 L20 0 L38 18 L18 36 Z" fill="#f59e0b" />
+      <circle cx="9" cy="13" r="3.4" fill="#ffffff" />
+    </g>
+
+    <rect x="300" y="252" width="48" height="82" rx="11" fill="#059669" />
+    <rect x="307" y="261" width="34" height="56" rx="4" fill="#a7f3d0" />
+    <circle cx="324" cy="325" r="3.6" fill="#ecfdf5" />
+
+    <g transform="translate(296,236) rotate(-12)" className="anim-badge" style={{ animationDelay: "0.4s" }}>
+      <path d="M0 8 L15 0 L28 13 L13 26 Z" fill="#f59e0b" />
+      <circle cx="6.5" cy="10.5" r="2.6" fill="#ffffff" />
+    </g>
+
+    <g className="anim-wrench" transform="translate(96,268)">
+      <rect x="-10" y="-6" width="96" height="20" rx="10" fill="#34d399" transform="rotate(-28 -10 -6)" />
+      <circle cx="-6" cy="-44" r="17" fill="none" stroke="#34d399" strokeWidth="13" strokeDasharray="54 320" strokeLinecap="round" transform="rotate(140 -6 -44)" />
+    </g>
+
+    <g transform="translate(206,110)">
+      <circle cx="0" cy="-6" r="21" fill="#059669" />
+      <path d="M-32 42 C-32 10 32 10 32 42 Z" fill="#059669" />
+      <circle cx="36" cy="10" r="18" fill="#ffffff" className="dark:fill-gray-900" stroke="#10b981" strokeWidth="3" />
+      <path d="M36 1 v18 M27 10 h18" stroke="#059669" strokeWidth="3.6" strokeLinecap="round" />
+    </g>
+
+    <g transform="translate(316,84)">
+      <rect x="-26" y="-32" width="64" height="80" rx="9" fill="#ffffff" className="dark:fill-gray-900" stroke="#a7f3d0" strokeWidth="3" />
+      <rect x="-13" y="-41" width="38" height="13" rx="4" fill="#059669" />
+      <rect x="-15" y="-6" width="52" height="7.5" rx="3.75" fill="#6ee7b7" />
+      <rect x="-15" y="9" width="52" height="7.5" rx="3.75" fill="#6ee7b7" />
+      <rect x="-15" y="24" width="34" height="7.5" rx="3.75" fill="#6ee7b7" />
+    </g>
   </svg>
 ));
 
@@ -85,10 +127,10 @@ const Field = memo(({ label, icon, error, children }) => (
   <div className="space-y-1">
     <label className="block text-[10px] sm:text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{label}</label>
     <div className="relative">
-      <span className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-lime-600 dark:text-lime-400 pointer-events-none">{icon}</span>
+      <span className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-emerald-600 dark:text-emerald-400 pointer-events-none">{icon}</span>
       {children}
     </div>
-    {error && <p className="text-[10px] sm:text-xs text-red-600 dark:text-red-400 font-medium" role="alert">{error}</p>}
+    {error && <p className="text-[10px] sm:text-xs text-red-600 dark:text-red-400 font-medium anim-pop-in" role="alert">{error}</p>}
   </div>
 ));
 
@@ -101,7 +143,7 @@ const PasswordInput = memo(({ formType, value, onChange, onBlur, showPassword, o
       className={`${INPUT_BASE} pl-9 sm:pl-10 pr-11 ${error ? INPUT_ERR : INPUT_NORMAL}`}
     />
     <button type="button" onClick={onToggle} tabIndex={-1}
-      className="absolute inset-y-0 right-0 pr-3 sm:pr-3.5 flex items-center text-lime-600 dark:text-lime-400">
+      className="absolute inset-y-0 right-0 pr-3 sm:pr-3.5 flex items-center text-emerald-600 dark:text-emerald-400">
       {showPassword ? <RiEyeOffLine size={15} /> : <RiEyeLine size={15} />}
     </button>
   </Field>
@@ -109,18 +151,48 @@ const PasswordInput = memo(({ formType, value, onChange, onBlur, showPassword, o
 
 const SubmitBtn = memo(({ label, loading }) => (
   <button type="submit" disabled={loading}
-    className="w-full h-10 sm:h-11 rounded-xl font-bold text-sm bg-lime-500 hover:bg-lime-600 text-white transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-sm">
+    className="w-full h-10 sm:h-11 rounded-md font-bold text-sm bg-emerald-500 hover:bg-emerald-600 text-white transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-sm hover:shadow-lg hover:shadow-emerald-500/20 active:scale-[0.98]">
     {loading ? <><Spinner /> Creating Account...</> : label}
   </button>
 ));
 
 const ErrorBanner = memo(({ message }) =>
   message ? (
-    <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 p-2.5 sm:p-3 rounded-xl text-xs text-center font-medium" role="alert">
+    <div className="anim-pop-in bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 p-2.5 sm:p-3 rounded-xl text-xs text-center font-medium" role="alert">
       {message}
     </div>
   ) : null
 );
+
+const RoleToggle = memo(({ tab, isOn, onToggle }) => (
+  <button
+    type="button"
+    role="switch"
+    aria-checked={isOn}
+    onClick={() => onToggle(tab.key)}
+    className={`flex items-center gap-2.5 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border-2 font-semibold text-xs sm:text-sm transition-all duration-300 ${isOn
+        ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 shadow-sm"
+        : "border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700"
+      }`}
+  >
+    <span className={`flex-shrink-0 transition-transform duration-300 ${isOn ? "scale-110" : ""}`}>{tab.icon}</span>
+    <span className="truncate">{tab.label}</span>
+    <span
+      className={`ml-auto flex-shrink-0 relative w-8 h-4.5 rounded-full transition-colors duration-300 ${isOn ? "bg-emerald-500" : "bg-gray-300 dark:bg-gray-700"}`}
+      style={{ height: "18px" }}
+    >
+      <span
+        className={`absolute top-0.5 left-0.5 w-3.5 h-3.5 rounded-full bg-white shadow transition-transform duration-300 ${isOn ? "translate-x-3.5" : "translate-x-0"}`}
+      />
+    </span>
+  </button>
+));
+
+const Accordion = memo(({ isOpen, children }) => (
+  <div className={`grid transition-all duration-500 ease-in-out ${isOpen ? "grid-rows-[1fr] opacity-100 mt-4" : "grid-rows-[0fr] opacity-0 mt-0"}`}>
+    <div className="overflow-hidden">{children}</div>
+  </div>
+));
 
 const OTPStep = memo(({ email, onSuccess, onBack }) => {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
@@ -160,16 +232,16 @@ const OTPStep = memo(({ email, onSuccess, onBack }) => {
   }, [otp, email, onSuccess]);
 
   return (
-    <div className="space-y-4 sm:space-y-5">
+    <div className="anim-fade-up space-y-4 sm:space-y-5">
       <div className="text-center space-y-2 sm:space-y-3">
-        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-lime-100 dark:bg-lime-900/30 rounded-2xl flex items-center justify-center mx-auto">
-          <RiShieldCheckLine size={24} className="text-lime-600 dark:text-lime-400" />
+        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center mx-auto">
+          <RiShieldCheckLine size={24} className="text-emerald-600 dark:text-emerald-400" />
         </div>
         <div>
           <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100">Verify Your Email</h3>
           <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
             We sent a 6-digit code to{" "}
-            <span className="font-semibold text-lime-600 dark:text-lime-400 break-all">{email}</span>
+            <span className="font-semibold text-emerald-600 dark:text-emerald-400 break-all">{email}</span>
           </p>
         </div>
       </div>
@@ -183,7 +255,7 @@ const OTPStep = memo(({ email, onSuccess, onBack }) => {
       </div>
       {error && <p className="text-center text-xs text-red-600 dark:text-red-400 font-medium">{error}</p>}
       <button onClick={handleVerify} disabled={loading || otp.join("").length !== 6}
-        className="w-full h-10 sm:h-11 rounded-xl font-bold text-sm bg-lime-500 hover:bg-lime-600 text-white transition-all flex items-center justify-center gap-2 disabled:opacity-70">
+        className="w-full h-10 sm:h-11 rounded-xl font-bold text-sm bg-emerald-500 hover:bg-emerald-600 text-white transition-all flex items-center justify-center gap-2 disabled:opacity-70">
         {loading ? <><Spinner /> Verifying...</> : "Verify Email"}
       </button>
       <div className="flex items-center justify-start">
@@ -217,9 +289,11 @@ const Signup = () => {
 
   useEffect(() => { document.title = "Sign Up | Tech-Restore"; }, []);
 
-  const activeTabConfig = useMemo(() => TAB_CONFIG.find(t => t.key === activeTab), [activeTab]);
-
   const getError = useCallback((t, f) => touched[t]?.[f] ? errors[t]?.[f] || "" : "", [touched, errors]);
+
+  const handleToggleRole = useCallback((key) => {
+    setActiveTab(prev => prev === key ? prev : key);
+  }, []);
 
   const makeChangeHandler = useCallback((setter, formType, addrFields = []) => (e) => {
     const { name, value } = e.target;
@@ -368,17 +442,17 @@ const Signup = () => {
 
   return (
     <div className="relative min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+      <GlobalAnimations />
       <DotsBackground />
 
       <nav className="fixed top-0 w-full z-50 border-b border-gray-200 dark:border-gray-800 bg-white/90 dark:bg-gray-950/90 backdrop-blur-xl">
-        <div className="h-0.5 bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-500" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-3.5 flex items-center justify-end">
           <div className="flex items-center gap-3 sm:gap-5">
-            <Link to="/login" className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-lime-600 dark:hover:text-lime-400 transition hidden sm:block">
+            <Link to="/login" className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition hidden sm:block">
               Already have an account?
             </Link>
             <Link to="/login">
-              <button className="bg-lime-500 hover:bg-lime-600 text-white font-bold px-3.5 sm:px-5 py-2 rounded-3xl transition text-xs sm:text-sm shadow-sm">Sign In</button>
+              <button className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-3.5 sm:px-5 py-2 rounded-3xl transition text-xs sm:text-sm shadow-sm">Sign In</button>
             </Link>
           </div>
         </div>
@@ -390,27 +464,25 @@ const Signup = () => {
           <div className="relative md:sticky md:top-24 flex justify-center order-2 md:order-1">
             <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-none">
               <CartoonIllustration />
-              <div className="absolute -top-2 sm:-top-3 -right-2 sm:-right-3 bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-2.5 sm:p-3.5 flex items-center gap-2 sm:gap-2.5">
-                <Users className="w-5 h-5 sm:w-7 sm:h-7 text-lime-500 flex-shrink-0" />
+              <div className="anim-fade-up absolute -top-2 sm:-top-3 -right-2 sm:-right-3 bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-2.5 sm:p-3.5 flex items-center gap-2 sm:gap-2.5" style={{ animationDelay: "0.15s" }}>
+                <Users className="w-5 h-5 sm:w-7 sm:h-7 text-emerald-500 flex-shrink-0" />
                 <div>
                   <p className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100">4 Role Types</p>
                   <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">choose yours</p>
                 </div>
               </div>
-              <div className="absolute -bottom-3 sm:-bottom-5 left-2 sm:left-3 bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-2.5 sm:p-3.5 text-center">
+              <div className="anim-fade-up absolute -bottom-3 sm:-bottom-5 left-2 sm:left-3 bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-2.5 sm:p-3.5 text-center" style={{ animationDelay: "0.3s" }}>
+                <Wrench className="w-5 h-5 sm:w-7 sm:h-7 mx-auto text-emerald-500 mb-0.5 sm:mb-1" />
                 <p className="font-bold text-sm sm:text-base text-gray-900 dark:text-gray-100">Free</p>
                 <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">to start</p>
               </div>
             </div>
           </div>
 
-          <div className="space-y-4 sm:space-y-6 order-1 md:order-2">
+          <div className="anim-fade-up space-y-4 sm:space-y-6 order-1 md:order-2">
             <div>
-              <div className="inline-flex items-center gap-2 bg-lime-100 dark:bg-lime-900/30 text-lime-700 dark:text-lime-400 px-3.5 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium mb-3 sm:mb-4">
-                Join for free
-              </div>
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold leading-none tracking-tighter text-gray-900 dark:text-gray-50">
-                Create your<br /><span className="text-lime-500">account</span>
+              <h1 className="text-3xl mt-4 sm:text-4xl md:text-5xl font-bold leading-none tracking-tighter text-gray-900 dark:text-gray-50">
+                Create your<br /><span className="text-emerald-500">account</span>
               </h1>
               <p className="mt-2 sm:mt-3 text-base sm:text-lg text-gray-500 dark:text-gray-400">Choose your role and get started today.</p>
             </div>
@@ -421,51 +493,18 @@ const Signup = () => {
               ) : (
                 <>
                   <div className="space-y-2">
-                    <p className="text-[10px] sm:text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Select your role</p>
-                    <div className="grid grid-cols-2 gap-2" role="tablist">
-                      {TAB_CONFIG.map(({ key, label, icon, color, bg, border, text }) => {
-                        const isActive = activeTab === key;
-                        return (
-                          <button
-                            key={key}
-                            type="button"
-                            role="tab"
-                            aria-selected={isActive}
-                            onClick={() => setActiveTab(key)}
-                            className={`relative flex items-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-3xl justify-center border-2 font-semibold text-xs sm:text-sm transition-all duration-200 overflow-hidden ${isActive
-                                ? `border-transparent text-white shadow-lg`
-                                : `bg-gray-50 dark:bg-gray-900 dark:border-gray-800 dark:text-white border text-gray-800 hover:shadow-sm`
-                              }`}
-                          >
-                            {isActive && (
-                              <span className={`absolute inset-0 bg-gradient-to-r ${color}`} />
-                            )}
-                            <span className="relative z-10 flex-shrink-0">{icon}</span>
-                            <span className="relative z-10 truncate">{label}</span>
-                            {isActive && (
-                              <span className="relative z-10 ml-auto flex-shrink-0">
-                                <FiCheck size={12} />
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
+                    <p className="text-[10px] sm:text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Choose your role</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="group">
+                      {TAB_CONFIG.map((tab) => (
+                        <RoleToggle key={tab.key} tab={tab} isOn={activeTab === tab.key} onToggle={handleToggleRole} />
+                      ))}
                     </div>
-
-                    {activeTabConfig && (
-                      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${activeTabConfig.bg} border ${activeTabConfig.border}`}>
-                        <span className={`flex-shrink-0 ${activeTabConfig.text}`}>{activeTabConfig.icon}</span>
-                        <p className={`text-xs font-semibold ${activeTabConfig.text}`}>
-                          Signing up as <strong>{activeTabConfig.label}</strong>
-                        </p>
-                      </div>
-                    )}
                   </div>
 
-                  {activeTab === "user" && (
+                  <Accordion isOpen={activeTab === "user"}>
                     <form onSubmit={handleUserSignup} className="space-y-3 sm:space-y-4" noValidate>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <Field label="First Name" icon={<RiUserLine size={15} />} error={getError("user", "first_name")}>
+                        <Field label="First Name" icon={<RiUserLine className="text-emerald-400" size={15} />} error={getError("user", "first_name")}>
                           {inp("user", "first_name", "text", userData.first_name, handleUserChange, handleBlur, "First name", "given-name")}
                         </Field>
                         <Field label="Last Name" icon={<RiUserLine size={15} />} error={getError("user", "last_name")}>
@@ -482,9 +521,9 @@ const Signup = () => {
                       <ErrorBanner message={errors.user.general} />
                       <SubmitBtn label="Sign Up as User" loading={loading} />
                     </form>
-                  )}
+                  </Accordion>
 
-                  {activeTab === "shop" && (
+                  <Accordion isOpen={activeTab === "shop"}>
                     <form onSubmit={handleShopSignup} className="space-y-3 sm:space-y-4" noValidate>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <Field label="Shop Name" icon={<RiStore2Line size={15} />} error={getError("shop", "name")}>
@@ -508,20 +547,20 @@ const Signup = () => {
                               onClick={() => setShopTypeOpen(o => !o)}
                               onBlur={() => { setTouched(prev => ({ ...prev, shop: { ...prev.shop, shopType: true } })); setShopTypeOpen(false); }}
                               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShopTypeOpen(o => !o); } }}>
-                              <span className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-lime-600 dark:text-lime-400 pointer-events-none"><RiStore2Line size={15} /></span>
+                              <span className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-emerald-600 dark:text-emerald-400 pointer-events-none"><RiStore2Line size={15} /></span>
                               <span className={shopData.shopType ? "text-gray-900 dark:text-gray-100 text-sm" : "text-gray-400 text-sm"}>
                                 {shopData.shopType ? SHOP_TYPE_OPTIONS.find(o => o.value === shopData.shopType)?.label : "Select type"}
                               </span>
-                              <RiArrowDownSLine size={15} className={`text-lime-600 dark:text-lime-400 transition-transform ${shopTypeOpen ? "rotate-180" : ""}`} />
+                              <RiArrowDownSLine size={15} className={`text-emerald-600 dark:text-emerald-400 transition-transform duration-300 ${shopTypeOpen ? "rotate-180" : ""}`} />
                             </div>
                             {shopTypeOpen && (
-                              <ul role="listbox" className="absolute z-20 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden">
+                              <ul role="listbox" className="anim-pop-in absolute z-20 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden">
                                 {SHOP_TYPE_OPTIONS.map(opt => (
                                   <li key={opt.value} role="option" aria-selected={shopData.shopType === opt.value}
                                     onMouseDown={(e) => { e.preventDefault(); handleShopTypeSelect(opt.value); }}
-                                    className={`px-4 py-2.5 text-sm cursor-pointer flex items-center justify-between transition-colors ${shopData.shopType === opt.value ? "bg-lime-50 dark:bg-lime-900/30 text-lime-700 dark:text-lime-400 font-semibold" : "text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
+                                    className={`px-4 py-2.5 text-sm cursor-pointer flex items-center justify-between transition-colors ${shopData.shopType === opt.value ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-semibold" : "text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
                                     {opt.label}
-                                    {shopData.shopType === opt.value && <FiCheck size={13} className="text-lime-600" />}
+                                    {shopData.shopType === opt.value && <FiCheck size={13} className="text-emerald-600" />}
                                   </li>
                                 ))}
                               </ul>
@@ -547,9 +586,9 @@ const Signup = () => {
                       <ErrorBanner message={errors.shop.general} />
                       <SubmitBtn label="Sign Up as Shop Owner" loading={loading} />
                     </form>
-                  )}
+                  </Accordion>
 
-                  {activeTab === "delivery" && (
+                  <Accordion isOpen={activeTab === "delivery"}>
                     <form onSubmit={handleDeliverySignup} className="space-y-3 sm:space-y-4" noValidate>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <Field label="Full Name" icon={<RiUserLine size={15} />} error={getError("delivery", "name")}>
@@ -569,9 +608,9 @@ const Signup = () => {
                       <ErrorBanner message={errors.delivery.general} />
                       <SubmitBtn label="Sign Up as Delivery" loading={loading} />
                     </form>
-                  )}
+                  </Accordion>
 
-                  {activeTab === "assigner" && (
+                  <Accordion isOpen={activeTab === "assigner"}>
                     <form onSubmit={handleAssignerSignup} className="space-y-3 sm:space-y-4" noValidate>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <Field label="Full Name" icon={<RiUserLine size={15} />} error={getError("assigner", "name")}>
@@ -591,11 +630,11 @@ const Signup = () => {
                       <ErrorBanner message={errors.assigner.general} />
                       <SubmitBtn label="Sign Up as Assigner" loading={loading} />
                     </form>
-                  )}
+                  </Accordion>
 
                   <p className="text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                     Already have an account?{" "}
-                    <Link to="/login" className="font-semibold text-lime-600 dark:text-lime-400 hover:underline">Log in here</Link>
+                    <Link to="/login" className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">Log in here</Link>
                   </p>
                 </>
               )}

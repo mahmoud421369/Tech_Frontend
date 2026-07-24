@@ -64,9 +64,9 @@ const NavLink = memo(({ item, active, onClick }) => (
   <Link
     to={item.path}
     onClick={onClick}
-    className={`group flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all duration-300 relative overflow-hidden
+    className={`group flex items-center gap-3 px-4 py-3 rounded-md text-sm font-bold transition-all duration-300 relative overflow-hidden
       ${active
-        ? "bg-lime-500 text-white shadow-lg shadow-lime-500/20 active:scale-95"
+        ? "bg-emerald-400 text-white shadow-lg shadow-lime-500/20 active:scale-95"
         : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"}`}
   >
     <span className={`flex-shrink-0 transition-transform duration-500 ${active ? "scale-110" : "group-hover:scale-110 group-hover:rotate-6"}`}>
@@ -164,10 +164,10 @@ const AssignerHeader = () => {
         
         <div className="relative h-20 flex items-center justify-between px-6 border-b border-gray-50 dark:border-gray-800/50">
           <Link to="/assigner/dashboard" className="flex items-center gap-2 group" onClick={closeSidebar}>
-            <div className="w-10 h-10 rounded-2xl bg-lime-500 flex items-center justify-center group-hover:rotate-12 transition-transform duration-500 shadow-lg shadow-lime-500/20">
-              <FiGrid className="text-white" size={20} />
+            <div className="w-10 h-10 rounded-2xl text-emerald-400 flex items-center justify-center group-hover:rotate-12 transition-transform duration-500 ">
+              <FiGrid className="text-emerald-400" size={20} />
             </div>
-            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tighter">Assigner<span className="text-lime-500">Hub</span></span>
+            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tighter">Assigner<span className="text-emerald-500">Hub</span></span>
           </Link>
           <button onClick={closeSidebar} className="lg:hidden p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-red-500 transition-all">
             <FiX size={18} />

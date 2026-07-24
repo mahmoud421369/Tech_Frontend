@@ -2,88 +2,104 @@ import React, { useState, useEffect, useCallback, useRef, useMemo, memo, Suspens
 import {
   FiSearch, FiFilter, FiShoppingCart, FiChevronLeft, FiChevronRight,
   FiX, FiChevronDown, FiPackage, FiUsers, FiZap, FiSliders, FiEye,
+  FiArrowRight, FiMonitor, FiCheck, FiPlus, FiShield, FiTruck, FiRefreshCw,
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RiStarFill } from 'react-icons/ri';
+import { RiStarFill, RiDeviceLine, RiBattery2ChargeLine } from 'react-icons/ri';
 import api from '../api';
+import Hero from '../components/Hero';
 import Swal from 'sweetalert2';
 import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const queryClient = new QueryClient();
 
-const SkeletonProducts = ({ darkMode }) => (
-  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5 lg:gap-6">
-    {Array.from({ length: 9 }).map((_, i) => (
-      <div key={i} className={`h-[280px] sm:h-[380px] md:h-[420px] rounded-2xl animate-pulse shadow-md ${darkMode ? 'bg-gray-800' : 'bg-white'}`} />
-    ))}
-  </div>
-);
 const cardVariants = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0, y: 16 },
   visible: (i) => ({
     opacity: 1,
     y: 0,
     transition: {
-      duration: 0.35,
-      delay: i * 0.04,
+      duration: 0.22,
+      delay: i * 0.025,
       ease: [0.25, 0.46, 0.45, 0.94]
     }
   })
 };
 
 const hoverScale = {
-  y: -5,
-  transition: { duration: 0.2, ease: "easeOut" }
+  y: -6,
+  transition: { duration: 0.12, ease: "easeOut" }
 };
 
-const WaveBottom = memo(({ darkMode }) => (
-  <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-none pointer-events-none">
-    <svg viewBox="0 0 1440 100" xmlns="http://www.w3.org/2000/svg"
-      className="relative block w-full h-16 md:h-24" preserveAspectRatio="none">
-      <path d="M0,50 C180,100 360,0 540,50 C720,100 900,0 1080,50 C1260,100 1380,20 1440,50 L1440,100 L0,100 Z"
-        fill={darkMode ? '#111827' : '#f9fafb'} />
-    </svg>
-  </div>
+const ACCENT_BAR = 'h-1 bg-gradient-to-r from-emerald-400 via-teal-500 to-cyan-500';
+
+const FunnelIllustration = memo(({ darkMode }) => (
+  <svg viewBox="0 0 64 64" className="w-full h-full">
+    <circle cx="32" cy="32" r="26" fill={darkMode ? 'rgba(52,211,153,0.14)' : 'rgba(16,185,129,0.12)'} />
+    <path d="M16 18 H48 L36 34 V46 L28 50 V34 Z" fill="none" stroke={darkMode ? '#34d399' : '#059669'} strokeWidth="2.6" strokeLinejoin="round" />
+    <circle cx="50" cy="14" r="2.2" fill="#fbbf24" />
+    <circle cx="14" cy="46" r="1.8" fill={darkMode ? '#6ee7b7' : '#34d399'} />
+  </svg>
 ));
 
-const WaveTop = memo(({ darkMode }) => (
-  <div className="absolute top-0 left-0 w-full overflow-hidden leading-none pointer-events-none">
-    <svg viewBox="0 0 1440 80" xmlns="http://www.w3.org/2000/svg"
-      className="relative block w-full h-12 md:h-20" preserveAspectRatio="none">
-      <path d="M0,40 C360,80 720,0 1080,40 C1260,60 1380,20 1440,40 L1440,0 L0,0 Z"
-        fill={darkMode ? '#111827' : '#f9fafb'} />
-    </svg>
-  </div>
+const PackageStackIllustration = memo(({ darkMode }) => (
+  <svg viewBox="0 0 64 64" className="w-full h-full">
+    <circle cx="32" cy="32" r="26" fill={darkMode ? 'rgba(52,211,153,0.14)' : 'rgba(16,185,129,0.12)'} />
+    <path d="M18 24 L32 17 L46 24 L46 40 L32 47 L18 40 Z" fill="none" stroke={darkMode ? '#34d399' : '#059669'} strokeWidth="2.4" strokeLinejoin="round" />
+    <path d="M18 24 L32 31 L46 24 M32 31 V47" fill="none" stroke={darkMode ? '#34d399' : '#059669'} strokeWidth="2" strokeLinejoin="round" />
+    <circle cx="48" cy="14" r="2.2" fill="#fbbf24" />
+  </svg>
 ));
 
-const StatCard = memo(({ icon, value, label, accent, delay, darkMode }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20, scale: 0.95 }}
-    whileInView={{ opacity: 1, y: 0, scale: 1 }}
-    transition={{ duration: 0.5, delay }}
-    viewport={{ once: true, margin: "-50px" }}
-    whileHover={hoverScale}
-    className={`relative group overflow-hidden rounded-2xl p-4 sm:p-5 shadow-xl border transition-all duration-300 ${
-      darkMode ? 'bg-gray-800/80 border-gray-700/60 backdrop-blur-md' : 'bg-white/90 border-gray-100 backdrop-blur-md'
-    }`}
-  >
-    <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-      style={{ boxShadow: `0 0 32px ${accent}44` }} />
-    <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-2xl"
-      style={{ background: `linear-gradient(90deg, ${accent}, ${accent}88)` }} />
-    <div className="flex items-center gap-2.5 sm:gap-3 mb-2">
-      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-white shadow-md flex-shrink-0"
-        style={{ background: `linear-gradient(135deg, ${accent}, ${accent}aa)` }}>{icon}</div>
-      <span className="text-xl sm:text-2xl font-extrabold tracking-tight" style={{ color: accent }}>{value}</span>
+const SearchGlassIllustration = memo(({ darkMode }) => (
+  <svg viewBox="0 0 64 64" className="w-full h-full">
+    <circle cx="32" cy="32" r="26" fill={darkMode ? 'rgba(52,211,153,0.14)' : 'rgba(16,185,129,0.12)'} />
+    <circle cx="28" cy="28" r="12" fill="none" stroke={darkMode ? '#34d399' : '#059669'} strokeWidth="2.6" />
+    <path d="M37 37 L46 46" stroke={darkMode ? '#34d399' : '#059669'} strokeWidth="2.6" strokeLinecap="round" />
+    <circle cx="48" cy="14" r="2.2" fill="#fbbf24" />
+  </svg>
+));
+
+const EmptyBoxIllustration = memo(({ darkMode }) => (
+  <svg viewBox="0 0 120 100" className="w-24 h-20 sm:w-28 sm:h-24 mx-auto">
+    <ellipse cx="60" cy="86" rx="38" ry="6" fill={darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'} />
+    <path d="M20 40 L60 24 L100 40 L100 74 L60 90 L20 74 Z" fill={darkMode ? '#1f2937' : '#f3f4f6'} stroke={darkMode ? '#374151' : '#e5e7eb'} strokeWidth="2" />
+    <path d="M20 40 L60 56 L100 40" fill="none" stroke={darkMode ? '#374151' : '#e5e7eb'} strokeWidth="2" />
+    <path d="M60 56 L60 90" fill="none" stroke={darkMode ? '#374151' : '#e5e7eb'} strokeWidth="2" />
+    <path d="M42 32 L82 48" fill="none" stroke={darkMode ? '#4b5563' : '#d1d5db'} strokeWidth="2" />
+    <circle cx="60" cy="18" r="7" fill="none" stroke={darkMode ? '#34d399' : '#10b981'} strokeWidth="2.4" />
+    <path d="M57 18 L59.5 20.5 L64 15.5" fill="none" stroke={darkMode ? '#34d399' : '#10b981'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+));
+
+const HeroSearchBar = memo(({ darkMode, value, onChange }) => (
+  <div className="relative w-full max-w-xl">
+    <div className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border backdrop-blur-xl transition-all duration-150 shadow-lg ${
+      darkMode ? 'border-white/15 bg-white/5 focus-within:border-emerald-400/50' : 'border-white/60 bg-white/35 focus-within:border-emerald-400/60'
+    }`}>
+      <FiSearch className={`w-5 h-5 flex-shrink-0 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Search products by name..."
+        className={`flex-1 outline-none text-sm bg-transparent font-medium placeholder:font-normal ${
+          darkMode ? 'text-white placeholder:text-gray-500' : 'text-gray-900 placeholder:text-gray-500'
+        }`}
+      />
+      {value && (
+        <button onClick={() => onChange('')} className={`p-0.5 rounded-full transition-colors duration-150 ${darkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-800'}`}>
+          <FiX className="w-4 h-4" />
+        </button>
+      )}
     </div>
-    <p className={`text-xs font-semibold leading-snug pl-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{label}</p>
-  </motion.div>
+  </div>
 ));
 
 const conditionConfig = {
-  New:         'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
-  Used:        'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
-  Refurbished: 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300',
+  New:         { badge: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300', dot: 'bg-emerald-500' },
+  Used:        { badge: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300', dot: 'bg-amber-500' },
+  Refurbished: { badge: 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300', dot: 'bg-sky-500' },
 };
 
 const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
@@ -95,11 +111,13 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
     product.discount ? (product.price * (1 - product.discount / 100)).toFixed(2) : null
   , [product.price, product.discount]);
 
+  const cond = conditionConfig[product.condition] || { badge: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300', dot: 'bg-gray-400' };
+
   const handleCart = useCallback((e) => {
     e.stopPropagation();
     setCartAdded(true);
     onAddToCart(product);
-    setTimeout(() => setCartAdded(false), 2000);
+    setTimeout(() => setCartAdded(false), 1600);
   }, [onAddToCart, product]);
 
   const navigateToDetail = useCallback(() => {
@@ -115,32 +133,33 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
       viewport={{ once: true, margin: "50px" }}
       whileHover={hoverScale}
       onClick={navigateToDetail}
-      className={`group relative flex flex-col rounded-2xl overflow-hidden cursor-pointer
-        transition-shadow duration-300 hover:shadow-2xl h-full ${
-          darkMode ? 'bg-gray-800 border border-gray-700/80 shadow-lg shadow-black/20'
-                   : 'bg-white border border-gray-100 shadow-md shadow-gray-200/60'
+      className={`group relative flex flex-col rounded-2xl sm:rounded-3xl overflow-hidden cursor-pointer
+        ring-1 transition-shadow duration-200 h-full ${
+          darkMode
+            ? 'bg-gray-800 ring-white/10 shadow-md shadow-black/20 hover:ring-emerald-400/30 hover:shadow-xl hover:shadow-emerald-400/10'
+            : 'bg-white ring-black/5 shadow-sm hover:ring-emerald-400/40 hover:shadow-xl hover:shadow-emerald-400/10'
         }`}
     >
       {product.discount && (
         <motion.span initial={{ scale: 0, rotate: -12 }} animate={{ scale: 1, rotate: 0 }}
-          transition={{ type: 'spring', stiffness: 400, delay: 0.1 + index * 0.03 }}
-          className="absolute top-2.5 left-2.5 z-10 inline-flex bg-gradient-to-r from-orange-500 to-rose-500 text-white text-[10px] sm:text-[11px] font-extrabold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full shadow-md">
+          transition={{ type: 'spring', stiffness: 500, damping: 20, delay: 0.05 + index * 0.02 }}
+          className="absolute top-2.5 left-2.5 z-10 inline-flex bg-gradient-to-r from-orange-500 to-rose-500 text-white text-[10px] sm:text-[11px] font-extrabold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full shadow-md shadow-rose-500/30">
           -{product.discount}%
         </motion.span>
       )}
-      <div className="absolute top-2.5 right-2.5 z-10 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0">
+      <div className="absolute top-2.5 right-2.5 z-10 opacity-0 group-hover:opacity-100 transition-all duration-150 translate-y-1 group-hover:translate-y-0">
         <button onClick={(e) => { e.stopPropagation(); navigateToDetail(); }}
-          className={`p-1.5 sm:p-2 rounded-xl shadow-lg backdrop-blur-sm transition-colors ${
-            darkMode ? 'bg-gray-900/80 text-gray-200 hover:text-lime-400' : 'bg-white/90 text-gray-600 hover:text-lime-600'
+          className={`p-1.5 sm:p-2 rounded-xl shadow-lg backdrop-blur-md transition-colors duration-150 ${
+            darkMode ? 'bg-gray-900/80 text-gray-200 hover:text-emerald-400' : 'bg-white/90 text-gray-600 hover:text-emerald-600'
           }`}>
           <FiEye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
       </div>
 
-      <div className={`relative w-full aspect-square overflow-hidden ${darkMode ? 'bg-gray-750/50' : 'bg-gray-50'}`}>
+      <div className={`relative w-full aspect-square overflow-hidden ${darkMode ? 'bg-gradient-to-br from-gray-750 to-gray-800' : 'bg-gradient-to-br from-emerald-50/60 to-gray-100'}`}>
         <AnimatePresence>
           {!imgLoaded && !imgError && (
-            <motion.div exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
+            <motion.div exit={{ opacity: 0 }} transition={{ duration: 0.12 }}
               className={`absolute inset-0 animate-pulse ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
           )}
         </AnimatePresence>
@@ -152,8 +171,8 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
           loading="lazy"
           initial={{ opacity: 0 }}
           animate={imgLoaded ? { opacity: 1 } : {}}
-          transition={{ duration: 0.3 }}
-          className="w-full h-full object-contain p-3 sm:p-4 group-hover:scale-[1.05] transition-transform duration-500 ease-out"
+          transition={{ duration: 0.18 }}
+          className="w-full h-full object-contain p-3 sm:p-4 group-hover:scale-[1.06] transition-transform duration-300 ease-out"
         />
       </div>
 
@@ -162,16 +181,17 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
           {product.name}
         </h3>
         <div className="flex flex-wrap gap-1">
-          <span className={`text-[10px] sm:text-[11px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-full ${
-            conditionConfig[product.condition] || 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-          }`}>{product.condition || 'Unknown'}</span>
+          <span className={`inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-full ${cond.badge}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${cond.dot}`} />
+            {product.condition || 'Unknown'}
+          </span>
         </div>
         <div className="flex items-baseline gap-1.5 mt-auto pt-1">
-          <span className={`text-base sm:text-lg font-extrabold tracking-tight ${darkMode ? 'text-lime-400' : 'text-lime-700'}`}>
+          <span className={`text-base sm:text-lg font-extrabold tracking-tight tabular-nums ${darkMode ? 'text-emerald-400' : 'text-emerald-700'}`}>
             EGP {discountedPrice ?? product.price?.toFixed(2)}
           </span>
           {discountedPrice && (
-            <span className={`text-xs line-through ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+            <span className={`text-xs line-through tabular-nums ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
               EGP {product.price?.toFixed(2)}
             </span>
           )}
@@ -179,18 +199,17 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
         <p className={`text-xs leading-relaxed line-clamp-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
           {product.description || 'No description available.'}
         </p>
-        <motion.button whileTap={{ scale: 0.97 }} onClick={handleCart}
+        <motion.button whileTap={{ scale: 0.96 }} onClick={handleCart}
           className={`mt-1.5 sm:mt-2 w-full py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm
-            flex items-center justify-center gap-1.5 sm:gap-2 border-2 border-lime-500
-            transition-all duration-200 ${
-              cartAdded ? 'bg-lime-500 text-white border-lime-500'
-                : darkMode ? 'text-lime-400 hover:bg-lime-500 hover:text-white'
-                           : 'text-lime-600 hover:bg-lime-500 hover:text-white'
+            flex items-center justify-center gap-1.5 sm:gap-2 transition-all duration-150 ${
+              cartAdded
+                ? 'bg-emerald-400 text-white shadow-md shadow-emerald-400/30'
+                : 'bg-gradient-to-r from-emerald-400 to-teal-500 text-white shadow-sm shadow-emerald-400/20 hover:shadow-md hover:shadow-emerald-400/30 hover:brightness-105'
             }`}>
           <AnimatePresence mode="wait">
             {cartAdded
-              ? <motion.span key="done" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-1">✓ Added!</motion.span>
-              : <motion.span key="add" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-1.5"><FiShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Add to Cart</motion.span>
+              ? <motion.span key="done" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }} className="flex items-center gap-1">✓ Added!</motion.span>
+              : <motion.span key="add" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }} className="flex items-center gap-1.5"><FiShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Add to Cart</motion.span>
             }
           </AnimatePresence>
         </motion.button>
@@ -199,108 +218,276 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
   );
 });
 
+const CategoryBadge = memo(({ darkMode, children }) => (
+  <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+    darkMode ? 'bg-emerald-400/10 text-emerald-300 ring-1 ring-inset ring-emerald-400/30' : 'bg-emerald-400 text-white ring-1 ring-inset ring-emerald-400/25'
+  }`}>
+    <span className="w-1.5 h-1.5 rounded-full bg-white" />
+    {children}
+  </span>
+));
+
+const PosterProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
+  const [cartAdded, setCartAdded] = useState(false);
+
+  const discountedPrice = useMemo(() =>
+    product.discount ? (product.price * (1 - product.discount / 100)).toFixed(2) : null
+  , [product.price, product.discount]);
+
+  const handleCart = useCallback((e) => {
+    e.stopPropagation();
+    setCartAdded(true);
+    onAddToCart(product);
+    setTimeout(() => setCartAdded(false), 1400);
+  }, [onAddToCart, product]);
+
+  const navigateToDetail = useCallback(() => {
+    window.location.href = `/device/${product.id}`;
+  }, [product.id]);
+
+  return (
+    <motion.div
+      custom={index}
+      variants={cardVariants}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: "60px" }}
+      whileHover={{ y: -4 }}
+      onClick={navigateToDetail}
+      className="relative flex-shrink-0 w-[148px] sm:w-[190px] h-[210px] sm:h-[260px] rounded-2xl overflow-hidden cursor-pointer snap-start shadow-md ring-1 ring-black/5 group"
+    >
+      <img
+        src={product.imageUrl || '/placeholder.png'}
+        alt={product.name}
+        loading="lazy"
+        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ease-out"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+
+      {product.discount && (
+        <span className="absolute top-2.5 left-2.5 inline-flex bg-gradient-to-r from-orange-500 to-rose-500 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-md">
+          -{product.discount}%
+        </span>
+      )}
+
+      <button
+        onClick={handleCart}
+        className={`absolute top-2.5 right-2.5 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all duration-150 ${
+          cartAdded ? 'bg-emerald-400 text-white' : 'bg-white/20 text-white hover:bg-emerald-400'
+        }`}
+      >
+        {cartAdded ? <FiCheck className="w-4 h-4" /> : <FiPlus className="w-4 h-4" />}
+      </button>
+
+      <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
+        <p className="font-bold text-xs sm:text-sm leading-snug line-clamp-2 mb-1">{product.name}</p>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-sm sm:text-base font-extrabold text-emerald-300 tabular-nums">
+            EGP {discountedPrice ?? product.price?.toFixed(2)}
+          </span>
+          {discountedPrice && (
+            <span className="text-[10px] line-through text-white/50 tabular-nums">EGP {product.price?.toFixed(2)}</span>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+});
+
+const CategorySlider = memo(({ category, items, darkMode, onAddToCart }) => {
+  const sliderRef = useRef(null);
+  const [canLeft, setCanLeft]   = useState(false);
+  const [canRight, setCanRight] = useState(false);
+
+  const check = useCallback(() => {
+    const el = sliderRef.current;
+    if (!el) return;
+    setCanLeft(el.scrollLeft > 2);
+    setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 5);
+  }, []);
+
+  useEffect(() => {
+    check();
+    const el = sliderRef.current;
+    if (!el) return;
+    el.addEventListener('scroll', check);
+    window.addEventListener('resize', check);
+    return () => { el.removeEventListener('scroll', check); window.removeEventListener('resize', check); };
+  }, [check, items.length]);
+
+  const scroll = useCallback((dir) => {
+    sliderRef.current?.scrollBy({ left: dir === 'left' ? -320 : 320, behavior: 'smooth' });
+  }, []);
+
+  if (!items.length) return null;
+
+  return (
+    <div className="mb-10 sm:mb-14">
+      <div className="flex items-center justify-between mb-4 sm:mb-5">
+        <div className="flex items-center gap-3 flex-wrap">
+          <CategoryBadge darkMode={darkMode}>{category.name}</CategoryBadge>
+          <span className={`text-xs sm:text-sm font-medium ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+            {items.length} {items.length === 1 ? 'item' : 'items'}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <a href={`/products/category/${category.id}`}
+            className={`hidden sm:flex items-center gap-1 text-xs font-bold uppercase tracking-wide ${
+              darkMode ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-600 hover:text-emerald-700'
+            }`}>
+            View all <FiArrowRight className="w-3 h-3" />
+          </a>
+          <button onClick={() => scroll('left')} disabled={!canLeft}
+            className={`p-1.5 sm:p-2 rounded-full ring-1 transition-all duration-150 ${canLeft
+              ? darkMode ? 'bg-gray-800 ring-white/10 hover:bg-emerald-900/40 text-emerald-400' : 'bg-white ring-black/5 hover:bg-emerald-50 text-emerald-700 shadow-sm'
+              : darkMode ? 'bg-gray-800/40 ring-white/5 opacity-30 cursor-not-allowed' : 'bg-gray-100/60 ring-black/5 opacity-30 cursor-not-allowed'}`}>
+            <FiChevronLeft className="w-4 h-4" />
+          </button>
+          <button onClick={() => scroll('right')} disabled={!canRight}
+            className={`p-1.5 sm:p-2 rounded-full ring-1 transition-all duration-150 ${canRight
+              ? darkMode ? 'bg-gray-800 ring-white/10 hover:bg-emerald-900/40 text-emerald-400' : 'bg-white ring-black/5 hover:bg-emerald-50 text-emerald-700 shadow-sm'
+              : darkMode ? 'bg-gray-800/40 ring-white/5 opacity-30 cursor-not-allowed' : 'bg-gray-100/60 ring-black/5 opacity-30 cursor-not-allowed'}`}>
+            <FiChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+      <div ref={sliderRef} className="flex gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-2 hide-scrollbar">
+        {items.map((p, i) => (
+          <PosterProductCard key={p.id} product={p} darkMode={darkMode} onAddToCart={onAddToCart} index={i} />
+        ))}
+      </div>
+    </div>
+  );
+});
+
 const FilterSection = memo(({ title, isOpen, onToggle, darkMode, children }) => (
   <div className={`border-b pb-4 ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
     <button onClick={onToggle}
-      className={`w-full flex justify-between items-center text-sm sm:text-base font-bold py-1 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>
+      className={`w-full flex justify-between items-center text-sm sm:text-base font-bold py-1 transition-colors duration-150 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>
       {title}
-      <FiChevronDown className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''} ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+      <FiChevronDown className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''} ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
     </button>
     <motion.div initial={false} animate={{ height: isOpen ? 'auto' : 0, opacity: isOpen ? 1 : 0 }}
-      transition={{ duration: 0.25 }} className="overflow-hidden">
+      transition={{ duration: 0.15, ease: 'easeOut' }} className="overflow-hidden">
       <div className="pt-3">{children}</div>
     </motion.div>
   </div>
 ));
 
-const SidebarContent = memo(({ darkMode, searchTerm, setSearchTerm, sortBy, setSortBy, selectedCategoryId, setSelectedCategoryId, categories, isSortOpen, setIsSortOpen, isCatOpen, setIsCatOpen, isCondOpen, setIsCondOpen, isPriceOpen, setIsPriceOpen, selectedConditions, toggleCondition, priceRange, setPriceRange, clearFilters, activeFiltersCount }) => (
+const RadioOption = memo(({ value, label, selected, onSelect, darkMode }) => (
+  <label className="flex items-center gap-3 cursor-pointer group py-0.5">
+    <div
+      onClick={() => onSelect(value)}
+      className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+        selected ? 'border-emerald-400 bg-emerald-400' : darkMode ? 'border-gray-600' : 'border-gray-300'
+      }`}
+    >
+      {selected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+    </div>
+    <span
+      onClick={() => onSelect(value)}
+      className={`text-sm font-medium flex items-center gap-1.5 transition-colors truncate ${
+        selected ? 'text-emerald-500' : darkMode ? 'text-gray-300 group-hover:text-white' : 'text-gray-600 group-hover:text-gray-900'
+      }`}
+    >
+      {label}
+    </span>
+  </label>
+));
+
+const PillButton = memo(({ label, isActive, onClick, darkMode }) => (
+  <button
+    onClick={onClick}
+    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border-2 transition-all duration-200 ${
+      isActive
+        ? 'bg-emerald-400 border-emerald-400 text-white shadow-sm shadow-emerald-200'
+        : darkMode
+          ? 'border-gray-700 text-gray-300 hover:border-emerald-500 hover:text-emerald-400 bg-gray-800/60'
+          : 'border-gray-200 text-gray-600 hover:border-emerald-400 hover:text-emerald-600 bg-white'
+    }`}
+  >
+    {label}
+  </button>
+));
+
+const PriceRangeSlider = memo(({ priceRange, setPriceRange, darkMode }) => {
+  const MIN = 0, MAX = 100000, STEP = 1000;
+  const leftPct = (priceRange[0] / MAX) * 100;
+  const rightPct = (priceRange[1] / MAX) * 100;
+  const thumbCls = "absolute inset-0 w-full h-1.5 appearance-none bg-transparent pointer-events-none " +
+    "[&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 " +
+    "[&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-emerald-400 " +
+    "[&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:duration-150 " +
+    "[&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full " +
+    "[&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-emerald-400 [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:cursor-pointer";
+
+  return (
+    <div className="space-y-3 sm:space-y-4">
+      <div className="flex justify-between text-xs sm:text-sm font-bold">
+        <span className="px-2.5 py-1 rounded-lg bg-emerald-400/10 text-emerald-600 dark:text-emerald-400 tabular-nums">EGP {priceRange[0].toLocaleString()}</span>
+        <span className="px-2.5 py-1 rounded-lg bg-emerald-400/10 text-emerald-600 dark:text-emerald-400 tabular-nums">EGP {priceRange[1].toLocaleString()}</span>
+      </div>
+      <div className="relative h-4 flex items-center">
+        <div className={`absolute inset-x-0 h-1.5 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
+        <div className="absolute h-1.5 rounded-full bg-gradient-to-r from-emerald-400 to-teal-500"
+          style={{ left: `${leftPct}%`, right: `${100 - rightPct}%` }} />
+        <input type="range" min={MIN} max={MAX} step={STEP} value={priceRange[0]}
+          onChange={(e) => setPriceRange([Math.min(Number(e.target.value), priceRange[1] - STEP), priceRange[1]])}
+          className={thumbCls} />
+        <input type="range" min={MIN} max={MAX} step={STEP} value={priceRange[1]}
+          onChange={(e) => setPriceRange([priceRange[0], Math.max(Number(e.target.value), priceRange[0] + STEP)])}
+          className={thumbCls} />
+      </div>
+    </div>
+  );
+});
+
+const SidebarContent = memo(({ darkMode, searchTerm, setSearchTerm, sortBy, setSortBy, sortLabels, selectedCategoryId, setSelectedCategoryId, categories, isSortOpen, setIsSortOpen, isCatOpen, setIsCatOpen, isCondOpen, setIsCondOpen, isPriceOpen, setIsPriceOpen, selectedConditions, toggleCondition, priceRange, setPriceRange, clearFilters, activeFiltersCount }) => (
   <div className="py-4 sm:py-6 space-y-4 sm:space-y-5">
-    <div className="flex items-center justify-between">
-      <h3 className={`text-lg sm:text-xl font-extrabold flex items-center gap-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-        <FiFilter className="text-lime-500" /> Filters
-      </h3>
-      {activeFiltersCount > 0 && (
-        <span className="px-2.5 py-0.5 rounded-full bg-lime-500 text-white text-xs font-bold">{activeFiltersCount}</span>
-      )}
+    <div className="flex items-center gap-3">
+      <div className="w-10 h-10 flex-shrink-0">
+        <FunnelIllustration darkMode={darkMode} />
+      </div>
+      <div className="flex-1 flex items-center justify-between">
+        <h3 className={`text-lg sm:text-xl font-extrabold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+          Filters
+        </h3>
+        {activeFiltersCount > 0 && (
+          <span className="px-2.5 py-0.5 rounded-full bg-emerald-400 text-white text-xs font-bold">{activeFiltersCount}</span>
+        )}
+      </div>
     </div>
 
     <div className="relative">
       <FiSearch className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} size={14} />
       <input type="text" placeholder="Search products..." value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
-        className={`w-full pl-10 pr-4 py-2.5 sm:py-3 rounded-xl border text-sm ${
+        className={`w-full pl-10 pr-4 py-2.5 sm:py-3 rounded-xl border text-sm transition-colors duration-150 ${
           darkMode ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500'
                    : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
-        } focus:outline-none focus:ring-2 focus:ring-lime-500 focus:border-transparent transition`}
+        } focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent`}
       />
       {searchTerm && (
         <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2">
-          <FiX className="text-gray-400 hover:text-gray-600" size={14} />
+          <FiX className="text-gray-400 hover:text-gray-600 transition-colors duration-150" size={14} />
         </button>
       )}
     </div>
 
     <FilterSection title="Sort By" isOpen={isSortOpen} onToggle={() => setIsSortOpen(!isSortOpen)} darkMode={darkMode}>
       <div className="space-y-2">
-        {[
-          { value: 'relevance',      label: 'Relevance'           },
-          { value: 'priceLowToHigh', label: 'Price: Low to High'  },
-          { value: 'priceHighToLow', label: 'Price: High to Low'  },
-          { value: 'newest',         label: 'Newest Arrivals'     },
-        ].map((opt) => (
-          <label key={opt.value} className="flex items-center gap-3 cursor-pointer group">
-            <div onClick={() => setSortBy(opt.value)}
-              className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
-                sortBy === opt.value ? 'border-lime-500 bg-lime-500' : darkMode ? 'border-gray-600' : 'border-gray-300'
-              }`}>
-              {sortBy === opt.value && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-            </div>
-            <span onClick={() => setSortBy(opt.value)}
-              className={`text-sm font-medium transition-colors ${
-                sortBy === opt.value ? 'text-lime-500'
-                  : darkMode ? 'text-gray-300 group-hover:text-white' : 'text-gray-600 group-hover:text-gray-900'
-              }`}>
-              {opt.label}
-            </span>
-          </label>
+        {Object.entries(sortLabels).map(([value, label]) => (
+          <RadioOption key={value} value={value} label={label} selected={sortBy === value}
+            onSelect={(val) => setSortBy(val)} darkMode={darkMode} />
         ))}
       </div>
     </FilterSection>
 
     <FilterSection title="Category" isOpen={isCatOpen} onToggle={() => setIsCatOpen(!isCatOpen)} darkMode={darkMode}>
-      <div className="space-y-2">
-        <label className="flex items-center gap-3 cursor-pointer group">
-          <div onClick={() => setSelectedCategoryId('all')}
-            className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
-              selectedCategoryId === 'all' ? 'border-lime-500 bg-lime-500' : darkMode ? 'border-gray-600' : 'border-gray-300'
-            }`}>
-            {selectedCategoryId === 'all' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-          </div>
-          <span onClick={() => setSelectedCategoryId('all')}
-            className={`text-sm font-medium capitalize transition-colors ${
-              selectedCategoryId === 'all' ? 'text-lime-500'
-                : darkMode ? 'text-gray-300 group-hover:text-white' : 'text-gray-600 group-hover:text-gray-900'
-            }`}>
-            All Categories
-          </span>
-        </label>
-        
+      <div className="flex flex-wrap gap-2">
+        <PillButton label="All" isActive={selectedCategoryId === 'all'} onClick={() => setSelectedCategoryId('all')} darkMode={darkMode} />
         {categories.map((cat) => (
-          <label key={cat.id} className="flex items-center gap-3 cursor-pointer group">
-            <div onClick={() => setSelectedCategoryId(cat.id)}
-              className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
-                selectedCategoryId === cat.id ? 'border-lime-500 bg-lime-500' : darkMode ? 'border-gray-600' : 'border-gray-300'
-              }`}>
-              {selectedCategoryId === cat.id && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-            </div>
-            <span onClick={() => setSelectedCategoryId(cat.id)}
-              className={`text-sm font-medium capitalize transition-colors truncate ${
-                selectedCategoryId === cat.id ? 'text-lime-500'
-                  : darkMode ? 'text-gray-300 group-hover:text-white' : 'text-gray-600 group-hover:text-gray-900'
-              }`}>
-              {cat.name}
-            </span>
-          </label>
+          <PillButton key={cat.id} label={cat.name} isActive={selectedCategoryId === cat.id} onClick={() => setSelectedCategoryId(cat.id)} darkMode={darkMode} />
         ))}
       </div>
     </FilterSection>
@@ -308,38 +495,39 @@ const SidebarContent = memo(({ darkMode, searchTerm, setSearchTerm, sortBy, setS
     <FilterSection title="Condition" isOpen={isCondOpen} onToggle={() => setIsCondOpen(!isCondOpen)} darkMode={darkMode}>
       <div className="flex flex-wrap gap-2">
         {['New', 'Used', 'Refurbished'].map((cond) => (
-          <button key={cond} onClick={() => toggleCondition(cond)}
-            className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold border-2 transition-all duration-200 ${
-              selectedConditions.includes(cond) ? 'bg-lime-500 border-lime-500 text-white'
-                : darkMode ? 'border-gray-700 text-gray-300 hover:border-lime-500 hover:text-lime-400'
-                           : 'border-gray-200 text-gray-600 hover:border-lime-500 hover:text-lime-600'
-            }`}>
-            {cond}
-          </button>
+          <PillButton key={cond} label={cond} isActive={selectedConditions.includes(cond)} onClick={() => toggleCondition(cond)} darkMode={darkMode} />
         ))}
       </div>
     </FilterSection>
 
     <FilterSection title="Price Range (EGP)" isOpen={isPriceOpen} onToggle={() => setIsPriceOpen(!isPriceOpen)} darkMode={darkMode}>
-      <div className="space-y-3 sm:space-y-4">
-        <div className={`flex justify-between text-xs sm:text-sm font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-          <span className="px-2 py-1 rounded-lg bg-lime-500/10 text-lime-600 dark:text-lime-400">EGP {priceRange[0].toLocaleString()}</span>
-          <span className="px-2 py-1 rounded-lg bg-lime-500/10 text-lime-600 dark:text-lime-400">EGP {priceRange[1].toLocaleString()}</span>
-        </div>
-        <input type="range" min="0" max="100000" step="1000" value={priceRange[0]}
-          onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
-          className="w-full accent-lime-600 h-2 rounded-lg appearance-none cursor-pointer bg-gray-200 dark:bg-gray-700" />
-        <input type="range" min="0" max="100000" step="1000" value={priceRange[1]}
-          onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
-          className="w-full accent-lime-600 h-2 rounded-lg appearance-none cursor-pointer bg-gray-200 dark:bg-gray-700" />
-      </div>
+      <PriceRangeSlider priceRange={priceRange} setPriceRange={setPriceRange} darkMode={darkMode} />
     </FilterSection>
 
     <motion.button whileTap={{ scale: 0.97 }} onClick={clearFilters}
-      className="w-full py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white font-bold text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 transition-all">
+      className="w-full py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600
+        text-white font-bold text-xs sm:text-sm shadow-md hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2">
       <FiX /> Clear All Filters
     </motion.button>
   </div>
+));
+
+const PaginationButton = memo(({ children, onClick, disabled, active, darkMode }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    className={`min-w-[40px] h-10 sm:min-w-[44px] sm:h-11 px-2 rounded-xl font-bold text-sm transition-all duration-200 border flex items-center justify-center ${
+      active
+        ? 'bg-gradient-to-r from-emerald-400 to-teal-500 text-white border-transparent shadow-lg shadow-emerald-400/30 scale-105'
+        : disabled
+          ? 'opacity-40 cursor-not-allowed ' + (darkMode ? 'bg-gray-800 border-gray-700 text-gray-400' : 'bg-white border-gray-200 text-gray-400')
+          : darkMode
+            ? 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white hover:border-emerald-500'
+            : 'bg-white border-gray-200 text-gray-700 hover:bg-emerald-50 hover:border-emerald-300'
+    }`}
+  >
+    {children}
+  </button>
 ));
 
 const ProductsContent = memo(({ darkMode }) => {
@@ -408,6 +596,31 @@ const ProductsContent = memo(({ darkMode }) => {
     [...products].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 8),
     [products]
   );
+
+  const productsByCategory = useMemo(() => {
+    const map = {};
+    products.forEach((p) => {
+      const catId = p.categoryId ?? p.category?.id ?? p.category;
+      if (catId === undefined || catId === null) return;
+      if (!map[catId]) map[catId] = [];
+      map[catId].push(p);
+    });
+    return map;
+  }, [products]);
+
+  const categorySections = useMemo(() => {
+    const sections = categories
+      .map((cat) => ({ category: cat, items: (productsByCategory[cat.id] || []).slice(0, 10) }))
+      .filter((sec) => sec.items.length > 0);
+    return sections.slice(0, 6);
+  }, [categories, productsByCategory]);
+
+  const sortLabels = useMemo(() => ({
+    relevance: 'Relevance',
+    priceLowToHigh: 'Price: Low to High',
+    priceHighToLow: 'Price: High to Low',
+    newest: 'Newest Arrivals',
+  }), []);
 
   const filteredProducts = useMemo(() => {
     let filtered = products.filter((p) => {
@@ -478,143 +691,106 @@ const ProductsContent = memo(({ darkMode }) => {
     sortBy !== 'relevance' ? sortBy : null,
   ].filter(Boolean).length, [searchTerm, selectedCategoryId, selectedConditions, priceRange, sortBy]);
 
-  const heroStats = useMemo(() => [
-    { icon: <FiPackage size={16} />, value: '1,200+', label: 'Products in stock', accent: '#0d9488', delay: 0.1 },
-    { icon: <FiUsers size={16} />,   value: '~50K',   label: 'Happy customers',   accent: '#3b82f6', delay: 0.2 },
-    { icon: <RiStarFill size={16} />, value: '4.9★',  label: 'Average rating',    accent: '#f59e0b', delay: 0.3 },
-  ], []);
 
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50'}`}>
-      <section className={`relative overflow-hidden pt-16 sm:pt-20 pb-28 sm:pb-32 md:pb-40 ${
-        darkMode ? 'bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950'
-                 : 'bg-gradient-to-br from-lime-50 via-white to-emerald-50'
-      }`}>
-        <div className="absolute w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] -top-32 sm:-top-40 -left-16 sm:-left-32 rounded-full blur-3xl opacity-20 bg-lime-400 animate-pulse pointer-events-none" style={{ animationDuration: '5s' }} />
-        <div className="absolute w-[250px] sm:w-[400px] h-[250px] sm:h-[400px] top-8 sm:top-10 -right-12 sm:-right-20 rounded-full blur-3xl opacity-15 bg-emerald-500 animate-pulse pointer-events-none" style={{ animationDuration: '7s' }} />
-        <div className="absolute inset-0 pointer-events-none opacity-[0.025]"
-          style={{ backgroundImage: 'repeating-linear-gradient(0deg,transparent,transparent 39px,#000 39px,#000 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,#000 39px,#000 40px)' }} />
-        <WaveTop darkMode={darkMode} />
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
-            <div className="space-y-6 sm:space-y-8">
-              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}
-                className="inline-flex items-center  gap-2 mt-6 px-4 py-1.5 rounded-full border text-sm font-semibold bg-lime-500/10 border-lime-500/30 text-lime-600 dark:text-lime-400">
-                <span className="w-2 h-2 rounded-full  bg-lime-500 animate-ping" /> New arrivals added daily
-              </motion.div>
-              <motion.h1 initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }}
-                className="text-3xl sm:text-5xl  md:text-6xl lg:text-7xl font-extrabold leading-[1.08]">
-                <span className="bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-500 bg-clip-text text-transparent">Shop Premium</span><br />
-                <span className={darkMode ? 'text-white' : 'text-gray-900'}>Devices at</span><br />
-                <span style={{ WebkitTextStroke: darkMode ? '2px #84cc16' : '2px #16a34a', color: 'transparent' }}>Best Prices</span>
-              </motion.h1>
-              <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}
-                className={`text-base sm:text-xl md:text-2xl leading-relaxed max-w-xl ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                Discover new & refurbished phones, laptops, tablets, and accessories — all verified and ready to ship.
-              </motion.p>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4 pt-1 sm:pt-2">
-                {heroStats.map((s) => <StatCard key={s.label} {...s} darkMode={darkMode} />)}
-              </div>
-            </div>
-
-            <div className="relative h-56 sm:h-80 lg:h-[520px] hidden md:block">
-              <div className="absolute inset-0 bg-gradient-to-br from-lime-300/20 to-emerald-300/20 dark:from-lime-900/15 dark:to-emerald-900/15 rounded-full blur-3xl scale-125" />
-              <div className="relative w-full h-full">
-                <motion.div initial={{ opacity: 0, rotate: 10, y: 20 }} animate={{ opacity: 1, rotate: 12, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0.2 }} whileHover={{ rotate: 5, scale: 1.04 }}
-                  className={`absolute top-8 left-6 w-44 sm:w-52 rounded-3xl shadow-2xl overflow-hidden border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-                  <div className="h-1 bg-gradient-to-r from-lime-400 to-emerald-500" />
-                  <div className="p-4 sm:p-5 space-y-3 sm:space-y-4">
-                    <div className={`h-3 sm:h-4 rounded w-3/4 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
-                    <div className={`h-3 sm:h-4 rounded w-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
-                    <div className="h-8 sm:h-10 bg-gradient-to-r from-lime-400 to-emerald-500 rounded-xl w-2/3" />
-                  </div>
-                </motion.div>
-                <motion.div initial={{ opacity: 0, rotate: -8, y: 20 }} animate={{ opacity: 1, rotate: -10, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0.35 }} whileHover={{ rotate: -4, scale: 1.04 }}
-                  className={`absolute bottom-12 right-8 w-52 sm:w-60 rounded-3xl shadow-2xl overflow-hidden border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-                  <div className="h-1 bg-gradient-to-r from-teal-400 to-cyan-500" />
-                  <div className="p-4 sm:p-6 space-y-3 sm:space-y-5">
-                    <div className="flex justify-between items-center">
-                      <div className={`h-4 sm:h-5 rounded w-28 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
-                      <FiPackage className="text-cyan-500 text-xl sm:text-2xl" />
-                    </div>
-                    <div className="space-y-2 sm:space-y-3">
-                      <div className={`h-3 sm:h-4 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
-                      <div className={`h-3 sm:h-4 rounded w-5/6 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
-                      <div className="h-3 sm:h-4 rounded bg-gradient-to-r from-lime-400 to-emerald-400 w-1/2" />
-                    </div>
-                  </div>
-                </motion.div>
-                <motion.div initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.7, delay: 0.15 }} whileHover={{ scale: 1.07, y: -4 }}
-                  className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-40 sm:w-48 rounded-3xl shadow-2xl overflow-hidden border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-                  <div className="h-1 bg-gradient-to-r from-lime-500 to-emerald-500" />
-                  <div className="p-4 sm:p-5 flex flex-col items-center">
-                    <div className="w-16 sm:w-20 h-16 sm:h-20 rounded-2xl flex items-center justify-center mb-3 sm:mb-4">
-                      <FiZap className="text-lime-400 text-3xl sm:text-4xl" />
-                    </div>
-                    <div className={`h-3 sm:h-4 rounded w-5/6 mb-2 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
-                    <div className={`h-3 sm:h-4 rounded w-4/6 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
-                    <div className="mt-3"><span className="text-xs font-bold text-lime-500">In Stock ✓</span></div>
-                  </div>
-                </motion.div>
-                <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                  className="absolute top-1/4 right-4 z-20 bg-gradient-to-r from-lime-500 to-emerald-500 text-white text-xs font-bold px-3 py-2 rounded-2xl shadow-xl">
-                  📦 Fast Delivery
-                </motion.div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <WaveBottom darkMode={darkMode} />
-      </section>
+      <Hero
+        variant="devices"
+        darkMode={darkMode}
+        badge="New arrivals added daily"
+        headingLine1="Shop premium"
+        headingAccent="devices"
+        headingLine2="for less"
+        description="New & refurbished phones, laptops, tablets, and accessories — all verified and ready to ship."
+        buttons={[
+          { label: 'Browse Products', href: '#products-grid', primary: true },
+          { label: 'View Filters', onClick: () => document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' }), primary: false }
+        ]}
+        stats={[
+          { value: '1,200+', label: 'Products in stock' },
+          { value: '~50K',   label: 'Happy customers'   },
+          { value: '4.9 ★',  label: 'Average rating'    },
+        ]}
+      >
+        <HeroSearchBar darkMode={darkMode} value={searchTerm} onChange={(v) => startTransition(() => setSearchTerm(v))} />
+      </Hero>
 
       {!isLoading && latestProducts.length > 0 && (
-        <div className={`py-10 sm:py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <div className={`py-10 sm:py-16 ${darkMode ? 'bg-gray-900' : 'bg-emerald-50/30'}`}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between flex-wrap gap-3 sm:gap-4 mb-6 sm:mb-10">
-              <motion.h2 initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-                className={`text-2xl sm:text-4xl font-extrabold tracking-wide relative inline-block ${
-                  darkMode ? 'text-lime-400' : 'text-lime-600'
-                } after:content-[''] after:absolute after:bottom-[-6px] after:left-0 after:w-full after:h-1 after:bg-gradient-to-r after:from-lime-600 after:to-emerald-500`}>
+              <motion.h2 initial={{ opacity: 0, y: 14 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.25 }}
+                className={`text-2xl sm:text-4xl font-bold tracking-tight relative inline-block ${
+                  darkMode ? 'text-emerald-400' : 'text-emerald-800'
+                } after:content-[''] after:absolute after:bottom-[-6px] after:left-0 after:w-12 after:h-1 after:rounded-full after:bg-gradient-to-r after:from-emerald-400 after:to-teal-500`}>
                 Latest Arrivals
               </motion.h2>
               {showSliderArrows && (
                 <div className="flex gap-2 sm:gap-3">
                   <button onClick={() => scrollSlider('left')} disabled={!canScrollLeft}
-                    className={`p-2 sm:p-3 rounded-full shadow-lg transition-all ${canScrollLeft ? 'bg-white dark:bg-gray-800 hover:bg-lime-50 dark:hover:bg-lime-900 text-lime-700 dark:text-lime-400' : 'bg-gray-100 dark:bg-gray-800 opacity-30 cursor-not-allowed'}`}>
+                    className={`p-2 sm:p-3 rounded-full backdrop-blur-md ring-1 transition-all duration-150 ${canScrollLeft
+                      ? darkMode ? 'bg-gray-800/80 ring-white/10 hover:bg-emerald-900/40 text-emerald-400 shadow-lg' : 'bg-white/80 ring-black/5 hover:bg-emerald-50 text-emerald-700 shadow-lg'
+                      : darkMode ? 'bg-gray-800/40 ring-white/5 opacity-30 cursor-not-allowed' : 'bg-gray-100/60 ring-black/5 opacity-30 cursor-not-allowed'}`}>
                     <FiChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
                   </button>
                   <button onClick={() => scrollSlider('right')} disabled={!canScrollRight}
-                    className={`p-2 sm:p-3 rounded-full shadow-lg transition-all ${canScrollRight ? 'bg-white dark:bg-gray-800 hover:bg-lime-50 dark:hover:bg-lime-900 text-lime-700 dark:text-lime-400' : 'bg-gray-100 dark:bg-gray-800 opacity-30 cursor-not-allowed'}`}>
+                    className={`p-2 sm:p-3 rounded-full backdrop-blur-md ring-1 transition-all duration-150 ${canScrollRight
+                      ? darkMode ? 'bg-gray-800/80 ring-white/10 hover:bg-emerald-900/40 text-emerald-400 shadow-lg' : 'bg-white/80 ring-black/5 hover:bg-emerald-50 text-emerald-700 shadow-lg'
+                      : darkMode ? 'bg-gray-800/40 ring-white/5 opacity-30 cursor-not-allowed' : 'bg-gray-100/60 ring-black/5 opacity-30 cursor-not-allowed'}`}>
                     <FiChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
                   </button>
                 </div>
               )}
             </div>
-            <div ref={sliderRef} className="flex overflow-x-auto gap-3 sm:gap-4 md:gap-6 snap-x snap-mandatory scroll-smooth pb-4 sm:pb-6 hide-scrollbar">
-              {latestProducts.map((p, i) => (
-                <div key={p.id} className="snap-start flex-shrink-0 w-[180px] sm:w-[250px] md:w-[280px] lg:w-[300px]">
-                  <ProductCard product={p} darkMode={darkMode} onAddToCart={handleAddToCart} index={i} />
-                </div>
-              ))}
+            <div className="relative">
+              <div className={`pointer-events-none absolute inset-y-0 left-0 w-8 sm:w-14 z-[5] bg-gradient-to-r ${darkMode ? 'from-gray-900' : 'from-emerald-50/30'} to-transparent`} />
+              <div className={`pointer-events-none absolute inset-y-0 right-0 w-8 sm:w-14 z-[5] bg-gradient-to-l ${darkMode ? 'from-gray-900' : 'from-emerald-50/30'} to-transparent`} />
+              <div ref={sliderRef} className="flex overflow-x-auto gap-3 sm:gap-4 md:gap-6 snap-x snap-mandatory scroll-smooth pb-4 sm:pb-6 hide-scrollbar">
+                {latestProducts.map((p, i) => (
+                  <div key={p.id} className="snap-start flex-shrink-0 w-[180px] sm:w-[250px] md:w-[280px] lg:w-[300px]">
+                    <ProductCard product={p} darkMode={darkMode} onAddToCart={handleAddToCart} index={i} />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+      {!isLoading && categorySections.length > 0 && (
+        <div className={`py-10 sm:py-16 ${darkMode ? 'bg-gray-950' : 'bg-white'}`}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-4 sm:gap-5 mb-8 sm:mb-12">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 flex-shrink-0">
+                <PackageStackIllustration darkMode={darkMode} />
+              </div>
+              <div>
+                <span className={`text-xs font-bold uppercase tracking-widest ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                  Shop by category
+                </span>
+                <h2 className={`text-2xl sm:text-4xl font-bold tracking-tight mt-1.5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                  Explore our collections
+                </h2>
+              </div>
+            </div>
+            {categorySections.map(({ category, items }) => (
+              <CategorySlider key={category.id} category={category} items={items} darkMode={darkMode} onAddToCart={handleAddToCart} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div id="products-grid" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <div className="flex gap-5 lg:gap-8">
-          <aside className={`hidden lg:block w-60 xl:w-64 flex-shrink-0 sticky top-20 self-start max-h-[calc(100vh-5rem)] overflow-y-auto rounded-2xl border shadow-lg ${
-            darkMode ? 'bg-gray-800/60 border-gray-700 backdrop-blur-md' : 'bg-white border-gray-200'
+          <aside className={`hidden lg:block w-60 xl:w-64 flex-shrink-0 sticky top-20 self-start max-h-[calc(100vh-5rem)] overflow-y-auto rounded-2xl border shadow-lg overflow-hidden ${
+            darkMode ? 'bg-gray-800/60 border-gray-700 backdrop-blur-md' : 'bg-white border-emerald-100'
           }`}>
+            <div className={ACCENT_BAR} />
             <div className="px-4 xl:px-5">
               <SidebarContent 
                 darkMode={darkMode}
                 searchTerm={searchTerm} setSearchTerm={setSearchTerm}
-                sortBy={sortBy} setSortBy={setSortBy}
+                sortBy={sortBy} setSortBy={setSortBy} sortLabels={sortLabels}
                 selectedCategoryId={selectedCategoryId} setSelectedCategoryId={setSelectedCategoryId}
                 categories={categories}
                 isSortOpen={isSortOpen} setIsSortOpen={setIsSortOpen}
@@ -636,34 +812,38 @@ const ProductsContent = memo(({ darkMode }) => {
               </div>
               <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                 {selectedConditions.map((c) => (
-                  <span key={c} className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-lime-500/10 text-lime-600 dark:text-lime-400 text-xs font-semibold border border-lime-500/30">
-                    {c}<button onClick={() => toggleCondition(c)}><FiX className="w-3 h-3" /></button>
+                  <span key={c} className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-400/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold border border-emerald-400/30">
+                    {c}<button onClick={() => toggleCondition(c)} className="transition-transform duration-150 hover:scale-110"><FiX className="w-3 h-3" /></button>
                   </span>
                 ))}
                 
                 <motion.button whileTap={{ scale: 0.96 }} onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                  className={`lg:hidden flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl border font-semibold text-xs sm:text-sm transition-all shadow-sm hover:shadow-md ${
-                    darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-700'
+                  className={`lg:hidden flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl border font-semibold text-xs sm:text-sm transition-all duration-150 shadow-sm hover:shadow-md ${
+                    darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-emerald-100 text-gray-700'
                   }`}>
-                  <FiSliders className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-lime-500" />
+                  <FiSliders className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
                   Filters
                   {activeFiltersCount > 0 && (
-                    <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-lime-500 text-white text-[10px] font-bold flex items-center justify-center">{activeFiltersCount}</span>
+                    <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-emerald-400 text-white text-[10px] font-bold flex items-center justify-center">{activeFiltersCount}</span>
                   )}
                 </motion.button>
               </div>
             </div>
 
             {isLoading ? (
-              <SkeletonProducts darkMode={darkMode} />
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5 lg:gap-6">
+                {Array.from({ length: 9 }).map((_, i) => (
+                  <div key={i} className={`h-[280px] sm:h-[380px] md:h-[420px] rounded-2xl sm:rounded-3xl animate-pulse shadow-md ${darkMode ? 'bg-gray-800' : 'bg-white'}`} />
+                ))}
+              </div>
             ) : filteredProducts.length === 0 ? (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center py-20 sm:py-32">
-                <div className="w-16 h-16 sm:w-24 sm:h-24 mx-auto mb-4 sm:mb-6 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                  <FiPackage className="text-2xl sm:text-4xl text-gray-400" />
+              <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }} className="text-center py-20 sm:py-32">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 mx-auto mb-4 sm:mb-6">
+                  {searchTerm.trim() ? <SearchGlassIllustration darkMode={darkMode} /> : <EmptyBoxIllustration darkMode={darkMode} />}
                 </div>
                 <p className={`text-xl sm:text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>No products found</p>
                 <p className={`text-sm sm:text-base mb-4 sm:mb-6 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Try adjusting your filters or search terms</p>
-                <button onClick={clearFilters} className="px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl bg-lime-500 hover:bg-lime-600 text-white font-bold transition-all text-sm sm:text-base">
+                <button onClick={clearFilters} className="px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-500 hover:to-teal-600 text-white font-bold transition-colors duration-150 text-sm sm:text-base">
                   Clear Filters
                 </button>
               </motion.div>
@@ -677,25 +857,17 @@ const ProductsContent = memo(({ darkMode }) => {
 
             {totalPages > 1 && (
               <div className="flex justify-center mt-8 sm:mt-14 gap-1.5 sm:gap-2 flex-wrap">
-                <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}
-                  className={`p-2 sm:p-2.5 rounded-xl border transition-all ${currentPage === 1 ? 'opacity-40 cursor-not-allowed' : darkMode ? 'bg-gray-800 border-gray-700 text-white hover:bg-gray-700' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
-                  <FiChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
+                <PaginationButton onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} darkMode={darkMode}>
+                  <FiChevronLeft className="w-4 h-4" />
+                </PaginationButton>
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <button key={page} onClick={() => setCurrentPage(page)}
-                    className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 border ${
-                      currentPage === page
-                        ? 'bg-gradient-to-r from-lime-500 to-emerald-500 text-white border-transparent shadow-lg shadow-lime-500/30 scale-105'
-                        : darkMode ? 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white'
-                                   : 'bg-white border-gray-200 text-gray-700 hover:bg-lime-50 hover:border-lime-300'
-                    }`}>
+                  <PaginationButton key={page} onClick={() => setCurrentPage(page)} active={currentPage === page} darkMode={darkMode}>
                     {page}
-                  </button>
+                  </PaginationButton>
                 ))}
-                <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
-                  className={`p-2 sm:p-2.5 rounded-xl border transition-all ${currentPage === totalPages ? 'opacity-40 cursor-not-allowed' : darkMode ? 'bg-gray-800 border-gray-700 text-white hover:bg-gray-700' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
-                  <FiChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
+                <PaginationButton onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} darkMode={darkMode}>
+                  <FiChevronRight className="w-4 h-4" />
+                </PaginationButton>
               </div>
             )}
           </div>
@@ -705,23 +877,18 @@ const ProductsContent = memo(({ darkMode }) => {
       <AnimatePresence>
         {isSidebarOpen && (
           <div className="fixed inset-0 z-50 lg:hidden">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
               className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsSidebarOpen(false)} />
             <motion.div initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              transition={{ type: 'spring', damping: 30, stiffness: 400 }}
               className={`absolute left-0 top-0 bottom-0 w-72 sm:w-80 shadow-2xl overflow-y-auto ${darkMode ? 'bg-gray-900' : 'bg-white'}`}>
-              <div className={`flex items-center justify-between p-4 sm:p-5 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                <span className={`text-base sm:text-lg font-extrabold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Filters</span>
-                <button onClick={() => setIsSidebarOpen(false)}
-                  className={`p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                  <FiX className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
-              </div>
+             
+             
               <div className="px-4 sm:px-5">
                 <SidebarContent 
                   darkMode={darkMode}
                   searchTerm={searchTerm} setSearchTerm={setSearchTerm}
-                  sortBy={sortBy} setSortBy={setSortBy}
+                  sortBy={sortBy} setSortBy={setSortBy} sortLabels={sortLabels}
                   selectedCategoryId={selectedCategoryId} setSelectedCategoryId={setSelectedCategoryId}
                   categories={categories}
                   isSortOpen={isSortOpen} setIsSortOpen={setIsSortOpen}

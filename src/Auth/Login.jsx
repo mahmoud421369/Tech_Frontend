@@ -4,7 +4,7 @@ import useAuthStore from "../store/Auth";
 import { jwtDecode } from "jwt-decode";
 import Swal from "sweetalert2";
 import { RiEyeLine, RiEyeOffLine } from "@remixicon/react";
-import { Award, BookOpen } from "lucide-react";
+import { Award, Wrench, KeyRound } from "lucide-react";
 import {
   FiMail, FiArrowLeft, FiRefreshCw, FiCreditCard,
   FiDollarSign, FiCheckCircle, FiClock, FiAlertTriangle, FiLock
@@ -19,9 +19,6 @@ const PRICE_PER_MONTH = 1000;
 
 const sanitize = (s) => String(s ?? "").replace(/[<>"'`]/g, "");
 
-
-
-
 const FRIENDLY_ERRORS = {
   "bad credentials": "The email or password you entered is incorrect.",
   "user not found": "No account found with this email address.",
@@ -34,13 +31,8 @@ const FRIENDLY_ERRORS = {
   "network error": "Unable to connect. Please check your internet connection.",
 };
 
-
-
-
 function parseError(raw) {
   const lower = (raw || "").toLowerCase().trim();
-
-
 
   if (
     lower.includes("subscription is expired") ||
@@ -55,8 +47,6 @@ function parseError(raw) {
     if (lower.includes(key)) return { message: friendly, isExpired: false };
   }
 
-
-
   const cleaned = sanitize(raw);
   return {
     message: cleaned
@@ -66,67 +56,79 @@ function parseError(raw) {
   };
 }
 
-
-
+const GlobalAnimations = () => (
+  <style>{`
+    @keyframes floatY { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-14px); } }
+    @keyframes spinSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes wrenchTurn { 0%, 100% { transform: rotate(-14deg); } 50% { transform: rotate(14deg); } }
+    @keyframes sparkPulse { 0%, 100% { opacity: 0.35; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1.15); } }
+    @keyframes popIn { from { opacity: 0; transform: translateY(14px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes keyJiggle { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+    .anim-float { animation: floatY 5s ease-in-out infinite; }
+    .anim-spin-slow { animation: spinSlow 9s linear infinite; transform-origin: center; }
+    .anim-wrench { animation: wrenchTurn 3.4s ease-in-out infinite; transform-origin: 70% 30%; }
+    .anim-spark { animation: sparkPulse 2.2s ease-in-out infinite; }
+    .anim-pop-in { animation: popIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .anim-fade-up { animation: fadeSlideUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .anim-key { animation: keyJiggle 3.2s ease-in-out infinite; transform-origin: 50% 20%; }
+  `}</style>
+);
 
 const DotsBackground = () => (
   <div
     className="fixed inset-0 pointer-events-none z-0"
     aria-hidden="true"
     style={{
-      backgroundImage: `radial-gradient(circle, rgba(101,163,13,0.13) 1.5px, transparent 1.5px)`,
+      backgroundImage: `radial-gradient(circle, rgba(16,185,129,0.13) 1.5px, transparent 1.5px)`,
       backgroundSize: "28px 28px",
     }}
   />
 );
 
-
-
-
 function CartoonIllustration() {
   return (
-    <svg viewBox="0 0 480 480" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full max-w-[360px] sm:max-w-[420px] lg:max-w-[460px]">
-      <ellipse cx="240" cy="260" rx="210" ry="190" fill="#f0fdf4" className="dark:fill-lime-950/30" />
-      <rect x="60" y="330" width="360" height="24" rx="12" fill="#bbf7d0" />
-      <rect x="100" y="354" width="20" height="60" rx="6" fill="#bbf7d0" />
-      <rect x="360" y="354" width="20" height="60" rx="6" fill="#bbf7d0" />
-      <rect x="130" y="240" width="220" height="140" rx="14" fill="#16a34a" />
-      <rect x="142" y="252" width="196" height="116" rx="8" fill="#f0fdf4" />
-      <rect x="158" y="270" width="80" height="8" rx="4" fill="#4ade80" opacity="0.8" />
-      <rect x="158" y="286" width="120" height="8" rx="4" fill="#86efac" opacity="0.8" />
-      <rect x="172" y="302" width="90" height="8" rx="4" fill="#4ade80" opacity="0.6" />
-      <rect x="172" y="318" width="60" height="8" rx="4" fill="#86efac" opacity="0.6" />
-      <rect x="158" y="334" width="100" height="8" rx="4" fill="#4ade80" opacity="0.7" />
-      <rect x="100" y="378" width="280" height="18" rx="9" fill="#15803d" />
-      <rect x="195" y="378" width="90" height="10" rx="5" fill="#16a34a" />
-      <rect x="288" y="210" width="96" height="110" rx="20" fill="#22c55e" />
-      <rect x="296" y="148" width="80" height="76" rx="20" fill="#4ade80" />
-      <circle cx="316" cy="176" r="12" fill="white" />
-      <circle cx="356" cy="176" r="12" fill="white" />
-      <circle cx="319" cy="178" r="6" fill="#15803d" />
-      <circle cx="359" cy="178" r="6" fill="#15803d" />
-      <circle cx="321" cy="175" r="2" fill="white" />
-      <circle cx="361" cy="175" r="2" fill="white" />
-      <path d="M318 198 Q336 210 354 198" stroke="white" strokeWidth="3" strokeLinecap="round" fill="none" />
-      <line x1="336" y1="148" x2="336" y2="128" stroke="#4ade80" strokeWidth="4" strokeLinecap="round" />
-      <circle cx="336" cy="122" r="8" fill="#a3e635" />
-      <rect x="248" y="218" width="44" height="18" rx="9" fill="#22c55e" />
-      <rect x="380" y="218" width="44" height="18" rx="9" fill="#22c55e" />
-      <rect x="228" y="210" width="32" height="40" rx="6" fill="#a3e635" />
-      <rect x="232" y="214" width="24" height="32" rx="4" fill="white" />
-      <rect x="235" y="219" width="18" height="3" rx="2" fill="#86efac" />
-      <rect x="235" y="226" width="14" height="3" rx="2" fill="#86efac" />
-      <rect x="235" y="233" width="16" height="3" rx="2" fill="#86efac" />
-      <rect x="302" y="316" width="28" height="44" rx="10" fill="#16a34a" />
-      <rect x="342" y="316" width="28" height="44" rx="10" fill="#16a34a" />
-      <ellipse cx="316" cy="360" rx="18" ry="10" fill="#15803d" />
-      <ellipse cx="356" cy="360" rx="18" ry="10" fill="#15803d" />
+    <svg viewBox="0 0 480 480" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full max-w-[360px] sm:max-w-[420px] lg:max-w-[460px] anim-float">
+      <ellipse cx="240" cy="260" rx="210" ry="190" fill="#ecfdf5" className="dark:fill-emerald-950/30" />
+
+      <circle cx="380" cy="120" r="16" fill="#a7f3d0" className="anim-spark" />
+      <circle cx="90" cy="150" r="10" fill="#6ee7b7" className="anim-spark" style={{ animationDelay: "0.6s" }} />
+      <circle cx="120" cy="380" r="8" fill="#34d399" className="anim-spark" style={{ animationDelay: "1.1s" }} />
+
+      <rect x="140" y="145" width="200" height="132" rx="14" fill="#10b981" />
+      <rect x="154" y="159" width="172" height="96" rx="8" fill="#ecfdf5" className="dark:fill-gray-900" />
+      <rect x="112" y="277" width="256" height="18" rx="9" fill="#047857" />
+      <rect x="150" y="298" width="180" height="9" rx="4.5" fill="#065f46" opacity="0.5" />
+
+      <circle cx="240" cy="185" r="13" fill="#a7f3d0" />
+      <rect x="232" y="184" width="16" height="12" rx="2.5" fill="#059669" />
+      <path d="M234 184 v-5 a6 6 0 0 1 12 0 v5" fill="none" stroke="#059669" strokeWidth="3" strokeLinecap="round" />
+      <rect x="178" y="212" width="124" height="11" rx="5.5" fill="#6ee7b7" />
+      <rect x="178" y="230" width="124" height="11" rx="5.5" fill="#6ee7b7" />
+      <rect x="198" y="248" width="84" height="15" rx="7.5" fill="#059669" />
+      <path d="M232 256 l6 6 l11 -13" stroke="#ecfdf5" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M310 258 l0 24 l6 -5 l4.5 10 l6 -3 l-4.5 -10 l8.5 0 z" fill="#ffffff" stroke="#059669" strokeWidth="1.4" />
+
+      <g className="anim-wrench">
+        <rect x="292" y="300" width="112" height="22" rx="11" fill="#34d399" transform="rotate(-30 292 300)" />
+        <circle cx="298" cy="255" r="20" fill="none" stroke="#34d399" strokeWidth="14" strokeDasharray="64 400" strokeLinecap="round" transform="rotate(140 298 255)" />
+      </g>
+
+      <g>
+        <rect x="86" y="300" width="46" height="76" rx="9" fill="#059669" />
+        <rect x="92" y="308" width="34" height="52" rx="4" fill="#a7f3d0" />
+        <circle cx="109" cy="368" r="4" fill="#ecfdf5" />
+      </g>
+
+      <g className="anim-key" transform="translate(374,215)">
+        <circle cx="0" cy="0" r="30" fill="#ffffff" className="dark:fill-gray-900" stroke="#a7f3d0" strokeWidth="3" />
+        <rect x="-11" y="-7" width="22" height="17" rx="4" fill="none" stroke="#059669" strokeWidth="3.4" />
+        <path d="M-7 -7 V-13 C-7 -17.5 -3.9 -21 0 -21 C3.9 -21 7 -17.5 7 -13 V-7" fill="none" stroke="#059669" strokeWidth="3.4" strokeLinecap="round" />
+        <circle cx="0" cy="1.5" r="3" fill="#059669" />
+      </g>
     </svg>
   );
 }
-
-
-
 
 const Spinner = () => (
   <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
@@ -135,13 +137,10 @@ const Spinner = () => (
   </svg>
 );
 
-
-
-
 const ErrorBanner = ({ message, hint }) => (
   <div
     role="alert"
-    className="flex items-start gap-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3.5"
+    className="anim-pop-in flex items-start gap-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3.5"
   >
     <FiAlertTriangle className="text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" size={15} />
     <div className="min-w-0">
@@ -150,9 +149,6 @@ const ErrorBanner = ({ message, hint }) => (
     </div>
   </div>
 );
-
-
-
 
 const ForgotPasswordModal = memo(({ onClose }) => {
   const [step, setStep] = useState("email");
@@ -242,12 +238,12 @@ const ForgotPasswordModal = memo(({ onClose }) => {
     }
   }, [email, otp, newPassword, confirmPw]);
 
-  const inCls = "w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 text-sm outline-none focus:ring-4 focus:ring-lime-300/50 focus:border-lime-500 transition-all";
-  const otpCls = "w-10 h-11 sm:w-11 sm:h-12 text-center text-lg sm:text-xl font-bold rounded-xl bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-4 focus:ring-lime-300/50 focus:border-lime-500 transition-all";
+  const inCls = "w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 text-sm outline-none focus:ring-4 focus:ring-emerald-300/50 focus:border-emerald-500 transition-all";
+  const otpCls = "w-10 h-11 sm:w-11 sm:h-12 text-center text-lg sm:text-xl font-bold rounded-xl bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-4 focus:ring-emerald-300/50 focus:border-emerald-500 transition-all";
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4">
-      <div className="w-full sm:max-w-sm bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+      <div className="anim-pop-in w-full sm:max-w-sm bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
         <div className="sm:hidden flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-gray-700" />
         </div>
@@ -274,14 +270,14 @@ const ForgotPasswordModal = memo(({ onClose }) => {
 
         <div className="px-5 py-4 space-y-4">
           {error && (
-            <p className="text-xs text-red-600 dark:text-red-400 text-center font-medium bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-2.5">{error}</p>
+            <p className="anim-pop-in text-xs text-red-600 dark:text-red-400 text-center font-medium bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-2.5">{error}</p>
           )}
 
           {step === "email" && (
-            <>
+            <div className="anim-fade-up space-y-4">
               <p className="text-sm text-gray-500 dark:text-gray-400">Enter your email and we'll send you a reset code.</p>
               <div className="relative">
-                <FiMail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-lime-500" size={14} />
+                <FiMail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-500" size={14} />
                 <input
                   type="email" value={email}
                   onChange={e => { setEmail(e.target.value); setError(""); }}
@@ -290,16 +286,16 @@ const ForgotPasswordModal = memo(({ onClose }) => {
                   onKeyDown={e => e.key === "Enter" && handleSendCode()}
                 />
               </div>
-              <button onClick={handleSendCode} disabled={loading} className="w-full py-2.5 rounded-xl bg-lime-500 hover:bg-lime-600 text-white font-bold text-sm transition disabled:opacity-70 flex items-center justify-center gap-2">
+              <button onClick={handleSendCode} disabled={loading} className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm transition disabled:opacity-70 flex items-center justify-center gap-2">
                 {loading ? <><Spinner /> Sending...</> : "Send Reset Code"}
               </button>
-            </>
+            </div>
           )}
 
           {step === "otp" && (
-            <>
+            <div className="anim-fade-up space-y-4">
               <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
-                Code sent to <span className="font-semibold text-lime-600 dark:text-lime-400 break-all">{email}</span>
+                Code sent to <span className="font-semibold text-emerald-600 dark:text-emerald-400 break-all">{email}</span>
               </p>
               <div className="flex justify-center gap-1.5 sm:gap-2">
                 {otp.map((d, i) => (
@@ -315,22 +311,22 @@ const ForgotPasswordModal = memo(({ onClose }) => {
               <button
                 onClick={handleOtpNext}
                 disabled={otp.join("").length !== 6}
-                className="w-full py-2.5 rounded-xl bg-lime-500 hover:bg-lime-600 text-white font-bold text-sm transition disabled:opacity-70 flex items-center justify-center gap-2"
+                className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm transition disabled:opacity-70 flex items-center justify-center gap-2"
               >
                 Next
               </button>
               <button
                 onClick={handleResend} disabled={countdown > 0 || loading}
-                className="w-full text-center text-sm text-lime-600 dark:text-lime-400 font-semibold hover:underline disabled:opacity-50 flex items-center justify-center gap-1.5"
+                className="w-full text-center text-sm text-emerald-600 dark:text-emerald-400 font-semibold hover:underline disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
                 <FiRefreshCw size={12} className={loading ? "animate-spin" : ""} />
                 {countdown > 0 ? `Resend in ${countdown}s` : "Resend Code"}
               </button>
-            </>
+            </div>
           )}
 
           {step === "reset" && (
-            <>
+            <div className="anim-fade-up space-y-4">
               <p className="text-sm text-gray-500 dark:text-gray-400">Create a new secure password.</p>
               <div className="space-y-2.5">
                 <div className="relative">
@@ -339,7 +335,7 @@ const ForgotPasswordModal = memo(({ onClose }) => {
                     onChange={e => { setNew(e.target.value); setError(""); }}
                     placeholder="New password (min 6 chars)" className={`${inCls} pr-12`}
                   />
-                  <button type="button" onClick={() => setShowPw(p => !p)} tabIndex={-1} className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-lime-500">
+                  <button type="button" onClick={() => setShowPw(p => !p)} tabIndex={-1} className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-emerald-500">
                     {showPw ? <RiEyeOffLine size={16} /> : <RiEyeLine size={16} />}
                   </button>
                 </div>
@@ -349,22 +345,22 @@ const ForgotPasswordModal = memo(({ onClose }) => {
                   placeholder="Confirm new password" className={inCls}
                 />
               </div>
-              <button onClick={handleResetPassword} disabled={loading} className="w-full py-2.5 rounded-xl bg-lime-500 hover:bg-lime-600 text-white font-bold text-sm transition disabled:opacity-70 flex items-center justify-center gap-2">
+              <button onClick={handleResetPassword} disabled={loading} className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm transition disabled:opacity-70 flex items-center justify-center gap-2">
                 {loading ? <><Spinner /> Resetting...</> : "Reset Password"}
               </button>
-            </>
+            </div>
           )}
 
           {step === "done" && (
-            <div className="text-center space-y-4 py-2">
-              <div className="w-14 h-14 bg-lime-100 dark:bg-lime-900/30 rounded-2xl flex items-center justify-center mx-auto">
-                <FiCheckCircle size={28} className="text-lime-600 dark:text-lime-400" />
+            <div className="anim-pop-in text-center space-y-4 py-2">
+              <div className="w-14 h-14 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center mx-auto">
+                <FiCheckCircle size={28} className="text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
                 <p className="font-bold text-gray-900 dark:text-white">Password Reset Successfully!</p>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">You can now sign in with your new password.</p>
               </div>
-              <button onClick={onClose} className="w-full py-2.5 rounded-xl bg-lime-500 hover:bg-lime-600 text-white font-bold text-sm transition">
+              <button onClick={onClose} className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm transition">
                 Back to Sign In
               </button>
             </div>
@@ -374,9 +370,6 @@ const ForgotPasswordModal = memo(({ onClose }) => {
     </div>
   );
 });
-
-
-
 
 const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClose }) => {
   const navigate = useNavigate();
@@ -400,7 +393,6 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
       const res = await api.post(
         `/api/subscriptions/renew/card/${shopEmail}`,
         { months, type: "COMMISSION" },
-
       );
       if (res.data.paymentURL) {
         setView("redirect");
@@ -419,7 +411,6 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
       await api.post(
         `/api/subscriptions/renew/cash/${shopEmail}`,
         { months, type: "COMMISSION" },
-
       );
       setView("pending");
     } catch (err) {
@@ -431,22 +422,21 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-gray-900/60 dark:bg-black/80 backdrop-blur-sm" onClick={handleLogout} />
 
-      <div className="relative w-full max-w-md bg-white dark:bg-gray-950 rounded-[2rem] shadow-2xl overflow-hidden border border-gray-200 dark:border-white/10 transform transition-all animate-in zoom-in-95 duration-300">
+      <div className="anim-pop-in relative w-full max-w-md bg-white dark:bg-gray-950 rounded-md shadow-2xl overflow-hidden">
 
-
-        <div className={`px-6 py-6 border-b border-gray-100 dark:border-white/5 flex items-center justify-between ${view === 'pending' ? 'bg-amber-50/50 dark:bg-amber-500/5' : 'bg-red-50/50 dark:bg-red-500/5'
+        <div className={`px-6 py-6 border-b border-gray-100 dark:border-white/5 flex items-center justify-between ${view === 'pending' ? 'bg-amber-50/50 dark:bg-amber-500/5' : 'bg-emerald-500 dark:bg-emerald-500'
           }`}>
           <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${view === 'pending' ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-red-100 dark:bg-red-900/30'
+            <div className={`w-12 h-12 rounded-md flex items-center justify-center ${view === 'pending' ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-emerald-50/50 dark:bg-emerald-900/30'
               }`}>
               {view === 'pending' ? (
                 <FiClock size={24} className="text-amber-600 animate-pulse" />
               ) : (
-                <FiAlertTriangle size={24} className="text-red-600" />
+                <FiAlertTriangle size={24} className="text-emerald-700" />
               )}
             </div>
             <div>
-              <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">
+              <h3 className="text-lg font-black text-white dark:text-white tracking-tight">
                 {view === "form" && "Renewal Needed"}
                 {view === "pending" && "Pending Approval"}
                 {view === "redirect" && "Connecting..."}
@@ -460,7 +450,7 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
           </div>
           <button
             onClick={handleLogout}
-            className="p-2 rounded-full bg-gray-100 dark:bg-white/5 text-gray-500 hover:text-red-500 transition-colors"
+            className="p-2 rounded-full bg-white dark:bg-white/5 text-emerald-600 hover:text-emerald-700 transition-colors"
           >
             <FiX size={18} />
           </button>
@@ -468,7 +458,7 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
 
         <div className="p-6 sm:p-8">
           {view === "pending" && (
-            <div className="text-center space-y-6">
+            <div className="anim-fade-up text-center space-y-6">
               <div className="space-y-2">
                 <h4 className="text-xl font-black text-gray-900 dark:text-white">Request Received</h4>
                 <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
@@ -496,17 +486,15 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
           )}
 
           {view === "form" && (
-            <div className="space-y-6">
+            <div className="anim-fade-up space-y-6">
               {error && <ErrorBanner message={error} />}
 
-
-
-              <div className="bg-gray-50 dark:bg-white/5 rounded-2xl p-6 border border-gray-100 dark:border-white/5">
+              <div className="bg-gray-50 dark:bg-white/5 rounded-md p-6 border border-gray-100 dark:border-white/5">
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
                     Subscription Fee
                   </span>
-                  <div className="flex items-center gap-1 text-emerald-500 font-bold text-[10px]">
+                  <div className="flex items-center gap-1 text-emerald-600 font-bold text-[10px]">
                     <FiShield size={12} /> SECURE
                   </div>
                 </div>
@@ -539,27 +527,24 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
                 </div>
               </div>
 
-
-
-
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { k: "card", l: "Card", icon: <FiCreditCard size={18} />, color: "blue" },
-                  { k: "cash", l: "Cash", icon: <FiDollarSign size={18} />, color: "emerald" },
-                ].map(({ k, l, icon, color }) => (
+                  { k: "card", l: "Card", icon: <FiCreditCard size={18} /> },
+                  { k: "cash", l: "Cash", icon: <FiDollarSign size={18} /> },
+                ].map(({ k, l, icon }) => (
                   <button
                     key={k}
                     onClick={() => setActiveTab(k)}
                     className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-300 ${activeTab === k
-                      ? `border-${color}-500 bg-${color}-50/50 dark:bg-${color}-500/10`
+                      ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-500/10"
                       : "border-gray-100 dark:border-white/5 bg-white dark:bg-gray-900/50 hover:border-gray-200"
                       }`}
                   >
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${activeTab === k ? `bg-${color}-500 text-white shadow-lg` : "bg-gray-100 dark:bg-white/5 text-gray-400"
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${activeTab === k ? "text-emerald-600" : "bg-gray-100 dark:bg-white/5 text-gray-400"
                       }`}>
                       {icon}
                     </div>
-                    <span className={`text-[10px] font-black uppercase tracking-widest ${activeTab === k ? `text-${color}-600 dark:text-${color}-400` : "text-gray-500"}`}>
+                    <span className={`text-[10px] font-black uppercase tracking-widest transition-colors ${activeTab === k ? "text-emerald-700 dark:text-emerald-400" : "text-gray-500"}`}>
                       {l}
                     </span>
                   </button>
@@ -569,10 +554,9 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
               <button
                 onClick={activeTab === "card" ? renewCard : renewCash}
                 disabled={loading}
-                className={`w-full h-12 rounded-xl text-white text-[11px] font-black uppercase tracking-[0.15em] transition-all shadow-xl active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 ${activeTab === "card" ? "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20" : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20"
-                  }`}
+                className="w-full h-12 rounded-md border-2 border-emerald-500 text-emerald-600 bg-transparent hover:bg-emerald-500 hover:text-white text-[11px] font-black uppercase tracking-[0.15em] transition-all shadow-xl active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {loading ? <Spinner /> : activeTab === "card" ? "Continue to Payment" : "Submit Cash Request"}
+                {loading ? <Spinner /> : activeTab === "card" ? "Pay with card" : "Send Cash Request"}
               </button>
             </div>
           )}
@@ -582,9 +566,6 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
   );
 });
 
-
-
-
 function checkLatestSubscription(subs) {
   if (!Array.isArray(subs) || subs.length === 0) {
     return { expired: true, shopId: null, isPending: false, noSubs: true };
@@ -592,14 +573,9 @@ function checkLatestSubscription(subs) {
 
   const now = new Date();
 
-
-
-
   const activeSub = subs.find(s => {
     const rawEnd = s.endDate || s.end_date || s.expiryDate;
     const end = rawEnd ? new Date(rawEnd) : null;
-
-
 
     const isNotExpired = end && end.getTime() > (now.getTime() - 86400000);
 
@@ -613,8 +589,6 @@ function checkLatestSubscription(subs) {
     return isNotExpired && isPaid;
   });
 
-
-
   if (activeSub) {
     return {
       expired: false,
@@ -623,9 +597,6 @@ function checkLatestSubscription(subs) {
     };
   }
 
-
-
-
   const pendingSub = subs.find(s => {
     const sStatus = (s.status || '').toUpperCase();
     const pStatus = (s.paymentStatus || s.payment_status || '').toUpperCase();
@@ -633,8 +604,6 @@ function checkLatestSubscription(subs) {
 
     return (sStatus === 'PENDING' || pStatus === 'PENDING') && pMethod === 'CASH';
   });
-
-
 
   const sorted = [...subs].sort(
     (a, b) => {
@@ -651,23 +620,6 @@ function checkLatestSubscription(subs) {
     isPending: !!pendingSub,
   };
 }
-
-
-
-
-
-const REDIRECT_MAP = {
-  ROLE_ADMIN: "/admin/dashboard",
-  ROLE_REPAIRER: "/shop/dashboard",
-  ROLE_SELLER: "/shop/dashboard",
-  ROLE_SHOP_OWNER: "/shop/dashboard",
-  ROLE_ASSIGNER: "/assigner/dashboard",
-  ROLE_DELIVERY: "/delivery/dashboard",
-  ROLE_GUEST: "/",
-};
-const SHOP_ROLES = new Set(["ROLE_SHOP_OWNER", "ROLE_REPAIRER", "ROLE_SELLER"]);
-
-
 
 const Login = ({ darkMode }) => {
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -757,9 +709,6 @@ const Login = ({ darkMode }) => {
       let redirectPath = "/dashboard";
       for (const r of roles) { if (redirectMap[r]) { redirectPath = redirectMap[r]; break; } }
 
-
-
-
       if (roles.some(r => SHOP_ROLES.has(r))) {
         const { expired, shopId: subShopId, isPending } = await checkSubscription(finalEmail);
         const finalShopId = subShopId || loginShopId || res.data.shop?.id;
@@ -769,9 +718,6 @@ const Login = ({ darkMode }) => {
           return;
         }
       }
-
-
-
 
       await Swal.fire({
         icon: "success", title: "Welcome back!", toast: true,
@@ -784,9 +730,6 @@ const Login = ({ darkMode }) => {
 
       const rawMessage = err.response?.data?.message || err.message || "";
       const { message: friendlyMessage, isExpired } = parseError(rawMessage);
-
-
-
 
       if (isExpired) {
         const shopId =
@@ -832,70 +775,62 @@ const Login = ({ darkMode }) => {
   const eErr = touched.email && errors.email;
   const pErr = touched.password && errors.password;
 
-  const ib = "w-full px-4 py-3 sm:py-3.5 rounded-xl bg-white dark:bg-gray-900 border-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 transition-all text-sm sm:text-base outline-none focus:ring-4 focus:ring-lime-300/50 dark:focus:ring-lime-500/30 focus:border-lime-500 dark:focus:border-lime-500";
+  const ib = "w-full px-4 py-3 sm:py-3.5 rounded-xl bg-white dark:bg-gray-900 border-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 transition-all text-sm sm:text-base outline-none focus:ring-4 focus:ring-emerald-300/50 dark:focus:ring-emerald-500/30 focus:border-emerald-500 dark:focus:border-emerald-500";
   const in_ = "border-gray-200 dark:border-gray-700";
   const ie = "border-red-300 dark:border-red-600 focus:border-red-500 focus:ring-red-300/50";
 
   return (
     <div className="relative min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+      <GlobalAnimations />
       <DotsBackground />
 
-
-
       <nav className="fixed top-0 w-full z-50 border-b border-gray-200 dark:border-gray-800 bg-white/90 dark:bg-gray-950/90 backdrop-blur-xl">
-        <div className="h-0.5 bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-500" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-3.5 flex items-center justify-end gap-3 sm:gap-5">
-          <Link to="/signup" className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-lime-600 dark:hover:text-lime-400 transition hidden sm:block">
+          <Link to="/signup" className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition hidden sm:block">
             Don't have an account?
           </Link>
           <Link to="/signup">
-            <button className="bg-lime-500 hover:bg-lime-600 text-white font-bold px-3.5 sm:px-5 py-2 rounded-3xl transition text-xs sm:text-sm shadow-sm">
+            <button className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-3.5 sm:px-5 py-2 rounded-3xl transition text-xs sm:text-sm shadow-sm">
               Sign Up
             </button>
           </Link>
         </div>
       </nav>
 
-
-
       <section className="relative z-10 pt-16 sm:pt-20 pb-8 sm:pb-16 px-4 sm:px-6 min-h-screen flex items-center">
         <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center w-full py-4 sm:py-0">
-
-
 
           <div className="relative flex justify-center order-2 md:order-1">
             <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-none">
               <CartoonIllustration />
-              <div className="absolute -top-3 sm:-top-4 -left-2 sm:-left-4 bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-2.5 sm:p-4 flex items-center gap-2 sm:gap-3">
+              <div className="anim-fade-up absolute -top-3 sm:-top-4 -left-2 sm:-left-4 bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-2.5 sm:p-4 flex items-center gap-2 sm:gap-3" style={{ animationDelay: "0.15s" }}>
                 <Award className="w-5 h-5 sm:w-7 sm:h-7 text-amber-500 flex-shrink-0" />
                 <div>
                   <p className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100">98% Success Rate</p>
                   <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">with our platform</p>
                 </div>
               </div>
-              <div className="absolute -bottom-4 sm:-bottom-6 right-2 sm:right-4 bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-2.5 sm:p-4 text-center">
-                <BookOpen className="w-5 h-5 sm:w-7 sm:h-7 mx-auto text-lime-500 mb-0.5 sm:mb-1" />
+              <div className="anim-fade-up absolute -bottom-4 sm:-bottom-6 right-2 sm:right-4 bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-2.5 sm:p-4 text-center" style={{ animationDelay: "0.3s" }}>
+                <Wrench className="w-5 h-5 sm:w-7 sm:h-7 mx-auto text-emerald-500 mb-0.5 sm:mb-1" />
                 <p className="font-bold text-sm sm:text-base text-gray-900 dark:text-gray-100">10,000+</p>
                 <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">repairs managed</p>
+              </div>
+              <div className="anim-fade-up absolute top-1/2 -right-3 sm:-right-6 -translate-y-1/2 bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-2 sm:p-3 items-center gap-2 hidden sm:flex" style={{ animationDelay: "0.45s" }}>
+                <KeyRound className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500 flex-shrink-0" />
+                <p className="font-semibold text-[10px] sm:text-xs text-gray-900 dark:text-gray-100">Secure sign-in</p>
               </div>
             </div>
           </div>
 
-
-          <div className="space-y-5 sm:space-y-7 order-1 md:order-2">
+          <div className="anim-fade-up space-y-5 sm:space-y-7 order-1 md:order-2">
             <div>
-              <div className="inline-flex items-center gap-2 bg-lime-100 dark:bg-lime-900/30 text-lime-700 dark:text-lime-400 px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium mb-3 sm:mb-5">
-                Welcome back
-              </div>
-              <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold leading-none tracking-tighter text-gray-900 dark:text-gray-50">
-                Sign in to<br /><span className="text-lime-500">your account</span>
+              <h1 className="text-4xl mt-4 sm:text-5xl md:text-6xl font-bold leading-none tracking-tighter text-gray-900 dark:text-gray-50">
+                Sign in to<br /><span className="text-emerald-500">your account</span>
               </h1>
               <p className="mt-3 sm:mt-4 text-base sm:text-xl text-gray-500 dark:text-gray-400">Manage your shop, repairs and deliveries.</p>
             </div>
 
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl sm:rounded-3xl shadow-xl p-5 sm:p-7 space-y-4 sm:space-y-5">
-
-
 
               {errors.general && (
                 <ErrorBanner
@@ -910,7 +845,6 @@ const Login = ({ darkMode }) => {
               )}
 
               <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5" noValidate>
-
 
                 <div className="space-y-1.5">
                   <label htmlFor="login-email" className="block text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">Email address</label>
@@ -927,8 +861,6 @@ const Login = ({ darkMode }) => {
                   )}
                 </div>
 
-
-
                 <div className="space-y-1.5">
                   <label htmlFor="login-password" className="block text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">Password</label>
                   <div className="relative">
@@ -938,7 +870,7 @@ const Login = ({ darkMode }) => {
                       onChange={handleChange} onBlur={handleBlur} placeholder="Enter your password"
                       disabled={loading} className={`${ib} pr-12 ${pErr ? ie : in_}`}
                     />
-                    <button type="button" onClick={() => setShowPassword(p => !p)} tabIndex={-1} className="absolute inset-y-0 right-0 pr-4 flex items-center text-lime-600 dark:text-lime-400">
+                    <button type="button" onClick={() => setShowPassword(p => !p)} tabIndex={-1} className="absolute inset-y-0 right-0 pr-4 flex items-center text-emerald-600 dark:text-emerald-400">
                       {showPassword ? <RiEyeOffLine size={18} /> : <RiEyeLine size={18} />}
                     </button>
                   </div>
@@ -949,17 +881,14 @@ const Login = ({ darkMode }) => {
                   )}
                 </div>
 
-
-
-
                 <div className="text-right">
-                  <button type="button" onClick={() => setShowForgot(true)} className="text-xs sm:text-sm text-lime-600 dark:text-lime-400 hover:text-lime-800 dark:hover:text-lime-200 font-medium hover:underline">
+                  <button type="button" onClick={() => setShowForgot(true)} className="text-xs sm:text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-200 font-medium hover:underline">
                     Forgot your password?
                   </button>
                 </div>
 
-                <button type="submit" disabled={loading} className="w-full h-11 sm:h-12 rounded-xl font-bold text-sm sm:text-base bg-lime-500 hover:bg-lime-600 text-white transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-sm">
-                  {loading ? <><Spinner /> Signing in...</> : "Sign In"}
+                <button type="submit" disabled={loading} className="w-full h-11 sm:h-12 rounded-md font-bold text-sm sm:text-base bg-emerald-500 hover:bg-emerald-600 text-white transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-sm hover:shadow-lg hover:shadow-emerald-500/20 active:scale-[0.98]">
+                  {loading ? <><Spinner /> Signing in...</> : "Log In"}
                 </button>
               </form>
 
@@ -972,7 +901,7 @@ const Login = ({ darkMode }) => {
               <button
                 type="button"
                 onClick={() => { window.location.href = "http://localhost:8080/oauth2/authorization/google"; }}
-                className="w-full flex items-center justify-center gap-2.5 sm:gap-3 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-semibold py-2.5 sm:py-3 px-4 rounded-xl hover:border-lime-400 dark:hover:border-lime-600 transition-all text-xs sm:text-sm"
+                className="w-full flex items-center justify-center gap-2.5 sm:gap-3 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-semibold py-2.5 sm:py-3 px-4 rounded-xl hover:border-emerald-400 dark:hover:border-emerald-600 transition-all text-xs sm:text-sm"
               >
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="w-4 h-4 sm:w-5 sm:h-5" />
                 Continue with Google
@@ -980,15 +909,12 @@ const Login = ({ darkMode }) => {
 
               <p className="text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                 New here?{" "}
-                <Link to="/signup" className="font-semibold text-lime-600 dark:text-lime-400 hover:underline">Create an account</Link>
+                <Link to="/signup" className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">Create an account</Link>
               </p>
             </div>
           </div>
         </div>
       </section>
-
-
-
 
       {showForgot && <ForgotPasswordModal onClose={() => setShowForgot(false)} />}
 

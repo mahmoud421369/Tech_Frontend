@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useCallback, useMemo, memo, useTransition, startTransition } from 'react';
 import { useQuery, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
-  FiSearch, FiMapPin, FiPhone, FiTruck, FiZap,
-  FiFilter, FiUsers, FiSliders, FiChevronDown,
+  FiSearch, FiMapPin, FiPhone, FiTruck,
+  FiFilter, FiSliders, FiChevronDown,
   FiChevronLeft, FiChevronRight, FiX,
+  FiShield, FiClock, FiThumbsUp, FiArrowRight,
 } from 'react-icons/fi';
-import { RiStore2Line, RiStarFill, RiVerifiedBadgeLine } from 'react-icons/ri';
+import { RiStarFill, RiVerifiedBadgeLine } from 'react-icons/ri';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../api';
+import Hero from '../components/Hero';
 
 const queryClient = new QueryClient();
-
 
 const cardVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -31,48 +32,43 @@ const hoverScale = {
   transition: { duration: 0.2, ease: "easeOut" }
 };
 
-const WaveBottom = memo(({ darkMode }) => (
-  <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-none pointer-events-none">
-    <svg viewBox="0 0 1440 100" xmlns="http://www.w3.org/2000/svg"
-      className="relative block w-full h-16 md:h-24" preserveAspectRatio="none">
-      <path d="M0,50 C180,100 360,0 540,50 C720,100 900,0 1080,50 C1260,100 1380,20 1440,50 L1440,100 L0,100 Z"
-        fill={darkMode ? '#111827' : '#f9fafb'} />
-    </svg>
-  </div>
+const ShopBannerIllustration = memo(({ initial }) => (
+  <svg viewBox="0 0 200 140" className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <radialGradient id={`glow-${initial}`} cx="50%" cy="35%" r="70%">
+        <stop offset="0%" stopColor="rgba(255,255,255,0.35)" />
+        <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+      </radialGradient>
+    </defs>
+    <rect width="200" height="140" fill={`url(#glow-${initial})`} />
+    <circle cx="30" cy="115" r="46" fill="rgba(255,255,255,0.08)" />
+    <circle cx="178" cy="20" r="30" fill="rgba(255,255,255,0.08)" />
+    <g transform="translate(70,28)">
+      <rect x="0" y="0" width="44" height="70" rx="8" fill="rgba(255,255,255,0.22)" stroke="rgba(255,255,255,0.55)" strokeWidth="2" />
+      <rect x="7" y="9" width="30" height="46" rx="2" fill="rgba(255,255,255,0.35)" />
+      <circle cx="22" cy="61" r="3" fill="rgba(255,255,255,0.6)" />
+    </g>
+    <g transform="translate(104,44) rotate(28)">
+      <rect x="-4" y="-24" width="8" height="34" rx="3" fill="#ffffff" fillOpacity="0.85" />
+      <circle cx="0" cy="-24" r="10" fill="none" stroke="#ffffff" strokeOpacity="0.85" strokeWidth="5" />
+      <circle cx="0" cy="-24" r="10" fill="none" stroke="#ffffff" strokeOpacity="0.85" strokeWidth="5" strokeDasharray="6 100" />
+    </g>
+    <g transform="translate(120,80)">
+      <path d="M0 10 L8 -8 L4 -8 L12 -26 L2 -6 L6 -6 Z" fill="#fde68a" fillOpacity="0.9" />
+    </g>
+    <circle cx="140" cy="100" r="3" fill="rgba(255,255,255,0.6)" />
+    <circle cx="150" cy="92" r="2" fill="rgba(255,255,255,0.5)" />
+    <circle cx="46" cy="30" r="2.5" fill="rgba(255,255,255,0.5)" />
+  </svg>
 ));
 
-const WaveTop = memo(({ darkMode }) => (
-  <div className="absolute top-0 left-0 w-full overflow-hidden leading-none pointer-events-none">
-    <svg viewBox="0 0 1440 80" xmlns="http://www.w3.org/2000/svg"
-      className="relative block w-full h-12 md:h-20" preserveAspectRatio="none">
-      <path d="M0,40 C360,80 720,0 1080,40 C1260,60 1380,20 1440,40 L1440,0 L0,0 Z"
-        fill={darkMode ? '#111827' : '#f9fafb'} />
-    </svg>
-  </div>
-));
-
-const StatCard = memo(({ icon, value, label, accent, delay, darkMode }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20, scale: 0.95 }}
-    whileInView={{ opacity: 1, y: 0, scale: 1 }}
-    transition={{ duration: 0.5, delay }}
-    viewport={{ once: true, margin: "-50px" }}
-    whileHover={hoverScale}
-    className={`relative group overflow-hidden rounded-2xl p-5 shadow-xl border transition-all duration-300 ${
-      darkMode ? 'bg-gray-800/80 border-gray-700/60 backdrop-blur-md' : 'bg-white/90 border-gray-100 backdrop-blur-md'
-    }`}
-  >
-    <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-2xl"
-      style={{ background: `linear-gradient(90deg, ${accent}, ${accent}88)` }} />
-    <div className="flex items-center justify-center flex-wrap gap-3 mb-2">
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md flex-shrink-0"
-        style={{ background: `linear-gradient(135deg, ${accent}, ${accent}aa)` }}>
-        {icon}
-      </div>
-      <span className="text-2xl font-extrabold tracking-tight" style={{ color: accent }}>{value}</span>
-    </div>
-    <p className={`text-xs font-semibold leading-snug pl-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{label}</p>
-  </motion.div>
+const CategoryBadge = memo(({ darkMode, children }) => (
+  <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+    darkMode ? 'bg-emerald-400/10 text-emerald-300 ring-1 ring-inset ring-emerald-400/30' : 'bg-emerald-400 text-white ring-1 ring-inset ring-emerald-500/25'
+  }`}>
+    <span className="w-1.5 h-1.5 rounded-full bg-white" />
+    {children}
+  </span>
 ));
 
 const FilterSection = memo(({ title, isOpen, onToggle, darkMode, children }) => (
@@ -106,15 +102,18 @@ const ShopCard = memo(({ shop, darkMode, index }) => (
     initial="hidden"
     animate="visible"
     whileHover={hoverScale}
-    className={`group flex flex-col rounded-2xl shadow-md transition-all duration-300 hover:shadow-2xl overflow-hidden cursor-pointer border h-full ${
-      darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+    className={`group flex flex-col rounded-md shadow-md transition-all duration-300 hover:shadow-2xl overflow-hidden cursor-pointer border h-full ${
+      darkMode ? 'bg-gray-900 border-gray-600' : 'bg-white border-gray-200'
     }`}
   >
     <div className="relative flex-shrink-0">
-      <div className="w-full h-40 sm:h-44 bg-gradient-to-br from-lime-500 via-emerald-500 to-teal-600 flex items-center justify-center text-white text-7xl font-black select-none">
-        {shop.name?.charAt(0).toUpperCase() || 'S'}
+      <div className="relative w-full h-40 sm:h-44 bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 overflow-hidden">
+        <ShopBannerIllustration initial={shop.id} />
+        <span className="absolute bottom-3 right-3 w-11 h-11 rounded-xl bg-white/20 backdrop-blur-sm ring-1 ring-white/40 flex items-center justify-center text-white text-lg font-black select-none">
+          {shop.name?.charAt(0).toUpperCase() || 'S'}
+        </span>
       </div>
-      <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent pointer-events-none" />
       {shop.verified && (
         <span className="absolute top-3 right-3 flex items-center gap-1 bg-green-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-md">
           <RiVerifiedBadgeLine className="w-3.5 h-3.5" /> Verified
@@ -130,12 +129,12 @@ const ShopCard = memo(({ shop, darkMode, index }) => (
       <h3 className={`font-bold text-base sm:text-lg line-clamp-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
         {shop.name || 'Unnamed Shop'}
       </h3>
-      <p className={`text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-lime-400' : 'text-lime-600'}`}>
+      <p className={`text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
         {shop.shopType || 'Electronics Repair'}
       </p>
       {shop.shopAddress && (
         <p className={`text-sm flex items-start gap-1.5 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-          <FiMapPin className="text-lime-500 mt-0.5 flex-shrink-0 w-3.5 h-3.5" />
+          <FiMapPin className="text-emerald-500 mt-0.5 flex-shrink-0 w-3.5 h-3.5" />
           <span className="line-clamp-1">{shop.shopAddress.street}, {shop.shopAddress.city}</span>
         </p>
       )}
@@ -144,7 +143,7 @@ const ShopCard = memo(({ shop, darkMode, index }) => (
       </p>
       {shop.phone && (
         <p className={`text-sm flex items-center gap-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-          <FiPhone className="text-lime-500 flex-shrink-0 w-3.5 h-3.5" />
+          <FiPhone className="text-emerald-500 flex-shrink-0 w-3.5 h-3.5" />
           {shop.phone}
         </p>
       )}
@@ -153,12 +152,12 @@ const ShopCard = memo(({ shop, darkMode, index }) => (
         whileTap={{ scale: 0.97 }}
         onClick={() => (window.location.href = `/shops/${shop.id}`)}
         className="mt-auto relative w-full py-2.5 px-4 rounded-xl font-bold text-sm overflow-hidden
-          flex items-center justify-center gap-2 group/btn border-2 border-lime-500
+          flex items-center justify-center gap-2 group/btn border-2 border-emerald-500
           transition-colors duration-300"
       >
-        <span className="absolute inset-0 bg-gradient-to-r from-lime-500 to-emerald-500 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300 ease-out rounded-[10px]" />
-        <FiTruck className="relative z-10 w-4 h-4 text-lime-500 group-hover/btn:text-white transition-colors duration-300" />
-        <span className="relative z-10 text-lime-600 dark:text-lime-400 group-hover/btn:text-white transition-colors duration-300">
+        <span className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-teal-500 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300 ease-out rounded-[10px]" />
+        <FiTruck className="relative z-10 w-4 h-4 text-emerald-500 group-hover/btn:text-white transition-colors duration-300" />
+        <span className="relative z-10 text-emerald-600 dark:text-emerald-400 group-hover/btn:text-white transition-colors duration-300">
           Visit Shop
         </span>
       </motion.button>
@@ -166,25 +165,148 @@ const ShopCard = memo(({ shop, darkMode, index }) => (
   </motion.div>
 ));
 
-const ShopSkeleton = memo(({ darkMode }) => (
-  <div className={`rounded-2xl overflow-hidden animate-pulse shadow-md ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-    <div className={`h-40 sm:h-44 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
-    <div className="p-4 space-y-3">
-      <div className={`h-4 rounded w-3/4 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
-      <div className={`h-3 rounded w-1/2 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
-      <div className={`h-3 rounded w-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
-      <div className={`h-3 rounded w-5/6 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
-      <div className={`h-10 rounded-xl w-full mt-2 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
+const ShopStripCard = memo(({ shop, darkMode, index }) => (
+  <motion.div
+    custom={index}
+    variants={cardVariants}
+    initial="hidden"
+    whileInView="visible"
+    viewport={{ once: true, margin: "60px" }}
+    whileHover={{ y: -4 }}
+    onClick={() => (window.location.href = `/shops/${shop.id}`)}
+    className={`relative flex-shrink-0 w-[260px] sm:w-[300px] flex flex-col rounded-lg overflow-hidden cursor-pointer snap-start border shadow-md ${
+      darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+    }`}
+  >
+    <div className="relative h-28 sm:h-32 bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 overflow-hidden flex-shrink-0">
+      <ShopBannerIllustration initial={`strip-${shop.id}`} />
+      <span className="absolute bottom-2.5 right-2.5 w-9 h-9 rounded-lg bg-white/20 backdrop-blur-sm ring-1 ring-white/40 flex items-center justify-center text-white text-sm font-black select-none">
+        {shop.name?.charAt(0).toUpperCase() || 'S'}
+      </span>
+      {shop.verified && (
+        <span className="absolute top-2 left-2 flex items-center gap-1 bg-white/90 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+          <RiVerifiedBadgeLine className="w-3 h-3" /> Verified
+        </span>
+      )}
+      <span className="absolute top-2 right-2 flex items-center gap-1 bg-black/45 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+        <RiStarFill className="text-amber-400 w-3 h-3" />
+        {shop.rating?.toFixed(1) || '4.8'}
+      </span>
     </div>
-  </div>
+
+    <div className="flex flex-col flex-grow p-3.5 gap-1.5">
+      <h4 className={`font-bold text-sm line-clamp-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+        {shop.name || 'Unnamed Shop'}
+      </h4>
+      <p className={`text-[11px] font-semibold uppercase tracking-wide ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
+        {shop.shopType || 'Electronics Repair'}
+      </p>
+      {shop.shopAddress && (
+        <p className={`text-xs flex items-start gap-1.5 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+          <FiMapPin className="text-emerald-500 mt-0.5 flex-shrink-0 w-3 h-3" />
+          <span className="line-clamp-1">{shop.shopAddress.street}, {shop.shopAddress.city}</span>
+        </p>
+      )}
+      <p className={`text-xs line-clamp-2 flex-grow ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+        {shop.description || 'Professional repair services with genuine parts and 6-month warranty.'}
+      </p>
+      {shop.phone && (
+        <p className={`text-xs flex items-center gap-1.5 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+          <FiPhone className="text-emerald-500 flex-shrink-0 w-3 h-3" />
+          {shop.phone}
+        </p>
+      )}
+      <hr className="border border-gray-200 mt-3  dark:border-gray-800" />
+      <span className={`mt-auto p-3 flex items-center justify-start  gap-2   rounded-lg  text-xs font-bold ${darkMode ? 'text-emerald-400' : 'text-emerald-500'}`}>
+      <FiArrowRight className='w-3.5 h-3.5'/>  Visit Shop 
+      </span>
+    </div>
+  </motion.div>
 ));
+
+const ShopTypeSlider = memo(({ shopType, shops, darkMode }) => {
+  const sliderRef = React.useRef(null);
+  if (!shops.length) return null;
+  const scroll = (dir) => sliderRef.current?.scrollBy({ left: dir === 'left' ? -300 : 300, behavior: 'smooth' });
+  return (
+    <div className="mb-10 sm:mb-12">
+      <div className="flex items-center justify-between mb-4 sm:mb-5">
+        <div className="flex items-center gap-3 flex-wrap">
+          <CategoryBadge darkMode={darkMode}>{shopType}</CategoryBadge>
+          <span className={`text-xs sm:text-sm font-medium ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+            {shops.length} {shops.length === 1 ? 'shop' : 'shops'}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => scroll('left')}
+            className={`p-1.5 sm:p-2 rounded-full ring-1 transition-all duration-150 ${
+              darkMode ? 'bg-gray-800 ring-white/10 hover:bg-emerald-900/40 text-emerald-400' : 'bg-white ring-black/5 hover:bg-emerald-50 text-emerald-700 shadow-sm'
+            }`}>
+            <FiChevronLeft className="w-4 h-4" />
+          </button>
+          <button onClick={() => scroll('right')}
+            className={`p-1.5 sm:p-2 rounded-full ring-1 transition-all duration-150 ${
+              darkMode ? 'bg-gray-800 ring-white/10 hover:bg-emerald-900/40 text-emerald-400' : 'bg-white ring-black/5 hover:bg-emerald-50 text-emerald-700 shadow-sm'
+            }`}>
+            <FiChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+      <div ref={sliderRef} className="flex gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-2 hide-scrollbar items-stretch">
+        {shops.map((s, i) => <ShopStripCard key={s.id} shop={s} darkMode={darkMode} index={i} />)}
+      </div>
+    </div>
+  );
+});
+
+const ShieldIllustration = memo(({ darkMode }) => (
+  <svg viewBox="0 0 64 64" className="w-full h-full">
+    <path d="M32 4 L54 12 V30 C54 45 44 55 32 60 C20 55 10 45 10 30 V12 Z" fill={darkMode ? 'rgba(52,211,153,0.14)' : 'rgba(16,185,129,0.12)'} />
+    <path d="M32 10 L48 16 V30 C48 41.5 40.5 49.5 32 53.5 C23.5 49.5 16 41.5 16 30 V16 Z" fill="none" stroke={darkMode ? '#34d399' : '#10b981'} strokeWidth="2.5" />
+    <path d="M23 30 L29 36 L42 22" fill="none" stroke={darkMode ? '#34d399' : '#059669'} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="50" cy="10" r="3" fill={darkMode ? '#6ee7b7' : '#34d399'} />
+    <circle cx="9" cy="46" r="2.2" fill={darkMode ? '#6ee7b7' : '#34d399'} />
+  </svg>
+));
+
+const RatingIllustration = memo(({ darkMode }) => (
+  <svg viewBox="0 0 64 64" className="w-full h-full">
+    <circle cx="32" cy="32" r="26" fill={darkMode ? 'rgba(251,191,36,0.14)' : 'rgba(245,158,11,0.12)'} />
+    <path d="M32 14 L37 25.5 L49.5 27 L40.5 35 L43 47.5 L32 41 L21 47.5 L23.5 35 L14.5 27 L27 25.5 Z" fill="#f59e0b" />
+    <circle cx="50" cy="16" r="2.4" fill="#fbbf24" />
+    <circle cx="12" cy="20" r="1.8" fill="#fbbf24" />
+    <circle cx="14" cy="46" r="2" fill="#fbbf24" />
+  </svg>
+));
+
+const ClockIllustration = memo(({ darkMode }) => (
+  <svg viewBox="0 0 64 64" className="w-full h-full">
+    <circle cx="30" cy="34" r="24" fill={darkMode ? 'rgba(52,211,153,0.14)' : 'rgba(16,185,129,0.12)'} />
+    <circle cx="30" cy="34" r="18" fill="none" stroke={darkMode ? '#34d399' : '#10b981'} strokeWidth="2.5" />
+    <path d="M30 24 V34 L38 39" fill="none" stroke={darkMode ? '#34d399' : '#059669'} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M44 12 L48 6 L52 12 L47 12 Z" fill="#fbbf24" />
+    <rect x="24" y="4" width="12" height="4" rx="2" fill={darkMode ? '#34d399' : '#10b981'} />
+  </svg>
+));
+
+const ThumbsIllustration = memo(({ darkMode }) => (
+  <svg viewBox="0 0 64 64" className="w-full h-full">
+    <circle cx="32" cy="32" r="26" fill={darkMode ? 'rgba(52,211,153,0.14)' : 'rgba(16,185,129,0.12)'} />
+    <path d="M22 30 H16 V50 H22 Z" fill={darkMode ? '#34d399' : '#10b981'} />
+    <path d="M24 30 L30 14 C31.5 12 34.5 12.5 34.5 15.5 L33.5 24 H44 C46.5 24 48 26.5 47 28.5 L42 46 C41.3 47.5 39.8 48.5 38 48.5 H24 V30 Z" fill="none" stroke={darkMode ? '#34d399' : '#059669'} strokeWidth="2.6" strokeLinejoin="round" />
+    <circle cx="48" cy="14" r="2.2" fill="#fbbf24" />
+  </svg>
+));
+
+
+
 
 const RadioOption = memo(({ value, label, selected, onSelect, icon, darkMode }) => (
   <label className="flex items-center gap-3 cursor-pointer group py-0.5">
     <div
       onClick={() => onSelect(value)}
       className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
-        selected ? 'border-lime-500 bg-lime-500' : darkMode ? 'border-gray-600' : 'border-gray-300'
+        selected ? 'border-emerald-500 bg-emerald-500' : darkMode ? 'border-gray-600' : 'border-gray-300'
       }`}
     >
       {selected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
@@ -192,7 +314,7 @@ const RadioOption = memo(({ value, label, selected, onSelect, icon, darkMode }) 
     <span
       onClick={() => onSelect(value)}
       className={`text-sm font-medium flex items-center gap-1.5 transition-colors ${
-        selected ? 'text-lime-500' : darkMode ? 'text-gray-300 group-hover:text-white' : 'text-gray-600 group-hover:text-gray-900'
+        selected ? 'text-emerald-500' : darkMode ? 'text-gray-300 group-hover:text-white' : 'text-gray-600 group-hover:text-gray-900'
       }`}
     >
       {icon && icon}
@@ -206,10 +328,10 @@ const PillButton = memo(({ label, isActive, onClick, darkMode }) => (
     onClick={onClick}
     className={`px-3 py-1.5 rounded-lg text-xs font-semibold border-2 transition-all duration-200 ${
       isActive
-        ? 'bg-lime-500 border-lime-500 text-white shadow-sm shadow-lime-200'
+        ? 'bg-emerald-500 border-emerald-500 text-white shadow-sm shadow-emerald-200'
         : darkMode
-          ? 'border-gray-700 text-gray-300 hover:border-lime-500 hover:text-lime-400 bg-gray-800/60'
-          : 'border-gray-200 text-gray-600 hover:border-lime-400 hover:text-lime-600 bg-white'
+          ? 'border-gray-700 text-gray-300 hover:border-emerald-500 hover:text-emerald-400 bg-gray-800/60'
+          : 'border-gray-200 text-gray-600 hover:border-emerald-400 hover:text-emerald-600 bg-white'
     }`}
   >
     {label}
@@ -227,16 +349,16 @@ const SidebarContent = memo(({
   <div className="py-6 space-y-5">
     <div className="flex items-center justify-between">
       <h3 className={`text-xl font-extrabold flex items-center gap-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-        <FiFilter className="text-lime-500" /> Filters
+        <FiFilter className="text-emerald-500" /> Filters
       </h3>
       {activeFiltersCount > 0 && (
-        <span className="px-2.5 py-0.5 rounded-full bg-lime-500 text-white text-xs font-bold">
+        <span className="px-2.5 py-0.5 rounded-full bg-emerald-500 text-white text-xs font-bold">
           {activeFiltersCount}
         </span>
       )}
     </div>
 
-    <div className="relative">
+    <div className="relative ">
       <FiSearch className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
       <input
         type="text"
@@ -245,7 +367,7 @@ const SidebarContent = memo(({
         onChange={(e) => { startTransition(() => { setSearchTerm(e.target.value); setCurrentPage(1); }); }}
         className={`w-full pl-11 pr-10 py-3 rounded-xl border text-sm ${
           darkMode ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
-        } focus:outline-none focus:ring-2 focus:ring-lime-500 focus:border-transparent transition`}
+        } focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition`}
       />
       {searchTerm && (
         <button onClick={() => startTransition(() => setSearchTerm(''))} className="absolute right-3 top-1/2 -translate-y-1/2 hover:text-gray-600 transition">
@@ -300,18 +422,18 @@ const SidebarContent = memo(({
         onClick={() => startTransition(() => setShowVerifiedOnly(!showVerifiedOnly))}
         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all duration-200 ${
           showVerifiedOnly
-            ? 'bg-lime-500/10 border-lime-500 text-lime-600 dark:text-lime-400'
-            : darkMode ? 'border-gray-700 text-gray-300 hover:border-lime-500 bg-gray-800/60' : 'border-gray-200 text-gray-600 hover:border-lime-500 bg-white'
+            ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-400'
+            : darkMode ? 'border-gray-700 text-gray-300 hover:border-emerald-500 bg-gray-800/60' : 'border-gray-200 text-gray-600 hover:border-emerald-500 bg-white'
         }`}
       >
         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-          showVerifiedOnly ? 'bg-lime-500 border-lime-500' : darkMode ? 'border-gray-500' : 'border-gray-300'
+          showVerifiedOnly ? 'bg-emerald-500 border-emerald-500' : darkMode ? 'border-gray-500' : 'border-gray-300'
         }`}>
           {showVerifiedOnly && <RiVerifiedBadgeLine className="text-white w-3 h-3" />}
         </div>
         <span className="text-sm font-semibold">Show only verified shops</span>
         {showVerifiedOnly && (
-          <span className="ml-auto text-xs bg-lime-500 text-white px-2 py-0.5 rounded-full font-bold">ON</span>
+          <span className="ml-auto text-xs bg-emerald-500 text-white px-2 py-0.5 rounded-full font-bold">ON</span>
         )}
       </button>
     </FilterSection>
@@ -333,12 +455,12 @@ const PaginationButton = memo(({ children, onClick, disabled, active, darkMode }
     disabled={disabled}
     className={`min-w-[40px] h-10 sm:min-w-[44px] sm:h-11 px-2 rounded-xl font-bold text-sm transition-all duration-200 border flex items-center justify-center ${
       active
-        ? 'bg-gradient-to-r from-lime-500 to-emerald-500 text-white border-transparent shadow-lg shadow-lime-500/30 scale-105'
+        ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-transparent shadow-lg shadow-emerald-500/30 scale-105'
         : disabled
           ? 'opacity-40 cursor-not-allowed ' + (darkMode ? 'bg-gray-800 border-gray-700 text-gray-400' : 'bg-white border-gray-200 text-gray-400')
           : darkMode
-            ? 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white hover:border-lime-500'
-            : 'bg-white border-gray-200 text-gray-700 hover:bg-lime-50 hover:border-lime-300'
+            ? 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white hover:border-emerald-500'
+            : 'bg-white border-gray-200 text-gray-700 hover:bg-emerald-50 hover:border-emerald-300'
     }`}
   >
     {children}
@@ -387,6 +509,36 @@ const ShopsContent = ({ darkMode }) => {
 
   const shopTypes = useMemo(() => [...new Set(shops.map(s => s.shopType).filter(Boolean))], [shops]);
   const cities = useMemo(() => [...new Set(shops.map(s => s.shopAddress?.city).filter(Boolean))], [shops]);
+
+  const shopsByType = useMemo(() => {
+    const map = {};
+    shops.forEach((s) => {
+      const type = s.shopType;
+      if (!type) return;
+      if (!map[type]) map[type] = [];
+      map[type].push(s);
+    });
+    return map;
+  }, [shops]);
+
+  const shopsByCity = useMemo(() => {
+    const map = {};
+    shops.forEach((s) => {
+      const city = s.shopAddress?.city;
+      if (!city) return;
+      if (!map[city]) map[city] = [];
+      map[city].push(s);
+    });
+    return map;
+  }, [shops]);
+
+  const typeSections = useMemo(() =>
+    shopTypes
+      .map((type) => ({ type, shops: (shopsByType[type] || []).slice(0, 10) }))
+      .filter((sec) => sec.shops.length > 0)
+      .slice(0, 6),
+    [shopTypes, shopsByType]
+  );
 
   const filteredShops = useMemo(() => {
     let filtered = shops.filter(shop => {
@@ -449,117 +601,79 @@ const ShopsContent = ({ darkMode }) => {
   const sortLabels = useMemo(() => ({ relevance: 'Relevance', ratingHighToLow: 'Rating: High to Low', nameAZ: 'Name: A to Z' }), []);
 
   const heroStats = useMemo(() => [
-    { icon: <FiZap size={18} />, value: '98.9%', label: 'Customer satisfaction', accent: '#f97316', delay: 0.1 },
-    { icon: <FiUsers size={18} />, value: '500+', label: 'Verified shops nationwide', accent: '#6366f1', delay: 0.2 },
-    { icon: <RiStarFill size={18} />, value: '4.9★', label: 'Average shop rating', accent: '#f59e0b', delay: 0.3 },
+    { value: '98.9%', label: 'Customer satisfaction' },
+    { value: '500+', label: 'Verified shops nationwide' },
+    { value: '4.9★', label: 'Average shop rating' },
   ], []);
+
+  const scrollToResults = useCallback(() => {
+    document.getElementById('shop-results')?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+
+  const heroButtons = useMemo(() => [
+    { label: 'Browse Shops', onClick: scrollToResults, primary: true },
+    { label: 'Browse Devices', to: '/devices', primary: false },
+  ], [scrollToResults]);
 
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50'}`}>
-      <section className={`relative overflow-hidden pt-20 pb-32 md:pt-24 md:pb-40 ${
-        darkMode ? 'bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950' : 'bg-gradient-to-br from-lime-50 via-white to-emerald-50'
-      }`}>
-        <div className="absolute w-[500px] h-[500px] -top-40 -left-32 rounded-full blur-3xl opacity-20 bg-lime-400 animate-pulse pointer-events-none" style={{ animationDuration: '5s' }} />
-        <div className="absolute w-[400px] h-[400px] top-10 -right-20 rounded-full blur-3xl opacity-15 bg-emerald-500 animate-pulse pointer-events-none" style={{ animationDuration: '7s' }} />
-        <div className="absolute inset-0 pointer-events-none opacity-[0.025]"
-          style={{ backgroundImage: 'repeating-linear-gradient(0deg,transparent,transparent 39px,#000 39px,#000 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,#000 39px,#000 40px)' }} />
-        <WaveTop darkMode={darkMode} />
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
-            <div className="space-y-8">
-              <motion.div
-                initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}
-                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border text-sm font-semibold bg-lime-500/10 border-lime-500/30 text-lime-600 dark:text-lime-400"
-              >
-                <span className="w-2 h-2 rounded-full bg-lime-500 animate-ping" />
-                Verified by our team
-              </motion.div>
-
-              <motion.h1
-                initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }}
-                className="text-3xl  sm:text-5xl md:text-6xl lg:text-7xl font-extrabold leading-[1.08]"
-              >
-                <span className="bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-500 bg-clip-text text-transparent">Find Trusted</span>
-                <br />
-                <span className={darkMode ? 'text-white' : 'text-gray-900'}>Shops Near</span>
-                <br />
-                <span style={{ WebkitTextStroke: darkMode ? '2px #84cc16' : '2px #16a34a', color: 'transparent' }}>You</span>
-              </motion.h1>
-
-              <motion.p
-                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}
-                className={`text-base sm:text-xl md:text-2xl leading-relaxed max-w-xl ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}
-              >
-                Verified repair centers and electronics stores near you. Fast, reliable, and rated by real customers.
-              </motion.p>
-
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4 pt-1 sm:pt-2">
-                {heroStats.map(s => <StatCard key={s.label} {...s} darkMode={darkMode} />)}
-              </div>
-            </div>
-
-            <div className="relative h-96 lg:h-[580px]">
-              <div className="absolute inset-0 bg-gradient-to-br from-lime-200/30 to-emerald-200/30 dark:from-lime-900/20 dark:to-emerald-900/20 rounded-full blur-3xl scale-125" />
-              <div className="relative w-full h-full">
-                <motion.div
-                  initial={{ opacity: 0, rotate: 8, y: 20 }} animate={{ opacity: 1, rotate: 12, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0.2 }} whileHover={{ rotate: 4, scale: 1.04 }}
-                  className={`absolute top-10 left-10 w-48 rounded-3xl shadow-2xl overflow-hidden border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
-                >
-                  <div className="h-1 bg-gradient-to-r from-lime-400 to-emerald-500" />
-                  <div className="p-4 space-y-3">
-                    <div className={`h-3 rounded w-20 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
-                    <div className={`h-3 rounded w-32 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
-                    <div className="h-8 bg-gradient-to-r from-lime-400 to-emerald-500 rounded-xl w-16" />
-                  </div>
-                </motion.div>
-                <motion.div
-                  initial={{ opacity: 0, rotate: -4, y: 20 }} animate={{ opacity: 1, rotate: -6, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0.35 }} whileHover={{ rotate: -2, scale: 1.04 }}
-                  className={`absolute bottom-10 right-10 w-56 rounded-3xl shadow-2xl overflow-hidden border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
-                >
-                  <div className="h-1 bg-gradient-to-r from-indigo-400 to-purple-500" />
-                  <div className="p-5 space-y-4">
-                    <div className="flex justify-between items-center">
-                      <div className={`h-4 rounded w-24 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
-                    </div>
-                    <div className="flex gap-1">
-                      {[...Array(5)].map((_, i) => (
-                        <RiStarFill key={i} className={i < 4 ? 'text-amber-400 w-4 h-4' : 'text-gray-300 w-4 h-4'} />
-                      ))}
-                    </div>
-                  </div>
-                </motion.div>
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.7, delay: 0.15 }} whileHover={{ scale: 1.07, y: -4 }}
-                  className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-40 rounded-3xl shadow-2xl overflow-hidden border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
-                >
-                  <div className="h-1 bg-gradient-to-r from-lime-500 to-emerald-500" />
-                  <div className="p-4">
-                    <div className="w-16 h-16 rounded-2xl mx-auto mb-3 flex items-center justify-center">
-                      <RiStore2Line className="text-lime-400 text-3xl" />
-                    </div>
-                    <div className="mt-3 text-center">
-                      <span className="text-xs font-bold text-lime-500">Verified ✓</span>
-                    </div>
-                  </div>
-                </motion.div>
-                <motion.div
-                  animate={{ y: [0, -8, 0] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                  className="absolute top-1/4 right-4 z-20 bg-gradient-to-r from-lime-500 to-emerald-500 text-white text-xs font-bold px-3 py-2 rounded-2xl shadow-xl"
-                >
-                  🏪 500+ Shops
-                </motion.div>
-              </div>
-            </div>
+      <Hero
+        variant="shop"
+        darkMode={darkMode}
+        badge="Verified by our team"
+        headingLine1="Find trusted"
+        headingAccent="shops"
+        headingLine2="near you"
+        description="Verified repair centers and electronics stores, rated by real customers — search by name, city, or specialty."
+        buttons={heroButtons}
+        stats={heroStats}
+      >
+        <div className="relative w-full border rounded-2xl dark:border-gray-800 max-w-xl">
+          <div className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border backdrop-blur-xl transition-all duration-200 shadow-lg ${
+            darkMode ? 'border-white/15 bg-white/5' : ' bg-white'
+          }`}>
+            <FiSearch className={`w-5 h-5 flex-shrink-0 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => startTransition(() => { setSearchTerm(e.target.value); setCurrentPage(1); })}
+              placeholder="Search shops by name, city, or specialty..."
+              className={`flex-1 outline-none text-sm bg-transparent font-medium placeholder:font-normal ${
+                darkMode ? 'text-white placeholder:text-gray-500' : 'text-gray-900 placeholder:text-gray-500'
+              }`}
+            />
+            {searchTerm && (
+              <button onClick={() => startTransition(() => setSearchTerm(''))} className={`p-0.5 rounded-full ${darkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-800'}`}>
+                <FiX className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
-        <WaveBottom darkMode={darkMode} />
-      </section>
+      </Hero>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+      
+
+      {!isLoading && typeSections.length > 0 && (
+        <div className={`py-10 sm:py-16 ${darkMode ? 'bg-gray-950' : 'bg-white'}`}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="mb-8 sm:mb-12">
+              <span className={`text-xs font-bold uppercase tracking-widest ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                Browse by specialty
+              </span>
+              <h2 className={`text-2xl sm:text-4xl font-bold tracking-tight mt-1.5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                Find the right expert
+              </h2>
+            </div>
+            {typeSections.map(({ type, shops: typeShops }) => (
+              <ShopTypeSlider key={type} shopType={type} shops={typeShops} darkMode={darkMode} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      
+
+      <div id="shop-results" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <div className="flex gap-6 lg:gap-8">
           <aside className={`hidden lg:block w-72 xl:w-64 flex-shrink-0 sticky top-20 self-start h-[calc(100vh-5rem)] overflow-y-auto rounded-2xl border shadow-lg ${
             darkMode ? 'bg-gray-800/60 border-gray-700 backdrop-blur-md' : 'bg-white border-gray-200'
@@ -594,7 +708,7 @@ const ShopsContent = ({ darkMode }) => {
                   </span>
                 </div>
                 {selectedShopTypes.map(t => (
-                  <span key={t} className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-lime-500/10 text-lime-600 dark:text-lime-400 text-xs font-semibold border border-lime-500/30">
+                  <span key={t} className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold border border-emerald-500/30">
                     {t}
                     <button onClick={() => toggleShopType(t)} className="hover:text-red-400 transition">
                       <FiX className="w-3 h-3" />
@@ -608,14 +722,14 @@ const ShopsContent = ({ darkMode }) => {
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                 className={`lg:hidden flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border-2 font-semibold text-sm transition-all shadow-sm hover:shadow-md ${
                   activeFiltersCount > 0
-                    ? 'border-lime-500 bg-lime-500/10 text-lime-600 dark:text-lime-400'
-                    : darkMode ? 'bg-gray-800 border-gray-700 text-white hover:border-lime-500' : 'bg-white border-gray-200 text-gray-700 hover:border-lime-400'
+                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                    : darkMode ? 'bg-gray-800 border-gray-700 text-white hover:border-emerald-500' : 'bg-white border-gray-200 text-gray-700 hover:border-emerald-400'
                 }`}
               >
-                <FiSliders className="w-4 h-4 text-lime-500" />
+                <FiSliders className="w-4 h-4 text-emerald-500" />
                 Filters
                 {activeFiltersCount > 0 && (
-                  <span className="w-5 h-5 rounded-full bg-lime-500 text-white text-xs font-bold flex items-center justify-center">
+                  <span className="w-5 h-5 rounded-full bg-emerald-500 text-white text-xs font-bold flex items-center justify-center">
                     {activeFiltersCount}
                   </span>
                 )}
@@ -636,7 +750,7 @@ const ShopsContent = ({ darkMode }) => {
                 <motion.button
                   whileTap={{ scale: 0.97 }}
                   onClick={clearFilters}
-                  className="px-6 py-3 rounded-xl bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-600 hover:to-emerald-600 text-white font-bold transition-all shadow-md hover:shadow-lg"
+                  className="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold transition-all shadow-md hover:shadow-lg"
                 >
                   Clear Filters
                 </motion.button>
@@ -679,22 +793,7 @@ const ShopsContent = ({ darkMode }) => {
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
               className={`absolute left-0 top-0 bottom-0 w-[min(320px,90vw)] shadow-2xl overflow-y-auto ${darkMode ? 'bg-gray-900' : 'bg-white'}`}
             >
-              <div className={`flex items-center justify-between p-4 sm:p-5 border-b sticky top-0 z-10 ${
-                darkMode ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'
-              }`}>
-                <span className={`text-base sm:text-lg font-extrabold flex items-center gap-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                  <FiFilter className="text-lime-500" /> Filters
-                  {activeFiltersCount > 0 && (
-                    <span className="px-2 py-0.5 rounded-full bg-lime-500 text-white text-xs font-bold">{activeFiltersCount}</span>
-                  )}
-                </span>
-                <button
-                  onClick={() => setIsSidebarOpen(false)}
-                  className={`p-2 rounded-xl transition ${darkMode ? 'text-gray-400 hover:bg-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}
-                >
-                  <FiX className="w-5 h-5" />
-                </button>
-              </div>
+             
               <div className="px-4 sm:px-5">
                 <SidebarContent 
                   darkMode={darkMode} searchTerm={searchTerm} setSearchTerm={setSearchTerm}
@@ -718,6 +817,19 @@ const ShopsContent = ({ darkMode }) => {
     </div>
   );
 };
+
+const ShopSkeleton = memo(({ darkMode }) => (
+  <div className={`rounded-2xl overflow-hidden animate-pulse shadow-md ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+    <div className={`h-40 sm:h-44 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
+    <div className="p-4 space-y-3">
+      <div className={`h-4 rounded w-3/4 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
+      <div className={`h-3 rounded w-1/2 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
+      <div className={`h-3 rounded w-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
+      <div className={`h-3 rounded w-5/6 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
+      <div className={`h-10 rounded-xl w-full mt-2 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
+    </div>
+  </div>
+));
 
 export default function Shops(props) {
   return (

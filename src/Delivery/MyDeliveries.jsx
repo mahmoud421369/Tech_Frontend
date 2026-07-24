@@ -124,10 +124,10 @@ const MyDeliveries = () => {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-1.5 rounded-full bg-lime-500" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-600">Operations Log</span>
+              <div className="w-8 h-1.5 rounded-full bg-emerald-500" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">Operations Log</span>
             </div>
-            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">My <span className="text-lime-500">Deliveries</span></h1>
+            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">My <span className="text-emerald-500">Deliveries</span></h1>
             <p className="text-sm font-bold text-gray-500 dark:text-gray-400">Manage and finalize your active delivery assignments</p>
           </div>
           
@@ -152,7 +152,7 @@ const MyDeliveries = () => {
        
        
 
-        <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none p-6">
           <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
             <div className="relative flex-1 group">
               <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={18} />
@@ -162,7 +162,7 @@ const MyDeliveries = () => {
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 aria-label="Search my deliveries"
-                className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-sm text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/10 focus:border-lime-200 transition-all"
+                className="w-full pl-12 pr-4 py-3.5 rounded-2xl cursor-pointer border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-sm text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-200 transition-all"
               />
             </div>
 
@@ -184,20 +184,19 @@ const MyDeliveries = () => {
 
        
        
-        <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden">
           <div className="overflow-x-auto custom-scrollbar-thin">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-50/50 dark:bg-gray-900/30 border-b border-gray-100 dark:border-gray-700">
+                <tr className="bg-gray-100 dark:bg-gray-900/30 text-center dark:border-gray-700">
                   <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Assignment Date</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Order ID</th>
                   <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Customer</th>
                   <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Status</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Payout</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Price</th>
                   <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                 {isLoading && paginated.length === 0 ? (
                   [...Array(rowsPerPage)].map((_, i) => (
                     <tr key={i} className="animate-pulse">
@@ -221,26 +220,15 @@ const MyDeliveries = () => {
                     const st = STATUS_STYLE[order.status] || { bg: 'bg-gray-50', text: 'text-gray-500', dot: 'bg-gray-400' };
                     return (
                       <tr key={order.id} className="hover:bg-lime-50/10 dark:hover:bg-lime-900/5 transition-colors group">
-                        <td className="px-8 py-6 whitespace-nowrap">
-                          <p className="text-xs font-black text-gray-900 dark:text-white uppercase">{formatDate(order.createdAt)}</p>
-                          <p className="text-[10px] font-bold text-gray-400 mt-0.5 uppercase tracking-widest">Assigned</p>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <p className="text-xs font-semibold text-gray-950 text-center dark:text-white uppercase">{formatDate(order.createdAt)}</p>
+                         
                         </td>
-                        <td className="px-8 py-6 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-mono font-black text-gray-800 dark:text-gray-200">#{order.id?.slice(-8)}</span>
-                            <button 
-                              onClick={() => copyToClipboard(order.id)} 
-                              aria-label={`Copy reference for order ${order.id}`}
-                              className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-400 hover:text-lime-500 transition-all"
-                            >
-                              <FiCopy size={12} />
-                            </button>
-                          </div>
-                        </td>
-                        <td className="px-8 py-6 whitespace-nowrap">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-2xl bg-lime-50 dark:bg-lime-900/20 flex items-center justify-center text-lime-600">
-                              <FiUser size={18} />
+                  
+                        <td className="px-5 py-3 whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-3">
+                            <div className="w-5 h-5 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600">
+                              <FiUser size={12} />
                             </div>
                             <div>
                               <p className="text-xs font-black text-gray-900 dark:text-white truncate max-w-[150px]">{order.firstName} {order.lastName}</p>
@@ -248,30 +236,33 @@ const MyDeliveries = () => {
                             </div>
                           </div>
                         </td>
-                        <td className="px-8 py-6 whitespace-nowrap">
-                          <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-transparent ${st.bg} ${st.text}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${st.dot} animate-pulse`} />
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="flex justify-center items-center">
+                          <span className={`inline-flex items-center justify-center  p-2 rounded-2xl text-[10px] font-bold uppercase tracking-widest border border-transparent ${st.bg} ${st.text}`}>
+                            
                             {order.status?.replace(/_/g, ' ')}
                           </span>
+                          </div>
                         </td>
-                        <td className="px-8 py-6 whitespace-nowrap">
-                          <p className="text-sm font-black text-gray-900 dark:text-white tracking-tighter">{formatPrice(order.totalPrice)}</p>
-                          <p className="text-[10px] font-black text-lime-600 uppercase tracking-widest mt-0.5">Earnings</p>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <p className="text-sm font-semibold text-center text-gray-950 dark:text-white tracking-tighter">{formatPrice(order.totalPrice)}</p>
+                         
                         </td>
-                        <td className="px-8 py-6 whitespace-nowrap text-right">
-                          <div className="flex items-center justify-end gap-2">
+                        <td className="px-4 py-3 whitespace-nowrap text-right">
+                          <div className="flex items-center justify-center gap-2">
                             <button 
+                              title="View Details"
                               onClick={() => setSelectedOrder(order)}
                               aria-label={`View details for order ${order.id}`}
-                              className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-700 text-gray-400 hover:text-lime-500 transition-all"
+                              className="flex items-center gap-2 dark:border-gray-700 px-6 py-3 hover:bg-amber-300 hover:text-white rounded-md bg-transparent border-2 border-gray-50 text-amber-400 text-xs font-black uppercase tracking-widest hover:bg-amber-400 transition-all  active:scale-95"
                             >
-                              <FiInfo size={18} />
+                              <FiInfo size={18} /> 
                             </button>
                             {order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && (
                               <button 
                                 onClick={() => handleMarkDelivered(order.id)}
                                 aria-label={`Complete delivery for order ${order.id}`}
-                                className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-lime-500 text-white text-xs font-black uppercase tracking-widest hover:bg-lime-600 transition-all shadow-lg shadow-lime-500/20 active:scale-95"
+                                className="flex items-center gap-2 dark:border-gray-700 px-6 py-3 hover:bg-emerald-300 hover:text-white rounded-md bg-transparent border-2 border-gray-50 text-emerald-400 text-xs font-black uppercase tracking-widest hover:bg-emerald-400 transition-all  active:scale-95"
                               >
                                 <FiCheckCircle size={16} /> Complete
                               </button>
@@ -338,11 +329,11 @@ const MyDeliveries = () => {
         {selectedOrder && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={() => setSelectedOrder(null)} />
-            <div className="relative w-full max-w-2xl bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-in fade-in zoom-in duration-300">
+            <div className="relative w-full max-w-2xl bg-white dark:bg-gray-800 rounded-md shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-in fade-in zoom-in duration-300">
               <div className="p-8 space-y-8">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-lime-500 flex items-center justify-center text-white shadow-lg shadow-lime-500/20">
+                    <div className="w-12 h-12 rounded-2xl  flex items-center justify-center text-emerald-400">
                       <FiPackage size={24} />
                     </div>
                     <div>
@@ -361,7 +352,7 @@ const MyDeliveries = () => {
 
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-4">
-                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 dark:border-gray-700 pb-2">Parties Involved</h3>
+                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 dark:border-gray-700 pb-2">Customer Info</h3>
                     <div className="space-y-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600"><FiUser size={14} /></div>
@@ -381,36 +372,36 @@ const MyDeliveries = () => {
                   </div>
                   
                   <div className="space-y-4">
-                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 dark:border-gray-700 pb-2">Logistics</h3>
+                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 dark:border-gray-700 pb-2">Addresses</h3>
                     <div className="space-y-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-600"><RiStore2Line size={14} /></div>
                         <div>
                           <p className="text-[10px] font-bold text-gray-400 uppercase">Origin</p>
-                          <p className="text-sm font-black text-gray-900 dark:text-white font-cairo truncate max-w-[200px]">{selectedOrder.shopAddress?.street + "," + selectedOrder.shopAddress?.state + "," +  selectedOrder.shopAddress?.city || "Merchant Hub"}</p>
+                          <p className="text-sm font-black text-gray-900 dark:text-white font-sans truncate max-w-[200px]">{selectedOrder.shopAddress?.street + "," + selectedOrder.shopAddress?.state + "," +  selectedOrder.shopAddress?.city || "Merchant Hub"}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600"><RiTruckLine size={14} /></div>
                         <div>
                           <p className="text-[10px] font-bold text-gray-400 uppercase">Destination</p>
-                          <p className="text-sm font-black text-gray-900 dark:text-white font-cairo truncate max-w-[200px]">{selectedOrder.userAddress?.street + "," + selectedOrder.userAddress?.state + "," +  selectedOrder.userAddress?.city || "Customer Site"}</p>
+                          <p className="text-sm font-black text-gray-900 dark:text-white font-sans truncate max-w-[200px]">{selectedOrder.userAddress?.street + "," + selectedOrder.userAddress?.state + "," +  selectedOrder.userAddress?.city || "Customer Site"}</p>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="p-6 bg-gray-50 dark:bg-gray-900/50 rounded-3xl space-y-4">
+                <div className="p-6 bg-gray-50 dark:bg-gray-900/50 rounded-md space-y-4">
                    <div className="flex justify-between items-center">
                       <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Financial Summary</p>
-                      <p className="text-xl font-black text-lime-600 tracking-tighter">{formatPrice(selectedOrder.totalPrice)}</p>
+                      <p className="text-xl font-black text-green-600 tracking-tighter">{formatPrice(selectedOrder.totalPrice)}</p>
                    </div>
                    {selectedOrder.status !== 'DELIVERED' && (
                      <button 
                         onClick={() => { handleMarkDelivered(selectedOrder.id); setSelectedOrder(null); }}
                         aria-label="Confirm final delivery to customer"
-                        className="w-full py-4 bg-lime-500 text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-lime-600 transition-all shadow-xl shadow-lime-500/20"
+                        className="w-full py-4 bg-emerald-500 text-white rounded-md text-sm font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-xl shadow-lime-500/20"
                      >
                        Confirm Final Delivery
                      </button>

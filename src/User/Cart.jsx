@@ -12,10 +12,82 @@ import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider
 
 const queryClient = new QueryClient();
 
+const EASE = [0.16, 1, 0.3, 1];
+
+const palette = (darkMode) => ({
+  line: darkMode ? '#34d399' : '#059669',
+  lineSoft: darkMode ? '#6ee7b7' : '#10b981',
+  fillSoft: darkMode ? 'rgba(52,211,153,0.14)' : 'rgba(52,211,153,0.1)',
+  fillCard: darkMode ? '#0b1a12' : '#ffffff',
+  cardBorder: darkMode ? 'rgba(52,211,153,0.25)' : 'rgba(5,150,105,0.18)',
+  accent: '#f59e0b',
+});
+
+const EmptyCartIllustration = memo(({ darkMode }) => {
+  const c = palette(darkMode);
+  return (
+    <svg viewBox="0 0 200 200" className="w-full h-full">
+      <motion.circle cx="100" cy="102" r="72" fill={c.fillSoft}
+        animate={{ scale: [1, 1.06, 1] }} transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }} />
+      <motion.g
+        animate={{ y: [0, -8, 0] }}
+        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+      >
+        <path d="M60,90 L140,90 L132,150 Q131,158 123,158 L77,158 Q69,158 68,150 Z"
+          fill={c.fillCard} stroke={c.cardBorder} strokeWidth="3" />
+        <path d="M78,90 L78,74 Q78,56 100,56 Q122,56 122,74 L122,90"
+          fill="none" stroke={c.line} strokeWidth="4" strokeLinecap="round" />
+        <circle cx="86" cy="172" r="7" fill="none" stroke={c.line} strokeWidth="3" />
+        <circle cx="114" cy="172" r="7" fill="none" stroke={c.line} strokeWidth="3" />
+      </motion.g>
+      {[
+        { x: 44, y: 60, s: 6, d: 0 },
+        { x: 156, y: 70, s: 8, d: 0.4 },
+        { x: 150, y: 140, s: 5, d: 0.8 },
+      ].map((sp, i) => (
+        <motion.circle key={i} cx={sp.x} cy={sp.y} r={sp.s} fill="none" stroke={c.accent} strokeWidth="2"
+          animate={{ opacity: [0.25, 1, 0.25], scale: [0.8, 1.15, 0.8] }}
+          transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut', delay: sp.d }} />
+      ))}
+    </svg>
+  );
+});
+
+const OrderConfirmedIllustration = memo(({ darkMode }) => {
+  const c = palette(darkMode);
+  return (
+    <svg viewBox="0 0 200 200" className="w-full h-full">
+      <motion.circle cx="100" cy="100" r="76" fill={c.fillSoft}
+        animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }} />
+      <circle cx="100" cy="100" r="50" fill={c.fillCard} stroke={c.cardBorder} strokeWidth="3" />
+      <motion.path
+        d="M76,101 L93,118 L126,80"
+        fill="none" stroke={c.line} strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"
+        initial={{ pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 1.3, repeat: Infinity, repeatDelay: 1.8, ease: EASE }}
+      />
+      {[
+        { x: 40, y: 50, s: 6, d: 0 },
+        { x: 160, y: 60, s: 8, d: 0.4 },
+        { x: 150, y: 150, s: 5, d: 0.8 },
+        { x: 44, y: 150, s: 7, d: 1.2 },
+      ].map((sp, i) => (
+        <motion.path key={i}
+          d={`M${sp.x} ${sp.y - sp.s} L${sp.x + sp.s * 0.3} ${sp.y - sp.s * 0.3} L${sp.x + sp.s} ${sp.y} L${sp.x + sp.s * 0.3} ${sp.y + sp.s * 0.3} L${sp.x} ${sp.y + sp.s} L${sp.x - sp.s * 0.3} ${sp.y + sp.s * 0.3} L${sp.x - sp.s} ${sp.y} L${sp.x - sp.s * 0.3} ${sp.y - sp.s * 0.3} Z`}
+          fill={c.accent}
+          animate={{ opacity: [0.2, 1, 0.2], scale: [0.8, 1.2, 0.8] }}
+          transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut', delay: sp.d }}
+        />
+      ))}
+    </svg>
+  );
+});
+
 const CartSkeleton = ({ darkMode }) => (
   <div className="space-y-4">
     {[1, 2, 3].map(i => (
-      <div key={i} className={`h-20 sm:h-24 rounded-2xl animate-pulse ${darkMode ? 'bg-gray-800' : 'bg-gray-200'}`} />
+      <div key={i} className={`h-20 sm:h-24 rounded-2xl animate-pulse ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`} />
     ))}
   </div>
 );
@@ -27,6 +99,9 @@ const STEPS = [
   { id: 'complete', Icon: FiCheck,         label: 'Done'     },
 ];
 
+
+
+
 const StepIndicator = React.memo(({ current }) => {
   const currentIdx = STEPS.findIndex((s) => s.id === current);
   return (
@@ -37,26 +112,24 @@ const StepIndicator = React.memo(({ current }) => {
         return (
           <React.Fragment key={step.id}>
             <div className="flex flex-col items-center gap-1">
-              <motion.div
-                animate={active ? { scale: [1, 1.12, 1] } : {}}
-                transition={{ duration: 0.5, repeat: active ? Infinity : 0, repeatDelay: 2 }}
-                className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shadow-md transition-all duration-300 ${
-                  done   ? 'bg-lime-500 text-white'
-                  : active ? 'bg-gradient-to-br from-lime-400 to-emerald-600 text-white ring-2 ring-lime-400/40'
-                           : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
+              <div
+                className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shadow-sm transition-colors duration-300 ${
+                  done   ? 'bg-green-600 text-white'
+                  : active ? 'bg-green-600 text-white ring-4 ring-green-100'
+                           : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
                 }`}
               >
                 {done ? <FiCheck className="w-4 h-4" /> : <step.Icon className="w-4 h-4" />}
-              </motion.div>
+              </div>
               <span className={`text-[10px] font-semibold ${
-                active ? 'text-lime-500 dark:text-lime-400' : done ? 'text-lime-400' : 'text-gray-400'
+                active ? 'text-green-600 dark:text-green-400' : done ? 'text-green-500' : 'text-gray-400'
               }`}>
                 {step.label}
               </span>
             </div>
             {i < STEPS.length - 1 && (
-              <div className={`h-0.5 flex-1 mx-1 mb-4 rounded-full transition-all duration-500 ${
-                i < currentIdx ? 'bg-lime-500' : 'bg-gray-200 dark:bg-gray-700'
+              <div className={`h-0.5 flex-1 mx-1 mb-4 rounded-full transition-colors duration-500 ${
+                i < currentIdx ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-700'
               }`} />
             )}
           </React.Fragment>
@@ -71,13 +144,13 @@ const StepIndicator = React.memo(({ current }) => {
 
 const CartItem = React.memo(({ item, darkMode, onUpdate, onRemove }) => (
   <motion.div
-    layout
-    initial={{ opacity: 0, x: 20 }}
+    layout="position"
+    initial={{ opacity: 0, x: 16 }}
     animate={{ opacity: 1, x: 0 }}
-    exit={{ opacity: 0, x: -20, height: 0 }}
-    transition={{ duration: 0.28 }}
-    className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-2xl mb-3 shadow-sm transition-colors ${
-      darkMode ? 'bg-gray-800/60 border border-gray-700/60' : 'bg-white/70 border border-gray-100'
+    exit={{ opacity: 0 }}
+    transition={{ duration: 0.18 }}
+    className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-2xl mb-3 ${
+      darkMode ? 'bg-gray-800/60 border border-gray-700/60' : 'bg-white border border-gray-100'
     }`}
   >
 
@@ -87,33 +160,31 @@ const CartItem = React.memo(({ item, darkMode, onUpdate, onRemove }) => (
         src={item.productImageUrl}
         alt={item.productName}
         loading="lazy"
-        className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-contain bg-gray-100 dark:bg-gray-700 flex-shrink-0"
+        className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-contain bg-gray-50 dark:bg-gray-700 flex-shrink-0"
       />
     ) : (
-      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-lime-100 to-emerald-100 dark:from-lime-900/30 dark:to-emerald-900/30 flex-shrink-0 flex items-center justify-center">
-        <FiPackage className="w-5 h-5 sm:w-6 sm:h-6 text-lime-500" />
+      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-green-50 dark:bg-green-900/30 flex-shrink-0 flex items-center justify-center">
+        <FiPackage className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
       </div>
     )}
 
-    
     
 
     <div className="flex-1 min-w-0">
       <h4 className={`font-semibold text-xs sm:text-sm truncate ${darkMode ? 'text-gray-100' : 'text-gray-900'}`}>
         {item.productName}
       </h4>
-      <p className={`text-xs font-bold mt-0.5 ${darkMode ? 'text-lime-400' : 'text-lime-600'}`}>
+      <p className={`text-xs font-bold mt-0.5 ${darkMode ? 'text-green-400' : 'text-green-600'}`}>
         EGP {item.productPrice?.toFixed(2)}
       </p>
     </div>
 
    
-   
 
     <div className="flex items-center gap-1 flex-shrink-0">
       <button
         onClick={() => onUpdate(item.id, Number(item.quantity) - 1)}
-        className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-lime-500 hover:text-white transition-colors text-sm font-bold flex items-center justify-center flex-shrink-0"
+        className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-green-600 hover:text-white transition-colors text-sm font-bold flex items-center justify-center flex-shrink-0"
         aria-label="Decrease quantity"
       >
         −
@@ -123,7 +194,7 @@ const CartItem = React.memo(({ item, darkMode, onUpdate, onRemove }) => (
       </span>
       <button
         onClick={() => onUpdate(item.id, Number(item.quantity) + 1)}
-        className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-lime-500 hover:text-white transition-colors text-sm font-bold flex items-center justify-center flex-shrink-0"
+        className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-green-600 hover:text-white transition-colors text-sm font-bold flex items-center justify-center flex-shrink-0"
         aria-label="Increase quantity"
       >
         +
@@ -145,14 +216,14 @@ const CartItem = React.memo(({ item, darkMode, onUpdate, onRemove }) => (
 const PaymentOption = React.memo(({ value, selected, onSelect, Icon, title, subtitle, darkMode }) => (
   <button
     onClick={() => onSelect(value)}
-    className={`w-full p-3 sm:p-4 rounded-2xl border-2 flex items-center gap-3 sm:gap-4 transition-all text-left ${
+    className={`w-full p-3 sm:p-4 rounded-2xl border-2 flex items-center gap-3 sm:gap-4 transition-colors text-left ${
       selected
-        ? 'border-lime-500 bg-lime-50/70 dark:bg-lime-900/20 shadow-md shadow-lime-500/10'
+        ? 'border-green-600 bg-green-50 dark:bg-green-900/20'
         : darkMode ? 'border-gray-700 hover:border-gray-600' : 'border-gray-200 hover:border-gray-300'
     }`}
   >
     <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-colors flex-shrink-0 ${
-      selected ? 'bg-lime-500 text-white' : darkMode ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500'
+      selected ? 'bg-green-600 text-white' : darkMode ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500'
     }`}>
       <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
     </div>
@@ -160,8 +231,8 @@ const PaymentOption = React.memo(({ value, selected, onSelect, Icon, title, subt
       <p className={`font-semibold text-xs sm:text-sm ${darkMode ? 'text-white' : 'text-gray-900'}`}>{title}</p>
       <p className={`text-xs mt-0.5 truncate ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{subtitle}</p>
     </div>
-    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
-      selected ? 'border-lime-500 bg-lime-500' : darkMode ? 'border-gray-600' : 'border-gray-300'
+    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors flex-shrink-0 ${
+      selected ? 'border-green-600 bg-green-600' : darkMode ? 'border-gray-600' : 'border-gray-300'
     }`}>
       {selected && <FiCheck className="w-3 h-3 text-white" />}
     </div>
@@ -299,7 +370,7 @@ const CartContent = ({ show, onClose, darkMode }) => {
           window.open(payRes.data.paymentURL, '_blank');
         }
       } else {
-        await Swal.fire({ icon: 'success', title: 'Order Confirmed!', text: `Order #${orderId} placed!`, confirmButtonColor: '#22c55e' });
+        await Swal.fire({ icon: 'success', title: 'Order Confirmed!', text: `Order #${orderId} placed!`, confirmButtonColor: '#16a34a' });
       }
       queryClientLocal.setQueryData(['cartItems'], []);
       setCheckoutStep('complete');
@@ -313,40 +384,43 @@ const CartContent = ({ show, onClose, darkMode }) => {
     setTimeout(() => { setCheckoutStep('cart'); setPaymentMethod(''); }, 300);
   };
 
-  if (!show) return null;
+  const selectedAddr = useMemo(
+    () => addresses.find((a) => a.id === selectedAddress),
+    [addresses, selectedAddress]
+  );
 
-  const selectedAddr = addresses.find((a) => a.id === selectedAddress);
+  if (!show) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
+
+
       
       
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+        transition={{ duration: 0.18 }}
+        className="fixed inset-0 bg-black/50"
         onClick={handleClose}
       />
 
-     
-     
+
       <motion.div
         initial={{ x: '100%' }}
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
-        transition={{ type: 'tween', ease: 'circOut', duration: 0.4 }}
+        transition={{ type: 'tween', ease: 'easeOut', duration: 0.28 }}
         className={`relative w-full max-w-md h-full overflow-y-auto shadow-2xl flex flex-col ${
-          darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'
+          darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'
         }`}
       >
-        
-        
-        <div className={`relative overflow-hidden flex-shrink-0 ${
-          darkMode ? 'bg-gradient-to-br from-gray-800 to-gray-900' : 'bg-gradient-to-br from-lime-50 to-emerald-50/60'
-        } px-4 sm:px-6 pt-5 sm:pt-6 pb-4`}>
-          <div className="absolute -top-8 -right-8 w-32 h-32 bg-lime-400/10 rounded-full blur-2xl" />
-          <div className="absolute -bottom-4 -left-4 w-24 h-24 bg-emerald-400/10 rounded-full blur-2xl" />
 
-          <div className="relative flex items-start justify-between">
+
+        <div className={`relative flex-shrink-0 ${
+          darkMode ? 'bg-gray-900 border-b border-gray-800' : 'bg-white border-b border-gray-100'
+        } px-4 sm:px-6 pt-5 sm:pt-6 pb-4`}>
+
+          <div className="flex items-start justify-between">
             <div>
               <h2 className={`text-xl sm:text-2xl font-extrabold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                 {checkoutStep === 'cart'     ? 'Your Cart'
@@ -363,8 +437,8 @@ const CartContent = ({ show, onClose, darkMode }) => {
             </div>
             <button
               onClick={handleClose}
-              className={`p-2 rounded-full shadow-md transition-colors flex-shrink-0 ${
-                darkMode ? 'bg-gray-700/80 hover:bg-gray-600 text-gray-200' : 'bg-white/80 hover:bg-white text-gray-700'
+              className={`p-2 rounded-full transition-colors flex-shrink-0 ${
+                darkMode ? 'bg-gray-800 hover:bg-gray-700 text-gray-200' : 'bg-gray-50 hover:bg-gray-100 text-gray-700'
               }`}
             >
               <FiX className="w-5 h-5" />
@@ -373,14 +447,13 @@ const CartContent = ({ show, onClose, darkMode }) => {
 
           {cartItems.length > 0 && <StepIndicator current={checkoutStep} />}
 
-          <div className={`flex items-center gap-2 mt-3 text-xs font-semibold ${darkMode ? 'text-lime-400' : 'text-lime-600'}`}>
+          <div className={`flex items-center gap-2 mt-3 text-xs font-semibold ${darkMode ? 'text-green-400' : 'text-green-600'}`}>
             <FiZap className="w-3.5 h-3.5" />
             100% Secure & Encrypted
           </div>
         </div>
 
-       
-       
+
         <div className="flex-1 p-4 sm:p-5 overflow-y-auto">
           {(isCartLoading || isAddressLoading) && checkoutStep !== 'complete' ? (
             <div className="flex justify-center items-center h-64 w-full">
@@ -391,27 +464,26 @@ const CartContent = ({ show, onClose, darkMode }) => {
           ) : (
             <AnimatePresence mode="wait">
 
-             
-             
+
               {checkoutStep === 'cart' && (
-                <motion.div key="cart" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.25 }}>
+                <motion.div key="cart" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
                   {cartItems.length === 0 ? (
-                    <div className="text-center py-16 space-y-4">
-                      <div className={`w-20 h-20 rounded-full mx-auto flex items-center justify-center ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
-                        <FiShoppingCart className="w-9 h-9 text-gray-400" />
+                    <div className="text-center py-10 space-y-4">
+                      <div className="w-36 h-36 mx-auto">
+                        <EmptyCartIllustration darkMode={darkMode} />
                       </div>
                       <p className={`font-bold text-lg ${darkMode ? 'text-white' : 'text-gray-800'}`}>Your cart is empty</p>
                       <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Add some products to get started</p>
                       <button
                         onClick={handleClose}
-                        className="px-6 py-2.5 rounded-xl bg-lime-500 hover:bg-lime-600 text-white font-bold text-sm transition-colors"
+                        className="px-6 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold text-sm transition-colors"
                       >
                         Browse Devices
                       </button>
                     </div>
                   ) : (
                     <>
-                      <AnimatePresence>
+                      <AnimatePresence initial={false}>
                         {cartItems.map((item) => (
                           <CartItem
                             key={item.id}
@@ -423,76 +495,69 @@ const CartContent = ({ show, onClose, darkMode }) => {
                         ))}
                       </AnimatePresence>
 
-                     
-                     
-                      <motion.div
-                        layout
-                        className={`mt-4 p-4 rounded-2xl ${darkMode ? 'bg-gray-800/60 border border-gray-700/60' : 'bg-white/70 border border-gray-100'}`}
+
+                      <div
+                        className={`mt-4 p-4 rounded-2xl ${darkMode ? 'bg-gray-800/60 border border-gray-700/60' : 'bg-green-50 border border-green-100'}`}
                       >
                         <div className="flex justify-between items-center">
                           <span className={`font-semibold text-sm sm:text-base ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Subtotal</span>
-                          <span className={`font-extrabold text-lg sm:text-xl ${darkMode ? 'text-lime-400' : 'text-lime-700'}`}>
+                          <span className={`font-extrabold text-lg sm:text-xl ${darkMode ? 'text-green-400' : 'text-green-700'}`}>
                             EGP {cartTotal.toFixed(2)}
                           </span>
                         </div>
-                        <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                        <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                           Delivery fees calculated at checkout
                         </p>
-                      </motion.div>
+                      </div>
 
-                      
-                      
+
                       <div className="flex gap-2 sm:gap-3 mt-4 sm:mt-5">
-                        <motion.button
-                          whileTap={{ scale: 0.97 }}
+                        <button
                           onClick={() => setCheckoutStep('checkout')}
-                          className="flex-1 py-3 sm:py-3.5 bg-gradient-to-r from-lime-500 to-emerald-600 text-white rounded-2xl font-bold shadow-lg shadow-lime-500/25 hover:shadow-lime-500/40 transition-all flex items-center justify-center gap-2 text-sm"
+                          className="flex-1 py-3 sm:py-3.5 bg-green-600 hover:bg-green-700 text-white rounded-2xl font-bold shadow-sm transition-colors flex items-center justify-center gap-2 text-sm"
                         >
                           <FiTruck className="w-4 h-4" /> Checkout
-                        </motion.button>
-                        <motion.button
-                          whileTap={{ scale: 0.97 }}
+                        </button>
+                        <button
                           onClick={clearCart}
-                          className="px-3 sm:px-4 py-3 sm:py-3.5 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-2xl font-bold transition-all flex items-center gap-1.5 text-sm border border-red-500/30 hover:border-red-500 flex-shrink-0"
+                          className="px-3 sm:px-4 py-3 sm:py-3.5 bg-red-50 hover:bg-red-500 text-red-500 hover:text-white rounded-2xl font-bold transition-colors flex items-center gap-1.5 text-sm border border-red-200 hover:border-red-500 flex-shrink-0"
                         >
                           <FiTrash2 className="w-4 h-4" />
-                        </motion.button>
+                        </button>
                       </div>
                     </>
                   )}
                 </motion.div>
               )}
 
-            
-            
+
               {checkoutStep === 'checkout' && (
                 <motion.div
                   key="checkout"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.25 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
                   className="space-y-5 sm:space-y-6"
                 >
                   <button
                     onClick={() => setCheckoutStep('cart')}
-                    className={`flex items-center gap-1.5 text-sm font-semibold ${darkMode ? 'text-gray-400 hover:text-lime-400' : 'text-gray-500 hover:text-lime-600'} transition-colors`}
+                    className={`flex items-center gap-1.5 text-sm font-semibold ${darkMode ? 'text-gray-400 hover:text-green-400' : 'text-gray-500 hover:text-green-600'} transition-colors`}
                   >
                     ← Back to cart
                   </button>
 
-                  
-                  
+
                   <div>
                     <h3 className={`text-sm sm:text-base font-bold mb-3 flex items-center gap-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                      <FiMapPin className="w-4 h-4 text-lime-500 flex-shrink-0" /> Delivery Address
+                      <FiMapPin className="w-4 h-4 text-green-600 flex-shrink-0" /> Delivery Address
                     </h3>
                     <div className="relative">
                       <button
                         type="button"
                         onClick={() => setShowDropdown(!showDropdown)}
-                        className={`w-full px-4 py-3 sm:py-3.5 rounded-2xl border-2 flex justify-between items-center text-left text-sm transition-all ${
-                          showDropdown ? 'border-lime-500' : darkMode ? 'border-gray-700 hover:border-gray-600' : 'border-gray-200 hover:border-gray-300'
+                        className={`w-full px-4 py-3 sm:py-3.5 rounded-2xl border-2 flex justify-between items-center text-left text-sm transition-colors ${
+                          showDropdown ? 'border-green-600' : darkMode ? 'border-gray-700 hover:border-gray-600' : 'border-gray-200 hover:border-gray-300'
                         } ${darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                       >
                         <span className="truncate flex-1 mr-2">
@@ -506,9 +571,10 @@ const CartContent = ({ show, onClose, darkMode }) => {
                       <AnimatePresence>
                         {showDropdown && (
                           <motion.div
-                            initial={{ opacity: 0, y: -8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -8 }}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.12 }}
                             className={`absolute z-20 w-full mt-1 rounded-2xl shadow-xl border overflow-hidden max-h-52 overflow-y-auto ${
                               darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
                             }`}
@@ -519,12 +585,12 @@ const CartContent = ({ show, onClose, darkMode }) => {
                                 onClick={() => { setSelectedAddress(addr.id); setShowDropdown(false); }}
                                 className={`px-4 py-3 flex items-center justify-between cursor-pointer text-sm transition-colors ${
                                   selectedAddress === addr.id
-                                    ? darkMode ? 'bg-lime-900/30 text-lime-400' : 'bg-lime-50 text-lime-700'
+                                    ? darkMode ? 'bg-green-900/30 text-green-400' : 'bg-green-50 text-green-700'
                                     : darkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700'
                                 }`}
                               >
                                 <span className="truncate flex-1 mr-2">{addr.street}, {addr.city}</span>
-                                {selectedAddress === addr.id && <FiCheck className="w-4 h-4 text-lime-500 flex-shrink-0" />}
+                                {selectedAddress === addr.id && <FiCheck className="w-4 h-4 text-green-600 flex-shrink-0" />}
                               </div>
                             )) : (
                               <div className="px-4 py-6 text-center text-sm text-gray-400">No addresses found</div>
@@ -535,11 +601,10 @@ const CartContent = ({ show, onClose, darkMode }) => {
                     </div>
                   </div>
 
-                 
-                 
+
                   <div>
                     <h3 className={`text-sm sm:text-base font-bold mb-3 flex items-center gap-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                      <FiCreditCard className="w-4 h-4 text-lime-500 flex-shrink-0" /> Payment Method
+                      <FiCreditCard className="w-4 h-4 text-green-600 flex-shrink-0" /> Payment Method
                     </h3>
                     <div className="space-y-3">
                       <PaymentOption value="cod" selected={paymentMethod === 'cod'} onSelect={setPaymentMethod}
@@ -549,9 +614,8 @@ const CartContent = ({ show, onClose, darkMode }) => {
                     </div>
                   </div>
 
-                 
-                 
-                  <div className={`p-4 rounded-2xl ${darkMode ? 'bg-gray-800/60 border border-gray-700/60' : 'bg-white/70 border border-gray-100'}`}>
+
+                  <div className={`p-4 rounded-2xl ${darkMode ? 'bg-gray-800/60 border border-gray-700/60' : 'bg-gray-50 border border-gray-100'}`}>
                     <p className={`text-xs font-semibold mb-3 uppercase tracking-wide ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Order Summary</p>
                     <div className="space-y-1.5 text-xs sm:text-sm">
                       {cartItems.map((item) => (
@@ -565,29 +629,27 @@ const CartContent = ({ show, onClose, darkMode }) => {
                         </div>
                       ))}
                     </div>
-                    <div className={`flex justify-between items-center mt-3 pt-3 border-t font-extrabold text-sm sm:text-base ${darkMode ? 'border-gray-700 text-lime-400' : 'border-gray-100 text-lime-700'}`}>
+                    <div className={`flex justify-between items-center mt-3 pt-3 border-t font-extrabold text-sm sm:text-base ${darkMode ? 'border-gray-700 text-green-400' : 'border-gray-200 text-green-700'}`}>
                       <span>Total</span>
                       <span>EGP {cartTotal.toFixed(2)}</span>
                     </div>
                   </div>
 
-                
-                
-                  <motion.button
-                    whileTap={{ scale: 0.98 }}
+
+                  <button
                     onClick={createOrder}
                     disabled={!paymentMethod || !selectedAddress || isProcessing}
-                    className={`w-full py-3.5 sm:py-4 rounded-2xl font-extrabold text-white transition-all flex items-center justify-center gap-2 sm:gap-3 text-sm ${
+                    className={`w-full py-3.5 sm:py-4 rounded-2xl font-extrabold text-white transition-colors flex items-center justify-center gap-2 sm:gap-3 text-sm ${
                       paymentMethod && selectedAddress && !isProcessing
-                        ? 'bg-gradient-to-r from-lime-500 to-emerald-600 shadow-lg shadow-lime-500/25 hover:shadow-lime-500/40'
-                        : 'bg-gray-400 dark:bg-gray-700 cursor-not-allowed'
+                        ? 'bg-green-600 hover:bg-green-700 shadow-sm'
+                        : 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed'
                     }`}
                   >
                     {isProcessing ? (
                       <>
                         <motion.div
                           animate={{ rotate: 360 }}
-                          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                          transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
                           className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
                         />
                         Processing...
@@ -595,43 +657,37 @@ const CartContent = ({ show, onClose, darkMode }) => {
                     ) : (
                       <><FiCheck className="w-5 h-5" /> Place Order · EGP {cartTotal.toFixed(2)}</>
                     )}
-                  </motion.button>
+                  </button>
                 </motion.div>
               )}
 
-              
-              
+
               {checkoutStep === 'complete' && (
                 <motion.div
                   key="complete"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 0.4 }}
-                  className="text-center py-12 space-y-5"
+                  transition={{ duration: 0.2 }}
+                  className="text-center py-8 space-y-5"
                 >
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 300, delay: 0.1 }}
-                    className="w-24 h-24 bg-gradient-to-br from-lime-400 to-emerald-600 rounded-full mx-auto flex items-center justify-center shadow-xl shadow-lime-500/30"
-                  >
-                    <FiCheck className="w-12 h-12 text-white" />
-                  </motion.div>
+                  <div className="w-36 h-36 mx-auto">
+                    <OrderConfirmedIllustration darkMode={darkMode} />
+                  </div>
                   <div>
                     <h3 className={`text-2xl font-extrabold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Order Confirmed!</h3>
                     <p className={`mt-2 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      Thank you for shopping with Tech Bazaar.
+                      Thank you for shopping with Tech Restore.
                     </p>
                   </div>
-                  <div className={`p-4 rounded-2xl text-sm ${darkMode ? 'bg-gray-800/60 border border-gray-700' : 'bg-lime-50 border border-lime-100'}`}>
+                  <div className={`p-4 rounded-2xl text-sm ${darkMode ? 'bg-gray-800/60 border border-gray-700' : 'bg-green-50 border border-green-100'}`}>
                     <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
                       Your order is being prepared and will be shipped soon. You'll receive a confirmation email shortly.
                     </p>
                   </div>
                   <button
                     onClick={handleClose}
-                    className="w-full py-3.5 bg-gradient-to-r from-lime-500 to-emerald-600 text-white rounded-2xl font-bold shadow-lg hover:shadow-lime-500/30 transition-all"
+                    className="w-full py-3.5 bg-green-600 hover:bg-green-700 text-white rounded-2xl font-bold shadow-sm transition-colors"
                   >
                     Continue Shopping
                   </button>

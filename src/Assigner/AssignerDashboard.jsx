@@ -20,10 +20,10 @@ const formatTime = (date) => {
   if (!date) return "Just now";
   const d = new Date(date), now = new Date(), diff = now - d;
   const mins = Math.floor(diff / 60000);
-  if (mins < 1)  return "Just now";
+  if (mins < 1) return "Just now";
   if (mins < 60) return `${mins}m ago`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24)  return `${hrs}h ago`;
+  if (hrs < 24) return `${hrs}h ago`;
   return d.toLocaleDateString();
 };
 
@@ -31,7 +31,7 @@ const formatTime = (date) => {
 
 
 const StatCard = memo(({ icon: Icon, label, value, color }) => (
-  <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-sm hover:shadow-xl hover:shadow-lime-500/5 transition-all duration-500 group relative overflow-hidden">
+  <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-md p-6 shadow-sm hover:shadow-xl hover:shadow-lime-500/5 transition-all duration-500 group relative overflow-hidden">
     <div className={`absolute top-0 right-0 w-24 h-24 bg-${color}-500/5 rounded-bl-full translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-700`} />
     <div className="relative flex items-center justify-between">
       <div className="space-y-1">
@@ -49,12 +49,12 @@ const StatCard = memo(({ icon: Icon, label, value, color }) => (
 
 const FeatureCard = memo(({ title, icon, desc, path, navigate, color }) => (
   <div onClick={() => navigate(path)}
-    className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-sm hover:shadow-2xl hover:shadow-lime-500/10 transition-all duration-500 cursor-pointer group flex flex-col h-full">
+    className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-md p-6 shadow-sm hover:shadow-2xl hover:shadow-lime-500/10 transition-all duration-500 cursor-pointer group flex flex-col h-full">
     <div className="flex items-center justify-between mb-6">
       <div className={`w-14 h-14 rounded-2xl bg-${color}-50 dark:bg-${color}-900/20 flex items-center justify-center text-${color}-600 dark:text-${color}-400 group-hover:scale-110 group-hover:-rotate-3 transition-all duration-500`}>
         {icon}
       </div>
-      <div className="w-8 h-8 rounded-full bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-300 group-hover:bg-lime-500 group-hover:text-white transition-all duration-500">
+      <div className="w-8 h-8 rounded-full bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-300 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-500">
         <FiArrowRight size={14} />
       </div>
     </div>
@@ -72,7 +72,7 @@ const NotifItem = memo(({ notif, onDelete }) => (
   <div className={`flex items-start gap-4 p-5 border-b border-gray-50 dark:border-gray-700 last:border-0 hover:bg-lime-50/10 dark:hover:bg-lime-900/5 transition-all group
     ${!notif.read ? "bg-lime-50/20 dark:bg-lime-900/10" : ""}`}>
     <div className="flex-shrink-0 mt-1">
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${notif.read ? "bg-gray-100 dark:bg-gray-700 text-gray-400" : "bg-lime-100 dark:bg-lime-900/30 text-lime-600"}`}>
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${notif.read ? "bg-gray-100 dark:bg-gray-700 text-gray-400" : "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600"}`}>
         {notif.read ? <FiCheckCircle size={18} /> : <FiZap size={18} />}
       </div>
     </div>
@@ -96,17 +96,17 @@ const NotifItem = memo(({ notif, onDelete }) => (
 
 
 const AssignerDashboard = ({ darkMode }) => {
-  const navigate   = useNavigate();
-  const token      = localStorage.getItem("authToken");
+  const navigate = useNavigate();
+  const token = localStorage.getItem("authToken");
 
-  const [notifications, setNotifs]     = useState([]);
+  const [notifications, setNotifs] = useState([]);
   const [loadingNotifs, setLoadingNotifs] = useState(true);
   const [stats, setStats] = useState({ orders: 0, repairs: 0, agents: 0 });
 
   const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
 
-  useEffect(() => { 
-    document.title = "Assigner - Premium Dashboard"; 
+  useEffect(() => {
+    document.title = "Assigner - Premium Dashboard";
   }, []);
 
   useEffect(() => {
@@ -125,7 +125,7 @@ const AssignerDashboard = ({ darkMode }) => {
       ]);
 
       if (notifsRes.status === 'fulfilled') setNotifs(notifsRes.value.data?.content || notifsRes.value.data || []);
-      
+
       setStats({
         orders: ordersRes.status === 'fulfilled' ? (ordersRes.value.data?.content || ordersRes.value.data || []).length : 0,
         repairs: repairsRes.status === 'fulfilled' ? (repairsRes.value.data?.content || repairsRes.value.data || []).length : 0,
@@ -154,25 +154,25 @@ const AssignerDashboard = ({ darkMode }) => {
   }, [token]);
 
   const featureCards = [
-    { title: "Delivery Network", icon: <FiUsers size={24} />,     desc: "Monitor agent status and availability", path: "/assigner/delivery", color: "lime" },
-    { title: "Order Queue",      icon: <FiPackage size={24} />,   desc: "Dispatch and track shipping orders",   path: "/assigner/orders", color: "blue" },
-    { title: "Repair Queue",  icon: <FiTool size={24} />,      desc: "Manage device pickup and delivery",    path: "/assigner/repair-requests", color: "orange" },
-    { title: "Assignment Logs",  icon: <FiClipboard size={24} />, desc: "Historical record of all logistics",   path: "/assigner/assignment-logs", color: "emerald" },
-    { title: "Reassign Requests ",   icon: <FiRefreshCw size={24} />, desc: "Reassign tasks to different agents",   path: "/assigner/reassign-orders", color: "purple" },
-    { title: "Account Hub",      icon: <FiActivity size={24} />,  desc: "Personal performance and settings",    path: "/assigner/profile", color: "rose" },
+    { title: "Delivery Network", icon: <FiUsers size={24} />, desc: "Monitor agent status and availability", path: "/assigner/delivery", color: "lime" },
+    { title: "Order Queue", icon: <FiPackage size={24} />, desc: "Dispatch and track shipping orders", path: "/assigner/orders", color: "blue" },
+    { title: "Repair Queue", icon: <FiTool size={24} />, desc: "Manage device pickup and delivery", path: "/assigner/repair-requests", color: "orange" },
+    { title: "Assignment Logs", icon: <FiClipboard size={24} />, desc: "Historical record of all logistics", path: "/assigner/assignment-logs", color: "emerald" },
+    { title: "Reassign Requests ", icon: <FiRefreshCw size={24} />, desc: "Reassign tasks to different agents", path: "/assigner/reassign-orders", color: "purple" },
+    { title: "Account Hub", icon: <FiActivity size={24} />, desc: "Personal performance and settings", path: "/assigner/profile", color: "rose" },
   ];
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
 
-       
-       
+
+
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-1.5 rounded-full bg-lime-500" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-600">Overview Central</span>
+              <div className="w-8 h-1.5 rounded-full bg-emerald-500" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">Overview Central</span>
             </div>
             <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">Assigner Console</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Coordinate logistics and optimize delivery throughput</p>
@@ -185,7 +185,7 @@ const AssignerDashboard = ({ darkMode }) => {
                   <FiBell size={18} />
                 </div>
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-lime-500 text-white text-[10px] font-black flex items-center justify-center rounded-lg shadow-lg border-2 border-white dark:border-gray-800 animate-bounce">
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 text-white text-[10px] font-black flex items-center justify-center rounded-lg shadow-lg border-2 border-white dark:border-gray-800 animate-bounce">
                     {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
                 )}
@@ -198,28 +198,28 @@ const AssignerDashboard = ({ darkMode }) => {
           </div>
         </div>
 
-        
-        
+
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           <StatCard icon={FiPackage} label="Pending Orders" value={stats.orders} color="lime" />
           <StatCard icon={FiTool} label="Active Repairs" value={stats.repairs} color="blue" />
           <StatCard icon={FiUsers} label="Total Agents" value={stats.agents} color="emerald" />
         </div>
 
-       
-       
+
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {featureCards.map(card => (
             <FeatureCard key={card.title} {...card} navigate={navigate} />
           ))}
         </div>
 
-        
-        
+
+
         <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden group">
           <div className="flex items-center justify-between px-8 py-6 border-b border-gray-50 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/80">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-lime-500 flex items-center justify-center text-white">
+              <div className="w-10 h-10 rounded-3xl bg-emerald-500 flex items-center justify-center text-white">
                 <FiZap size={20} />
               </div>
               <h2 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">Recent Activity</h2>
@@ -251,7 +251,8 @@ const AssignerDashboard = ({ darkMode }) => {
 
       </div>
 
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .custom-scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
         .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }

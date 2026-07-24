@@ -12,7 +12,7 @@ import { jwtDecode } from "jwt-decode";
 import api from "../api";
 import logo from "../images/final-logobg.webp";
 import { ToastContainer, toast } from "react-toastify";
-import { RiBellLine, RiNotification2Line, RiCheckDoubleLine } from "react-icons/ri";
+import { RiNotification2Line, RiCheckDoubleLine } from "react-icons/ri";
 
 
 const MENU_GROUPS = [
@@ -92,14 +92,36 @@ const getNotifMeta = (notif) => {
 };
 
 
+const AllCaughtUpIllustration = ({ darkMode }) => (
+  <svg viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+    <circle cx="80" cy="80" r="70" fill={darkMode ? "#064e3b33" : "#ecfdf5"} />
+    <path d="M80 40c-14 0-22 11-22 25v16l-9 13h62l-9-13V65c0-14-8-25-22-25z" fill="#10b981" />
+    <circle cx="80" cy="36" r="6" fill="#047857" />
+    <path d="M70 100a10 10 0 0020 0" fill="none" stroke="#047857" strokeWidth="4" strokeLinecap="round" />
+    <circle cx="112" cy="52" r="16" fill="#ffffff" stroke="#34d399" strokeWidth="3" />
+    <path d="M105 52 l5 5 l9 -10" stroke="#059669" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+  </svg>
+);
+
+const SearchEmptyIllustration = memo(({ darkMode }) => (
+  <svg viewBox="0 0 120 100" className="w-20 h-16 mx-auto">
+    <ellipse cx="60" cy="86" rx="32" ry="5" fill={darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"} />
+    <circle cx="52" cy="42" r="22" fill="none" stroke={darkMode ? "#34d399" : "#10b981"} strokeWidth="3" />
+    <path d="M68 58 L82 72" stroke={darkMode ? "#34d399" : "#10b981"} strokeWidth="4" strokeLinecap="round" />
+    <path d="M44 42 H60" stroke={darkMode ? "#4b5563" : "#d1d5db"} strokeWidth="2.4" strokeLinecap="round" />
+    <circle cx="96" cy="20" r="2.2" fill="#fbbf24" />
+  </svg>
+));
+
+
 const NavLink = memo(({ item, active, onClick }) => (
   <Link
     to={item.path}
     onClick={onClick}
-    className={`group flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold
+    className={`group flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold
       transition-all duration-300 relative overflow-hidden
       ${active
-        ? "bg-lime-500 text-white shadow-lg shadow-lime-500/20"
+        ? "bg-emerald-400 text-white shadow-lg shadow-emerald-500/20"
         : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"}`}
     style={{ fontFamily: "'Cairo', sans-serif" }}
   >
@@ -108,7 +130,7 @@ const NavLink = memo(({ item, active, onClick }) => (
     </span>
     <span className="relative z-10">{item.name}</span>
     {active && <div className="absolute left-3 w-1.5 h-1.5 rounded-full bg-white/70 animate-pulse" />}
-    {!active && <div className="absolute inset-y-0 right-0 w-0 group-hover:w-[3px] bg-lime-500 rounded-l-full transition-all duration-300" />}
+    {!active && <div className="absolute inset-y-0 right-0 w-0 group-hover:w-[3px] bg-emerald-400 rounded-l-full transition-all duration-300" />}
   </Link>
 ));
 
@@ -200,15 +222,7 @@ const NotifItem = memo(({ notif, darkMode, onDelete, onMarkRead, idx }) => {
 const NotificationPanel = memo(({
   darkMode, notifications, loadingNotifs, unreadCount,
   onDelete, onMarkRead, onMarkAllRead, onClearAll, onClose,
-}) => {
-  const [tab, setTab] = useState("all");
-
-  const filtered = useMemo(() =>
-    tab === "unread" ? notifications.filter(n => !n.read) : notifications,
-    [notifications, tab]
-  );
-
-  return (
+}) => (
     <div
       dir="rtl"
 
@@ -221,7 +235,7 @@ const NotificationPanel = memo(({
 
       <div className={`px-5 py-4 border-b ${darkMode ? "border-gray-800" : "border-gray-100"}`}>
 
-        <div className="flex items-center justify-between mb-3.5">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-xl ${darkMode ? "bg-emerald-500/12" : "bg-emerald-50"}`}>
               <RiNotification2Line size={15} className="text-emerald-500" />
@@ -240,19 +254,7 @@ const NotificationPanel = memo(({
 
 
           <div className="flex items-center gap-0.5">
-            {/* {unreadCount > 0 && (
-              <button
-                onClick={onMarkAllRead}
-                title="تعليم الكل كمقروء"
-                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition
-                  ${darkMode ? "hover:bg-emerald-500/12 text-emerald-400" : "hover:bg-emerald-50 text-emerald-600"}`}
-                style={{ fontFamily: "'Cairo', sans-serif" }}
-              >
-                <RiCheckDoubleLine size={13} />
-                قراءة الكل
-              </button>
-            )} */}
-
+       
             <button
               onClick={onClose}
               className={`p-1.5 rounded-xl transition
@@ -261,36 +263,6 @@ const NotificationPanel = memo(({
               <FiX size={15} />
             </button>
           </div>
-        </div>
-
-
-        <div className={`flex gap-1 p-1 rounded-xl ${darkMode ? "bg-black/30" : "bg-gray-100"}`}>
-          {[
-            { key: "all", label: `الكل`, count: notifications.length },
-            { key: "unread", label: `غير مقروء`, count: unreadCount },
-          ].map(t => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-black transition-all duration-200
-                ${tab === t.key
-                  ? darkMode
-                    ? "bg-emerald-500 text-white shadow-sm shadow-emerald-500/30"
-                    : "bg-white text-emerald-600 shadow-sm"
-                  : darkMode ? "text-gray-500 hover:text-gray-300" : "text-gray-500 hover:text-gray-700"
-                }`}
-              style={{ fontFamily: "'Cairo', sans-serif" }}
-            >
-              {t.label}
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black leading-none
-                ${tab === t.key
-                  ? darkMode ? "bg-white/20" : "bg-emerald-50 text-emerald-600"
-                  : darkMode ? "bg-white/8 text-gray-600" : "bg-gray-200 text-gray-500"
-                }`}>
-                {t.count}
-              </span>
-            </button>
-          ))}
         </div>
       </div>
 
@@ -309,14 +281,14 @@ const NotificationPanel = memo(({
               </div>
             ))}
           </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-14 gap-3">
-            <div className={`p-5 rounded-2xl ${darkMode ? "bg-emerald-500/8" : "bg-emerald-50"}`}>
-              <RiBellLine size={30} className="text-emerald-400" />
+        ) : notifications.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 gap-3">
+            <div className="w-28 h-28">
+              <AllCaughtUpIllustration darkMode={darkMode} />
             </div>
             <p className={`text-sm font-bold ${darkMode ? "text-gray-500" : "text-gray-400"}`}
               style={{ fontFamily: "'Cairo', sans-serif" }}>
-              {tab === "unread" ? "لا توجد إشعارات غير مقروءة" : "لا توجد إشعارات"}
+              لا توجد إشعارات
             </p>
             <p className={`text-xs ${darkMode ? "text-gray-700" : "text-gray-300"}`}
               style={{ fontFamily: "'Cairo', sans-serif" }}>
@@ -324,7 +296,7 @@ const NotificationPanel = memo(({
             </p>
           </div>
         ) : (
-          filtered.map((notif, idx) => (
+          notifications.map((notif, idx) => (
             <NotifItem
               key={notif.id}
               notif={notif}
@@ -348,8 +320,7 @@ const NotificationPanel = memo(({
         </div>
       )}
     </div>
-  );
-});
+));
 
 
 
@@ -391,7 +362,7 @@ const STYLES = `
   .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
   .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
   .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #1f2937; }
-  .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
+  .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #34d399; }
 
   .icon-btn {
     position: relative; display: flex; align-items: center;
@@ -576,7 +547,7 @@ const ShopHeader = () => {
       text: "هل أنت متأكد من إنهاء جلستك التجارية؟",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#84cc16",
+      confirmButtonColor: "#34d399",
       cancelButtonColor: "#ef4444",
       confirmButtonText: "خروج",
       cancelButtonText: "إلغاء",
@@ -660,7 +631,7 @@ const ShopHeader = () => {
         <div className="px-4 pt-5 pb-1">
           <div className="relative group">
             <FiSearch
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-400 transition-colors"
               size={15}
             />
             <input
@@ -669,9 +640,9 @@ const ShopHeader = () => {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="w-full pr-10 pl-4 py-3 rounded-2xl bg-gray-50 dark:bg-gray-800/50
-                border border-transparent focus:border-lime-200 dark:focus:border-lime-900/50
+                border border-transparent focus:border-emerald-200 dark:focus:border-emerald-900/50
                 text-xs font-bold text-gray-800 dark:text-white placeholder-gray-400
-                focus:outline-none focus:ring-4 focus:ring-lime-500/5 transition-all"
+                focus:outline-none focus:ring-4 focus:ring-emerald-400/5 transition-all"
               style={{ fontFamily: "'Cairo', sans-serif" }}
             />
           </div>
@@ -692,7 +663,8 @@ const ShopHeader = () => {
             </div>
           ))}
           {filteredMenuGroups.length === 0 && (
-            <div className="px-4 py-8 text-center">
+            <div className="px-4 py-8 text-center space-y-2">
+              <SearchEmptyIllustration darkMode={darkMode} />
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">لا توجد نتائج للبحث</p>
             </div>
           )}
@@ -706,7 +678,7 @@ const ShopHeader = () => {
               <button
                 onClick={toggleDark}
                 title={darkMode ? "الوضع النهاري" : "الوضع الليلي"}
-                className="flex-1 h-10 rounded-xl bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-500 hover:text-lime-500 transition-all active:scale-95"
+                className="flex-1 h-10 rounded-xl bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-500 hover:text-emerald-400 transition-all active:scale-95"
               >
                 {darkMode ? <FiSun size={16} /> : <FiMoon size={16} />}
               </button>
@@ -738,7 +710,7 @@ const ShopHeader = () => {
             onClick={() => setSidebarOpen(true)}
             className="lg:hidden w-11 h-11 rounded-2xl bg-gray-50 dark:bg-gray-800
               flex items-center justify-center text-gray-600 dark:text-gray-300
-              hover:bg-lime-500 hover:text-white transition-all active:scale-95"
+              hover:bg-emerald-400 hover:text-white transition-all active:scale-95"
           >
             <FiMenu size={20} />
           </button>
@@ -748,8 +720,8 @@ const ShopHeader = () => {
               لوحة تحكم المتجر
             </h1>
             <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-lime-500 animate-pulse" />
-              <p className="text-[9px] font-black uppercase tracking-[0.18em] text-lime-600 dark:text-lime-500">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <p className="text-[9px] font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
                 النظام نشط
               </p>
             </div>
@@ -824,12 +796,12 @@ const ShopHeader = () => {
                   style={{ fontFamily: "'Cairo', sans-serif" }}>
                   الملف التجاري
                 </p>
-                <FiExternalLink size={8} className="text-gray-300 group-hover:text-lime-500 transition-colors" />
+                <FiExternalLink size={8} className="text-gray-300 group-hover:text-emerald-400 transition-colors" />
               </div>
             </div>
             <div className="w-10 h-10 rounded-2xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center
-              text-gray-400 group-hover:text-lime-500 shadow-sm overflow-hidden
-              border-2 border-white dark:border-gray-800 group-hover:border-lime-500
+              text-gray-400 group-hover:text-emerald-400 shadow-sm overflow-hidden
+              border-2 border-white dark:border-gray-800 group-hover:border-emerald-400
               transition-all duration-300">
               {userProfile?.imageUrl
                 ? <img src={userProfile.imageUrl} className="w-full h-full object-cover" alt="الملف الشخصي" />

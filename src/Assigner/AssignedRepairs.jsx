@@ -16,14 +16,14 @@ import Modal from '../components/Modal';
 const ROWS_OPTIONS = [10, 25, 50];
 
 const STATUS_STYLE = {
-  PENDING:          { bg: "bg-yellow-50 dark:bg-yellow-900/20",  border: "border-yellow-200 dark:border-yellow-700",  text: "text-yellow-700 dark:text-yellow-400",  dot: "bg-yellow-500"  },
-  SUBMITTED:        { bg: "bg-yellow-50 dark:bg-yellow-900/20",  border: "border-yellow-200 dark:border-yellow-700",  text: "text-yellow-700 dark:text-yellow-400",  dot: "bg-yellow-500"  },
-  QUOTE_PENDING:    { bg: "bg-amber-50 dark:bg-amber-900/20",    border: "border-amber-200 dark:border-amber-700",    text: "text-amber-700 dark:text-amber-400",    dot: "bg-amber-500"   },
-  PENDING_PICKUP:   { bg: "bg-orange-50 dark:bg-orange-900/20",  border: "border-orange-200 dark:border-orange-700",  text: "text-orange-700 dark:text-orange-400",  dot: "bg-orange-500"  },
-  IN_PROGRESS:      { bg: "bg-indigo-50 dark:bg-indigo-900/20",  border: "border-indigo-200 dark:border-indigo-700",  text: "text-indigo-700 dark:text-indigo-400",  dot: "bg-indigo-500"  },
-  ASSIGNED:         { bg: "bg-purple-50 dark:bg-purple-900/20",  border: "border-purple-200 dark:border-purple-700",  text: "text-purple-700 dark:text-purple-400",  dot: "bg-purple-500"  },
-  IN_TRANSIT:       { bg: "bg-blue-50 dark:bg-blue-900/20",      border: "border-blue-200 dark:border-blue-700",      text: "text-blue-700 dark:text-blue-400",      dot: "bg-blue-500"    },
-  COMPLETED:        { bg: "bg-emerald-50 dark:bg-emerald-900/20",border: "border-emerald-200 dark:border-emerald-700",text: "text-emerald-700 dark:text-emerald-400",dot: "bg-emerald-500" },
+  PENDING: { bg: "bg-yellow-50 dark:bg-yellow-900/20", border: "border-yellow-200 dark:border-yellow-700", text: "text-yellow-700 dark:text-yellow-400", dot: "bg-yellow-500" },
+  SUBMITTED: { bg: "bg-yellow-50 dark:bg-yellow-900/20", border: "border-yellow-200 dark:border-yellow-700", text: "text-yellow-700 dark:text-yellow-400", dot: "bg-yellow-500" },
+  QUOTE_PENDING: { bg: "bg-amber-50 dark:bg-amber-900/20", border: "border-amber-200 dark:border-amber-700", text: "text-amber-700 dark:text-amber-400", dot: "bg-amber-500" },
+  PENDING_PICKUP: { bg: "bg-orange-50 dark:bg-orange-900/20", border: "border-orange-200 dark:border-orange-700", text: "text-orange-700 dark:text-orange-400", dot: "bg-orange-500" },
+  IN_PROGRESS: { bg: "bg-indigo-50 dark:bg-indigo-900/20", border: "border-indigo-200 dark:border-indigo-700", text: "text-indigo-700 dark:text-indigo-400", dot: "bg-indigo-500" },
+  ASSIGNED: { bg: "bg-purple-50 dark:bg-purple-900/20", border: "border-purple-200 dark:border-purple-700", text: "text-purple-700 dark:text-purple-400", dot: "bg-purple-500" },
+  IN_TRANSIT: { bg: "bg-blue-50 dark:bg-blue-900/20", border: "border-blue-200 dark:border-blue-700", text: "text-blue-700 dark:text-blue-400", dot: "bg-blue-500" },
+  COMPLETED: { bg: "bg-emerald-50 dark:bg-emerald-900/20", border: "border-emerald-200 dark:border-emerald-700", text: "text-emerald-700 dark:text-emerald-400", dot: "bg-emerald-500" },
 };
 
 const getStatusStyle = (s) =>
@@ -47,7 +47,7 @@ const formatDate = (date) => {
 
 const formatAddress = (addr) => {
   if (!addr) return 'N/A';
-  return [addr.street, addr.city, addr.state].filter(Boolean).join(', ') || 'N/A';
+  return [addr.street, addr.city, addr.state].filter(Boolean).join(', ') || 'Not specified';
 };
 
 
@@ -70,13 +70,13 @@ const AssignedRepairs = ({ darkMode }) => {
   const navigate = useNavigate();
   const token = localStorage.getItem('authToken');
 
-  const [deliveryId, setDeliveryId]     = useState('');
-  const [repairs, setRepairs]           = useState([]);
-  const [loading, setLoading]           = useState(false);
-  const [currentPage, setCurrentPage]   = useState(1);
-  const [rowsPerPage, setRowsPerPage]   = useState(10);
-  const [hasSearched, setHasSearched]   = useState(false);
-  const [viewDetail, setViewDetail]     = useState(null);
+  const [deliveryId, setDeliveryId] = useState('');
+  const [repairs, setRepairs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [viewDetail, setViewDetail] = useState(null);
 
   useEffect(() => { document.title = 'Assigner - Assigned Repairs'; }, []);
 
@@ -95,21 +95,21 @@ const AssignedRepairs = ({ darkMode }) => {
       ]);
 
       const mapRepair = (r) => ({
-        id:          r.id || r.repairRequestId,
-        firstName:   r.firstName || '',
-        lastName:    r.lastName || '',
-        phone:       r.phone || '',
+        id: r.id || r.repairRequestId,
+        firstName: r.firstName || '',
+        lastName: r.lastName || '',
+        phone: r.phone || '',
         userAddress: r.userAddress || {},
-        shopName:    r.shopName || null,
+        shopName: r.shopName || null,
         shopAddress: r.shopAddress || {},
         deliveryAddress: r.deliveryAddress || null,
-        price:       r.price || 0,
-        status:      r.status || 'PENDING',
-        createdAt:   r.createdAt,
+        price: r.price || 0,
+        status: r.status || 'PENDING',
+        createdAt: r.createdAt,
       });
 
-      const current  = repairsRes.status === 'fulfilled' ? (repairsRes.value.data?.content || repairsRes.value.data || []).map(mapRepair)  : [];
-      const assigned = logsRes.status    === 'fulfilled' ? (logsRes.value.data?.content    || logsRes.value.data    || []).map(r => ({ ...mapRepair(r), status: r.status || 'ASSIGNED' })) : [];
+      const current = repairsRes.status === 'fulfilled' ? (repairsRes.value.data?.content || repairsRes.value.data || []).map(mapRepair) : [];
+      const assigned = logsRes.status === 'fulfilled' ? (logsRes.value.data?.content || logsRes.value.data || []).map(r => ({ ...mapRepair(r), status: r.status || 'ASSIGNED' })) : [];
 
       const merged = Array.from(new Map([...current, ...assigned].map(r => [r.id, r])).values());
       setRepairs(merged.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
@@ -128,7 +128,7 @@ const AssignedRepairs = ({ darkMode }) => {
   }), [repairs]);
 
   const totalPages = Math.ceil(repairs.length / rowsPerPage);
-  const paginated  = useMemo(() => repairs.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage), [repairs, currentPage, rowsPerPage]);
+  const paginated = useMemo(() => repairs.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage), [repairs, currentPage, rowsPerPage]);
 
   const copyToClipboard = (text) => {
     if (!text) return;
@@ -136,25 +136,68 @@ const AssignedRepairs = ({ darkMode }) => {
     showToast('Copied to clipboard', 'success');
   };
 
+  const STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+
+  
+  html[dir="rtl"],
+  html[dir="rtl"] body,
+  html[dir="rtl"] * {
+    font-family: 'Cairo', sans-serif !important;
+  }
+
+  
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #d1d5db transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+  }
+
+  .lime-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+  .lime-scroll::-webkit-scrollbar-track { background: transparent; }
+  .lime-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 999px; }
+  .lime-scroll { scrollbar-width: thin; scrollbar-color: #d1d5db transparent; }
+  .tabs-scroll::-webkit-scrollbar { display: none; }
+  .tabs-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+  .leaflet-container { font-family: inherit; }
+  [dir="rtl"] .rtl-flip { transform: scaleX(-1); }
+`;
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
+      <style>{STYLES}</style>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
 
-        
-        
+
+
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-1.5 rounded-full bg-lime-500" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-600">Agent Performance</span>
+              <div className="w-8 h-1.5 rounded-full bg-emerald-500" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">Agent Performance</span>
             </div>
             <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Assigned Repairs</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">View repair tasks specifically assigned to a delivery agent</p>
           </div>
         </div>
 
-        
-        
+
+
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard label="Total Tasks" value={stats.total} icon={FiTool} color="lime" />
           <StatCard label="Active" value={stats.active} icon={FiTruck} color="amber" />
@@ -162,11 +205,11 @@ const AssignedRepairs = ({ darkMode }) => {
           <StatCard label="Est. Revenue" value={formatPrice(stats.revenue)} icon={FiClipboard} color="blue" />
         </div>
 
-       
-       
+
+
         <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-6">
           <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
-           
+
             <div className="relative flex-1 group">
               <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={18} />
               <input
@@ -197,7 +240,7 @@ const AssignedRepairs = ({ darkMode }) => {
               <button
                 onClick={fetchRepairs}
                 disabled={loading || !deliveryId.trim()}
-                className="flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-gray-900 dark:bg-lime-500 text-white dark:text-black text-sm font-black hover:bg-lime-500 transition-all shadow-md shadow-gray-200 dark:shadow-none disabled:opacity-50"
+                className="flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-gray-900 dark:bg-emerald-500 text-white dark:text-black text-sm font-black hover:bg-emerald-500 transition-all shadow-md shadow-gray-200 dark:shadow-none disabled:opacity-50"
               >
                 {loading ? <><FiClock className="animate-spin" /> Loading...</> : <><FiSearch /> Find Repairs</>}
               </button>
@@ -205,19 +248,19 @@ const AssignedRepairs = ({ darkMode }) => {
           </div>
         </div>
 
-        
-        
-        <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
           <div className="overflow-x-auto custom-scrollbar-thin">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-50/50 dark:bg-gray-900/30 border-b border-gray-100 dark:border-gray-700">
+                <tr className="bg-gray-50/50 dark:bg-gray-900/30 text-center border-b border-gray-100 dark:border-gray-700">
                   <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Date</th>
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Repair ID</th>
+
                   <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Customer</th>
                   <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Status</th>
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Est. Price</th>
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">Action</th>
+                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Price</th>
+                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -246,41 +289,39 @@ const AssignedRepairs = ({ darkMode }) => {
                 ) : (
                   paginated.map(repair => {
                     const cs = getStatusStyle(repair.status);
-                    const fullName = `${repair.firstName} ${repair.lastName}`;
+                    const fullName = `${repair.firstName} ${repair.lastName}` || "Guest";
                     return (
                       <tr key={repair.id} className="hover:bg-lime-50/10 dark:hover:bg-lime-900/5 transition-colors group">
-                        <td className="px-6 py-6 whitespace-nowrap">{formatDate(repair.createdAt)}</td>
-                        <td className="px-6 py-6 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-mono font-bold text-gray-800 dark:text-gray-200">#{repair.id?.slice(-8)}</span>
-                            <button onClick={() => copyToClipboard(repair.id)} className="opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-lime-500 transition-all">
-                              <FiCopy size={12} />
+                        <td className="px-4 py-3 text-xs text-center whitespace-nowrap">{formatDate(repair.createdAt)}</td>
+
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-2 font-bold text-gray-800 dark:text-gray-100 text-xs">
+
+                            {repair.status === "ASSIGNED" ? <p className='text-xs text-orange-700 font-mono'>Guest</p> : fullName}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="flex justify-center items-center">
+                            <span className={`inline-flex text-center items-center justify-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border ${cs.bg} ${cs.border} ${cs.text}`}>
+
+                              {repair.status.replace(/_/g, ' ')}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-black text-gray-950 dark:text-white">
+                          {repair.status === "ASSIGNED" ? <p className='text-xs font-mono text-orange-700'>Not delivered yet</p> : formatPrice(repair.price)}
+                        </td>
+                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                          <div className="flex justify-center items-center">
+                            <button
+                              title='View Details'
+                              onClick={() => setViewDetail(repair)}
+                              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-transparent border-2 border-gray-100 dark:border-transparent dark:bg-gray-700 text-gray-400 dark:text-gray-300 text-xs font-bold transition-all "
+                            >
+                              <FiInfo size={14} />
+
                             </button>
                           </div>
-                        </td>
-                        <td className="px-6 py-6 whitespace-nowrap">
-                          <div className="flex items-center gap-2 font-bold text-gray-800 dark:text-gray-100 text-sm">
-                            <FiUser size={12} className="text-gray-400" />
-                            {fullName || 'Guest User'}
-                          </div>
-                        </td>
-                        <td className="px-6 py-6 whitespace-nowrap">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border ${cs.bg} ${cs.border} ${cs.text}`}>
-                            <span className={`w-1 h-1 rounded-full ${cs.dot}`} />
-                            {repair.status.replace(/_/g, ' ')}
-                          </span>
-                        </td>
-                        <td className="px-6 py-6 whitespace-nowrap font-black text-gray-900 dark:text-white">
-                          {formatPrice(repair.price)}
-                        </td>
-                        <td className="px-6 py-6 text-right whitespace-nowrap">
-                          <button
-                            onClick={() => setViewDetail(repair)}
-                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-black hover:bg-lime-500 hover:text-white transition-all shadow-sm"
-                          >
-                            <FiEye size={14} />
-                            Details
-                          </button>
                         </td>
                       </tr>
                     );
@@ -290,7 +331,7 @@ const AssignedRepairs = ({ darkMode }) => {
             </table>
           </div>
 
-        
+
           {totalPages > 1 && (
             <div className="px-6 py-5 bg-gray-50/50 dark:bg-gray-900/30 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row items-center justify-between gap-4">
               <p className="text-xs font-bold text-gray-500 dark:text-gray-400">
@@ -307,62 +348,67 @@ const AssignedRepairs = ({ darkMode }) => {
           )}
         </div>
 
-       
-       
+
+
         {viewDetail && (
           <Modal onClose={() => setViewDetail(null)} title="Repair Case Details" darkMode={darkMode}>
             <div className="space-y-6">
-              <div className="p-5 bg-gray-50 dark:bg-gray-900/50 rounded-3xl border border-gray-100 dark:border-gray-700 flex justify-between items-center">
+              <div className="p-5 bg-gray-50 dark:bg-gray-900/50 rounded-md  flex justify-between items-center gap-3 flex-wrap">
                 <div className="space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Reference ID</p>
-                  <p className="text-lg font-mono font-bold text-gray-800 dark:text-white tracking-tight">#{viewDetail.id}</p>
+                  <p className="text-xs font-mono font-bold text-gray-950 dark:text-white tracking-tight">#{viewDetail.id?.slice(0, 8)}</p>
                 </div>
-                <div className="text-right">
+                <div className="text-left">
                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Status</p>
-                  <span className={`inline-flex px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider border ${getStatusStyle(viewDetail.status).bg} ${getStatusStyle(viewDetail.status).border} ${getStatusStyle(viewDetail.status).text}`}>
+                  <span className={`inline-flex px-3 py-1 rounded-md text-xs font-black uppercase tracking-wider font-mono border-2   ${viewDetail.status}`}>
                     {viewDetail.status.replace(/_/g, ' ')}
                   </span>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-4">
+                <div className="p-5 bg-gray-50  dark:bg-gray-800 rounded-md  space-y-4">
                   <div className="flex items-center gap-2">
-                    <FiUser className="text-lime-500" />
-                    <span className="text-xs font-black uppercase tracking-wider text-gray-400">Customer</span>
-                  </div>
+                    <FiUser className="text-gray-500" />
+                    <span className="text-xs font-black uppercase tracking-wider text-gray-950">Customer</span>
+
+                  </div><hr className='border border-gray-200 m-2' />
                   <div className="space-y-1">
-                    <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{viewDetail.firstName} {viewDetail.lastName}</p>
-                    <p className="text-xs text-gray-500 flex items-center gap-2"><FiPhone size={12}/> {viewDetail.phone}</p>
+                    <p className="text-xs text-gray-500 flex items-center gap-2"><FiUser size={12} /> {viewDetail.firstName + " " + viewDetail.lastName || "Not specified"}</p>
+                    <p className="text-xs text-gray-500 flex items-center gap-2"><FiPhone size={12} /> {viewDetail.phone ? viewDetail.phone : "Not specified"}</p>
                   </div>
                 </div>
-                <div className="p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-4">
+                <div className="p-5 bg-gray-50 dark:bg-gray-800 rounded-md  space-y-4">
                   <div className="flex items-center gap-2">
-                    <FiClipboard className="text-blue-500" />
-                    <span className="text-xs font-black uppercase tracking-wider text-gray-400">Est. Price</span>
-                  </div>
-                  <p className="text-xl font-black text-gray-900 dark:text-white">{formatPrice(viewDetail.price)}</p>
+                    <FiClipboard className="text-gray-500" />
+                    <span className="text-xs font-black uppercase tracking-wider text-gray-950">Total Price</span>
+                  </div><hr className='border border-gray-200 m-2' />
+                  <p className="text-xl font-black text-gray-900 dark:text-white">{viewDetail.status === "ASSIGNED" ? <p className='font-mono text-orange-700 text-xs'>Not delivered yet</p> : formatPrice(viewDetail.price)}</p>
                 </div>
               </div>
 
               <div className="space-y-4">
-              
-                <div className="p-4 bg-lime-50/30 dark:bg-lime-900/10 rounded-2xl border border-lime-100 dark:border-lime-900/30 space-y-3">
-                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-lime-600">
-                    <FiMapPin size={14} /> Pickup Address
+
+
+
+                <div className="p-4 bg-gray-100 dark:bg-gray-900/10 rounded-md space-y-3">
+                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-600">
+                    <FiHome size={14} /> Customer Address
                   </div>
-                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{formatAddress(viewDetail.userAddress)}</p>
+
+                  <p className="text-sm font-semibold text-orange-700 dark:text-gray-200">{formatAddress(viewDetail.userAddress) || "Not specified"}</p>
                 </div>
+
                 {viewDetail.deliveryAddress && (
-                  <div className="p-4 bg-emerald-50/30 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 space-y-3">
-                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-600">
-                      <FiPackage size={14} /> Final Destination
+                  <div className="p-4 bg-gray-100 dark:bg-gray-900/10 rounded-md  space-y-3">
+                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-600">
+                      <FiPackage size={14} /> Agent Address
                     </div>
-                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{formatAddress(viewDetail.deliveryAddress)}</p>
+                    <p className="text-sm font-semibold text-orange-700 dark:text-gray-200">{formatAddress(viewDetail.deliveryAddress)}</p>
                   </div>
                 )}
               </div>
-              
+
               <div className="pt-4 flex items-center gap-2 text-[10px] text-gray-400 uppercase tracking-widest font-bold">
                 <FiClock size={12} /> Recorded on: {new Date(viewDetail.createdAt).toLocaleString()}
               </div>
@@ -371,7 +417,8 @@ const AssignedRepairs = ({ darkMode }) => {
         )}
       </div>
 
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .custom-scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
         .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }

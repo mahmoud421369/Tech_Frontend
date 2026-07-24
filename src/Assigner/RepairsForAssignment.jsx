@@ -46,7 +46,7 @@ const formatAddress = (addr) => {
 
 
 const StatCard = ({ label, value, icon: Icon, color }) => (
-  <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-sm p-5 flex items-center justify-between group hover:shadow-lg hover:shadow-lime-500/5 transition-all duration-500">
+  <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-md shadow-sm p-5 flex items-center justify-between group hover:shadow-lg hover:shadow-lime-500/5 transition-all duration-500">
     <div className="space-y-1">
       <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">{label}</p>
       <p className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter">{value}</p>
@@ -123,7 +123,7 @@ const RepairsForAssignment = ({ darkMode }) => {
     return repairs.filter(r => {
       const name = `${r.firstName} ${r.lastName}`.toLowerCase();
       const searchable = [r.id, name, r.shopId, r.status].join(' ').toLowerCase();
-    
+
       return !searchTerm || searchable.includes(searchTerm.toLowerCase());
     });
   }, [repairs, searchTerm]);
@@ -169,8 +169,8 @@ const RepairsForAssignment = ({ darkMode }) => {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-1.5 rounded-full bg-lime-500" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-600">Repair Logistics</span>
+              <div className="w-8 h-1.5 rounded-full bg-emerald-500" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">Repair Logistics</span>
             </div>
             <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Repairs Management</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">Coordinate pickup and delivery for repair requests</p>
@@ -185,7 +185,7 @@ const RepairsForAssignment = ({ darkMode }) => {
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard label="Total Repairs" value={stats.total} icon={FiTool} color="lime" />
-          <StatCard label="To Assign" value={stats.pending} icon={FiUserCheck} color="amber" />
+          <StatCard label="Pending Repairs" value={stats.pending} icon={FiUserCheck} color="amber" />
           <StatCard label="Assigned" value={stats.assigned} icon={FiCheck} color="emerald" />
           <StatCard label="Est. Revenue" value={formatPrice(stats.revenue)} icon={FiClipboard} color="blue" />
         </div>
@@ -193,7 +193,7 @@ const RepairsForAssignment = ({ darkMode }) => {
 
 
 
-        <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 shadow-sm p-6">
           <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
             <div className="relative flex-1 group">
               <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={18} />
@@ -202,7 +202,7 @@ const RepairsForAssignment = ({ darkMode }) => {
                 placeholder="Search by ID, Customer, or Shop..."
                 value={searchTerm}
                 onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-sm text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/10 focus:border-lime-200 transition-all"
+                className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-sm text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-200 transition-all"
               />
             </div>
             <div className="flex items-center gap-4">
@@ -225,17 +225,17 @@ const RepairsForAssignment = ({ darkMode }) => {
 
 
 
-        <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
           <div className="overflow-x-auto custom-scrollbar-thin">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-50/50 dark:bg-gray-900/30 border-b border-gray-100 dark:border-gray-700">
+                <tr className="bg-gray-50/50 dark:bg-gray-900/30 text-center border-b border-gray-100 dark:border-gray-700">
                   <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Date</th>
                   <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Repair ID</th>
                   <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Username</th>
                   <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Phone</th>
                   <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Shop</th>
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">Actions</th>
+                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 ">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -258,35 +258,36 @@ const RepairsForAssignment = ({ darkMode }) => {
                   paginated.map(repair => {
                     return (
                       <tr key={repair.id} className="hover:bg-lime-50/10 dark:hover:bg-lime-900/5 transition-colors group">
-                        <td className="px-6 py-6 whitespace-nowrap">{formatDate(repair.createdAt)}</td>
-                        <td className="px-6 py-6 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
+                        <td className="px-4 py-3 text-xs text-center whitespace-nowrap">{formatDate(repair.createdAt)}</td>
+                        <td className="px-4 py-3 text-xs text-center whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-2">
                             <span className="text-xs font-mono font-bold text-gray-800 dark:text-gray-200">#{repair.id?.slice(-8)}</span>
                             <button onClick={() => copyToClipboard(repair.id)} className="opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-lime-500 transition-all">
                               <FiCopy size={12} />
                             </button>
                           </div>
                         </td>
-                        <td className="px-6 py-6 whitespace-nowrap font-semibold text-gray-800 dark:text-gray-100 text-xs ">
+                        <td className="px-4 py-3 whitespace-nowrap font-mono text-center font-bold text-gray-950 dark:text-gray-100 text-xs">
                           {repair.userName || '—'}
                         </td>
 
-                        <td className="px-6 py-6 whitespace-nowrap text-gray-500 dark:text-gray-400 text-xs font-medium">
+                        <td className="px-4 py-3 whitespace-nowrap text-center text-gray-500 dark:text-gray-400 text-xs font-medium">
                           {repair.userPhone || 'N/A'}
                         </td>
-                        <td className="px-6 py-6 whitespace-nowrap font-black text-gray-900 text-xs font-cairo dark:text-white">
+                        <td className="px-4 py-3 whitespace-nowrap text-center font-black text-gray-900 text-xs font-mono dark:text-white">
                           {repair.shopName}
                         </td>
                         <td className="px-6 py-6 text-right whitespace-nowrap space-x-2">
                           <button
+                            title='View Details'
                             onClick={() => setViewDetail(repair)}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-bold hover:bg-lime-500 hover:text-white transition-all shadow-sm"
+                            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-transparent border-2 border-gray-100 dark:border-transparent dark:bg-gray-700 text-gray-400 dark:text-gray-300 text-xs font-bold transition-all"
                           >
-                            <FiEye size={14} />
-                            Details
+                            <FiInfo size={14} />
+
                           </button>
                           {repair.deliveryId ? (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 text-[10px] font-black uppercase tracking-wider border border-emerald-100 dark:border-emerald-800">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md bg-gray-50 dark:bg-gray-900/20 text-gray-600 text-[10px] font-black uppercase tracking-wider border border-gray-100 dark:border-gray-800">
                               <FiCheck size={14} /> Assigned
                             </span>
                           ) : (
@@ -330,7 +331,7 @@ const RepairsForAssignment = ({ darkMode }) => {
         {viewDetail && (
           <Modal onClose={() => setViewDetail(null)} title="Repair Case Details" darkMode={darkMode}>
             <div className="space-y-6">
-              <div className="p-5 bg-gray-50 dark:bg-gray-900/50 rounded-3xl border border-gray-100 dark:border-gray-700 flex justify-between items-center">
+              <div className="p-5 bg-gray-50 dark:bg-gray-900/50 rounded-md border border-gray-100 dark:border-gray-700 flex justify-between items-center">
                 <div className="space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Repair ID</p>
                   <p className="text-lg font-mono font-bold text-gray-800 dark:text-white tracking-tight">#{viewDetail.id?.slice(0, 8)}</p>
@@ -339,70 +340,73 @@ const RepairsForAssignment = ({ darkMode }) => {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-4">
+                <div className="p-5 bg-gray-50 dark:bg-gray-900 rounded-md  space-y-4">
                   <div className="flex items-center gap-2">
-                    <FiUser className="text-lime-500" />
-                    <span className="text-xs font-black uppercase tracking-wider text-gray-400">Customer Info</span>
-                  </div>
+                    <FiUser className="text-gray-500 dark:text-white" />
+                    <span className="text-xs font-black uppercase tracking-wider text-gray-400 dark:text-white">Customer Info</span>
+                  </div><hr className="border border-gray-200 dark:border-gray-700 mt-3" />
 
                   <div className="space-y-1 flex items-center gap-3 flex-row-reverse">
-                    <p className="text-xs  font-semibold text-gray-800 dark:text-gray-100">{viewDetail.userAddress?.city}, {viewDetail.userAddress?.state},{viewDetail.userAddress?.street},{viewDetail.userAddress?.building}</p>
-                    <FiMapPin className='text-gray-500 text-xs' size={12} />
+                    <p className="text-xs  text-green-800 dark:text-gray-400">{viewDetail.userAddress?.city}, {viewDetail.userAddress?.state},{viewDetail.userAddress?.street},{viewDetail.userAddress?.building}</p>
+                    <FiMapPin className='text-gray-500 dark:text-emerald-500 text-lg' />
                   </div>
 
                   <div className="space-y-1">
                     <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{viewDetail.userName} </p>
-                    <p className="text-xs text-gray-500 flex items-center gap-2"><FiPhone size={12} /> {viewDetail.userPhone}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2"><FiPhone className='text-gray-500 dark:text-emerald-500 text-lg' size={12} /> {viewDetail.userPhone}</p>
                   </div>
 
                 </div>
-                <div className="p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-4">
+
+
+                <div className="p-5 bg-gray-50 dark:bg-gray-900 rounded-md  space-y-4">
                   <div className="flex items-center gap-2">
-                    <FiClipboard className="text-lime-500" />
-                    <span className="text-xs font-black uppercase tracking-widest text-gray-400">Shop Info</span>
+                    <FiClipboard className="text-gray-500 dark:text-white" />
+                    <span className="text-xs font-black uppercase tracking-widest text-gray-400 dark:text-white">Shop Info</span>
+                  </div><hr className="border border-gray-200 dark:border-gray-700 mt-3" />
+
+                  <div className="space-y-1 flex items-center gap-2 flex-row-reverse justify-end">
+                    <p className="text-xs font-semibold text-green-800 dark:text-white">{viewDetail.shopName}</p>
+                    <RiStore2Line size={12} className='text-gray-500 dark:text-emerald-500 text-xs' />
                   </div>
 
                   <div className="space-y-1 flex items-center gap-2 flex-row-reverse justify-end">
-                    <p className="text-xs font-black text-gray-900 dark:text-white">{viewDetail.shopName}</p>
-                    <RiStore2Line size={12} className='text-gray-500 text-xs' />
+                    <p className="text-xs font-semibold text-green-800 dark:text-white">{viewDetail.shopPhone}</p>
+                    <RiPhoneLine className='text-gray-500 dark:text-emerald-500 text-sm' />
                   </div>
 
-                  <div className="space-y-1 flex items-center gap-2 flex-row-reverse justify-end">
-                    <p className="text-xs font-black text-gray-900 dark:text-white">{viewDetail.shopPhone}</p>
-                    <RiPhoneLine size={12} className='text-gray-500 text-xs' />
-                  </div>
+
+
                 </div>
+
               </div>
 
               <div className="space-y-4">
-                <div className="p-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-3">
-                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400">
-                    <RiListCheck2 size={14} className="text-lime-500" /> Assign Info
-                  </div>
+                <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-md  space-y-3">
+                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-white">
+                    <RiListCheck2 size={14} className="text-gray-500 dark:text-white" /> Assign Info
+                  </div> <hr className="border border-gray-200 dark:border-gray-700 mt-3" />
+
                   <div className="space-y-1 flex items-center gap-3 flex-row-reverse justify-end">
                     <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">{viewDetail.assignmentType}</p>
-                    <RiListCheck3 size={12} className='text-gray-500 text-xs' />
+                    <RiListCheck3 size={12} className='text-gray-500 dark:text-emerald-500 text-xs' />
                   </div>
 
                   <div className="space-y-1 flex items-center gap-3 flex-row-reverse justify-end">
                     <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">{viewDetail.assignerName}</p>
-                    <RiUser2Line size={12} className='text-gray-500 text-xs' />
+                    <RiUser2Line size={12} className='text-gray-500 dark:text-emerald-500 text-xs' />
                   </div>
+
                 </div>
-                <div className="p-4 bg-lime-50/30 dark:bg-lime-900/10 rounded-2xl border border-lime-100 dark:border-lime-900/30 space-y-3">
-                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-lime-600">
-                    <FiMapPin size={14} /> User Address
-                  </div>
-                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{formatAddress(viewDetail.userAddress)}</p>
+
+
+                <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-md  space-y-3">
+                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-white">
+                    <FiMapPin size={14} /> Shipping Address
+                  </div><hr className="border border-gray-200 dark:border-gray-700 mt-3" />
+                  <p className="text-sm font-semibold text-orange-800 dark:text-gray-200">{formatAddress(viewDetail.userAddress)}</p>
                 </div>
-                {viewDetail.deliveryAddress && (
-                  <div className="p-4 bg-emerald-50/30 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 space-y-3">
-                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-600">
-                      <FiPackage size={14} /> Delivery Destination
-                    </div>
-                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{formatAddress(viewDetail.deliveryAddress)}</p>
-                  </div>
-                )}
+                
               </div>
 
               <div className="pt-4 flex items-center gap-2 text-[10px] text-gray-400 uppercase tracking-widest font-bold">

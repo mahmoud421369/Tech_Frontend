@@ -305,12 +305,7 @@ const AdminAssignmentLogs = ({ darkMode }) => {
                               <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{formatDate(log.createdAt)}</span>
                             </div>
                           </td>
-                          {/* <td className="p-1 text-center">
-                            <div className="flex flex-col items-center gap-1">
-                              <FiClock size={10} className="text-gray-400" />
-                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{formatDate(log.updatedAt)}</span>
-                          </div>
-                          </td> */}
+                         
                         </tr>
                       );
                     })}
