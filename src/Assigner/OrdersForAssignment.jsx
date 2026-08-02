@@ -273,16 +273,16 @@ const OrdersForAssignment = ({ darkMode }) => {
 
 
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
           <div className="overflow-x-auto custom-scrollbar-thin">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-50/50 dark:bg-gray-900/30 text-center border-b border-gray-100 dark:border-gray-700">
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Date</th>
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Username</th>
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Phone</th>
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Shop</th>
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Actions</th>
+                <tr className="bg-gray-100 dark:bg-gray-900/30 text-center border-b border-gray-100 dark:border-gray-700">
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Date</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Username</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Phone</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Shop</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -333,7 +333,7 @@ const OrdersForAssignment = ({ darkMode }) => {
                           ) : (
                             <button
                               onClick={() => setSelectedOrder(order)}
-                              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gray-900 dark:bg-lime-500 text-white dark:text-black text-xs font-black hover:bg-lime-500 transition-all shadow-md"
+                              className="inline-flex items-center gap-2 px-3 py-2 rounded-3xl dark:bg-gray-950 border-2 border-gray-900 dark:border-gray-950 bg-transparent dark:bg-gray-800 text-gray-900 dark:text-white text-xs font-black hover:bg-gray-900 hover:text-white transition-all shadow-md"
                             >
                               <FiUserCheck size={14} />
                               Assign

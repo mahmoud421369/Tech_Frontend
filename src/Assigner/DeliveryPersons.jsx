@@ -209,16 +209,16 @@ const DeliveryPersons = ({ darkMode }) => {
 
 
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
           <div className="overflow-x-auto custom-scrollbar-thin">
             <table className="w-full text-left border-collapse">
               <thead className='border-b border-gray-100'>
-                <tr className="bg-gray-50/50 dark:bg-gray-900/30 border-b border-gray-100 dark:border-gray-700">
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Agent </th>
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Status</th>
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Active Tasks</th>
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Phone</th>
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Info</th>
+                <tr className="bg-gray-100 dark:bg-gray-900/30 border-b border-gray-100 dark:border-gray-700">
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Agent </th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Status</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Active Tasks</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Phone</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Info</th>
                 </tr>
               </thead>
               <tbody className="text-center divide-y divide-gray-100 dark:divide-gray-700">
@@ -337,9 +337,9 @@ const DeliveryPersons = ({ darkMode }) => {
                   <FiUser size={32} />
                 </div>
                 <div>
-                  <div className="flex justify-between items-center">
-                    <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">{selectedPerson.name}</h2>
-                    <p className="text-xs font-sans bg-emerald-400  text-white p-2 rounded-3xl mt-1 uppercase">{selectedPerson.verified === true ? 'Verified' : 'Not Verified'}</p>
+                  <div className="flex justify-between items-center flex-wrap ">
+                    <h2 className="text-xs font-black text-gray-900 dark:text-white tracking-tight">{selectedPerson.name}</h2>
+                    <p className="text-xs font-sans font-semibold bg-emerald-400  text-white p-1 rounded-3xl mt-1 ">{selectedPerson.verified === true ? 'Active' : 'Inactive'}</p>
 
                   </div>
                   <p className="text-xs font-mono text-gray-400 mt-1 uppercase">ID: {selectedPerson.id}</p>

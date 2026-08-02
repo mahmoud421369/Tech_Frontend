@@ -305,11 +305,11 @@ const Transactions = () => {
             <table className="w-full text-right border-collapse">
               <thead>
                 <tr className="bg-gray-100 dark:bg-gray-900  dark:border-gray-700">
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">التاريخ</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">نوع الخدمة</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">المبلغ</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">طريقة الدفع</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">رقم العملية</th>
+                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">التاريخ</th>
+                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">نوع الخدمة</th>
+                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">المبلغ</th>
+                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">طريقة الدفع</th>
+                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">رقم العملية</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
@@ -377,7 +377,7 @@ const Transactions = () => {
           
           
           {totalPages > 1 && (
-            <div className="px-8 py-6 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="px-4 py-4 bg-gray-100 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest order-2 sm:order-1">
                  عرض <span className="text-gray-900 dark:text-white">{(currentPage - 1) * rowsPerPage + 1}</span> إلى <span className="text-gray-900 dark:text-white">{Math.min(currentPage * rowsPerPage, filtered.length)}</span> من <span className="text-gray-900 dark:text-white">{filtered.length}</span> عملية
                </p>

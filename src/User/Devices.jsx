@@ -73,8 +73,8 @@ const EmptyBoxIllustration = memo(({ darkMode }) => (
 ));
 
 const HeroSearchBar = memo(({ darkMode, value, onChange }) => (
-  <div className="relative w-full max-w-xl">
-    <div className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border backdrop-blur-xl transition-all duration-150 shadow-lg ${
+  <div className="relative w-full border rounded-md dark:border-gray-800 max-w-xl">
+    <div className={`flex items-center gap-3 px-4 py-3.5 rounded-md border backdrop-blur-xl transition-all duration-150 shadow-lg ${
       darkMode ? 'border-white/15 bg-white/5 focus-within:border-emerald-400/50' : 'border-white/60 bg-white/35 focus-within:border-emerald-400/60'
     }`}>
       <FiSearch className={`w-5 h-5 flex-shrink-0 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
@@ -83,7 +83,7 @@ const HeroSearchBar = memo(({ darkMode, value, onChange }) => (
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Search products by name..."
-        className={`flex-1 outline-none text-sm bg-transparent font-medium placeholder:font-normal ${
+        className={`flex-1 cursor-pointer outline-none text-sm bg-transparent font-medium placeholder:font-normal ${
           darkMode ? 'text-white placeholder:text-gray-500' : 'text-gray-900 placeholder:text-gray-500'
         }`}
       />
@@ -458,11 +458,11 @@ const SidebarContent = memo(({ darkMode, searchTerm, setSearchTerm, sortBy, setS
       </div>
     </div>
 
-    <div className="relative">
+    <div className="relative border rounded-md dark:border-gray-800">
       <FiSearch className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} size={14} />
       <input type="text" placeholder="Search products..." value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
-        className={`w-full pl-10 pr-4 py-2.5 sm:py-3 rounded-xl border text-sm transition-colors duration-150 ${
+        className={`w-full pl-10 pr-4 py-2.5 sm:py-3 rounded-md border text-sm transition-colors duration-150 ${
           darkMode ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500'
                    : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
         } focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent`}

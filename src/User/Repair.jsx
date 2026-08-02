@@ -1020,7 +1020,7 @@ const RepairRequestContent = ({ darkMode }) => {
                               <motion.div key={cat.id} whileHover={{ y: -5, scale: 1.03 }} whileTap={{ scale: 0.97 }}
                                 transition={{ duration: 0.15 }}
                                 onClick={() => setSelectedCategory(cat)}
-                                className={`group cursor-pointer rounded-xl sm:rounded-2xl flex flex-col justify-center items-center p-3 sm:p-5 lg:p-6 shadow-md transition-all duration-200 border-2 ${
+                                className={`group cursor-pointer rounded-md sm:rounded-md flex flex-col justify-center items-center p-3 sm:p-5 lg:p-6 shadow-sm transition-all duration-200 border-2 ${
                                   active
                                     ? "bg-gradient-to-br from-emerald-400 to-emerald-500 text-white border-emerald-300 shadow-emerald-400/30 shadow-xl"
                                     : `${bgCard} ${darkMode ? "border-gray-700 hover:border-emerald-400" : "border-gray-200 hover:border-emerald-400"}`
@@ -1069,7 +1069,7 @@ const RepairRequestContent = ({ darkMode }) => {
                                 whileTap={shop.activate ? { scale: 0.99 } : {}}
                                 transition={{ duration: 0.15 }}
                                 onClick={() => shop.activate && setSelectedShop(shop)}
-                                className={`relative group p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-md transition-all duration-200 border-2 ${
+                                className={`relative group p-4 sm:p-6 rounded-md sm:rounded-md shadow-md transition-all duration-200 border-2 ${
                                   !shop.activate ? "opacity-50 cursor-not-allowed grayscale" : "cursor-pointer"
                                 } ${
                                   active
@@ -1109,7 +1109,7 @@ const RepairRequestContent = ({ darkMode }) => {
 
                                 <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-3 sm:mb-4">
                                   {[
-                                    { icon: <RiPhoneLine />, label: "Phone", value: shop.phone || "N/A" },
+
                                     { icon: <RiStore2Line />, label: "Type", value: shop.shopType || "General" },
                                     {
                                       icon: shop.activate ? <RiCheckDoubleLine /> : <RiCloseLine />,
@@ -1119,11 +1119,7 @@ const RepairRequestContent = ({ darkMode }) => {
                                         ? active ? "text-emerald-100" : "text-green-600 dark:text-green-400"
                                         : "text-red-500",
                                     },
-                                    {
-                                      icon: <RiMap2Line />,
-                                      label: "City",
-                                      value: shop.shopAddress?.city ? `${shop.shopAddress.city}, ${shop.shopAddress.state || "EG"}` : "N/A",
-                                    },
+                                    
                                   ].map(({ icon, label, value, valueClass }) => (
                                     <div key={label} className={`flex items-start gap-1.5 sm:gap-2 p-2 sm:p-2.5 rounded-lg sm:rounded-xl ${
                                       active ? "bg-white/10" : darkMode ? "bg-gray-700/50" : "bg-gray-50"

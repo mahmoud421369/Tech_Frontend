@@ -197,11 +197,11 @@ const MyRepairs = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-100 dark:bg-gray-900/30 text-center  dark:border-gray-700">
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Assignment Date</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Customer</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Status</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Price</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Actions</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Assignment Date</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Customer</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Status</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Price</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
@@ -262,7 +262,7 @@ const MyRepairs = () => {
                               title="View Details"
                               onClick={() => setSelectedRepair(repair)}
                               aria-label={`View details for repair ${repair.id}`}
-                              className="flex items-center gap-2 dark:border-gray-700 px-6 py-3 hover:bg-amber-300 hover:text-white rounded-md bg-transparent border-2 border-gray-50 text-amber-400 text-xs font-black uppercase tracking-widest hover:bg-amber-400 transition-all  active:scale-95"
+                              className="flex items-center gap-2 dark:border-gray-700 p-2 bg-orange-400 hover:text-white rounded-full bg-transparent  text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-400 transition-all  active:scale-95"
                             >
                               <FiInfo size={18} />
                             </button>

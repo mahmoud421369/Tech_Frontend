@@ -570,7 +570,7 @@ const RepairRequests = () => {
         return (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={() => setShowDetailsModal(false)} />
-            <div className="relative w-full max-w-2xl bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+            <div className="relative w-full max-w-2xl bg-white dark:bg-gray-800 mt-6 rounded-md shadow-2xl overflow-hidden animate-in zoom-in duration-300">
               <div className="px-8 py-6 border-b border-gray-50 dark:border-gray-700 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
@@ -672,7 +672,7 @@ const RepairRequests = () => {
       {showStatusModal && statusModalRepair && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={() => setShowStatusModal(false)} />
-          <div className="relative w-full max-w-sm bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+          <div className="relative w-full max-w-sm bg-white dark:bg-gray-800 rounded-md shadow-2xl overflow-hidden animate-in zoom-in duration-300">
             <div className="p-8 border-b border-gray-50 dark:border-gray-700 flex items-center gap-3">
               <div className="w-11 h-11 flex-shrink-0"><TrackFlagIllustration /></div>
               <div>
@@ -707,7 +707,7 @@ const RepairRequests = () => {
       {showPriceModal && priceModalRepair && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={() => setShowPriceModal(false)} />
-          <div className="relative w-full max-w-sm bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+          <div className="relative w-full max-w-sm bg-white dark:bg-gray-800 rounded-md shadow-2xl overflow-hidden animate-in zoom-in duration-300">
             <div className="p-8 border-b border-gray-50 dark:border-gray-700 flex items-center gap-3">
               <div className="w-11 h-11 flex-shrink-0"><PriceTagIllustration /></div>
               <div>

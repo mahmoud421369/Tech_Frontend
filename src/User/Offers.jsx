@@ -284,9 +284,8 @@ const OfferDetailModal = memo(({ open, onClose, offerId, token, darkMode }) => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2">
                   {[
-                    { label: "Discount Type", value: isPercentage ? "Percentage" : "Fixed", icon: <FaPercent />, color: isPercentage ? "text-orange-500" : "text-emerald-600 dark:text-emerald-400" },
                     { label: "You Save", value: discountFormatted, icon: <FaTag />, color: "text-emerald-600 dark:text-emerald-400" },
                   ].map((item) => (
                     <div key={item.label} className={`p-2.5 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>

@@ -437,7 +437,7 @@ const Inventory = () => {
          
          
           {totalPages > 1 && (
-            <div className="px-8 py-6 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="p-4 bg-gray-100 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest order-2 sm:order-1">
                 عرض <span className="text-gray-900 dark:text-white">{(currentPage - 1) * rowsPerPage + 1}</span> إلى{' '}
                 <span className="text-gray-900 dark:text-white">{Math.min(currentPage * rowsPerPage, inventory.length)}</span> من{' '}

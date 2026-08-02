@@ -179,10 +179,8 @@ const ShopProfile = () => {
                   <div className="relative group/avatar cursor-pointer" onClick={() => logoInputRef.current?.click()}>
                     <div className="w-32 h-32 lg:w-40 h-40 rounded-none p-2 relative">
                        <div className="w-full h-full rounded-[2rem] bg-gray-100 flex items-center justify-center text-emerald-500 overflow-hidden relative">
-                          {shop.logo ? <img src={shop.logo} alt="Logo" className="w-full h-full object-cover" /> : shop.name ? <span className="text-5xl font-black">{shop.name[0]}</span> : <FaStore size={48} />}
-                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
-                             <FiCamera className="text-white" size={32} />
-                          </div>
+                          { shop.name ? <span className="text-5xl font-black">{shop.name[0]}</span> : <FaStore size={48} />}
+                          
                        </div>
                     </div>
                     <input ref={logoInputRef} type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
@@ -276,8 +274,8 @@ const ShopProfile = () => {
                  </div>
 
                  {showAddForm && (
-                    <div className="mb-8 p-6 bg-gray-50 dark:bg-gray-900 rounded-[2rem] border border-emerald-400/20 space-y-6 animate-in slide-in-from-top-4 duration-300">
-                       <div className="grid grid-cols-2 gap-4">
+                    <div className="mb-8 p-6 bg-gray-50 dark:bg-gray-900 rounded-md  space-y-6 animate-in slide-in-from-top-4 duration-300">
+                       <div className="grid grid-cols-2 dark:text-white gap-4">
                           <input type="text" placeholder="المحافظة" value={newAddress.state} onChange={e => setNewAddress({...newAddress, state: e.target.value})} className="px-5 py-3 rounded-xl bg-white dark:bg-gray-800 border-none text-sm font-bold" />
                           <input type="text" placeholder="المدينة" value={newAddress.city} onChange={e => setNewAddress({...newAddress, city: e.target.value})} className="px-5 py-3 rounded-xl bg-white dark:bg-gray-800 border-none text-sm font-bold" />
                           <input type="text" placeholder="الشارع" value={newAddress.street} onChange={e => setNewAddress({...newAddress, street: e.target.value})} className="px-5 py-3 rounded-xl bg-white dark:bg-gray-800 border-none text-sm font-bold md:col-span-2" />
@@ -289,7 +287,7 @@ const ShopProfile = () => {
                     </div>
                  )}
 
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
                     {addresses.length === 0 ? (
                        <div className="md:col-span-2 py-12 text-center bg-gray-50 dark:bg-gray-900/50 rounded-[2rem] border-2 border-dashed border-gray-200 dark:border-gray-700">
                           <EmptyMapIllustration />
@@ -297,8 +295,8 @@ const ShopProfile = () => {
                        </div>
                     ) : addresses.map(addr => (
                        editingAddrId === addr.id ? (
-                          <div key={addr.id} className="p-5 bg-gray-50 dark:bg-gray-900 rounded-[2rem] border border-emerald-400/50 space-y-4 shadow-lg animate-in fade-in duration-300">
-                             <div className="grid grid-cols-2 gap-3">
+                          <div key={addr.id} className="p-5 bg-gray-50 dark:bg-gray-900 rounded-md  space-y-4  animate-in fade-in duration-300">
+                             <div className="grid grid-cols-2 dark:text-white gap-3">
                                 <input type="text" placeholder="المحافظة" value={editingAddr.state} onChange={e => setEditingAddr({...editingAddr, state: e.target.value})} className="px-4 py-2.5 rounded-xl bg-white dark:bg-gray-800 border-none text-xs font-bold" />
                                 <input type="text" placeholder="المدينة" value={editingAddr.city} onChange={e => setEditingAddr({...editingAddr, city: e.target.value})} className="px-4 py-2.5 rounded-xl bg-white dark:bg-gray-800 border-none text-xs font-bold" />
                                 <input type="text" placeholder="الشارع" value={editingAddr.street} onChange={e => setEditingAddr({...editingAddr, street: e.target.value})} className="px-4 py-2.5 rounded-xl bg-white dark:bg-gray-800 border-none text-xs font-bold md:col-span-2" />
@@ -309,7 +307,7 @@ const ShopProfile = () => {
                              </div>
                           </div>
                        ) : (
-                       <div key={addr.id} className="group p-5 bg-gray-50 dark:bg-gray-900/50 rounded-[2rem] border border-gray-100 dark:border-gray-700 hover:border-emerald-400/50 transition-all">
+                       <div key={addr.id} className="group p-5 bg-gray-50 dark:bg-gray-900/50 rounded-md border border-gray-200 dark:border-gray-700 hover:border-emerald-400/50 transition-all">
                           <div className="flex items-start justify-between">
                              <div className="space-y-1">
                                 <div className="flex items-center gap-2">

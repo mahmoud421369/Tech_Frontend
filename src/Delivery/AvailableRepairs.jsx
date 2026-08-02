@@ -200,13 +200,13 @@ const AvailableRepairs = () => {
           <div className="overflow-x-auto custom-scrollbar-thin">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-100 dark:bg-gray-900/30  dark:border-gray-700">
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Date</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Customer Info</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Shop </th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Customer </th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">Price</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Actions</th>
+                <tr className="bg-gray-100 dark:bg-gray-900/30  dark:border-gray-700 text-center">
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Date</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Customer Info</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Shop </th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Customer </th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Price</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-800">

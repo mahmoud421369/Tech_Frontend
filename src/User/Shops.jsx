@@ -628,8 +628,8 @@ const ShopsContent = ({ darkMode }) => {
         buttons={heroButtons}
         stats={heroStats}
       >
-        <div className="relative w-full border rounded-2xl dark:border-gray-800 max-w-xl">
-          <div className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border backdrop-blur-xl transition-all duration-200 shadow-lg ${
+        <div className="relative w-full border rounded-md dark:border-gray-800 max-w-xl">
+          <div className={`flex items-center gap-3 px-4 py-3.5 rounded-md border backdrop-blur-xl transition-all duration-200 shadow-lg ${
             darkMode ? 'border-white/15 bg-white/5' : ' bg-white'
           }`}>
             <FiSearch className={`w-5 h-5 flex-shrink-0 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
@@ -638,7 +638,7 @@ const ShopsContent = ({ darkMode }) => {
               value={searchTerm}
               onChange={(e) => startTransition(() => { setSearchTerm(e.target.value); setCurrentPage(1); })}
               placeholder="Search shops by name, city, or specialty..."
-              className={`flex-1 outline-none text-sm bg-transparent font-medium placeholder:font-normal ${
+              className={`flex-1 outline-none cursor-pointer text-sm bg-transparent font-medium placeholder:font-normal ${
                 darkMode ? 'text-white placeholder:text-gray-500' : 'text-gray-900 placeholder:text-gray-500'
               }`}
             />

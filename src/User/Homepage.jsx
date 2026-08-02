@@ -168,8 +168,8 @@ const SearchBar = memo(({ darkMode, products, shops }) => {
    const showDefault = focused && query.trim().length === 0;
 
    return (
-      <div className="relative w-full max-w-xl  rounded-2xl" ref={dropRef}>
-         <div className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border-2 backdrop-blur-xl transition-all duration-200  ${
+      <div className="relative w-full max-w-xl border rounded-md shadow-md dark:border-gray-800" ref={dropRef}>
+         <div className={`flex items-center gap-3 px-4 py-3.5 rounded-md border-2 backdrop-blur-xl transition-all duration-200  ${
             focused
                ? darkMode ? 'border-emerald-400/50 bg-white/10 shadow-emerald-500/20' : 'border-emerald-500/60 bg-white/60 shadow-emerald-500/20'
                : darkMode ? 'border-white/15 bg-white/5' : 'border-white/60 bg-white/40'
