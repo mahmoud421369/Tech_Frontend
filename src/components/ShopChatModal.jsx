@@ -12,6 +12,7 @@ import api from '../api';
 import DOMPurify from 'dompurify';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
+import useAuthStore from '../store/Auth';
 
 
 
@@ -20,6 +21,12 @@ const WS_URL = import.meta.env?.VITE_WS_URL || 'http://localhost:8080/ws';
 const MAX_MSG_LEN = 2000;
 const RECONNECT_DELAY = 5000;
 
+
+const EMPTY_SHOP = {
+  id: '', email: '', name: '', description: '', password: '',
+  verified: false, phone: '', rating: 0,
+  createdAt: '', updatedAt: '', shopType: '', activate: false,
+};
 
 
 
@@ -95,6 +102,32 @@ const SessionItem = memo(({ session, isActive, onClick }) => (
 
 const MessageBubble = memo(({ msg, isOwn }) => {
   const safeContent = useMemo(() => sanitize(msg.content || ''), [msg.content]);
+  const shopId = localStorage.getItem('id') ;
+
+    
+  const [loading, setLoading]                 = useState(true);
+  const [shop, setShop]                       = useState(EMPTY_SHOP);
+
+
+   const fetchAllData = useCallback(async () => {
+  
+      setLoading(true);
+      try {
+        const [shopRes] = await Promise.allSettled([
+          api.get(`/api/shops/${shopId}`),
+         
+        ]);
+  
+        if (shopRes.status === 'fulfilled') {
+          const d = shopRes.value.data || {};
+          setShop({ ...d, password: '' });
+        
+        }
+      } catch {  }
+      finally { setLoading(false); }
+    }, [ shopId]);
+  
+    useEffect(() => { fetchAllData(); }, [fetchAllData]);
 
   return (
     <motion.div
@@ -111,7 +144,7 @@ const MessageBubble = memo(({ msg, isOwn }) => {
           ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 translate-y-1'
           : 'bg-emerald-500 text-white -translate-y-1',
       )}>
-        {initial(msg.senderName)}
+        { initial(msg.senderName) }
       </div>
 
       <div className={clsx(
@@ -165,6 +198,9 @@ const ShopChatModal = memo(({ open, onClose }) => {
     id: localStorage.getItem('id') || null,
   }), []);
 
+  const shopId = localStorage.getItem('id') || user?.id || user?.shopId;
+
+
   const [stompClient, setStompClient] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [activeSession, setActiveSession] = useState(null);
@@ -176,6 +212,10 @@ const ShopChatModal = memo(({ open, onClose }) => {
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [error, setError] = useState(null);
+  const { accessToken, user } = useAuthStore();
+  const [loading, setLoading]                 = useState(true);
+  const [shop, setShop]                       = useState(EMPTY_SHOP);
+
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -195,6 +235,29 @@ const ShopChatModal = memo(({ open, onClose }) => {
       setTotalUnreadCount(Number(data.unreadCount ?? data) || 0);
     } catch { }
   }, [shopProfile.id]);
+
+
+   const fetchAllData = useCallback(async () => {
+      if (!accessToken || !shopId) return;
+      setLoading(true);
+      try {
+        const [shopRes] = await Promise.allSettled([
+          api.get(`/api/shops/${shopId}`),
+         
+        ]);
+  
+        if (shopRes.status === 'fulfilled') {
+          const d = shopRes.value.data || {};
+          setShop({ ...d, password: '' });
+        
+        }
+      } catch { showToast('فشل تحميل بيانات المتجر', 'error'); }
+      finally { setLoading(false); }
+    }, [accessToken, shopId]);
+  
+    useEffect(() => { fetchAllData(); }, [fetchAllData]);
+
+  
 
   const fetchSessions = useCallback(async () => {
     if (!shopProfile.id) return;
@@ -230,6 +293,7 @@ const ShopChatModal = memo(({ open, onClose }) => {
       msgs.forEach(m => seenMsgIdsRef.current.add(m.id));
       
       setMessages(msgs);
+      console.log(messages)
       await api.put(`/api/chats/${activeSession.userId}/shop/${activeSession.shopId}/mark-read`);
       setSessions(prev => prev.map(s => s.id === activeSession.id ? { ...s, unreadCount: 0 } : s));
       fetchTotalUnreadCount();

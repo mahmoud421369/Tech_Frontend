@@ -1,5 +1,4 @@
 import React, { memo } from "react";
-import { FiStar } from "react-icons/fi";
 import { motion } from "framer-motion";
 
 const EASE = [0.16, 1, 0.3, 1];
@@ -147,11 +146,11 @@ const ServiceCard = memo(({ Illustration, title, desc, index, darkMode }) => (
     transition={{ duration: 0.5, delay: index * 0.08, ease: EASE }}
     viewport={{ once: true }}
     whileHover={{ y: -8, scale: 1.01 }}
-    className={`group relative rounded-md p-8 border transition-all duration-300 hover:shadow-xl h-full
+    className={`group relative rounded-2xl p-8 border-2 transition-all duration-300 hover:shadow-xl h-full
       flex flex-col sm:flex-row items-center gap-6
       ${darkMode
-        ? "bg-gray-900 border-emerald-500/20 hover:border-emerald-500/40"
-        : "bg-white border-gray-100 hover:border-emerald-200 shadow-sm"
+        ? "bg-gray-900 border-emerald-500/20 hover:border-emerald-500/50"
+        : "bg-white border-gray-100 hover:border-emerald-300 shadow-sm"
       }`}
   >
     <motion.div
@@ -170,7 +169,7 @@ const ServiceCard = memo(({ Illustration, title, desc, index, darkMode }) => (
       <p className={`text-[15px] leading-relaxed ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
         {desc}
       </p>
-      <div className="mt-4 h-0.5 w-12 mx-auto sm:mx-0 bg-gradient-to-r from-emerald-400 to-lime-400 rounded-full opacity-60 group-hover:opacity-100 transition-opacity" />
+      <div className="mt-4 h-0.5 w-12 mx-auto sm:mx-0 bg-gradient-to-r from-emerald-400 to-lime-400 rounded-full opacity-60 group-hover:opacity-100 group-hover:w-16 transition-all" />
     </div>
   </motion.div>
 ));
@@ -180,12 +179,9 @@ const Service = memo(({ darkMode = false }) => {
     <section className={`py-20 lg:py-24 ${darkMode ? "bg-gray-950" : "bg-zinc-50"}`}>
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center mb-16">
-        
-
           <h2 className={`text-5xl lg:text-6xl font-bold tracking-tighter mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}>
             Modern <span className="text-emerald-500">TechCare</span>
           </h2>
-       
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

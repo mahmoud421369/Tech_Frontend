@@ -102,15 +102,15 @@ const CardIllustration = memo(({ kind, color }) => {
 
 
 const StatCard = memo(({ kind, label, value, color }) => (
-  <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-sm hover:shadow-xl hover:shadow-emerald-400/5 transition-all duration-500 group relative overflow-hidden">
-    <div className={`absolute top-0 right-0 w-24 h-24 bg-${color}-500/5 rounded-bl-full translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-700`} />
+  <div className="bg-white/10  dark:bg-slate-900/40 backdrop-blur-md text-white  border  rounded-2xl p-6 dark:border-gray-700 shadow-xl  hover:shadow-xl hover:shadow-emerald-400/5 transition-all duration-500 group relative overflow-hidden">
+    <div className={`absolute top-0 right-0 w-24 h-24 bg-gray-500/5 rounded-bl-full translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-700`} />
     <div className="relative flex items-center justify-between">
       <div className="space-y-1">
         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">{label}</p>
         <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">{value}</p>
       </div>
-      <div className={`w-14 h-14 rounded-2xl bg-${color}-50 dark:bg-${color}-900/20 flex items-center justify-center group-hover:rotate-12 group-hover:scale-110 transition-all duration-500`}>
-        <CardIllustration kind={kind} color={COLOR_HEX[color]} />
+      <div className={`w-14 h-14 rounded-2xl bg-gray-50 dark:bg-gray-900/20 flex items-center justify-center group-hover:rotate-12 group-hover:scale-110 transition-all duration-500`}>
+        <CardIllustration kind={kind}  color={COLOR_HEX[color]} />
       </div>
     </div>
   </div>

@@ -4,6 +4,17 @@ import { motion } from 'framer-motion';
 
 const EASE = [0.16, 1, 0.3, 1];
 
+const Hero3DAnimations = memo(() => (
+  <style>{`
+    @keyframes heroTilt3d { 0%, 100% { transform: rotateX(8deg) rotateY(-14deg) rotateZ(0deg); } 50% { transform: rotateX(3deg) rotateY(-6deg) rotateZ(0.5deg); } }
+    @keyframes heroChipFloat { 0%, 100% { transform: translateZ(var(--tz, 70px)) translateY(0px); } 50% { transform: translateZ(var(--tz, 70px)) translateY(-9px); } }
+    @keyframes heroRingSpin { from { transform: translateZ(-30px) rotate(0deg); } to { transform: translateZ(-30px) rotate(360deg); } }
+    .hero-tilt-3d { animation: heroTilt3d 8s ease-in-out infinite; }
+    .hero-chip-float { animation: heroChipFloat 4.4s ease-in-out infinite; }
+    .hero-ring-spin { animation: heroRingSpin 14s linear infinite; }
+  `}</style>
+));
+
 const WaveBottom = memo(({ darkMode }) => (
   <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-none pointer-events-none">
     <svg viewBox="0 0 1440 100" xmlns="http://www.w3.org/2000/svg"
@@ -307,17 +318,50 @@ const VARIANT_ILLUSTRATIONS = {
   category: CategoryIllustration,
 };
 
-const Illustration = memo(({ variant, darkMode }) => {
+const VARIANT_CHIP = {
+  home: { label: 'Verified shops', delay: 0 },
+  devices: { label: 'Warrantied', delay: 0.2 },
+  track: { label: 'Live tracking', delay: 0.1 },
+  account: { label: 'Your data, secure', delay: 0.15 },
+  repair: { label: 'Fast turnaround', delay: 0.05 },
+  offers: { label: 'Best price', delay: 0.25 },
+  shop: { label: 'Official', delay: 0.1 },
+  category: { label: 'Curated picks', delay: 0.2 },
+};
+
+const Illustration3DStage = memo(({ variant, darkMode }) => {
   const Comp = VARIANT_ILLUSTRATIONS[variant] ?? VARIANT_ILLUSTRATIONS.home;
+  const chip = VARIANT_CHIP[variant] ?? VARIANT_CHIP.home;
   return (
-    <motion.div
-      className="w-64 sm:w-80 lg:w-96 aspect-square"
-      animate={{ y: [0, -14, 0] }}
-      transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-      whileHover={{ scale: 1.04, transition: { duration: 0.4, ease: EASE } }}
-    >
-      <Comp darkMode={darkMode} />
-    </motion.div>
+    <div className="relative w-64 sm:w-80 lg:w-96 aspect-square" style={{ perspective: '1500px' }}>
+      <motion.div
+        className="hero-tilt-3d relative w-full h-full"
+        style={{ transformStyle: 'preserve-3d' }}
+        animate={{ y: [0, -14, 0] }}
+        transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+        whileHover={{ scale: 1.04, transition: { duration: 0.4, ease: EASE } }}
+      >
+        <div
+          className={`hero-ring-spin absolute inset-[6%] rounded-full border-[10px] ${darkMode ? 'border-emerald-500/15' : 'border-emerald-200/70'}`}
+          style={{ transformStyle: 'preserve-3d' }}
+        />
+        <div
+          className={`absolute inset-[12%] rounded-[3rem] ${darkMode ? 'bg-gradient-to-br from-emerald-500/25 to-teal-500/25' : 'bg-gradient-to-br from-emerald-200 to-teal-200'}`}
+          style={{ transform: 'translateZ(-70px)', boxShadow: darkMode ? '0 50px 90px -30px rgba(16,185,129,0.25)' : '0 50px 90px -30px rgba(5,150,105,0.3)' }}
+        />
+        <div className="absolute inset-0" style={{ transform: 'translateZ(20px)' }}>
+          <Comp darkMode={darkMode} />
+        </div>
+        <div
+          className="hero-chip-float absolute top-[4%] right-[2%]"
+          style={{ '--tz': '90px', transform: 'translateZ(90px)', animationDelay: `${chip.delay}s` }}
+        >
+          <div className={`px-3 py-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap ${darkMode ? 'bg-gray-900 border-emerald-800 text-emerald-300' : 'bg-white border-emerald-100 text-emerald-700'}`} style={{ boxShadow: darkMode ? '0 20px 35px -14px rgba(0,0,0,0.6)' : '0 20px 35px -14px rgba(6,95,70,0.3)' }}>
+            {chip.label}
+          </div>
+        </div>
+      </motion.div>
+    </div>
   );
 });
 
@@ -435,6 +479,7 @@ const Hero = memo(({
     <section className={`relative min-h-screen flex items-center overflow-hidden transition-colors duration-300 ${
       darkMode ? 'bg-[#030a06]' : 'bg-white'
     }`}>
+      <Hero3DAnimations />
 
       <motion.div
         className={`absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-3xl pointer-events-none ${
@@ -556,7 +601,7 @@ const Hero = memo(({
               animate={{ scale: [0.7, 0.76, 0.7], opacity: darkMode ? [0.1, 0.16, 0.1] : [0.16, 0.22, 0.16] }}
               transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
             />
-            <Illustration variant={variant} darkMode={darkMode} />
+            <Illustration3DStage variant={variant} darkMode={darkMode} />
           </motion.div>
 
         </div>

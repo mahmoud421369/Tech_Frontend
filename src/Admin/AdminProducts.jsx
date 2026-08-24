@@ -27,14 +27,14 @@ const showToast = (text, icon) =>
 const sanitize = (s) => DOMPurify.sanitize(String(s ?? ''));
 
 const StatCard = memo(({ icon: Icon, label, value, color }) => (
-  <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-sm hover:shadow-xl hover:shadow-lime-500/5 transition-all duration-500 group relative overflow-hidden">
-    <div className={`absolute top-0 right-0 w-24 h-24 bg-${color}-500/5 rounded-bl-full translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-700`} />
+  <div className="bg-white/10  dark:bg-slate-900/40 backdrop-blur-md text-white  border  rounded-2xl p-5 dark:border-gray-700 shadow-xl  hover:shadow-xl hover:shadow-emerald-400/5 transition-all duration-500 group relative overflow-hidden">
+    <div className={`absolute top-0 right-0 w-24 h-24 bg-gray-500/5 rounded-bl-full translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-700`} />
     <div className="relative flex items-center justify-between">
       <div className="space-y-1">
         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">{label}</p>
         <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">{value}</p>
       </div>
-      <div className={`w-14 h-14 rounded-2xl bg-${color}-50 dark:bg-${color}-900/20 flex items-center justify-center text-${color}-500 group-hover:rotate-12 group-hover:scale-110 transition-all duration-500`}>
+      <div className={`w-14 h-14 rounded-2xl bg-gray-50 dark:bg-gray-900/20 flex items-center justify-center text-gray-500 group-hover:rotate-12 group-hover:scale-110 transition-all duration-500`}>
         <Icon size={24} />
       </div>
     </div>
@@ -44,14 +44,15 @@ const StatCard = memo(({ icon: Icon, label, value, color }) => (
 const SortIcon = memo(({ field, sortField, sortDir }) => {
   if (sortField !== field) return <FiChevronDown size={11} className="text-gray-400 dark:text-gray-500" />;
   return sortDir === 'asc'
-    ? <FiChevronUp size={11} className="text-lime-600" />
-    : <FiChevronDown size={11} className="text-lime-600" />;
+    ? <FiChevronUp size={11} className="text-emerald-600" />
+    : <FiChevronDown size={11} className="text-emerald-600" />;
 });
 
 const Th = memo(({ field, label, center = true, onSort, sortField, sortDir }) => (
   <th
     onClick={() => onSort(field)}
-    className={`px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${center ? 'text-center' : 'text-left'}`}
+    scope='col'
+    className={`text-slate-500 font-medium text-xs tracking-wider uppercase border-b border-slate-200 dark:border-slate-800  p-4   cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${center ? 'text-center' : 'text-right'}`}
   >
     <span className={`flex items-center gap-1.5 ${center ? 'justify-center' : ''}`}>
       {label} <SortIcon field={field} sortField={sortField} sortDir={sortDir} />
@@ -71,7 +72,7 @@ const RowsDropdown = memo(({ value, options, onChange }) => {
     <div className="relative inline-block" ref={ref}>
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-transparent hover:border-lime-500/20 transition-all focus:outline-none focus:ring-2 focus:ring-lime-500/20">
+        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-transparent hover:border-emerald-500/20 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
         <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">{value} Rows</span>
         <FiChevronDown size={12} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -81,9 +82,9 @@ const RowsDropdown = memo(({ value, options, onChange }) => {
             <button
               key={n}
               onClick={() => { onChange(n); setOpen(false); }}
-              className={`w-full flex items-center justify-between px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition ${value === n ? 'bg-lime-50 dark:bg-lime-900/30 text-lime-600' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
+              className={`w-full flex items-center justify-between px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition ${value === n ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
               {n} Rows
-              {value === n && <FiCheck size={12} className="text-lime-500" />}
+              {value === n && <FiCheck size={12} className="text-emerald-500" />}
             </button>
           ))}
         </div>
@@ -104,7 +105,7 @@ const Dropdown = memo(({ label, value, options, onSelect, renderOption, renderSe
     <div className="relative" ref={ref}>
       <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{label}</label>
       <button type="button" onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white focus:outline-none focus:ring-4 focus:ring-lime-500/5 transition-all">
+        className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white focus:outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all">
         <span className="uppercase tracking-wider">{renderSelected ? renderSelected(value) : value || `Select ${label}`}</span>
         <FiChevronDown size={14} className={`text-gray-400 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -114,7 +115,7 @@ const Dropdown = memo(({ label, value, options, onSelect, renderOption, renderSe
             className="absolute z-[110] mt-2 w-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden py-2">
             {options.map(opt => (
               <button key={opt.value ?? opt} type="button" onClick={() => { onSelect(opt); setOpen(false); }}
-                className={`w-full flex items-center justify-between px-5 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${(opt.value ?? opt) === value ? 'bg-lime-500 text-white' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-900/50'}`}>
+                className={`w-full flex items-center justify-between px-5 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${(opt.value ?? opt) === value ? 'bg-emerald-500 text-white' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-900/50'}`}>
                 {renderOption ? renderOption(opt) : opt}
                 {(opt.value ?? opt) === value && <FiCheck size={12} />}
               </button>
@@ -139,7 +140,7 @@ const DetailsModal = memo(({ product: p, onClose }) => {
         <div className="flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/80 px-6 py-4 border-b border-gray-100 dark:border-gray-700">
           <div className="flex items-center gap-3">
             <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Product Details</h3>
-            <code className="text-[10px] font-black bg-lime-500 text-white px-2 py-0.5 rounded-lg">{String(p.id).slice(0, 8)}</code>
+            <code className="text-[10px] font-black bg-emerald-500 text-white px-2 py-0.5 rounded-lg">{String(p.id).slice(0, 8)}</code>
           </div>
           <button onClick={onClose} className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-red-500 transition-all">
             <FiX size={18} title="Close" />
@@ -167,12 +168,12 @@ const DetailsModal = memo(({ product: p, onClose }) => {
           {fields.map(({ icon: Icon, label, value, color = 'gray' }) => (
             <div key={label} className="group p-4 bg-gray-50 dark:bg-gray-900/40 border border-transparent hover:border-lime-500/20 transition-all duration-300">
               <div className="flex items-center gap-4">
-                <div className={`w-10 h-10 rounded-xl bg-white dark:bg-gray-800 flex items-center justify-center text-${color === 'lime' ? 'lime-500' : 'gray-400'} shadow-sm group-hover:rotate-6 transition-transform`}>
+                <div className={`w-10 h-10 rounded-xl bg-white dark:bg-gray-800 flex items-center justify-center text-${color === 'emerald' ? 'emerald-500' : 'gray-400'} shadow-sm group-hover:rotate-6 transition-transform`}>
                   <Icon size={18} />
                 </div>
                 <div>
                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{label}</p>
-                  <p className={`text-sm font-bold ${color === 'lime' ? 'text-lime-600' : 'text-gray-800 dark:text-gray-100'}`}>{String(value)}</p>
+                  <p className={`text-sm font-bold ${color === 'emerald' ? 'text-emerald-600' : 'text-gray-800 dark:text-gray-100'}`}>{String(value)}</p>
                 </div>
               </div>
             </div>
@@ -180,7 +181,7 @@ const DetailsModal = memo(({ product: p, onClose }) => {
         </div>
         <div className="px-6 pb-6 pt-2">
           <button onClick={onClose}
-            className="w-full py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-[0.2em] hover:bg-lime-500 dark:hover:bg-lime-500 dark:hover:text-white transition-all active:scale-[0.98]">
+            className="w-full py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-[0.2em] hover:bg-emerald-500 dark:hover:bg-emerald-500 dark:hover:text-white transition-all active:scale-[0.98]">
             Close
           </button>
         </div>
@@ -193,7 +194,7 @@ const EditModal = memo(({ form, setForm, categories, onClose, onSubmit }) => (
   <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-md p-4">
     <div className="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-none shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden flex flex-col max-h-[90vh]">
       <div className="flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/80 px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-        <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Edit Product Details</h3>
+        <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Edit Product </h3>
         <button onClick={onClose} className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-red-500 transition-all">
           <FiX size={18} title="Close" />
         </button>
@@ -209,7 +210,7 @@ const EditModal = memo(({ form, setForm, categories, onClose, onSubmit }) => (
             <div key={field}>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{label}</label>
               <input {...props} value={form[field] || ''} onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))}
-                className="w-full px-4 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white focus:outline-none focus:ring-4 focus:ring-lime-500/5 transition-all" />
+                className="w-full px-4 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white focus:outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all" />
             </div>
           ))}
           <Dropdown label="Category" value={form.categoryName} options={categories.map(c => c.name)}
@@ -220,12 +221,12 @@ const EditModal = memo(({ form, setForm, categories, onClose, onSubmit }) => (
         <div>
           <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Description</label>
           <textarea value={form.description || ''} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={4}
-            className="w-full px-4 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white focus:outline-none focus:ring-4 focus:ring-lime-500/5 transition-all resize-none" />
+            className="w-full px-4 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white focus:outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all resize-none" />
         </div>
       </div>
       <div className="p-8 pt-0 flex gap-4">
-        <button onClick={onClose} className="flex-1 py-4 bg-gray-100 dark:bg-gray-700 text-gray-500 text-xs font-black uppercase tracking-widest hover:bg-gray-200 dark:hover:bg-gray-600 transition-all">Cancel Operation</button>
-        <button onClick={onSubmit} className="flex-1 py-4 bg-lime-500 text-white text-xs font-black uppercase tracking-widest hover:bg-lime-600 shadow-lg shadow-lime-500/20 transition-all">Update Registry</button>
+        <button onClick={onClose} className="flex-1 py-4 bg-gray-100 dark:bg-gray-700 text-gray-500 text-xs font-black uppercase tracking-widest hover:bg-gray-200 dark:hover:bg-gray-600 transition-all">Cancel </button>
+        <button onClick={onSubmit} className="flex-1 py-4 bg-emerald-500 text-white text-xs font-black uppercase tracking-widest hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 transition-all">Update </button>
       </div>
     </div>
   </div>
@@ -360,10 +361,10 @@ const AdminProducts = ({ darkMode }) => {
   const deleteProduct = useCallback(async (id) => {
     const token = tokenRef.current;
     const { isConfirmed } = await Swal.fire({
-      title: 'Delete Product Registry?',
+      title: 'Delete Product ?',
       text: 'This will remove the product from all catalogues.',
       icon: 'warning', showCancelButton: true,
-      confirmButtonText: 'Confirm Purge', confirmButtonColor: '#ef4444',
+      confirmButtonText: 'Confirm Deletion', confirmButtonColor: '#ef4444',
       background: darkMode ? '#111827' : '#fff', color: darkMode ? '#fff' : '#000',
     });
     if (!isConfirmed) return;
@@ -375,7 +376,7 @@ const AdminProducts = ({ darkMode }) => {
 
   const statCards = useMemo(() => [
     { icon: FiPackage,     label: 'Total Products', value: stats.total,      color: 'lime'    },
-    { icon: FiCheckCircle, label: 'Live Stock',     value: stats.inStock,    color: 'emerald' },
+    { icon: FiCheckCircle, label: 'In Stock',     value: stats.inStock,    color: 'emerald' },
     { icon: FiXCircle,     label: 'Out of Stock',   value: stats.outOfStock, color: 'rose'    },
   ], [stats]);
 
@@ -386,15 +387,15 @@ const AdminProducts = ({ darkMode }) => {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-1.5 rounded-full bg-lime-500" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-600">Product Lifecycle</span>
+              <div className="w-8 h-1.5 rounded-full bg-emerald-500" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">Product Lifecycle</span>
             </div>
             <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">Products</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Manage and audit global product listings and inventory levels</p>
           </div>
           <div className="flex items-center gap-3">
             <button onClick={fetchProducts} disabled={loading} title="Refresh"
-              className="w-10 h-10 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-lime-500 hover:border-lime-500/30 transition-all disabled:opacity-40">
+              className="w-10 h-10 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-emerald-500 hover:border-emerald-500/30 transition-all disabled:opacity-40">
               <FiRefreshCw size={16} className={loading ? 'animate-spin' : ''} />
             </button>
             <div className="p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-sm flex items-center gap-4">
@@ -403,7 +404,7 @@ const AdminProducts = ({ darkMode }) => {
               </div>
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Inventory State</p>
-                <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Synchronized</p>
+
               </div>
             </div>
           </div>
@@ -416,10 +417,10 @@ const AdminProducts = ({ darkMode }) => {
         <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
           <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
             <div className="relative flex-1 group">
-              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={16} />
+              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors" size={16} />
               <input type="text" placeholder="Search by name or technical description..." value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-full pl-12 pr-10 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/5 transition-all" />
+                className="w-full pl-12 pr-10 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all" />
               {search && (
                 <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors">
                   <FiX size={16} title="Clear" />
@@ -429,7 +430,7 @@ const AdminProducts = ({ darkMode }) => {
             <div className="flex items-center gap-2 flex-wrap">
               {[{ v: 'all', l: 'All' }, { v: 'inStock', l: 'In Stock' }, { v: 'outOfStock', l: 'Out of Stock' }].map(({ v, l }) => (
                 <button key={v} onClick={() => { setStockFilter(v); setCurrentPage(1); }}
-                  className={`px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${stockFilter === v ? 'bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20' : 'border-transparent bg-gray-50 dark:bg-gray-900/50 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+                  className={`px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${stockFilter === v ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'border-transparent bg-gray-50 dark:bg-gray-900/50 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
                   {l}
                 </button>
               ))}
@@ -441,27 +442,27 @@ const AdminProducts = ({ darkMode }) => {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-sm border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
           {loading ? (
             <div className="py-32 text-center space-y-4">
-              <div className="w-12 h-12 border-4 border-lime-500 border-t-transparent rounded-full animate-spin mx-auto shadow-lg" />
+              <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto shadow-lg" />
               <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 animate-pulse">Scanning product network...</p>
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto custom-scrollbar-thin">
-                <table className="w-full min-w-[850px]">
-                  <thead className="bg-gray-50 dark:bg-gray-900/50">
+              <div className="overflow-x-auto w-full rounded-sm border border-gray-200 dark:border-gray-800 shadow-sm custom-scrollbar-thin">
+                <table className="w-full table-auto border-collapse text-center text-sm text-gray-500  min-w-[900px]">
+                  <thead className="bg-gray-50 dark:bg-gray-900">
                     <tr>
-                      <th className="px-8 py-5 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">ID</th>
-                      <Th field="name"      label="Product Name" center={false} onSort={handleSort} sortField={sortField} sortDir={sortDir} />
+                      <th className={`text-slate-500 font-medium text-xs tracking-wider uppercase border-b border-slate-200 dark:border-slate-800  p-4   cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors`}>ID</th>
+                      <Th field="name"      label="Name" center={true} onSort={handleSort} sortField={sortField} sortDir={sortDir} />
                       <Th field="price"     label="Price"                       onSort={handleSort} sortField={sortField} sortDir={sortDir} />
                       <Th field="condition" label="Condition"                   onSort={handleSort} sortField={sortField} sortDir={sortDir} />
                       <Th field="stock"     label="Stock"                       onSort={handleSort} sortField={sortField} sortDir={sortDir} />
-                      <th className="px-8 py-5 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">Operations</th>
+                      <th className={`text-slate-500 font-medium text-xs tracking-wider uppercase border-b border-slate-200 dark:border-slate-800  p-4   cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors`}>Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                  <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                     {paginated.length === 0 ? (
                       <tr><td colSpan={6} className="py-32 text-center">
                         <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
@@ -472,9 +473,9 @@ const AdminProducts = ({ darkMode }) => {
                     ) : paginated.map(p => {
                       const cm = getCondMeta(p.condition);
                       return (
-                        <tr key={p.id} className="hover:bg-lime-50/10 dark:hover:bg-lime-900/5 transition-colors group">
-                          <td className="px-8 py-6">
-                            <div className="flex items-center gap-3">
+                        <tr key={p.id} className="hover:bg-emerald-50/10 dark:hover:bg-emerald-900/5 transition-colors group">
+                          <td className="p-3">
+                            <div className="flex items-center justify-center gap-3">
                               <code className="text-[10px] font-black bg-gray-50 dark:bg-gray-900 px-3 py-1.5 rounded-lg text-gray-500 max-w-[80px] truncate block border border-transparent group-hover:border-lime-500/20 transition-all">{p.id}</code>
                               <button onClick={() => navigator.clipboard.writeText(p.id).then(() => showToast('ID Copied', 'success'))}
                                 className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-lime-500 transition-all">
@@ -482,19 +483,19 @@ const AdminProducts = ({ darkMode }) => {
                               </button>
                             </div>
                           </td>
-                          <td className="px-8 py-4">
+                          <td className="p-3">
                             <div className="space-y-0.5">
                               <p className="text-xs font-bold text-gray-900 dark:text-white tracking-tight max-w-[180px] truncate">{sanitize(p.name)}</p>
                             </div>
                           </td>
-                          <td className="px-8 py-4 text-center font-mono font-bold text-xs text-lime-600">{p.price ? `${p.price} EGP` : '—'}</td>
-                          <td className="px-8 py-4 text-center">
+                          <td className="p-3 text-center font-mono font-bold text-xs text-emerald-600">{p.price ? `${p.price} EGP` : '—'}</td>
+                          <td className="p-3 text-center">
                             <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${cm.bg} ${cm.text}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${cm.dot}`} />
+                             
                               {p.condition || 'UNSET'}
                             </span>
                           </td>
-                          <td className="px-4 py-2 text-center">
+                          <td className="p-3 text-center">
                             <span className={`font-mono font-bold text-xs px-3 py-1 rounded-full ${(p.stock ?? 0) > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                               {p.stock ?? 0} Units
                             </span>
@@ -502,16 +503,16 @@ const AdminProducts = ({ darkMode }) => {
                           <td className="p-1">
                             <div className="flex items-center justify-center gap-2 flex-wrap">
                               <button onClick={() => fetchById(p.id)}
-                                className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 hover:text-lime-500 transition-all border border-transparent hover:border-lime-500/20">
-                                <FiInfo size={16} title="View Product Dossier" />
+                                className="p-1.5 text-gray- border border-gray-200 hover:border-none dark:text-white dark:border-gray-900 dark:hover:text-white dark:bg-gray-900 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors">
+                                <FiInfo size={16} title="View Details" />
                               </button>
                               <button onClick={() => openEdit(p)}
-                                className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 hover:scale-110 transition-all border border-transparent hover:border-amber-500/20">
-                                <FiEdit3 size={16} title="Modify Dossier" />
+                                className="p-1.5 text-gray- border border-gray-200 hover:border-none dark:text-white dark:border-gray-900 dark:hover:text-white dark:bg-gray-900 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors">
+                                <FiEdit3 size={16} title="Edit Product" />
                               </button>
                               <button onClick={() => deleteProduct(p.id)}
-                                className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500 hover:scale-110 transition-all border border-transparent hover:border-red-500/20">
-                                <FiTrash2 size={16} title="Purge Registry" />
+                                className="p-1.5 text-gray- border border-gray-200 hover:border-none dark:text-white dark:border-gray-900 dark:hover:text-white dark:bg-gray-900 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors">
+                                <FiTrash2 size={16} title="Delete Product" />
                               </button>
                             </div>
                           </td>

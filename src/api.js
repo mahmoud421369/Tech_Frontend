@@ -1,7 +1,7 @@
 import axios from 'axios';
 import useAuthStore from './store/Auth';
 
-const base = 'http://localhost:8080';
+const base = 'https://tech-restore.tech';
 
 const api = axios.create({
   baseURL: base,

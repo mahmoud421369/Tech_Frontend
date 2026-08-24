@@ -48,6 +48,14 @@ const MENU_GROUPS = [
 ];
 
 
+const ShopBadgeIllustration = memo(() => (
+  <svg viewBox="0 0 44 44" className="w-full h-full">
+    <path d="M22 4 L38 10 V21 C38 30 31 37 22 40 C13 37 6 30 6 21 V10 Z" fill="rgba(52,211,153,0.14)" stroke="#10b981" strokeWidth="2" />
+    <path d="M15 21 L20 26 L30 14" fill="none" stroke="#10b981" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+));
+
+
 const isTokenExpired = (token) => {
   if (!token) return true;
   try {
@@ -223,103 +231,103 @@ const NotificationPanel = memo(({
   darkMode, notifications, loadingNotifs, unreadCount,
   onDelete, onMarkRead, onMarkAllRead, onClearAll, onClose,
 }) => (
-    <div
-      dir="rtl"
+  <div
+    dir="rtl"
 
-      className={`notif-panel absolute top-full left-full   mt-3 w-[400px] rounded-2xl overflow-hidden border shadow-2xl z-50
+    className={`notif-panel absolute top-full left-full   mt-3 w-[400px] rounded-2xl overflow-hidden border shadow-2xl z-50
         ${darkMode
-          ? "bg-gray-900/97 backdrop-blur-2xl border-emerald-500/15 shadow-[0_24px_60px_rgba(0,0,0,0.75)]"
-          : "bg-white border-gray-200 shadow-[0_20px_60px_rgba(0,0,0,0.1)]"}`}
-      onClick={e => e.stopPropagation()}
-    >
+        ? "bg-gray-900/97 backdrop-blur-2xl border-emerald-500/15 shadow-[0_24px_60px_rgba(0,0,0,0.75)]"
+        : "bg-white border-gray-200 shadow-[0_20px_60px_rgba(0,0,0,0.1)]"}`}
+    onClick={e => e.stopPropagation()}
+  >
 
-      <div className={`px-5 py-4 border-b ${darkMode ? "border-gray-800" : "border-gray-100"}`}>
+    <div className={`px-5 py-4 border-b ${darkMode ? "border-gray-800" : "border-gray-100"}`}>
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-xl ${darkMode ? "bg-emerald-500/12" : "bg-emerald-50"}`}>
-              <RiNotification2Line size={15} className="text-emerald-500" />
-            </div>
-            <div>
-              <p className={`text-sm font-black ${darkMode ? "text-white" : "text-gray-900"}`}
-                style={{ fontFamily: "'Cairo', sans-serif" }}>
-                الإشعارات
-              </p>
-              <p className={`text-[11px] font-semibold ${unreadCount > 0 ? "text-emerald-500" : darkMode ? "text-gray-600" : "text-gray-400"}`}
-                style={{ fontFamily: "'Cairo', sans-serif" }}>
-                {unreadCount > 0 ? `${unreadCount} غير مقروء` : "كل شيء بخير ✓"}
-              </p>
-            </div>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-xl ${darkMode ? "bg-emerald-500/12" : "bg-emerald-50"}`}>
+            <RiNotification2Line size={15} className="text-emerald-500" />
           </div>
-
-
-          <div className="flex items-center gap-0.5">
-       
-            <button
-              onClick={onClose}
-              className={`p-1.5 rounded-xl transition
-                ${darkMode ? "hover:bg-white/8 text-gray-500 hover:text-white" : "hover:bg-gray-100 text-gray-400"}`}
-            >
-              <FiX size={15} />
-            </button>
+          <div>
+            <p className={`text-sm font-black ${darkMode ? "text-white" : "text-gray-900"}`}
+              style={{ fontFamily: "'Cairo', sans-serif" }}>
+              الإشعارات
+            </p>
+            <p className={`text-[11px] font-semibold ${unreadCount > 0 ? "text-emerald-500" : darkMode ? "text-gray-600" : "text-gray-400"}`}
+              style={{ fontFamily: "'Cairo', sans-serif" }}>
+              {unreadCount > 0 ? `${unreadCount} غير مقروء` : "كل شيء بخير ✓"}
+            </p>
           </div>
         </div>
+
+
+        <div className="flex items-center gap-0.5">
+
+          <button
+            onClick={onClose}
+            className={`p-1.5 rounded-xl transition
+                ${darkMode ? "hover:bg-white/8 text-gray-500 hover:text-white" : "hover:bg-gray-100 text-gray-400"}`}
+          >
+            <FiX size={15} />
+          </button>
+        </div>
       </div>
+    </div>
 
 
-      <div className="max-h-[360px] overflow-y-auto notif-scroll">
-        {loadingNotifs ? (
-          <div className="p-5 space-y-3">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="flex gap-3 animate-pulse">
-                <div className={`w-8 h-8 rounded-xl shrink-0 ${darkMode ? "bg-white/6" : "bg-gray-100"}`} />
-                <div className="flex-1 space-y-2 pt-1">
-                  <div className={`h-3 rounded-full w-3/4 ${darkMode ? "bg-white/6" : "bg-gray-100"}`} />
-                  <div className={`h-2.5 rounded-full w-full ${darkMode ? "bg-white/4" : "bg-gray-50"}`} />
-                  <div className={`h-2 rounded-full w-1/4 ${darkMode ? "bg-white/4" : "bg-gray-50"}`} />
-                </div>
+    <div className="max-h-[360px] overflow-y-auto notif-scroll">
+      {loadingNotifs ? (
+        <div className="p-5 space-y-3">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="flex gap-3 animate-pulse">
+              <div className={`w-8 h-8 rounded-xl shrink-0 ${darkMode ? "bg-white/6" : "bg-gray-100"}`} />
+              <div className="flex-1 space-y-2 pt-1">
+                <div className={`h-3 rounded-full w-3/4 ${darkMode ? "bg-white/6" : "bg-gray-100"}`} />
+                <div className={`h-2.5 rounded-full w-full ${darkMode ? "bg-white/4" : "bg-gray-50"}`} />
+                <div className={`h-2 rounded-full w-1/4 ${darkMode ? "bg-white/4" : "bg-gray-50"}`} />
               </div>
-            ))}
-          </div>
-        ) : notifications.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 gap-3">
-            <div className="w-28 h-28">
-              <AllCaughtUpIllustration darkMode={darkMode} />
             </div>
-            <p className={`text-sm font-bold ${darkMode ? "text-gray-500" : "text-gray-400"}`}
-              style={{ fontFamily: "'Cairo', sans-serif" }}>
-              لا توجد إشعارات
-            </p>
-            <p className={`text-xs ${darkMode ? "text-gray-700" : "text-gray-300"}`}
-              style={{ fontFamily: "'Cairo', sans-serif" }}>
-              ستظهر التحديثات الجديدة هنا تلقائياً
-            </p>
+          ))}
+        </div>
+      ) : notifications.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 gap-3">
+          <div className="w-28 h-28">
+            <AllCaughtUpIllustration darkMode={darkMode} />
           </div>
-        ) : (
-          notifications.map((notif, idx) => (
-            <NotifItem
-              key={notif.id}
-              notif={notif}
-              darkMode={darkMode}
-              onDelete={onDelete}
-              onMarkRead={onMarkRead}
-              idx={idx}
-            />
-          ))
-        )}
-      </div>
-
-
-
-      {notifications.length > 0 && !loadingNotifs && (
-        <div className={`px-5 py-2.5 border-t ${darkMode ? "border-gray-800" : "border-gray-100"}`}>
-          <p className={`text-center text-[10px] font-semibold ${darkMode ? "text-gray-700" : "text-gray-300"}`}
+          <p className={`text-sm font-bold ${darkMode ? "text-gray-500" : "text-gray-400"}`}
             style={{ fontFamily: "'Cairo', sans-serif" }}>
-            إجمالي {notifications.length} إشعار • يتحدث كل 30 ثانية
+            لا توجد إشعارات
+          </p>
+          <p className={`text-xs ${darkMode ? "text-gray-700" : "text-gray-300"}`}
+            style={{ fontFamily: "'Cairo', sans-serif" }}>
+            ستظهر التحديثات الجديدة هنا تلقائياً
           </p>
         </div>
+      ) : (
+        notifications.map((notif, idx) => (
+          <NotifItem
+            key={notif.id}
+            notif={notif}
+            darkMode={darkMode}
+            onDelete={onDelete}
+            onMarkRead={onMarkRead}
+            idx={idx}
+          />
+        ))
       )}
     </div>
+
+
+
+    {notifications.length > 0 && !loadingNotifs && (
+      <div className={`px-5 py-2.5 border-t ${darkMode ? "border-gray-800" : "border-gray-100"}`}>
+        <p className={`text-center text-[10px] font-semibold ${darkMode ? "text-gray-700" : "text-gray-300"}`}
+          style={{ fontFamily: "'Cairo', sans-serif" }}>
+          إجمالي {notifications.length} إشعار • يتحدث كل 30 ثانية
+        </p>
+      </div>
+    )}
+  </div>
 ));
 
 
@@ -612,11 +620,10 @@ const ShopHeader = () => {
 
         <div className="relative h-32 flex flex-col items-center justify-center px-6 border-b border-gray-50 dark:border-gray-800/50">
           <Link to="/shop/dashboard" className="flex flex-col items-center group" onClick={closeSidebar}>
-            <div className="w-44 h-28 rounded-3xl p-1 group-hover:scale-95 transition-transform duration-500 overflow-hidden">
-              <div className="w-full h-full rounded-2xl flex items-center justify-center overflow-hidden">
-                <img src={logo} alt="شعار" className="w-full h-full object-cover scale-95 group-hover:scale-95 transition-transform duration-700" />
-              </div>
+            <div className="w-9 h-9 flex-shrink-0 group-hover:rotate-12 transition-transform duration-500">
+              <ShopBadgeIllustration />
             </div>
+            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tighter">Tech<span className="text-emerald-400">Restore</span></span>
           </Link>
           <button
             onClick={closeSidebar}
@@ -697,11 +704,13 @@ const ShopHeader = () => {
 
 
       <header
-        className="fixed top-0 left-0 right-0 h-[72px] z-[40]
-          bg-white/85 dark:bg-gray-900/85 backdrop-blur-xl
+        className="     dark:bg-gray-900/95 backdrop-blur-2xl
+          border-l border-gray-100 dark:border-gray-800
+          shadow-2xl
+          transition-transform duration-500  fixed top-0 left-0 bottom-0 right-0 h-[72px] z-[40]
           border-b border-gray-100 dark:border-gray-800
           flex items-center justify-between px-5 lg:pr-72
-          transition-all duration-500"
+          duration-500"
       >
 
 
@@ -776,7 +785,7 @@ const ShopHeader = () => {
             )}
           </div>
 
-          <div className="h-9 w-px bg-gray-100 dark:bg-gray-800" />
+          <div className="h-9 w-px bg-gray-100 dark:bg-gray-900/95" />
 
 
 

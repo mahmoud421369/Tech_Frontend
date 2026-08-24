@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect, memo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import api from "../api";
-import { Users, Wrench } from "lucide-react";
+import { Users, Wrench, Sparkles } from "lucide-react";
 import {
   RiUserLine, RiLockPasswordLine, RiMailLine, RiPhoneLine,
   RiHome4Line, RiMapPinLine, RiStore2Line,
@@ -28,7 +28,7 @@ const TAB_CONFIG = [
   { key: "assigner", label: "Assigner", icon: <RiUserSettingsLine size={16} /> },
 ];
 
-const INPUT_BASE = "w-full px-3 sm:px-4 py-2.5 rounded-xl bg-white dark:bg-gray-900 border-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 transition-all text-sm outline-none focus:ring-4 focus:ring-emerald-300/50 dark:focus:ring-emerald-500/30 focus:border-emerald-500 dark:focus:border-emerald-500";
+const INPUT_BASE = "w-full px-3 sm:px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/70 border-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 transition-all text-sm outline-none focus:ring-4 focus:ring-emerald-300/50 dark:focus:ring-emerald-500/30 focus:border-emerald-500 dark:focus:border-emerald-500 focus:bg-white dark:focus:bg-gray-900";
 const INPUT_NORMAL = "border-gray-200 dark:border-gray-700";
 const INPUT_ERR = "border-red-300 dark:border-red-600 focus:border-red-500 focus:ring-red-300/50";
 const OTP_INPUT = "w-10 h-11 sm:w-11 sm:h-12 text-center text-lg sm:text-xl font-bold rounded-xl bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-4 focus:ring-emerald-300/50 focus:border-emerald-500 transition-all";
@@ -49,6 +49,9 @@ const GlobalAnimations = () => (
     @keyframes popIn { from { opacity: 0; transform: translateY(14px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
     @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes badgePop { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+    @keyframes tilt3d { 0%, 100% { transform: rotateX(10deg) rotateY(16deg) rotateZ(0deg); } 50% { transform: rotateX(4deg) rotateY(8deg) rotateZ(-1deg); } }
+    @keyframes floatZ { 0%, 100% { transform: translateZ(var(--tz, 60px)) translateY(0px); } 50% { transform: translateZ(var(--tz, 60px)) translateY(-10px); } }
+    @keyframes ringSpin { from { transform: translateZ(-10px) rotate(0deg); } to { transform: translateZ(-10px) rotate(360deg); } }
     .anim-float { animation: floatY 5s ease-in-out infinite; }
     .anim-spin-slow { animation: spinSlow 9s linear infinite; transform-origin: center; }
     .anim-wrench { animation: wrenchTurn 3.4s ease-in-out infinite; transform-origin: 70% 30%; }
@@ -56,6 +59,9 @@ const GlobalAnimations = () => (
     .anim-pop-in { animation: popIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
     .anim-fade-up { animation: fadeSlideUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
     .anim-badge { animation: badgePop 2.6s ease-in-out infinite; transform-origin: center; }
+    .anim-tilt3d { animation: tilt3d 7s ease-in-out infinite; }
+    .anim-float-z { animation: floatZ 4.2s ease-in-out infinite; }
+    .anim-ring-spin { animation: ringSpin 12s linear infinite; }
   `}</style>
 );
 
@@ -71,57 +77,79 @@ const Spinner = () => (
   </svg>
 );
 
-const CartoonIllustration = memo(() => (
-  <svg viewBox="0 0 480 520" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full max-w-[300px] sm:max-w-[380px] lg:max-w-[420px] anim-float">
-    <ellipse cx="240" cy="290" rx="205" ry="200" fill="#ecfdf5" className="dark:fill-emerald-950/30" />
+function Illustration3D() {
+  return (
+    <div className="anim-float w-full max-w-[300px] sm:max-w-[360px] lg:max-w-[400px] mx-auto" style={{ perspective: "1600px" }}>
+      <div className="anim-tilt3d relative aspect-square" style={{ transformStyle: "preserve-3d" }}>
 
-    <circle cx="390" cy="140" r="14" fill="#a7f3d0" className="anim-spark" />
-    <circle cx="80" cy="180" r="9" fill="#6ee7b7" className="anim-spark" style={{ animationDelay: "0.5s" }} />
-    <circle cx="110" cy="420" r="8" fill="#34d399" className="anim-spark" style={{ animationDelay: "1s" }} />
+        <div
+          className="absolute inset-[14%] rounded-[999px] border-[10px] border-emerald-200/70 dark:border-emerald-800/40 anim-ring-spin"
+          style={{ transformStyle: "preserve-3d" }}
+        />
 
-    <rect x="104" y="332" width="272" height="22" rx="11" fill="#047857" />
-    <rect x="122" y="354" width="20" height="42" rx="5" fill="#a7f3d0" />
-    <rect x="338" y="354" width="20" height="42" rx="5" fill="#a7f3d0" />
+        <div
+          className="absolute inset-[10%] rounded-[2.75rem] bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600"
+          style={{ transform: "translateZ(-50px)", boxShadow: "0 55px 90px -30px rgba(5,150,105,0.55)" }}
+        />
 
-    <rect x="140" y="228" width="132" height="88" rx="12" fill="#10b981" />
-    <rect x="152" y="240" width="108" height="60" rx="6" fill="#ecfdf5" className="dark:fill-gray-900" />
-    <rect x="128" y="316" width="156" height="14" rx="7" fill="#059669" />
+        <div
+          className="absolute inset-[16%] rounded-[2.25rem] bg-white dark:bg-gray-900 border border-emerald-100 dark:border-emerald-900/50 overflow-hidden flex flex-col items-center justify-center gap-3 p-5"
+          style={{ transform: "translateZ(20px)", boxShadow: "0 30px 60px -20px rgba(6,95,70,0.35)" }}
+        >
+          <div className="w-14 h-14 rounded-full bg-emerald-500 flex items-center justify-center">
+            <Users className="w-7 h-7 text-white" />
+          </div>
+          <div className="space-y-1.5 w-full">
+            <div className="h-2.5 w-3/4 mx-auto rounded-full bg-emerald-100 dark:bg-emerald-900/50" />
+            <div className="h-2.5 w-1/2 mx-auto rounded-full bg-emerald-100 dark:bg-emerald-900/50" />
+          </div>
+          <div className="grid grid-cols-2 gap-2 w-full mt-1">
+            <div className="h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/40" />
+            <div className="h-8 rounded-lg bg-emerald-500/90 flex items-center justify-center">
+              <FiCheck className="text-white" size={14} />
+            </div>
+          </div>
+        </div>
 
-    <g transform="translate(268,222) rotate(16)" className="anim-badge">
-      <path d="M0 10 L20 0 L38 18 L18 36 Z" fill="#f59e0b" />
-      <circle cx="9" cy="13" r="3.4" fill="#ffffff" />
-    </g>
+        <div
+          className="anim-float-z absolute top-[0%] right-[0%] w-[22%] aspect-square"
+          style={{ "--tz": "95px", transform: "translateZ(95px)" }}
+        >
+          <div className="anim-wrench w-full h-full rounded-2xl bg-white dark:bg-gray-900 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center" style={{ boxShadow: "0 20px 35px -12px rgba(6,95,70,0.4)" }}>
+            <Wrench className="w-1/2 h-1/2 text-emerald-500" />
+          </div>
+        </div>
 
-    <rect x="300" y="252" width="48" height="82" rx="11" fill="#059669" />
-    <rect x="307" y="261" width="34" height="56" rx="4" fill="#a7f3d0" />
-    <circle cx="324" cy="325" r="3.6" fill="#ecfdf5" />
+        <div
+          className="anim-float-z absolute bottom-[4%] left-[-2%] w-[20%] aspect-square rounded-full"
+          style={{ "--tz": "110px", transform: "translateZ(110px)", animationDelay: "0.5s" }}
+        >
+          <div className="w-full h-full rounded-full bg-white dark:bg-gray-900 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center" style={{ boxShadow: "0 20px 35px -12px rgba(6,95,70,0.4)" }}>
+            <RiUserSettingsLine className="text-emerald-500" size={22} />
+          </div>
+        </div>
 
-    <g transform="translate(296,236) rotate(-12)" className="anim-badge" style={{ animationDelay: "0.4s" }}>
-      <path d="M0 8 L15 0 L28 13 L13 26 Z" fill="#f59e0b" />
-      <circle cx="6.5" cy="10.5" r="2.6" fill="#ffffff" />
-    </g>
+        <div
+          className="anim-float-z absolute bottom-[-4%] right-[12%] w-[16%] aspect-square"
+          style={{ "--tz": "75px", transform: "translateZ(75px)", animationDelay: "1s" }}
+        >
+          <div className="anim-badge w-full h-full rounded-2xl bg-emerald-500 flex items-center justify-center" style={{ boxShadow: "0 20px 35px -12px rgba(5,150,105,0.5)" }}>
+            <RiShieldCheckLine className="text-white" size={20} />
+          </div>
+        </div>
 
-    <g className="anim-wrench" transform="translate(96,268)">
-      <rect x="-10" y="-6" width="96" height="20" rx="10" fill="#34d399" transform="rotate(-28 -10 -6)" />
-      <circle cx="-6" cy="-44" r="17" fill="none" stroke="#34d399" strokeWidth="13" strokeDasharray="54 320" strokeLinecap="round" transform="rotate(140 -6 -44)" />
-    </g>
-
-    <g transform="translate(206,110)">
-      <circle cx="0" cy="-6" r="21" fill="#059669" />
-      <path d="M-32 42 C-32 10 32 10 32 42 Z" fill="#059669" />
-      <circle cx="36" cy="10" r="18" fill="#ffffff" className="dark:fill-gray-900" stroke="#10b981" strokeWidth="3" />
-      <path d="M36 1 v18 M27 10 h18" stroke="#059669" strokeWidth="3.6" strokeLinecap="round" />
-    </g>
-
-    <g transform="translate(316,84)">
-      <rect x="-26" y="-32" width="64" height="80" rx="9" fill="#ffffff" className="dark:fill-gray-900" stroke="#a7f3d0" strokeWidth="3" />
-      <rect x="-13" y="-41" width="38" height="13" rx="4" fill="#059669" />
-      <rect x="-15" y="-6" width="52" height="7.5" rx="3.75" fill="#6ee7b7" />
-      <rect x="-15" y="9" width="52" height="7.5" rx="3.75" fill="#6ee7b7" />
-      <rect x="-15" y="24" width="34" height="7.5" rx="3.75" fill="#6ee7b7" />
-    </g>
-  </svg>
-));
+        <div
+          className="anim-spark absolute top-[8%] left-[6%] w-3 h-3 rounded-full bg-emerald-300"
+          style={{ transform: "translateZ(130px)" }}
+        />
+        <div
+          className="anim-spark absolute bottom-[20%] right-[2%] w-2 h-2 rounded-full bg-teal-400"
+          style={{ transform: "translateZ(140px)", animationDelay: "0.7s" }}
+        />
+      </div>
+    </div>
+  );
+}
 
 const Field = memo(({ label, icon, error, children }) => (
   <div className="space-y-1">
@@ -151,7 +179,7 @@ const PasswordInput = memo(({ formType, value, onChange, onBlur, showPassword, o
 
 const SubmitBtn = memo(({ label, loading }) => (
   <button type="submit" disabled={loading}
-    className="w-full h-10 sm:h-11 rounded-md font-bold text-sm bg-emerald-500 hover:bg-emerald-600 text-white transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-sm hover:shadow-lg hover:shadow-emerald-500/20 active:scale-[0.98]">
+    className="w-full h-10 sm:h-11 rounded-xl font-bold text-sm bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 active:scale-[0.98]">
     {loading ? <><Spinner /> Creating Account...</> : label}
   </button>
 ));
@@ -255,7 +283,7 @@ const OTPStep = memo(({ email, onSuccess, onBack }) => {
       </div>
       {error && <p className="text-center text-xs text-red-600 dark:text-red-400 font-medium">{error}</p>}
       <button onClick={handleVerify} disabled={loading || otp.join("").length !== 6}
-        className="w-full h-10 sm:h-11 rounded-xl font-bold text-sm bg-emerald-500 hover:bg-emerald-600 text-white transition-all flex items-center justify-center gap-2 disabled:opacity-70">
+        className="w-full h-10 sm:h-11 rounded-xl font-bold text-sm bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white transition-all flex items-center justify-center gap-2 disabled:opacity-70">
         {loading ? <><Spinner /> Verifying...</> : "Verify Email"}
       </button>
       <div className="flex items-center justify-start">
@@ -463,7 +491,7 @@ const Signup = () => {
 
           <div className="relative md:sticky md:top-24 flex justify-center order-2 md:order-1">
             <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-none">
-              <CartoonIllustration />
+              <Illustration3D />
               <div className="anim-fade-up absolute -top-2 sm:-top-3 -right-2 sm:-right-3 bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-2.5 sm:p-3.5 flex items-center gap-2 sm:gap-2.5" style={{ animationDelay: "0.15s" }}>
                 <Users className="w-5 h-5 sm:w-7 sm:h-7 text-emerald-500 flex-shrink-0" />
                 <div>
@@ -487,7 +515,18 @@ const Signup = () => {
               <p className="mt-2 sm:mt-3 text-base sm:text-lg text-gray-500 dark:text-gray-400">Choose your role and get started today.</p>
             </div>
 
-            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl sm:rounded-3xl shadow-xl p-4 sm:p-6 space-y-4 sm:space-y-5">
+            <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl sm:rounded-3xl shadow-2xl shadow-emerald-900/5 dark:shadow-black/40 p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-hidden">
+              <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500" />
+
+              {!otpStep && (
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                    <Sparkles className="w-4 h-4 text-emerald-500" />
+                  </div>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">Get started in minutes</p>
+                </div>
+              )}
+
               {otpStep ? (
                 <OTPStep email={pendingEmail} onSuccess={handleOtpSuccess} onBack={handleOtpBack} />
               ) : (

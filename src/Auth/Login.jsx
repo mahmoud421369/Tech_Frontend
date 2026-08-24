@@ -4,7 +4,7 @@ import useAuthStore from "../store/Auth";
 import { jwtDecode } from "jwt-decode";
 import Swal from "sweetalert2";
 import { RiEyeLine, RiEyeOffLine } from "@remixicon/react";
-import { Award, Wrench, KeyRound } from "lucide-react";
+import { Award, Wrench, KeyRound, Sparkles } from "lucide-react";
 import {
   FiMail, FiArrowLeft, FiRefreshCw, FiCreditCard,
   FiDollarSign, FiCheckCircle, FiClock, FiAlertTriangle, FiLock
@@ -65,6 +65,9 @@ const GlobalAnimations = () => (
     @keyframes popIn { from { opacity: 0; transform: translateY(14px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
     @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes keyJiggle { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+    @keyframes tilt3d { 0%, 100% { transform: rotateX(10deg) rotateY(-18deg) rotateZ(0deg); } 50% { transform: rotateX(4deg) rotateY(-8deg) rotateZ(1deg); } }
+    @keyframes floatZ { 0%, 100% { transform: translateZ(var(--tz, 60px)) translateY(0px); } 50% { transform: translateZ(var(--tz, 60px)) translateY(-10px); } }
+    @keyframes ringSpin { from { transform: translateZ(-10px) rotate(0deg); } to { transform: translateZ(-10px) rotate(360deg); } }
     .anim-float { animation: floatY 5s ease-in-out infinite; }
     .anim-spin-slow { animation: spinSlow 9s linear infinite; transform-origin: center; }
     .anim-wrench { animation: wrenchTurn 3.4s ease-in-out infinite; transform-origin: 70% 30%; }
@@ -72,6 +75,9 @@ const GlobalAnimations = () => (
     .anim-pop-in { animation: popIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
     .anim-fade-up { animation: fadeSlideUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
     .anim-key { animation: keyJiggle 3.2s ease-in-out infinite; transform-origin: 50% 20%; }
+    .anim-tilt3d { animation: tilt3d 7s ease-in-out infinite; }
+    .anim-float-z { animation: floatZ 4.2s ease-in-out infinite; }
+    .anim-ring-spin { animation: ringSpin 12s linear infinite; }
   `}</style>
 );
 
@@ -86,49 +92,118 @@ const DotsBackground = () => (
   />
 );
 
-function CartoonIllustration() {
+function Illustration3D() {
   return (
-    <svg viewBox="0 0 480 480" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full max-w-[360px] sm:max-w-[420px] lg:max-w-[460px] anim-float">
-      <ellipse cx="240" cy="260" rx="210" ry="190" fill="#ecfdf5" className="dark:fill-emerald-950/30" />
+    <div className="anim-float w-full max-w-[340px] sm:max-w-[400px] lg:max-w-[440px] mx-auto" style={{ perspective: "1600px" }}>
+      <div className="anim-tilt3d relative aspect-square" style={{ transformStyle: "preserve-3d" }}>
 
-      <circle cx="380" cy="120" r="16" fill="#a7f3d0" className="anim-spark" />
-      <circle cx="90" cy="150" r="10" fill="#6ee7b7" className="anim-spark" style={{ animationDelay: "0.6s" }} />
-      <circle cx="120" cy="380" r="8" fill="#34d399" className="anim-spark" style={{ animationDelay: "1.1s" }} />
+        <div
+          className="absolute inset-[14%] rounded-[999px] border-[10px] border-emerald-200/70 dark:border-emerald-800/40 anim-ring-spin"
+          style={{ transformStyle: "preserve-3d" }}
+        />
 
-      <rect x="140" y="145" width="200" height="132" rx="14" fill="#10b981" />
-      <rect x="154" y="159" width="172" height="96" rx="8" fill="#ecfdf5" className="dark:fill-gray-900" />
-      <rect x="112" y="277" width="256" height="18" rx="9" fill="#047857" />
-      <rect x="150" y="298" width="180" height="9" rx="4.5" fill="#065f46" opacity="0.5" />
+        <div
+          className="absolute inset-[10%] rounded-[2.75rem] bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600"
+          style={{ transform: "translateZ(-50px)", boxShadow: "0 55px 90px -30px rgba(5,150,105,0.55)" }}
+        />
 
-      <circle cx="240" cy="185" r="13" fill="#a7f3d0" />
-      <rect x="232" y="184" width="16" height="12" rx="2.5" fill="#059669" />
-      <path d="M234 184 v-5 a6 6 0 0 1 12 0 v5" fill="none" stroke="#059669" strokeWidth="3" strokeLinecap="round" />
-      <rect x="178" y="212" width="124" height="11" rx="5.5" fill="#6ee7b7" />
-      <rect x="178" y="230" width="124" height="11" rx="5.5" fill="#6ee7b7" />
-      <rect x="198" y="248" width="84" height="15" rx="7.5" fill="#059669" />
-      <path d="M232 256 l6 6 l11 -13" stroke="#ecfdf5" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M310 258 l0 24 l6 -5 l4.5 10 l6 -3 l-4.5 -10 l8.5 0 z" fill="#ffffff" stroke="#059669" strokeWidth="1.4" />
+        <div
+          className="absolute inset-[16%] rounded-[2.25rem] bg-white dark:bg-gray-900 border border-emerald-100 dark:border-emerald-900/50 overflow-hidden"
+          style={{ transform: "translateZ(20px)", boxShadow: "0 30px 60px -20px rgba(6,95,70,0.35)" }}
+        >
+          <div className="h-9 bg-emerald-500 flex items-center gap-1.5 px-4">
+            <span className="w-2 h-2 rounded-full bg-white/70" />
+            <span className="w-2 h-2 rounded-full bg-white/50" />
+            <span className="w-2 h-2 rounded-full bg-white/30" />
+          </div>
+          <div className="p-5 space-y-3">
+            <div className="h-3 w-2/3 rounded-full bg-emerald-100 dark:bg-emerald-900/50" />
+            <div className="h-3 w-1/2 rounded-full bg-emerald-100 dark:bg-emerald-900/50" />
+            <div className="mt-4 h-16 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-center gap-2">
+              <div className="w-9 h-9 rounded-full bg-emerald-500 flex items-center justify-center text-white">
+                <FiCheckCircle size={18} />
+              </div>
+              <div className="space-y-1.5">
+                <div className="h-2 w-16 rounded-full bg-emerald-200 dark:bg-emerald-800" />
+                <div className="h-2 w-10 rounded-full bg-emerald-100 dark:bg-emerald-900" />
+              </div>
+            </div>
+          </div>
+        </div>
 
-      <g className="anim-wrench">
-        <rect x="292" y="300" width="112" height="22" rx="11" fill="#34d399" transform="rotate(-30 292 300)" />
-        <circle cx="298" cy="255" r="20" fill="none" stroke="#34d399" strokeWidth="14" strokeDasharray="64 400" strokeLinecap="round" transform="rotate(140 298 255)" />
-      </g>
+        <div
+          className="anim-float-z absolute top-[2%] right-[2%] w-[22%] aspect-square"
+          style={{ "--tz": "95px", transform: "translateZ(95px)" }}
+        >
+          <div className="anim-wrench w-full h-full rounded-2xl bg-white dark:bg-gray-900 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center" style={{ boxShadow: "0 20px 35px -12px rgba(6,95,70,0.4)" }}>
+            <Wrench className="w-1/2 h-1/2 text-emerald-500" />
+          </div>
+        </div>
 
-      <g>
-        <rect x="86" y="300" width="46" height="76" rx="9" fill="#059669" />
-        <rect x="92" y="308" width="34" height="52" rx="4" fill="#a7f3d0" />
-        <circle cx="109" cy="368" r="4" fill="#ecfdf5" />
-      </g>
+        <div
+          className="anim-float-z absolute bottom-[6%] left-[0%] w-[20%] aspect-square rounded-full"
+          style={{ "--tz": "110px", transform: "translateZ(110px)", animationDelay: "0.5s" }}
+        >
+          <div className="anim-key w-full h-full rounded-full bg-white dark:bg-gray-900 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center" style={{ boxShadow: "0 20px 35px -12px rgba(6,95,70,0.4)" }}>
+            <KeyRound className="w-1/2 h-1/2 text-emerald-500" />
+          </div>
+        </div>
 
-      <g className="anim-key" transform="translate(374,215)">
-        <circle cx="0" cy="0" r="30" fill="#ffffff" className="dark:fill-gray-900" stroke="#a7f3d0" strokeWidth="3" />
-        <rect x="-11" y="-7" width="22" height="17" rx="4" fill="none" stroke="#059669" strokeWidth="3.4" />
-        <path d="M-7 -7 V-13 C-7 -17.5 -3.9 -21 0 -21 C3.9 -21 7 -17.5 7 -13 V-7" fill="none" stroke="#059669" strokeWidth="3.4" strokeLinecap="round" />
-        <circle cx="0" cy="1.5" r="3" fill="#059669" />
-      </g>
-    </svg>
+        <div
+          className="anim-float-z absolute bottom-[-4%] right-[10%] w-[16%] aspect-square"
+          style={{ "--tz": "75px", transform: "translateZ(75px)", animationDelay: "1s" }}
+        >
+          <div className="w-full h-full rounded-2xl bg-emerald-500 flex items-center justify-center" style={{ boxShadow: "0 20px 35px -12px rgba(5,150,105,0.5)" }}>
+            <Award className="w-1/2 h-1/2 text-white" />
+          </div>
+        </div>
+
+        <div
+          className="anim-spark absolute top-[6%] left-[8%] w-3 h-3 rounded-full bg-emerald-300"
+          style={{ transform: "translateZ(130px)" }}
+        />
+        <div
+          className="anim-spark absolute bottom-[18%] right-[4%] w-2 h-2 rounded-full bg-teal-400"
+          style={{ transform: "translateZ(140px)", animationDelay: "0.7s" }}
+        />
+      </div>
+    </div>
   );
 }
+
+const SubscriptionRenewIllustration = memo(() => (
+  <svg viewBox="0 0 160 116" className="w-36 h-24 mx-auto">
+    <ellipse cx="80" cy="102" rx="58" ry="7" fill="#ecfdf5" className="dark:fill-emerald-950/20" />
+    <rect x="34" y="22" width="82" height="68" rx="13" fill="#ffffff" stroke="#a7f3d0" strokeWidth="3" className="dark:fill-gray-900 dark:stroke-emerald-800" />
+    <path d="M34 34 a13 13 0 0 1 13 -13 h56 a13 13 0 0 1 13 13 v6 H34 Z" fill="#a7f3d0" className="dark:fill-emerald-800" />
+    <circle cx="54" cy="18" r="4" fill="#059669" />
+    <circle cx="96" cy="18" r="4" fill="#059669" />
+    <rect x="46" y="52" width="13" height="13" rx="3" fill="#d1fae5" className="dark:fill-emerald-900/40" />
+    <rect x="65" y="52" width="13" height="13" rx="3" fill="#d1fae5" className="dark:fill-emerald-900/40" />
+    <rect x="84" y="52" width="13" height="13" rx="3" fill="#34d399" />
+    <rect x="46" y="69" width="13" height="13" rx="3" fill="#d1fae5" className="dark:fill-emerald-900/40" />
+    <rect x="65" y="69" width="13" height="13" rx="3" fill="#34d399" />
+    <g className="anim-spin-slow" style={{ transformOrigin: "122px 68px" }}>
+      <circle cx="122" cy="68" r="20" fill="#ecfdf5" stroke="#34d399" strokeWidth="3" className="dark:fill-gray-900" />
+      <path d="M114 61 a10 10 0 1 1 -2 11.5" fill="none" stroke="#059669" strokeWidth="2.6" strokeLinecap="round" />
+      <path d="M112 57 l2 6.5 l-6.5 -1 z" fill="#059669" />
+    </g>
+  </svg>
+));
+
+const PendingApprovalIllustration = memo(() => (
+  <svg viewBox="0 0 160 116" className="w-36 h-24 mx-auto">
+    <ellipse cx="80" cy="102" rx="56" ry="7" fill="#fffbeb" className="dark:fill-amber-950/10" />
+    <rect x="40" y="30" width="72" height="52" rx="11" fill="#ffffff" stroke="#fde68a" strokeWidth="3" className="dark:fill-gray-900 dark:stroke-amber-800" />
+    <path d="M40 35 L76 60 L112 35" fill="none" stroke="#f59e0b" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+    <g className="anim-float" style={{ animationDuration: "3.6s" }}>
+      <circle cx="116" cy="42" r="21" fill="#fef3c7" stroke="#f59e0b" strokeWidth="3" className="dark:fill-amber-950/30" />
+      <path d="M116 31 V42 L124 48" fill="none" stroke="#d97706" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+    </g>
+    <circle cx="26" cy="30" r="4" fill="#fde68a" className="anim-spark" />
+    <circle cx="20" cy="70" r="3" fill="#fcd34d" className="anim-spark" style={{ animationDelay: "0.8s" }} />
+  </svg>
+));
 
 const Spinner = () => (
   <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
@@ -419,29 +494,31 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
   }, [shopEmail, months, accessToken]);
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gray-900/60 dark:bg-black/80 backdrop-blur-sm" onClick={handleLogout} />
+    <div className="fixed  inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute  inset-0 bg-gray-900/60 dark:bg-black/80 backdrop-blur-sm" onClick={handleLogout} />
 
-      <div className="anim-pop-in relative w-full max-w-md bg-white dark:bg-gray-950 rounded-md shadow-2xl overflow-hidden">
+      <div className="anim-pop-in relative w-full max-w-md mt-5 h-auto bg-white dark:bg-gray-950 rounded-md shadow-2xl overflow-hidden">
 
-        <div className={`px-6 py-6 border-b border-gray-100 dark:border-white/5 flex items-center justify-between ${view === 'pending' ? 'bg-amber-50/50 dark:bg-amber-500/5' : 'bg-emerald-500 dark:bg-emerald-500'
+        <div className={`px-6 py-6 border-b flex items-center justify-between ${view === 'pending'
+          ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-100 dark:border-amber-900/30'
+          : 'bg-gray-50 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-900/30'
           }`}>
           <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-md flex items-center justify-center ${view === 'pending' ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-emerald-50/50 dark:bg-emerald-900/30'
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center bg-white dark:bg-gray-900   ${view === 'pending' ? 'border-amber-100 dark:border-amber-900/40' : 'border-emerald-100 dark:border-emerald-900/40'
               }`}>
               {view === 'pending' ? (
-                <FiClock size={24} className="text-amber-600 animate-pulse" />
+                <FiClock size={22} className="text-amber-500 animate-pulse" />
               ) : (
-                <FiAlertTriangle size={24} className="text-emerald-700" />
+                <FiRefreshCw size={22} className="text-emerald-500" />
               )}
             </div>
             <div>
-              <h3 className="text-lg font-black text-white dark:text-white tracking-tight">
+              <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">
                 {view === "form" && "Renewal Needed"}
                 {view === "pending" && "Pending Approval"}
                 {view === "redirect" && "Connecting..."}
               </h3>
-              <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+              <p className={`text-[10px] font-bold uppercase tracking-widest ${view === 'pending' ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                 {view === "form" && "Action Required"}
                 {view === "pending" && "Request Sent"}
                 {view === "redirect" && "Secure Link"}
@@ -450,7 +527,7 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
           </div>
           <button
             onClick={handleLogout}
-            className="p-2 rounded-full bg-white dark:bg-white/5 text-emerald-600 hover:text-emerald-700 transition-colors"
+            className={`p-2 rounded-full bg-white dark:bg-gray-900 shadow-sm border transition-colors ${view === 'pending' ? 'border-amber-100 dark:border-amber-900/40 text-amber-500 hover:text-amber-600' : 'border-emerald-100 dark:border-emerald-900/40 text-emerald-500 hover:text-emerald-600'}`}
           >
             <FiX size={18} />
           </button>
@@ -459,6 +536,7 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
         <div className="p-6 sm:p-8">
           {view === "pending" && (
             <div className="anim-fade-up text-center space-y-6">
+              <PendingApprovalIllustration />
               <div className="space-y-2">
                 <h4 className="text-xl font-black text-gray-900 dark:text-white">Request Received</h4>
                 <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
@@ -466,7 +544,7 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
                 </p>
               </div>
 
-              <div className="bg-gray-50 dark:bg-white/5 rounded-2xl p-5 border border-gray-100 dark:border-white/5 text-left">
+              <div className="bg-amber-50/60 dark:bg-amber-500/5 rounded-2xl p-5 border border-amber-100 dark:border-amber-900/30 text-left">
                 <h5 className="font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2 text-xs uppercase tracking-widest">
                   <FiClock className="text-amber-500" /> Next Steps
                 </h5>
@@ -487,9 +565,11 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
 
           {view === "form" && (
             <div className="anim-fade-up space-y-6">
+              <SubscriptionRenewIllustration />
+
               {error && <ErrorBanner message={error} />}
 
-              <div className="bg-gray-50 dark:bg-white/5 rounded-md p-6 border border-gray-100 dark:border-white/5">
+              <div className="bg-gray-100 dark:bg-gray-500/5 rounded-md p-6  dark:border-gray-900/30">
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
                     Subscription Fee
@@ -506,10 +586,10 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
                     </h2>
                   </div>
 
-                  <div className="flex items-center gap-2 bg-white dark:bg-gray-900 p-1 rounded-xl shadow-sm border border-gray-100 dark:border-white/5">
+                  <div className="flex items-center gap-2 bg-white dark:bg-gray-900 p-1 rounded-xl shadow-sm ">
                     <button
                       onClick={() => setMonths(m => Math.max(1, m - 1))}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/5 transition text-lg font-bold text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-emerald-50 dark:hover:bg-white/5 transition text-lg font-bold text-gray-400 hover:text-gray-900 dark:hover:text-white"
                     >
                       −
                     </button>
@@ -519,7 +599,7 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
                     </div>
                     <button
                       onClick={() => setMonths(m => Math.min(12, m + 1))}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/5 transition text-lg font-bold text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-emerald-50 dark:hover:bg-white/5 transition text-lg font-bold text-gray-400 hover:text-gray-900 dark:hover:text-white"
                     >
                       +
                     </button>
@@ -529,22 +609,22 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
 
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { k: "card", l: "Card", icon: <FiCreditCard size={18} /> },
+                  { k: "card", l: "Credit Card", icon: <FiCreditCard size={18} /> },
                   { k: "cash", l: "Cash", icon: <FiDollarSign size={18} /> },
                 ].map(({ k, l, icon }) => (
                   <button
                     key={k}
                     onClick={() => setActiveTab(k)}
-                    className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-300 ${activeTab === k
-                      ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-500/10"
-                      : "border-gray-100 dark:border-white/5 bg-white dark:bg-gray-900/50 hover:border-gray-200"
+                    className={`flex flex-col items-center gap-2 p-4 rounded-md border-2 transition-all duration-300 ${activeTab === k
+                      ? "border-green-400 bg-green-400 dark:bg-green-500/10"
+                      : "border-gray-100 dark:border-white/5 bg-white dark:bg-gray-900/50 hover:border-emerald-200"
                       }`}
                   >
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${activeTab === k ? "text-emerald-600" : "bg-gray-100 dark:bg-white/5 text-gray-400"
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${activeTab === k ? "text-white" : "bg-gray-100 dark:bg-white/5 text-gray-400"
                       }`}>
                       {icon}
                     </div>
-                    <span className={`text-[10px] font-black uppercase tracking-widest transition-colors ${activeTab === k ? "text-emerald-700 dark:text-emerald-400" : "text-gray-500"}`}>
+                    <span className={`text-[10px] font-black uppercase tracking-widest transition-colors ${activeTab === k ? "text-white dark:text-emerald-400" : "text-gray-500"}`}>
                       {l}
                     </span>
                   </button>
@@ -558,6 +638,21 @@ const RenewalModal = memo(({ shopEmail, accessToken, onSuccess, isPending, onClo
               >
                 {loading ? <Spinner /> : activeTab === "card" ? "Pay with card" : "Send Cash Request"}
               </button>
+            </div>
+          )}
+
+          {view === "redirect" && (
+            <div className="anim-fade-up text-center space-y-6">
+              <SubscriptionRenewIllustration />
+              <div className="space-y-2">
+                <h4 className="text-xl font-black text-gray-900 dark:text-white">Redirecting to Payment</h4>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
+                  Hold on while we connect you to a secure payment page.
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-2 text-emerald-600">
+                <Spinner /> <span className="text-xs font-bold uppercase tracking-widest">Please wait</span>
+              </div>
             </div>
           )}
         </div>
@@ -775,7 +870,7 @@ const Login = ({ darkMode }) => {
   const eErr = touched.email && errors.email;
   const pErr = touched.password && errors.password;
 
-  const ib = "w-full px-4 py-3 sm:py-3.5 rounded-xl bg-white dark:bg-gray-900 border-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 transition-all text-sm sm:text-base outline-none focus:ring-4 focus:ring-emerald-300/50 dark:focus:ring-emerald-500/30 focus:border-emerald-500 dark:focus:border-emerald-500";
+  const ib = "w-full pl-11 pr-4 py-3 sm:py-3.5 rounded-xl bg-gray-50 dark:bg-gray-800/70 border-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 transition-all text-sm sm:text-base outline-none focus:ring-4 focus:ring-emerald-300/50 dark:focus:ring-emerald-500/30 focus:border-emerald-500 dark:focus:border-emerald-500 focus:bg-white dark:focus:bg-gray-900";
   const in_ = "border-gray-200 dark:border-gray-700";
   const ie = "border-red-300 dark:border-red-600 focus:border-red-500 focus:ring-red-300/50";
 
@@ -802,7 +897,7 @@ const Login = ({ darkMode }) => {
 
           <div className="relative flex justify-center order-2 md:order-1">
             <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-none">
-              <CartoonIllustration />
+              <Illustration3D />
               <div className="anim-fade-up absolute -top-3 sm:-top-4 -left-2 sm:-left-4 bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-2.5 sm:p-4 flex items-center gap-2 sm:gap-3" style={{ animationDelay: "0.15s" }}>
                 <Award className="w-5 h-5 sm:w-7 sm:h-7 text-amber-500 flex-shrink-0" />
                 <div>
@@ -830,7 +925,15 @@ const Login = ({ darkMode }) => {
               <p className="mt-3 sm:mt-4 text-base sm:text-xl text-gray-500 dark:text-gray-400">Manage your shop, repairs and deliveries.</p>
             </div>
 
-            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl sm:rounded-3xl shadow-xl p-5 sm:p-7 space-y-4 sm:space-y-5">
+            <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl sm:rounded-3xl shadow-2xl shadow-emerald-900/5 dark:shadow-black/40 p-5 sm:p-8 space-y-5 sm:space-y-6 overflow-hidden">
+              <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500" />
+
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 text-emerald-500" />
+                </div>
+                <p className="text-sm font-bold text-gray-900 dark:text-white">Welcome back</p>
+              </div>
 
               {errors.general && (
                 <ErrorBanner
@@ -848,12 +951,15 @@ const Login = ({ darkMode }) => {
 
                 <div className="space-y-1.5">
                   <label htmlFor="login-email" className="block text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">Email address</label>
-                  <input
-                    id="login-email" type="email" name="email" autoComplete="email" required
-                    value={formData.email} onChange={handleChange} onBlur={handleBlur}
-                    placeholder="you@example.com" disabled={loading}
-                    className={`${ib} ${eErr ? ie : in_}`}
-                  />
+                  <div className="relative">
+                    <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500" size={16} />
+                    <input
+                      id="login-email" type="email" name="email" autoComplete="email" required
+                      value={formData.email} onChange={handleChange} onBlur={handleBlur}
+                      placeholder="you@example.com" disabled={loading}
+                      className={`${ib} ${eErr ? ie : in_}`}
+                    />
+                  </div>
                   {eErr && (
                     <p className="text-xs sm:text-sm text-red-600 dark:text-red-400 font-medium flex items-center gap-1">
                       <FiAlertTriangle size={11} className="flex-shrink-0" />{errors.email}
@@ -864,6 +970,7 @@ const Login = ({ darkMode }) => {
                 <div className="space-y-1.5">
                   <label htmlFor="login-password" className="block text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">Password</label>
                   <div className="relative">
+                    <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500" size={16} />
                     <input
                       id="login-password" type={showPassword ? "text" : "password"} name="password"
                       autoComplete="current-password" required value={formData.password}
@@ -887,7 +994,7 @@ const Login = ({ darkMode }) => {
                   </button>
                 </div>
 
-                <button type="submit" disabled={loading} className="w-full h-11 sm:h-12 rounded-md font-bold text-sm sm:text-base bg-emerald-500 hover:bg-emerald-600 text-white transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-sm hover:shadow-lg hover:shadow-emerald-500/20 active:scale-[0.98]">
+                <button type="submit" disabled={loading} className="w-full h-11 sm:h-12 rounded-xl font-bold text-sm sm:text-base bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 active:scale-[0.98]">
                   {loading ? <><Spinner /> Signing in...</> : "Log In"}
                 </button>
               </form>
