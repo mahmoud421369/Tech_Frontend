@@ -25,14 +25,13 @@ const UploadIllustration = memo(({ active }) => (
   </svg>
 ));
 
-// `value` is either a File the user just picked (add/edit) or an existing image URL string (edit, unchanged).
-// `onChange` receives the raw File object — Products.jsx sends it as multipart/form-data, not base64.
+
 const ImageDropzone = memo(({ value, onChange }) => {
   const inputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
   const [objectUrl, setObjectUrl] = useState(null);
 
-  // Build/revoke a preview URL whenever a new File is selected.
+
   useEffect(() => {
     if (value instanceof File) {
       const url = URL.createObjectURL(value);
@@ -133,7 +132,7 @@ const ProductForm = memo(({ data, onChange, categories }) => {
       </div>
       <div className="space-y-2">
         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">فئة المنتج <span className="text-red-400">*</span></label>
-        {/* Writes categoryId directly, matching the v2 payload's flat shape. */}
+        
         <select
           value={data.categoryId || ''}
           onChange={e => onChange('categoryId', e.target.value)}
