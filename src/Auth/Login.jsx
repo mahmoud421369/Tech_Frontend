@@ -926,14 +926,9 @@ const Login = ({ darkMode }) => {
             </div>
 
             <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl sm:rounded-3xl shadow-2xl shadow-emerald-900/5 dark:shadow-black/40 p-5 sm:p-8 space-y-5 sm:space-y-6 overflow-hidden">
-              <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500" />
+             
 
-              <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-emerald-500" />
-                </div>
-                <p className="text-sm font-bold text-gray-900 dark:text-white">Welcome back</p>
-              </div>
+             
 
               {errors.general && (
                 <ErrorBanner
@@ -1007,7 +1002,7 @@ const Login = ({ darkMode }) => {
 
               <button
                 type="button"
-                onClick={() => { window.location.href = "http://localhost:8080/oauth2/authorization/google"; }}
+                onClick={() => { window.location.href = "https://tech-restore.tech/oauth2/authorization/google"; }}
                 className="w-full flex items-center justify-center gap-2.5 sm:gap-3 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-semibold py-2.5 sm:py-3 px-4 rounded-xl hover:border-emerald-400 dark:hover:border-emerald-600 transition-all text-xs sm:text-sm"
               >
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="w-4 h-4 sm:w-5 sm:h-5" />

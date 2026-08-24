@@ -516,7 +516,7 @@ const Signup = () => {
             </div>
 
             <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl sm:rounded-3xl shadow-2xl shadow-emerald-900/5 dark:shadow-black/40 p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-hidden">
-              <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500" />
+              
 
               {!otpStep && (
                 <div className="flex items-center gap-2">
