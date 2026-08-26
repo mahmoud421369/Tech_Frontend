@@ -7,7 +7,7 @@ import { Repair, Track, Account, Homepage, Cart, DeviceDetail, Offers, Devices, 
 import { Header, Shops, Users, Reviews, Category, Deliveries, Assigners, AdminOffers, AdminRepairRequests, AdminProducts, AdminAssignmentLogs, AdminSubscriptions, AdminTransactions } from './Admin';
 import Dashboard from './Admin/Dashboard';
 import { ShopHeader, ShopDashboard, RepairRequests, Products, Transactions, ShopOffers, ShopProfile, Inventory, Chat, Orders, Subscriptions } from './Shop';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient } from '@tanstack/react-query';
 import { AssignerDashboard, DeliveryPersons, AssignerProfile, AssignedOrders, AssignedRepairs, AssignmentLogs, ReassignRepairs, ReassignOrders, OrdersForAssignment, RepairsForAssignment } from './Assigner';
 
 const DeliveryDashboard = React.lazy(() => import('./Delivery/DeliveryDashboard'));
@@ -19,7 +19,7 @@ const MyRepairs = React.lazy(() => import('./Delivery/MyRepairs'));
 
 
 
-const queryClient = new QueryClient();
+
 
 function App() {
   const [authToken, setAuthToken] = useState(null);
@@ -142,7 +142,7 @@ function App() {
   );
 
   const ProtectedRoute = ({ children }) => {
-    // return currentUser ? children : <Navigate to="/login" />;
+    
   };
 
   return (
@@ -151,7 +151,7 @@ function App() {
 
 
 
-        {/* User Routes */}
+       
         <Route path="/" element={withNavbarLayout(Homepage, { addToCart })} />
         <Route path="/login" element={<Login darkMode={darkMode} />} />
         <Route path="/signup" element={<Signup darkMode={darkMode} />} />
@@ -164,11 +164,11 @@ function App() {
         <Route path="/device/:id" element={withNavbarLayout(DeviceDetail, { addToCart })} />
         <Route path="/shops/:shopId" element={withNavbarLayout(Shop, { addToCart })} />
         <Route path="/products/category/:categoryId" element={<CategoryProducts darkMode={darkMode} />} />
-
-        {/* <Route path="/repair-request/:requestId/update" element={withNavbarLayout(RepairRequest)} /> */}
         <Route path="/oauth2/success" element={<SuccessGoogle />} />
 
-        {/* Admin Routes */}
+      
+      
+
         <Route path="/admin/dashboard" element={withAdminLayout(Dashboard)} />
         <Route path="/admin/shops" element={withAdminLayout(Shops)} />
         <Route path="/admin/subscriptions" element={withAdminLayout(AdminSubscriptions)} />
@@ -184,7 +184,9 @@ function App() {
         <Route path="/admin/assignment-logs" element={withAdminLayout(AdminAssignmentLogs)} />
 
 
-        {/* Assigner Routes */}
+      
+      
+
         <Route path="/assigner/dashboard" element={withAssignerLayout(AssignerDashboard)} />
         <Route path="/assigner/profile" element={withAssignerLayout(AssignerProfile)} />
         <Route path="/assigner/delivery" element={withAssignerLayout(DeliveryPersons)} />
@@ -196,7 +198,9 @@ function App() {
         <Route path="/assigner/reassign-repairs" element={withAssignerLayout(ReassignRepairs)} />
         <Route path="/assigner/reassign-orders" element={withAssignerLayout(ReassignOrders)} />
 
-        {/* Delivery Routes */}
+       
+       
+
         <Route path="/delivery/dashboard" element={withDeliveryLayout(DeliveryDashboard, <DashboardSkeleton />)} />
         <Route path="/delivery/profile" element={withDeliveryLayout(DeliveryProfile, <ProfileSkeleton />)} />
         <Route path="/delivery/available-orders" element={withDeliveryLayout(AvailableOrders, <TableSkeleton title="Orders" />)} />
@@ -204,7 +208,8 @@ function App() {
         <Route path="/delivery/my-deliveries" element={withDeliveryLayout(MyDeliveries, <TableSkeleton title="Deliveries" />)} />
         <Route path="/delivery/my-repairs" element={withDeliveryLayout(MyRepairs, <TableSkeleton title="Repairs" />)} />
 
-        {/* Shop Routes */}
+       
+
         <Route path="/shop/dashboard" element={withShopLayout(ShopDashboard)} />
         <Route path="/shop/chats" element={withShopLayout(Chat)} />
         <Route path="/shop/transactions" element={withShopLayout(Transactions)} />

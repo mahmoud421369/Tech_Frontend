@@ -11,8 +11,10 @@ import {
   RiAccountBoxLine, RiBellLine, RiDeviceLine, RiHome3Line,
   RiLoginBoxLine, RiRegisteredLine, RiShoppingCartLine,
   RiStore2Line, RiSunLine, RiMoonLine, RiTruckLine, RiHome2Line,
-  RiLogoutBoxRLine, RiNotificationLine
+  RiLogoutBoxRLine, RiNotificationLine,
+  RiHomeFill
 } from "react-icons/ri";
+import { RiHome4Line } from "@remixicon/react";
 
 const queryClient = new QueryClient();
 
@@ -424,7 +426,7 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
   const navItems = useMemo(() =>
     isAuthenticated
       ? [
-          { name: "Home",    path: "/",        icon: <RiHome3Line size={17} /> },
+          { name: "Home",    path: "/",        icon: <RiHome4Line size={17} /> },
           { name: "Devices", path: "/devices", icon: <RiDeviceLine size={17} /> },
           { name: "Shops",   path: "/shops",   icon: <RiStore2Line size={16} /> },
           { name: "Track",   path: "/track",   icon: <RiTruckLine size={17} /> },

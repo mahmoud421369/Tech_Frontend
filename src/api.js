@@ -1,7 +1,7 @@
 import axios from 'axios';
 import useAuthStore from './store/Auth';
 
-const base = 'https://tech-restore.tech';
+const base = 'http://api.tech-restore.tech';
 
 const api = axios.create({
   baseURL: base,

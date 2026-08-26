@@ -520,10 +520,7 @@ const Signup = () => {
 
               {!otpStep && (
                 <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                    <Sparkles className="w-4 h-4 text-emerald-500" />
-                  </div>
-                  <p className="text-sm font-bold text-gray-900 dark:text-white">Get started in minutes</p>
+
                 </div>
               )}
 

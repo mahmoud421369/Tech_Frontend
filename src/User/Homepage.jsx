@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback, memo, useMemo, Suspense, useTransition, lazy } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
-   FiStar, FiTool, FiMonitor, FiTag, FiDollarSign,
+   FiStar, FiTool, FiMonitor, FiDollarSign,
    FiShield, FiCheckCircle, FiShoppingCart,
-   FiChevronLeft, FiChevronRight, FiMapPin, FiPhone, FiTruck, FiEye,
+   FiChevronLeft, FiChevronRight, FiMapPin, FiPhone, FiTruck,
    FiArrowRight, FiSearch, FiX, FiHeart,
    FiInfo, FiZap,
 } from 'react-icons/fi';
@@ -14,10 +14,9 @@ import { jwtDecode } from 'jwt-decode';
 import api from '../api';
 import { Hero } from '../components';
 import {
-   RiBattery2ChargeLine, RiCamera2Line, RiCheckFill, RiCheckLine,
-   RiDeviceLine, RiHeadphoneLine, RiPriceTagLine, RiSettings3Line,
-   RiShieldCheckLine, RiStarFill, RiVerifiedBadgeLine, RiWaterFlashLine,
-   RiStoreLine, RiRecycleLine, RiFlashlightLine,
+   RiBattery2ChargeLine,
+   RiDeviceLine, RiPriceTagLine, RiSettings3Line, RiStarFill, RiVerifiedBadgeLine, RiWaterFlashLine,
+   RiStoreLine
 } from 'react-icons/ri';
 import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -1125,35 +1124,13 @@ const HomepageContent = memo(({ darkMode }) => {
 
          <Hero variant="home" darkMode={darkMode}>
             <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-10 w-full">
-               <div className="flex flex-col items-center lg:items-start gap-5 sm:gap-7 w-full lg:w-1/2">
-                  <motion.div
-                     initial={{ opacity: 0, y: -12 }}
-                     animate={{ opacity: 1, y: 0 }}
-                     transition={{ duration: 0.6, ease: EASE }}
-                     className="flex items-center gap-3 sm:gap-4"
-                  >
-                     <BrandMark darkMode={darkMode} />
-                     <div className="text-left">
-                        <h1 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight text-white drop-shadow-sm">
-                           Tech <span className="text-emerald-300">Restore</span>
-                        </h1>
-                        <p className="text-xs sm:text-sm md:text-base text-white/80 font-medium tracking-wide">
-                           Revive. Repair. Reimagine your devices.
-                        </p>
-                     </div>
-                  </motion.div>
+              
+                 
 
                   <SearchBar darkMode={darkMode} products={products} shops={shops} />
-               </div>
+            
 
-               <motion.div
-                  initial={{ opacity: 0, x: 24 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.7, ease: EASE, delay: 0.15 }}
-                  className="w-full lg:w-1/2 flex justify-center lg:justify-end"
-               >
-                  <HeroIllustration darkMode={darkMode} />
-               </motion.div>
+           
             </div>
          </Hero>
 
