@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
+import React, { useState, useEffect, useCallback, memo } from "react";
 import {
   FiMoon, FiSun, FiUser, FiLogOut, FiMenu, FiX,
-  FiPackage, FiTool, FiHome, FiClipboard, FiSettings,
-  FiChevronDown, FiGrid, FiBell, FiZap, FiTruck, FiActivity
+  FiPackage, FiTool, FiHome, FiClipboard, FiSettings, FiTruck
 } from "react-icons/fi";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";

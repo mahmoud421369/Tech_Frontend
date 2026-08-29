@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  FiClipboard, FiUser, FiPackage, FiSearch, FiXCircle,
-  FiChevronLeft, FiChevronRight, FiInfo, FiCopy, FiCheck, FiChevronDown, FiUserCheck, FiEye, FiPhone, FiMapPin, FiClock
+  FiClipboard, FiUser, FiPackage, FiSearch,
+  FiChevronLeft, FiChevronRight, FiInfo, FiCheck, FiUserCheck
+  , FiPhone, FiMapPin, FiClock
 } from 'react-icons/fi';
-import { RiListCheck3, RiMapPin2Line, RiStore2Line } from '@remixicon/react';
+import { RiListCheck3, RiStore2Line } from '@remixicon/react';
 import Swal from 'sweetalert2';
 import api from '../api';
 import Modal from '../components/Modal';

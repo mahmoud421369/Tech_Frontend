@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   FiClipboard, FiUser, FiPackage, FiTool, FiUserCheck,
   FiChevronLeft, FiChevronRight, FiChevronUp, FiChevronDown,
-  FiSearch, FiX, FiActivity, FiMapPin, FiClock, FiRefreshCw, FiCheck
+  FiSearch, FiX, FiActivity, FiRefreshCw, FiCheck
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import api from '../api';

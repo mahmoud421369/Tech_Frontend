@@ -4,9 +4,8 @@ import Swal from "sweetalert2";
 import { jwtDecode } from "jwt-decode";
 import api from "../api";
 import {
-  FiBell, FiCheckCircle, FiAlertCircle, FiActivity, FiUsers,
-  FiBox, FiTool, FiClipboard, FiRefreshCw, FiTrash2, FiTrendingUp,
-  FiChevronRight, FiClock, FiArrowRight, FiInfo, FiZap, FiPackage
+  FiBell, FiCheckCircle, FiActivity, FiUsers, FiTool, FiClipboard, FiRefreshCw, FiTrash2
+  , FiClock, FiArrowRight, FiZap, FiPackage
 } from "react-icons/fi";
 
 

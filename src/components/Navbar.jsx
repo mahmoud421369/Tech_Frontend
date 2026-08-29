@@ -1,18 +1,17 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef, useTransition } from "react";
 import { useQuery, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
-import { FiX, FiShoppingCart, FiBell } from "react-icons/fi";
+import { FiX, FiBell } from "react-icons/fi";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { jwtDecode } from "jwt-decode";
 import { motion } from "framer-motion";
 import api from "../api";
 import {
-  RiAccountBoxLine, RiBellLine, RiDeviceLine, RiHome3Line,
+  RiAccountBoxLine, RiDeviceLine,
   RiLoginBoxLine, RiRegisteredLine, RiShoppingCartLine,
   RiStore2Line, RiSunLine, RiMoonLine, RiTruckLine, RiHome2Line,
   RiLogoutBoxRLine, RiNotificationLine,
-  RiHomeFill
 } from "react-icons/ri";
 import { RiHome4Line } from "@remixicon/react";
 

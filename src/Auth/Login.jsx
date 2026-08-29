@@ -4,7 +4,7 @@ import useAuthStore from "../store/Auth";
 import { jwtDecode } from "jwt-decode";
 import Swal from "sweetalert2";
 import { RiEyeLine, RiEyeOffLine } from "@remixicon/react";
-import { Award, Wrench, KeyRound, Sparkles } from "lucide-react";
+import { Award, Wrench, KeyRound } from "lucide-react";
 import {
   FiMail, FiArrowLeft, FiRefreshCw, FiCreditCard,
   FiDollarSign, FiCheckCircle, FiClock, FiAlertTriangle, FiLock
@@ -1002,7 +1002,7 @@ const Login = ({ darkMode }) => {
 
               <button
                 type="button"
-                onClick={() => { window.location.href = "https://tech-restore.tech/oauth2/authorization/google"; }}
+                onClick={() => { window.location.href = "https://api.tech-restore.tech/oauth2/authorization/google"; }}
                 className="w-full flex items-center justify-center gap-2.5 sm:gap-3 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-semibold py-2.5 sm:py-3 px-4 rounded-xl hover:border-emerald-400 dark:hover:border-emerald-600 transition-all text-xs sm:text-sm"
               >
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="w-4 h-4 sm:w-5 sm:h-5" />

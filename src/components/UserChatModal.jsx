@@ -2,16 +2,16 @@ import React, { useEffect, useState, useCallback, useRef, memo, useMemo } from '
 import * as SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
 import {
-  FiX, FiSend, FiCheckCircle, FiArrowRight, FiArrowLeft, FiMessageSquare, FiInfo
+  FiX, FiSend, FiCheckCircle, FiArrowLeft
 } from 'react-icons/fi';
-import { RiVerifiedBadgeLine, RiChatSmile2Line, RiHistoryLine } from 'react-icons/ri';
+import { RiVerifiedBadgeLine } from 'react-icons/ri';
 import Swal from 'sweetalert2';
 import api from '../api';
 import DOMPurify from 'dompurify';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const WS_URL = import.meta.env?.VITE_WS_URL || 'http://localhost:8080/ws';
+const WS_URL = import.meta.env?.VITE_WS_URL || 'https://api.tech-restore.tech/ws';
 const RECONNECT_DELAY = 5000;
 
 const initial = (name) =>

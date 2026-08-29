@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
+import React, { useState, useEffect, useCallback, memo } from "react";
 import {
   FiMoon, FiSun, FiUser, FiLogOut, FiMenu, FiX,
   FiActivity, FiUsers, FiBox, FiTool, FiClipboard, FiRefreshCw, FiSearch,
-  FiChevronDown, FiBell, FiSettings, FiGrid, FiArchive
+   FiGrid, FiArchive
 } from "react-icons/fi";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
@@ -93,7 +93,7 @@ const AssignerHeader = () => {
   const [userProfile, setUserProfile] = useState(null);
 
 
-  
+
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
@@ -102,8 +102,8 @@ const AssignerHeader = () => {
 
   const toggleDark = useCallback(() => setDarkMode(d => !d), []);
 
-  
-  
+
+
 
   useEffect(() => {
     if (token && !isTokenExpired(token)) {
@@ -121,9 +121,9 @@ const AssignerHeader = () => {
     }
   }, [token, navigate, userProfile]);
 
-  
-  
-  
+
+
+
   const handleLogout = useCallback(async () => {
     const refreshToken = localStorage.getItem("refreshToken");
     const { isConfirmed } = await Swal.fire({
@@ -140,7 +140,7 @@ const AssignerHeader = () => {
     if (!isConfirmed) return;
     try {
       if (token && refreshToken) await api.post("/api/auth/logout", { refreshToken }, { headers: { Authorization: `Bearer ${token}` } });
-    } catch {  }
+    } catch { }
     localStorage.clear();
     navigate("/login");
   }, [token, navigate, darkMode]);
@@ -150,18 +150,18 @@ const AssignerHeader = () => {
 
   return (
     <>
-      
-      
+
+
       {sidebarOpen && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-md z-[60] lg:hidden transition-all duration-500" onClick={closeSidebar} aria-hidden="true" />
       )}
 
-      
+
       <aside
         className={`fixed inset-y-0 left-0 z-[70] w-64 bg-white/80 dark:bg-gray-900/90 backdrop-blur-2xl border-r border-gray-100 dark:border-gray-800 shadow-2xl flex flex-col transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1)
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
       >
-        
+
         <div className="relative h-20 flex items-center justify-between px-6 border-b border-gray-50 dark:border-gray-800/50">
           <Link to="/assigner/dashboard" className="flex items-center gap-2 group" onClick={closeSidebar}>
             <div className="w-10 h-10 rounded-2xl text-emerald-400 flex items-center justify-center group-hover:rotate-12 transition-transform duration-500 ">
@@ -174,10 +174,10 @@ const AssignerHeader = () => {
           </button>
         </div>
 
-        
-        
+
+
         <div className="flex-1 overflow-y-auto py-6 px-4 custom-scrollbar-thin space-y-8">
-          
+
           <div className="relative group px-2">
             <FiSearch className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={16} />
             <input
@@ -203,7 +203,7 @@ const AssignerHeader = () => {
           ))}
         </div>
 
-        
+
         <div className="p-4 mt-auto border-t border-gray-50 dark:border-gray-800/50 bg-gray-50/30 dark:bg-gray-800/20">
           <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-4 space-y-3">
 
@@ -219,30 +219,30 @@ const AssignerHeader = () => {
         </div>
       </aside>
 
-     
-     
+
+
       <header className="fixed top-0 left-0 right-0 h-20 z-[40] bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-50 dark:border-gray-800 flex items-center justify-between px-6 lg:pl-[280px] transition-all duration-500">
         <div className="flex items-center gap-4">
-          
-          
+
+
           <button onClick={() => setSidebarOpen(true)} className="lg:hidden w-11 h-11 rounded-2xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-lime-500 hover:text-white transition-all shadow-sm">
             <FiMenu size={20} />
           </button>
 
           <div className="hidden sm:block">
-             <img
-                                     src={logo}
-                                     alt="Tech & Restore"
-                                     className="h-16 w-auto rounded-xl object-cover transition-transform duration-500 group-hover:scale-105"
-                                     style={{  transformOrigin: "left center" }}
-                                   />
-            
+            <img
+              src={logo}
+              alt="Tech & Restore"
+              className="h-16 w-auto rounded-xl object-cover transition-transform duration-500 group-hover:scale-105"
+              style={{ transformOrigin: "left center" }}
+            />
+
           </div>
         </div>
 
-       
+
         <div className="flex items-center gap-3">
-         
+
 
           <div className="h-8 w-[1px] bg-gray-100 dark:bg-gray-800 mx-1" />
 

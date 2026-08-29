@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect, memo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import api from "../api";
-import { Users, Wrench, Sparkles } from "lucide-react";
+import { Users, Wrench } from "lucide-react";
 import {
   RiUserLine, RiLockPasswordLine, RiMailLine, RiPhoneLine,
   RiHome4Line, RiMapPinLine, RiStore2Line,

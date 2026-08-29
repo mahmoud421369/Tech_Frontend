@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { FiBox, FiX, FiUploadCloud, FiImage, FiTrash2 } from 'react-icons/fi';
+import { FiBox, FiX, FiTrash2 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 
 const CONDITIONS = ['NEW', 'USED', 'REFURBISHED'];

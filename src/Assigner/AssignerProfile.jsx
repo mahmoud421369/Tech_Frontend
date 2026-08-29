@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FiUser, FiMail, FiPhone, FiCalendar, FiCheckCircle,
-  FiXCircle, FiEdit3, FiShield, FiSave, FiX, FiInfo, FiZap, FiLayout
+  FiXCircle, FiShield, FiSave, FiInfo, FiZap, FiLayout
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import api from '../api';

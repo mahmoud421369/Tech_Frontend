@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FiTool, FiSearch, FiUser, FiMapPin, FiCopy,
-  FiTruck, FiPackage, FiXCircle, FiChevronLeft, FiChevronRight,
-  FiCheck, FiClock, FiEye, FiInfo, FiClipboard, FiUserCheck, FiPhone,
+  FiTruck, FiXCircle, FiChevronLeft, FiChevronRight
+  , FiClock, FiInfo, FiClipboard, FiUserCheck, FiPhone,
   FiDollarSign
 } from 'react-icons/fi';
 import { RiStore2Line } from '@remixicon/react';

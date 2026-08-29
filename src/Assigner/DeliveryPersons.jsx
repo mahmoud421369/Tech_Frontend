@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FiMapPin, FiUser, FiSearch,
   FiCopy, FiUsers, FiTrendingUp, FiClock,
-  FiChevronRight, FiChevronLeft, FiPhone, FiMail, FiCheck, FiInfo, FiEye,
+  FiChevronRight, FiChevronLeft, FiPhone, FiMail, FiCheck, FiInfo,
   FiActivity,
   FiTool
 } from 'react-icons/fi';
-import { RiMessage2Line, RiPhoneLine } from '@remixicon/react';
 import Swal from 'sweetalert2';
 import api from '../api';
 import Modal from '../components/Modal';

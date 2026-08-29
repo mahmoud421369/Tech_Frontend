@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FiClipboard, FiUser, FiClock, FiPackage,
-  FiTool, FiChevronLeft, FiChevronRight, FiHome, FiPhone,
-  FiCheck, FiSearch, FiXCircle, FiFilter, FiCopy, FiEye, FiInfo, FiMapPin
+  FiTool, FiChevronLeft, FiChevronRight, FiPhone,
+  FiCheck, FiSearch, FiInfo, FiMapPin
 } from 'react-icons/fi';
 import { FaStore } from 'react-icons/fa';
 import Swal from 'sweetalert2';

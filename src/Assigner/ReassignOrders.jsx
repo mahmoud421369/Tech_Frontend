@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FiPackage, FiSearch, FiUser, FiMapPin, FiCopy,
-  FiTruck, FiCalendar, FiXCircle, FiChevronLeft, FiChevronRight, FiCheck, FiClock, FiEye, FiInfo, FiClipboard, FiUserCheck,
+  FiTruck, FiXCircle, FiChevronLeft, FiChevronRight, FiClock
+  , FiInfo, FiClipboard, FiUserCheck,
   FiPhone,
   FiDollarSign
 } from 'react-icons/fi';
-import { RiPhoneLine, RiStore2Line } from '@remixicon/react';
+import { RiStore2Line } from '@remixicon/react';
 import Swal from 'sweetalert2';
 import api from '../api';
 import Modal from '../components/Modal';
-import { uniq } from 'lodash';
 import { RiMapPin2Line } from 'react-icons/ri';
 
 

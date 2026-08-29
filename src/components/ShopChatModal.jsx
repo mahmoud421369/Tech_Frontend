@@ -2,9 +2,7 @@ import React, { useEffect, useState, useCallback, useRef, memo, useMemo } from '
 import * as SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
 import {
-  FiX, FiSend, FiMessageSquare, FiCheckCircle,
-  FiXCircle, FiChevronLeft, FiUsers, FiArrowLeft,
-  FiAlertCircle, FiClock, FiShield, FiUser, FiMoreHorizontal, FiActivity, FiArrowRight
+  FiX, FiSend, FiCheckCircle, FiArrowRight
 } from 'react-icons/fi';
 import { RiVerifiedBadgeLine, RiChatSmile2Line, RiHistoryLine } from 'react-icons/ri';
 import Swal from 'sweetalert2';
@@ -17,7 +15,7 @@ import useAuthStore from '../store/Auth';
 
 
 
-const WS_URL = import.meta.env?.VITE_WS_URL || 'http://localhost:8080/ws';
+const WS_URL = import.meta.env?.VITE_WS_URL || 'https://api.tech-restore.tech/ws';
 const MAX_MSG_LEN = 2000;
 const RECONNECT_DELAY = 5000;
 
