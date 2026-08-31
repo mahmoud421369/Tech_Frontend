@@ -104,13 +104,6 @@ const STYLES = `
   }
   .fast-fade { transition: all 150ms cubic-bezier(0.4,0,0.2,1); }
 
-  @keyframes livePulse {
-    0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.55); }
-    70% { box-shadow: 0 0 0 8px rgba(16,185,129,0); }
-    100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
-  }
-  .live-dot { animation: livePulse 2s infinite; }
-
   @media (prefers-reduced-motion: reduce) {
     * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
   }
@@ -139,15 +132,6 @@ const getRepairProgress = (status) => {
   const idx = REPAIR_STEPS.indexOf(status);
   return idx === -1 ? 0 : Math.round((idx / (REPAIR_STEPS.length - 1)) * 100);
 };
-
-const LiveBadge = memo(({ darkMode, isFetching }) => (
-  <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider border ${
-    darkMode ? "border-emerald-500/30 text-emerald-300 bg-emerald-500/10" : "border-emerald-200 text-emerald-700 bg-emerald-50"
-  }`}>
-    <span className={`w-1.5 h-1.5 rounded-full bg-emerald-500 ${isFetching ? "live-dot" : ""}`} />
-    {isFetching ? "Syncing" : "Live"}
-  </div>
-));
 
 const ProgressBar = memo(({ progress, status, darkMode }) => {
   if (progress === -1) return (
@@ -915,7 +899,7 @@ const AddressesTab = memo(({ isAddingAddress, setIsAddingAddress, editingAddress
             const inUse = isAddressInUse(addr.id);
             const hasCoords = !isEmptyCoord(addr.latitude) && !isEmptyCoord(addr.longitude);
             return (
-              <motion.div key={addr.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -2 }} transition={{ duration: 0.15 }}
+              <motion.div key={addr.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }} whileHover={{ y: -2 }} transition={{ duration: 0.15 }}
                 className={`relative shadow-md hover:shadow-xl border transition-shadow duration-150 overflow-hidden ${darkMode ? "bg-gray-800" : "bg-white"} ${addr.isDefault ? "border-emerald-500" : darkMode ? "border-gray-700" : "border-gray-200"}`}>
                 <div className={`h-1 ${addr.isDefault ? "bg-gradient-to-r from-emerald-500 to-teal-500" : darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
                 {addr.isDefault && <span className="absolute top-3 right-3 flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 shadow-md"><RiVerifiedBadgeLine size={10} /> Default</span>}
@@ -947,7 +931,7 @@ const AddressesTab = memo(({ isAddingAddress, setIsAddingAddress, editingAddress
   );
 });
 
-const OrdersTab = memo(({ orders, ordersPage, setOrdersPage, setSelectedOrder, setIsOrderModalOpen, handleCancelOrder, darkMode, isFetching }) => {
+const OrdersTab = memo(({ orders, ordersPage, setOrdersPage, setSelectedOrder, setIsOrderModalOpen, handleCancelOrder, darkMode }) => {
   const [statusFilter, setStatusFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [search, setSearch] = useState("");
@@ -978,7 +962,6 @@ const OrdersTab = memo(({ orders, ordersPage, setOrdersPage, setSelectedOrder, s
     <motion.div variants={cardVariants} initial="hidden" animate="visible" exit="exit">
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h3 className={`text-xl font-extrabold flex items-center gap-3 ${darkMode ? "text-white" : "text-gray-900"}`}><FiBox className="text-emerald-500" /> Orders</h3>
-        <LiveBadge darkMode={darkMode} isFetching={isFetching} />
       </div>
       <FilterBar statusOptions={statusKeys} statusFilter={statusFilter} setStatusFilter={setStatusFilter} dateFilter={dateFilter} setDateFilter={setDateFilter} search={search} setSearch={setSearch} sortBy={sortBy} setSortBy={setSortBy} darkMode={darkMode} resultCount={filtered.length} />
       {filtered.length === 0 ? (
@@ -986,6 +969,7 @@ const OrdersTab = memo(({ orders, ordersPage, setOrdersPage, setSelectedOrder, s
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <AnimatePresence>
             {pageOrders.map((order) => {
               const isDelivered = order.status === "DELIVERED";
               const isCancelled = order.status === "CANCELLED";
@@ -993,7 +977,7 @@ const OrdersTab = memo(({ orders, ordersPage, setOrdersPage, setSelectedOrder, s
               const hasTotal = !isEmptyVal(order.totalPrice);
               const itemCount = (order.orderItems || []).reduce((s, it) => s + (Number(it.quantity) || 0), 0);
               return (
-                <motion.div key={order.id} whileHover={{ y: -2 }} transition={{ duration: 0.15 }} className={`shadow-sm hover:shadow-lg border transition-shadow duration-150 overflow-hidden flex flex-col ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+                <motion.div key={order.id} layout whileHover={{ y: -2 }} transition={{ duration: 0.15 }} className={`shadow-sm hover:shadow-lg border transition-shadow duration-150 overflow-hidden flex flex-col ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
                   <div className={`px-4 sm:px-5 pt-4 pb-3 border-b flex items-center justify-between ${darkMode ? "border-gray-700/70 bg-gray-800/60" : "border-gray-100 bg-gray-50/70"}`}>
                     <div>
                       <p className={`font-mono text-[10px] tracking-[2px] uppercase ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>ORD #{order.id.slice(0, 6)}</p>
@@ -1024,6 +1008,7 @@ const OrdersTab = memo(({ orders, ordersPage, setOrdersPage, setSelectedOrder, s
                 </motion.div>
               );
             })}
+            </AnimatePresence>
           </div>
           <Pagination page={ordersPage} total={total} setPage={setOrdersPage} darkMode={darkMode} />
         </>
@@ -1032,7 +1017,7 @@ const OrdersTab = memo(({ orders, ordersPage, setOrdersPage, setSelectedOrder, s
   );
 });
 
-const RepairsTab = memo(({ repairRequests, repairsPage, setRepairsPage, handleViewRepair, handleEditRepair, handleAcceptQuote, handleCancelRepair, darkMode, isFetching }) => {
+const RepairsTab = memo(({ repairRequests, repairsPage, setRepairsPage, handleViewRepair, handleEditRepair, handleAcceptQuote, handleCancelRepair, darkMode }) => {
   const [statusFilter, setStatusFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [search, setSearch] = useState("");
@@ -1063,7 +1048,6 @@ const RepairsTab = memo(({ repairRequests, repairsPage, setRepairsPage, handleVi
     <motion.div variants={cardVariants} initial="hidden" animate="visible" exit="exit">
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h3 className={`text-xl font-extrabold flex items-center gap-3 ${darkMode ? "text-white" : "text-gray-900"}`}><FiTool className="text-emerald-500" /> Repairs</h3>
-        <LiveBadge darkMode={darkMode} isFetching={isFetching} />
       </div>
       <FilterBar statusOptions={statusKeys} statusFilter={statusFilter} setStatusFilter={setStatusFilter} dateFilter={dateFilter} setDateFilter={setDateFilter} search={search} setSearch={setSearch} sortBy={sortBy} setSortBy={setSortBy} darkMode={darkMode} resultCount={filtered.length} />
       {filtered.length === 0 ? (
@@ -1071,13 +1055,14 @@ const RepairsTab = memo(({ repairRequests, repairsPage, setRepairsPage, handleVi
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <AnimatePresence>
             {pageRepairs.map((req) => {
               const isQuoteSent = req.status === "QUOTE_SENT";
               const canCancel = ["QUOTE_APPROVED", "QUOTE_SENT", "SUBMITTED"].includes(req.status);
               const hasPrice = !isEmptyVal(req.price);
               const progress = getRepairProgress(req.status);
               return (
-                <motion.div key={req.id} whileHover={{ y: -2 }} transition={{ duration: 0.15 }} className={`shadow-sm hover:shadow-lg border transition-shadow duration-150 overflow-hidden flex flex-col ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+                <motion.div key={req.id} layout whileHover={{ y: -2 }} transition={{ duration: 0.15 }} className={`shadow-sm hover:shadow-lg border transition-shadow duration-150 overflow-hidden flex flex-col ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
                   <div className={`px-4 sm:px-5 pt-4 pb-3 border-b flex items-center justify-between gap-2 ${darkMode ? "border-gray-700/70 bg-gray-800/60" : "border-gray-100 bg-gray-50/70"}`}>
                     <div className="min-w-0">
                       <p className={`font-mono text-[10px] tracking-[2px] uppercase ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>REQ #{req.id.slice(0, 6)}</p>
@@ -1103,6 +1088,7 @@ const RepairsTab = memo(({ repairRequests, repairsPage, setRepairsPage, handleVi
                 </motion.div>
               );
             })}
+            </AnimatePresence>
           </div>
           <Pagination page={repairsPage} total={totalPages} setPage={setRepairsPage} darkMode={darkMode} />
         </>
@@ -1116,7 +1102,7 @@ const NotificationsTab = memo(({ token, darkMode }) => {
   const [page, setPage] = useState(1);
   const ipp = 5;
 
-  const { data: notifications = [], isLoading, isFetching } = useQuery({
+  const { data: notifications = [], isLoading } = useQuery({
     queryKey: ['notifications'],
     queryFn: async () => {
       const res = await api.get("/api/notifications/users", { headers: { Authorization: `Bearer ${token}` } });
@@ -1126,13 +1112,17 @@ const NotificationsTab = memo(({ token, darkMode }) => {
     refetchInterval: LIVE_POLL_MS,
   });
 
-  const deleteNotif = async (id) => {
+  const deleteNotif = useCallback(async (id) => {
+    const prev = queryClient.getQueryData(['notifications']);
+    queryClient.setQueryData(['notifications'], (old = []) => old.filter(n => n.id !== id));
     try {
       await api.delete(`/api/notifications/users/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
       Swal.fire({ icon: "success", title: "Deleted", toast: true, position: "top-end", timer: 1500, showConfirmButton: false });
-    } catch { Swal.fire({ icon: "error", title: "Failed", toast: true, position: "top-end", timer: 1500, showConfirmButton: false }); }
-  };
+    } catch {
+      queryClient.setQueryData(['notifications'], prev);
+      Swal.fire({ icon: "error", title: "Failed", toast: true, position: "top-end", timer: 1500, showConfirmButton: false });
+    }
+  }, [queryClient, token]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
   const totalPages = Math.ceil(notifications.length / ipp);
@@ -1149,17 +1139,17 @@ const NotificationsTab = memo(({ token, darkMode }) => {
           <FiBell className="text-emerald-500" /> Notifications
           {unreadCount > 0 && <span className="bg-red-500 text-white text-[10px] font-extrabold px-2 py-0.5">{unreadCount}</span>}
         </h3>
-        <LiveBadge darkMode={darkMode} isFetching={isFetching} />
       </div>
       {isLoading ? <LoadingSpinner darkMode={darkMode} /> : notifications.length === 0 ? (
         <EmptyState illustration={<IllustrationBell darkMode={darkMode} />} title="No notifications yet" subtitle="Updates about your orders and repairs will land here." darkMode={darkMode} />
       ) : (
         <>
           <div className="space-y-3">
+            <AnimatePresence>
             {pageNotifications.map((notif) => (
-              <motion.div key={notif.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.15 }}
+              <motion.div key={notif.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.15 }}
                 className={`relative border p-4 sm:p-5 shadow-sm ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-                {!notif.read && <span className="absolute top-4 right-4 w-2.5 h-2.5 bg-emerald-500 rounded-full live-dot" />}
+                {!notif.read && <span className="absolute top-4 right-4 w-2.5 h-2.5 bg-emerald-500 rounded-full" />}
                 <div className="flex items-start gap-3">
                   <div className={`w-9 h-9 flex-shrink-0 flex items-center justify-center ${darkMode ? "bg-gray-700" : "bg-gray-100"}`}>
                     <FiBell className="text-emerald-500" size={15} />
@@ -1177,6 +1167,7 @@ const NotificationsTab = memo(({ token, darkMode }) => {
                 </div>
               </motion.div>
             ))}
+            </AnimatePresence>
           </div>
           <Pagination page={page} total={totalPages} setPage={setPage} darkMode={darkMode} />
         </>
@@ -1461,9 +1452,9 @@ const AccountContent = ({ darkMode = false }) => {
     enabled: !!token,
     refetchInterval: LIVE_POLL_MS,
   });
-  const { data: addresses = [], isLoading: addressesLoading, isFetching: addressesFetching } = useQuery({ queryKey: ['addresses'], queryFn: async () => (await api.get("/api/users/addresses", { headers: { Authorization: `Bearer ${token}` } })).data.content || [], enabled: !!token, refetchInterval: LIVE_POLL_MS });
-  const { data: orders = [], isLoading: ordersLoading, isFetching: ordersFetching } = useQuery({ queryKey: ['orders'], queryFn: async () => (await api.get("/api/users/orders", { headers: { Authorization: `Bearer ${token}` } })).data.content || [], enabled: !!token, refetchInterval: LIVE_POLL_MS });
-  const { data: repairRequests = [], isLoading: repairsLoading, isFetching: repairsFetching } = useQuery({ queryKey: ['repairs'], queryFn: async () => (await api.get("/api/users/repair-request", { headers: { Authorization: `Bearer ${token}` } })).data.content || [], enabled: !!token, refetchInterval: LIVE_POLL_MS });
+  const { data: addresses = [], isLoading: addressesLoading } = useQuery({ queryKey: ['addresses'], queryFn: async () => (await api.get("/api/users/addresses", { headers: { Authorization: `Bearer ${token}` } })).data.content || [], enabled: !!token, refetchInterval: LIVE_POLL_MS });
+  const { data: orders = [], isLoading: ordersLoading } = useQuery({ queryKey: ['orders'], queryFn: async () => (await api.get("/api/users/orders", { headers: { Authorization: `Bearer ${token}` } })).data.content || [], enabled: !!token, refetchInterval: LIVE_POLL_MS });
+  const { data: repairRequests = [], isLoading: repairsLoading } = useQuery({ queryKey: ['repairs'], queryFn: async () => (await api.get("/api/users/repair-request", { headers: { Authorization: `Bearer ${token}` } })).data.content || [], enabled: !!token, refetchInterval: LIVE_POLL_MS });
   const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: async () => (await api.get("/api/categories", { headers: { Authorization: `Bearer ${token}` } })).data.content || [], enabled: !!token });
 
   const isLoading = profileLoading || addressesLoading || ordersLoading || repairsLoading;
@@ -1480,41 +1471,140 @@ const AccountContent = ({ darkMode = false }) => {
   const resetAddressForm = useCallback(() => { setEditingAddressId(null); setIsAddingAddress(false); setAddressForm({ state: "", city: "", street: "", building: "", notes: "", isDefault: false, latitude: 0, longitude: 0 }); }, []);
   const startEditAddress = useCallback((addr) => { setEditingAddressId(addr.id); setAddressForm({ state: addr.state, city: addr.city, street: addr.street, building: addr.building, notes: addr.notes || "", isDefault: addr.isDefault, latitude: addr.latitude || 0, longitude: addr.longitude || 0 }); }, []);
 
-  const handleUpdateProfile = async (e) => { e.preventDefault(); try { await api.put("/api/users/profile", profileForm, { headers: { Authorization: `Bearer ${token}` } }); queryClient.invalidateQueries({ queryKey: ['profile'] }); setIsEditingProfile(false); Swal.fire({ title: "Updated!", icon: "success", toast: true, position: "top-end", timer: 1500 }); } catch { Swal.fire({ title: "Error", text: "Update failed", icon: "error", toast: true, position: "top-end", timer: 1500 }); } };
+  const handleUpdateProfile = useCallback(async (e) => {
+    e.preventDefault();
+    const prev = queryClient.getQueryData(['profile']);
+    queryClient.setQueryData(['profile'], (old) => ({ ...old, ...profileForm }));
+    setIsEditingProfile(false);
+    try {
+      await api.put("/api/users/profile", profileForm, { headers: { Authorization: `Bearer ${token}` } });
+      Swal.fire({ title: "Updated!", icon: "success", toast: true, position: "top-end", timer: 1500 });
+    } catch {
+      queryClient.setQueryData(['profile'], prev);
+      setIsEditingProfile(true);
+      Swal.fire({ title: "Error", text: "Update failed", icon: "error", toast: true, position: "top-end", timer: 1500 });
+    }
+  }, [profileForm, token, queryClient]);
 
-  const handleDeleteAccount = async () => {
+  const handleDeleteAccount = useCallback(async () => {
     const c = await Swal.fire({ title: "Delete Account?", text: "This action is irreversible. All your data will be permanently deleted.", icon: "warning", showCancelButton: true, confirmButtonColor: "#ef4444", confirmButtonText: "Yes, Delete My Account" });
     if (!c.isConfirmed) return;
     try { await api.delete("/api/users/profile", { headers: { Authorization: `Bearer ${token}` } }); localStorage.removeItem("authToken"); navigate("/"); }
     catch { Swal.fire({ title: "Error", text: "Failed to delete", icon: "error", toast: true, position: "top-end", timer: 1500 }); }
-  };
+  }, [token, navigate]);
 
-  const handleAddAddress = async (e) => { e.preventDefault(); try { await api.post("/api/users/addresses", { ...addressForm, latitude: addressForm.latitude || 0, longitude: addressForm.longitude || 0 }, { headers: { Authorization: `Bearer ${token}` } }); queryClient.invalidateQueries({ queryKey: ['addresses'] }); resetAddressForm(); Swal.fire({ title: "Added!", icon: "success", toast: true, position: "top-end", timer: 1500 }); } catch { Swal.fire({ title: "Error", text: "Failed to add", icon: "error", toast: true, position: "top-end", timer: 1500 }); } };
-  const handleUpdateAddress = async (e) => { e.preventDefault(); try { await api.put(`/api/users/addresses/${editingAddressId}`, { ...addressForm, latitude: addressForm.latitude || 0, longitude: addressForm.longitude || 0 }, { headers: { Authorization: `Bearer ${token}` } }); queryClient.invalidateQueries({ queryKey: ['addresses'] }); resetAddressForm(); Swal.fire({ title: "Updated!", icon: "success", toast: true, position: "top-end", timer: 1500 }); } catch { Swal.fire({ title: "Error", text: "Failed to update", icon: "error", toast: true, position: "top-end", timer: 1500 }); } };
-  const handleDeleteAddress = useCallback(async (id) => { const c = await Swal.fire({ title: "Delete Address?", icon: "warning", showCancelButton: true }); if (!c.isConfirmed) return; try { await api.delete(`/api/users/addresses/${id}`, { headers: { Authorization: `Bearer ${token}` } }); queryClient.invalidateQueries({ queryKey: ['addresses'] }); Swal.fire({ title: "Deleted!", icon: "success", toast: true, position: "top-end", timer: 1500 }); } catch { Swal.fire({ title: "Error", text: "Failed to delete", icon: "error", toast: true, position: "top-end", timer: 1500 }); } }, [token, queryClient]);
-  const handleCancelOrder = useCallback(async (id) => { const c = await Swal.fire({ title: "Cancel Order?", icon: "warning", showCancelButton: true }); if (!c.isConfirmed) return; try { await api.delete(`/api/users/orders/${id}/cancel`, { headers: { Authorization: `Bearer ${token}` } }); queryClient.invalidateQueries({ queryKey: ['orders'] }); Swal.fire({ title: "Cancelled!", icon: "success", toast: true, position: "top-end", timer: 1500 }); } catch { Swal.fire({ title: "Error", text: "Failed to cancel", icon: "error", toast: true, position: "top-end", timer: 1500 }); } }, [token, queryClient]);
+  const handleAddAddress = useCallback(async (e) => {
+    e.preventDefault();
+    const prev = queryClient.getQueryData(['addresses']);
+    const tempId = `temp-${Date.now()}`;
+    const optimisticAddress = { id: tempId, ...addressForm, latitude: addressForm.latitude || 0, longitude: addressForm.longitude || 0 };
+    queryClient.setQueryData(['addresses'], (old = []) => [...old, optimisticAddress]);
+    resetAddressForm();
+    try {
+      const res = await api.post("/api/users/addresses", { ...addressForm, latitude: addressForm.latitude || 0, longitude: addressForm.longitude || 0 }, { headers: { Authorization: `Bearer ${token}` } });
+      const created = res.data && res.data.id ? res.data : optimisticAddress;
+      queryClient.setQueryData(['addresses'], (old = []) => old.map(a => a.id === tempId ? created : a));
+      Swal.fire({ title: "Added!", icon: "success", toast: true, position: "top-end", timer: 1500 });
+    } catch {
+      queryClient.setQueryData(['addresses'], prev);
+      Swal.fire({ title: "Error", text: "Failed to add", icon: "error", toast: true, position: "top-end", timer: 1500 });
+    }
+  }, [addressForm, token, queryClient, resetAddressForm]);
+
+  const handleUpdateAddress = useCallback(async (e) => {
+    e.preventDefault();
+    const prev = queryClient.getQueryData(['addresses']);
+    const id = editingAddressId;
+    const updated = { ...addressForm, id, latitude: addressForm.latitude || 0, longitude: addressForm.longitude || 0 };
+    queryClient.setQueryData(['addresses'], (old = []) => old.map(a => a.id === id ? { ...a, ...updated } : a));
+    resetAddressForm();
+    try {
+      await api.put(`/api/users/addresses/${id}`, updated, { headers: { Authorization: `Bearer ${token}` } });
+      Swal.fire({ title: "Updated!", icon: "success", toast: true, position: "top-end", timer: 1500 });
+    } catch {
+      queryClient.setQueryData(['addresses'], prev);
+      Swal.fire({ title: "Error", text: "Failed to update", icon: "error", toast: true, position: "top-end", timer: 1500 });
+    }
+  }, [addressForm, editingAddressId, token, queryClient, resetAddressForm]);
+
+  const handleDeleteAddress = useCallback(async (id) => {
+    const c = await Swal.fire({ title: "Delete Address?", icon: "warning", showCancelButton: true });
+    if (!c.isConfirmed) return;
+    const prev = queryClient.getQueryData(['addresses']);
+    queryClient.setQueryData(['addresses'], (old = []) => old.filter(a => a.id !== id));
+    try {
+      await api.delete(`/api/users/addresses/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      Swal.fire({ title: "Deleted!", icon: "success", toast: true, position: "top-end", timer: 1500 });
+    } catch {
+      queryClient.setQueryData(['addresses'], prev);
+      Swal.fire({ title: "Error", text: "Failed to delete", icon: "error", toast: true, position: "top-end", timer: 1500 });
+    }
+  }, [token, queryClient]);
+
+  const handleCancelOrder = useCallback(async (id) => {
+    const c = await Swal.fire({ title: "Cancel Order?", icon: "warning", showCancelButton: true });
+    if (!c.isConfirmed) return;
+    const prev = queryClient.getQueryData(['orders']);
+    queryClient.setQueryData(['orders'], (old = []) => old.map(o => o.id === id ? { ...o, status: "CANCELLED" } : o));
+    try {
+      await api.delete(`/api/users/orders/${id}/cancel`, { headers: { Authorization: `Bearer ${token}` } });
+      Swal.fire({ title: "Cancelled!", icon: "success", toast: true, position: "top-end", timer: 1500 });
+    } catch {
+      queryClient.setQueryData(['orders'], prev);
+      Swal.fire({ title: "Error", text: "Failed to cancel", icon: "error", toast: true, position: "top-end", timer: 1500 });
+    }
+  }, [token, queryClient]);
+
   const handleViewRepair = useCallback(async (id) => { try { const res = await api.get(`/api/users/repair-request/${id}`, { headers: { Authorization: `Bearer ${token}` } }); setSelectedRepair(res.data); setIsRepairModalOpen(true); } catch { Swal.fire({ title: "Error", text: "Failed to load", icon: "error" }); } }, [token]);
   const handleEditRepair = useCallback((req) => { setEditingRepair(req); setEditDescription(req.description || ""); setSelectedCategory(req.deviceCategory || ""); setIsEditRepairModalOpen(true); }, []);
 
-  const handleUpdateRepairDescription = async (e) => {
+  const handleUpdateRepairDescription = useCallback(async (e) => {
     e.preventDefault();
     if (!editingRepair) return;
-    try { await api.put(`/api/users/repair-request/${editingRepair.shopId}/${editingRepair.id}`, { description: editDescription, deviceCategory: selectedCategory.id }, { headers: { Authorization: `Bearer ${token}` } }); queryClient.invalidateQueries({ queryKey: ['repairs'] }); setIsEditRepairModalOpen(false); setEditingRepair(null); Swal.fire({ icon: "success", title: "Updated!", toast: true, position: "top-end", timer: 2500, showConfirmButton: false }); }
-    catch { Swal.fire({ icon: "error", title: "Failed", toast: true, position: "top-end", timer: 2500, showConfirmButton: false }); }
-  };
+    const prev = queryClient.getQueryData(['repairs']);
+    const categoryId = selectedCategory?.id || selectedCategory;
+    const repairId = editingRepair.id;
+    const shopId = editingRepair.shopId;
+    queryClient.setQueryData(['repairs'], (old = []) => old.map(r => r.id === repairId ? { ...r, description: editDescription, deviceCategory: categoryId } : r));
+    setIsEditRepairModalOpen(false);
+    setEditingRepair(null);
+    try {
+      await api.put(`/api/users/repair-request/${shopId}/${repairId}`, { description: editDescription, deviceCategory: categoryId }, { headers: { Authorization: `Bearer ${token}` } });
+      Swal.fire({ icon: "success", title: "Updated!", toast: true, position: "top-end", timer: 2500, showConfirmButton: false });
+    } catch {
+      queryClient.setQueryData(['repairs'], prev);
+      Swal.fire({ icon: "error", title: "Failed", toast: true, position: "top-end", timer: 2500, showConfirmButton: false });
+    }
+  }, [editingRepair, editDescription, selectedCategory, token, queryClient]);
 
   const handleAcceptQuote = useCallback(async (req) => {
     const result = await Swal.fire({ title: "Accept Quote?", text: `Accept ${req.price} EGP from ${req.shopName}?`, icon: "question", showCancelButton: true, confirmButtonText: "Yes, Accept", confirmButtonColor: "#10b981" });
     if (!result.isConfirmed) return;
-    try { await api.put(`/api/users/repair-request/${req.id}/status`, { status: "QUOTE_APPROVED" }, { headers: { Authorization: `Bearer ${token}` } }); queryClient.invalidateQueries({ queryKey: ['repairs'] }); Swal.fire({ icon: "success", title: "Quote Accepted!", toast: true, position: "top-end", timer: 2000, showConfirmButton: false }); setConfirmRepairReq(req); setIsConfirmRepairOpen(true); }
-    catch (err) { Swal.fire("Error", err.response?.data?.message || "Failed to accept quote", "error"); }
+    const prev = queryClient.getQueryData(['repairs']);
+    queryClient.setQueryData(['repairs'], (old = []) => old.map(r => r.id === req.id ? { ...r, status: "QUOTE_APPROVED" } : r));
+    try {
+      await api.put(`/api/users/repair-request/${req.id}/status`, { status: "QUOTE_APPROVED" }, { headers: { Authorization: `Bearer ${token}` } });
+      Swal.fire({ icon: "success", title: "Quote Accepted!", toast: true, position: "top-end", timer: 2000, showConfirmButton: false });
+      setConfirmRepairReq(req);
+      setIsConfirmRepairOpen(true);
+    } catch (err) {
+      queryClient.setQueryData(['repairs'], prev);
+      Swal.fire("Error", err.response?.data?.message || "Failed to accept quote", "error");
+    }
   }, [token, queryClient]);
 
   const handleCancelRepair = useCallback(async (id) => {
     const result = await Swal.fire({ title: "Cancel Request?", icon: "warning", showCancelButton: true, confirmButtonText: "Yes, Cancel", confirmButtonColor: "#ef4444" });
     if (!result.isConfirmed) return;
-    try { await api.delete(`/api/users/repair-request/${id}/cancel`, { headers: { Authorization: `Bearer ${token}` } }); queryClient.invalidateQueries({ queryKey: ['repairs'] }); Swal.fire({ title: "Cancelled", icon: "success", toast: true, position: "top-end", timer: 2000 }); }
-    catch { Swal.fire("Error", "Failed to cancel request", "error"); }
+    const prev = queryClient.getQueryData(['repairs']);
+    queryClient.setQueryData(['repairs'], (old = []) => old.map(r => r.id === id ? { ...r, status: "CANCELLED" } : r));
+    try {
+      await api.delete(`/api/users/repair-request/${id}/cancel`, { headers: { Authorization: `Bearer ${token}` } });
+      Swal.fire({ title: "Cancelled", icon: "success", toast: true, position: "top-end", timer: 2000 });
+    } catch {
+      queryClient.setQueryData(['repairs'], prev);
+      Swal.fire("Error", "Failed to cancel request", "error");
+    }
   }, [token, queryClient]);
 
   const handleLogout = useCallback(async () => {
@@ -1601,7 +1691,7 @@ const AccountContent = ({ darkMode = false }) => {
                   </h1>
                   <p className={`text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Manage your profile, addresses, orders, and repair requests — all in one place.</p>
                 </div>
-                <LiveBadge darkMode={darkMode} isFetching={ordersFetching || repairsFetching || addressesFetching} />
+               
               </div>
             </div>
 
@@ -1626,8 +1716,8 @@ const AccountContent = ({ darkMode = false }) => {
                   <div key="content">
                     {activeSection === "profile" && <ProfileTab isEditingProfile={isEditingProfile} setIsEditingProfile={setIsEditingProfile} userProfile={userProfile} profileForm={profileForm} setProfileForm={setProfileForm} handleUpdateProfile={handleUpdateProfile} handleDeleteAccount={handleDeleteAccount} handleLogout={handleLogout} isAuthenticated={isAuthenticated} inputCls={inputCls} darkMode={darkMode} />}
                     {activeSection === "addresses" && <AddressesTab isAddingAddress={isAddingAddress} setIsAddingAddress={setIsAddingAddress} editingAddressId={editingAddressId} setEditingAddressId={setEditingAddressId} addressForm={addressForm} setAddressForm={setAddressForm} handleUpdateAddress={handleUpdateAddress} handleAddAddress={handleAddAddress} resetAddressForm={resetAddressForm} addresses={addresses} startEditAddress={startEditAddress} handleDeleteAddress={handleDeleteAddress} isAddressInUse={isAddressInUse} inputCls={inputCls} darkMode={darkMode} />}
-                    {activeSection === "orders" && <OrdersTab orders={orders} ordersPage={ordersPage} setOrdersPage={setOrdersPage} setSelectedOrder={setSelectedOrder} setIsOrderModalOpen={setIsOrderModalOpen} handleCancelOrder={handleCancelOrder} darkMode={darkMode} isFetching={ordersFetching} />}
-                    {activeSection === "repairs" && <RepairsTab repairRequests={repairRequests} repairsPage={repairsPage} setRepairsPage={setRepairsPage} handleViewRepair={handleViewRepair} handleEditRepair={handleEditRepair} handleAcceptQuote={handleAcceptQuote} handleCancelRepair={handleCancelRepair} darkMode={darkMode} isFetching={repairsFetching} />}
+                    {activeSection === "orders" && <OrdersTab orders={orders} ordersPage={ordersPage} setOrdersPage={setOrdersPage} setSelectedOrder={setSelectedOrder} setIsOrderModalOpen={setIsOrderModalOpen} handleCancelOrder={handleCancelOrder} darkMode={darkMode} />}
+                    {activeSection === "repairs" && <RepairsTab repairRequests={repairRequests} repairsPage={repairsPage} setRepairsPage={setRepairsPage} handleViewRepair={handleViewRepair} handleEditRepair={handleEditRepair} handleAcceptQuote={handleAcceptQuote} handleCancelRepair={handleCancelRepair} darkMode={darkMode} />}
                     {activeSection === "notifications" && <NotificationsTab token={token} darkMode={darkMode} />}
                     {activeSection === "analytics" && <AnalyticsTab orders={orders} repairRequests={repairRequests} addresses={addresses} darkMode={darkMode} />}
                     {activeSection === "about" && <AboutTab darkMode={darkMode} />}
