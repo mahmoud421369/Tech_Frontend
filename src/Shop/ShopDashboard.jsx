@@ -93,7 +93,7 @@ const StatCard = memo(({ label, value, icon: Icon, color, to, description }) => 
   return (
     <div
       onClick={() => navigate(to)}
-      className="group cursor-pointer bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-4 hover:shadow-lg hover:shadow-gray-200/40 dark:hover:shadow-none transition-all duration-300"
+      className="group cursor-pointer bg-white dark:bg-gray-800 rounded-sm border border-gray-200 dark:border-gray-700 p-4 hover:shadow-lg hover:shadow-gray-200/40 dark:hover:shadow-none transition-all duration-300"
     >
       <div className="flex items-center justify-between">
         <div className={`w-9 h-9 rounded-xl bg-${color}-50 dark:bg-${color}-900/20 flex items-center justify-center text-${color}-600 dark:text-${color}-400`}>
@@ -139,7 +139,7 @@ const DateFilter = memo(({ startDate, endDate, onStartChange, onEndChange, onRes
 
       <button
         onClick={onReset}
-        className="h-10 shrink-0 flex items-center justify-center gap-2 px-5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-lime-500 dark:hover:bg-lime-500 hover:text-white transition-all"
+        className="h-10 shrink-0 flex items-center justify-center gap-2 px-5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 dark:hover:bg-emerald-500 hover:text-white transition-all"
       >
         <FiRefreshCw size={12} /> إعادة تعيين
       </button>
@@ -467,7 +467,7 @@ const ShopDashboard = () => {
             <div className="px-5 py-2">
               <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-0.5">آخر تحديث</p>
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-lime-500 animate-pulse" />
+               
                 <span className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-tighter">
                   {lastUpdated ? lastUpdated.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '...'}
                 </span>
@@ -475,7 +475,7 @@ const ShopDashboard = () => {
             </div>
             <button
               onClick={() => fetchStats()}
-              className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 hover:text-lime-500 hover:rotate-180 transition-all duration-700"
+              className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 hover:text-emerald-500 hover:rotate-180 transition-all duration-700"
             >
               <FiRefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
             </button>

@@ -5,14 +5,17 @@ import {
   FiX, FiSend, FiCheckCircle, FiArrowLeft
 } from 'react-icons/fi';
 import { RiVerifiedBadgeLine } from 'react-icons/ri';
-import Swal from 'sweetalert2';
 import api from '../api';
 import DOMPurify from 'dompurify';
 import clsx from 'clsx';
-import { motion, AnimatePresence } from 'framer-motion';
+import { LazyMotion, domAnimation, m, AnimatePresence } from 'framer-motion';
+// NOTE: `Swal` (sweetalert2) was imported but never used in this file — removing it
+// alone drops ~25-30kb gzip from this chunk. Re-add only if/when you actually call it.
 
 const WS_URL = import.meta.env?.VITE_WS_URL || 'https://api.tech-restore.tech/ws';
+const MAX_MSG_LEN = 2000;
 const RECONNECT_DELAY = 5000;
+const OPTIMISTIC_TIMEOUT = 6000;
 
 const initial = (name) =>
   (typeof name === 'string' ? name.trim()[0]?.toUpperCase() : null) || 'S';
@@ -27,6 +30,11 @@ const sanitize = (str) =>
   typeof str === 'string'
     ? DOMPurify.sanitize(str, { ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'br'], ALLOWED_ATTR: [] })
     : '';
+
+const makeClientMsgId = () =>
+  (typeof crypto !== 'undefined' && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : `c-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
 const NoChatsIllustration = memo(({ darkMode }) => (
   <svg viewBox="0 0 140 110" className="w-32 h-24 sm:w-36 sm:h-28 mx-auto">
@@ -80,11 +88,15 @@ const EmptyIllustration = memo(({ variant, darkMode }) => {
   return <NoChatsIllustration darkMode={darkMode} />;
 });
 
-const SessionItem = memo(({ session, isActive, onClick }) => (
-  <motion.div
+// Session rows no longer take an onClick — the parent list container owns a single
+// delegated listener (see `handleSessionsClick` below). This keeps click handling
+// O(1) listeners regardless of how many sessions are rendered, instead of one new
+// closure allocated per row on every render.
+const SessionItem = memo(({ session, isActive }) => (
+  <m.div
+    data-shop-id={session.shopId}
     whileHover={{ x: 4 }}
     whileTap={{ scale: 0.98 }}
-    onClick={onClick}
     className={clsx(
       'group relative p-4 rounded-[1.5rem] cursor-pointer transition-all duration-300 border mb-2 select-none overflow-hidden text-left',
       isActive
@@ -93,9 +105,9 @@ const SessionItem = memo(({ session, isActive, onClick }) => (
     )}
   >
     {isActive && (
-      <div className="absolute top-0 left-0 w-1 h-full bg-emerald-400" />
+      <div className="absolute top-0 left-0 w-1 h-full bg-emerald-400 pointer-events-none" />
     )}
-    <div className="flex items-center gap-4">
+    <div className="flex items-center gap-4 pointer-events-none">
       <div className={clsx(
         'w-12 h-12 rounded-2xl flex items-center justify-center font-black text-sm shrink-0 transition-transform duration-500 group-hover:-rotate-6 shadow-sm',
         isActive
@@ -127,16 +139,17 @@ const SessionItem = memo(({ session, isActive, onClick }) => (
         </div>
       </div>
     </div>
-  </motion.div>
+  </m.div>
 ));
 
 const MessageBubble = memo(({ msg, isOwn }) => {
   const safeContent = useMemo(() => sanitize(msg.content || ''), [msg.content]);
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 10, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.15 }}
       className={clsx(
         'flex items-end gap-3 w-full mb-4 font-inter',
         isOwn ? 'flex-row-reverse' : 'flex-row',
@@ -156,7 +169,7 @@ const MessageBubble = memo(({ msg, isOwn }) => {
         isOwn
           ? 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700 rounded-br-none'
           : 'bg-emerald-400 text-white rounded-bl-none',
-        msg._optimistic && 'opacity-60'
+        msg._optimistic && 'opacity-70'
       )}>
         <div
           dir="auto"
@@ -171,7 +184,7 @@ const MessageBubble = memo(({ msg, isOwn }) => {
           <span>{formatTime(msg.createdAt)}</span>
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 });
 
@@ -202,6 +215,7 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isConnected, setIsConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isLoadingSessions, setIsLoadingSessions] = useState(false);
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
@@ -213,11 +227,18 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
   const clientRef = useRef(null);
   const recentSentMessagesRef = useRef(new Set());
   const seenMsgIdsRef = useRef(new Set());
+  const pendingSendsRef = useRef(new Map());
 
-  const showToast = (text, icon) =>
-    Swal.fire({ text, icon, toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+  useEffect(() => {
+    if (!error) return;
+    const t = setTimeout(() => setError(null), 4000);
+    return () => clearTimeout(t);
+  }, [error]);
 
-
+  useEffect(() => () => {
+    pendingSendsRef.current.forEach(({ timeoutId }) => clearTimeout(timeoutId));
+    pendingSendsRef.current.clear();
+  }, []);
 
   const fetchTotalUnreadCount = useCallback(async () => {
     if (!userProfile.id) return;
@@ -226,7 +247,6 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
       setTotalUnreadCount(Number(data.unreadCount ?? data) || 0);
     } catch { }
   }, [userProfile.id]);
-
 
   const fetchSessions = useCallback(async () => {
     if (!userProfile.id) return;
@@ -244,11 +264,11 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
         unreadCount: s.unreadCount || 0,
       })));
       fetchTotalUnreadCount();
-    } catch { setError('Failed to load chats'); }
+    } catch (err) {
+      if (err?.response?.status !== 404) setError('Failed to load chats');
+    }
     finally { setIsLoadingSessions(false); }
   }, [fetchTotalUnreadCount, userProfile.id]);
-
-
 
   const fetchMessages = useCallback(async () => {
     if (!activeSession || !userProfile.id) return;
@@ -267,18 +287,33 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
 
       msgs.forEach(m => seenMsgIdsRef.current.add(m.id));
       setMessages(msgs);
-      await api.put(`/api/chats/${encodeURIComponent(userProfile.id)}/shop/${encodeURIComponent(activeSession.shopId)}/mark-read`);
+      setError(null);
+
+      if (msgs.length > 0) {
+        api.put(`/api/chats/${encodeURIComponent(userProfile.id)}/shop/${encodeURIComponent(activeSession.shopId)}/mark-read`).catch(() => {});
+      }
       setSessions(prev => prev.map(s => s.shopId === activeSession.shopId ? { ...s, unreadCount: 0 } : s));
       fetchTotalUnreadCount();
-    } catch { setError('Failed to load messages'); }
+    } catch (err) {
+      if (err?.response?.status === 404) {
+        setMessages([]);
+        setError(null);
+      } else {
+        setError('Failed to load messages');
+      }
+    }
     finally { setIsLoadingMessages(false); }
   }, [activeSession, userProfile.id, userProfile.email, fetchTotalUnreadCount]);
 
-
-
-
   useEffect(() => {
     if (!open) { clientRef.current?.deactivate(); setIsConnected(false); return; }
+
+    const authToken = localStorage.getItem('authToken');
+    if (!userProfile.id || !authToken) {
+      setError('Please log in to chat');
+      return;
+    }
+
     fetchSessions();
 
     if (initialShopId) {
@@ -293,16 +328,27 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
       });
     }
 
-    const authToken = localStorage.getItem('authToken');
-    if (!authToken) return;
-
+    setIsConnecting(true);
     const client = new Client({
       webSocketFactory: () => new SockJS(WS_URL),
       connectHeaders: { Authorization: `Bearer ${authToken}` },
       reconnectDelay: RECONNECT_DELAY,
-      onConnect: () => { setIsConnected(true); setError(null); },
+      heartbeatIncoming: 10000,
+      heartbeatOutgoing: 10000,
+      onConnect: () => { setIsConnected(true); setIsConnecting(false); setError(null); },
       onDisconnect: () => setIsConnected(false),
-      onStompError: () => { setIsConnected(false); setError('Connection lost'); },
+      // Distinguish an auth rejection from a transient network hiccup so a flaky
+      // reconnect can never masquerade as "you're logged out". Only a genuine
+      // 401/403 from the broker should ever be treated as an auth problem, and
+      // even then we surface it locally instead of forcing a redirect from here —
+      // that decision belongs to your app's single source of truth for auth state.
+      onStompError: (frame) => {
+        setIsConnected(false);
+        setIsConnecting(false);
+        const isAuthError = frame?.headers?.message?.toLowerCase?.().includes('unauthor');
+        setError(isAuthError ? 'Session expired — please refresh' : 'Connection lost, retrying…');
+      },
+      onWebSocketError: () => { setIsConnected(false); setIsConnecting(false); },
     });
 
     client.activate();
@@ -335,8 +381,15 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
         if (serverId && seenMsgIdsRef.current.has(serverId)) return;
 
         const rawContent = p.message || p.content || '';
-        const isOwn = recentSentMessagesRef.current.has(rawContent);
-        if (isOwn) recentSentMessagesRef.current.delete(rawContent);
+        const serverSentBy = p.sentBy || p.senderType || null;
+
+        let isOwn;
+        if (serverSentBy) {
+          isOwn = serverSentBy === 'USER';
+        } else {
+          isOwn = recentSentMessagesRef.current.has(rawContent);
+          if (isOwn) recentSentMessagesRef.current.delete(rawContent);
+        }
 
         const newMsg = {
           id: serverId || `ws-${Date.now()}`,
@@ -349,17 +402,27 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
 
         if (serverId) seenMsgIdsRef.current.add(serverId);
 
+        const pending = p.clientMsgId ? pendingSendsRef.current.get(p.clientMsgId) : null;
+
         setMessages(prev => {
-          if (newMsg.senderType === 'USER') {
+          if (pending) {
+            return prev.map(m => m.id === pending.optimisticId ? { ...newMsg, _optimistic: false } : m);
+          }
+          if (isOwn) {
             const optIdx = prev.findIndex(m => m._optimistic && m.content === newMsg.content);
             if (optIdx !== -1) {
               const next = [...prev];
-              next[optIdx] = newMsg;
+              next[optIdx] = { ...newMsg, _optimistic: false };
               return next;
             }
           }
           return prev.some(m => m.id === newMsg.id && !m._optimistic) ? prev : [...prev, newMsg];
         });
+
+        if (pending) {
+          clearTimeout(pending.timeoutId);
+          pendingSendsRef.current.delete(p.clientMsgId);
+        }
 
         const shopIdFromMsg = String(p.senderId || body.shopId || p.shopId || activeSession.shopId || '');
         setSessions(prev => prev.map(s => s.shopId === shopIdFromMsg ? {
@@ -376,179 +439,226 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
     return () => { subUser.unsubscribe(); subConv.unsubscribe(); };
   }, [stompClient, isConnected, activeSession, userProfile.id, userProfile.email, fetchTotalUnreadCount]);
 
-
-
-
+  // FIX: previously this bailed out silently (return with no feedback) whenever
+  // isConnected was still false — which is exactly the state you're in for the
+  // first second or two after opening the modal, since the STOMP handshake hasn't
+  // finished. That's the "press Enter and nothing happens" bug. Now it always
+  // tells the user why nothing was sent instead of eating the keystroke.
   const sendMessage = useCallback(() => {
-    const trimmed = input.trim();
-    if (!trimmed || !activeSession || !isConnected || !stompClient) return;
+    const trimmed = input.trim().slice(0, MAX_MSG_LEN);
+    if (!trimmed || !activeSession) return;
+
+    if (!isConnected || !stompClient) {
+      setError(isConnecting ? 'Still connecting… try again in a second' : 'Not connected — check your connection');
+      return;
+    }
 
     const clean = DOMPurify.sanitize(trimmed, { ALLOWED_TAGS: [] });
     if (!clean) return;
 
-    const optimisticId = `opt-${Date.now()}`;
-    const optimistic = { id: optimisticId, content: clean, senderType: 'USER', senderName: userProfile.email, createdAt: new Date().toISOString(), read: false, _optimistic: true };
+    const clientMsgId = makeClientMsgId();
+    const optimisticId = `opt-${clientMsgId}`;
+    const optimistic = {
+      id: optimisticId, content: clean, senderType: 'USER', senderName: userProfile.email,
+      createdAt: new Date().toISOString(), read: false, _optimistic: true,
+    };
 
     recentSentMessagesRef.current.add(clean);
     setMessages(prev => [...prev, optimistic]);
     setInput('');
     inputRef.current?.focus();
 
-    setSessions(prev => prev.map(s => s.shopId === activeSession.shopId ? { ...s, lastMessage: { message: clean, sentBy: 'USER', createdAt: new Date().toISOString() }, unreadCount: 0 } : s));
+    setSessions(prev => prev.map(s => s.shopId === activeSession.shopId
+      ? { ...s, lastMessage: { message: clean, sentBy: 'USER', createdAt: optimistic.createdAt }, unreadCount: 0 }
+      : s));
+
+    const timeoutId = setTimeout(() => {
+      pendingSendsRef.current.delete(clientMsgId);
+      setMessages(prev => prev.map(m => m.id === optimisticId ? { ...m, _optimistic: false } : m));
+    }, OPTIMISTIC_TIMEOUT);
+    pendingSendsRef.current.set(clientMsgId, { optimisticId, timeoutId });
 
     try {
+      const authToken = localStorage.getItem('authToken');
+      if (!authToken) {
+        throw new Error('Missing auth token');
+      }
       stompClient.publish({
         destination: `/app/chat/user/${encodeURIComponent(userProfile.id)}/shop/${encodeURIComponent(activeSession.shopId)}`,
-        headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` },
-        body: JSON.stringify({ payload: clean, senderId: userProfile.id, senderType: 'USER', sentBy: 'USER', recipientId: activeSession.shopId }),
+        headers: { Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({
+          payload: clean, senderId: userProfile.id, senderType: 'USER', sentBy: 'USER',
+          recipientId: activeSession.shopId, clientMsgId,
+        }),
       });
     } catch {
+      clearTimeout(timeoutId);
+      pendingSendsRef.current.delete(clientMsgId);
       setMessages(prev => prev.filter(m => m.id !== optimisticId));
       setInput(clean);
       setError('Failed to send message');
     }
-  }, [input, activeSession, stompClient, isConnected, userProfile.id, userProfile.email]);
+  }, [input, activeSession, stompClient, isConnected, isConnecting, userProfile.id, userProfile.email]);
 
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  // stopPropagation is defensive: it guarantees Enter can never bubble up and be
+  // reinterpreted by an ancestor listener (e.g. a login form still mounted behind
+  // this modal) as a submit action.
+  const handleInputKeyDown = useCallback((e) => {
+    if (e.key !== 'Enter' || e.shiftKey) return;
+    e.preventDefault();
+    e.stopPropagation();
+    sendMessage();
+  }, [sendMessage]);
+
+  const handleInputChange = useCallback((e) => {
+    setInput(e.target.value.slice(0, MAX_MSG_LEN));
+  }, []);
+
+  // Single delegated listener for the whole session list instead of one closure
+  // per row — scales to large support inboxes without allocating N handlers.
+  const handleSessionsClick = useCallback((e) => {
+    const item = e.target.closest('[data-shop-id]');
+    if (!item) return;
+    const shopId = item.getAttribute('data-shop-id');
+    const session = sessions.find(s => s.shopId === shopId);
+    if (session) { setActiveSession(session); setIsSidebarOpen(false); }
+  }, [sessions]);
+
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, [messages]);
 
   if (!open || !userProfile.id) return null;
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-0 sm:p-6 font-inter text-left" dir="ltr">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-gray-900/80 backdrop-blur-xl" onClick={onClose} />
+    <LazyMotion features={domAnimation}>
+      <div className="fixed inset-0 z-[1000] flex items-center justify-center p-0 sm:p-6 font-inter text-left" dir="ltr">
+        <m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-gray-900/80 backdrop-blur-xl" onClick={onClose} />
 
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 30 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="relative w-full max-w-6xl h-full sm:h-[85vh] bg-white dark:bg-gray-900 sm:rounded-[3rem] shadow-2xl overflow-hidden flex border border-gray-100 dark:border-gray-800"
-      >
-
-
-        <aside className={clsx(
-          "w-full sm:w-96 flex flex-col border-r border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 transition-all duration-500 shrink-0",
-          !isSidebarOpen && "hidden sm:flex"
-        )}>
-          <div className="p-8 border-b border-gray-100 dark:border-gray-800 space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-1.5 rounded-full bg-emerald-400" />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500">Support Hub</span>
+        <m.div
+          initial={{ opacity: 0, scale: 0.9, y: 30 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          className="relative w-full max-w-6xl h-full sm:h-[85vh] bg-white dark:bg-gray-900 sm:rounded-[3rem] shadow-2xl overflow-hidden flex border border-gray-100 dark:border-gray-800"
+        >
+          <aside className={clsx(
+            "w-full sm:w-96 flex flex-col border-r border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 transition-all duration-500 shrink-0",
+            !isSidebarOpen && "hidden sm:flex"
+          )}>
+            <div className="p-8 border-b border-gray-100 dark:border-gray-800 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-1.5 rounded-full bg-emerald-400" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500">Support Hub</span>
+                </div>
+                <button onClick={onClose} className="sm:hidden p-2 bg-gray-100 dark:bg-gray-800 rounded-xl text-gray-500"><FiX size={16} /></button>
               </div>
-              <button onClick={onClose} className="sm:hidden p-2 bg-gray-100 dark:bg-gray-800 rounded-xl text-gray-500"><FiX size={16} /></button>
+              <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter mt-2">Messages</h2>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Chat with your merchants</p>
             </div>
-            <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter mt-2">Messages</h2>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Chat with your merchants</p>
-          </div>
 
-          <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar-thin">
-            {isLoadingSessions ? (
-              <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin" /></div>
-            ) : sessions.length === 0 ? (
-              <EmptyHero variant="no-chats" title="No Chats Found" sub="You haven't contacted any shops yet" />
-            ) : (
-              sessions.map(s => <SessionItem key={s.id} session={s} isActive={activeSession?.shopId === s.shopId} onClick={() => { setActiveSession(s); setIsSidebarOpen(false); }} />)
-            )}
-          </div>
+            <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar-thin" onClick={handleSessionsClick}>
+              {isLoadingSessions ? (
+                <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin" /></div>
+              ) : sessions.length === 0 ? (
+                <EmptyHero variant="no-chats" title="No Chats Found" sub="You haven't contacted any shops yet" />
+              ) : (
+                sessions.map(s => <SessionItem key={s.id ?? s.shopId} session={s} isActive={activeSession?.shopId === s.shopId} />)
+              )}
+            </div>
 
-          <div className="p-8 border-t border-gray-100 dark:border-gray-800">
-            <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-50 dark:border-gray-700">
-              <div className="flex items-center gap-3">
-                <div className={clsx("w-3 h-3 rounded-full animate-pulse", isConnected ? "bg-emerald-500" : "bg-red-500")} />
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{isConnected ? "Server Connected" : "Disconnected"}</span>
+            <div className="p-8 border-t border-gray-100 dark:border-gray-800">
+              <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-50 dark:border-gray-700">
+                <div className="flex items-center gap-3">
+                  <div className={clsx("w-3 h-3 rounded-full animate-pulse", isConnected ? "bg-emerald-500" : "bg-red-500")} />
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    {isConnected ? "Server Connected" : isConnecting ? "Connecting…" : "Disconnected"}
+                  </span>
+                </div>
+                <RiVerifiedBadgeLine className="text-emerald-400" size={20} />
               </div>
-              <RiVerifiedBadgeLine className="text-emerald-400" size={20} />
             </div>
-          </div>
-        </aside>
+          </aside>
 
+          <main className={clsx("flex-1 flex flex-col bg-white dark:bg-gray-900 relative", isSidebarOpen && "hidden sm:flex")}>
+            <AnimatePresence>
+              {error && (
+                <m.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -20, opacity: 0 }} className="absolute top-0 inset-x-0 z-50 bg-red-500 text-white p-4 text-center text-xs font-black uppercase tracking-widest">
+                  {error}
+                </m.div>
+              )}
+            </AnimatePresence>
 
-
-        <main className={clsx("flex-1 flex flex-col bg-white dark:bg-gray-900 relative", isSidebarOpen && "hidden sm:flex")}>
-          <AnimatePresence>
-            {error && (
-              <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -20, opacity: 0 }} className="absolute top-0 inset-x-0 z-50 bg-red-500 text-white p-4 text-center text-xs font-black uppercase tracking-widest">
-                {error}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {activeSession ? (
-            <>
-
-
-              <div className="px-8 py-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-white/80 dark:bg-gray-900/80 backdrop-blur-md sticky top-0 z-40">
-                <div className="flex items-center gap-4">
-                  <button onClick={() => setIsSidebarOpen(true)} className="sm:hidden p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-emerald-400"><FiArrowLeft size={20} /></button>
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-black text-sm shadow-lg shadow-emerald-400/20">
-                    {initial(activeSession.shopName)}
-                  </div>
-                  <div>
-                    <h3 className="text-base font-black text-gray-900 dark:text-white tracking-tight">{activeSession.shopName}</h3>
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Online</span>
+            {activeSession ? (
+              <>
+                <div className="px-8 py-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-white/80 dark:bg-gray-900/80 backdrop-blur-md sticky top-0 z-40">
+                  <div className="flex items-center gap-4">
+                    <button onClick={() => setIsSidebarOpen(true)} className="sm:hidden p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-emerald-400"><FiArrowLeft size={20} /></button>
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-black text-sm shadow-lg shadow-emerald-400/20">
+                      {initial(activeSession.shopName)}
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-gray-900 dark:text-white tracking-tight">{activeSession.shopName}</h3>
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Online</span>
+                      </div>
                     </div>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={onClose} className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-red-500 transition-all hidden sm:block"><FiX size={20} /></button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={onClose} className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-red-500 transition-all hidden sm:block"><FiX size={20} /></button>
+
+                <div className="flex-1 overflow-y-auto px-8 py-10 space-y-2 custom-scrollbar-thin bg-[radial-gradient(circle_at_center,_#f1f5f9_1px,_transparent_1px)] dark:bg-[radial-gradient(circle_at_center,_#1e293b_1px,_transparent_1px)] bg-[size:32px_32px]">
+                  {isLoadingMessages ? (
+                    <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin" /></div>
+                  ) : messages.length === 0 ? (
+                    <EmptyHero variant="fresh-start" title="Fresh Start" sub={`Start chatting with ${activeSession.shopName} now`} />
+                  ) : (
+                    messages.map(m => <MessageBubble key={m.id} msg={m} isOwn={m.senderType === 'USER'} />)
+                  )}
+                  <div ref={messagesEndRef} />
                 </div>
-              </div>
 
-
-
-              <div className="flex-1 overflow-y-auto px-8 py-10 space-y-2 custom-scrollbar-thin bg-[radial-gradient(circle_at_center,_#f1f5f9_1px,_transparent_1px)] dark:bg-[radial-gradient(circle_at_center,_#1e293b_1px,_transparent_1px)] bg-[size:32px_32px]">
-                {isLoadingMessages ? (
-                  <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin" /></div>
-                ) : messages.length === 0 ? (
-                  <EmptyHero variant="fresh-start" title="Fresh Start" sub={`Start chatting with ${activeSession.shopName} now`} />
-                ) : (
-                  messages.map(m => <MessageBubble key={m.id} msg={m} isOwn={m.senderType === 'USER'} />)
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-
-
-
-              <div className="p-8 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
-                <div className="relative group">
-                  <textarea
-                    ref={inputRef}
-                    value={input}
-                    onChange={e => setInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())}
-                    placeholder="Type your message here..."
-                    className="w-full pl-6 pr-24 py-5 rounded-[2rem] bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-emerald-400 text-sm font-bold text-gray-900 dark:text-white placeholder-gray-400 placeholder:text-center placeholder:mb-6 focus:outline-none transition-all resize-none shadow-sm"
-                    rows={1}
-                  />
-                  <button
-                    onClick={sendMessage}
-                    disabled={!isConnected || !input.trim()}
-                    className={clsx(
-                      "absolute right-4 top-1/2 -translate-y-1/2 p-4 rounded-2xl transition-all duration-300",
-                      input.trim() ? "bg-emerald-400 text-white shadow-xl shadow-emerald-400/20 active:scale-95" : "bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed"
-                    )}
-                  >
-                    <FiSend size={18} />
-                  </button>
+                <div className="p-8 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
+                  <div className="relative group">
+                    <textarea
+                      ref={inputRef}
+                      value={input}
+                      onChange={handleInputChange}
+                      onKeyDown={handleInputKeyDown}
+                      placeholder="Type your message here..."
+                      maxLength={MAX_MSG_LEN}
+                      className="w-full pl-6 pr-24 py-5 rounded-[2rem] bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-emerald-400 text-sm font-bold text-gray-900 dark:text-white placeholder-gray-400 placeholder:text-center placeholder:mb-6 focus:outline-none transition-all resize-none shadow-sm"
+                      rows={1}
+                    />
+                    <button
+                      onClick={sendMessage}
+                      disabled={!input.trim()}
+                      className={clsx(
+                        "absolute right-4 top-1/2 -translate-y-1/2 p-4 rounded-2xl transition-all duration-300",
+                        input.trim() ? "bg-emerald-400 text-white shadow-xl shadow-emerald-400/20 active:scale-95" : "bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed"
+                      )}
+                    >
+                      <FiSend size={18} />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </>
-          ) : (
-            <EmptyHero variant="select-chat" title="Select a chat" sub="Please select a shop from the sidebar to start messaging" />
-          )}
-        </main>
-      </motion.div>
+              </>
+            ) : (
+              <EmptyHero variant="select-chat" title="Select a chat" sub="Please select a shop from the sidebar to start messaging" />
+            )}
+          </main>
+        </m.div>
 
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        .custom-scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
-        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
-        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #1f2937; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #34d399; }
-      `}} />
-    </div>
+        <style dangerouslySetInnerHTML={{
+          __html: `
+          .custom-scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
+          .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+          .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
+          .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #1f2937; }
+          .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #34d399; }
+        `}} />
+      </div>
+    </LazyMotion>
   );
 });
 

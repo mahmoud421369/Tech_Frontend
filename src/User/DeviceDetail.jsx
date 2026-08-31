@@ -7,15 +7,32 @@ import {
   FiWatch, FiTool, FiChevronLeft as FiChevLeft,
   FiChevronRight as FiChevRight, FiBox, FiRefreshCw, FiShoppingCart,
 } from 'react-icons/fi';
-import { motion, AnimatePresence } from 'framer-motion';
-import Swal from 'sweetalert2';
+import { LazyMotion, domAnimation, m } from 'framer-motion';
 import api from '../api';
 import Hero from '../components/Hero';
 import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const queryClient = new QueryClient();
+
+// `sweetalert2` is only needed on error/success toasts, never on first paint —
+// loaded on demand and cached, same pattern used across the rest of the app.
+let swalPromise;
+const loadSwal = () => {
+  if (!swalPromise) swalPromise = import('sweetalert2').then((mod) => mod.default || mod);
+  return swalPromise;
+};
+
+// FIX: `@import url(...)` inside a JS-injected <style> tag is one of the
+// slowest ways to load a webfont — the browser can't discover it until it has
+// already fetched and parsed this component's CSS text, adding a full extra
+// round trip before the font request even starts, and it re-injects on every
+// mount of this component. A real <link rel="stylesheet"> in <head>, added
+// once and reused across mounts, is discovered by the browser's preload
+// scanner immediately.
+const FONT_HREF = 'https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap';
+const FONT_LINK_ID = 'outfit-font-link';
+
 const STYLES = `
-  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap');
   .detail-root * { box-sizing: border-box; }
   .detail-root { font-family: 'Outfit', sans-serif; overflow-x: hidden; }
   @keyframes blob1 { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(20px,-30px) scale(1.08)} 66%{transform:translate(-15px,20px) scale(0.95)} }
@@ -39,6 +56,17 @@ const STYLES = `
   @keyframes shimmer { 0%{background-position:-200% center} 100%{background-position:200% center} }
   .skeleton-shimmer { background: linear-gradient(90deg, transparent 25%, rgba(16,185,129,0.08) 50%, transparent 75%); background-size: 200% auto; animation: shimmer 1.8s linear infinite; }
 `;
+
+const useOutfitFont = () => {
+  useEffect(() => {
+    if (document.getElementById(FONT_LINK_ID)) return;
+    const link = document.createElement('link');
+    link.id = FONT_LINK_ID;
+    link.rel = 'stylesheet';
+    link.href = FONT_HREF;
+    document.head.appendChild(link);
+  }, []);
+};
 
 const categoryIcons = {
   Smartphone: FiSmartphone, Laptop: FiMonitor, Tablet: FiTablet,
@@ -91,12 +119,20 @@ const DeviceDetailSkeleton = ({ darkMode }) => (
   </div>
 );
 
+// FIX: previously navigated with `window.location.href`, which forces a full
+// page reload — the whole app (including framer-motion, react-query's cache,
+// and every other chunk) re-downloads and re-boots just to view a related
+// product. Using the router's `navigate()` keeps this a fast, client-side
+// transition, matching how the rest of the SPA moves between pages.
 const RelatedProductCard = memo(({ product, darkMode }) => {
   const [imgLoaded, setImgLoaded] = useState(false);
+  const navigate = useNavigate();
   const Icon = categoryIcons[product.categoryName] || categoryIcons.default;
 
+  const goToProduct = useCallback(() => navigate(`/device/${product.id}`), [navigate, product.id]);
+
   return (
-    <div onClick={() => (window.location.href = `/device/${product.id}`)}
+    <div onClick={goToProduct}
       className={`group rounded-xl sm:rounded-2xl shadow-md cursor-pointer border overflow-hidden transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl ${darkMode ? 'bg-gray-800 border-gray-700/80' : 'bg-white border-gray-200'
         }`}>
       <div className={`relative p-3 sm:p-4 ${darkMode ? 'bg-gray-900/40' : 'bg-gray-50'}`}>
@@ -160,6 +196,7 @@ const RelatedSection = memo(({ title, icon: Icon, products, darkMode, currentPag
 const DeviceDetailContent = memo(({ addToCart, darkMode }) => {
   const { id } = useParams();
   const navigate = useNavigate();
+  useOutfitFont();
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -194,25 +231,39 @@ const DeviceDetailContent = memo(({ addToCart, darkMode }) => {
 
   useEffect(() => {
     if (isError) {
-      Swal.fire({ title: 'Error', text: 'Product not found', icon: 'error', toast: true, position: 'top-end', timer: 2000 });
+      loadSwal().then((Swal) =>
+        Swal.fire({ title: 'Error', text: 'Product not found', icon: 'error', toast: true, position: 'top-end', timer: 2000 })
+      );
     }
   }, [isError]);
 
+  // FIX: this used to wrap the *entire* async operation in `startTransition`,
+  // which is a misuse of the API — startTransition only marks state updates
+  // scheduled synchronously inside its callback as low-priority; anything
+  // scheduled after an `await` (the success/error toast, `setAddingToCart(false)`)
+  // runs as a normal update regardless, so wrapping it here did nothing useful
+  // and just obscured what was actually happening. `addingToCart` already
+  // drives the button's loading state correctly on its own.
   const handleAddToCart = useCallback(async () => {
-    startTransition(async () => {
-      setAddingToCart(true);
-      try {
-        await api.post('/api/cart/items', {
-          productId: product.id, quantity,
-          price: product.price, name: product.name,
-          imageUrl: product.imageUrl || product.imageUrls?.[0],
-        });
-        addToCart?.({ ...product, quantity });
-        Swal.fire({ icon: 'success', title: 'Added to cart!', toast: true, position: 'top-end', timer: 1800, timerProgressBar: true });
-      } catch (error) {
-        Swal.fire({ icon: 'error', title: 'Error', text: error.response?.data?.message || 'Failed to add to cart', toast: true, position: 'top-end', timer: 2000 });
-      } finally { setAddingToCart(false); }
-    });
+    if (!product) return;
+    setAddingToCart(true);
+    try {
+      await api.post('/api/cart/items', {
+        productId: product.id, quantity,
+        price: product.price, name: product.name,
+        imageUrl: product.imageUrl || product.imageUrls?.[0],
+      });
+      addToCart?.({ ...product, quantity });
+      loadSwal().then((Swal) =>
+        Swal.fire({ icon: 'success', title: 'Added to cart!', toast: true, position: 'top-end', timer: 1800, timerProgressBar: true })
+      );
+    } catch (error) {
+      loadSwal().then((Swal) =>
+        Swal.fire({ icon: 'error', title: 'Error', text: error.response?.data?.message || 'Failed to add to cart', toast: true, position: 'top-end', timer: 2000 })
+      );
+    } finally {
+      setAddingToCart(false);
+    }
   }, [addToCart, product, quantity]);
 
   const handleQuantityChange = useCallback((delta) => {
@@ -261,7 +312,7 @@ const DeviceDetailContent = memo(({ addToCart, darkMode }) => {
       : { label: 'Out of Stock', cls: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' };
 
   return (
-    <>
+    <LazyMotion features={domAnimation}>
       <style>{STYLES}</style>
       <div className={`detail-root min-h-screen ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50'} pb-12 sm:pb-16`}>
 
@@ -363,7 +414,10 @@ const DeviceDetailContent = memo(({ addToCart, darkMode }) => {
                   )}
 
 
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+                  <div
+                    aria-busy={isPending}
+                    className={`flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 transition-opacity duration-150 ${isPending ? 'opacity-70' : 'opacity-100'}`}
+                  >
                     <div className={`inline-flex items-center rounded-xl border overflow-hidden ${darkMode ? 'bg-gray-900/60 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
                       <button onClick={() => handleQuantityChange(-1)} disabled={quantity <= 1}
                         className={`px-3 sm:px-4 py-2.5 sm:py-3 text-base sm:text-lg font-bold hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 transition min-w-[40px] sm:min-w-[44px] ${darkMode ? 'text-white' : 'text-gray-800'}`}>
@@ -377,12 +431,12 @@ const DeviceDetailContent = memo(({ addToCart, darkMode }) => {
                         +
                       </button>
                     </div>
-                    <motion.button whileTap={{ scale: 0.97 }} onClick={handleAddToCart}
+                    <m.button whileTap={{ scale: 0.97 }} onClick={handleAddToCart}
                       disabled={product.stock === 0 || addingToCart}
                       className={`add-cart-btn flex-1 w-full sm:w-auto py-2.5 sm:py-3 px-5 sm:px-6 rounded-xl font-bold text-sm border-2 border-emerald-400 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
                       <FiShoppingCart className="w-4 h-4" />
                       <span>{addingToCart ? 'Adding...' : 'Add to Cart'}</span>
-                    </motion.button>
+                    </m.button>
                   </div>
                 </div>
               </div>
@@ -396,7 +450,7 @@ const DeviceDetailContent = memo(({ addToCart, darkMode }) => {
             products={paginatedCondition} darkMode={darkMode} currentPage={condPage} setCurrentPage={setCondPage} totalPages={condPages} />
         </div>
       </div>
-    </>
+    </LazyMotion>
   );
 });
 

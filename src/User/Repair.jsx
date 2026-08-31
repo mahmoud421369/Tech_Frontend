@@ -1,19 +1,24 @@
-import React, { useEffect, useState, useCallback, memo, useMemo, useTransition } from "react";
+import React, { useEffect, useState, useCallback, memo, useMemo, useRef, useTransition } from "react";
 import { useNavigate } from "react-router-dom";
-import Swal from "sweetalert2";
-import sanitizeHtml from "sanitize-html";
 import { FaStar, FaStore, FaCheckCircle } from "react-icons/fa";
 import { FiChevronRight, FiTool, FiChevronLeft, FiInfo, FiX, FiMail, FiPhone, FiCalendar, FiShield, FiMapPin } from "react-icons/fi";
-import { motion, AnimatePresence } from "framer-motion";
+import { LazyMotion, domAnimation, m, AnimatePresence } from "framer-motion";
 import api from "../api";
-import { RiDeviceLine, RiMap2Line } from "@remixicon/react";
+import { RiDeviceLine } from "@remixicon/react";
 import {
   RiCheckDoubleLine, RiCheckLine, RiCloseLine,
-  RiPhoneLine, RiStore2Line,
+  RiStore2Line,
 } from "react-icons/ri";
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from "@headlessui/react";
 import { useQuery, useMutation, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Hero } from "../components";
+// NOTE: `sweetalert2` and `sanitize-html` are no longer imported statically here.
+// Both are only ever needed in response to a user action (a validation warning,
+// a failed submit, or the final submit itself) — never on first paint. Loading
+// them on demand via dynamic import() keeps them out of this route's initial
+// bundle entirely, and each is fetched at most once (cached in a ref) per visit.
+// Same reasoning as removing the unused `Swal` import from UserChatModal.jsx and
+// `RiMap2Line` / `RiPhoneLine` below, which were imported but never used.
 
 const queryClient = new QueryClient();
 
@@ -45,11 +50,11 @@ const DescribeIllustration = memo(({ darkMode }) => {
   const c = palette(darkMode);
   return (
     <svg viewBox="0 0 200 200" className="w-full h-full">
-      <motion.circle cx="100" cy="102" r="70" fill={c.fillSoft}
+      <m.circle cx="100" cy="102" r="70" fill={c.fillSoft}
         animate={{ scale: [1, 1.06, 1] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }} />
       <rect x="58" y="46" width="84" height="112" rx="12" fill={c.fillCard} stroke={c.cardBorder} strokeWidth="2.5" />
       {[0, 1, 2, 3].map((i) => (
-        <motion.line key={i}
+        <m.line key={i}
           x1="72" y1={70 + i * 16} x2={i === 3 ? 108 : 128} y2={70 + i * 16}
           stroke={c.lineSoft} strokeWidth="3" strokeLinecap="round"
           initial={{ pathLength: 0 }}
@@ -57,17 +62,17 @@ const DescribeIllustration = memo(({ darkMode }) => {
           transition={{ duration: 0.6, delay: 0.3 + i * 0.15, ease: EASE, repeat: Infinity, repeatDelay: 2.4 }}
         />
       ))}
-      <motion.rect x="150" y="132" width="3" height="18" fill={c.line}
+      <m.rect x="150" y="132" width="3" height="18" fill={c.line}
         animate={{ opacity: [1, 0, 1] }}
         transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }} />
-      <motion.g
+      <m.g
         animate={{ rotate: [-8, 8, -8] }}
         style={{ transformOrigin: "146px 150px" }}
         transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
       >
         <circle cx="146" cy="150" r="16" fill="none" stroke={c.accent} strokeWidth="3" />
         <line x1="157" y1="161" x2="168" y2="172" stroke={c.accent} strokeWidth="4" strokeLinecap="round" />
-      </motion.g>
+      </m.g>
     </svg>
   );
 });
@@ -83,7 +88,7 @@ const CategoryPickIllustration = memo(({ darkMode }) => {
   return (
     <svg viewBox="0 0 200 200" className="w-full h-full">
       {cells.map((cell, i) => (
-        <motion.g key={i}
+        <m.g key={i}
           initial={{ opacity: 0, scale: 0.6 }}
           animate={{ opacity: 1, scale: cell.active ? [1, 1.14, 1] : 1 }}
           transition={cell.active
@@ -106,7 +111,7 @@ const CategoryPickIllustration = memo(({ darkMode }) => {
             <path d={`M${cell.x - 9} ${cell.y} L${cell.x - 2} ${cell.y + 8} L${cell.x + 10} ${cell.y - 8}`}
               fill="none" stroke={c.line} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
           )}
-        </motion.g>
+        </m.g>
       ))}
     </svg>
   );
@@ -117,13 +122,13 @@ const ShopPickIllustration = memo(({ darkMode }) => {
   return (
     <svg viewBox="0 0 200 200" className="w-full h-full">
       <rect x="56" y="94" width="88" height="64" fill={c.fillCard} stroke={c.cardBorder} strokeWidth="2.5" />
-      <motion.g
+      <m.g
         animate={{ rotate: [-1.5, 1.5, -1.5] }}
         style={{ transformOrigin: "100px 78px" }}
         transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
       >
         <path d="M50,78 L150,78 L160,98 L40,98 Z" fill={c.fillSoft} stroke={c.cardBorder} strokeWidth="2.5" />
-      </motion.g>
+      </m.g>
       <rect x="86" y="122" width="28" height="36" rx="3" fill={c.fillSoft} stroke={c.cardBorder} strokeWidth="2" />
       {[
         { angle: -40, delay: 0 },
@@ -133,12 +138,12 @@ const ShopPickIllustration = memo(({ darkMode }) => {
         const cx = 100 + 78 * Math.sin(rad);
         const cy = 96 - 78 * Math.cos(rad) + 4;
         return (
-          <motion.g key={i}
+          <m.g key={i}
             animate={{ scale: [1, 1.5, 1], opacity: [1, 0, 1] }}
             transition={{ duration: 2.2, repeat: Infinity, ease: "easeOut", delay: s.delay }}
           >
             <circle cx={cx} cy={cy} r="6" fill="none" stroke={c.accent} strokeWidth="2" />
-          </motion.g>
+          </m.g>
         );
       })}
     </svg>
@@ -149,10 +154,10 @@ const DoneIllustration = memo(({ darkMode }) => {
   const c = palette(darkMode);
   return (
     <svg viewBox="0 0 200 200" className="w-full h-full">
-      <motion.circle cx="100" cy="100" r="70" fill={c.fillSoft}
+      <m.circle cx="100" cy="100" r="70" fill={c.fillSoft}
         animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }} />
       <circle cx="100" cy="100" r="46" fill={c.fillCard} stroke={c.cardBorder} strokeWidth="2.5" />
-      <motion.path
+      <m.path
         d="M78,100 L94,116 L124,82"
         fill="none" stroke={c.line} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"
         initial={{ pathLength: 0 }}
@@ -167,21 +172,21 @@ const SentIllustration = memo(({ darkMode }) => {
   const c = palette(darkMode);
   return (
     <svg viewBox="0 0 200 200" className="w-full h-full">
-      <motion.circle cx="100" cy="100" r="78" fill={c.fillSoft}
+      <m.circle cx="100" cy="100" r="78" fill={c.fillSoft}
         animate={{ scale: [1, 1.07, 1] }} transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }} />
-      <motion.g
+      <m.g
         animate={{ x: [0, 10, 0], y: [0, -6, 0] }}
         transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
       >
         <path d="M46,120 L154,72 L118,158 L104,124 L46,120 Z" fill={c.fillCard} stroke={c.line} strokeWidth="3" strokeLinejoin="round" />
         <path d="M154,72 L104,124" stroke={c.line} strokeWidth="2.5" />
-      </motion.g>
+      </m.g>
       {[
         { x: 148, y: 50, s: 6, d: 0 },
         { x: 168, y: 100, s: 5, d: 0.5 },
         { x: 40, y: 70, s: 7, d: 1 },
       ].map((sp, i) => (
-        <motion.circle key={i} cx={sp.x} cy={sp.y} r={sp.s} fill="none" stroke={c.accent} strokeWidth="2"
+        <m.circle key={i} cx={sp.x} cy={sp.y} r={sp.s} fill="none" stroke={c.accent} strokeWidth="2"
           animate={{ opacity: [0.2, 1, 0.2], scale: [0.8, 1.15, 0.8] }}
           transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut", delay: sp.d }} />
       ))}
@@ -195,13 +200,13 @@ const ShopStoreIllustration = memo(({ darkMode }) => {
     <svg viewBox="0 0 160 160" className="w-full h-full">
       <circle cx="80" cy="82" r="62" fill={c.fillSoft} />
       <rect x="44" y="76" width="72" height="52" fill={c.fillCard} stroke={c.cardBorder} strokeWidth="2.5" />
-      <motion.g
+      <m.g
         animate={{ rotate: [-1.5, 1.5, -1.5] }}
         style={{ transformOrigin: "80px 62px" }}
         transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
       >
         <path d="M38,62 L122,62 L132,80 L28,80 Z" fill={c.fillSoft} stroke={c.cardBorder} strokeWidth="2.5" />
-      </motion.g>
+      </m.g>
       <rect x="68" y="98" width="24" height="30" rx="3" fill={c.fillSoft} stroke={c.cardBorder} strokeWidth="2" />
     </svg>
   );
@@ -397,7 +402,7 @@ const RepairStatusMap = memo(({ darkMode }) => (
     <div className="relative pl-2">
       <div className={`absolute left-[19px] top-2 bottom-2 w-px ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
       {STATUS_JOURNEY.map((status, i) => (
-        <motion.div key={status.key}
+        <m.div key={status.key}
           initial={{ opacity: 0, x: -8 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true }}
@@ -420,7 +425,7 @@ const RepairStatusMap = memo(({ darkMode }) => (
             }`}>{status.label}</p>
             <p className={`text-[11px] leading-snug ${darkMode ? "text-gray-500" : "text-gray-400"}`}>{status.desc}</p>
           </div>
-        </motion.div>
+        </m.div>
       ))}
     </div>
   </div>
@@ -456,13 +461,13 @@ const InfoPanel = memo(({ step, darkMode }) => {
     <div className={`hidden lg:flex flex-col rounded-2xl border p-6 gap-4 shrink-0 w-full lg:w-80 ${
       darkMode ? "bg-gray-800/80 border-gray-700 backdrop-blur-md" : "bg-white border-gray-200 shadow-sm"
     }`}>
-      <motion.div
+      <m.div
         className="w-full aspect-square max-w-[180px] mx-auto"
         animate={{ y: [0, -8, 0] }}
         transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
       >
         <AnimatePresence mode="wait">
-          <motion.div
+          <m.div
             key={step}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -471,11 +476,11 @@ const InfoPanel = memo(({ step, darkMode }) => {
             className="w-full h-full"
           >
             <Illustration darkMode={darkMode} />
-          </motion.div>
+          </m.div>
         </AnimatePresence>
-      </motion.div>
+      </m.div>
       <AnimatePresence mode="wait">
-        <motion.div
+        <m.div
           key={step}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -488,7 +493,7 @@ const InfoPanel = memo(({ step, darkMode }) => {
           <p className={`text-xs leading-relaxed ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
             {info.body}
           </p>
-        </motion.div>
+        </m.div>
       </AnimatePresence>
     </div>
   );
@@ -504,7 +509,7 @@ const INSTRUCTIONS = [
 const InstructionsStrip = memo(({ darkMode }) => (
   <div className={`max-w-5xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-3 mb-2`}>
     {INSTRUCTIONS.map((ins, i) => (
-      <motion.div key={ins.title}
+      <m.div key={ins.title}
         initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: i * 0.06, ease: EASE }}
         className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 border ${
@@ -518,7 +523,7 @@ const InstructionsStrip = memo(({ darkMode }) => (
           <p className={`text-xs font-bold truncate ${darkMode ? "text-white" : "text-gray-900"}`}>{ins.title}</p>
           <p className={`text-[10px] truncate ${darkMode ? "text-gray-500" : "text-gray-400"}`}>{ins.text}</p>
         </div>
-      </motion.div>
+      </m.div>
     ))}
   </div>
 ));
@@ -545,7 +550,7 @@ const StepProgressBar = memo(({ step, darkMode }) => {
     }`}>
       <div className="relative mb-5 sm:mb-6">
         <div className={`absolute top-5 sm:top-6 left-0 right-0 h-1.5 rounded-full ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
-        <motion.div
+        <m.div
           className="absolute top-5 sm:top-6 left-0 h-1.5 rounded-full bg-emerald-400"
           initial={{ width: 0 }}
           animate={{ width: `${progress}%` }}
@@ -557,7 +562,7 @@ const StepProgressBar = memo(({ step, darkMode }) => {
             const isActive = step === i + 1;
             return (
               <div key={i} className="flex flex-col items-center gap-1.5 sm:gap-2">
-                <motion.div
+                <m.div
                   animate={{ scale: isActive ? 1.1 : 1, boxShadow: isActive ? "0 0 0 4px rgba(52,211,153,0.25)" : "none" }}
                   transition={{ duration: 0.18 }}
                   className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm border-2 transition-colors duration-200 ${
@@ -567,7 +572,7 @@ const StepProgressBar = memo(({ step, darkMode }) => {
                   }`}
                 >
                   {isCompleted ? <RiCheckLine size={16} className="text-white" /> : s.icon}
-                </motion.div>
+                </m.div>
                 <span className={`text-[10px] sm:text-xs font-bold transition-colors duration-200 ${
                   isCompleted || isActive ? "text-emerald-500 dark:text-emerald-400" : darkMode ? "text-gray-500" : "text-gray-400"
                 }`}>{s.label}</span>
@@ -590,7 +595,7 @@ const StepProgressBar = memo(({ step, darkMode }) => {
 const NavButtons = memo(({ onBack, onNext, nextLabel = "Continue", nextDisabled = false, isLoading = false, showBack = true, darkMode }) => (
   <div className={`flex gap-3 mt-8 sm:mt-12 ${showBack ? "justify-between" : "justify-center"} max-w-md mx-auto`}>
     {showBack && (
-      <motion.button
+      <m.button
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.96 }}
         onClick={onBack}
@@ -600,9 +605,9 @@ const NavButtons = memo(({ onBack, onNext, nextLabel = "Continue", nextDisabled 
         }`}
       >
         <FiChevronLeft /> Back
-      </motion.button>
+      </m.button>
     )}
-    <motion.button
+    <m.button
       whileHover={!nextDisabled && !isLoading ? { scale: 1.02, y: -1 } : {}}
       whileTap={{ scale: 0.97 }}
       onClick={onNext}
@@ -618,14 +623,14 @@ const NavButtons = memo(({ onBack, onNext, nextLabel = "Continue", nextDisabled 
       ) : null}
       {isLoading ? "Sending..." : nextLabel}
       {!isLoading && <FiChevronRight />}
-    </motion.button>
+    </m.button>
   </div>
 ));
 
 const SuccessModal = memo(({ open, shop, onViewRequests, onNewRequest, darkMode }) => (
   <AnimatePresence>
     {open && (
-      <motion.div
+      <m.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -636,7 +641,7 @@ const SuccessModal = memo(({ open, shop, onViewRequests, onNewRequest, darkMode 
         aria-labelledby="repair-success-title"
       >
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-        <motion.div
+        <m.div
           initial={{ opacity: 0, scale: 0.94, y: 16 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 10 }}
@@ -663,7 +668,7 @@ const SuccessModal = memo(({ open, shop, onViewRequests, onNewRequest, darkMode 
               {shop?.shopAddress?.city || "Cairo"}{shop?.shopAddress?.state ? `, ${shop.shopAddress.state}` : ""}
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
-              <motion.button
+              <m.button
                 whileTap={{ scale: 0.97 }}
                 onClick={onNewRequest}
                 className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all duration-150 ${
@@ -671,18 +676,18 @@ const SuccessModal = memo(({ open, shop, onViewRequests, onNewRequest, darkMode 
                 }`}
               >
                 New Request
-              </motion.button>
-              <motion.button
+              </m.button>
+              <m.button
                 whileTap={{ scale: 0.97 }}
                 onClick={onViewRequests}
                 className="flex-1 py-3 rounded-xl bg-gradient-to-r from-emerald-400 to-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/30 transition-all duration-150"
               >
                 View My Requests
-              </motion.button>
+              </m.button>
             </div>
           </div>
-        </motion.div>
-      </motion.div>
+        </m.div>
+      </m.div>
     )}
   </AnimatePresence>
 ));
@@ -801,11 +806,10 @@ const fallbackShops = [
   { id: 4, name: "QuickRepair", email: "info@quickrepair.eg", description: "Walk-in and express repairs for every device type.", verified: false, rating: 4.3, shopAddress: { street: "21 Tahrir St", city: "Downtown", state: "Cairo" }, phone: "+20 122 456 7890", shopType: "BOTH", activate: true, createdAt: "2024-01-15T00:00:00" },
 ];
 
-const getCategoryIcon = (name) => name;
-
 const RepairRequestContent = ({ darkMode }) => {
   const navigate = useNavigate();
-  const token = localStorage.getItem("authToken");
+  // Read once instead of a synchronous localStorage.getItem() call on every render.
+  const token = useMemo(() => localStorage.getItem("authToken"), []);
 
   const [step, setStep] = useState(1);
   const [description, setDescription] = useState("");
@@ -826,8 +830,28 @@ const RepairRequestContent = ({ darkMode }) => {
 
   useEffect(() => { document.title = "Book Repair | Tech-Restore"; }, []);
 
-  const sanitizeDescription = useCallback((input) =>
-    sanitizeHtml(input, { allowedTags: [], allowedAttributes: {} }).trim(), []);
+  // Lazily-loaded, cached-after-first-use modules. Neither is needed on first
+  // paint — sanitize-html only runs at submit time, sweetalert2 only fires in
+  // response to a validation error or a failed request — so keeping them out of
+  // the static import graph trims this route's initial JS payload.
+  const sanitizeModuleRef = useRef(null);
+  const swalModuleRef = useRef(null);
+
+  const sanitizeDescription = useCallback(async (input) => {
+    if (!sanitizeModuleRef.current) {
+      const mod = await import("sanitize-html");
+      sanitizeModuleRef.current = mod.default || mod;
+    }
+    return sanitizeModuleRef.current(input, { allowedTags: [], allowedAttributes: {} }).trim();
+  }, []);
+
+  const fireAlert = useCallback(async (opts) => {
+    if (!swalModuleRef.current) {
+      const mod = await import("sweetalert2");
+      swalModuleRef.current = mod.default || mod;
+    }
+    return swalModuleRef.current.fire(opts);
+  }, []);
 
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
     queryKey: ['categories'],
@@ -863,26 +887,43 @@ const RepairRequestContent = ({ darkMode }) => {
     () => shops.filter(shop => shop.shopType === "BOTH" || shop.shopType === "REPAIRER"),
     [shops]
   );
-  const categoryTotalPages = Math.max(1, Math.ceil(categories.length / CATEGORY_PAGE_SIZE));
-  const pagedCategories = categories.slice((categoryPage - 1) * CATEGORY_PAGE_SIZE, categoryPage * CATEGORY_PAGE_SIZE);
-  const shopTotalPages = Math.max(1, Math.ceil(filteredShops.length / SHOP_PAGE_SIZE));
-  const pagedShops = filteredShops.slice((shopPage - 1) * SHOP_PAGE_SIZE, shopPage * SHOP_PAGE_SIZE);
+
+  // FIX: these were plain `const` computations that re-ran on every render of the
+  // whole component — including every keystroke in the step-1 textarea, long
+  // before the category/shop grids are even visible. Memoizing them means typing
+  // a description no longer re-slices arrays that haven't changed.
+  const categoryTotalPages = useMemo(
+    () => Math.max(1, Math.ceil(categories.length / CATEGORY_PAGE_SIZE)),
+    [categories.length]
+  );
+  const pagedCategories = useMemo(
+    () => categories.slice((categoryPage - 1) * CATEGORY_PAGE_SIZE, categoryPage * CATEGORY_PAGE_SIZE),
+    [categories, categoryPage]
+  );
+  const shopTotalPages = useMemo(
+    () => Math.max(1, Math.ceil(filteredShops.length / SHOP_PAGE_SIZE)),
+    [filteredShops.length]
+  );
+  const pagedShops = useMemo(
+    () => filteredShops.slice((shopPage - 1) * SHOP_PAGE_SIZE, shopPage * SHOP_PAGE_SIZE),
+    [filteredShops, shopPage]
+  );
 
   const handleNext = useCallback(() => {
     if (step === 1) {
       if (!description.trim()) {
-        Swal.fire({ icon: "warning", title: "Description required", text: "Please describe what's wrong with your device", confirmButtonColor: "#34d399" });
+        fireAlert({ icon: "warning", title: "Description required", text: "Please describe what's wrong with your device", confirmButtonColor: "#34d399" });
         return;
       }
       startTransition(() => setStep(2));
     } else if (step === 2) {
       if (!selectedCategory) {
-        Swal.fire({ icon: "warning", title: "Select Device Type", confirmButtonColor: "#34d399" });
+        fireAlert({ icon: "warning", title: "Select Device Type", confirmButtonColor: "#34d399" });
         return;
       }
       startTransition(() => setStep(3));
     }
-  }, [step, description, selectedCategory]);
+  }, [step, description, selectedCategory, fireAlert]);
 
   const handleBack = useCallback(() => startTransition(() => setStep((s) => Math.max(1, s - 1))), []);
 
@@ -910,9 +951,10 @@ const RepairRequestContent = ({ darkMode }) => {
       if (progress >= 100) clearInterval(timer);
     }, interval);
     try {
+      const cleanDescription = await sanitizeDescription(description);
       await api.post(
         `/api/users/repair-request/${selectedShop.id}`,
-        { description: sanitizeDescription(description), deviceCategory: selectedCategory.id },
+        { description: cleanDescription, deviceCategory: selectedCategory.id },
         { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
       );
       await new Promise((r) => setTimeout(r, duration));
@@ -923,11 +965,11 @@ const RepairRequestContent = ({ darkMode }) => {
     } catch (err) {
       clearInterval(timer);
       setSubmitProgress(0);
-      Swal.fire({ icon: "error", title: "Failed to Send", toast: true, position: "top-end", text: err.response?.data?.message || "Something went wrong.", confirmButtonColor: "#ef4444" });
+      fireAlert({ icon: "error", title: "Failed to Send", toast: true, position: "top-end", text: err.response?.data?.message || "Something went wrong.", confirmButtonColor: "#ef4444" });
     } finally {
       setIsSubmitting(false);
     }
-  }, [selectedShop, description, selectedCategory, token, sanitizeDescription]);
+  }, [selectedShop, description, selectedCategory, token, sanitizeDescription, fireAlert]);
 
   const handleViewRequests = useCallback(() => navigate("/account"), [navigate]);
 
@@ -938,262 +980,270 @@ const RepairRequestContent = ({ darkMode }) => {
   }, []);
 
   return (
-    <div className={`min-h-screen overflow-x-hidden ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
-      <Hero variant="repair" darkMode={darkMode} />
+    <LazyMotion features={domAnimation}>
+      <div className={`min-h-screen overflow-x-hidden ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+        <Hero variant="repair" darkMode={darkMode} />
 
-      <div className="px-4 sm:px-6 mt-6 sm:mt-10">
-        <InstructionsStrip darkMode={darkMode} />
-      </div>
+        <div className="px-4 sm:px-6 mt-6 sm:mt-10">
+          <InstructionsStrip darkMode={darkMode} />
+        </div>
 
-      <div className="px-4 sm:px-6">
-        {step <= 3 && (
-          <div className="max-w-5xl mx-auto my-6 sm:my-10">
-            <StepProgressBar step={step} darkMode={darkMode} />
-          </div>
-        )}
-      </div>
+        <div className="px-4 sm:px-6">
+          {step <= 3 && (
+            <div className="max-w-5xl mx-auto my-6 sm:my-10">
+              <StepProgressBar step={step} darkMode={darkMode} />
+            </div>
+          )}
+        </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-8 pb-16 sm:pb-20">
-        {step <= 3 && (
-          <div className="flex flex-col lg:flex-row gap-6 items-start">
-            <div className="flex-1">
-              <AnimatePresence mode="wait">
-                {step === 1 && (
-                  <motion.div key="step1" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={FAST}>
-                    <h2 className={`text-2xl sm:text-3xl font-extrabold text-center mb-2 sm:mb-3 ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>
-                      Describe the Problem
-                    </h2>
-                    <p className={`text-center text-xs sm:text-sm mb-6 sm:mb-8 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                      Be as specific as possible — this helps shops give accurate quotes
-                    </p>
-                    <div className="max-w-2xl mx-auto">
-                      <div className={`relative rounded-xl sm:rounded-2xl border-2 transition-all duration-200 ${
-                        description.trim() ? "border-emerald-400 shadow-lg shadow-emerald-400/10" : darkMode ? "border-gray-700" : "border-gray-200"
-                      } ${bgCard}`}>
-                        <textarea
-                          className={`w-full px-4 sm:px-6 py-4 sm:py-5 bg-transparent rounded-xl sm:rounded-2xl dark:text-white focus:outline-none resize-none min-h-[140px] sm:min-h-[180px] text-sm sm:text-base`}
-                          placeholder="e.g., Screen cracked, battery draining fast, not charging, overheating..."
-                          value={description}
-                          onChange={(e) => setDescription(e.target.value)}
-                          maxLength={1000}
-                        />
-                        <div className={`flex items-center justify-between px-4 sm:px-6 py-2 sm:py-3 border-t ${border}`}>
-                          <span className={`text-[10px] sm:text-xs ${darkMode ? "text-gray-500" : "text-gray-400"}`}>
-                            Tip: include device model if possible
-                          </span>
-                          <span className={`text-[10px] sm:text-xs font-semibold ${description.length > 900 ? "text-orange-500" : darkMode ? "text-gray-500" : "text-gray-400"}`}>
-                            {description.length} / 1000
-                          </span>
+        {/* aria-busy + a subtle opacity dip while a step transition is pending
+            (startTransition) gives a visible, smooth cue during the low-priority
+            update instead of the UI looking like it stalled for a frame. */}
+        <div
+          aria-busy={isPending}
+          className={`max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-8 pb-16 sm:pb-20 transition-opacity duration-150 ${isPending ? "opacity-70" : "opacity-100"}`}
+        >
+          {step <= 3 && (
+            <div className="flex flex-col lg:flex-row gap-6 items-start">
+              <div className="flex-1">
+                <AnimatePresence mode="wait">
+                  {step === 1 && (
+                    <m.div key="step1" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={FAST}>
+                      <h2 className={`text-2xl sm:text-3xl font-extrabold text-center mb-2 sm:mb-3 ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>
+                        Describe the Problem
+                      </h2>
+                      <p className={`text-center text-xs sm:text-sm mb-6 sm:mb-8 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                        Be as specific as possible — this helps shops give accurate quotes
+                      </p>
+                      <div className="max-w-2xl mx-auto">
+                        <div className={`relative rounded-xl sm:rounded-2xl border-2 transition-all duration-200 ${
+                          description.trim() ? "border-emerald-400 shadow-lg shadow-emerald-400/10" : darkMode ? "border-gray-700" : "border-gray-200"
+                        } ${bgCard}`}>
+                          <textarea
+                            className={`w-full px-4 sm:px-6 py-4 sm:py-5 bg-transparent rounded-xl sm:rounded-2xl dark:text-white focus:outline-none resize-none min-h-[140px] sm:min-h-[180px] text-sm sm:text-base`}
+                            placeholder="e.g., Screen cracked, battery draining fast, not charging, overheating..."
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            maxLength={1000}
+                          />
+                          <div className={`flex items-center justify-between px-4 sm:px-6 py-2 sm:py-3 border-t ${border}`}>
+                            <span className={`text-[10px] sm:text-xs ${darkMode ? "text-gray-500" : "text-gray-400"}`}>
+                              Tip: include device model if possible
+                            </span>
+                            <span className={`text-[10px] sm:text-xs font-semibold ${description.length > 900 ? "text-orange-500" : darkMode ? "text-gray-500" : "text-gray-400"}`}>
+                              {description.length} / 1000
+                            </span>
+                          </div>
+                        </div>
+                        <div className="mt-3 sm:mt-4 flex flex-wrap gap-1.5 sm:gap-2">
+                          {SUGGESTIONS.map((s) => (
+                            <button key={s} onClick={() => setDescription((prev) => prev ? `${prev}, ${s.toLowerCase()}` : s)}
+                              className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-semibold border transition-all duration-150 ${
+                                darkMode ? "border-gray-700 text-gray-400 hover:border-emerald-400 hover:text-emerald-400"
+                                  : "border-gray-200 text-gray-500 hover:border-emerald-400 hover:text-emerald-600"
+                              }`}>
+                              + {s}
+                            </button>
+                          ))}
                         </div>
                       </div>
-                      <div className="mt-3 sm:mt-4 flex flex-wrap gap-1.5 sm:gap-2">
-                        {SUGGESTIONS.map((s) => (
-                          <button key={s} onClick={() => setDescription((prev) => prev ? `${prev}, ${s.toLowerCase()}` : s)}
-                            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-semibold border transition-all duration-150 ${
-                              darkMode ? "border-gray-700 text-gray-400 hover:border-emerald-400 hover:text-emerald-400"
-                                : "border-gray-200 text-gray-500 hover:border-emerald-400 hover:text-emerald-600"
-                            }`}>
-                            + {s}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <NavButtons onNext={handleNext} nextDisabled={!description.trim()} showBack={false} darkMode={darkMode} />
-                  </motion.div>
-                )}
+                      <NavButtons onNext={handleNext} nextDisabled={!description.trim()} showBack={false} darkMode={darkMode} />
+                    </m.div>
+                  )}
 
-                {step === 2 && (
-                  <motion.div key="step2" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={FAST}>
-                    <h2 className={`text-2xl sm:text-3xl font-extrabold text-center mb-2 sm:mb-3 ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>
-                      Select Device Type
-                    </h2>
-                    <p className={`text-center text-xs sm:text-sm mb-6 sm:mb-8 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                      Choose the category that best matches your device
-                    </p>
-                    {categoriesLoading ? <LoadingSpinner darkMode={darkMode} /> : (
-                      <>
-                        <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-5 mt-4 sm:mt-6">
-                          {pagedCategories.map((cat) => {
-                            const CatIllustration = getCategoryIllustration(cat.name);
-                            const active = selectedCategory?.id === cat.id;
-                            return (
-                              <motion.div key={cat.id} whileHover={{ y: -5, scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                                transition={{ duration: 0.15 }}
-                                onClick={() => setSelectedCategory(cat)}
-                                className={`group cursor-pointer rounded-md sm:rounded-md flex flex-col justify-center items-center p-3 sm:p-5 lg:p-6 shadow-sm transition-all duration-200 border-2 ${
-                                  active
-                                    ? "bg-gradient-to-br from-emerald-400 to-emerald-500 text-white border-emerald-300 shadow-emerald-400/30 shadow-xl"
-                                    : `${bgCard} ${darkMode ? "border-gray-700 hover:border-emerald-400" : "border-gray-200 hover:border-emerald-400"}`
-                                }`}>
-                                <div className="w-10 h-10 sm:w-12 sm:h-12 mb-2 sm:mb-4 transition-transform duration-200 group-hover:scale-110">
-                                  <CatIllustration active={active} darkMode={darkMode} />
-                                </div>
-                                <p className={`text-center text-[10px] sm:text-xs lg:text-sm font-bold ${
-                                  active ? "text-white" : textPrimary
-                                }`}>
-                                  {cat.name}
-                                </p>
-                                {active && (
-                                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ duration: 0.15 }}
-                                    className="mt-1 sm:mt-2 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-white/30 flex items-center justify-center">
-                                    <RiCheckLine className="text-white text-xs" />
-                                  </motion.div>
-                                )}
-                              </motion.div>
-                            );
-                          })}
-                        </div>
-                        <SimplePagination page={categoryPage} totalPages={categoryTotalPages} onChange={setCategoryPage} darkMode={darkMode} />
-                      </>
-                    )}
-                    <NavButtons onBack={handleBack} onNext={handleNext} nextDisabled={!selectedCategory} darkMode={darkMode} />
-                  </motion.div>
-                )}
-
-                {step === 3 && (
-                  <motion.div key="step3" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={FAST}>
-                    <h2 className={`text-2xl sm:text-3xl font-extrabold text-center mb-2 sm:mb-3 ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>
-                      Choose Your Repair Shop
-                    </h2>
-                    <p className={`text-center text-xs sm:text-sm mb-6 sm:mb-8 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                      Select the shop you'd like to send your repair request to
-                    </p>
-                    {shopsLoading ? <LoadingSpinner darkMode={darkMode} /> : (
-                      <>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-6">
-                          {pagedShops.map((shop) => {
-                            const active = selectedShop?.id === shop.id;
-                            return (
-                              <motion.div key={shop.id}
-                                whileHover={shop.activate ? { y: -4 } : {}}
-                                whileTap={shop.activate ? { scale: 0.99 } : {}}
-                                transition={{ duration: 0.15 }}
-                                onClick={() => shop.activate && setSelectedShop(shop)}
-                                className={`relative group p-4 sm:p-6 rounded-md sm:rounded-md shadow-md transition-all duration-200 border-2 ${
-                                  !shop.activate ? "opacity-50 cursor-not-allowed grayscale" : "cursor-pointer"
-                                } ${
-                                  active
-                                    ? "bg-gradient-to-br from-emerald-400 to-emerald-500 text-white border-emerald-300 shadow-emerald-400/30 shadow-xl"
-                                    : `${bgCard} ${!shop.activate ? (darkMode ? "border-gray-800" : "border-gray-200") : (darkMode ? "border-gray-700 hover:border-emerald-400" : "border-gray-200 hover:border-emerald-400")}`
-                                }`}>
-                                <button
-                                  onClick={(e) => openShopInfo(shop, e)}
-                                  className={`absolute top-3 right-3 sm:top-4 sm:right-4 w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
-                                    active ? "bg-white/20 text-white hover:bg-white/30" : darkMode ? "bg-gray-700 text-gray-300 hover:bg-gray-600" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                                  }`}
-                                  aria-label="Shop details"
-                                >
-                                  <FiInfo size={14} />
-                                </button>
-
-                                <div className="flex items-start justify-between mb-4 sm:mb-5 pr-8">
-                                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                                    <div className={`p-2 sm:p-2.5 rounded-lg sm:rounded-xl flex-shrink-0 ${
-                                      active ? "bg-white/20" : "bg-emerald-100 dark:bg-emerald-900/30"
-                                    }`}>
-                                      <FaStore className={`text-base sm:text-xl ${active ? "text-white" : "text-emerald-500 dark:text-emerald-400"}`} />
-                                    </div>
-                                    <h3 className={`text-sm sm:text-lg font-bold truncate ${active ? "text-white" : textPrimary}`}>
-                                      {shop.name}
-                                    </h3>
-                                  </div>
-                                  <div className={`flex items-center gap-1.5 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-1.5 rounded-lg sm:rounded-xl flex-shrink-0 ml-1 ${
-                                    active ? "bg-white/20" : darkMode ? "bg-gray-700" : "bg-gray-100"
+                  {step === 2 && (
+                    <m.div key="step2" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={FAST}>
+                      <h2 className={`text-2xl sm:text-3xl font-extrabold text-center mb-2 sm:mb-3 ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>
+                        Select Device Type
+                      </h2>
+                      <p className={`text-center text-xs sm:text-sm mb-6 sm:mb-8 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                        Choose the category that best matches your device
+                      </p>
+                      {categoriesLoading ? <LoadingSpinner darkMode={darkMode} /> : (
+                        <>
+                          <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-5 mt-4 sm:mt-6">
+                            {pagedCategories.map((cat) => {
+                              const CatIllustration = getCategoryIllustration(cat.name);
+                              const active = selectedCategory?.id === cat.id;
+                              return (
+                                <m.div key={cat.id} whileHover={{ y: -5, scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                                  transition={{ duration: 0.15 }}
+                                  onClick={() => setSelectedCategory(cat)}
+                                  className={`group cursor-pointer rounded-md sm:rounded-md flex flex-col justify-center items-center p-3 sm:p-5 lg:p-6 shadow-sm transition-all duration-200 border-2 ${
+                                    active
+                                      ? "bg-gradient-to-br from-emerald-400 to-emerald-500 text-white border-emerald-300 shadow-emerald-400/30 shadow-xl"
+                                      : `${bgCard} ${darkMode ? "border-gray-700 hover:border-emerald-400" : "border-gray-200 hover:border-emerald-400"}`
                                   }`}>
-                                    <FaStar className="text-amber-400 text-xs sm:text-sm" />
-                                    <span className={`text-xs sm:text-sm font-bold ${active ? "text-white" : textPrimary}`}>
-                                      {shop.rating ? Number(shop.rating).toFixed(1) : "New"}
-                                    </span>
+                                  <div className="w-10 h-10 sm:w-12 sm:h-12 mb-2 sm:mb-4 transition-transform duration-200 group-hover:scale-110">
+                                    <CatIllustration active={active} darkMode={darkMode} />
                                   </div>
-                                </div>
+                                  <p className={`text-center text-[10px] sm:text-xs lg:text-sm font-bold ${
+                                    active ? "text-white" : textPrimary
+                                  }`}>
+                                    {cat.name}
+                                  </p>
+                                  {active && (
+                                    <m.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ duration: 0.15 }}
+                                      className="mt-1 sm:mt-2 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-white/30 flex items-center justify-center">
+                                      <RiCheckLine className="text-white text-xs" />
+                                    </m.div>
+                                  )}
+                                </m.div>
+                              );
+                            })}
+                          </div>
+                          <SimplePagination page={categoryPage} totalPages={categoryTotalPages} onChange={setCategoryPage} darkMode={darkMode} />
+                        </>
+                      )}
+                      <NavButtons onBack={handleBack} onNext={handleNext} nextDisabled={!selectedCategory} darkMode={darkMode} />
+                    </m.div>
+                  )}
 
-                                <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-3 sm:mb-4">
-                                  {[
+                  {step === 3 && (
+                    <m.div key="step3" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={FAST}>
+                      <h2 className={`text-2xl sm:text-3xl font-extrabold text-center mb-2 sm:mb-3 ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>
+                        Choose Your Repair Shop
+                      </h2>
+                      <p className={`text-center text-xs sm:text-sm mb-6 sm:mb-8 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                        Select the shop you'd like to send your repair request to
+                      </p>
+                      {shopsLoading ? <LoadingSpinner darkMode={darkMode} /> : (
+                        <>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-6">
+                            {pagedShops.map((shop) => {
+                              const active = selectedShop?.id === shop.id;
+                              return (
+                                <m.div key={shop.id}
+                                  whileHover={shop.activate ? { y: -4 } : {}}
+                                  whileTap={shop.activate ? { scale: 0.99 } : {}}
+                                  transition={{ duration: 0.15 }}
+                                  onClick={() => shop.activate && setSelectedShop(shop)}
+                                  className={`relative group p-4 sm:p-6 rounded-md sm:rounded-md shadow-md transition-all duration-200 border-2 ${
+                                    !shop.activate ? "opacity-50 cursor-not-allowed grayscale" : "cursor-pointer"
+                                  } ${
+                                    active
+                                      ? "bg-gradient-to-br from-emerald-400 to-emerald-500 text-white border-emerald-300 shadow-emerald-400/30 shadow-xl"
+                                      : `${bgCard} ${!shop.activate ? (darkMode ? "border-gray-800" : "border-gray-200") : (darkMode ? "border-gray-700 hover:border-emerald-400" : "border-gray-200 hover:border-emerald-400")}`
+                                  }`}>
+                                  <button
+                                    onClick={(e) => openShopInfo(shop, e)}
+                                    className={`absolute top-3 right-3 sm:top-4 sm:right-4 w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
+                                      active ? "bg-white/20 text-white hover:bg-white/30" : darkMode ? "bg-gray-700 text-gray-300 hover:bg-gray-600" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                                    }`}
+                                    aria-label="Shop details"
+                                  >
+                                    <FiInfo size={14} />
+                                  </button>
 
-                                    { icon: <RiStore2Line />, label: "Type", value: shop.shopType || "General" },
-                                    {
-                                      icon: shop.activate ? <RiCheckDoubleLine /> : <RiCloseLine />,
-                                      label: "Status",
-                                      value: shop.activate ? "Active" : "Inactive",
-                                      valueClass: shop.activate
-                                        ? active ? "text-emerald-100" : "text-green-600 dark:text-green-400"
-                                        : "text-red-500",
-                                    },
-                                    
-                                  ].map(({ icon, label, value, valueClass }) => (
-                                    <div key={label} className={`flex items-start gap-1.5 sm:gap-2 p-2 sm:p-2.5 rounded-lg sm:rounded-xl ${
-                                      active ? "bg-white/10" : darkMode ? "bg-gray-700/50" : "bg-gray-50"
-                                    }`}>
-                                      <span className={`mt-0.5 flex-shrink-0 text-sm ${active ? "text-emerald-200" : "text-emerald-500 dark:text-emerald-400"}`}>{icon}</span>
-                                      <div className="min-w-0">
-                                        <p className={`text-[9px] sm:text-[10px] uppercase tracking-wide font-semibold mb-0.5 ${
-                                          active ? "text-emerald-200/70" : darkMode ? "text-emerald-500" : "text-gray-400"
-                                        }`}>{label}</p>
-                                        <p className={`text-[10px] sm:text-xs font-semibold truncate ${
-                                          valueClass || (active ? "text-white" : textPrimary)
-                                        }`}>{value}</p>
+                                  <div className="flex items-start justify-between mb-4 sm:mb-5 pr-8">
+                                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                                      <div className={`p-2 sm:p-2.5 rounded-lg sm:rounded-xl flex-shrink-0 ${
+                                        active ? "bg-white/20" : "bg-emerald-100 dark:bg-emerald-900/30"
+                                      }`}>
+                                        <FaStore className={`text-base sm:text-xl ${active ? "text-white" : "text-emerald-500 dark:text-emerald-400"}`} />
                                       </div>
+                                      <h3 className={`text-sm sm:text-lg font-bold truncate ${active ? "text-white" : textPrimary}`}>
+                                        {shop.name}
+                                      </h3>
                                     </div>
-                                  ))}
-                                </div>
+                                    <div className={`flex items-center gap-1.5 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-1.5 rounded-lg sm:rounded-xl flex-shrink-0 ml-1 ${
+                                      active ? "bg-white/20" : darkMode ? "bg-gray-700" : "bg-gray-100"
+                                    }`}>
+                                      <FaStar className="text-amber-400 text-xs sm:text-sm" />
+                                      <span className={`text-xs sm:text-sm font-bold ${active ? "text-white" : textPrimary}`}>
+                                        {shop.rating ? Number(shop.rating).toFixed(1) : "New"}
+                                      </span>
+                                    </div>
+                                  </div>
 
-                                {active && (
-                                  <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.15 }}
-                                    className="flex items-center justify-center gap-2 bg-white/20 rounded-lg sm:rounded-xl py-2">
-                                    <RiCheckLine className="text-white" />
-                                    <span className="text-white text-xs font-bold">Selected</span>
-                                  </motion.div>
-                                )}
-                              </motion.div>
-                            );
-                          })}
-                        </div>
-                        <SimplePagination page={shopPage} totalPages={shopTotalPages} onChange={setShopPage} darkMode={darkMode} />
-                      </>
-                    )}
+                                  <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-3 sm:mb-4">
+                                    {[
 
-                    <NavButtons onBack={handleBack} onNext={sendRepairRequest} nextLabel="Send Repair Request"
-                      nextDisabled={!selectedShop} isLoading={isSubmitting} darkMode={darkMode} />
+                                      { icon: <RiStore2Line />, label: "Type", value: shop.shopType || "General" },
+                                      {
+                                        icon: shop.activate ? <RiCheckDoubleLine /> : <RiCloseLine />,
+                                        label: "Status",
+                                        value: shop.activate ? "Active" : "Inactive",
+                                        valueClass: shop.activate
+                                          ? active ? "text-emerald-100" : "text-green-600 dark:text-green-400"
+                                          : "text-red-500",
+                                      },
+                                      
+                                    ].map(({ icon, label, value, valueClass }) => (
+                                      <div key={label} className={`flex items-start gap-1.5 sm:gap-2 p-2 sm:p-2.5 rounded-lg sm:rounded-xl ${
+                                        active ? "bg-white/10" : darkMode ? "bg-gray-700/50" : "bg-gray-50"
+                                      }`}>
+                                        <span className={`mt-0.5 flex-shrink-0 text-sm ${active ? "text-emerald-200" : "text-emerald-500 dark:text-emerald-400"}`}>{icon}</span>
+                                        <div className="min-w-0">
+                                          <p className={`text-[9px] sm:text-[10px] uppercase tracking-wide font-semibold mb-0.5 ${
+                                            active ? "text-emerald-200/70" : darkMode ? "text-emerald-500" : "text-gray-400"
+                                          }`}>{label}</p>
+                                          <p className={`text-[10px] sm:text-xs font-semibold truncate ${
+                                            valueClass || (active ? "text-white" : textPrimary)
+                                          }`}>{value}</p>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
 
-                    {isSubmitting && submitProgress > 0 && (
-                      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.15 }} className="max-w-md mx-auto mt-6 sm:mt-8">
-                        <div className={`w-full rounded-full h-2.5 overflow-hidden ${darkMode ? "bg-gray-700" : "bg-gray-200"}`}>
-                          <motion.div className="h-full rounded-full bg-emerald-400"
-                            initial={{ width: 0 }} animate={{ width: `${submitProgress}%` }} transition={{ duration: 0.12 }} />
-                        </div>
-                        <p className={`text-center text-xs mt-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                          Processing... {Math.round(submitProgress)}%
-                        </p>
-                      </motion.div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                                  {active && (
+                                    <m.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.15 }}
+                                      className="flex items-center justify-center gap-2 bg-white/20 rounded-lg sm:rounded-xl py-2">
+                                      <RiCheckLine className="text-white" />
+                                      <span className="text-white text-xs font-bold">Selected</span>
+                                    </m.div>
+                                  )}
+                                </m.div>
+                              );
+                            })}
+                          </div>
+                          <SimplePagination page={shopPage} totalPages={shopTotalPages} onChange={setShopPage} darkMode={darkMode} />
+                        </>
+                      )}
+
+                      <NavButtons onBack={handleBack} onNext={sendRepairRequest} nextLabel="Send Repair Request"
+                        nextDisabled={!selectedShop} isLoading={isSubmitting} darkMode={darkMode} />
+
+                      {isSubmitting && submitProgress > 0 && (
+                        <m.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.15 }} className="max-w-md mx-auto mt-6 sm:mt-8">
+                          <div className={`w-full rounded-full h-2.5 overflow-hidden ${darkMode ? "bg-gray-700" : "bg-gray-200"}`}>
+                            <m.div className="h-full rounded-full bg-emerald-400"
+                              initial={{ width: 0 }} animate={{ width: `${submitProgress}%` }} transition={{ duration: 0.12 }} />
+                          </div>
+                          <p className={`text-center text-xs mt-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                            Processing... {Math.round(submitProgress)}%
+                          </p>
+                        </m.div>
+                      )}
+                    </m.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <div className="flex flex-col gap-6 w-full lg:w-80 shrink-0">
+                <InfoPanel step={step} darkMode={darkMode} />
+                <RepairStatusMap darkMode={darkMode} />
+              </div>
             </div>
+          )}
+        </div>
 
-            <div className="flex flex-col gap-6 w-full lg:w-80 shrink-0">
-              <InfoPanel step={step} darkMode={darkMode} />
-              <RepairStatusMap darkMode={darkMode} />
-            </div>
-          </div>
-        )}
+        <SuccessModal
+          open={step === 4}
+          shop={submittedShop}
+          onViewRequests={handleViewRequests}
+          onNewRequest={resetWizard}
+          darkMode={darkMode}
+        />
+
+        <ShopDetailModal
+          open={isShopInfoOpen}
+          onClose={() => setIsShopInfoOpen(false)}
+          shop={infoShop}
+          darkMode={darkMode}
+        />
       </div>
-
-      <SuccessModal
-        open={step === 4}
-        shop={submittedShop}
-        onViewRequests={handleViewRequests}
-        onNewRequest={resetWizard}
-        darkMode={darkMode}
-      />
-
-      <ShopDetailModal
-        open={isShopInfoOpen}
-        onClose={() => setIsShopInfoOpen(false)}
-        shop={infoShop}
-        darkMode={darkMode}
-      />
-    </div>
+    </LazyMotion>
   );
 };
 

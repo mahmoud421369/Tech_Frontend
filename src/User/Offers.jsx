@@ -1,19 +1,33 @@
-import React, { useState, useEffect, useCallback, memo, useMemo, useTransition, Suspense } from "react";
+import React, { useState, useEffect, useCallback, memo, useMemo, useTransition } from "react";
 import {
-  FaTag, FaPercent, FaCalendarAlt, FaStore, FaCheckCircle,
+  FaTag, FaCalendarAlt, FaStore,
 } from "react-icons/fa";
 import { Link } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import Swal from "sweetalert2";
+import { LazyMotion, domAnimation, m, AnimatePresence } from "framer-motion";
 import api from "../api";
 import { RiTimeLine, RiPriceTag2Line } from "react-icons/ri";
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from "@headlessui/react";
 import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
-import * as FiIcons from "react-icons/fi";
+// FIX: `import * as FiIcons from "react-icons/fi"` pulls in the ENTIRE fi icon
+// set — hundreds of components — because a namespace import defeats most
+// bundlers' tree-shaking. Only 4 icons were ever used from it. Named imports
+// below let the bundler drop everything else from react-icons/fi.
+import { FiChevronLeft, FiChevronRight, FiX, FiExternalLink, FiClock as FiClockIcon } from "react-icons/fi";
 import { Hero } from "../components";
+
 const queryClient = new QueryClient();
-const { FiChevronLeft, FiChevronRight, FiX, FiExternalLink, FiClock: FiClockIcon } = FiIcons;
+
+// `sweetalert2` is only needed in response to two specific runtime events (no
+// token on mount, or a failed offer-detail fetch) — never on first paint. A
+// single module-scope loader means it's fetched at most once per page load and
+// shared by every component in this file, instead of a static import that
+// ships it in the initial bundle for everyone, even users who never hit either
+// error path.
+let swalPromise;
+const loadSwal = () => {
+  if (!swalPromise) swalPromise = import("sweetalert2").then((mod) => mod.default || mod);
+  return swalPromise;
+};
 
 const EASE = [0.16, 1, 0.3, 1];
 
@@ -30,9 +44,9 @@ const NoOffersIllustration = memo(({ darkMode }) => {
   const c = palette(darkMode);
   return (
     <svg viewBox="0 0 200 200" className="w-full h-full">
-      <motion.circle cx="100" cy="102" r="74" fill={c.fillSoft}
+      <m.circle cx="100" cy="102" r="74" fill={c.fillSoft}
         animate={{ scale: [1, 1.06, 1] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }} />
-      <motion.g
+      <m.g
         animate={{ rotate: [-4, 4, -4] }}
         style={{ transformOrigin: "100px 100px" }}
         transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
@@ -40,13 +54,13 @@ const NoOffersIllustration = memo(({ darkMode }) => {
         <path d="M68,50 L120,50 L150,86 L110,140 L68,140 Z" fill={c.fillCard} stroke={c.cardBorder} strokeWidth="3" />
         <circle cx="86" cy="72" r="7" fill="none" stroke={c.cardBorder} strokeWidth="3" />
         <path d="M78,120 L128,70" stroke={c.cardBorder} strokeWidth="4" strokeLinecap="round" />
-      </motion.g>
-      <motion.g
+      </m.g>
+      <m.g
         animate={{ opacity: [0.5, 1, 0.5] }}
         transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
       >
         <circle cx="100" cy="100" r="30" fill="none" stroke={c.line} strokeWidth="2" strokeDasharray="3 7" />
-      </motion.g>
+      </m.g>
       <text x="100" y="108" textAnchor="middle" fontSize="15" fontWeight="700" fill={c.line}>soon</text>
     </svg>
   );
@@ -115,7 +129,7 @@ const OfferCard = memo(({ offer, index, darkMode, onViewDetail }) => {
   const glow = isPercentage ? "hover:shadow-orange-500/15" : "hover:shadow-emerald-500/15";
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 22, scale: 0.97 }}
       whileInView={{ opacity: 1, y: 0, scale: 1 }}
       viewport={{ once: true, margin: "-40px" }}
@@ -145,18 +159,18 @@ const OfferCard = memo(({ offer, index, darkMode, onViewDetail }) => {
               isActive ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
                 : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
             }`}>
-              <motion.span animate={{ opacity: [1, 0.35, 1] }} transition={{ duration: 1.1, repeat: Infinity }}
+              <m.span animate={{ opacity: [1, 0.35, 1] }} transition={{ duration: 1.1, repeat: Infinity }}
                 className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-500" : "bg-red-500"}`} />
               {offer.status}
             </span>
             {remaining && (
-              <motion.span animate={isUrgent ? { scale: [1, 1.05, 1] } : {}} transition={{ duration: 0.8, repeat: Infinity }}
+              <m.span animate={isUrgent ? { scale: [1, 1.05, 1] } : {}} transition={{ duration: 0.8, repeat: Infinity }}
                 className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
                   isUrgent ? "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300"
                     : darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-100 text-gray-600"
                 }`}>
                 <RiTimeLine className="w-3 h-3" />{remaining}
-              </motion.span>
+              </m.span>
             )}
           </div>
 
@@ -188,20 +202,20 @@ const OfferCard = memo(({ offer, index, darkMode, onViewDetail }) => {
           {isPercentage ? "Percentage discount" : ""}
         </span>
         <div className="flex items-center gap-2">
-          <motion.button
+          <m.button
             whileTap={{ scale: 0.95 }} transition={{ duration: 0.12 }}
             onClick={() => onViewDetail(offer.id)}
             className="flex items-center gap-1 text-[11px] font-bold px-3 py-1.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white transition-colors duration-150 shadow-sm"
           >
             Details <FiChevronRight className="w-3 h-3" />
-          </motion.button>
+          </m.button>
           <Link to={`/shops/${offer.shopId}`} onClick={(e) => e.stopPropagation()}
             className="flex items-center gap-1 text-[11px] font-bold px-2 py-1.5 rounded-full text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors duration-150">
             Shop <FiExternalLink className="w-3 h-3" />
           </Link>
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 });
 
@@ -213,7 +227,9 @@ const OfferDetailModal = memo(({ open, onClose, offerId, token, darkMode }) => {
         const res = await api.get(`/api/users/offers/${offerId}`, { headers: { Authorization: `Bearer ${token}` } });
         return res.data;
       } catch (err) {
-        Swal.fire({ icon: "error", title: "Failed to load offer", toast: true, position: "top-end", timer: 2000, showConfirmButton: false });
+        loadSwal().then((Swal) =>
+          Swal.fire({ icon: "error", title: "Failed to load offer", toast: true, position: "top-end", timer: 2000, showConfirmButton: false })
+        );
         throw err;
       }
     },
@@ -250,7 +266,7 @@ const OfferDetailModal = memo(({ open, onClose, offerId, token, darkMode }) => {
                 <div className="w-9 h-9 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
               </div>
             ) : offer ? (
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: EASE }}
+              <m.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: EASE }}
                 className="p-3.5 sm:p-4 space-y-3">
                 <div className={`relative rounded-xl p-3.5 sm:p-4 overflow-hidden ${darkMode ? "bg-gray-800" : "bg-gradient-to-br from-emerald-50 to-teal-50"}`}>
                   <div className="flex items-start justify-between gap-3">
@@ -326,7 +342,7 @@ const OfferDetailModal = memo(({ open, onClose, offerId, token, darkMode }) => {
                 )}
 
                 
-              </motion.div>
+              </m.div>
             ) : (
               <div className="py-10 text-center">
                 <p className={`text-sm font-semibold ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Offer not found</p>
@@ -334,16 +350,16 @@ const OfferDetailModal = memo(({ open, onClose, offerId, token, darkMode }) => {
             )}
           </div>
           <div className={`px-4 py-2.5 sm:py-3 border-t flex justify-end gap-2 ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
-            <motion.button whileTap={{ scale: 0.97 }} transition={{ duration: 0.12 }} onClick={onClose}
+            <m.button whileTap={{ scale: 0.97 }} transition={{ duration: 0.12 }} onClick={onClose}
               className={`px-3.5 py-1.5 sm:py-2 rounded-lg font-bold text-xs transition-all ${darkMode ? "bg-gray-800 text-gray-300 hover:bg-gray-700" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
               Close
-            </motion.button>
+            </m.button>
             {offer?.shopId && (
               <Link to={`/shops/${offer.shopId}`} onClick={onClose}>
-                <motion.button whileTap={{ scale: 0.97 }} transition={{ duration: 0.12 }}
+                <m.button whileTap={{ scale: 0.97 }} transition={{ duration: 0.12 }}
                   className="px-3.5 py-1.5 sm:py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold text-xs transition-all shadow-md flex items-center gap-1.5">
                   <FaStore size={11} /> Visit Shop
-                </motion.button>
+                </m.button>
               </Link>
             )}
           </div>
@@ -379,14 +395,17 @@ const OffersContent = ({ darkMode }) => {
   const [detailOfferId, setDetailOfferId] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const token = localStorage.getItem("authToken");
+  // Read once instead of a synchronous localStorage.getItem() call on every render.
+  const token = useMemo(() => localStorage.getItem("authToken"), []);
 
   useEffect(() => { document.title = "Exclusive Offers | Tech-Restore"; }, []);
 
   useEffect(() => {
     if (!token) {
-      Swal.fire({ icon: "warning", title: "Please Log In", text: "Log in to see personalized offers", confirmButtonColor: "#10b981" })
-        .then(() => { window.location.href = "/login"; });
+      loadSwal().then((Swal) =>
+        Swal.fire({ icon: "warning", title: "Please Log In", text: "Log in to see personalized offers", confirmButtonColor: "#10b981" })
+          .then(() => { window.location.href = "/login"; })
+      );
     }
   }, [token]);
 
@@ -414,75 +433,80 @@ const OffersContent = ({ darkMode }) => {
   const handleNextPage = useCallback(() => startTransition(() => setCurrentPage((p) => Math.min(totalPages, p + 1))), [totalPages]);
 
   return (
-    <div className={`min-h-screen overflow-x-hidden ${darkMode ? "bg-gray-900" : "bg-emerald-50/30"}`}>
-      <EmeraldScrollStyle />
+    <LazyMotion features={domAnimation}>
+      <div className={`min-h-screen overflow-x-hidden ${darkMode ? "bg-gray-900" : "bg-emerald-50/30"}`}>
+        <EmeraldScrollStyle />
 
-      <Hero variant="offers" darkMode={darkMode} />
+        <Hero variant="offers" darkMode={darkMode} />
 
-      <section className={`py-10 sm:py-16 ${darkMode ? "bg-gray-900" : "bg-emerald-50/30"}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-            transition={{ duration: 0.3, ease: EASE }}
-            className="flex items-center justify-between mb-7 sm:mb-10 flex-wrap gap-3 sm:gap-4">
-            <h2 className={`text-2xl sm:text-4xl font-bold tracking-tight relative inline-block ${darkMode ? "text-emerald-400" : "text-emerald-800"} after:content-[''] after:absolute after:bottom-[-6px] after:left-0 after:w-12 after:h-1 after:rounded-full after:bg-gradient-to-r after:from-emerald-600 after:to-teal-400`}>
-              Active Offers
-            </h2>
-            <motion.span key={offers.length} initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.2, ease: EASE }}
-              className={`px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-bold ${darkMode ? "bg-emerald-900/30 text-emerald-400" : "bg-emerald-50 text-emerald-600 border border-emerald-200"}`}>
-              {offers.length} offer{offers.length !== 1 ? "s" : ""} available
-            </motion.span>
-          </motion.div>
+        <section className={`py-10 sm:py-16 ${darkMode ? "bg-gray-900" : "bg-emerald-50/30"}`}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <m.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+              transition={{ duration: 0.3, ease: EASE }}
+              className="flex items-center justify-between mb-7 sm:mb-10 flex-wrap gap-3 sm:gap-4">
+              <h2 className={`text-2xl sm:text-4xl font-bold tracking-tight relative inline-block ${darkMode ? "text-emerald-400" : "text-emerald-800"} after:content-[''] after:absolute after:bottom-[-6px] after:left-0 after:w-12 after:h-1 after:rounded-full after:bg-gradient-to-r after:from-emerald-600 after:to-teal-400`}>
+                Active Offers
+              </h2>
+              <m.span key={offers.length} initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.2, ease: EASE }}
+                className={`px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-bold ${darkMode ? "bg-emerald-900/30 text-emerald-400" : "bg-emerald-50 text-emerald-600 border border-emerald-200"}`}>
+                {offers.length} offer{offers.length !== 1 ? "s" : ""} available
+              </m.span>
+            </m.div>
 
-          {isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {[...Array(6)].map((_, i) => <SkeletonCard key={i} darkMode={darkMode} />)}
-            </div>
-          ) : paginatedOffers.length > 0 ? (
-            <AnimatePresence mode="wait">
-              <motion.div key={currentPage} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18, ease: EASE }}
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                {paginatedOffers.map((offer, index) => (
-                  <OfferCard key={offer.id} offer={offer} index={index} darkMode={darkMode} onViewDetail={openDetail} />
-                ))}
-              </motion.div>
-            </AnimatePresence>
-          ) : (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, ease: EASE }} className="text-center py-16 sm:py-24">
-              <div className="w-40 h-40 sm:w-48 sm:h-48 mx-auto mb-2">
-                <NoOffersIllustration darkMode={darkMode} />
+            {isLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                {[...Array(6)].map((_, i) => <SkeletonCard key={i} darkMode={darkMode} />)}
               </div>
-              <p className={`text-xl sm:text-2xl font-bold mb-2 ${darkMode ? "text-white" : "text-gray-900"}`}>No active offers right now</p>
-              <p className={`text-sm sm:text-base ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Check back soon — new deals are added daily!</p>
-            </motion.div>
-          )}
-        </div>
-      </section>
+            ) : paginatedOffers.length > 0 ? (
+              <AnimatePresence mode="wait">
+                <m.div key={currentPage} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18, ease: EASE }}
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                  {paginatedOffers.map((offer, index) => (
+                    <OfferCard key={offer.id} offer={offer} index={index} darkMode={darkMode} onViewDetail={openDetail} />
+                  ))}
+                </m.div>
+              </AnimatePresence>
+            ) : (
+              <m.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, ease: EASE }} className="text-center py-16 sm:py-24">
+                <div className="w-40 h-40 sm:w-48 sm:h-48 mx-auto mb-2">
+                  <NoOffersIllustration darkMode={darkMode} />
+                </div>
+                <p className={`text-xl sm:text-2xl font-bold mb-2 ${darkMode ? "text-white" : "text-gray-900"}`}>No active offers right now</p>
+                <p className={`text-sm sm:text-base ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Check back soon — new deals are added daily!</p>
+              </m.div>
+            )}
+          </div>
+        </section>
 
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2 sm:gap-3 py-8 sm:py-12 flex-wrap px-4 sm:px-6">
-          <motion.button whileTap={{ scale: 0.96 }} transition={{ duration: 0.12 }} onClick={handlePrevPage} disabled={currentPage === 1}
-            className={`p-2.5 sm:p-3 rounded-xl border-2 transition-all duration-150 ${currentPage === 1 ? "opacity-40 cursor-not-allowed border-gray-200 dark:border-gray-700" : darkMode ? "bg-gray-800 border-gray-700 text-white hover:border-emerald-500" : "bg-white border-emerald-100 text-gray-700 hover:border-emerald-400"}`}>
-            <FiChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-          </motion.button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-            <motion.button key={page} whileTap={{ scale: 0.96 }} transition={{ duration: 0.12 }} onClick={() => setCurrentPage(page)}
-              className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl font-bold text-xs sm:text-sm border-2 transition-all duration-150 ${
-                currentPage === page ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-transparent shadow-lg scale-105"
-                  : darkMode ? "bg-gray-800 border-gray-700 text-gray-300 hover:border-emerald-500 hover:text-emerald-400" : "bg-white border-emerald-100 text-gray-700 hover:border-emerald-400 hover:text-emerald-600"
-              }`}>
-              {page}
-            </motion.button>
-          ))}
-          <motion.button whileTap={{ scale: 0.96 }} transition={{ duration: 0.12 }} onClick={handleNextPage} disabled={currentPage === totalPages}
-            className={`p-2.5 sm:p-3 rounded-xl border-2 transition-all duration-150 ${currentPage === totalPages ? "opacity-40 cursor-not-allowed border-gray-200 dark:border-gray-700" : darkMode ? "bg-gray-800 border-gray-700 text-white hover:border-emerald-500" : "bg-white border-emerald-100 text-gray-700 hover:border-emerald-400"}`}>
-            <FiChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
-          </motion.button>
-        </div>
-      )}
+        {totalPages > 1 && (
+          <div
+            aria-busy={isPending}
+            className={`flex justify-center items-center gap-2 sm:gap-3 py-8 sm:py-12 flex-wrap px-4 sm:px-6 transition-opacity duration-150 ${isPending ? "opacity-70" : "opacity-100"}`}
+          >
+            <m.button whileTap={{ scale: 0.96 }} transition={{ duration: 0.12 }} onClick={handlePrevPage} disabled={currentPage === 1}
+              className={`p-2.5 sm:p-3 rounded-xl border-2 transition-all duration-150 ${currentPage === 1 ? "opacity-40 cursor-not-allowed border-gray-200 dark:border-gray-700" : darkMode ? "bg-gray-800 border-gray-700 text-white hover:border-emerald-500" : "bg-white border-emerald-100 text-gray-700 hover:border-emerald-400"}`}>
+              <FiChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+            </m.button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <m.button key={page} whileTap={{ scale: 0.96 }} transition={{ duration: 0.12 }} onClick={() => setCurrentPage(page)}
+                className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl font-bold text-xs sm:text-sm border-2 transition-all duration-150 ${
+                  currentPage === page ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-transparent shadow-lg scale-105"
+                    : darkMode ? "bg-gray-800 border-gray-700 text-gray-300 hover:border-emerald-500 hover:text-emerald-400" : "bg-white border-emerald-100 text-gray-700 hover:border-emerald-400 hover:text-emerald-600"
+                }`}>
+                {page}
+              </m.button>
+            ))}
+            <m.button whileTap={{ scale: 0.96 }} transition={{ duration: 0.12 }} onClick={handleNextPage} disabled={currentPage === totalPages}
+              className={`p-2.5 sm:p-3 rounded-xl border-2 transition-all duration-150 ${currentPage === totalPages ? "opacity-40 cursor-not-allowed border-gray-200 dark:border-gray-700" : darkMode ? "bg-gray-800 border-gray-700 text-white hover:border-emerald-500" : "bg-white border-emerald-100 text-gray-700 hover:border-emerald-400"}`}>
+              <FiChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+            </m.button>
+          </div>
+        )}
 
-      <OfferDetailModal open={isDetailOpen} onClose={closeDetail}
-        offerId={detailOfferId} token={token} darkMode={darkMode} />
-    </div>
+        <OfferDetailModal open={isDetailOpen} onClose={closeDetail}
+          offerId={detailOfferId} token={token} darkMode={darkMode} />
+      </div>
+    </LazyMotion>
   );
 };
 

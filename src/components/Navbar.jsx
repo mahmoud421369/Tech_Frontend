@@ -1,25 +1,21 @@
-import React, { useEffect, useState, useCallback, useMemo, useRef, useTransition } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef, useTransition, memo } from "react";
 import { useQuery, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { FiX, FiBell } from "react-icons/fi";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { jwtDecode } from "jwt-decode";
-import { motion } from "framer-motion";
 import api from "../api";
 import {
   RiAccountBoxLine, RiDeviceLine,
   RiLoginBoxLine, RiRegisteredLine, RiShoppingCartLine,
   RiStore2Line, RiSunLine, RiMoonLine, RiTruckLine, RiHome2Line,
-  RiLogoutBoxRLine, RiNotificationLine,
+  RiLogoutBoxRLine, RiNotificationLine, RiHome4Line,
 } from "react-icons/ri";
-import { RiHome4Line } from "@remixicon/react";
 
 const queryClient = new QueryClient();
 
 const STYLES = `
-  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
-
   :root {
     --em: #10b981;
     --em-dim: rgba(16,185,129,0.15);
@@ -53,6 +49,21 @@ const STYLES = `
     0%, 100% { opacity: 0.4; }
     50%       { opacity: 0.9; }
   }
+  @keyframes brandWobble {
+    0%, 100% { transform: rotate(0deg); }
+    25%      { transform: rotate(4deg); }
+    75%      { transform: rotate(-4deg); }
+  }
+  @keyframes arrowPulse {
+    0%, 100% { opacity: 0.4; }
+    50%       { opacity: 1; }
+  }
+  @keyframes checkDraw {
+    0%   { stroke-dashoffset: 48; opacity: 1; }
+    60%  { stroke-dashoffset: 0; opacity: 1; }
+    85%  { stroke-dashoffset: 0; opacity: 1; }
+    100% { stroke-dashoffset: 0; opacity: 1; }
+  }
 
   .notif-panel { animation: slideDown 0.14s var(--ease-snap) both; }
   .notif-item  { animation: fadeUp 0.12s ease both; }
@@ -63,6 +74,24 @@ const STYLES = `
     background: linear-gradient(90deg, transparent 25%, rgba(16,185,129,0.18) 50%, transparent 75%);
     background-size: 200% auto;
     animation: shimmer 2.4s linear infinite;
+    will-change: background-position;
+  }
+
+  .brand-mark {
+    transform-origin: center;
+    animation: brandWobble 6s ease-in-out infinite;
+    will-change: transform;
+  }
+  .brand-arrow {
+    animation: arrowPulse 2.2s ease-in-out infinite;
+  }
+  .caught-up-check {
+    stroke-dasharray: 48;
+    animation: checkDraw 3s cubic-bezier(.16,1,.3,1) infinite;
+  }
+  .caught-up-ring {
+    animation: glowPulse 4s ease-in-out infinite;
+    transform-origin: center;
   }
 
   .icon-btn {
@@ -76,6 +105,7 @@ const STYLES = `
     cursor: pointer;
     transition: background 0.12s var(--ease-snap), border-color 0.12s var(--ease-snap), transform 0.1s var(--ease-snap), box-shadow 0.12s var(--ease-snap);
     border: 1px solid transparent;
+    will-change: transform;
   }
   .icon-btn:hover { transform: translateY(-1px); }
   .icon-btn:active { transform: scale(0.93); }
@@ -108,7 +138,7 @@ const STYLES = `
     font-size: 13.5px;
     font-weight: 600;
     letter-spacing: 0.01em;
-    transition: background 0.14s var(--ease-snap), color 0.14s var(--ease-snap), border-color 0.14s var(--ease-snap), box-shadow 0.14s var(--ease-snap), transform 0.1s var(--ease-snap);
+    transition: background 0.1s var(--ease-snap), color 0.1s var(--ease-snap), border-color 0.1s var(--ease-snap), box-shadow 0.1s var(--ease-snap), transform 0.08s var(--ease-snap);
     white-space: nowrap;
     text-decoration: none;
   }
@@ -153,7 +183,7 @@ const STYLES = `
     font-size: 13px;
     font-weight: 700;
     cursor: pointer;
-    transition: background 0.14s var(--ease-snap), box-shadow 0.14s var(--ease-snap), transform 0.1s var(--ease-snap);
+    transition: background 0.1s var(--ease-snap), box-shadow 0.1s var(--ease-snap), transform 0.08s var(--ease-snap);
     background: linear-gradient(135deg, #10b981, #059669);
     color: #fff;
     border: none;
@@ -182,7 +212,7 @@ const STYLES = `
     border-radius: 14px;
     font-size: 10px;
     font-weight: 600;
-    transition: background 0.14s var(--ease-snap), color 0.14s var(--ease-snap), transform 0.1s var(--ease-snap);
+    transition: background 0.1s var(--ease-snap), color 0.1s var(--ease-snap), transform 0.08s var(--ease-snap);
     text-decoration: none;
     min-width: 52px;
   }
@@ -194,22 +224,25 @@ const STYLES = `
     filter: blur(40px);
     pointer-events: none;
     animation: glowPulse 3s ease-in-out infinite;
+    will-change: opacity;
   }
 
   .nav-bar-desktop {
-    transition: background-color 0.25s var(--ease-snap), border-color 0.25s var(--ease-snap),
-                box-shadow 0.25s var(--ease-snap), padding 0.25s var(--ease-snap),
-                margin 0.25s var(--ease-snap), border-radius 0.25s var(--ease-snap),
-                transform 0.25s var(--ease-snap), backdrop-filter 0.25s var(--ease-snap);
+    transition: background-color 0.2s var(--ease-snap), border-color 0.2s var(--ease-snap),
+                box-shadow 0.2s var(--ease-snap), padding 0.2s var(--ease-snap),
+                margin 0.2s var(--ease-snap), border-radius 0.2s var(--ease-snap),
+                transform 0.2s var(--ease-snap);
     -webkit-backdrop-filter: saturate(180%) blur(20px);
     backdrop-filter: saturate(180%) blur(20px);
+    will-change: transform;
   }
   .nav-bar-mobile {
-    transition: background-color 0.25s var(--ease-snap), border-color 0.25s var(--ease-snap),
-                box-shadow 0.25s var(--ease-snap), margin 0.25s var(--ease-snap),
-                border-radius 0.25s var(--ease-snap), transform 0.25s var(--ease-snap);
+    transition: background-color 0.2s var(--ease-snap), border-color 0.2s var(--ease-snap),
+                box-shadow 0.2s var(--ease-snap), margin 0.2s var(--ease-snap),
+                border-radius 0.2s var(--ease-snap), transform 0.2s var(--ease-snap);
     -webkit-backdrop-filter: saturate(180%) blur(20px);
     backdrop-filter: saturate(180%) blur(20px);
+    will-change: transform;
   }
 
   .glass-dark-top {
@@ -248,12 +281,23 @@ const STYLES = `
   @media (prefers-reduced-motion: reduce) {
     .notif-panel, .notif-item, .badge-pop, .shimmer-line, .glow-orb,
     .icon-btn, .nav-link-item, .logout-btn, .mobile-tab,
-    .nav-bar-desktop, .nav-bar-mobile {
+    .nav-bar-desktop, .nav-bar-mobile, .brand-mark, .brand-arrow,
+    .caught-up-check, .caught-up-ring {
       animation-duration: 0.001s !important;
       transition-duration: 0.001s !important;
     }
   }
 `;
+
+let stylesInjected = false;
+const injectStylesOnce = () => {
+  if (stylesInjected || typeof document === "undefined") return;
+  const tag = document.createElement("style");
+  tag.setAttribute("data-navbar-styles", "true");
+  tag.textContent = STYLES;
+  document.head.appendChild(tag);
+  stylesInjected = true;
+};
 
 const formatTime = (ts) => {
   try {
@@ -265,59 +309,52 @@ const formatTime = (ts) => {
   } catch { return ""; }
 };
 
-const BrandMark = ({ darkMode, size = 34 }) => {
+const BrandMark = memo(function BrandMark({ darkMode, size = 34 }) {
   const line = darkMode ? "#34d399" : "#059669";
   const soft = darkMode ? "rgba(52,211,153,0.18)" : "rgba(5,150,105,0.12)";
   return (
-    <motion.svg
-      viewBox="0 0 48 48"
-      width={size} height={size}
-      animate={{ rotate: [0, 4, 0, -4, 0] }}
-      transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-    >
+    <svg className="brand-mark" viewBox="0 0 48 48" width={size} height={size}>
       <rect x="3" y="3" width="42" height="42" rx="13" fill={soft} />
       <rect x="14" y="10" width="20" height="28" rx="5" fill="none" stroke={line} strokeWidth="2.6" />
       <line x1="19" y1="16" x2="29" y2="16" stroke={line} strokeWidth="2.4" strokeLinecap="round" />
       <circle cx="24" cy="31" r="3.2" fill="none" stroke={line} strokeWidth="2.2" />
-      <motion.path
+      <path
+        className="brand-arrow"
         d="M31 21 L36 16 M36 16 L36 20 M36 16 L32 16"
         stroke={line} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" fill="none"
-        animate={{ opacity: [0.4, 1, 0.4] }}
-        transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
       />
-    </motion.svg>
+    </svg>
   );
-};
+});
 
-const AllCaughtUpIllustration = ({ darkMode, size = 64 }) => {
+const AllCaughtUpIllustration = memo(function AllCaughtUpIllustration({ darkMode, size = 64 }) {
   const line = darkMode ? "#34d399" : "#059669";
   const soft = darkMode ? "rgba(52,211,153,0.14)" : "rgba(5,150,105,0.1)";
   return (
     <svg viewBox="0 0 120 120" width={size} height={size}>
-      <motion.circle cx="60" cy="60" r="46" fill={soft}
-        animate={{ scale: [1, 1.06, 1] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }} />
+      <circle className="caught-up-ring" cx="60" cy="60" r="46" fill={soft} />
       <circle cx="60" cy="60" r="30" fill="none" stroke={line} strokeWidth="2" opacity="0.5" />
-      <motion.path
+      <path
+        className="caught-up-check"
         d="M44 61 L55 72 L78 47"
         fill="none" stroke={line} strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"
-        initial={{ pathLength: 0 }}
-        animate={{ pathLength: 1 }}
-        transition={{ duration: 1.2, repeat: Infinity, repeatDelay: 1.8, ease: [0.16, 1, 0.3, 1] }}
       />
     </svg>
   );
-};
+});
 
 const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const notifRef = useRef(null);
 
+  useEffect(() => { injectStylesOnce(); }, []);
+
   const [token, setToken] = useState(localStorage.getItem("authToken"));
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [badgeKey, setBadgeKey] = useState(0);
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   const [scrollTier, setScrollTier] = useState("top");
   const [hideOnScroll, setHideOnScroll] = useState(false);
@@ -335,9 +372,7 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
         const y = window.scrollY;
         const last = lastScrollY.current;
 
-        if (y > 120) setScrollTier("deep");
-        else if (y > 12) setScrollTier("scrolled");
-        else setScrollTier("top");
+        setScrollTier(y > 120 ? "deep" : y > 12 ? "scrolled" : "top");
 
         if (y > last && y > 160) setHideOnScroll(true);
         else if (y < last) setHideOnScroll(false);
@@ -404,23 +439,30 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
     },
     enabled: isAuthenticated && !!token,
     refetchInterval: 30000,
+    staleTime: 15000,
   });
 
   const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
 
   useEffect(() => {
-    if (unreadCount > 0) {
-      setBadgeKey(k => k + 1);
-    }
+    if (unreadCount > 0) setBadgeKey(k => k + 1);
   }, [unreadCount]);
 
-  const deleteNotification = async (notifId) => {
+  const deleteNotification = useCallback(async (notifId) => {
     try {
       await api.delete(`/api/notifications/users/${notifId}`, { headers: { Authorization: `Bearer ${token}` } });
       queryClient.setQueryData(['notifications', token], (old) => old ? old.filter(n => n.id !== notifId) : []);
       toast.success("Notification removed");
     } catch { toast.error("Failed to delete"); }
-  };
+  }, [token, queryClient]);
+
+  const toggleNotifications = useCallback(() => {
+    startTransition(() => setShowNotifications(v => !v));
+  }, []);
+
+  const closeNotifications = useCallback(() => {
+    startTransition(() => setShowNotifications(false));
+  }, []);
 
   const navItems = useMemo(() =>
     isAuthenticated
@@ -475,8 +517,6 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
 
   return (
     <>
-      <style>{STYLES}</style>
-
       <ToastContainer
         position="top-right"
         theme={darkMode ? "dark" : "light"}
@@ -508,7 +548,7 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
               backgroundImage: darkMode
                 ? "linear-gradient(135deg, #6ee7b7, #10b981 55%, #047857)"
                 : "linear-gradient(135deg, #059669, #10b981 55%, #047857)",
-              transition: "font-size 0.18s var(--ease-snap)",
+              transition: "font-size 0.15s var(--ease-snap)",
             }}
           >
             Tech<span className={darkMode ? "text-emerald-200/70" : "text-emerald-900/60"}> &amp; </span>Restore
@@ -539,7 +579,7 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
             <>
               <div className="relative" ref={notifRef}>
                 <button
-                  onClick={() => startTransition(() => setShowNotifications(v => !v))}
+                  onClick={toggleNotifications}
                   className={`icon-btn ${darkMode ? "dark-icon-btn" : "light-icon-btn"}`}
                   aria-label="Notifications"
                 >
@@ -586,7 +626,7 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
                         </div>
                       </div>
                       <button
-                        onClick={() => startTransition(() => setShowNotifications(false))}
+                        onClick={closeNotifications}
                         className={`p-1.5 rounded-lg transition-colors duration-100 ${darkMode ? "hover:bg-white/10 text-gray-400 hover:text-white" : "hover:bg-emerald-100 text-gray-400 hover:text-gray-700"}`}
                       >
                         <FiX size={16} />
@@ -671,7 +711,7 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
             <span
               style={{
                 display: "inline-flex",
-                transition: "transform 0.2s var(--ease-snap)",
+                transition: "transform 0.18s var(--ease-snap)",
                 transform: darkMode ? "rotate(0deg)" : "rotate(180deg)",
               }}
             >
@@ -717,7 +757,7 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
             {isAuthenticated && (
               <>
                 <button
-                  onClick={() => startTransition(() => setShowNotifications(v => !v))}
+                  onClick={toggleNotifications}
                   className={`icon-btn ${darkMode ? "dark-icon-btn" : "light-icon-btn"}`}
                 >
                   <FiBell size={19} className={darkMode ? "text-emerald-400" : "text-emerald-700"} />
@@ -756,7 +796,7 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
               <span className={`text-sm font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>
                 Notifications {unreadCount > 0 && <span className="text-emerald-500">({unreadCount})</span>}
               </span>
-              <button onClick={() => startTransition(() => setShowNotifications(false))}>
+              <button onClick={closeNotifications}>
                 <FiX size={16} className={darkMode ? "text-gray-400" : "text-gray-500"} />
               </button>
             </div>
@@ -812,7 +852,7 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
                 <>
                   <span style={{
                     filter: isActive && darkMode ? "drop-shadow(0 0 6px rgba(16,185,129,0.7))" : "none",
-                    transition: "filter 0.12s var(--ease-snap), transform 0.12s var(--ease-snap)",
+                    transition: "filter 0.1s var(--ease-snap), transform 0.1s var(--ease-snap)",
                     transform: isActive ? "scale(1.1)" : "scale(1)",
                     display: "inline-flex"
                   }}>

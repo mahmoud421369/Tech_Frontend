@@ -5,14 +5,22 @@ import {
   FiSearch, FiFilter, FiShoppingCart, FiChevronLeft, FiChevronRight,
   FiX, FiChevronDown, FiPackage, FiSliders, FiEye, FiCheck, FiArrowLeft,
 } from 'react-icons/fi';
-import { motion, AnimatePresence } from 'framer-motion';
-import Swal from 'sweetalert2';
+import { LazyMotion, domAnimation, m, AnimatePresence } from 'framer-motion';
 import api from '../api';
 import Hero from '../components/Hero';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
 const queryClient = new QueryClient();
+
+// `sweetalert2` is only needed for the add-to-cart success/error toast, never
+// on first paint — loaded on demand and cached, same pattern as the rest of
+// the app's pages.
+let swalPromise;
+const loadSwal = () => {
+  if (!swalPromise) swalPromise = import('sweetalert2').then((mod) => mod.default || mod);
+  return swalPromise;
+};
 
 const cardVariants = {
   hidden: { opacity: 0, y: 16 },
@@ -41,10 +49,15 @@ const SkeletonProducts = memo(({ darkMode }) => (
   </div>
 ));
 
+// FIX: previously navigated with `window.location.href`, forcing a full page
+// reload for every card click in this grid — the single most common
+// interaction on this page. Using the router's `navigate()` keeps it a fast
+// client-side transition instead of re-downloading and re-booting the app.
 const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError]   = useState(false);
   const [cartAdded, setCartAdded] = useState(false);
+  const navigate = useNavigate();
 
   const discountedPrice = useMemo(() =>
     product.discount ? (product.price * (1 - product.discount / 100)).toFixed(2) : null
@@ -61,11 +74,11 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
   }, [onAddToCart, product]);
 
   const navigateToDetail = useCallback(() => {
-    window.location.href = `/device/${product.id}`;
-  }, [product.id]);
+    navigate(`/device/${product.id}`);
+  }, [navigate, product.id]);
 
   return (
-    <motion.div
+    <m.div
       custom={index}
       variants={cardVariants}
       initial="hidden"
@@ -81,11 +94,11 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
         }`}
     >
       {product.discount && (
-        <motion.span initial={{ scale: 0, rotate: -12 }} animate={{ scale: 1, rotate: 0 }}
+        <m.span initial={{ scale: 0, rotate: -12 }} animate={{ scale: 1, rotate: 0 }}
           transition={{ type: 'spring', stiffness: 500, damping: 20, delay: 0.05 + index * 0.02 }}
           className="absolute top-2.5 left-2.5 z-10 inline-flex bg-gradient-to-r from-orange-500 to-rose-500 text-white text-[10px] sm:text-[11px] font-extrabold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full shadow-md shadow-rose-500/30">
           -{product.discount}%
-        </motion.span>
+        </m.span>
       )}
       <div className="absolute top-2.5 right-2.5 z-10 opacity-0 group-hover:opacity-100 transition-all duration-150 translate-y-1 group-hover:translate-y-0">
         <button onClick={(e) => { e.stopPropagation(); navigateToDetail(); }}
@@ -99,11 +112,11 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
       <div className={`relative w-full aspect-square overflow-hidden ${darkMode ? 'bg-gradient-to-br from-gray-750 to-gray-800' : 'bg-gradient-to-br from-emerald-50/60 to-gray-100'}`}>
         <AnimatePresence>
           {!imgLoaded && !imgError && (
-            <motion.div exit={{ opacity: 0 }} transition={{ duration: 0.12 }}
+            <m.div exit={{ opacity: 0 }} transition={{ duration: 0.12 }}
               className={`absolute inset-0 animate-pulse ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
           )}
         </AnimatePresence>
-        <motion.img
+        <m.img
           src={imgError ? '/placeholder.png' : (product.imageUrl || '/placeholder.png')}
           alt={product.name}
           onLoad={() => setImgLoaded(true)}
@@ -140,7 +153,7 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
         <p className={`text-xs leading-relaxed line-clamp-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
           {product.description || 'No description available.'}
         </p>
-        <motion.button whileTap={{ scale: 0.96 }} onClick={handleCart}
+        <m.button whileTap={{ scale: 0.96 }} onClick={handleCart}
           className={`mt-1.5 sm:mt-2 w-full py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm
             flex items-center justify-center gap-1.5 sm:gap-2 transition-all duration-150 ${
               cartAdded
@@ -149,13 +162,13 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
             }`}>
           <AnimatePresence mode="wait">
             {cartAdded
-              ? <motion.span key="done" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }} className="flex items-center gap-1">✓ Added!</motion.span>
-              : <motion.span key="add" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }} className="flex items-center gap-1.5"><FiShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Add to Cart</motion.span>
+              ? <m.span key="done" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }} className="flex items-center gap-1">✓ Added!</m.span>
+              : <m.span key="add" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }} className="flex items-center gap-1.5"><FiShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Add to Cart</m.span>
             }
           </AnimatePresence>
-        </motion.button>
+        </m.button>
       </div>
-    </motion.div>
+    </m.div>
   );
 });
 
@@ -166,10 +179,10 @@ const FilterSection = memo(({ title, isOpen, onToggle, darkMode, children }) => 
       {title}
       <FiChevronDown className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''} ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
     </button>
-    <motion.div initial={false} animate={{ height: isOpen ? 'auto' : 0, opacity: isOpen ? 1 : 0 }}
+    <m.div initial={false} animate={{ height: isOpen ? 'auto' : 0, opacity: isOpen ? 1 : 0 }}
       transition={{ duration: 0.15, ease: 'easeOut' }} className="overflow-hidden">
       <div className="pt-3">{children}</div>
-    </motion.div>
+    </m.div>
   </div>
 ));
 
@@ -285,13 +298,13 @@ const SidebarContent = memo(({
       <PriceRangeSlider priceRange={priceRange} setPriceRange={setPriceRange} darkMode={darkMode} />
     </FilterSection>
 
-    <motion.button whileTap={{ scale: 0.97 }} onClick={clearFilters}
+    <m.button whileTap={{ scale: 0.97 }} onClick={clearFilters}
       className={`w-full py-2.5 sm:py-3 rounded-xl font-bold text-xs sm:text-sm border-2 flex items-center justify-center gap-2 transition-all duration-150 ${
         darkMode ? 'border-red-900/40 text-red-400 hover:bg-red-500 hover:text-white hover:border-red-500'
                  : 'border-red-200 text-red-500 hover:bg-red-500 hover:text-white hover:border-red-500'
       }`}>
       <FiX /> Clear All Filters
-    </motion.button>
+    </m.button>
   </div>
 ));
 
@@ -318,7 +331,8 @@ const CategoryProductsContent = memo(({ darkMode, toggleDarkMode }) => {
   const deferredSortBy     = useDeferredValue(sortBy);
 
   const pageSize = 12;
-  const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+  // Read once instead of a synchronous localStorage.getItem() call on every render.
+  const token = useMemo(() => (typeof window !== 'undefined' ? localStorage.getItem('authToken') : null), []);
 
   const { data: category } = useQuery({
     queryKey: ['category', categoryId],
@@ -344,17 +358,24 @@ const CategoryProductsContent = memo(({ darkMode, toggleDarkMode }) => {
   useEffect(() => { document.title = category?.name ? `${category.name} | Tech-Restore` : 'Category | Tech-Restore'; }, [category]);
   useEffect(() => { setCurrentPage(1); }, [categoryId]);
 
-  const handleAddToCart = useCallback((product) => {
-    startTransition(async () => {
-      try {
-        await api.post('/api/cart/items',
-          { productId: product.id, quantity: 1, price: product.price, name: product.name, imageUrl: product.image || '/placeholder.png' },
-          { headers: { Authorization: `Bearer ${token}` } });
-        Swal.fire({ title: 'Added!', text: `${product.name} added to cart`, icon: 'success', toast: true, position: 'top-end', timer: 1500, timerProgressBar: true });
-      } catch {
-        Swal.fire({ title: 'Error', text: 'Failed to add to cart', icon: 'error', toast: true, position: 'top-end', timer: 1500 });
-      }
-    });
+  // FIX: no longer wraps the whole async network call in `startTransition` —
+  // that's a misuse of the API (see DeviceDetail.jsx for the full explanation):
+  // only synchronous updates before an `await` are actually treated as
+  // low-priority, so wrapping an async function here didn't do what it looked
+  // like it did.
+  const handleAddToCart = useCallback(async (product) => {
+    try {
+      await api.post('/api/cart/items',
+        { productId: product.id, quantity: 1, price: product.price, name: product.name, imageUrl: product.image || '/placeholder.png' },
+        { headers: { Authorization: `Bearer ${token}` } });
+      loadSwal().then((Swal) =>
+        Swal.fire({ title: 'Added!', text: `${product.name} added to cart`, icon: 'success', toast: true, position: 'top-end', timer: 1500, timerProgressBar: true })
+      );
+    } catch {
+      loadSwal().then((Swal) =>
+        Swal.fire({ title: 'Error', text: 'Failed to add to cart', icon: 'error', toast: true, position: 'top-end', timer: 1500 })
+      );
+    }
   }, [token]);
 
   const handleCartClick = useCallback(() => {
@@ -418,140 +439,37 @@ const CategoryProductsContent = memo(({ darkMode, toggleDarkMode }) => {
   ], []);
 
   return (
-    <div className={`min-h-screen ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50'}`}>
-      <Navbar darkMode={darkMode} toggleDarkMode={toggleDarkMode} onCartClick={handleCartClick} />
+    <LazyMotion features={domAnimation}>
+      <div className={`min-h-screen ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50'}`}>
+        <Navbar darkMode={darkMode} toggleDarkMode={toggleDarkMode} onCartClick={handleCartClick} />
 
-      <Hero
-        variant="category"
-        darkMode={darkMode}
-        badge={`Browsing ${categoryName}`}
-        headingLine1="Everything in"
-        headingAccent={categoryName}
-        headingLine2=""
-        description={`Verified ${categoryName.toLowerCase()} listings from trusted sellers — filter by price and condition to find the right fit.`}
-        buttons={heroButtons}
-        stats={heroStats}
-      />
+        <Hero
+          variant="category"
+          darkMode={darkMode}
+          badge={`Browsing ${categoryName}`}
+          headingLine1="Everything in"
+          headingAccent={categoryName}
+          headingLine2=""
+          description={`Verified ${categoryName.toLowerCase()} listings from trusted sellers — filter by price and condition to find the right fit.`}
+          buttons={heroButtons}
+          stats={heroStats}
+        />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8">
-        <Link to="/devices" className={`inline-flex items-center gap-2 text-sm font-semibold ${
-          darkMode ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-600 hover:text-emerald-700'
-        }`}>
-          <FiArrowLeft className="w-4 h-4" /> Back to all products
-        </Link>
-      </div>
-
-      <div id="category-products" className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 transition-opacity duration-150 ${isPending ? 'opacity-70' : 'opacity-100'}`}>
-        <div className="flex gap-5 lg:gap-8">
-          <aside className={`hidden lg:block w-60 xl:w-64 flex-shrink-0 sticky top-20 self-start max-h-[calc(100vh-5rem)] overflow-y-auto rounded-2xl border shadow-lg overflow-hidden ${
-            darkMode ? 'bg-gray-800/60 border-gray-700 backdrop-blur-md' : 'bg-white border-emerald-100'
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8">
+          <Link to="/devices" className={`inline-flex items-center gap-2 text-sm font-semibold ${
+            darkMode ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-600 hover:text-emerald-700'
           }`}>
-            <div className={ACCENT_BAR} />
-            <div className="px-4 xl:px-5">
-              <SidebarContent
-                darkMode={darkMode}
-                searchTerm={searchTerm} setSearchTerm={setSearchTerm}
-                sortBy={sortBy} setSortBy={setSortBy}
-                isSortOpen={isSortOpen} setIsSortOpen={setIsSortOpen}
-                isCondOpen={isCondOpen} setIsCondOpen={setIsCondOpen}
-                isPriceOpen={isPriceOpen} setIsPriceOpen={setIsPriceOpen}
-                selectedConditions={selectedConditions} toggleCondition={toggleCondition}
-                priceRange={priceRange} setPriceRange={setPriceRange}
-                clearFilters={clearFilters} activeFiltersCount={activeFiltersCount}
-              />
-            </div>
-          </aside>
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between mb-5 sm:mb-8 flex-wrap gap-2 sm:gap-3">
-              <div>
-                <span className={`text-xl sm:text-2xl font-extrabold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{filteredProducts.length}</span>
-                <span className={`ml-2 text-sm sm:text-base font-medium ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>products in {categoryName}</span>
-              </div>
-              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                {selectedConditions.map((c) => (
-                  <span key={c} className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold border border-emerald-500/30">
-                    {c}<button onClick={() => toggleCondition(c)} className="transition-transform duration-150 hover:scale-110"><FiX className="w-3 h-3" /></button>
-                  </span>
-                ))}
-                <motion.button whileTap={{ scale: 0.96 }} onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                  className={`lg:hidden flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl border font-semibold text-xs sm:text-sm transition-all duration-150 shadow-sm hover:shadow-md ${
-                    darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-emerald-100 text-gray-700'
-                  }`}>
-                  <FiSliders className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500" />
-                  Filters
-                  {activeFiltersCount > 0 && (
-                    <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-emerald-500 text-white text-[10px] font-bold flex items-center justify-center">{activeFiltersCount}</span>
-                  )}
-                </motion.button>
-              </div>
-            </div>
-
-            {isLoading ? (
-              <SkeletonProducts darkMode={darkMode} />
-            ) : filteredProducts.length === 0 ? (
-              <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }} className="text-center py-20 sm:py-32">
-                <div className="w-16 h-16 sm:w-24 sm:h-24 mx-auto mb-4 sm:mb-6 rounded-full bg-emerald-100 dark:bg-gray-800 flex items-center justify-center">
-                  <FiPackage className="text-2xl sm:text-4xl text-emerald-400" />
-                </div>
-                <p className={`text-xl sm:text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>No products found</p>
-                <p className={`text-sm sm:text-base mb-4 sm:mb-6 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Try adjusting your filters or search terms</p>
-                <button onClick={clearFilters} className="px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold transition-colors duration-150 text-sm sm:text-base">
-                  Clear Filters
-                </button>
-              </motion.div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5 lg:gap-6">
-                {paginatedProducts.map((p, i) => (
-                  <ProductCard key={p.id} product={p} darkMode={darkMode} onAddToCart={handleAddToCart} index={i} />
-                ))}
-              </div>
-            )}
-
-            {totalPages > 1 && (
-              <div className="flex justify-center mt-8 sm:mt-14 gap-1.5 sm:gap-2 flex-wrap">
-                <button onClick={() => goToPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1}
-                  className={`p-2 sm:p-2.5 rounded-xl border transition-all duration-150 ${currentPage === 1 ? 'opacity-40 cursor-not-allowed' : darkMode ? 'bg-gray-800 border-gray-700 text-white hover:bg-gray-700' : 'bg-white border-emerald-100 text-gray-700 hover:bg-emerald-50'}`}>
-                  <FiChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <button key={page} onClick={() => goToPage(page)}
-                    className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl font-bold text-xs sm:text-sm transition-all duration-150 border ${
-                      currentPage === page
-                        ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-transparent shadow-lg shadow-emerald-500/30 scale-105'
-                        : darkMode ? 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white'
-                                   : 'bg-white border-emerald-100 text-gray-700 hover:bg-emerald-50 hover:border-emerald-300'
-                    }`}>
-                    {page}
-                  </button>
-                ))}
-                <button onClick={() => goToPage(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages}
-                  className={`p-2 sm:p-2.5 rounded-xl border transition-all duration-150 ${currentPage === totalPages ? 'opacity-40 cursor-not-allowed' : darkMode ? 'bg-gray-800 border-gray-700 text-white hover:bg-gray-700' : 'bg-white border-emerald-100 text-gray-700 hover:bg-emerald-50'}`}>
-                  <FiChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
-              </div>
-            )}
-          </div>
+            <FiArrowLeft className="w-4 h-4" /> Back to all products
+          </Link>
         </div>
-      </div>
 
-      <AnimatePresence>
-        {isSidebarOpen && (
-          <div className="fixed inset-0 z-50 lg:hidden">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
-              className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsSidebarOpen(false)} />
-            <motion.div initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 30, stiffness: 400 }}
-              className={`absolute left-0 top-0 bottom-0 w-72 sm:w-80 shadow-2xl overflow-y-auto ${darkMode ? 'bg-gray-900' : 'bg-white'}`}>
+        <div id="category-products" aria-busy={isPending} className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 transition-opacity duration-150 ${isPending ? 'opacity-70' : 'opacity-100'}`}>
+          <div className="flex gap-5 lg:gap-8">
+            <aside className={`hidden lg:block w-60 xl:w-64 flex-shrink-0 sticky top-20 self-start max-h-[calc(100vh-5rem)] overflow-y-auto rounded-2xl border shadow-lg overflow-hidden ${
+              darkMode ? 'bg-gray-800/60 border-gray-700 backdrop-blur-md' : 'bg-white border-emerald-100'
+            }`}>
               <div className={ACCENT_BAR} />
-              <div className={`flex items-center justify-between p-4 sm:p-5 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                <span className={`text-base sm:text-lg font-extrabold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Filters</span>
-                <button onClick={() => setIsSidebarOpen(false)}
-                  className={`p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-150 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                  <FiX className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
-              </div>
-              <div className="px-4 sm:px-5">
+              <div className="px-4 xl:px-5">
                 <SidebarContent
                   darkMode={darkMode}
                   searchTerm={searchTerm} setSearchTerm={setSearchTerm}
@@ -564,13 +482,118 @@ const CategoryProductsContent = memo(({ darkMode, toggleDarkMode }) => {
                   clearFilters={clearFilters} activeFiltersCount={activeFiltersCount}
                 />
               </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+            </aside>
 
-      <Footer darkMode={darkMode} />
-    </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between mb-5 sm:mb-8 flex-wrap gap-2 sm:gap-3">
+                <div>
+                  <span className={`text-xl sm:text-2xl font-extrabold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{filteredProducts.length}</span>
+                  <span className={`ml-2 text-sm sm:text-base font-medium ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>products in {categoryName}</span>
+                </div>
+                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                  {selectedConditions.map((c) => (
+                    <span key={c} className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold border border-emerald-500/30">
+                      {c}<button onClick={() => toggleCondition(c)} className="transition-transform duration-150 hover:scale-110"><FiX className="w-3 h-3" /></button>
+                    </span>
+                  ))}
+                  <m.button whileTap={{ scale: 0.96 }} onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    className={`lg:hidden flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl border font-semibold text-xs sm:text-sm transition-all duration-150 shadow-sm hover:shadow-md ${
+                      darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-emerald-100 text-gray-700'
+                    }`}>
+                    <FiSliders className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500" />
+                    Filters
+                    {activeFiltersCount > 0 && (
+                      <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-emerald-500 text-white text-[10px] font-bold flex items-center justify-center">{activeFiltersCount}</span>
+                    )}
+                  </m.button>
+                </div>
+              </div>
+
+              {isLoading ? (
+                <SkeletonProducts darkMode={darkMode} />
+              ) : filteredProducts.length === 0 ? (
+                <m.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }} className="text-center py-20 sm:py-32">
+                  <div className="w-16 h-16 sm:w-24 sm:h-24 mx-auto mb-4 sm:mb-6 rounded-full bg-emerald-100 dark:bg-gray-800 flex items-center justify-center">
+                    <FiPackage className="text-2xl sm:text-4xl text-emerald-400" />
+                  </div>
+                  <p className={`text-xl sm:text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>No products found</p>
+                  <p className={`text-sm sm:text-base mb-4 sm:mb-6 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Try adjusting your filters or search terms</p>
+                  <button onClick={clearFilters} className="px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold transition-colors duration-150 text-sm sm:text-base">
+                    Clear Filters
+                  </button>
+                </m.div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5 lg:gap-6">
+                  {paginatedProducts.map((p, i) => (
+                    <ProductCard key={p.id} product={p} darkMode={darkMode} onAddToCart={handleAddToCart} index={i} />
+                  ))}
+                </div>
+              )}
+
+              {totalPages > 1 && (
+                <div className="flex justify-center mt-8 sm:mt-14 gap-1.5 sm:gap-2 flex-wrap">
+                  <button onClick={() => goToPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1}
+                    className={`p-2 sm:p-2.5 rounded-xl border transition-all duration-150 ${currentPage === 1 ? 'opacity-40 cursor-not-allowed' : darkMode ? 'bg-gray-800 border-gray-700 text-white hover:bg-gray-700' : 'bg-white border-emerald-100 text-gray-700 hover:bg-emerald-50'}`}>
+                    <FiChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <button key={page} onClick={() => goToPage(page)}
+                      className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl font-bold text-xs sm:text-sm transition-all duration-150 border ${
+                        currentPage === page
+                          ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-transparent shadow-lg shadow-emerald-500/30 scale-105'
+                          : darkMode ? 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white'
+                                     : 'bg-white border-emerald-100 text-gray-700 hover:bg-emerald-50 hover:border-emerald-300'
+                      }`}>
+                      {page}
+                    </button>
+                  ))}
+                  <button onClick={() => goToPage(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages}
+                    className={`p-2 sm:p-2.5 rounded-xl border transition-all duration-150 ${currentPage === totalPages ? 'opacity-40 cursor-not-allowed' : darkMode ? 'bg-gray-800 border-gray-700 text-white hover:bg-gray-700' : 'bg-white border-emerald-100 text-gray-700 hover:bg-emerald-50'}`}>
+                    <FiChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <AnimatePresence>
+          {isSidebarOpen && (
+            <div className="fixed inset-0 z-50 lg:hidden">
+              <m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsSidebarOpen(false)} />
+              <m.div initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}
+                transition={{ type: 'spring', damping: 30, stiffness: 400 }}
+                className={`absolute left-0 top-0 bottom-0 w-72 sm:w-80 shadow-2xl overflow-y-auto ${darkMode ? 'bg-gray-900' : 'bg-white'}`}>
+                <div className={ACCENT_BAR} />
+                <div className={`flex items-center justify-between p-4 sm:p-5 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <span className={`text-base sm:text-lg font-extrabold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Filters</span>
+                  <button onClick={() => setIsSidebarOpen(false)}
+                    className={`p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-150 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    <FiX className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+                </div>
+                <div className="px-4 sm:px-5">
+                  <SidebarContent
+                    darkMode={darkMode}
+                    searchTerm={searchTerm} setSearchTerm={setSearchTerm}
+                    sortBy={sortBy} setSortBy={setSortBy}
+                    isSortOpen={isSortOpen} setIsSortOpen={setIsSortOpen}
+                    isCondOpen={isCondOpen} setIsCondOpen={setIsCondOpen}
+                    isPriceOpen={isPriceOpen} setIsPriceOpen={setIsPriceOpen}
+                    selectedConditions={selectedConditions} toggleCondition={toggleCondition}
+                    priceRange={priceRange} setPriceRange={setPriceRange}
+                    clearFilters={clearFilters} activeFiltersCount={activeFiltersCount}
+                  />
+                </div>
+              </m.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        <Footer darkMode={darkMode} />
+      </div>
+    </LazyMotion>
   );
 });
 
