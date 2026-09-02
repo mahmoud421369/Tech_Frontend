@@ -12,6 +12,7 @@ import {
   RiStore2Line, RiSunLine, RiMoonLine, RiTruckLine, RiHome2Line,
   RiLogoutBoxRLine, RiNotificationLine, RiHome4Line,
 } from "react-icons/ri";
+import {logo} from "../images/logo1.webp"
 
 const queryClient = new QueryClient();
 
@@ -151,8 +152,9 @@ const STYLES = `
     box-shadow: 0 0 20px rgba(16,185,129,0.18), inset 0 1px 0 rgba(255,255,255,0.06);
   }
   .nav-link-active-light {
-    background: linear-gradient(135deg, #10b981, #059669);
-    color: white;
+    background: transparent;
+    color: black;
+    border: 1px solid rgba(175, 188, 183, 0.35);
     box-shadow: 0 4px 14px rgba(16,185,129,0.3);
   }
   .nav-link-inactive-dark {

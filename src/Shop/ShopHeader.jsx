@@ -10,7 +10,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { jwtDecode } from "jwt-decode";
 import api from "../api";
-import logo from "../images/final-logobg.webp";
+import logo from "../images/logo1.webp";
 import { ToastContainer, toast } from "react-toastify";
 import { RiNotification2Line, RiCheckDoubleLine } from "react-icons/ri";
 
