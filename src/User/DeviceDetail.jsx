@@ -1,463 +1,378 @@
-import React, { useState, useEffect, useCallback, memo, useTransition } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, memo, Suspense, lazy } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FaChevronLeft, FaShoppingCart } from 'react-icons/fa';
 import {
-  FiTag, FiStar, FiUsers, FiZap, FiPackage,
-  FiSmartphone, FiMonitor, FiTablet, FiHeadphones,
-  FiWatch, FiTool, FiChevronLeft as FiChevLeft,
-  FiChevronRight as FiChevRight, FiBox, FiRefreshCw, FiShoppingCart,
+  FiChevronLeft, FiShoppingCart, FiHeart, FiCheck, FiTag, FiBox, FiCalendar, FiPackage,
+  FiMinus, FiPlus, FiAlertCircle,
 } from 'react-icons/fi';
-import { LazyMotion, domAnimation, m } from 'framer-motion';
-import api from '../api';
-import Hero from '../components/Hero';
 import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import api from '../api';
+import { useAppLanguage, languageDirection } from '../utils/useAppLanguage';
+import enTranslations from '../locales/en/translation.json';
+import arTranslations from '../locales/ar/translation.json';
+import frTranslations from '../locales/fr/translation.json';
+import { Defs3D, Glyph3D, Btn3D, Chip3D, InfoRow, TrustStrip } from '../components/Ui3D';
+import { FiShield, FiRefreshCw, FiTool } from 'react-icons/fi';
+import { RiVerifiedBadgeLine } from 'react-icons/ri';
 
+const Hero = lazy(() => import('../components/Hero'));
 const queryClient = new QueryClient();
 
-// `sweetalert2` is only needed on error/success toasts, never on first paint —
-// loaded on demand and cached, same pattern used across the rest of the app.
+/* ───────────── helpers ───────────── */
+const DETAIL_TRANSLATIONS = {
+  en: enTranslations.deviceDetail,
+  ar: arTranslations.deviceDetail || arTranslations.hero?.deviceDetail,
+  fr: frTranslations.deviceDetail || frTranslations.hero?.deviceDetail,
+};
+const tr = (lang, key, values = {}) => {
+  let text = DETAIL_TRANSLATIONS[lang]?.[key] || DETAIL_TRANSLATIONS.en?.[key] || key;
+  Object.entries(values).forEach(([k, v]) => { text = text.replace(`{{${k}}}`, v); });
+  return text;
+};
+
+// sweetalert2 is only needed for toasts – loaded on demand, never on first paint.
 let swalPromise;
-const loadSwal = () => {
-  if (!swalPromise) swalPromise = import('sweetalert2').then((mod) => mod.default || mod);
-  return swalPromise;
+const loadSwal = () => (swalPromise ||= import('sweetalert2').then((m) => m.default || m));
+const toast = (opts) => loadSwal().then((Swal) => Swal.fire({ toast: true, position: 'top-end', timer: 1800, timerProgressBar: true, ...opts }));
+
+// Same condition enum + colors as the product grid (NEW / USED / REFURBISHED).
+const CONDITION = {
+  NEW: { badge: 'bg-emerald-500', label: 'New' },
+  USED: { badge: 'bg-amber-500', label: 'Used' },
+  REFURBISHED: { badge: 'bg-sky-500', label: 'Refurbished' },
+};
+const condOf = (c) => CONDITION[c] || { badge: 'bg-gray-400', label: c || 'Unknown' };
+
+const fmtPrice = (n) => `EGP ${Number(n || 0).toLocaleString()}`;
+const fmtDate = (v) => {
+  const d = v ? new Date(v) : null;
+  return d && !Number.isNaN(d.getTime()) ? d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null;
 };
 
-// FIX: `@import url(...)` inside a JS-injected <style> tag is one of the
-// slowest ways to load a webfont — the browser can't discover it until it has
-// already fetched and parsed this component's CSS text, adding a full extra
-// round trip before the font request even starts, and it re-injects on every
-// mount of this component. A real <link rel="stylesheet"> in <head>, added
-// once and reused across mounts, is discovered by the browser's preload
-// scanner immediately.
-const FONT_HREF = 'https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap';
-const FONT_LINK_ID = 'outfit-font-link';
+const TRUST = [
+  { icon: RiVerifiedBadgeLine, title: 'Quality checked', text: 'Tested before listing' },
+  { icon: FiTool, title: 'Certified repairs', text: '12-month warranty' },
+  { icon: FiRefreshCw, title: 'Trade-in credit', text: 'Instant estimates' },
+  { icon: FiShield, title: 'Safe recycling', text: 'Less e-waste' },
+];
 
-const STYLES = `
-  .detail-root * { box-sizing: border-box; }
-  .detail-root { font-family: 'Outfit', sans-serif; overflow-x: hidden; }
-  @keyframes blob1 { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(20px,-30px) scale(1.08)} 66%{transform:translate(-15px,20px) scale(0.95)} }
-  @keyframes blob2 { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(-25px,15px) scale(1.06)} 66%{transform:translate(20px,-20px) scale(0.96)} }
-  .blob1 { animation: blob1 9s ease-in-out infinite; }
-  .blob2 { animation: blob2 11s ease-in-out infinite; }
-  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
-  .float-badge { animation: float 3s ease-in-out infinite; }
-  .img-thumb { transition: border-color 0.2s, transform 0.2s; }
-  .img-thumb:hover { transform: scale(1.04); }
-  .add-cart-btn { position: relative; overflow: hidden; transition: all 0.2s; }
-  .add-cart-btn::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg,#34d399,#0d9488); transform: translateY(100%); transition: transform 0.3s cubic-bezier(.16,1,.3,1); border-radius: inherit; }
-  .add-cart-btn:hover::after { transform: translateY(0); }
-  .add-cart-btn span, .add-cart-btn svg { position: relative; z-index: 1; transition: color 0.3s; }
-  .add-cart-btn:hover span, .add-cart-btn:hover svg { color: #fff !important; }
-  .grid-texture {
-    background-image:
-      repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(0,0,0,0.03) 39px,rgba(0,0,0,0.03) 40px),
-      repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(0,0,0,0.03) 39px,rgba(0,0,0,0.03) 40px);
-  }
-  @keyframes shimmer { 0%{background-position:-200% center} 100%{background-position:200% center} }
-  .skeleton-shimmer { background: linear-gradient(90deg, transparent 25%, rgba(16,185,129,0.08) 50%, transparent 75%); background-size: 200% auto; animation: shimmer 1.8s linear infinite; }
-`;
+const card = (dm) => `rounded-2xl border ${dm ? 'border-gray-700 bg-gray-800' : 'border-gray-100 bg-white'}`;
+const tile = (dm) => (dm ? 'bg-emerald-900/30' : 'bg-gradient-to-br from-emerald-50 to-emerald-100');
 
-const useOutfitFont = () => {
-  useEffect(() => {
-    if (document.getElementById(FONT_LINK_ID)) return;
-    const link = document.createElement('link');
-    link.id = FONT_LINK_ID;
-    link.rel = 'stylesheet';
-    link.href = FONT_HREF;
-    document.head.appendChild(link);
-  }, []);
-};
+/* Product image with a 3D-glyph fallback (no extra /placeholder.png request). */
+const DeviceImage = memo(({ src, alt, category, className, glyphClass }) => {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) return <Glyph3D name={category} fallback="box" className={glyphClass} />;
+  return <img src={src} alt={alt} loading="lazy" decoding="async" onError={() => setFailed(true)} className={className} />;
+});
 
-const categoryIcons = {
-  Smartphone: FiSmartphone, Laptop: FiMonitor, Tablet: FiTablet,
-  Headphones: FiHeadphones, Watch: FiWatch, Accessories: FiTool, default: FiPackage,
-};
+/* ───────────── compact related card ───────────── */
+const ProductCard = memo(({ product, darkMode, onAddToCart, onOpen, index = 0 }) => {
+  const [added, setAdded] = useState(false);
+  const timer = useRef();
+  useEffect(() => () => clearTimeout(timer.current), []);
 
-const ProductBackdropIllustration = memo(({ darkMode }) => (
-  <svg viewBox="0 0 200 200" className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="xMidYMid slice">
-    <circle cx="176" cy="20" r="34" fill={darkMode ? 'rgba(52,211,153,0.08)' : 'rgba(16,185,129,0.06)'} />
-    <circle cx="14" cy="180" r="26" fill={darkMode ? 'rgba(52,211,153,0.06)' : 'rgba(16,185,129,0.05)'} />
-    <circle cx="22" cy="18" r="3" fill={darkMode ? 'rgba(110,231,183,0.4)' : 'rgba(16,185,129,0.25)'} />
-    <circle cx="184" cy="150" r="2.4" fill={darkMode ? 'rgba(110,231,183,0.4)' : 'rgba(16,185,129,0.25)'} />
-    <circle cx="10" cy="90" r="2" fill={darkMode ? 'rgba(110,231,183,0.35)' : 'rgba(16,185,129,0.2)'} />
-  </svg>
-));
+  const cond = condOf(product.condition);
+  const out = !(product.stock > 0);
 
-const QualityBadgeIllustration = memo(({ darkMode }) => (
-  <svg viewBox="0 0 64 64" className="w-full h-full">
-    <circle cx="32" cy="32" r="26" fill={darkMode ? 'rgba(52,211,153,0.14)' : 'rgba(16,185,129,0.12)'} />
-    <path d="M32 10 L48 16 V30 C48 41.5 40.5 49.5 32 53.5 C23.5 49.5 16 41.5 16 30 V16 Z" fill="none" stroke={darkMode ? '#34d399' : '#10b981'} strokeWidth="2.5" />
-    <path d="M23 30 L29 36 L42 22" fill="none" stroke={darkMode ? '#34d399' : '#059669'} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-    <circle cx="50" cy="10" r="2.4" fill="#fbbf24" />
-  </svg>
-));
-
-const NotFoundIllustration = memo(({ darkMode }) => (
-  <svg viewBox="0 0 120 100" className="w-24 h-20 sm:w-28 sm:h-24 mx-auto">
-    <ellipse cx="60" cy="86" rx="38" ry="6" fill={darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'} />
-    <path d="M20 40 L60 24 L100 40 L100 74 L60 90 L20 74 Z" fill={darkMode ? '#1f2937' : '#f3f4f6'} stroke={darkMode ? '#374151' : '#e5e7eb'} strokeWidth="2" />
-    <path d="M20 40 L60 56 L100 40" fill="none" stroke={darkMode ? '#374151' : '#e5e7eb'} strokeWidth="2" />
-    <path d="M60 56 L60 90" fill="none" stroke={darkMode ? '#374151' : '#e5e7eb'} strokeWidth="2" />
-    <path d="M42 32 L82 48" fill="none" stroke={darkMode ? '#4b5563' : '#d1d5db'} strokeWidth="2" />
-    <circle cx="60" cy="16" r="8" fill="none" stroke={darkMode ? '#34d399' : '#10b981'} strokeWidth="2.4" />
-    <text x="60" y="20.5" textAnchor="middle" fontSize="11" fontWeight="700" fill={darkMode ? '#34d399' : '#10b981'}>?</text>
-  </svg>
-));
-
-const DeviceDetailSkeleton = ({ darkMode }) => (
-  <div className={`detail-root min-h-screen ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 pt-24">
-      <div className={`rounded-xl sm:rounded-2xl border shadow-xl p-5 sm:p-8 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
-          <div className={`h-56 sm:h-72 sm:h-80 rounded-xl sm:rounded-2xl animate-pulse skeleton-shimmer ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`} />
-          <div className="space-y-3 sm:space-y-4">
-            {[...Array(5)].map((_, i) => <div key={i} className={`h-5 sm:h-6 rounded-xl animate-pulse ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} style={{ width: `${[80, 50, 70, 40, 90][i]}%` }} />)}
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-);
-
-// FIX: previously navigated with `window.location.href`, which forces a full
-// page reload — the whole app (including framer-motion, react-query's cache,
-// and every other chunk) re-downloads and re-boots just to view a related
-// product. Using the router's `navigate()` keeps this a fast, client-side
-// transition, matching how the rest of the SPA moves between pages.
-const RelatedProductCard = memo(({ product, darkMode }) => {
-  const [imgLoaded, setImgLoaded] = useState(false);
-  const navigate = useNavigate();
-  const Icon = categoryIcons[product.categoryName] || categoryIcons.default;
-
-  const goToProduct = useCallback(() => navigate(`/device/${product.id}`), [navigate, product.id]);
+  const open = () => onOpen(product.id);
+  const handleCart = (e) => {
+    e.stopPropagation();
+    if (out) return;
+    setAdded(true);
+    onAddToCart(product);
+    timer.current = setTimeout(() => setAdded(false), 1400);
+  };
 
   return (
-    <div onClick={goToProduct}
-      className={`group rounded-xl sm:rounded-2xl shadow-md cursor-pointer border overflow-hidden transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl ${darkMode ? 'bg-gray-800 border-gray-700/80' : 'bg-white border-gray-200'
-        }`}>
-      <div className={`relative p-3 sm:p-4 ${darkMode ? 'bg-gray-900/40' : 'bg-gray-50'}`}>
-        {!imgLoaded && (
-          <div className={`absolute inset-3 sm:inset-4 flex items-center justify-center rounded-lg sm:rounded-xl ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
-            <Icon className={`w-10 h-10 ${darkMode ? 'text-emerald-400' : 'text-emerald-600'} opacity-40`} />
-          </div>
-        )}
-        <img src={product.imageUrl || '/placeholder.png'} alt={product.name}
-          onLoad={() => setImgLoaded(true)} loading="lazy"
-          className={`w-full h-32 sm:h-40 object-contain rounded-lg sm:rounded-xl transition-all duration-500 group-hover:scale-105 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`} />
+    <article
+      onClick={open}
+      onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open(); }}
+      tabIndex={0}
+      aria-label={product.name}
+      style={{ animationDelay: `${Math.min(index, 8) * 25}ms` }}
+      className={`group flex cursor-pointer flex-col overflow-hidden rounded-2xl border transition-all duration-200 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ${
+        darkMode ? 'border-gray-700 bg-gray-800 hover:shadow-lg hover:shadow-black/30' : 'border-gray-100 bg-white hover:shadow-lg hover:shadow-gray-200/70'}`}
+    >
+      <div className={`relative flex aspect-[4/3] items-center justify-center ${tile(darkMode)}`}>
+        <span className={`absolute start-2 top-2 rounded-md px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-white ${cond.badge}`}>{cond.label}</span>
+        <DeviceImage src={product.imageUrl} alt={product.name} category={product.categoryName}
+          className="h-full w-full object-contain p-3 transition-transform duration-200 group-hover:scale-105" glyphClass="h-14 w-14 transition-transform duration-200 group-hover:scale-110" />
       </div>
-      <div className="p-3 sm:p-4 space-y-1.5">
-        <h3 className={`font-bold text-xs sm:text-sm line-clamp-2 leading-snug ${darkMode ? 'text-white' : 'text-gray-900'}`}>{product.name}</h3>
-        <p className={`text-[10px] sm:text-xs font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{product.brand || product.categoryName}</p>
-        <div className="flex items-center justify-between pt-1">
-          <span className={`text-sm sm:text-base font-extrabold ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>EGP {product.price?.toLocaleString()}</span>
-          <span className={`text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-semibold ${product.condition === 'NEW' ? 'bg-green-100 text-green-700 dark:bg-green-900/60 dark:text-green-300'
-              : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/60 dark:text-yellow-300'
-            }`}>{product.condition}</span>
+      <div className="flex flex-1 flex-col gap-0.5 p-3">
+        <span className={`truncate text-[10px] font-bold uppercase tracking-wide ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{product.categoryName || 'Uncategorized'}</span>
+        <h3 className={`truncate text-sm font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{product.name}</h3>
+        <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+          <div className="min-w-0">
+            <p className={`truncate text-sm font-extrabold tabular-nums ${darkMode ? 'text-emerald-400' : 'text-emerald-700'}`}>{fmtPrice(product.price)}</p>
+            {out && <p className="text-[10px] font-semibold text-rose-500">Out of stock</p>}
+          </div>
+          <Btn3D onClick={handleCart} disabled={out} aria-label="Add to cart" className="h-8 w-8 flex-shrink-0 !shadow-[0_3px_0_0_#047857]">
+            {added ? <FiCheck className="h-4 w-4" /> : <FiShoppingCart className="h-4 w-4" />}
+          </Btn3D>
         </div>
       </div>
-    </div>
+    </article>
   );
 });
 
-const RelatedSection = memo(({ title, icon: Icon, products, darkMode, currentPage, setCurrentPage, totalPages }) => {
+const RelatedSection = memo(({ title, glyph, products, darkMode, onAddToCart, onOpen }) => {
+  const [visible, setVisible] = useState(8);
   if (!products.length) return null;
+  const shown = products.slice(0, visible);
   return (
-    <div className="mt-10 sm:mt-16">
-      <div className="flex items-center gap-3 sm:gap-4 mb-5 sm:mb-8">
-        <div className={`p-2.5 sm:p-3 rounded-xl`}>
-          <Icon className={`w-5 h-5 sm:w-7 sm:h-7 ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`} />
-        </div>
-        <h2 className={`text-lg sm:text-2xl font-extrabold relative inline-block ${darkMode ? 'text-emerald-400' : 'text-emerald-600'} after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:w-full after:h-0.5 after:bg-gradient-to-r after:from-emerald-400 after:to-teal-500`}>
-          {title}
-        </h2>
+    <section className="mt-10">
+      <div className="mb-4 flex items-center gap-3">
+        <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${tile(darkMode)}`}><Glyph3D name={glyph} fallback="box" className="h-7 w-7" /></span>
+        <h2 className={`text-lg font-bold tracking-tight ${darkMode ? 'text-white' : 'text-gray-900'}`}>{title}</h2>
+        <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{products.length}</span>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-        {products.map((p) => <RelatedProductCard key={p.id} product={p} darkMode={darkMode} />)}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {shown.map((p, i) => <ProductCard key={p.id} product={p} darkMode={darkMode} onAddToCart={onAddToCart} onOpen={onOpen} index={i} />)}
       </div>
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2 sm:gap-3 mt-6 sm:mt-8">
-          <button onClick={() => setCurrentPage((v) => Math.max(1, v - 1))} disabled={currentPage === 1}
-            className={`p-2 sm:p-2.5 rounded-xl border shadow-sm disabled:opacity-40 transition-all ${darkMode ? 'bg-gray-800 border-gray-700 text-white hover:bg-gray-700' : 'bg-white border-gray-200 hover:bg-emerald-50'}`}>
-            <FiChevLeft className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" />
-          </button>
-          <span className={`text-xs sm:text-sm font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-            Page {currentPage} of {totalPages}
-          </span>
-          <button onClick={() => setCurrentPage((v) => Math.min(totalPages, v + 1))} disabled={currentPage === totalPages}
-            className={`p-2 sm:p-2.5 rounded-xl border shadow-sm disabled:opacity-40 transition-all ${darkMode ? 'bg-gray-800 border-gray-700 text-white hover:bg-gray-700' : 'bg-white border-gray-200 hover:bg-emerald-50'}`}>
-            <FiChevRight className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" />
-          </button>
+      {products.length > visible && (
+        <div className="mt-5 flex justify-center">
+          <Btn3D tone="soft" darkMode={darkMode} onClick={() => setVisible((v) => v + 8)} className="px-4 py-2 text-xs">Show more</Btn3D>
         </div>
       )}
-    </div>
+    </section>
   );
 });
 
-const DeviceDetailContent = memo(({ addToCart, darkMode }) => {
-  const { id } = useParams();
+const DetailSkeleton = ({ darkMode }) => {
+  const bar = darkMode ? 'bg-gray-700' : 'bg-gray-100';
+  return (
+    <div className={`${card(darkMode)} grid gap-5 p-4 sm:p-5 lg:grid-cols-2`}>
+      <div className={`aspect-square max-h-[320px] animate-pulse rounded-2xl ${bar}`} />
+      <div className="space-y-3">
+        {[80, 40, 55, 90, 60].map((w, i) => <div key={i} className={`h-5 animate-pulse rounded-lg ${bar}`} style={{ width: `${w}%` }} />)}
+      </div>
+    </div>
+  );
+};
+
+/* ───────────── page ───────────── */
+const DeviceDetailContent = memo(({ id, addToCart, darkMode }) => {
   const navigate = useNavigate();
-  useOutfitFont();
+  const language = useAppLanguage();
+  const t = useCallback((k, v) => tr(language, k, v), [language]);
 
-  const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [catPage, setCatPage] = useState(1);
-  const [condPage, setCondPage] = useState(1);
-  const [addingToCart, setAddingToCart] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const [saved, setSaved] = useState(false);
+  const [adding, setAdding] = useState(false);
 
-  const itemsPerPage = 8;
-
-  const { data, isLoading: loading, isError } = useQuery({
-    queryKey: ['productDetail', id],
-    queryFn: async () => {
-      const [prodRes, allRes] = await Promise.all([
-        api.get(`/api/products/${id}`),
-        api.get('/api/products'),
-      ]);
-      const cur = prodRes.data;
-      const all = allRes.data.content || allRes.data || [];
-      return { product: cur, allProducts: all.filter((p) => p.id !== cur.id) };
-    },
+  // 1) the product itself – renders as soon as this resolves
+  const { data: product, isLoading, isError } = useQuery({
+    queryKey: ['product', id],
+    queryFn: async () => (await api.get(`/api/products/${id}`)).data,
     staleTime: 5 * 60 * 1000,
     retry: false,
   });
 
-  const product = data?.product;
-  const allProducts = data?.allProducts || [];
+  // 2) related products – fetched after the main product, shared cache key with listings
+  const { data: allProducts = [] } = useQuery({
+    queryKey: ['products'],
+    queryFn: async () => {
+      const res = await api.get('/api/products');
+      const list = res.data?.content || res.data || [];
+      return Array.isArray(list) ? list : [];
+    },
+    enabled: !!product,
+    staleTime: 5 * 60 * 1000,
+  });
 
-  useEffect(() => {
-    if (product?.name) document.title = `${product.name} | Tech-Restore`;
-  }, [product?.name]);
+  useEffect(() => { if (product?.name) document.title = `${product.name} | Tech-Restore`; }, [product?.name]);
+  useEffect(() => { if (isError) toast({ icon: 'error', title: 'Error', text: 'Product not found' }); }, [isError]);
 
-  useEffect(() => {
-    if (isError) {
-      loadSwal().then((Swal) =>
-        Swal.fire({ title: 'Error', text: 'Product not found', icon: 'error', toast: true, position: 'top-end', timer: 2000 })
-      );
-    }
-  }, [isError]);
+  const { sameCategory, sameCondition } = useMemo(() => {
+    if (!product) return { sameCategory: [], sameCondition: [] };
+    const pool = allProducts.filter((p) => p && p.id !== product.id && !p.deleted);
+    const cat = pool.filter((p) => p.categoryId === product.categoryId);
+    const seen = new Set(cat.map((p) => p.id));
+    return { sameCategory: cat, sameCondition: pool.filter((p) => p.condition === product.condition && !seen.has(p.id)) };
+  }, [allProducts, product]);
 
-  // FIX: this used to wrap the *entire* async operation in `startTransition`,
-  // which is a misuse of the API — startTransition only marks state updates
-  // scheduled synchronously inside its callback as low-priority; anything
-  // scheduled after an `await` (the success/error toast, `setAddingToCart(false)`)
-  // runs as a normal update regardless, so wrapping it here did nothing useful
-  // and just obscured what was actually happening. `addingToCart` already
-  // drives the button's loading state correctly on its own.
+  const postToCart = useCallback((p, qty) => api.post('/api/cart/items', {
+    productId: p.id, quantity: qty, price: p.price, name: p.name, imageUrl: p.imageUrl || '/placeholder.png',
+  }), []);
+
+  const unavailable = !product || product.deleted || !(product.stock > 0);
+
   const handleAddToCart = useCallback(async () => {
-    if (!product) return;
-    setAddingToCart(true);
+    if (!product || unavailable) return;
+    setAdding(true);
     try {
-      await api.post('/api/cart/items', {
-        productId: product.id, quantity,
-        price: product.price, name: product.name,
-        imageUrl: product.imageUrl || product.imageUrls?.[0],
-      });
+      await postToCart(product, quantity);
       addToCart?.({ ...product, quantity });
-      loadSwal().then((Swal) =>
-        Swal.fire({ icon: 'success', title: 'Added to cart!', toast: true, position: 'top-end', timer: 1800, timerProgressBar: true })
-      );
-    } catch (error) {
-      loadSwal().then((Swal) =>
-        Swal.fire({ icon: 'error', title: 'Error', text: error.response?.data?.message || 'Failed to add to cart', toast: true, position: 'top-end', timer: 2000 })
-      );
+      toast({ icon: 'success', title: 'Added to cart!' });
+    } catch (err) {
+      toast({ icon: 'error', title: 'Error', text: err.response?.data?.message || 'Failed to add to cart', timer: 2000 });
     } finally {
-      setAddingToCart(false);
+      setAdding(false);
     }
-  }, [addToCart, product, quantity]);
+  }, [product, unavailable, postToCart, quantity, addToCart]);
 
-  const handleQuantityChange = useCallback((delta) => {
-    startTransition(() => {
-      const n = quantity + delta;
-      if (n >= 1 && n <= (product?.stock || 1)) setQuantity(n);
-    });
-  }, [quantity, product?.stock]);
+  const handleRelatedAdd = useCallback(async (p) => {
+    try {
+      await postToCart(p, 1);
+      toast({ icon: 'success', title: 'Added!', text: `${p.name} added to cart`, timer: 1500 });
+    } catch {
+      toast({ icon: 'error', title: 'Error', text: 'Failed to add to cart', timer: 1500 });
+    }
+  }, [postToCart]);
 
-  if (loading) return (
-    <>
-      <style>{STYLES}</style>
-      <DeviceDetailSkeleton darkMode={darkMode} />
-    </>
-  );
+  const openProduct = useCallback((pid) => navigate(`/device/${pid}`), [navigate]);
+  const goBack = useCallback(() => navigate(-1), [navigate]);
 
-  if (!product) return (
-    <>
-      <style>{STYLES}</style>
-      <div className={`detail-root min-h-screen flex items-center justify-center ${darkMode ? 'bg-gray-900' : 'bg-gray-50'} px-4`}>
-        <div className={`text-center space-y-5 p-8 sm:p-10 rounded-2xl sm:rounded-3xl shadow-2xl border max-w-sm sm:max-w-md w-full ${darkMode ? 'bg-gray-800/80 border-gray-700' : 'bg-white/90 border-gray-200'}`}>
-          <NotFoundIllustration darkMode={darkMode} />
-          <h2 className={`text-xl sm:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Product Not Found</h2>
-          <button onClick={() => navigate(-1)} className="inline-flex items-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-500 hover:to-teal-600 text-white font-bold rounded-xl transition-all shadow-lg text-sm">
-            <FaChevronLeft size={11} /> Go Back
-          </button>
+  const muted = darkMode ? 'text-gray-400' : 'text-gray-500';
+  const strong = darkMode ? 'text-white' : 'text-gray-900';
+  const fontCls = language === 'ar' ? 'font-cairo' : 'font-poppins';
+  const shell = `min-h-screen ${fontCls} ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`;
+
+  if (isLoading) {
+    return (
+      <div dir={languageDirection(language)} className={shell}>
+        <div className="mx-auto max-w-7xl px-4 pb-10 pt-24 sm:px-6 lg:px-8"><DetailSkeleton darkMode={darkMode} /></div>
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div dir={languageDirection(language)} className={`${shell} flex items-center justify-center px-4`}>
+        <Defs3D />
+        <div className={`${card(darkMode)} w-full max-w-sm space-y-4 p-8 text-center shadow-xl`}>
+          <span className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl ${tile(darkMode)}`}><Glyph3D name="box" className="h-11 w-11" /></span>
+          <h2 className={`text-xl font-bold ${strong}`}>Product Not Found</h2>
+          <Btn3D onClick={goBack} className="px-5 py-2.5 text-sm"><FiChevronLeft className="h-4 w-4 rtl:rotate-180" /> Go Back</Btn3D>
         </div>
       </div>
-    </>
-  );
+    );
+  }
 
-  const sameCategory = allProducts.filter((p) => p.categoryName === product.categoryName || p.categoryId === product.categoryId);
-  const sameCondition = allProducts.filter((p) => p.condition === product.condition);
-  const paginatedCategory = sameCategory.slice((catPage - 1) * itemsPerPage, catPage * itemsPerPage);
-  const paginatedCondition = sameCondition.slice((condPage - 1) * itemsPerPage, condPage * itemsPerPage);
-  const catPages = Math.ceil(sameCategory.length / itemsPerPage);
-  const condPages = Math.ceil(sameCondition.length / itemsPerPage);
-  const CategoryIcon = categoryIcons[product.categoryName] || FiBox;
-  const ConditionIcon = product.condition === 'NEW' ? FiPackage : FiRefreshCw;
-
-
-  const stockStatus = product.stock > 10
-    ? { label: 'In Stock', cls: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' }
-    : product.stock > 0
-      ? { label: `Only ${product.stock} left`, cls: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300' }
-      : { label: 'Out of Stock', cls: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' };
+  const cond = condOf(product.condition);
+  const listed = fmtDate(product.createdAt);
+  const stockStatus = product.deleted || product.stock <= 0
+    ? { label: t('outOfStock'), cls: 'bg-rose-500 text-white' }
+    : product.stock > 10
+      ? { label: t('inStock'), cls: 'bg-emerald-500 text-white' }
+      : { label: t('onlyLeft', { count: product.stock }), cls: 'bg-amber-500 text-white' };
 
   return (
-    <LazyMotion features={domAnimation}>
-      <style>{STYLES}</style>
-      <div className={`detail-root min-h-screen ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50'} pb-12 sm:pb-16`}>
+    <div dir={languageDirection(language)} className={`${shell} pb-14`}>
+      <Defs3D />
 
-
+      <Suspense fallback={<div className={`h-[260px] w-full animate-pulse sm:h-[320px] ${darkMode ? 'bg-gray-900' : 'bg-emerald-50'}`} />}>
         <Hero
           variant="home"
           darkMode={darkMode}
-          badge={`${product.categoryName || 'Device'} · ${product.condition}`}
+          badge={`${product.categoryName || 'Device'} · ${cond.label}`}
           headingLine1=""
           headingAccent={product.name}
           headingLine2=""
-          description={product.brand ? `by ${product.brand} · Premium quality verified` : 'Premium quality verified'}
+          description={t('premiumQuality')}
           buttons={[]}
           stats={[
-            { value: '99.9%', label: 'Quality assured' },
-            { value: '10K+', label: 'Happy buyers' },
-            { value: '4.9 ★', label: 'Avg rating' },
+            { value: '99.9%', label: t('qualityAssured') },
+            { value: '10K+', label: t('happyBuyers') },
+            { value: '4.9 ★', label: t('averageRating') },
           ]}
         />
+      </Suspense>
 
+      <TrustStrip darkMode={darkMode} items={TRUST} />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
-          <button onClick={() => navigate(-1)}
-            className={`inline-flex items-center gap-2 text-xs sm:text-sm font-semibold mb-5 sm:mb-6 transition-colors ${darkMode ? 'text-gray-400 hover:text-emerald-400' : 'text-gray-500 hover:text-emerald-600'}`}>
-            <FaChevronLeft size={10} /> Back to products
-          </button>
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        <button type="button" onClick={goBack}
+          className={`mb-4 inline-flex items-center gap-1.5 text-xs font-semibold transition-colors ${darkMode ? 'text-gray-400 hover:text-emerald-400' : 'text-gray-500 hover:text-emerald-600'}`}>
+          <FiChevronLeft className="h-3.5 w-3.5 rtl:rotate-180" /> {t('backToProducts')}
+        </button>
 
-          <div className={`rounded-xl sm:rounded-md border shadow-xl overflow-hidden ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-           
-            <div className="p-4 sm:p-6 lg:p-8">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12">
+        <section className={`${card(darkMode)} overflow-hidden`}>
+          <div className="grid gap-5 p-4 sm:p-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-8 lg:p-6">
+            {/* image */}
+            <div className={`relative flex aspect-square max-h-[340px] items-center justify-center rounded-2xl lg:max-h-none ${tile(darkMode)}`}>
+              <span className={`absolute start-3 top-3 rounded-md px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide text-white ${cond.badge}`}>{cond.label}</span>
+              <DeviceImage src={product.imageUrl} alt={product.name} category={product.categoryName}
+                className="h-full w-full object-contain p-6 sm:p-8" glyphClass="h-32 w-32" />
+            </div>
 
-
-                <div className="space-y-3 sm:space-y-4">
-                  <div className={`relative overflow-hidden rounded-xl sm:rounded-2xl flex items-center justify-center p-4 sm:p-8 min-h-[220px] sm:min-h-[280px] border ${darkMode ? 'bg-gray-900/60 border-gray-700/50' : 'bg-gray-50 border-gray-100'}`}>
-                    <ProductBackdropIllustration darkMode={darkMode} />
-                    <img
-                      src={product.imageUrls?.[selectedImage] || product.imageUrl || '/placeholder.png'}
-                      alt={product.name}
-                      loading="lazy"
-                      className="relative z-[1] max-h-[200px] sm:max-h-[260px] max-w-full object-contain rounded-lg sm:rounded-xl hover:scale-105 transition-transform duration-500"
-                    />
+            {/* info */}
+            <div className="flex min-w-0 flex-col gap-4">
+              <div>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    {product.categoryName && <p className={`mb-0.5 text-[11px] font-bold uppercase tracking-wide ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{product.categoryName}</p>}
+                    <h1 className={`text-xl font-extrabold leading-tight sm:text-2xl ${strong}`}>{product.name}</h1>
                   </div>
-                  {product.imageUrls && product.imageUrls.length > 1 && (
-                    <div className="flex gap-2 overflow-x-auto pb-1">
-                      {product.imageUrls.map((img, i) => (
-                        <button key={i} onClick={() => setSelectedImage(i)}
-                          className={`img-thumb flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-lg sm:rounded-xl overflow-hidden border-2 ${selectedImage === i ? 'border-emerald-400 shadow-md' : darkMode ? 'border-gray-600' : 'border-gray-200'}`}>
-                          <img src={img} alt="" className="w-full h-full object-cover" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  <Btn3D tone="soft" darkMode={darkMode} onClick={() => setSaved((s) => !s)} aria-pressed={saved}
+                    aria-label={saved ? 'Remove from wishlist' : 'Add to wishlist'} className={`h-9 w-9 flex-shrink-0 ${saved ? '!bg-rose-500 !text-white' : ''}`}>
+                    <FiHeart className="h-4 w-4" fill={saved ? 'currentColor' : 'none'} />
+                  </Btn3D>
                 </div>
-
-
-                <div className="space-y-4 sm:space-y-6">
-                  <div>
-                    <div className="flex items-start justify-between gap-3 mb-2 sm:mb-3">
-                      <h1 className={`text-xl sm:text-2xl lg:text-3xl font-extrabold leading-tight ${darkMode ? 'text-white' : 'text-gray-900'}`} style={{ fontFamily: "'Outfit', sans-serif" }}>
-                        {product.name}
-                      </h1>
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0" title="Verified quality">
-                        <QualityBadgeIllustration darkMode={darkMode} />
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                      <span className={`px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold ${stockStatus.cls}`}>{stockStatus.label}</span>
-                      <span className={`px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold flex items-center gap-1 ${darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
-                        <FiTag size={10} /> {product.condition}
-                      </span>
-                      {product.categoryName && (
-                        <span className="px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-                          {product.categoryName}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-
-                  <div className={`rounded-xl sm:rounded-2xl p-3 sm:p-4 border ${darkMode ? 'bg-gray-900/40 border-gray-700/50' : 'bg-emerald-50/60 border-emerald-100'}`}>
-                    {product.discount ? (
-                      <div className="flex items-baseline gap-2 sm:gap-3 flex-wrap">
-                        <span className={`text-2xl sm:text-3xl lg:text-4xl font-extrabold ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                          EGP {(product.price * (1 - product.discount / 100)).toLocaleString()}
-                        </span>
-                        <span className={`text-sm line-through ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>EGP {product.price?.toLocaleString()}</span>
-                        <span className="px-2 py-0.5 rounded-full bg-orange-500 text-white text-[10px] sm:text-xs font-bold">{product.discount}% OFF</span>
-                      </div>
-                    ) : (
-                      <span className={`text-2xl sm:text-3xl lg:text-4xl font-extrabold ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                        EGP {product.price?.toLocaleString()}
-                      </span>
-                    )}
-                  </div>
-
-                  {product.description && (
-                    <p className={`text-xs sm:text-sm leading-relaxed ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>{product.description}</p>
-                  )}
-
-
-                  <div
-                    aria-busy={isPending}
-                    className={`flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 transition-opacity duration-150 ${isPending ? 'opacity-70' : 'opacity-100'}`}
-                  >
-                    <div className={`inline-flex items-center rounded-xl border overflow-hidden ${darkMode ? 'bg-gray-900/60 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
-                      <button onClick={() => handleQuantityChange(-1)} disabled={quantity <= 1}
-                        className={`px-3 sm:px-4 py-2.5 sm:py-3 text-base sm:text-lg font-bold hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 transition min-w-[40px] sm:min-w-[44px] ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-                        −
-                      </button>
-                      <span className={`px-4 sm:px-5 py-2.5 sm:py-3 text-sm sm:text-base font-bold min-w-[44px] sm:min-w-[48px] text-center border-x ${darkMode ? 'text-white border-gray-700' : 'text-gray-900 border-gray-200'}`}>
-                        {quantity}
-                      </span>
-                      <button onClick={() => handleQuantityChange(1)} disabled={quantity >= (product.stock || 1)}
-                        className={`px-3 sm:px-4 py-2.5 sm:py-3 text-base sm:text-lg font-bold hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 transition min-w-[40px] sm:min-w-[44px] ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-                        +
-                      </button>
-                    </div>
-                    <m.button whileTap={{ scale: 0.97 }} onClick={handleAddToCart}
-                      disabled={product.stock === 0 || addingToCart}
-                      className={`add-cart-btn flex-1 w-full sm:w-auto py-2.5 sm:py-3 px-5 sm:px-6 rounded-xl font-bold text-sm border-2 border-emerald-400 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                      <FiShoppingCart className="w-4 h-4" />
-                      <span>{addingToCart ? 'Adding...' : 'Add to Cart'}</span>
-                    </m.button>
-                  </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <span className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide ${stockStatus.cls}`}>{stockStatus.label}</span>
+                  <span className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-white ${cond.badge}`}>{cond.label}</span>
                 </div>
+              </div>
+
+              <div className={`rounded-2xl border p-3.5 ${darkMode ? 'border-emerald-900/60 bg-emerald-900/20' : 'border-emerald-100 bg-emerald-50/70'}`}>
+                <span className={`text-2xl font-extrabold tabular-nums sm:text-3xl ${darkMode ? 'text-emerald-400' : 'text-emerald-700'}`}>{fmtPrice(product.price)}</span>
+              </div>
+
+              {product.deleted && (
+                <p className="flex items-center gap-2 rounded-xl bg-rose-500/10 px-3 py-2 text-xs font-semibold text-rose-500">
+                  <FiAlertCircle className="h-4 w-4 flex-shrink-0" /> This device is no longer available.
+                </p>
+              )}
+
+              <p className={`text-sm leading-relaxed ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                {product.description || 'No description has been added for this device yet.'}
+              </p>
+
+              {/* specs */}
+              <div className={`grid grid-cols-2 gap-2 rounded-2xl border p-3 ${darkMode ? 'border-gray-700 bg-gray-800/60' : 'border-gray-100 bg-gray-50'}`}>
+                <InfoRow icon={FiTag} darkMode={darkMode}>{product.categoryName || 'Uncategorized'}</InfoRow>
+                <InfoRow icon={FiBox} darkMode={darkMode}>{cond.label}</InfoRow>
+                <InfoRow icon={FiPackage} darkMode={darkMode}>{product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}</InfoRow>
+                {listed && <InfoRow icon={FiCalendar} darkMode={darkMode}>Listed {listed}</InfoRow>}
+              </div>
+
+              {/* purchase */}
+              <div className="mt-auto flex items-stretch gap-3">
+                <div className={`inline-flex items-center overflow-hidden rounded-xl border ${darkMode ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                  <button type="button" aria-label="Decrease quantity" onClick={() => setQuantity((q) => Math.max(1, q - 1))} disabled={quantity <= 1 || unavailable}
+                    className={`flex h-10 w-9 items-center justify-center disabled:opacity-40 ${darkMode ? 'text-white hover:bg-gray-800' : 'text-gray-800 hover:bg-gray-100'}`}><FiMinus className="h-4 w-4" /></button>
+                  <span className={`min-w-[2.25rem] px-2 text-center text-sm font-bold tabular-nums ${strong}`} aria-live="polite">{quantity}</span>
+                  <button type="button" aria-label="Increase quantity" onClick={() => setQuantity((q) => Math.min(product.stock || 1, q + 1))} disabled={quantity >= (product.stock || 1) || unavailable}
+                    className={`flex h-10 w-9 items-center justify-center disabled:opacity-40 ${darkMode ? 'text-white hover:bg-gray-800' : 'text-gray-800 hover:bg-gray-100'}`}><FiPlus className="h-4 w-4" /></button>
+                </div>
+                <Btn3D onClick={handleAddToCart} disabled={unavailable || adding} className="h-10 flex-1 px-5 text-sm">
+                  <FiShoppingCart className="h-4 w-4" /> {adding ? 'Adding…' : t('addToCart')}
+                </Btn3D>
               </div>
             </div>
           </div>
+        </section>
 
-
-          <RelatedSection title={`More ${product.categoryName || 'devices'} like this`} icon={CategoryIcon}
-            products={paginatedCategory} darkMode={darkMode} currentPage={catPage} setCurrentPage={setCatPage} totalPages={catPages} />
-          <RelatedSection title={`Other ${product.condition === 'NEW' ? 'Brand New' : 'Pre-owned'} devices`} icon={ConditionIcon}
-            products={paginatedCondition} darkMode={darkMode} currentPage={condPage} setCurrentPage={setCondPage} totalPages={condPages} />
-        </div>
+        <RelatedSection title={`More ${product.categoryName || 'devices'} like this`} glyph={product.categoryName} products={sameCategory}
+          darkMode={darkMode} onAddToCart={handleRelatedAdd} onOpen={openProduct} />
+        <RelatedSection title={`Other ${cond.label.toLowerCase()} devices`} glyph="box" products={sameCondition}
+          darkMode={darkMode} onAddToCart={handleRelatedAdd} onOpen={openProduct} />
       </div>
-    </LazyMotion>
+    </div>
   );
 });
 
-const DeviceDetail = memo((props) => (
-  <QueryClientProvider client={queryClient}>
-    <DeviceDetailContent {...props} />
-  </QueryClientProvider>
-));
+// Keyed by id so quantity / wishlist state reset when navigating between devices.
+function DeviceDetailRoute(props) {
+  const { id } = useParams();
+  return <DeviceDetailContent key={id} id={id} {...props} />;
+}
 
-export default DeviceDetail;
+export default function DeviceDetail(props) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <DeviceDetailRoute {...props} />
+    </QueryClientProvider>
+  );
+}

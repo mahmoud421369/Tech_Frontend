@@ -245,20 +245,18 @@ const OfferRow = memo(({ offer, onDetails, onCopy, onToggle, onEdit, onDelete })
         </span>
       </td>
       <td className="px-4 py-3 whitespace-nowrap text-left">
-        <div className="flex items-center justify-start gap-1.5">
+        <div className="flex items-center justify-center gap-1.5">
           <button title="تفاصيل العرض" onClick={() => onDetails(offer)} className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-all active:scale-95">
             <FiInfo size={14} />
           </button>
           <button title="نسخ رقم العرض" onClick={() => onCopy(offer.id)} className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-lime-500 hover:border-lime-300 transition-all active:scale-95">
             <FiCopy size={14} />
           </button>
-          <button title={offer.status === 'ACTIVE' ? 'إيقاف العرض' : 'تفعيل العرض'} onClick={() => onToggle(offer)} className="p-2 rounded-lg border border-emerald-200 dark:border-emerald-900/50 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all active:scale-95">
-            <FiCheck size={14} />
-          </button>
-          <button title="تعديل العرض" onClick={() => onEdit(offer)} className="p-2 rounded-lg border border-blue-200 dark:border-blue-900/50 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all active:scale-95">
+        
+          <button title="تعديل العرض" onClick={() => onEdit(offer)} className="p-2 rounded-lg border text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all active:scale-95">
             <FiEdit3 size={14} />
           </button>
-          <button title="حذف العرض" onClick={() => onDelete(offer.id)} className="p-2 rounded-lg border border-red-200 dark:border-red-900/50 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all active:scale-95">
+          <button title="حذف العرض" onClick={() => onDelete(offer.id)} className="p-2 rounded-lg border  text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all active:scale-95">
             <FiTrash2 size={14} />
           </button>
         </div>
@@ -664,7 +662,7 @@ const ShopOffers = () => {
               onClick={() => { setEditingOffer(null); setFormData(EMPTY_FORM); setShowAddEdit(true); }}
               className="flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-gray-900 dark:bg-emerald-500 text-white dark:text-white text-xs font-black uppercase tracking-widest hover:bg-emerald-500 dark:hover:bg-emerald-500 hover:text-white transition-all shadow-xl shadow-gray-900/10 active:scale-95"
             >
-              <FiPlus size={16} /> إنشاء عرض جديد
+              <FiPlus size={16} /> اضافة عرض جديد
             </button>
           </div>
         </div>

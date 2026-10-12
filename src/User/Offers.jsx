@@ -1,366 +1,243 @@
-import React, { useState, useEffect, useCallback, memo, useMemo, useTransition } from "react";
-import {
-  FaTag, FaCalendarAlt, FaStore,
-} from "react-icons/fa";
-import { Link } from "react-router-dom";
-import { LazyMotion, domAnimation, m, AnimatePresence } from "framer-motion";
-import api from "../api";
-import { RiTimeLine, RiPriceTag2Line } from "react-icons/ri";
-import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from "@headlessui/react";
+import React, { useState, useEffect, useCallback, useMemo, memo, useTransition } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
 import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-// FIX: `import * as FiIcons from "react-icons/fi"` pulls in the ENTIRE fi icon
-// set — hundreds of components — because a namespace import defeats most
-// bundlers' tree-shaking. Only 4 icons were ever used from it. Named imports
-// below let the bundler drop everything else from react-icons/fi.
-import { FiChevronLeft, FiChevronRight, FiX, FiExternalLink, FiClock as FiClockIcon } from "react-icons/fi";
-import { Hero } from "../components";
+import { FiX, FiCalendar, FiClock, FiTag, FiArrowRight } from 'react-icons/fi';
+import { RiStoreLine, RiPriceTag3Line } from 'react-icons/ri';
+import '../styles/style.css';
+import api from '../api';
+import { Hero } from '../components';
+import { Defs3D, Device3DStyles, Btn3D, Chip3D, TrustStrip, money } from '../components/Device3D';
+import { SectionBanner, EmptyState, ErrorState, LoadingGrid, Pager } from '../components/PageKit';
+import { authHeaders, expireSession, isUnauthorized, toast, useAuthGuard } from '../utils/auth';
+import enTranslations from '../locales/en/translation.json';
+import arTranslations from '../locales/ar/translation.json';
+import frTranslations from '../locales/fr/translation.json';
+import { useAppLanguage, languageDirection } from '../utils/useAppLanguage';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({ defaultOptions: { queries: { refetchOnWindowFocus: false, retry: false } } });
 
-// `sweetalert2` is only needed in response to two specific runtime events (no
-// token on mount, or a failed offer-detail fetch) — never on first paint. A
-// single module-scope loader means it's fetched at most once per page load and
-// shared by every component in this file, instead of a static import that
-// ships it in the initial bundle for everyone, even users who never hit either
-// error path.
-let swalPromise;
-const loadSwal = () => {
-  if (!swalPromise) swalPromise = import("sweetalert2").then((mod) => mod.default || mod);
-  return swalPromise;
+/* ───────────── helpers ───────────── */
+const OFFER_TRANSLATIONS = {
+  en: enTranslations.offersPage,
+  ar: arTranslations.offersPage || arTranslations.hero?.offersPage,
+  fr: frTranslations.offersPage || frTranslations.hero?.offersPage,
+};
+const tr = (language, key) => OFFER_TRANSLATIONS[language]?.[key] || OFFER_TRANSLATIONS.en?.[key] || key;
+
+const PAGE_SIZE = 6;
+const LOCALES = { en: 'en-GB', ar: 'ar-EG', fr: 'fr-FR' };
+const fmtCache = {};
+const dateFmt = (language, withYear) => {
+  const loc = LOCALES[language] || 'en-GB';
+  const k = `${loc}:${withYear}`;
+  fmtCache[k] ||= new Intl.DateTimeFormat(loc, withYear ? { day: 'numeric', month: 'short', year: 'numeric' } : { day: 'numeric', month: 'short' });
+  return fmtCache[k];
+};
+const rtfCache = {};
+const rtf = (language) => {
+  const loc = LOCALES[language] || 'en-GB';
+  rtfCache[loc] ||= new Intl.RelativeTimeFormat(loc, { numeric: 'auto' });
+  return rtfCache[loc];
 };
 
-const EASE = [0.16, 1, 0.3, 1];
+const toDate = (v) => {
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
 
-const palette = (darkMode) => ({
-  line: darkMode ? "#34d399" : "#059669",
-  lineSoft: darkMode ? "#6ee7b7" : "#10b981",
-  fillSoft: darkMode ? "rgba(52,211,153,0.14)" : "rgba(52,211,153,0.1)",
-  fillCard: darkMode ? "#0b1a12" : "#ffffff",
-  cardBorder: darkMode ? "rgba(52,211,153,0.25)" : "rgba(5,150,105,0.18)",
-  accent: "#f59e0b",
-});
+// Whole days remaining, or null when the offer has already ended / has no valid date.
+const daysLeftNum = (end) => {
+  const e = toDate(end);
+  if (!e) return null;
+  const diff = Math.ceil((e - new Date()) / 86400000);
+  return diff < 0 ? null : diff;
+};
 
-const NoOffersIllustration = memo(({ darkMode }) => {
-  const c = palette(darkMode);
-  return (
-    <svg viewBox="0 0 200 200" className="w-full h-full">
-      <m.circle cx="100" cy="102" r="74" fill={c.fillSoft}
-        animate={{ scale: [1, 1.06, 1] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }} />
-      <m.g
-        animate={{ rotate: [-4, 4, -4] }}
-        style={{ transformOrigin: "100px 100px" }}
-        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-      >
-        <path d="M68,50 L120,50 L150,86 L110,140 L68,140 Z" fill={c.fillCard} stroke={c.cardBorder} strokeWidth="3" />
-        <circle cx="86" cy="72" r="7" fill="none" stroke={c.cardBorder} strokeWidth="3" />
-        <path d="M78,120 L128,70" stroke={c.cardBorder} strokeWidth="4" strokeLinecap="round" />
-      </m.g>
-      <m.g
-        animate={{ opacity: [0.5, 1, 0.5] }}
-        transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-      >
-        <circle cx="100" cy="100" r="30" fill="none" stroke={c.line} strokeWidth="2" strokeDasharray="3 7" />
-      </m.g>
-      <text x="100" y="108" textAnchor="middle" fontSize="15" fontWeight="700" fill={c.line}>soon</text>
-    </svg>
-  );
-});
+const formatRange = (start, end, language) => {
+  const s = toDate(start);
+  const e = toDate(end);
+  if (!s || !e) return '';
+  return `${dateFmt(language, false).format(s)} — ${dateFmt(language, true).format(e)}`;
+};
 
-const OfferTicketIllustration = memo(({ darkMode, isPercentage }) => {
-  const c = palette(darkMode);
-  const stub = isPercentage ? "#f97316" : "#059669";
-  return (
-    <svg viewBox="0 0 96 96" className="w-full h-full">
-      <circle cx="48" cy="48" r="44" fill={c.fillSoft} />
-      <g transform="translate(48 48) rotate(-8) translate(-30 -22)">
-        <path d="M4 4 H56 C58 4 60 6 60 8 V14 C57.5 14 55.5 16.4 55.5 19 C55.5 21.6 57.5 24 60 24 V30 C60 32 58 34 56 34 H4 C2 34 0 32 0 30 V24 C2.5 24 4.5 21.6 4.5 19 C4.5 16.4 2.5 14 0 14 V8 C0 6 2 4 4 4 Z"
-          fill="white" stroke={c.cardBorder} strokeWidth="2" />
-        <line x1="40" y1="8" x2="40" y2="30" stroke={c.cardBorder} strokeWidth="1.5" strokeDasharray="2 3" />
-        {isPercentage ? (
-          <>
-            <circle cx="15" cy="13" r="3.4" fill="none" stroke={stub} strokeWidth="2.2" />
-            <circle cx="25" cy="25" r="3.4" fill="none" stroke={stub} strokeWidth="2.2" />
-            <line x1="26" y1="12" x2="14" y2="26" stroke={stub} strokeWidth="2.2" strokeLinecap="round" />
-          </>
-        ) : (
-          <text x="20" y="24" fontSize="16" fontWeight="800" fill={stub}>£</text>
-        )}
-      </g>
-      <circle cx="76" cy="22" r="4" fill="#fbbf24" />
-      <circle cx="18" cy="76" r="3" fill={stub} opacity="0.5" />
-    </svg>
-  );
-});
+// Keep only the fields the UI needs and coerce their types.
+const normalizeOffer = (o) => {
+  const isPct = o.discountType === 'PERCENTAGE';
+  const raw = Math.max(0, Number(o.discountValue) || 0);
+  return {
+    id: String(o.id),
+    name: String(o.name ?? ''),
+    description: o.description ? String(o.description) : '',
+    discountType: isPct ? 'PERCENTAGE' : 'FIXED_VALUE',
+    discountValue: isPct ? Math.min(raw, 100) : raw,
+    startDate: o.startDate || null,
+    endDate: o.endDate || null,
+    status: o.status === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE',
+    shopId: o.shopId != null ? String(o.shopId) : '',
+    shopName: o.shopName ? String(o.shopName) : '',
+  };
+};
 
-const EmeraldScrollStyle = memo(() => (
-  <style>{`
-    .emerald-scroll::-webkit-scrollbar { width: 6px; }
-    .emerald-scroll::-webkit-scrollbar-track { background: transparent; }
-    .emerald-scroll::-webkit-scrollbar-thumb { background: linear-gradient(180deg,#10b981,#0d9488); border-radius: 999px; }
-    .emerald-scroll { scrollbar-width: thin; scrollbar-color: #10b981 transparent; }
-  `}</style>
+const shopPath = (id) => `/shops/${encodeURIComponent(id)}`;
+
+const surface = (darkMode) =>
+  darkMode
+    ? 'border-emerald-900/70 bg-gradient-to-b from-emerald-900/40 to-emerald-950 shadow-[0_6px_0_0_#022c22]'
+    : 'border-emerald-200 bg-gradient-to-b from-white to-emerald-50 shadow-[0_6px_0_0_#a7f3d0]';
+const innerBox = (darkMode) => (darkMode ? 'border-emerald-900/70 bg-gray-900/40' : 'border-emerald-100 bg-white');
+
+const useOfferMeta = (offer, language) =>
+  useMemo(() => {
+    const days = daysLeftNum(offer.endDate);
+    return {
+      isPct: offer.discountType === 'PERCENTAGE',
+      isActive: offer.status === 'ACTIVE',
+      days,
+      remaining: days === null ? null : rtf(language).format(days, 'day'),
+      urgent: days !== null && days <= 3,
+      range: formatRange(offer.startDate, offer.endDate, language),
+      amount: offer.discountType === 'PERCENTAGE' ? `${offer.discountValue}%` : money(offer.discountValue),
+    };
+  }, [offer, language]);
+
+const StatusPill = memo(({ isActive, remaining, urgent, darkMode, t }) => (
+  <div className="flex flex-wrap items-center gap-1.5">
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+      isActive ? (darkMode ? 'bg-emerald-500/15 text-emerald-300' : 'bg-emerald-100 text-emerald-700') : darkMode ? 'bg-red-500/15 text-red-300' : 'bg-red-100 text-red-700'
+    }`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-red-500'}`} />
+      {isActive ? t('active') : t('inactive')}
+    </span>
+    {remaining && (
+      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+        urgent ? (darkMode ? 'bg-amber-500/15 text-amber-300' : 'bg-amber-100 text-amber-700') : darkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-600'
+      }`}>
+        <FiClock className="h-3 w-3" />{remaining}
+      </span>
+    )}
+  </div>
 ));
 
-const daysLeft = (endDate) => {
-  const diff = Math.ceil((new Date(endDate) - new Date()) / (1000 * 60 * 60 * 24));
-  if (diff < 0) return null;
-  if (diff === 0) return "Last day!";
-  if (diff === 1) return "1 day left";
-  return `${diff} days left`;
-};
-
-const formatDiscount = (offer) =>
-  offer.discountType === "PERCENTAGE" ? `${offer.discountValue}%` : `${offer.discountValue} EGP`;
-
-const formatDateRange = (s, e) =>
-  `${new Date(s).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} — ${new Date(e).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
-
-const OfferCard = memo(({ offer, index, darkMode, onViewDetail }) => {
-  const isPercentage = useMemo(() => offer.discountType === "PERCENTAGE", [offer.discountType]);
-  const isActive = useMemo(() => offer.status === "ACTIVE", [offer.status]);
-  const remaining = useMemo(() => daysLeft(offer.endDate), [offer.endDate]);
-  const isUrgent = useMemo(() => remaining && parseInt(remaining) <= 3, [remaining]);
-  const dateRangeFormatted = useMemo(() => formatDateRange(offer.startDate, offer.endDate), [offer.startDate, offer.endDate]);
-
-  const notchBg = darkMode ? "bg-gray-900" : "bg-emerald-50/30";
-  const stubGradient = isPercentage
-    ? "bg-gradient-to-br from-orange-500 to-rose-500"
-    : "bg-gradient-to-br from-emerald-500 to-teal-600";
-  const glow = isPercentage ? "hover:shadow-orange-500/15" : "hover:shadow-emerald-500/15";
+/* ───────────── Offer ticket card ───────────── */
+const OfferCard = memo(({ offer, darkMode, language, onViewDetail, t }) => {
+  const m = useOfferMeta(offer, language);
+  const open = useCallback(() => onViewDetail(offer.id), [onViewDetail, offer.id]);
+  const notch = darkMode ? 'bg-gray-900' : 'bg-white';
+  const stub = m.isPct ? 'from-amber-400 to-orange-500' : 'from-emerald-500 to-emerald-700';
 
   return (
-    <m.div
-      initial={{ opacity: 0, y: 22, scale: 0.97 }}
-      whileInView={{ opacity: 1, y: 0, scale: 1 }}
-      viewport={{ once: true, margin: "-40px" }}
-      transition={{ duration: 0.28, delay: index * 0.04, ease: EASE }}
-      whileHover={{ y: -5, transition: { duration: 0.15, ease: EASE } }}
-      className={`group relative flex flex-col rounded-2xl overflow-hidden border transition-shadow duration-300 hover:shadow-xl ${glow} ${
-        darkMode ? "bg-gray-800 border-gray-700/80" : "bg-white border-emerald-100"
-      }`}
-    >
-      <div className="relative grid grid-cols-[84px_1fr] sm:grid-cols-[100px_1fr] flex-1">
-        <div className={`relative flex flex-col items-center justify-center gap-0.5 py-5 px-2 text-white text-center ${stubGradient}`}>
-          <span className="text-xl sm:text-2xl font-extrabold leading-none">
-            {offer.discountValue}{isPercentage ? "%" : ""}
-          </span>
-          {!isPercentage && <span className="text-[9px] font-bold opacity-80 tracking-wide">EGP</span>}
-          <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest opacity-85 mt-0.5">Off</span>
-
-          <span className={`absolute -top-2.5 right-0 translate-x-1/2 w-5 h-5 rounded-full ${notchBg}`} />
-          <span className={`absolute -bottom-2.5 right-0 translate-x-1/2 w-5 h-5 rounded-full ${notchBg}`} />
+    <article className={`group relative flex h-full flex-col overflow-hidden rounded-3xl border transition-transform duration-200 hover:-translate-y-0.5 ${surface(darkMode)}`}>
+      <div className="relative grid flex-1 grid-cols-[88px_1fr] sm:grid-cols-[104px_1fr]">
+        <div className={`relative flex flex-col items-center justify-center gap-0.5 bg-gradient-to-br px-2 py-6 text-center text-white ${stub}`}>
+          <span className="text-2xl font-extrabold leading-none tabular-nums sm:text-3xl">{offer.discountValue}{m.isPct ? '%' : ''}</span>
+          {!m.isPct && <span className="text-[10px] font-bold opacity-80">EGP</span>}
+          <span className="mt-0.5 text-[10px] font-bold uppercase tracking-widest opacity-90">{t('off')}</span>
+          <span className={`absolute -top-2.5 right-0 h-5 w-5 translate-x-1/2 rounded-full ${notch}`} />
+          <span className={`absolute -bottom-2.5 right-0 h-5 w-5 translate-x-1/2 rounded-full ${notch}`} />
         </div>
+        <div className={`pointer-events-none absolute bottom-3 left-[88px] top-3 border-l-2 border-dashed sm:left-[104px] ${darkMode ? 'border-emerald-900' : 'border-emerald-200'}`} />
 
-        <div className={`pointer-events-none absolute top-3 bottom-3 left-[84px] sm:left-[100px] border-l-2 border-dashed ${darkMode ? "border-gray-600" : "border-gray-300"}`} />
-
-        <div className="p-4 sm:p-5 flex flex-col flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap mb-2">
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-              isActive ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-                : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
-            }`}>
-              <m.span animate={{ opacity: [1, 0.35, 1] }} transition={{ duration: 1.1, repeat: Infinity }}
-                className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-500" : "bg-red-500"}`} />
-              {offer.status}
-            </span>
-            {remaining && (
-              <m.span animate={isUrgent ? { scale: [1, 1.05, 1] } : {}} transition={{ duration: 0.8, repeat: Infinity }}
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                  isUrgent ? "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300"
-                    : darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-100 text-gray-600"
-                }`}>
-                <RiTimeLine className="w-3 h-3" />{remaining}
-              </m.span>
-            )}
-          </div>
-
-          <h3 className={`text-base sm:text-lg font-extrabold leading-tight mb-1 transition-colors group-hover:text-emerald-600 dark:group-hover:text-emerald-400 ${darkMode ? "text-white" : "text-gray-900"}`}>
-            {offer.name}
-          </h3>
-
-          <p className={`text-xs sm:text-sm leading-relaxed line-clamp-2 mb-3 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-            {offer.description || "Limited time offer on selected services and products."}
-          </p>
-
-          <div className={`space-y-1.5 mt-auto text-xs sm:text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-            <div className="flex items-center gap-2">
-              <FaCalendarAlt className="text-emerald-500 text-[11px] flex-shrink-0" />
-              <span>{dateRangeFormatted}</span>
-            </div>
-            {offer.shopName && (
-              <Link to={`/shops/${offer.shopId}`} onClick={(e) => e.stopPropagation()} className="flex items-center gap-2 group/link w-fit">
-                <FaStore className="text-emerald-500 text-[11px] flex-shrink-0" />
-                <span className="font-semibold text-emerald-600 dark:text-emerald-400 group-hover/link:underline">{offer.shopName}</span>
+        <div className="flex min-w-0 flex-col gap-2 p-4 sm:p-5">
+          <StatusPill isActive={m.isActive} remaining={m.remaining} urgent={m.urgent} darkMode={darkMode} t={t} />
+          <h3 className={`line-clamp-2 text-base font-extrabold leading-tight sm:text-lg ${darkMode ? 'text-white' : 'text-emerald-950'}`}>{offer.name}</h3>
+          <p className={`line-clamp-2 text-xs leading-relaxed sm:text-sm ${darkMode ? 'text-emerald-100/60' : 'text-emerald-900/70'}`}>{offer.description || t('descriptionFallback')}</p>
+          <div className={`mt-auto space-y-1.5 pt-2 text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            {m.range && <p className="flex items-center gap-2"><FiCalendar className="h-3 w-3 flex-shrink-0 text-emerald-500" />{m.range}</p>}
+            {offer.shopName && offer.shopId && (
+              <Link to={shopPath(offer.shopId)} className="flex w-fit items-center gap-2 font-semibold text-emerald-600 hover:underline dark:text-emerald-400">
+                <RiStoreLine className="h-3.5 w-3.5 flex-shrink-0" />{offer.shopName}
               </Link>
             )}
           </div>
         </div>
       </div>
 
-      <div className={`px-4 sm:px-5 py-2.5 border-t flex items-center justify-between flex-shrink-0 ${darkMode ? "border-gray-700 bg-gray-800/60" : "border-emerald-50 bg-emerald-50/40"}`}>
-        <span className={`text-[10px] sm:text-xs font-semibold ${darkMode ? "text-gray-500" : "text-gray-400"}`}>
-          {isPercentage ? "Percentage discount" : ""}
-        </span>
-        <div className="flex items-center gap-2">
-          <m.button
-            whileTap={{ scale: 0.95 }} transition={{ duration: 0.12 }}
-            onClick={() => onViewDetail(offer.id)}
-            className="flex items-center gap-1 text-[11px] font-bold px-3 py-1.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white transition-colors duration-150 shadow-sm"
-          >
-            Details <FiChevronRight className="w-3 h-3" />
-          </m.button>
-          <Link to={`/shops/${offer.shopId}`} onClick={(e) => e.stopPropagation()}
-            className="flex items-center gap-1 text-[11px] font-bold px-2 py-1.5 rounded-full text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors duration-150">
-            Shop <FiExternalLink className="w-3 h-3" />
-          </Link>
-        </div>
+      <div className={`flex items-center justify-between gap-2 border-t px-4 py-3 sm:px-5 ${darkMode ? 'border-emerald-900/70' : 'border-emerald-100'}`}>
+        <span className={`text-[11px] font-semibold ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>{m.isPct ? t('percentageDiscount') : ''}</span>
+        <Btn3D tone="soft" darkMode={darkMode} onClick={open} className="px-3.5 py-2 text-xs">
+          {t('details')} <FiArrowRight className="h-3.5 w-3.5 text-emerald-500 rtl:rotate-180" />
+        </Btn3D>
       </div>
-    </m.div>
+    </article>
   );
 });
 
-const OfferDetailModal = memo(({ open, onClose, offerId, token, darkMode }) => {
-  const { data: offer, isLoading: loading } = useQuery({
+/* ───────────── Detail modal ───────────── */
+const InfoRow = ({ Icon, label, value, darkMode, children }) => (
+  <div className={`flex items-center gap-3 rounded-xl border p-3 ${innerBox(darkMode)}`}>
+    <Chip3D className="h-9 w-9 flex-shrink-0"><Icon className="h-4 w-4" /></Chip3D>
+    <div className="min-w-0 flex-1">
+      <p className={`text-[10px] font-semibold uppercase tracking-wide ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{label}</p>
+      <p className={`truncate text-sm font-bold ${darkMode ? 'text-white' : 'text-emerald-950'}`}>{value}</p>
+    </div>
+    {children}
+  </div>
+);
+
+const OfferDetailBody = memo(({ offer, darkMode, language, t, onClose }) => {
+  const m = useOfferMeta(offer, language);
+  return (
+    <div className="space-y-3">
+      <StatusPill isActive={m.isActive} remaining={m.remaining} urgent={m.urgent} darkMode={darkMode} t={t} />
+      {offer.description && <p className={`text-xs leading-relaxed sm:text-sm ${darkMode ? 'text-emerald-100/60' : 'text-emerald-900/70'}`}>{offer.description}</p>}
+      <InfoRow Icon={FiTag} label={t('youSave')} value={m.amount} darkMode={darkMode} />
+      {m.range && <InfoRow Icon={FiCalendar} label={t('validPeriod')} value={m.range} darkMode={darkMode} />}
+      {offer.shopName && (
+        <InfoRow Icon={RiStoreLine} label={t('shop')} value={offer.shopName} darkMode={darkMode}>
+          {offer.shopId && (
+            <Link to={shopPath(offer.shopId)} onClick={onClose} className="flex-shrink-0 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-600">{t('visit')}</Link>
+          )}
+        </InfoRow>
+      )}
+    </div>
+  );
+});
+
+const OfferDetailModal = memo(({ open, onClose, offerId, darkMode, language, t }) => {
+  const navigate = useNavigate();
+  const { data: offer, isLoading, isError, error } = useQuery({
     queryKey: ['offerDetail', offerId],
-    queryFn: async () => {
-      try {
-        const res = await api.get(`/api/users/offers/${offerId}`, { headers: { Authorization: `Bearer ${token}` } });
-        return res.data;
-      } catch (err) {
-        loadSwal().then((Swal) =>
-          Swal.fire({ icon: "error", title: "Failed to load offer", toast: true, position: "top-end", timer: 2000, showConfirmButton: false })
-        );
-        throw err;
-      }
-    },
-    enabled: open && !!offerId && !!token,
+    queryFn: async () => normalizeOffer((await api.get(`/api/users/offers/${encodeURIComponent(offerId)}`, { headers: authHeaders() })).data),
+    enabled: open && !!offerId,
+    staleTime: 60 * 1000,
   });
 
-  const isPercentage = useMemo(() => offer?.discountType === "PERCENTAGE", [offer]);
-  const isActive = useMemo(() => offer?.status === "ACTIVE", [offer]);
-  const remaining = useMemo(() => offer ? daysLeft(offer.endDate) : null, [offer]);
-  const isUrgent = useMemo(() => remaining && parseInt(remaining) <= 3, [remaining]);
-
-  const discountFormatted = useMemo(() => offer ? formatDiscount(offer) : "", [offer]);
-  const dateRangeFormatted = useMemo(() => offer ? formatDateRange(offer.startDate, offer.endDate) : "", [offer]);
+  useEffect(() => {
+    if (!isError) return;
+    if (isUnauthorized(error)) expireSession(navigate);
+    else toast({ icon: 'error', title: 'Failed to load offer' });
+  }, [isError, error, navigate]);
 
   return (
-    <Dialog open={open} onClose={onClose} className="relative z-50">
-      <DialogBackdrop transition className="fixed inset-0 bg-black/70 backdrop-blur-md duration-150 data-closed:opacity-0" />
-      <div className="fixed inset-0 flex items-center justify-center p-3 overflow-y-auto">
-        <DialogPanel transition
-          className={`relative w-full max-w-sm sm:max-w-md rounded-md sm:rounded-md shadow-2xl overflow-hidden border duration-150 data-closed:opacity-0 data-closed:scale-95 ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-emerald-100"}`}
-        >
-         
-          <div className={`flex items-center justify-between px-4 py-2.5 sm:py-3 border-b ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
-            <DialogTitle className={`text-sm sm:text-base font-extrabold flex items-center gap-1.5 ${darkMode ? "text-white" : "text-gray-900"}`}>
-              <RiPriceTag2Line className="text-emerald-500 text-lg" /> Offer Details
-            </DialogTitle>
-            <button onClick={onClose} className={`p-1.5 rounded-lg transition ${darkMode ? "hover:bg-gray-800 text-gray-400" : "hover:bg-gray-100 text-gray-500"}`}>
-              <FiX className="w-4 h-4" />
+    <Dialog open={open} onClose={onClose} className="relative z-[70]">
+      <DialogBackdrop transition className="fixed inset-0 bg-black/60 backdrop-blur-sm duration-150 data-[closed]:opacity-0" />
+      <div className="fixed inset-0 flex items-center justify-center overflow-y-auto p-4">
+        <DialogPanel transition className={`relative w-full max-w-md rounded-3xl border p-5 duration-150 data-[closed]:scale-95 data-[closed]:opacity-0 sm:p-6 ${surface(darkMode)}`}>
+          <div className="mb-4 flex items-start gap-3">
+            <Chip3D tone="am" className="h-11 w-11 flex-shrink-0"><RiPriceTag3Line className="h-5 w-5" /></Chip3D>
+            <div className="min-w-0 flex-1">
+              <DialogTitle className={`line-clamp-2 text-lg font-extrabold leading-snug ${darkMode ? 'text-white' : 'text-emerald-950'}`}>{offer?.name || t('offerDetails')}</DialogTitle>
+            </div>
+            <button type="button" onClick={onClose} aria-label={t('close')} className={`rounded-xl p-2 transition-colors ${darkMode ? 'text-gray-400 hover:bg-white/10' : 'text-gray-500 hover:bg-emerald-100'}`}>
+              <FiX className="h-5 w-5" />
             </button>
           </div>
-          <div className="emerald-scroll max-h-[70vh] overflow-y-auto">
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="w-9 h-9 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-              </div>
+
+          <div className="max-h-[65vh] overflow-y-auto">
+            {isLoading ? (
+              <div className="flex justify-center py-12" role="status" aria-label="Loading"><span className="h-9 w-9 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent" /></div>
             ) : offer ? (
-              <m.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: EASE }}
-                className="p-3.5 sm:p-4 space-y-3">
-                <div className={`relative rounded-xl p-3.5 sm:p-4 overflow-hidden ${darkMode ? "bg-gray-800" : "bg-gradient-to-br from-emerald-50 to-teal-50"}`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="w-11 h-11 sm:w-12 sm:h-12 flex-shrink-0">
-                      <OfferTicketIllustration darkMode={darkMode} isPercentage={isPercentage} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap gap-1.5 mb-1.5">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                          isActive ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" : "bg-red-100 text-red-700"
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`} />{offer.status}
-                        </span>
-                        {remaining && (
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                            isUrgent ? "bg-orange-100 text-orange-700" : darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-100 text-gray-600"
-                          }`}>
-                            <FiClockIcon className="w-2.5 h-2.5" />{remaining}
-                          </span>
-                        )}
-                      </div>
-                      <h3 className={`text-base sm:text-lg font-extrabold leading-snug ${darkMode ? "text-white" : "text-gray-900"}`}>{offer.name}</h3>
-                      {offer.description && <p className={`text-[11px] sm:text-xs leading-relaxed mt-0.5 line-clamp-2 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{offer.description}</p>}
-                    </div>
-                    <div className={`flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex flex-col items-center justify-center shadow-lg ${
-                      isPercentage ? "bg-gradient-to-br from-orange-500 to-rose-500" : "bg-gradient-to-br from-emerald-500 to-teal-600"
-                    }`}>
-                      <span className="text-white text-xs sm:text-sm font-extrabold leading-none">{offer.discountValue}{isPercentage ? "%" : ""}</span>
-                      <span className="text-white/80 text-[7px] sm:text-[8px] font-bold">OFF</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-2">
-                  {[
-                    { label: "You Save", value: discountFormatted, icon: <FaTag />, color: "text-emerald-600 dark:text-emerald-400" },
-                  ].map((item) => (
-                    <div key={item.label} className={`p-2.5 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
-                      <div className={`flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wide mb-0.5 ${darkMode ? "text-gray-500" : "text-gray-400"}`}>
-                        <span className={item.color}>{item.icon}</span>{item.label}
-                      </div>
-                      <p className={`text-sm font-extrabold ${item.color}`}>{item.value}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <div className={`flex items-center gap-2.5 p-2.5 sm:p-3 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${darkMode ? "bg-gray-700" : "bg-emerald-100"}`}>
-                    <FaCalendarAlt className="text-emerald-500 text-xs" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className={`text-[9px] font-semibold uppercase tracking-wide ${darkMode ? "text-gray-500" : "text-gray-400"}`}>Valid Period</p>
-                    <p className={`text-xs font-bold truncate ${darkMode ? "text-white" : "text-gray-900"}`}>{dateRangeFormatted}</p>
-                  </div>
-                </div>
-
-                {offer.shopName && (
-                  <div className={`flex items-center justify-between p-2.5 sm:p-3 rounded-lg border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${darkMode ? "bg-gray-700" : "bg-emerald-100"}`}>
-                        <FaStore className="text-emerald-500 text-xs" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className={`text-[9px] font-semibold uppercase tracking-wide ${darkMode ? "text-gray-500" : "text-gray-400"}`}>Shop</p>
-                        <p className={`text-xs font-bold truncate ${darkMode ? "text-white" : "text-gray-900"}`}>{offer.shopName}</p>
-                      </div>
-                    </div>
-                    <Link to={`/shops/${offer.shopId}`} onClick={onClose}
-                      className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white transition-all shadow-sm flex-shrink-0">
-                      Visit <FiExternalLink className="w-2.5 h-2.5" />
-                    </Link>
-                  </div>
-                )}
-
-                
-              </m.div>
+              <OfferDetailBody offer={offer} darkMode={darkMode} language={language} t={t} onClose={onClose} />
             ) : (
-              <div className="py-10 text-center">
-                <p className={`text-sm font-semibold ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Offer not found</p>
-              </div>
+              <p className={`py-10 text-center text-sm font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{t('notFound')}</p>
             )}
           </div>
-          <div className={`px-4 py-2.5 sm:py-3 border-t flex justify-end gap-2 ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
-            <m.button whileTap={{ scale: 0.97 }} transition={{ duration: 0.12 }} onClick={onClose}
-              className={`px-3.5 py-1.5 sm:py-2 rounded-lg font-bold text-xs transition-all ${darkMode ? "bg-gray-800 text-gray-300 hover:bg-gray-700" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
-              Close
-            </m.button>
+
+          <div className="mt-5 flex justify-end gap-2">
+            <Btn3D tone="soft" darkMode={darkMode} onClick={onClose} className="px-4 py-2.5 text-xs">{t('close')}</Btn3D>
             {offer?.shopId && (
-              <Link to={`/shops/${offer.shopId}`} onClick={onClose}>
-                <m.button whileTap={{ scale: 0.97 }} transition={{ duration: 0.12 }}
-                  className="px-3.5 py-1.5 sm:py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold text-xs transition-all shadow-md flex items-center gap-1.5">
-                  <FaStore size={11} /> Visit Shop
-                </m.button>
-              </Link>
+              <Btn3D as={Link} to={shopPath(offer.shopId)} onClick={onClose} className="px-4 py-2.5 text-xs"><RiStoreLine className="h-4 w-4" /> {t('visitShop')}</Btn3D>
             )}
           </div>
         </DialogPanel>
@@ -369,144 +246,84 @@ const OfferDetailModal = memo(({ open, onClose, offerId, token, darkMode }) => {
   );
 });
 
-const SkeletonCard = memo(({ darkMode }) => (
-  <div className={`flex rounded-2xl border overflow-hidden animate-pulse ${darkMode ? "bg-gray-800 border-gray-700/80" : "bg-white border-emerald-100"}`}>
-    <div className={`w-[84px] sm:w-[100px] flex-shrink-0 ${darkMode ? "bg-gray-700" : "bg-emerald-50"}`} />
-    <div className="flex-1 p-4 sm:p-5 space-y-3">
-      <div className={`h-3 rounded-full w-16 ${darkMode ? "bg-gray-700" : "bg-gray-100"}`} />
-      <div className={`h-5 rounded-lg w-3/4 ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
-      <div className={`h-3 rounded-lg w-full ${darkMode ? "bg-gray-700" : "bg-gray-100"}`} />
-      <div className={`h-3 rounded-lg w-5/6 ${darkMode ? "bg-gray-700" : "bg-gray-100"}`} />
-      <div className={`h-3 rounded-lg w-1/2 mt-3 ${darkMode ? "bg-gray-700" : "bg-gray-100"}`} />
-    </div>
-  </div>
-));
-
-const MOCK_OFFER = {
-  id: "0199b7de-ded5-7fea-964d-616ca9af5d3c", name: "Offer 6",
-  description: "The sixth offer", discountType: "FIXED_VALUE", discountValue: 200,
-  startDate: "2025-10-05T21:00:00", endDate: "2026-10-30T22:00:00", status: "ACTIVE",
-  shopId: "01998efa-6127-7218-bcd3-f701a640df92", shopName: "Star",
-};
-
+/* ───────────── Page ───────────── */
 const OffersContent = ({ darkMode }) => {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(6);
-  const [detailOfferId, setDetailOfferId] = useState(null);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const language = useAppLanguage();
+  const navigate = useNavigate();
+  const t = useCallback((key) => tr(language, key), [language]);
+  const token = useAuthGuard();
+
+  const [page, setPage] = useState(1);
+  const [detailId, setDetailId] = useState(null);
   const [isPending, startTransition] = useTransition();
-  // Read once instead of a synchronous localStorage.getItem() call on every render.
-  const token = useMemo(() => localStorage.getItem("authToken"), []);
 
-  useEffect(() => { document.title = "Exclusive Offers | Tech-Restore"; }, []);
+  useEffect(() => { document.title = 'Exclusive Offers | Tech-Restore'; }, []);
 
-  useEffect(() => {
-    if (!token) {
-      loadSwal().then((Swal) =>
-        Swal.fire({ icon: "warning", title: "Please Log In", text: "Log in to see personalized offers", confirmButtonColor: "#10b981" })
-          .then(() => { window.location.href = "/login"; })
-      );
-    }
-  }, [token]);
-
-  const { data: offers = [MOCK_OFFER], isLoading } = useQuery({
+  const { data: offers = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ['offers'],
     queryFn: async () => {
-      try {
-        const res = await api.get("/api/users/offers", { headers: { Authorization: `Bearer ${token}` } });
-        const data = res.data.content || res.data || [];
-        return data.length > 0 ? data : [MOCK_OFFER];
-      } catch {
-        return [MOCK_OFFER];
-      }
+      const res = await api.get('/api/users/offers', { headers: authHeaders() });
+      const raw = res.data?.content || res.data || [];
+      return (Array.isArray(raw) ? raw : []).filter((o) => o && o.id != null).map(normalizeOffer);
     },
     enabled: !!token,
+    staleTime: 2 * 60 * 1000,
   });
 
-  const openDetail = useCallback((id) => { setDetailOfferId(id); setIsDetailOpen(true); }, []);
-  const closeDetail = useCallback(() => { setIsDetailOpen(false); setDetailOfferId(null); }, []);
+  useEffect(() => {
+    if (isError && isUnauthorized(error)) expireSession(navigate);
+  }, [isError, error, navigate]);
 
-  const totalPages = useMemo(() => Math.ceil(offers.length / pageSize), [offers.length, pageSize]);
-  const paginatedOffers = useMemo(() => offers.slice((currentPage - 1) * pageSize, currentPage * pageSize), [offers, currentPage, pageSize]);
+  const totalPages = Math.max(1, Math.ceil(offers.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paged = useMemo(() => offers.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE), [offers, safePage]);
 
-  const handlePrevPage = useCallback(() => startTransition(() => setCurrentPage((p) => Math.max(1, p - 1))), []);
-  const handleNextPage = useCallback(() => startTransition(() => setCurrentPage((p) => Math.min(totalPages, p + 1))), [totalPages]);
+  const changePage = useCallback((p) => startTransition(() => setPage(Math.min(Math.max(1, p), totalPages))), [totalPages]);
+  const openDetail = useCallback((id) => setDetailId(id), []);
+  const closeDetail = useCallback(() => setDetailId(null), []);
 
   return (
-    <LazyMotion features={domAnimation}>
-      <div className={`min-h-screen overflow-x-hidden ${darkMode ? "bg-gray-900" : "bg-emerald-50/30"}`}>
-        <EmeraldScrollStyle />
+    <div
+      dir={languageDirection(language)}
+      key={language}
+      className={`min-h-screen overflow-x-hidden ${language === 'ar' ? 'font-cairo' : 'font-poppins'} ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}
+    >
+      <Device3DStyles />
+      <Defs3D />
 
-        <Hero variant="offers" darkMode={darkMode} />
+      <Hero variant="offers" darkMode={darkMode} />
+      <TrustStrip darkMode={darkMode} />
 
-        <section className={`py-10 sm:py-16 ${darkMode ? "bg-gray-900" : "bg-emerald-50/30"}`}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <m.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-              transition={{ duration: 0.3, ease: EASE }}
-              className="flex items-center justify-between mb-7 sm:mb-10 flex-wrap gap-3 sm:gap-4">
-              <h2 className={`text-2xl sm:text-4xl font-bold tracking-tight relative inline-block ${darkMode ? "text-emerald-400" : "text-emerald-800"} after:content-[''] after:absolute after:bottom-[-6px] after:left-0 after:w-12 after:h-1 after:rounded-full after:bg-gradient-to-r after:from-emerald-600 after:to-teal-400`}>
-                Active Offers
-              </h2>
-              <m.span key={offers.length} initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.2, ease: EASE }}
-                className={`px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-bold ${darkMode ? "bg-emerald-900/30 text-emerald-400" : "bg-emerald-50 text-emerald-600 border border-emerald-200"}`}>
-                {offers.length} offer{offers.length !== 1 ? "s" : ""} available
-              </m.span>
-            </m.div>
+      <section className={`py-12 sm:py-16 ${darkMode ? 'bg-gray-900' : 'bg-white'}`}>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <SectionBanner
+            darkMode={darkMode}
+            badge={isLoading ? t('activeOffers') : `${offers.length} ${t('available')}`}
+            title={t('activeOffers')}
+            subtitle={t('checkBack')}
+          />
 
-            {isLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                {[...Array(6)].map((_, i) => <SkeletonCard key={i} darkMode={darkMode} />)}
+          {isLoading ? (
+            <LoadingGrid count={6} darkMode={darkMode} className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 sm:gap-6" itemClassName="h-60" />
+          ) : isError && !isUnauthorized(error) ? (
+            <ErrorState darkMode={darkMode} label="We couldn't load offers right now." onRetry={refetch} />
+          ) : paged.length === 0 ? (
+            <EmptyState darkMode={darkMode} label={t('noActive')} hint={t('checkBack')} />
+          ) : (
+            <>
+              <div aria-busy={isPending} className={`grid grid-cols-1 gap-5 transition-opacity duration-150 md:grid-cols-2 lg:grid-cols-3 sm:gap-6 ${isPending ? 'opacity-70' : ''}`}>
+                {paged.map((o) => (
+                  <OfferCard key={o.id} offer={o} darkMode={darkMode} language={language} onViewDetail={openDetail} t={t} />
+                ))}
               </div>
-            ) : paginatedOffers.length > 0 ? (
-              <AnimatePresence mode="wait">
-                <m.div key={currentPage} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18, ease: EASE }}
-                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                  {paginatedOffers.map((offer, index) => (
-                    <OfferCard key={offer.id} offer={offer} index={index} darkMode={darkMode} onViewDetail={openDetail} />
-                  ))}
-                </m.div>
-              </AnimatePresence>
-            ) : (
-              <m.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, ease: EASE }} className="text-center py-16 sm:py-24">
-                <div className="w-40 h-40 sm:w-48 sm:h-48 mx-auto mb-2">
-                  <NoOffersIllustration darkMode={darkMode} />
-                </div>
-                <p className={`text-xl sm:text-2xl font-bold mb-2 ${darkMode ? "text-white" : "text-gray-900"}`}>No active offers right now</p>
-                <p className={`text-sm sm:text-base ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Check back soon — new deals are added daily!</p>
-              </m.div>
-            )}
-          </div>
-        </section>
+              <Pager page={safePage} totalPages={totalPages} onChange={changePage} darkMode={darkMode} pending={isPending} />
+            </>
+          )}
+        </div>
+      </section>
 
-        {totalPages > 1 && (
-          <div
-            aria-busy={isPending}
-            className={`flex justify-center items-center gap-2 sm:gap-3 py-8 sm:py-12 flex-wrap px-4 sm:px-6 transition-opacity duration-150 ${isPending ? "opacity-70" : "opacity-100"}`}
-          >
-            <m.button whileTap={{ scale: 0.96 }} transition={{ duration: 0.12 }} onClick={handlePrevPage} disabled={currentPage === 1}
-              className={`p-2.5 sm:p-3 rounded-xl border-2 transition-all duration-150 ${currentPage === 1 ? "opacity-40 cursor-not-allowed border-gray-200 dark:border-gray-700" : darkMode ? "bg-gray-800 border-gray-700 text-white hover:border-emerald-500" : "bg-white border-emerald-100 text-gray-700 hover:border-emerald-400"}`}>
-              <FiChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-            </m.button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <m.button key={page} whileTap={{ scale: 0.96 }} transition={{ duration: 0.12 }} onClick={() => setCurrentPage(page)}
-                className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl font-bold text-xs sm:text-sm border-2 transition-all duration-150 ${
-                  currentPage === page ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-transparent shadow-lg scale-105"
-                    : darkMode ? "bg-gray-800 border-gray-700 text-gray-300 hover:border-emerald-500 hover:text-emerald-400" : "bg-white border-emerald-100 text-gray-700 hover:border-emerald-400 hover:text-emerald-600"
-                }`}>
-                {page}
-              </m.button>
-            ))}
-            <m.button whileTap={{ scale: 0.96 }} transition={{ duration: 0.12 }} onClick={handleNextPage} disabled={currentPage === totalPages}
-              className={`p-2.5 sm:p-3 rounded-xl border-2 transition-all duration-150 ${currentPage === totalPages ? "opacity-40 cursor-not-allowed border-gray-200 dark:border-gray-700" : darkMode ? "bg-gray-800 border-gray-700 text-white hover:border-emerald-500" : "bg-white border-emerald-100 text-gray-700 hover:border-emerald-400"}`}>
-              <FiChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
-            </m.button>
-          </div>
-        )}
-
-        <OfferDetailModal open={isDetailOpen} onClose={closeDetail}
-          offerId={detailOfferId} token={token} darkMode={darkMode} />
-      </div>
-    </LazyMotion>
+      <OfferDetailModal open={!!detailId} onClose={closeDetail} offerId={detailId} darkMode={darkMode} language={language} t={t} />
+    </div>
   );
 };
 

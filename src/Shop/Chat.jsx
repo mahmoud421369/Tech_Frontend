@@ -1,7 +1,22 @@
 import React, { useEffect, useState, memo, lazy, Suspense } from 'react';
-import { FiMessageSquare, FiBell, FiClock, FiZap, FiChevronLeft } from 'react-icons/fi';
+import { FiMessageSquare, FiChevronLeft } from 'react-icons/fi';
+import api from '../api';
 
 const ShopChatModal = lazy(() => import('../components/ShopChatModal'));
+
+const TitleIllustration = memo(() => (
+  <svg viewBox="0 0 64 64" className="w-full h-full">
+    <circle cx="32" cy="32" r="26" fill="rgba(16,185,129,0.10)" />
+    <path
+      d="M18 24 C18 17.5 24 12 32 12 C40 12 46 17.5 46 24 C46 30.5 40 36 32 36 C29.8 36 27.7 35.7 25.9 35.1 L17 40 L19.3 32.2 C18.5 29.7 18 27 18 24 Z"
+      fill="none" stroke="#10b981" strokeWidth="2.6" strokeLinejoin="round"
+    />
+    <circle cx="26" cy="24" r="2.4" fill="#10b981" />
+    <circle cx="32" cy="24" r="2.4" fill="#10b981" />
+    <circle cx="38" cy="24" r="2.4" fill="#10b981" />
+    <path d="M44 44 L48 36 L45 36 L50 27 L46 36 L49 36 Z" fill="#fbbf24" />
+  </svg>
+));
 
 const InstantChatIllustration = memo(() => (
   <svg viewBox="0 0 64 64" className="w-full h-full">
@@ -57,6 +72,12 @@ const MainChatIllustration = memo(() => (
   </svg>
 ));
 
+const SparkleIllustration = memo(() => (
+  <svg viewBox="0 0 32 32" className="w-full h-full">
+    <path d="M16 4 L19 13 L28 16 L19 19 L16 28 L13 19 L4 16 L13 13 Z" fill="#10b981" />
+  </svg>
+));
+
 const TipIllustration = memo(() => (
   <svg viewBox="0 0 64 64" className="w-full h-full">
     <circle cx="32" cy="32" r="26" fill="rgba(255,255,255,0.10)" />
@@ -68,14 +89,14 @@ const TipIllustration = memo(() => (
 ));
 
 const FeatureCard = memo(({ Illustration, label, color, description }) => (
-  <div className="relative group bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 p-6 transition-all duration-500 hover:shadow-2xl hover:shadow-gray-200/50 dark:hover:shadow-none overflow-hidden">
+  <div className="relative group bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 sm:p-6 transition-all duration-500 hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-none hover:-translate-y-1 overflow-hidden">
     <div className={`absolute top-0 right-0 w-24 h-24 bg-${color}-500/5 rounded-bl-full translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-700`} />
     <div className="flex flex-col h-full relative z-10 text-right">
-      <div className="w-14 h-14 mb-4 group-hover:rotate-6 transition-transform">
+      <div className="w-12 h-12 mb-3.5 group-hover:rotate-6 transition-transform">
         <Illustration />
       </div>
-      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">{label}</p>
-      <p className="text-sm font-black text-gray-900 dark:text-white mt-1 uppercase tracking-widest">{description}</p>
+      <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500">{label}</p>
+      <p className="text-sm font-black text-gray-900 dark:text-white mt-1">{description}</p>
     </div>
   </div>
 ));
@@ -88,81 +109,123 @@ const FEATURE_CARDS = [
 
 const Chat = () => {
   const [openChat, setOpenChat] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => { document.title = 'إدارة المحادثات'; }, []);
 
+  // Refresh the unread badge on first load and every time the modal is closed
+  // (it manages the live count itself while it's open).
+  useEffect(() => {
+    if (openChat) return;
+    const shopId = localStorage.getItem('id');
+    if (!shopId) return;
+    const controller = new AbortController();
+    api.get(`/api/chats/${shopId}/unread-count`, { signal: controller.signal })
+      .then(({ data }) => setUnreadCount(Number(data?.unreadCount ?? data) || 0))
+      .catch(() => {});
+    return () => controller.abort();
+  }, [openChat]);
+
   return (
-    <div dir="rtl" className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pr-64 mt-16 transition-all duration-500 font-cairo text-right">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-10">
-        
-        <div className="flex flex-col md:flex-row md:items-end justify-between mt-3 gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-1.5 rounded-full bg-emerald-500" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">مركز الاتصال</span>
+    <div dir="rtl" className="min-h-screen bg-gray-50 dark:bg-gray-900 py-6 lg:pr-64 mt-16 transition-colors duration-300 font-cairo antialiased text-right">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
+
+        <div className="flex flex-col md:flex-row md:items-end justify-between mt-3 gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0">
+              <TitleIllustration />
             </div>
-            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">إدارة <span className="text-emerald-500">المحادثات</span></h1>
-            <p className="text-sm font-bold text-gray-500 dark:text-gray-400">عزز علاقتك بعملائك من خلال نظام دردشة فوري ومتطور</p>
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-1.5 rounded-full bg-emerald-500" />
+                <span className="text-[10px] font-bold text-emerald-600">مركز الاتصال</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white">
+                إدارة <span className="text-emerald-500">المحادثات</span>
+              </h1>
+              <p className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400">
+                عزز علاقتك بعملائك من خلال نظام دردشة فوري ومتطور
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-           {FEATURE_CARDS.map(f => <FeatureCard key={f.label} {...f} />)}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {FEATURE_CARDS.map((f) => <FeatureCard key={f.label} {...f} />)}
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden relative group">
-           <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/5 rounded-full translate-x-1/2 -translate-y-1/2 group-hover:scale-110 transition-transform duration-1000" />
-           
-           <div className="relative z-10 px-8 py-16 sm:py-20 flex flex-col items-center text-center space-y-6">
-              <MainChatIllustration />
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden relative group">
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/5 rounded-full translate-x-1/2 -translate-y-1/2 group-hover:scale-110 transition-transform duration-1000" />
 
-              <div className="w-24 h-24 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-2xl shadow-emerald-500/40 relative group-hover:scale-110 transition-transform duration-500">
-                 <FiMessageSquare size={44} />
-                 <div className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 border-4 border-white dark:border-gray-800 rounded-full animate-pulse" />
+          <div className="relative z-10 px-6 py-12 sm:py-16 flex flex-col items-center text-center space-y-5">
+            <MainChatIllustration />
+
+            <div className="w-20 h-20 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-xl shadow-emerald-500/30 relative group-hover:scale-110 transition-transform duration-500">
+              <FiMessageSquare size={38} />
+              <div className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 border-4 border-white dark:border-gray-800 rounded-full animate-pulse" />
+            </div>
+
+            <div className="space-y-3 max-w-xl">
+              <h2 className="flex items-center justify-center gap-2 text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white">
+                <span className="w-5 h-5 flex-shrink-0"><SparkleIllustration /></span>
+                ابدأ المحادثة مع عملائك الآن
+              </h2>
+              <p className="text-sm font-semibold text-gray-400 leading-relaxed">
+                افتح نافذة الدردشة المتكاملة للرد على استفسارات العملاء، متابعة الطلبات، وتقديم الدعم الفني المباشر
+              </p>
+            </div>
+
+            <button
+              onClick={() => setOpenChat(true)}
+              className="relative group flex items-center gap-3 px-8 py-4 rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-sm font-bold hover:bg-emerald-500 dark:hover:bg-emerald-500 hover:text-white transition-all shadow-xl shadow-gray-900/20 active:scale-95"
+            >
+              فتح منصة المحادثات
+              <FiChevronLeft className="group-hover:-translate-x-2 transition-transform duration-300" size={18} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-2 -left-2 min-w-[22px] h-[22px] px-1 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center border-2 border-white dark:border-gray-900">
+                  {unreadCount > 99 ? '٩٩+' : unreadCount.toLocaleString('ar-EG')}
+                </span>
+              )}
+            </button>
+
+            <div className="flex items-center gap-6 pt-6">
+              <div className="flex flex-col items-center">
+                <p className="text-lg font-black text-gray-900 dark:text-white">١٠٠٪</p>
+                <p className="text-[9px] font-bold text-gray-400">معدل الاستجابة</p>
               </div>
-
-              <div className="space-y-4 max-w-xl">
-                 <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">ابدأ المحادثة مع عملائك الآن</h2>
-                 <p className="text-sm font-bold text-gray-400 leading-relaxed uppercase tracking-widest">
-                    افتح نافذة الدردشة المتكاملة للرد على استفسارات العملاء، متابعة الطلبات، وتقديم الدعم الفني المباشر
-                 </p>
+              <div className="w-[1px] h-8 bg-gray-100 dark:bg-gray-700" />
+              <div className="flex flex-col items-center">
+                <p className="text-lg font-black text-gray-900 dark:text-white">فوري</p>
+                <p className="text-[9px] font-bold text-gray-400">وقت المزامنة</p>
               </div>
-
-              <button
-                onClick={() => setOpenChat(true)}
-                className="group flex items-center gap-3 px-10 py-5 rounded-[2rem] bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-sm font-black uppercase tracking-widest hover:bg-emerald-500 dark:hover:bg-emerald-500 hover:text-white transition-all shadow-2xl shadow-gray-900/20 active:scale-95"
-              >
-                فتح منصة المحادثات
-                <FiChevronLeft className="group-hover:-translate-x-2 transition-transform duration-300" size={20} />
-              </button>
-
-              <div className="flex items-center gap-6 pt-8">
-                 <div className="flex flex-col items-center">
-                    <p className="text-xl font-black text-gray-900 dark:text-white">١٠٠٪</p>
-                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">معدل الاستجابة</p>
-                 </div>
-                 <div className="w-[1px] h-8 bg-gray-100 dark:bg-gray-700" />
-                 <div className="flex flex-col items-center">
-                    <p className="text-xl font-black text-gray-900 dark:text-white">فوري</p>
-                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">وقت المزامنة</p>
-                 </div>
-              </div>
-           </div>
+              {unreadCount > 0 && (
+                <>
+                  <div className="w-[1px] h-8 bg-gray-100 dark:bg-gray-700" />
+                  <div className="flex flex-col items-center">
+                    <p className="text-lg font-black text-red-500">{unreadCount.toLocaleString('ar-EG')}</p>
+                    <p className="text-[9px] font-bold text-gray-400">رسائل غير مقروءة</p>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
 
-        <div className="bg-gradient-to-r from-gray-900 to-gray-800 dark:from-emerald-500 dark:to-teal-600 rounded-md p-10 text-white relative overflow-hidden group">
-           <div className="absolute top-0 left-0 w-64 h-64 bg-white/5 rounded-full -translate-x-16 -translate-y-16 group-hover:scale-110 transition-transform duration-700" />
-           <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-              <div className="flex items-center gap-6 text-right">
-                 <div className="w-16 h-16 flex-shrink-0 rounded-2xl bg-white/10 flex items-center justify-center backdrop-blur-md">
-                    <div className="w-10 h-10"><TipIllustration /></div>
-                 </div>
-                 <div className="space-y-1">
-                    <h3 className="text-xl font-black tracking-tight">نصيحة تجارية</h3>
-                    <p className="text-sm font-bold text-gray-300 leading-relaxed">الرد على العملاء في أقل من ٥ دقائق يزيد من احتمالية إتمام الطلبات بنسبة ٤٠٪</p>
-                 </div>
+        <div className="bg-gradient-to-r from-gray-900 to-gray-800 dark:from-emerald-500 dark:to-teal-600 rounded-2xl p-6 sm:p-8 text-white relative overflow-hidden group">
+          <div className="absolute top-0 left-0 w-64 h-64 bg-white/5 rounded-full -translate-x-16 -translate-y-16 group-hover:scale-110 transition-transform duration-700" />
+          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-5 text-right">
+              <div className="w-14 h-14 flex-shrink-0 rounded-2xl bg-white/10 flex items-center justify-center backdrop-blur-md">
+                <div className="w-9 h-9"><TipIllustration /></div>
               </div>
-           </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-extrabold">نصيحة تجارية</h3>
+                <p className="text-sm font-semibold text-gray-300 leading-relaxed">
+                  الرد على العملاء في أقل من ٥ دقائق يزيد من احتمالية إتمام الطلبات بنسبة ٤٠٪
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
       </div>

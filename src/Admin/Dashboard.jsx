@@ -118,7 +118,7 @@ const StatCard = memo(({ kind, label, value, color }) => (
 
 const FeatureCard = memo(({ title, kind, desc, path, navigate, color }) => (
   <div onClick={() => navigate(path)}
-    className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-sm hover:shadow-2xl hover:shadow-emerald-400/10 transition-all duration-500 cursor-pointer group flex flex-col h-full">
+    className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-md p-6 shadow-sm hover:shadow-2xl hover:shadow-emerald-400/10 transition-all duration-500 cursor-pointer group flex flex-col h-full">
     <div className="flex items-center justify-between mb-6">
       <div className={`w-14 h-14 rounded-2xl bg-${color}-50 dark:bg-${color}-900/20 flex items-center justify-center group-hover:scale-110 group-hover:-rotate-3 transition-all duration-500`}>
         <CardIllustration kind={kind} color={COLOR_HEX[color]} />
@@ -359,11 +359,11 @@ const Dashboard = ({ darkMode }) => {
           </div>
 
           <div className="space-y-8">
-             <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl p-8">
+             <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 shadow-xl p-8">
                 <div className="flex items-center justify-between mb-8">
-                  <h2 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">Platform Mix</h2>
+                  <h2 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">Analytics</h2>
                   <FiTrendingUp size={20} className="text-emerald-400" />
-                </div>
+                </div><hr className="border border-gray-200 m-1 dark:border-gray-900 " />
                 <div className="h-64">
                    <Pie data={pieData} options={pieOptions} />
                 </div>

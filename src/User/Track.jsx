@@ -1,514 +1,342 @@
-import React, { useState, useEffect, memo, useCallback, useMemo, Suspense, lazy } from "react";
+import React, { useState, useEffect, useMemo, useCallback, memo, Suspense, lazy } from 'react';
 import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
-  FiPackage, FiCheckCircle, FiTruck, FiXCircle,
-  FiClock, FiChevronDown, FiHome, FiShield, FiCreditCard, FiMapPin, FiCalendar,
-} from "react-icons/fi";
-import { motion, AnimatePresence } from "framer-motion";
-import api from "../api";
+  FiPackage, FiCheckCircle, FiTruck, FiXCircle, FiClock, FiBox, FiShoppingBag, FiLock,
+  FiCreditCard, FiMapPin, FiCalendar, FiHeadphones, FiMessageCircle, FiShield, FiRefreshCw,
+} from 'react-icons/fi';
+import api from '../api';
+import { useAppLanguage, languageDirection } from '../utils/useAppLanguage';
+import enTranslations from '../locales/en/translation.json';
+import arTranslations from '../locales/ar/translation.json';
+import frTranslations from '../locales/fr/translation.json';
+import { Defs3D, Glyph3D, Btn3D, Chip3D, TrustStrip } from '../components/Ui3D';
 
 const Hero = lazy(() => import('../components/Hero'));
-
 const queryClient = new QueryClient();
 
-const STYLES = `
-  .track-root * { box-sizing: border-box; }
-
-  @keyframes shimmer { 0%{background-position:-200% center} 100%{background-position:200% center} }
-  .skeleton-shimmer {
-    background: linear-gradient(90deg, transparent 25%, rgba(52,211,153,0.08) 50%, transparent 75%);
-    background-size: 200% auto;
-    animation: shimmer 1.8s linear infinite;
-  }
-
-  .thin-scroll::-webkit-scrollbar { width: 4px; }
-  .thin-scroll::-webkit-scrollbar-track { background: transparent; }
-  .thin-scroll::-webkit-scrollbar-thumb { background: rgba(52,211,153,0.4); }
-
-  .timeline-line {
-    position: absolute;
-    left: 27px;
-    top: 40px;
-    bottom: 40px;
-    width: 2px;
-    background: linear-gradient(to bottom, #34d399, rgba(52,211,153,0.08));
-  }
-
-  @keyframes ringPulse {
-    0% { transform: scale(1); opacity: 0.5; }
-    100% { transform: scale(1.6); opacity: 0; }
-  }
-  .icon-ring {
-    animation: ringPulse 2.2s cubic-bezier(0,0,0.2,1) infinite;
-    will-change: transform, opacity;
-  }
-  .icon-ring-delay { animation-delay: 1.1s; }
-`;
-
-const GLASS = 'backdrop-blur-xl bg-white/60 dark:bg-white/5 border border-black/10 dark:border-white/10';
-const GLASS_STRONG = 'backdrop-blur-2xl bg-white/70 dark:bg-gray-900/50 border border-black/10 dark:border-white/10';
-
-const HeroSkeleton = memo(({ darkMode }) => (
-  <div className={`h-[260px] sm:h-[320px] w-full ${darkMode ? 'bg-gray-900' : 'bg-emerald-50'} animate-pulse`} />
-));
+/* ───────────── helpers ───────────── */
+const TRACK_TRANSLATIONS = {
+  en: enTranslations.track,
+  ar: arTranslations.track || arTranslations.hero?.track,
+  fr: frTranslations.track || frTranslations.hero?.track,
+};
+const tr = (lang, key) => TRACK_TRANSLATIONS[lang]?.[key] || TRACK_TRANSLATIONS.en?.[key] || key;
 
 const STATUS_STEPS = [
-  { key: "PENDING", label: "Order Placed", sub: "Your order has been received", icon: <FiClock className="w-5 h-5" /> },
-  { key: "CONFIRMED", label: "Confirmed", sub: "Order confirmed by our team", icon: <FiCheckCircle className="w-5 h-5" /> },
-  { key: "PROCESSING", label: "Processing", sub: "Items being prepared", icon: <FiPackage className="w-5 h-5" /> },
-  { key: "FINISHPROCESSING", label: "Ready to Ship", sub: "Packed and ready for courier", icon: <FiCheckCircle className="w-5 h-5" /> },
-  { key: "SHIPPED", label: "Out for Delivery", sub: "On the way to your address", icon: <FiTruck className="w-5 h-5" /> },
-  { key: "DELIVERED", label: "Delivered", sub: "Package delivered successfully", icon: <FiCheckCircle className="w-5 h-5" /> },
-  { key: "CANCELLED", label: "Cancelled", sub: "Order has been cancelled", icon: <FiXCircle className="w-5 h-5" /> },
+  { key: 'PENDING', labelKey: 'orderPlaced', subKey: 'orderReceived', icon: FiClock },
+  { key: 'CONFIRMED', labelKey: 'confirmed', subKey: 'orderConfirmed', icon: FiCheckCircle },
+  { key: 'PROCESSING', labelKey: 'processing', subKey: 'itemsPrepared', icon: FiPackage },
+  { key: 'FINISHPROCESSING', labelKey: 'readyToShip', subKey: 'packedReady', icon: FiBox },
+  { key: 'SHIPPED', labelKey: 'outForDelivery', subKey: 'onTheWay', icon: FiTruck },
+  { key: 'DELIVERED', labelKey: 'delivered', subKey: 'packageDelivered', icon: FiCheckCircle },
+  { key: 'CANCELLED', labelKey: 'cancelled', subKey: 'orderCancelled', icon: FiXCircle },
 ];
 
-const AnimatedStatusIcon = memo(({ status, darkMode }) => {
-  const step = STATUS_STEPS.find((s) => s.key === status) ?? STATUS_STEPS[0];
-  const isCancelled = status === "CANCELLED";
-  const gradientClass = isCancelled ? "from-red-500 to-rose-600" : "from-emerald-400 to-teal-500";
-
-  return (
-    <div className="relative w-24 h-24 mx-auto flex items-center justify-center">
-      <span className={`absolute w-20 h-20 icon-ring ${isCancelled ? "bg-red-400/40" : "bg-emerald-400/40"}`} />
-      <span className={`absolute w-20 h-20 icon-ring icon-ring-delay ${isCancelled ? "bg-red-400/40" : "bg-emerald-400/40"}`} />
-      <motion.div
-        className={`relative w-20 h-20 flex items-center justify-center text-white border-2 border-white/20 bg-gradient-to-br ${gradientClass}`}
-        animate={{ y: [0, -5, 0] }}
-        transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
-      >
-        <AnimatePresence mode="wait">
-          <motion.span
-            key={step.key}
-            initial={{ opacity: 0, scale: 0.4, rotate: -90 }}
-            animate={{ opacity: 1, scale: 1, rotate: 0 }}
-            exit={{ opacity: 0, scale: 0.4, rotate: 90 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="flex items-center justify-center"
-          >
-            {React.cloneElement(step.icon, { className: "w-9 h-9" })}
-          </motion.span>
-        </AnimatePresence>
-      </motion.div>
-    </div>
-  );
-});
-
-const formatDate = (value) => {
-  if (!value) return null;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+const fmtDate = (v) => {
+  if (!v) return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 };
-
-const formatCurrency = (value) => {
-  if (value === undefined || value === null || Number.isNaN(Number(value))) return null;
-  return `$${Number(value).toFixed(2)}`;
+const fmtDateTime = (v) => {
+  if (!v) return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 };
+const fmtMoney = (v) => (v === undefined || v === null || Number.isNaN(Number(v)) ? null : `EGP ${Number(v).toLocaleString()}`);
+const addDays = (v, n) => { const d = v ? new Date(v) : new Date(); d.setDate(d.getDate() + n); return d; };
 
-const addDays = (dateInput, days) => {
-  const base = dateInput ? new Date(dateInput) : new Date();
-  base.setDate(base.getDate() + days);
-  return base;
-};
-
-const formatDateTime = (value) => {
-  if (!value) return null;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-};
-
-const findStepTimestamp = (order, stepKey) => {
-  const historyEntry = order?.statusHistory?.find((h) => h.status === stepKey);
-  if (historyEntry?.timestamp) return formatDateTime(historyEntry.timestamp);
-  if (stepKey === "PENDING") return formatDateTime(order?.createdAt);
-  if (stepKey === order?.status) return formatDateTime(order?.updatedAt);
+const stepTimestamp = (order, key) => {
+  const h = order?.statusHistory?.find((x) => x.status === key);
+  if (h?.timestamp) return fmtDateTime(h.timestamp);
+  if (key === order?.status && key !== order?.statusHistory?.[0]?.status) return fmtDateTime(order?.updatedAt);
   return null;
 };
 
-const statusBadgeClass = (status) => (
-  status === 'DELIVERED' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
-    : status === 'CANCELLED' ? 'bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/30'
-      : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30'
-);
+const badgeCls = (status) =>
+  status === 'DELIVERED' ? 'bg-emerald-500 text-white'
+    : status === 'CANCELLED' ? 'bg-rose-500 text-white'
+      : 'bg-amber-500 text-white';
 
-const InfoPanel = memo(({ darkMode, selectedOrder }) => {
-  const itemsCount = selectedOrder?.items?.length ?? selectedOrder?.orderItems?.length ?? null;
-  const total = formatCurrency(selectedOrder?.totalAmount ?? selectedOrder?.total ?? selectedOrder?.amount);
-  const paymentMethod = selectedOrder?.paymentMethod ?? selectedOrder?.payment_method ?? null;
-  const address = selectedOrder?.shippingAddress ?? selectedOrder?.address ?? null;
-  const isCancelled = selectedOrder?.status === "CANCELLED";
-  const isDelivered = selectedOrder?.status === "DELIVERED";
-  const estimatedDelivery = isDelivered
-    ? formatDate(selectedOrder?.deliveredAt ?? selectedOrder?.updatedAt)
-    : formatDate(selectedOrder?.estimatedDelivery) ?? formatDate(addDays(selectedOrder?.createdAt, 5));
+const buildMeta = (o, t) => [
+  { icon: FiPackage, label: t('trackingId'), value: o.trackingNumber ?? o.id?.slice(0, 12) },
+  { icon: FiTruck, label: t('carrier'), value: o.carrier ?? t('standardCourier') },
+  { icon: FiCalendar, label: t('orderDate'), value: fmtDate(o.createdAt) ?? '—' },
+  { icon: FiClock, label: t('lastUpdated'), value: fmtDateTime(o.updatedAt) ?? '—' },
+];
 
-  const detailRows = [
-    itemsCount !== null && { icon: <FiPackage size={14} />, label: "Items", value: `${itemsCount} item${itemsCount === 1 ? "" : "s"}` },
-    total && { icon: <FiCreditCard size={14} />, label: "Order total", value: total },
-    paymentMethod && { icon: <FiCreditCard size={14} />, label: "Payment", value: paymentMethod },
-    address && { icon: <FiMapPin size={14} />, label: "Delivering to", value: address },
-    !isCancelled && estimatedDelivery && {
-      icon: <FiCalendar size={14} />,
-      label: isDelivered ? "Delivered on" : "Estimated delivery",
-      value: estimatedDelivery,
-    },
+const buildDetails = (o, t) => {
+  const count = o.items?.length ?? o.orderItems?.length ?? null;
+  const total = fmtMoney(o.totalAmount ?? o.total ?? o.amount);
+  const payment = o.paymentMethod ?? o.payment_method ?? null;
+  const address = o.shippingAddress ?? o.address ?? null;
+  const delivered = o.status === 'DELIVERED';
+  const eta = delivered ? fmtDate(o.deliveredAt ?? o.updatedAt) : fmtDate(o.estimatedDelivery) ?? fmtDate(addDays(o.createdAt, 5));
+  return [
+    count !== null && { icon: FiPackage, label: t('items'), value: `${count} ${count === 1 ? t('item') : t('items')}` },
+    total && { icon: FiCreditCard, label: t('orderTotal'), value: total },
+    payment && { icon: FiCreditCard, label: t('payment'), value: payment },
+    address && { icon: FiMapPin, label: t('deliveringTo'), value: typeof address === 'string' ? address : [address.street, address.city].filter(Boolean).join(', ') },
+    o.status !== 'CANCELLED' && eta && { icon: FiCalendar, label: delivered ? t('deliveredOn') : t('estimatedDelivery'), value: eta },
   ].filter(Boolean);
+};
 
+/* ───────────── small pieces ───────────── */
+const card = (dm) => `rounded-2xl border ${dm ? 'border-gray-700 bg-gray-800' : 'border-gray-100 bg-white'}`;
+
+const MetaTile = memo(({ icon: Icon, label, value, darkMode }) => (
+  <div className={`min-w-0 rounded-xl border p-2.5 ${darkMode ? 'border-gray-700 bg-gray-900/50' : 'border-gray-100 bg-gray-50'}`}>
+    <p className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+      <Icon className="h-3 w-3 flex-shrink-0 text-emerald-500" /> <span className="truncate">{label}</span>
+    </p>
+    <p className={`mt-0.5 truncate text-xs font-bold ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>{value}</p>
+  </div>
+));
+
+const StepRow = memo(({ step, isCompleted, isCurrent, isCancelledStep, isLast, darkMode, timestamp, t }) => {
+  const Icon = step.icon;
+  const active = isCompleted || isCancelledStep;
   return (
-    <div className={`${GLASS_STRONG} flex flex-col p-5 gap-5 h-fit shrink-0 w-full lg:w-80`}>
-      <AnimatedStatusIcon status={selectedOrder?.status} darkMode={darkMode} />
-
-      {detailRows.length > 0 && (
-        <div className={`p-4 space-y-3 border ${darkMode ? "border-gray-700 bg-gray-900/40" : "border-gray-200 bg-gray-50"}`}>
-          <h4 className={`text-xs font-bold uppercase tracking-widest ${darkMode ? "text-gray-500" : "text-gray-400"}`}>Order details</h4>
-          <div className="space-y-2.5">
-            {detailRows.map((row) => (
-              <div key={row.label} className="flex items-start gap-2.5">
-                <span className={`mt-0.5 ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>{row.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-[11px] font-medium ${darkMode ? "text-gray-500" : "text-gray-400"}`}>{row.label}</p>
-                  <p className={`text-sm font-semibold truncate ${darkMode ? "text-gray-200" : "text-gray-800"}`}>{row.value}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+    <li className={`relative flex gap-3 ${isLast ? '' : 'pb-4'}`}>
+      {!isLast && (
+        <span aria-hidden="true" className={`absolute start-[17px] top-9 bottom-0 w-0.5 ${isCompleted && !isCurrent ? 'bg-emerald-400' : darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
       )}
-
-      <div>
-        <h4 className={`text-sm font-extrabold mb-2 ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>Track in Real-Time</h4>
-        <p className={`text-xs leading-relaxed ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-          Our system updates automatically. You will also receive SMS and email notifications at every major step.
-        </p>
+      <span className={`relative z-10 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ${
+        isCancelledStep ? 'bg-gradient-to-br from-rose-400 to-rose-600 text-white shadow-[0_3px_0_0_#9f1239]'
+          : isCompleted ? 'bg-gradient-to-br from-emerald-300 to-emerald-600 text-white shadow-[0_3px_0_0_#047857]'
+            : darkMode ? 'bg-gray-800 text-gray-500 ring-1 ring-gray-700' : 'bg-gray-50 text-gray-400 ring-1 ring-gray-200'}`}>
+        {isCurrent && !isCancelledStep && <span className="absolute inset-0 animate-ping rounded-xl bg-emerald-400/40 motion-reduce:animate-none" />}
+        <Icon className="relative h-4 w-4" />
+      </span>
+      <div className="min-w-0 flex-1 pt-0.5">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+          <p className={`text-sm font-bold leading-snug ${
+            isCancelledStep ? 'text-rose-500' : isCompleted ? (darkMode ? 'text-emerald-400' : 'text-emerald-700') : darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{step.label}</p>
+          {timestamp && active && <span className={`text-[11px] font-semibold ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{timestamp}</span>}
+        </div>
+        <p className={`text-xs ${active ? (darkMode ? 'text-gray-400' : 'text-gray-500') : darkMode ? 'text-gray-600' : 'text-gray-300'}`}>{step.sub}</p>
+        {isCurrent && !isCancelledStep && (
+          <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-extrabold text-white">{t('currentStatus')}</span>
+        )}
       </div>
-
-      <div className={`flex items-start gap-2.5 text-xs px-4 py-3 border ${darkMode ? "border-gray-700 bg-gray-900/40" : "border-emerald-200 bg-emerald-50/80"}`}>
-        <FiShield className="text-emerald-500 mt-0.5 shrink-0" size={14} />
-        <p className={darkMode ? "text-gray-400" : "text-gray-500"}>
-          <span className="font-semibold text-emerald-500">Need help?</span> Contact support if your order status seems stuck for more than 24 hours.
-        </p>
-      </div>
-    </div>
+    </li>
   );
 });
 
-const StepRow = memo(({ step, index, isCompleted, isCurrent, isCancelledStep, darkMode, timestamp }) => (
-  <motion.div
-    initial={{ opacity: 0, x: -10 }}
-    animate={{ opacity: isCompleted || isCancelledStep ? 1 : 0.4, x: 0 }}
-    transition={{ duration: 0.25, delay: Math.min(index, 6) * 0.04 }}
-    className="flex items-start gap-5 py-3 pl-1 relative"
-  >
-    <div className={`relative z-10 w-14 h-14 flex items-center justify-center flex-shrink-0 border-2 transition-colors duration-300 ${
-      isCancelledStep
-        ? 'bg-red-500 border-red-500 text-white'
-        : isCompleted
-          ? 'bg-gradient-to-br from-emerald-400 to-teal-500 border-emerald-400 text-white'
-          : darkMode ? 'bg-gray-800 border-gray-700 text-gray-500' : 'bg-gray-50 border-gray-200 text-gray-400'
-    }`}>
-      {isCurrent && !isCancelledStep && (
-        <span className="absolute inset-0 border-2 border-emerald-400 icon-ring" />
-      )}
-      {step.icon}
-    </div>
-    <div className="flex-1 pt-1.5">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-        <p className={`text-sm font-bold leading-snug ${
-          isCancelledStep ? 'text-red-500 dark:text-red-400'
-            : isCompleted ? darkMode ? 'text-emerald-400' : 'text-emerald-700'
-              : darkMode ? 'text-gray-500' : 'text-gray-400'
-        }`}>{step.label}</p>
-        {timestamp && (isCompleted || isCancelledStep) && (
-          <span className={`text-[11px] font-semibold ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{timestamp}</span>
-        )}
+const InfoPanel = memo(({ darkMode, rows, status, statusText, t }) => (
+  <aside className={`${card(darkMode)} flex h-fit flex-col gap-4 p-4 lg:sticky lg:top-20`}>
+    <div className={`flex items-center gap-3 rounded-xl p-3 ${darkMode ? 'bg-emerald-900/30' : 'bg-gradient-to-br from-emerald-50 to-emerald-100'}`}>
+      <Glyph3D name="box" fallback="box" className="h-12 w-12 flex-shrink-0" />
+      <div className="min-w-0">
+        <p className={`text-[10px] font-bold uppercase tracking-wider ${darkMode ? 'text-gray-400' : 'text-emerald-800/70'}`}>{t('liveTracking')}</p>
+        <span className={`mt-1 inline-block rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide ${badgeCls(status)}`}>{statusText}</span>
       </div>
-      <p className={`text-xs mt-0.5 ${
-        isCompleted || isCancelledStep
-          ? darkMode ? 'text-gray-400' : 'text-gray-500'
-          : darkMode ? 'text-gray-600' : 'text-gray-300'
-      }`}>{step.sub}</p>
-      {isCurrent && !isCancelledStep && (
-        <span className="inline-flex items-center gap-1 mt-1 text-xs font-bold text-emerald-500">
-          <span className="w-1.5 h-1.5 bg-emerald-500 animate-pulse" />
-          Current status
-        </span>
-      )}
     </div>
-    {isCompleted && !isCurrent && <FiCheckCircle className="text-emerald-400 flex-shrink-0 mt-1.5" size={16} />}
-  </motion.div>
+
+    {rows.length > 0 && (
+      <div>
+        <h4 className={`mb-2 text-xs font-bold uppercase tracking-wider ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{t('orderDetails')}</h4>
+        <ul className="space-y-2">
+          {rows.map(({ icon: Icon, label, value }) => (
+            <li key={label + value} className="flex items-start gap-2.5">
+              <Chip3D className="h-7 w-7 flex-shrink-0"><Icon className="h-3.5 w-3.5" /></Chip3D>
+              <div className="min-w-0">
+                <p className={`text-[11px] font-medium ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{label}</p>
+                <p className={`truncate text-sm font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>{value}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
+
+    <div className={`flex items-start gap-2 rounded-xl border p-3 text-xs ${darkMode ? 'border-gray-700 bg-gray-900/50 text-gray-400' : 'border-emerald-100 bg-emerald-50/60 text-gray-500'}`}>
+      <FiShield className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-emerald-500" />
+      <p><span className="font-semibold text-emerald-500">{t('trackingHelp')}</span> {t('trackingHelpText')}</p>
+    </div>
+  </aside>
 ));
 
+const CantFindCard = memo(({ darkMode }) => (
+  <div className={`${card(darkMode)} flex flex-col items-start gap-3 p-4 sm:flex-row sm:items-center`}>
+    <Chip3D className="h-11 w-11 flex-shrink-0"><FiHeadphones className="h-5 w-5" /></Chip3D>
+    <div className="min-w-0 flex-1">
+      <p className={`text-sm font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Can&apos;t find your tracking number?</p>
+      <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Look in your confirmation email or log in to your Tech-Restore account.</p>
+    </div>
+    <div className="flex w-full gap-2 sm:w-auto">
+      <Btn3D as="a" href="/support" tone="soft" darkMode={darkMode} className="flex-1 px-3 py-2 text-xs sm:flex-none"><FiHeadphones className="h-3.5 w-3.5" /> Support</Btn3D>
+      <Btn3D as="a" href="/chat" className="flex-1 px-3 py-2 text-xs sm:flex-none"><FiMessageCircle className="h-3.5 w-3.5" /> Live chat</Btn3D>
+    </div>
+  </div>
+));
+
+const StateCard = ({ darkMode, glyph = 'box', title, text, children }) => (
+  <div className={`${card(darkMode)} mx-auto max-w-md px-6 py-10 text-center`}>
+    <span className={`mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl ${darkMode ? 'bg-emerald-900/40' : 'bg-gradient-to-br from-emerald-50 to-emerald-100'}`}>
+      <Glyph3D name={glyph} fallback="box" className="h-11 w-11" />
+    </span>
+    <p className={`text-base font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{title}</p>
+    {text && <p className={`mt-1 mb-5 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{text}</p>}
+    {children}
+  </div>
+);
+
+const TrackSkeleton = ({ darkMode }) => (
+  <div className={`${card(darkMode)} space-y-4 p-5`}>
+    <div className={`h-10 animate-pulse rounded-xl ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`} />
+    {[0, 1, 2, 3].map((i) => (
+      <div key={i} className="flex items-center gap-3">
+        <div className={`h-9 w-9 animate-pulse rounded-xl ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`} />
+        <div className="flex-1 space-y-1.5">
+          <div className={`h-3.5 animate-pulse rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`} style={{ width: `${[60, 72, 50, 66][i]}%` }} />
+          <div className={`h-3 animate-pulse rounded ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`} style={{ width: `${[40, 52, 34, 46][i]}%` }} />
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+/* ───────────── page ───────────── */
 const TrackContent = memo(({ darkMode }) => {
-  const [token] = useState(() => (typeof window !== 'undefined' ? localStorage.getItem("authToken") : null));
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const language = useAppLanguage();
+  const t = useCallback((k) => tr(language, k), [language]);
+  const [token] = useState(() => (typeof window !== 'undefined' ? localStorage.getItem('authToken') : null));
+  const [selectedId, setSelectedId] = useState(null);
 
-  useEffect(() => { document.title = "Track your order | Tech-Restore"; }, []);
+  useEffect(() => { document.title = 'Track your order | Tech-Restore'; }, []);
 
-  const { data: orders = [], isLoading } = useQuery({
-    queryKey: ['track_orders'],
+  const { data: orders = [], isLoading, isError, isFetching, refetch } = useQuery({
+    queryKey: ['track_orders', token],
     queryFn: async () => {
-      const res = await api.get("/api/users/orders", { headers: { Authorization: `Bearer ${token}` } });
-      return res.data.content || res.data || [];
+      const res = await api.get('/api/users/orders', { headers: { Authorization: `Bearer ${token}` } });
+      const list = res.data?.content || res.data || [];
+      return Array.isArray(list) ? list.filter(Boolean) : [];
     },
     enabled: !!token,
-    staleTime: 30000,
+    staleTime: 30 * 1000,
   });
 
-  useEffect(() => {
-    if (orders.length > 0 && !selectedOrder) setSelectedOrder(orders[0]);
-  }, [orders, selectedOrder]);
+  // Derived – no effect/extra render needed to "auto-select" the first order.
+  const order = useMemo(() => orders.find((o) => o.id === selectedId) || orders[0] || null, [orders, selectedId]);
+  const isCancelled = order?.status === 'CANCELLED';
+  const currentIdx = useMemo(() => STATUS_STEPS.findIndex((s) => s.key === order?.status), [order?.status]);
+  const progressPct = isCancelled || currentIdx < 0 ? 0 : Math.min(100, Math.round((currentIdx / (STATUS_STEPS.length - 2)) * 100));
 
-  const toggleDropdown = useCallback(() => setIsDropdownOpen((prev) => !prev), []);
-  const selectOrder = useCallback((order) => { setSelectedOrder(order); setIsDropdownOpen(false); }, []);
+  const statusLabel = useCallback((status) => {
+    const s = STATUS_STEPS.find((x) => x.key === status);
+    return s ? t(s.labelKey) : status;
+  }, [t]);
 
-  const isCancelled = selectedOrder?.status === "CANCELLED";
-
-  const currentStepIndex = useMemo(
-    () => STATUS_STEPS.findIndex((s) => s.key === selectedOrder?.status),
-    [selectedOrder?.status]
+  const steps = useMemo(
+    () => STATUS_STEPS
+      .filter((s) => (isCancelled ? s.key !== 'DELIVERED' : s.key !== 'CANCELLED'))
+      .map((s) => ({ ...s, label: t(s.labelKey), sub: t(s.subKey) })),
+    [isCancelled, t]
   );
+  const meta = useMemo(() => (order ? buildMeta(order, t) : []), [order, t]);
+  const rows = useMemo(() => (order ? buildDetails(order, t) : []), [order, t]);
 
-  const progressPct = useMemo(() => {
-    if (isCancelled || currentStepIndex < 0) return 0;
-    return Math.min(100, Math.round((currentStepIndex / (STATUS_STEPS.length - 2)) * 100));
-  }, [isCancelled, currentStepIndex]);
+  const muted = darkMode ? 'text-gray-400' : 'text-gray-500';
+  const shortId = (o) => o.id?.slice(0, 8);
 
-  const visibleSteps = useMemo(
-    () => STATUS_STEPS.filter((s) => (isCancelled ? s.key !== 'DELIVERED' : s.key !== 'CANCELLED')),
-    [isCancelled]
-  );
-
-  const stepTimestamps = useMemo(() => {
-    const map = {};
-    visibleSteps.forEach((s) => { map[s.key] = findStepTimestamp(selectedOrder, s.key); });
-    return map;
-  }, [visibleSteps, selectedOrder]);
-
-  const trackingMeta = useMemo(() => {
-    if (!selectedOrder) return [];
-    return [
-      { icon: <FiPackage size={13} />, label: "Tracking ID", value: selectedOrder.trackingNumber ?? selectedOrder.id?.slice(0, 12) },
-      { icon: <FiTruck size={13} />, label: "Carrier", value: selectedOrder.carrier ?? "Standard Courier" },
-      { icon: <FiCalendar size={13} />, label: "Order date", value: formatDate(selectedOrder.createdAt) ?? "—" },
-      { icon: <FiClock size={13} />, label: "Last updated", value: formatDateTime(selectedOrder.updatedAt) ?? "—" },
-    ];
-  }, [selectedOrder]);
-
-  if (!token) return (
-    <>
-      <style>{STYLES}</style>
-      <div className={`track-root min-h-screen ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
-        <Suspense fallback={<HeroSkeleton darkMode={darkMode} />}>
-          <Hero variant="track" darkMode={darkMode} />
-        </Suspense>
-        <div className="max-w-md mx-auto px-4 sm:px-6 py-10 text-center">
-          <div className={`${GLASS_STRONG} p-8`}>
-            <div className={`w-16 h-16 mx-auto flex items-center justify-center mb-4 border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'}`}>
-              <FiPackage className="w-8 h-8 text-gray-400" />
-            </div>
-            <p className={`text-lg font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Login Required</p>
-            <p className={`text-sm mb-6 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Please log in to track your orders.</p>
-            <a href="/login" className="inline-flex items-center gap-2 px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold transition-colors duration-150 text-sm">
-              Go to Login
-            </a>
+  let body;
+  if (!token) {
+    body = (
+      <StateCard darkMode={darkMode} glyph="store" title={t('loginRequired')} text={t('loginTrack')}>
+        <Btn3D as="a" href="/login" className="px-5 py-2.5 text-sm"><FiLock className="h-4 w-4" /> {t('goToLogin')}</Btn3D>
+      </StateCard>
+    );
+  } else if (isLoading) {
+    body = <TrackSkeleton darkMode={darkMode} />;
+  } else if (isError) {
+    body = (
+      <StateCard darkMode={darkMode} title="We couldn’t load your orders" text="Check your connection and try again.">
+        <Btn3D onClick={() => refetch()} className="px-5 py-2.5 text-sm"><FiRefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} /> Try again</Btn3D>
+      </StateCard>
+    );
+  } else if (!order) {
+    body = (
+      <StateCard darkMode={darkMode} title={t('noOrders')} text={t('startShopping')}>
+        <Btn3D as="a" href="/devices" className="px-5 py-2.5 text-sm"><FiShoppingBag className="h-4 w-4" /> {t('startShoppingButton')}</Btn3D>
+      </StateCard>
+    );
+  } else {
+    body = (
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <section className={`${card(darkMode)} min-w-0 space-y-5 p-4 sm:p-5`}>
+          {/* order picker */}
+          <div>
+            <label htmlFor="order-select" className={`mb-1.5 block text-[11px] font-bold uppercase tracking-wider ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>Select order</label>
+            <select
+              id="order-select" value={order.id} onChange={(e) => setSelectedId(e.target.value)}
+              className={`w-full rounded-xl border px-3 py-2.5 text-sm font-semibold outline-none focus:border-emerald-500 ${darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-200 bg-white text-gray-800'}`}
+            >
+              {orders.map((o) => <option key={o.id} value={o.id}>Order #{shortId(o)} · {statusLabel(o.status)}</option>)}
+            </select>
           </div>
-        </div>
-      </div>
-    </>
-  );
 
-  if (isLoading) return (
-    <>
-      <style>{STYLES}</style>
-      <div className={`track-root min-h-screen ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
-        <Suspense fallback={<HeroSkeleton darkMode={darkMode} />}>
-          <Hero variant="track" darkMode={darkMode} />
-        </Suspense>
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
-          <div className={`${GLASS_STRONG} overflow-hidden`}>
-            <div className="p-6 sm:p-8 space-y-6">
-              <div className={`h-10 animate-pulse skeleton-shimmer ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`} />
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center gap-4">
-                  <div className={`w-14 h-14 flex-shrink-0 animate-pulse skeleton-shimmer border ${darkMode ? 'bg-gray-700 border-gray-700' : 'bg-gray-100 border-gray-200'}`} />
-                  <div className="flex-1 space-y-2">
-                    <div className={`h-4 animate-pulse ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`} style={{ width: `${[60, 75, 50, 70, 55][i]}%` }} />
-                    <div className={`h-3 animate-pulse ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`} style={{ width: `${[40, 55, 35, 50, 40][i]}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
+          {/* summary */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className={`text-base font-extrabold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+              Order <span className="text-emerald-500">#{shortId(order)}</span>
+            </p>
+            <span className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide ${badgeCls(order.status)}`}>{statusLabel(order.status)}</span>
           </div>
-        </div>
-      </div>
-    </>
-  );
 
-  return (
-    <>
-      <style>{STYLES}</style>
-      <div className={`track-root min-h-screen ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50'} pb-16`}>
-        <Suspense fallback={<HeroSkeleton darkMode={darkMode} />}>
-          <Hero variant="track" darkMode={darkMode} />
-        </Suspense>
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
-          <div className="flex flex-col lg:flex-row gap-5 sm:gap-6">
-            <div className="flex-1 min-w-0">
-              <div className={`${GLASS_STRONG} overflow-visible`}>
-                <div className="p-4 sm:p-6 md:p-8">
-                  {orders.length === 0 ? (
-                    <div className="text-center py-16 space-y-5">
-                      <div className={`w-20 h-20 mx-auto flex items-center justify-center border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'}`}>
-                        <FiPackage className="w-10 h-10 text-gray-400" />
-                      </div>
-                      <div>
-                        <p className={`text-xl font-bold mb-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>No orders yet</p>
-                        <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Start shopping to see your orders here</p>
-                      </div>
-                      <a href="/devices" className="inline-flex items-center gap-2 px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold transition-colors duration-150 text-sm">
-                        <FiHome size={14} /> Start Shopping
-                      </a>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="relative mb-8">
-                        <p className={`text-xs font-semibold uppercase tracking-widest mb-2 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>Select Order</p>
-                        <button
-                          onClick={toggleDropdown}
-                          className={`w-full flex justify-between items-center px-4 sm:px-5 py-3.5 border text-sm font-semibold transition-colors duration-150 ${
-                            darkMode ? 'bg-gray-900/60 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className={`w-2 h-2 flex-shrink-0 ${isCancelled ? 'bg-red-500' : 'bg-emerald-400'}`} />
-                            <span className="truncate">{selectedOrder ? `Order #${selectedOrder.id?.slice(0, 8)}…` : 'Select an order'}</span>
-                            {selectedOrder && (
-                              <span className={`hidden sm:inline text-xs px-2 py-0.5 font-bold border flex-shrink-0 ${statusBadgeClass(selectedOrder.status)}`}>{selectedOrder.status}</span>
-                            )}
-                          </div>
-                          <FiChevronDown className={`transition-transform duration-200 text-emerald-500 flex-shrink-0 ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                        </button>
-                        <AnimatePresence>
-                          {isDropdownOpen && (
-                            <motion.div
-                              initial={{ opacity: 0, y: -6 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -6 }}
-                              transition={{ duration: 0.14 }}
-                              className={`absolute mt-1 w-full z-50 overflow-hidden thin-scroll max-h-60 overflow-y-auto border ${GLASS_STRONG} ${darkMode ? '' : 'shadow-lg'}`}
-                            >
-                              {orders.map((order) => (
-                                <button key={order.id}
-                                  onClick={() => selectOrder(order)}
-                                  className={`w-full text-left px-4 sm:px-5 py-3.5 flex items-center justify-between gap-3 text-sm font-medium transition-colors duration-150 ${
-                                    selectedOrder?.id === order.id
-                                      ? 'bg-emerald-400/10 text-emerald-600 dark:text-emerald-400'
-                                      : darkMode ? 'text-gray-300 hover:bg-white/5' : 'text-gray-700 hover:bg-black/5'
-                                  }`}
-                                >
-                                  <span className="truncate">Order #{order.id?.slice(0, 8)}…</span>
-                                  <span className={`text-xs px-2 py-0.5 font-bold border flex-shrink-0 ${statusBadgeClass(order.status)}`}>{order.status}</span>
-                                </button>
-                              ))}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {meta.map((m) => <MetaTile key={m.label} {...m} darkMode={darkMode} />)}
+          </div>
 
-                      {selectedOrder && (
-                        <AnimatePresence mode="wait">
-                          <motion.div
-                            key={selectedOrder.id}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.18 }}
-                            className="space-y-6"
-                          >
-                            <div className={`p-4 flex flex-wrap items-center justify-between gap-3 border ${darkMode ? 'border-gray-700 bg-gray-900/40' : 'border-gray-200 bg-gray-50'}`}>
-                              <div>
-                                <p className={`text-xs font-semibold uppercase tracking-widest ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>Live Tracking</p>
-                                <p className={`text-base font-extrabold mt-0.5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                                  Order <span className={darkMode ? 'text-emerald-400' : 'text-emerald-600'}>#{selectedOrder.id?.slice(0, 8)}</span>
-                                </p>
-                              </div>
-                              <span className={`text-xs px-3 py-1.5 font-bold border ${statusBadgeClass(selectedOrder.status)}`}>{selectedOrder.status}</span>
-                            </div>
-
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                              {trackingMeta.map((meta) => (
-                                <div key={meta.label} className={`p-3 border ${darkMode ? 'border-gray-700 bg-gray-900/30' : 'border-gray-200 bg-gray-50'}`}>
-                                  <div className={`flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                                    <span className={darkMode ? 'text-emerald-400' : 'text-emerald-600'}>{meta.icon}</span>
-                                    {meta.label}
-                                  </div>
-                                  <p className={`text-sm font-bold mt-1 truncate ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>{meta.value}</p>
-                                </div>
-                              ))}
-                            </div>
-
-                            {!isCancelled && (
-                              <div className="space-y-2">
-                                <div className="flex justify-between items-center">
-                                  <p className={`text-xs font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Overall Progress</p>
-                                  <p className={`text-xs font-bold ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>{progressPct}%</p>
-                                </div>
-                                <div className={`h-2 overflow-hidden ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                                  <motion.div
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${progressPct}%` }}
-                                    transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                                    className="h-full bg-gradient-to-r from-emerald-400 to-teal-500"
-                                  />
-                                </div>
-                              </div>
-                            )}
-
-                            <div className="relative">
-                              <div className="timeline-line" />
-                              <div className="space-y-1">
-                                {visibleSteps.map((step, index) => {
-                                  const stepIndex = STATUS_STEPS.findIndex((s) => s.key === step.key);
-                                  const isCompleted = !isCancelled && stepIndex <= currentStepIndex;
-                                  const isCurrent = stepIndex === currentStepIndex;
-                                  const isCancelledStep = isCancelled && step.key === 'CANCELLED';
-                                  return (
-                                    <StepRow
-                                      key={step.key}
-                                      step={step}
-                                      index={index}
-                                      isCompleted={isCompleted}
-                                      isCurrent={isCurrent}
-                                      isCancelledStep={isCancelledStep}
-                                      darkMode={darkMode}
-                                      timestamp={stepTimestamps[step.key]}
-                                    />
-                                  );
-                                })}
-                              </div>
-                            </div>
-
-                            <div className="flex justify-center pt-2">
-                              <a href="/devices" className="inline-flex items-center gap-2 px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold transition-colors duration-150 text-sm">
-                                <FiHome size={14} /> Explore More Products
-                              </a>
-                            </div>
-                          </motion.div>
-                        </AnimatePresence>
-                      )}
-                    </>
-                  )}
-                </div>
+          {!isCancelled && (
+            <div>
+              <div className="mb-1.5 flex items-center justify-between">
+                <p className={`text-xs font-semibold ${muted}`}>{t('overallProgress')}</p>
+                <p className="text-xs font-bold text-emerald-500">{progressPct}%</p>
+              </div>
+              <div className={`h-2 overflow-hidden rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`} role="progressbar" aria-valuenow={progressPct} aria-valuemin={0} aria-valuemax={100}>
+                <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-[width] duration-700 ease-out" style={{ width: `${progressPct}%` }} />
               </div>
             </div>
+          )}
 
-            {selectedOrder && <InfoPanel darkMode={darkMode} selectedOrder={selectedOrder} />}
+          <ol>
+            {steps.map((step, i) => {
+              const idx = STATUS_STEPS.findIndex((s) => s.key === step.key);
+              return (
+                <StepRow
+                  key={step.key} step={step} t={t} darkMode={darkMode}
+                  isLast={i === steps.length - 1}
+                  isCompleted={!isCancelled && idx <= currentIdx}
+                  isCurrent={idx === currentIdx}
+                  isCancelledStep={isCancelled && step.key === 'CANCELLED'}
+                  timestamp={stepTimestamp(order, step.key)}
+                />
+              );
+            })}
+          </ol>
+
+          <div className="flex justify-center">
+            <Btn3D as="a" href="/devices" className="px-5 py-2.5 text-sm"><FiShoppingBag className="h-4 w-4" /> Explore more devices</Btn3D>
           </div>
-        </div>
+        </section>
+
+        <InfoPanel darkMode={darkMode} rows={rows} status={order.status} statusText={statusLabel(order.status)} t={t} />
       </div>
-    </>
+    );
+  }
+
+  return (
+    <div dir={languageDirection(language)} className={`min-h-screen pb-14 ${language === 'ar' ? 'font-cairo' : 'font-poppins'} ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
+      <Defs3D />
+      <Suspense fallback={<div className={`h-[260px] w-full animate-pulse sm:h-[320px] ${darkMode ? 'bg-gray-900' : 'bg-emerald-50'}`} />}>
+        <Hero variant="track" darkMode={darkMode} />
+      </Suspense>
+      <TrustStrip darkMode={darkMode} />
+      <div className="mx-auto max-w-6xl space-y-5 px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+        {body}
+        <CantFindCard darkMode={darkMode} />
+      </div>
+    </div>
   );
 });
 

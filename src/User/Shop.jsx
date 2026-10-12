@@ -6,15 +6,29 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   FiSearch, FiStar, FiTrash2, FiEdit3, FiMessageCircle,
   FiCheckCircle, FiShoppingCart, FiX, FiSliders, FiChevronDown,
-  FiChevronLeft, FiChevronRight, FiArrowRight, FiCheck, FiPlus,
-  FiShield, FiTruck, FiRefreshCw, FiEye,
+  FiChevronLeft, FiChevronRight, FiArrowRight, FiArrowLeft, FiCheck, FiPlus,
+  FiShield, FiTruck, FiRefreshCw, FiTag, FiPackage, FiAward, FiInfo, FiExternalLink,
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "../api";
 import { RiStarFill, RiPhoneLine, RiMapPinLine } from "react-icons/ri";
 import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useAppLanguage, languageDirection } from "../utils/useAppLanguage";
+import enTranslations from "../locales/en/translation.json";
+import arTranslations from "../locales/ar/translation.json";
+import frTranslations from "../locales/fr/translation.json";
 
 const queryClient = new QueryClient();
+const SHOP_TRANSLATIONS = {
+  en: enTranslations.shop,
+  ar: arTranslations.shop || arTranslations.hero?.shopPage,
+  fr: frTranslations.shop || frTranslations.hero?.shopPage,
+};
+const getShopTranslation = (language, key) => SHOP_TRANSLATIONS[language]?.[key] || SHOP_TRANSLATIONS.en[key] || key;
+
+// Locale used for number/date formatting per language, kept as a static lookup
+// so it never gets rebuilt on render.
+const LOCALE_MAP = { en: "en-GB", ar: "ar-EG", fr: "fr-FR" };
 
 const Hero = lazy(() => import("../components/Hero"));
 const ChatModal = lazy(() => import("../components/UserChatModal"));
@@ -43,6 +57,11 @@ const conditionConfig = {
   Used: { dot: "bg-amber-500", text: "text-amber-700 dark:text-amber-300", label: "Used" },
   Refurbished: { dot: "bg-sky-500", text: "text-sky-700 dark:text-sky-300", label: "Refurbished" },
 };
+
+const getDiscounted = (product) =>
+  product.discount ? (product.price * (1 - product.discount / 100)).toFixed(2) : null;
+
+const goToProduct = (product) => { window.location.href = `/device/${product.id}`; };
 
 const HeroSkeleton = memo(({ darkMode }) => (
   <div className={`h-[420px] sm:h-[480px] w-full ${darkMode ? "bg-gray-900" : "bg-emerald-50"} animate-pulse`} />
@@ -79,23 +98,17 @@ const EmptyChatIllustration = memo(({ darkMode }) => (
   </svg>
 ));
 
-const TrustRow = memo(({ darkMode }) => (
-  <div className={`flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide pt-2 mt-2 border-t ${
-    darkMode ? "border-gray-700 text-gray-500" : "border-gray-200 text-gray-400"
-  }`}>
-    <span className="flex items-center gap-1"><FiShield className="w-3 h-3" /> Verified</span>
-    <span className="flex items-center gap-1"><FiTruck className="w-3 h-3" /> Fast ship</span>
-    <span className="flex items-center gap-1"><FiRefreshCw className="w-3 h-3" /> Returns</span>
-  </div>
-));
-
-const StarRating = memo(({ value, onChange, size = "w-7 h-7 sm:w-9 sm:h-9" }) => (
+// Accepts an optional translated label template ("Rate {star} stars"); falls
+// back to a plain English label so the component still works if a caller
+// forgets to pass `t` (e.g. in isolated tests).
+const StarRating = memo(({ value, onChange, size = "w-7 h-7 sm:w-9 sm:h-9", t }) => (
   <div className="flex gap-1.5 sm:gap-2">
     {[1, 2, 3, 4, 5].map((star) => (
       <motion.button
         key={star} type="button"
         whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.95 }}
-        onClick={() => onChange(star)} aria-label={`Rate ${star} stars`}
+        onClick={() => onChange(star)}
+        aria-label={t ? t("rateStars").replace("{star}", star) : `Rate ${star} stars`}
       >
         <RiStarFill className={`${size} transition-all duration-200 ${value >= star ? "text-amber-400 drop-shadow-md" : "text-gray-300 dark:text-gray-600"}`} />
       </motion.button>
@@ -103,15 +116,20 @@ const StarRating = memo(({ value, onChange, size = "w-7 h-7 sm:w-9 sm:h-9" }) =>
   </div>
 ));
 
-const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
+/* ───────────── Compact product card ───────────── */
+const MetaRow = ({ icon: Icon, children, darkMode }) => (
+  <span className={`flex items-center gap-1.5 text-[11px] font-medium min-w-0 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+    <Icon className="w-3.5 h-3.5 flex-shrink-0 text-emerald-500" />
+    <span className="truncate">{children}</span>
+  </span>
+);
+
+const ProductCard = memo(({ product, darkMode, onAddToCart, onDetails, index = 0, t }) => {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [cartAdded, setCartAdded] = useState(false);
 
-  const discountedPrice = useMemo(() =>
-    product.discount ? (product.price * (1 - product.discount / 100)).toFixed(2) : null
-  , [product.price, product.discount]);
-
+  const discountedPrice = useMemo(() => getDiscounted(product), [product.price, product.discount]);
   const cond = conditionConfig[product.condition] || { dot: "bg-gray-400", text: "text-gray-500", label: product.condition || "Unknown" };
 
   const handleCart = useCallback((e) => {
@@ -121,12 +139,10 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
     setTimeout(() => setCartAdded(false), 1600);
   }, [onAddToCart, product]);
 
-  const navigateToDetail = useCallback(() => {
-    window.location.href = `/device/${product.id}`;
-  }, [product.id]);
-
   const safeName = useMemo(() => sanitizeText(product.name) || "Product", [product.name]);
   const safeCategory = useMemo(() => sanitizeText(product.categoryName || product.category) || "Uncategorized", [product.categoryName, product.category]);
+  const hasStock = product.stock != null;
+  const inStock = !hasStock || product.stock > 0;
 
   return (
     <motion.div
@@ -135,7 +151,7 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
       initial="hidden"
       whileInView="visible"
       viewport={{ once: true, margin: "60px" }}
-      onClick={navigateToDetail}
+      onClick={() => goToProduct(product)}
       className={`group relative flex flex-col overflow-hidden cursor-pointer h-full border-l-[3px] transition-colors duration-150 ${
         darkMode
           ? "bg-gray-800 border border-gray-700 border-l-emerald-400 hover:border-l-emerald-300"
@@ -148,16 +164,8 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
           -{product.discount}%
         </span>
       )}
-      <button
-        onClick={(e) => { e.stopPropagation(); navigateToDetail(); }}
-        className={`absolute top-2 right-2 z-10 p-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150 ${
-          darkMode ? "bg-gray-900/90 text-gray-200" : "bg-white/90 text-gray-600"
-        } border ${darkMode ? "border-gray-700" : "border-gray-200"}`}
-      >
-        <FiEye className="w-3.5 h-3.5" />
-      </button>
 
-      <div className={`relative w-full aspect-square overflow-hidden border-b ${darkMode ? "bg-gray-750 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+      <div className={`relative w-full aspect-[4/3] overflow-hidden border-b ${darkMode ? "bg-gray-750 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
         {!imgLoaded && !imgError && (
           <div className={`absolute inset-0 animate-pulse ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
         )}
@@ -165,72 +173,219 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
           src={imgError ? "/placeholder.png" : (product.imageUrl || "/placeholder.png")}
           alt={safeName}
           width={400}
-          height={400}
+          height={300}
           onLoad={() => setImgLoaded(true)}
           onError={() => { setImgError(true); setImgLoaded(true); }}
           loading="lazy"
           decoding="async"
-          className={`w-full h-full object-contain p-3 sm:p-4 transition-opacity duration-200 ${imgLoaded ? "opacity-100" : "opacity-0"}`}
+          className={`w-full h-full object-contain p-2.5 transition-opacity duration-200 ${imgLoaded ? "opacity-100" : "opacity-0"}`}
         />
         {product.condition === "New" && (
-          <span className="absolute top-2 right-2 bg-emerald-500/90 text-white text-[10px] font-bold px-1.5 py-0.5">New</span>
+          <span className="absolute top-2 right-2 bg-emerald-500/90 text-white text-[10px] font-bold px-1.5 py-0.5">{t("new")}</span>
         )}
       </div>
 
-      <div className="flex flex-col flex-1 p-3 sm:p-4 gap-1.5">
-        <h3 className={`font-semibold text-xs sm:text-[15px] leading-snug line-clamp-2 min-h-[2.4rem] ${darkMode ? "text-white" : "text-gray-900"}`}>
+      <div className="flex flex-col flex-1 p-3 gap-2">
+        <h3 className={`font-semibold text-xs sm:text-sm leading-snug line-clamp-2 min-h-[2.3rem] ${darkMode ? "text-white" : "text-gray-900"}`}>
           {safeName}
         </h3>
 
-        <div className={`flex items-center justify-between text-[11px] font-semibold ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-          <span className="flex items-center gap-1.5">
-            <span className={`w-1.5 h-1.5 ${cond.dot}`} />
-            <span className={cond.text}>{cond.label}</span>
+        {/* key details with icons */}
+        <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+          <MetaRow icon={FiTag} darkMode={darkMode}>{safeCategory}</MetaRow>
+          <span className={`flex items-center gap-1.5 text-[11px] font-semibold min-w-0 ${cond.text}`}>
+            <FiCheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className="truncate">{cond.label}</span>
           </span>
-          <span className={`truncate max-w-[90px] px-1.5 py-0.5 ${darkMode ? "bg-gray-700/70 text-gray-300" : "bg-gray-100 text-gray-600"}`}>
-            {safeCategory}
-          </span>
+          {product.brand && <MetaRow icon={FiAward} darkMode={darkMode}>{sanitizeText(product.brand)}</MetaRow>}
+          {hasStock && <MetaRow icon={FiPackage} darkMode={darkMode}>{inStock ? "In stock" : "Out of stock"}</MetaRow>}
         </div>
 
-        <div className={`flex items-baseline gap-1.5 pt-1 border-t mt-1 ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
-          <span className={`text-base sm:text-lg font-extrabold tracking-tight tabular-nums ${darkMode ? "text-emerald-400" : "text-emerald-700"}`}>
-            EGP {discountedPrice ?? Number(product.price || 0).toFixed(2)}
-          </span>
-          {discountedPrice && (
-            <span className={`text-xs line-through tabular-nums ${darkMode ? "text-gray-500" : "text-gray-400"}`}>
-              EGP {Number(product.price || 0).toFixed(2)}
+        {/* dir="ltr" keeps "EGP 123.45" in a fixed left-to-right order even
+           when the surrounding page is rendered right-to-left. */}
+        <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-auto ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
+          <div className="flex items-baseline gap-1.5 min-w-0" dir="ltr">
+            <span className={`text-sm sm:text-base font-extrabold tracking-tight tabular-nums ${darkMode ? "text-emerald-400" : "text-emerald-700"}`}>
+              EGP {discountedPrice ?? Number(product.price || 0).toFixed(2)}
             </span>
-          )}
+            {discountedPrice && (
+              <span className={`text-[11px] line-through tabular-nums ${darkMode ? "text-gray-500" : "text-gray-400"}`}>
+                {Number(product.price || 0).toFixed(2)}
+              </span>
+            )}
+          </div>
+          <button
+            onClick={handleCart}
+            aria-label={t("addToCart")}
+            className={`flex-shrink-0 w-8 h-8 flex items-center justify-center border transition-colors duration-150 ${
+              cartAdded
+                ? "bg-emerald-500 border-emerald-500 text-white"
+                : darkMode
+                  ? "border-emerald-400 text-emerald-400 hover:bg-emerald-400 hover:text-gray-900"
+                  : "border-emerald-600 text-emerald-700 hover:bg-emerald-600 hover:text-white"
+            }`}
+          >
+            {cartAdded ? <FiCheck className="w-4 h-4" /> : <FiShoppingCart className="w-4 h-4" />}
+          </button>
         </div>
 
-        <TrustRow darkMode={darkMode} />
-
-        <button
-          onClick={handleCart}
-          className={`mt-2 w-full py-2 sm:py-2.5 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors duration-150 border ${
-            cartAdded
-              ? "bg-emerald-500 border-emerald-500 text-white"
-              : darkMode
-                ? "border-emerald-400 text-emerald-400 hover:bg-emerald-400 hover:text-gray-900"
-                : "border-emerald-600 text-emerald-700 hover:bg-emerald-600 hover:text-white"
-          }`}
-        >
-          {cartAdded ? <><FiCheck className="w-4 h-4" /> Added</> : <><FiShoppingCart className="w-4 h-4" /> Add to Cart</>}
-        </button>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={(e) => { e.stopPropagation(); onDetails(product); }}
+            className={`py-2 text-xs font-bold flex items-center justify-center gap-1.5 border transition-colors duration-150 ${
+              darkMode ? "border-gray-600 text-gray-200 hover:border-emerald-400 hover:text-emerald-400" : "border-gray-200 text-gray-700 hover:border-emerald-500 hover:text-emerald-700"
+            }`}
+          >
+            <FiInfo className="w-3.5 h-3.5" /> Details
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); goToProduct(product); }}
+            className="py-2 text-xs font-bold flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white transition-colors duration-150"
+          >
+            <FiExternalLink className="w-3.5 h-3.5" /> View product
+          </button>
+        </div>
       </div>
     </motion.div>
   );
 });
 
 const ProductSkeleton = memo(({ darkMode }) => (
-  <div className={`h-[280px] sm:h-[380px] md:h-[420px] animate-pulse border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`} />
+  <div className={`h-[300px] sm:h-[340px] animate-pulse border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`} />
 ));
 
-const PosterProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) => {
+/* ───────────── Product details modal ───────────── */
+const ProductDetailsModal = memo(({ product, darkMode, onClose, onAddToCart, t }) => {
+  const discountedPrice = getDiscounted(product);
+  const cond = conditionConfig[product.condition] || { text: "text-gray-500", label: product.condition || "Unknown" };
+  const hasStock = product.stock != null;
+  const inStock = !hasStock || product.stock > 0;
+  const [imgError, setImgError] = useState(false);
+  const [added, setAdded] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && onClose();
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => { document.body.style.overflow = prev; window.removeEventListener("keydown", onKey); };
+  }, [onClose]);
+
+  const muted = darkMode ? "text-gray-400" : "text-gray-500";
+  const strong = darkMode ? "text-white" : "text-gray-900";
+
+  const offers = [
+    { icon: FiShield, label: t("verified") },
+    { icon: FiTruck, label: t("fastShip") },
+    { icon: FiRefreshCw, label: t("returns") },
+  ];
+  const specs = [
+    { icon: FiTag, label: "Category", value: sanitizeText(product.categoryName || product.category) || "Uncategorized" },
+    { icon: FiCheckCircle, label: "Condition", value: cond.label },
+    product.brand && { icon: FiAward, label: "Brand", value: sanitizeText(product.brand) },
+    hasStock && { icon: FiPackage, label: "Availability", value: inStock ? "In stock" : "Out of stock" },
+  ].filter(Boolean);
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-label={product.name}>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
+        className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <motion.div
+        initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.98 }}
+        transition={{ duration: 0.2 }}
+        className={`relative w-full sm:max-w-lg max-h-[90vh] overflow-y-auto border shadow-2xl ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"}`}
+      >
+        <button onClick={onClose} aria-label={t("clear")}
+          className={`absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center border ${darkMode ? "bg-gray-800 border-gray-700 text-gray-300" : "bg-white border-gray-200 text-gray-600"}`}>
+          <FiX className="w-4 h-4" />
+        </button>
+
+        <div className={`relative aspect-[16/10] border-b ${darkMode ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+          <img
+            src={imgError ? "/placeholder.png" : (product.imageUrl || "/placeholder.png")}
+            alt={sanitizeText(product.name) || "Product"}
+            onError={() => setImgError(true)}
+            className="w-full h-full object-contain p-4"
+          />
+          {product.discount && (
+            <span className="absolute top-0 left-0 bg-rose-600 text-white text-xs font-extrabold px-2.5 py-1"
+              style={{ clipPath: "polygon(0 0, 100% 0, 88% 100%, 0% 100%)" }}>
+              -{product.discount}%
+            </span>
+          )}
+        </div>
+
+        <div className="p-5 space-y-5">
+          <div>
+            <h2 className={`text-lg sm:text-xl font-extrabold leading-snug ${strong}`}>{sanitizeText(product.name) || "Product"}</h2>
+            <div className="flex items-baseline gap-2 mt-1.5" dir="ltr">
+              <span className={`text-xl font-extrabold tabular-nums ${darkMode ? "text-emerald-400" : "text-emerald-700"}`}>
+                EGP {discountedPrice ?? Number(product.price || 0).toFixed(2)}
+              </span>
+              {discountedPrice && (
+                <span className={`text-sm line-through tabular-nums ${darkMode ? "text-gray-500" : "text-gray-400"}`}>EGP {Number(product.price || 0).toFixed(2)}</span>
+              )}
+            </div>
+          </div>
+
+          <section>
+            <h3 className={`text-xs font-bold uppercase tracking-wider mb-1.5 ${muted}`}>About this product</h3>
+            <p className={`text-sm leading-relaxed ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
+              {sanitizeText(product.description) || "No description has been added for this product yet."}
+            </p>
+          </section>
+
+          <section>
+            <h3 className={`text-xs font-bold uppercase tracking-wider mb-2 ${muted}`}>Details</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {specs.map(({ icon: Icon, label, value }) => (
+                <div key={label} className={`flex items-center gap-2.5 p-2.5 border ${darkMode ? "border-gray-700 bg-gray-800/60" : "border-gray-200 bg-gray-50"}`}>
+                  <Icon className="w-4 h-4 flex-shrink-0 text-emerald-500" />
+                  <div className="min-w-0">
+                    <p className={`text-[10px] uppercase tracking-wide ${muted}`}>{label}</p>
+                    <p className={`text-xs font-semibold truncate ${strong}`}>{value}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section>
+            <h3 className={`text-xs font-bold uppercase tracking-wider mb-2 ${muted}`}>What you get</h3>
+            <ul className="flex flex-wrap gap-2">
+              {offers.map(({ icon: Icon, label }) => (
+                <li key={label} className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold border-l-2 ${darkMode ? "border-emerald-400 bg-emerald-400/5 text-emerald-300" : "border-emerald-600 bg-emerald-50 text-emerald-700"}`}>
+                  <Icon className="w-3.5 h-3.5" /> {label}
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => { setAdded(true); onAddToCart(product); setTimeout(() => setAdded(false), 1600); }}
+              disabled={!inStock}
+              className={`py-2.5 text-sm font-bold flex items-center justify-center gap-2 border-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                added ? "bg-emerald-500 border-emerald-500 text-white" : darkMode ? "border-emerald-400 text-emerald-400 hover:bg-emerald-400 hover:text-gray-900" : "border-emerald-600 text-emerald-700 hover:bg-emerald-600 hover:text-white"
+              }`}
+            >
+              {added ? <><FiCheck className="w-4 h-4" /> {t("added")}</> : <><FiShoppingCart className="w-4 h-4" /> {t("addToCart")}</>}
+            </button>
+            <button onClick={() => goToProduct(product)}
+              className="py-2.5 text-sm font-bold flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white border-2 border-emerald-500 transition-colors">
+              <FiExternalLink className="w-4 h-4" /> View product
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+});
+
+/* ───────────── White category card ───────────── */
+const PosterProductCard = memo(({ product, onAddToCart, onDetails, index = 0 }) => {
   const [cartAdded, setCartAdded] = useState(false);
-  const discountedPrice = useMemo(() =>
-    product.discount ? (product.price * (1 - product.discount / 100)).toFixed(2) : null
-  , [product.price, product.discount]);
+  const discountedPrice = useMemo(() => getDiscounted(product), [product.price, product.discount]);
 
   const handleCart = useCallback((e) => {
     e.stopPropagation();
@@ -239,10 +394,6 @@ const PosterProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) =
     setTimeout(() => setCartAdded(false), 1400);
   }, [onAddToCart, product]);
 
-  const navigateToDetail = useCallback(() => {
-    window.location.href = `/device/${product.id}`;
-  }, [product.id]);
-
   return (
     <motion.div
       custom={index}
@@ -250,41 +401,49 @@ const PosterProductCard = memo(({ product, darkMode, onAddToCart, index = 0 }) =
       initial="hidden"
       whileInView="visible"
       viewport={{ once: true, margin: "60px" }}
-      onClick={navigateToDetail}
-      className="relative flex-shrink-0 w-[148px] sm:w-[190px] h-[210px] sm:h-[260px] overflow-hidden cursor-pointer snap-start border border-black/10 group"
+      onClick={() => goToProduct(product)}
+      className="relative flex flex-col flex-shrink-0 w-[150px] sm:w-[190px] overflow-hidden cursor-pointer snap-start bg-white border border-gray-200 border-l-[3px] border-l-emerald-500 shadow-sm hover:shadow-md transition-shadow group"
     >
-      <img
-        src={product.imageUrl || "/placeholder.png"}
-        alt={product.name}
-        loading="lazy"
-        decoding="async"
-        width={190}
-        height={260}
-        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ease-out"
-      />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-      {product.discount && (
-        <span className="absolute top-0 left-0 bg-rose-600 text-white text-[10px] font-extrabold px-2 py-1"
-          style={{ clipPath: "polygon(0 0, 100% 0, 86% 100%, 0% 100%)" }}>
-          -{product.discount}%
-        </span>
-      )}
-      <button
-        onClick={handleCart}
-        className={`absolute top-2 right-2 w-8 h-8 flex items-center justify-center backdrop-blur-md border transition-colors duration-150 ${
-          cartAdded ? "bg-emerald-500 border-emerald-500 text-white" : "bg-white/15 border-white/30 text-white hover:bg-emerald-500 hover:border-emerald-500"
-        }`}
-      >
-        {cartAdded ? <FiCheck className="w-4 h-4" /> : <FiPlus className="w-4 h-4" />}
-      </button>
-      <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
-        <p className="font-bold text-xs sm:text-sm leading-snug line-clamp-2 mb-1">{product.name}</p>
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-sm sm:text-base font-extrabold text-emerald-300 tabular-nums">
+      <div className="relative aspect-square bg-white">
+        <img
+          src={product.imageUrl || "/placeholder.png"}
+          alt={product.name}
+          loading="lazy"
+          decoding="async"
+          width={190}
+          height={190}
+          className="absolute inset-0 w-full h-full object-contain p-3 group-hover:scale-105 transition-transform duration-300 ease-out"
+        />
+        {product.discount && (
+          <span className="absolute top-0 left-0 bg-rose-600 text-white text-[10px] font-extrabold px-2 py-1"
+            style={{ clipPath: "polygon(0 0, 100% 0, 86% 100%, 0% 100%)" }}>
+            -{product.discount}%
+          </span>
+        )}
+        <button
+          onClick={handleCart}
+          aria-label="Add to cart"
+          className={`absolute top-2 right-2 w-7 h-7 flex items-center justify-center border transition-colors duration-150 ${
+            cartAdded ? "bg-emerald-500 border-emerald-500 text-white" : "bg-white border-gray-200 text-gray-600 hover:bg-emerald-500 hover:border-emerald-500 hover:text-white"
+          }`}
+        >
+          {cartAdded ? <FiCheck className="w-3.5 h-3.5" /> : <FiPlus className="w-3.5 h-3.5" />}
+        </button>
+      </div>
+      <div className="p-2.5 border-t border-gray-100 flex flex-col gap-1.5">
+        <p className="font-semibold text-xs leading-snug line-clamp-2 min-h-[2rem] text-gray-900">{product.name}</p>
+        <div className="flex items-baseline gap-1.5" dir="ltr">
+          <span className="text-sm font-extrabold text-emerald-700 tabular-nums">
             EGP {discountedPrice ?? Number(product.price || 0).toFixed(2)}
           </span>
-          {discountedPrice && <span className="text-[10px] line-through text-white/50 tabular-nums">EGP {Number(product.price || 0).toFixed(2)}</span>}
+          {discountedPrice && <span className="text-[10px] line-through text-gray-400 tabular-nums">{Number(product.price || 0).toFixed(2)}</span>}
         </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDetails(product); }}
+          className="flex items-center justify-center gap-1.5 py-1.5 text-[11px] font-bold border border-gray-200 text-gray-700 hover:border-emerald-500 hover:text-emerald-700 transition-colors"
+        >
+          <FiInfo className="w-3 h-3" /> Details
+        </button>
       </div>
     </motion.div>
   );
@@ -298,7 +457,7 @@ const CategoryTag = memo(({ darkMode, children }) => (
   </span>
 ));
 
-const CategorySlider = memo(({ category, items, darkMode, onAddToCart }) => {
+const CategorySlider = memo(({ category, items, darkMode, onAddToCart, onDetails, t, isRTL }) => {
   const sliderRef = useRef(null);
   const [canLeft, setCanLeft] = useState(false);
   const [canRight, setCanRight] = useState(false);
@@ -328,6 +487,13 @@ const CategorySlider = memo(({ category, items, darkMode, onAddToCart }) => {
     navigate(`/products/category/${category.id}`);
   }, [navigate, category.id]);
 
+  // In RTL, "back towards the start" reads as a right-pointing chevron and
+  // "forward" as a left-pointing one, so the icons (only) are mirrored while
+  // the underlying scroll direction stays tied to the button's screen position.
+  const BackIcon = isRTL ? FiChevronRight : FiChevronLeft;
+  const ForwardIcon = isRTL ? FiChevronLeft : FiChevronRight;
+  const ViewAllIcon = isRTL ? FiArrowLeft : FiArrowRight;
+
   if (!items.length) return null;
 
   return (
@@ -336,7 +502,7 @@ const CategorySlider = memo(({ category, items, darkMode, onAddToCart }) => {
         <button onClick={goToCategory} className="flex items-center gap-3 flex-wrap text-left">
           <CategoryTag darkMode={darkMode}>{category.name}</CategoryTag>
           <span className={`text-xs sm:text-sm font-medium ${darkMode ? "text-gray-500" : "text-gray-400"}`}>
-            {items.length} {items.length === 1 ? "item" : "items"}
+            {items.length} {items.length === 1 ? t("item") : t("items")}
           </span>
         </button>
         <div className="flex items-center gap-2">
@@ -344,25 +510,25 @@ const CategorySlider = memo(({ category, items, darkMode, onAddToCart }) => {
             className={`hidden sm:flex items-center gap-1 text-xs font-bold uppercase tracking-wide ${
               darkMode ? "text-emerald-400 hover:text-emerald-300" : "text-emerald-600 hover:text-emerald-700"
             }`}>
-            View all <FiArrowRight className="w-3 h-3" />
+            {t("viewAll")} <ViewAllIcon className="w-3 h-3" />
           </button>
           <button onClick={() => scroll("left")} disabled={!canLeft}
             className={`p-1.5 sm:p-2 border transition-colors duration-150 disabled:opacity-30 disabled:cursor-not-allowed ${
               darkMode ? "bg-gray-800 border-gray-700 hover:border-emerald-400 text-emerald-400" : "bg-white border-gray-200 hover:border-emerald-500 text-emerald-700"
             }`}>
-            <FiChevronLeft className="w-4 h-4" />
+            <BackIcon className="w-4 h-4" />
           </button>
           <button onClick={() => scroll("right")} disabled={!canRight}
             className={`p-1.5 sm:p-2 border transition-colors duration-150 disabled:opacity-30 disabled:cursor-not-allowed ${
               darkMode ? "bg-gray-800 border-gray-700 hover:border-emerald-400 text-emerald-400" : "bg-white border-gray-200 hover:border-emerald-500 text-emerald-700"
             }`}>
-            <FiChevronRight className="w-4 h-4" />
+            <ForwardIcon className="w-4 h-4" />
           </button>
         </div>
       </div>
       <div ref={sliderRef} className="flex gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-2 hide-scrollbar">
         {items.map((p, i) => (
-          <PosterProductCard key={p.id} product={p} darkMode={darkMode} onAddToCart={onAddToCart} index={i} />
+          <PosterProductCard key={p.id} product={p} onAddToCart={onAddToCart} onDetails={onDetails} index={i} />
         ))}
       </div>
     </div>
@@ -423,11 +589,11 @@ const PriceRangeSlider = memo(({ priceRange, setPriceRange, darkMode }) => {
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-between text-xs font-bold">
+      <div className="flex justify-between text-xs font-bold" dir="ltr">
         <span className="px-2 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 tabular-nums">EGP {priceRange[0].toLocaleString()}</span>
         <span className="px-2 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 tabular-nums">EGP {priceRange[1].toLocaleString()}</span>
       </div>
-      <div className="relative h-4 flex items-center">
+      <div className="relative h-4 flex items-center" dir="ltr">
         <div className={`absolute inset-x-0 h-1 ${darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
         <div className="absolute h-1 bg-emerald-500" style={{ left: `${leftPct}%`, right: `${100 - rightPct}%` }} />
         <input type="range" min={MIN} max={MAX} step={STEP} value={priceRange[0]}
@@ -441,19 +607,19 @@ const PriceRangeSlider = memo(({ priceRange, setPriceRange, darkMode }) => {
 
 const FilterPanel = memo(({ darkMode, sortBy, setSortBy, sortLabels, selectedCategories, toggleCategory, categories,
   isSortOpen, setIsSortOpen, isCatOpen, setIsCatOpen, isCondOpen, setIsCondOpen, isPriceOpen, setIsPriceOpen,
-  selectedCondition, setSelectedCondition, priceRange, setPriceRange, inStockOnly, setInStockOnly,
+  selectedCondition, setSelectedCondition, priceRange, setPriceRange, inStockOnly, setInStockOnly, t,
   clearFilters, activeFiltersCount }) => (
   <div className={`${GLASS_STRONG} p-4 sm:p-5`}>
     <div className="flex items-center justify-between mb-1">
       <h3 className={`text-sm font-extrabold uppercase tracking-widest flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
-        <FiSliders className="w-4 h-4 text-emerald-500" /> Filters
+        <FiSliders className="w-4 h-4 text-emerald-500" /> {t("filters")}
       </h3>
       {activeFiltersCount > 0 && (
         <span className="px-2 py-0.5 bg-emerald-500 text-white text-xs font-bold">{activeFiltersCount}</span>
       )}
     </div>
 
-    <FilterSection title="Sort By" isOpen={isSortOpen} onToggle={() => setIsSortOpen(!isSortOpen)} darkMode={darkMode}>
+    <FilterSection title={t("sortBy")} isOpen={isSortOpen} onToggle={() => setIsSortOpen(!isSortOpen)} darkMode={darkMode}>
       <div className="space-y-1">
         {Object.entries(sortLabels).map(([value, label]) => (
           <RadioOption key={value} value={value} label={label} selected={sortBy === value} onSelect={setSortBy} darkMode={darkMode} />
@@ -461,15 +627,15 @@ const FilterPanel = memo(({ darkMode, sortBy, setSortBy, sortLabels, selectedCat
       </div>
     </FilterSection>
 
-    <FilterSection title="Condition" isOpen={isCondOpen} onToggle={() => setIsCondOpen(!isCondOpen)} darkMode={darkMode}>
+    <FilterSection title={t("condition")} isOpen={isCondOpen} onToggle={() => setIsCondOpen(!isCondOpen)} darkMode={darkMode}>
       <div className="flex flex-wrap gap-2">
         {["all", "New", "Used"].map((c) => (
-          <PillButton key={c} label={c === "all" ? "All" : c} isActive={selectedCondition === c} onClick={() => setSelectedCondition(c)} darkMode={darkMode} />
+          <PillButton key={c} label={c === "all" ? t("all") : c} isActive={selectedCondition === c} onClick={() => setSelectedCondition(c)} darkMode={darkMode} />
         ))}
       </div>
     </FilterSection>
 
-    <FilterSection title="Category" isOpen={isCatOpen} onToggle={() => setIsCatOpen(!isCatOpen)} darkMode={darkMode}>
+    <FilterSection title={t("category")} isOpen={isCatOpen} onToggle={() => setIsCatOpen(!isCatOpen)} darkMode={darkMode}>
       <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto pr-1">
         {categories.map((cat) => (
           <PillButton key={cat.id} label={cat.name} isActive={selectedCategories.includes(cat.name)} onClick={() => toggleCategory(cat.name)} darkMode={darkMode} />
@@ -477,7 +643,7 @@ const FilterPanel = memo(({ darkMode, sortBy, setSortBy, sortLabels, selectedCat
       </div>
     </FilterSection>
 
-    <FilterSection title="Price Range (EGP)" isOpen={isPriceOpen} onToggle={() => setIsPriceOpen(!isPriceOpen)} darkMode={darkMode}>
+    <FilterSection title={t("priceRange")} isOpen={isPriceOpen} onToggle={() => setIsPriceOpen(!isPriceOpen)} darkMode={darkMode}>
       <PriceRangeSlider priceRange={priceRange} setPriceRange={setPriceRange} darkMode={darkMode} />
     </FilterSection>
 
@@ -490,13 +656,13 @@ const FilterPanel = memo(({ darkMode, sortBy, setSortBy, sortLabels, selectedCat
             : darkMode ? "border-gray-700 text-gray-300 hover:border-emerald-400" : "border-gray-200 text-gray-600 hover:border-emerald-500"
         }`}
       >
-        <FiCheckCircle className="w-4 h-4" /> In Stock Only
+        <FiCheckCircle className="w-4 h-4" /> {t("inStockOnly")}
       </button>
     </div>
 
     <button onClick={clearFilters}
       className="w-full mt-4 py-2.5 border-2 border-rose-500 text-rose-500 hover:bg-rose-500 hover:text-white font-bold text-xs uppercase tracking-wide transition-colors duration-150 flex items-center justify-center gap-2">
-      <FiX /> Clear All Filters
+      <FiX /> {t("clearAllFilters")}
     </button>
   </div>
 ));
@@ -523,7 +689,7 @@ const HeroIconRow = memo(({ darkMode, shop }) => (
         <div className={`w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center flex-shrink-0 ${darkMode ? "bg-emerald-900/40" : "bg-emerald-500"}`}>
           <RiPhoneLine className="text-white w-4 h-4 sm:w-5 sm:h-5" />
         </div>
-        <span className={`text-sm sm:text-base font-medium ${darkMode ? "text-gray-200" : "text-gray-800"}`}>
+        <span className={`text-sm sm:text-base font-medium ${darkMode ? "text-gray-200" : "text-gray-800"}`} dir="ltr">
           {sanitizeText(shop.phone)}
         </span>
       </div>
@@ -541,7 +707,7 @@ const HeroIconRow = memo(({ darkMode, shop }) => (
   </div>
 ));
 
-const ChatCTABanner = memo(({ darkMode, onOpenChat }) => (
+const ChatCTABanner = memo(({ darkMode, onOpenChat, t }) => (
   <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10 sm:pb-14">
     <motion.div
       initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
@@ -554,10 +720,10 @@ const ChatCTABanner = memo(({ darkMode, onOpenChat }) => (
       </div>
       <div className="flex-1 text-center sm:text-left">
         <h3 className={`text-lg sm:text-2xl font-extrabold mb-1.5 ${darkMode ? "text-white" : "text-gray-900"}`}>
-          Not sure which part fits your device?
+          {t("chatBannerTitle")}
         </h3>
         <p className={`text-sm sm:text-base ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-          Chat directly with this shop and get a personal recommendation before you buy.
+          {t("chatBannerDescription")}
         </p>
       </div>
       <motion.button
@@ -568,7 +734,7 @@ const ChatCTABanner = memo(({ darkMode, onOpenChat }) => (
         <span className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-teal-500 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
         <FiMessageCircle className="relative z-10 w-4 h-4 text-emerald-500 group-hover:text-white transition-colors duration-300" />
         <span className="relative z-10 text-emerald-600 dark:text-emerald-400 group-hover:text-white transition-colors duration-300">
-          Start Chat
+          {t("startChat")}
         </span>
       </motion.button>
     </motion.div>
@@ -576,10 +742,18 @@ const ChatCTABanner = memo(({ darkMode, onOpenChat }) => (
 ));
 
 const ShopContent = ({ darkMode, addToCart }) => {
+  const language = useAppLanguage();
+  const t = useCallback((key) => getShopTranslation(language, key), [language]);
   const { shopId } = useParams();
   const token = localStorage.getItem("authToken");
   const userId = localStorage.getItem("userId");
   const navigate = useNavigate();
+
+  // Computed once per language change: drives icon mirroring and locale-correct
+  // date formatting throughout the page.
+  const dir = languageDirection(language);
+  const isRTL = dir === "rtl";
+  const dateLocale = useMemo(() => LOCALE_MAP[language] || "en-GB", [language]);
 
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
@@ -593,6 +767,7 @@ const ShopContent = ({ darkMode, addToCart }) => {
   const [newReview, setNewReview] = useState({ rating: 0, comment: "" });
   const [editingReview, setEditingReview] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [detailsProduct, setDetailsProduct] = useState(null);
   const [openChat, setOpenChat] = useState(false);
   const [chatPrefetched, setChatPrefetched] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -617,6 +792,9 @@ const ShopContent = ({ darkMode, addToCart }) => {
     if (!chatPrefetched) prefetchChatModal();
     setOpenChat(true);
   }, [chatPrefetched]);
+
+  const openDetails = useCallback((product) => setDetailsProduct(product), []);
+  const closeDetails = useCallback(() => setDetailsProduct(null), []);
 
   const { data: shop, isLoading: shopLoading } = useQuery({
     queryKey: ["shop", shopId],
@@ -666,13 +844,13 @@ const ShopContent = ({ darkMode, addToCart }) => {
   });
 
   useEffect(() => {
-    document.title = shop?.name ? sanitizeText(shop.name) + " | Tech-Restore" : "Loading Shop...";
-  }, [shop?.name]);
+    document.title = shop?.name ? `${sanitizeText(shop.name)} | Tech-Restore` : t("loadingShop");
+  }, [shop?.name, t]);
 
   const handleAddToCart = useCallback(async (product) => {
     if (!token) {
       const Swal = await loadSwal();
-      Swal.fire({ title: "Login Required", text: "Please log in to add items to cart", icon: "warning", confirmButtonText: "Login" })
+      Swal.fire({ title: t("loginRequiredTitle"), text: t("loginRequiredText"), icon: "warning", confirmButtonText: t("loginButton") })
         .then((r) => { if (r.isConfirmed) navigate("/login"); });
       return;
     }
@@ -683,23 +861,23 @@ const ShopContent = ({ darkMode, addToCart }) => {
       });
       addToCart?.({ ...product, quantity: 1 });
       const Swal = await loadSwal();
-      Swal.fire({ toast: true, position: "top-end", icon: "success", title: "Added to cart!", timer: 1500, timerProgressBar: true, showConfirmButton: false });
+      Swal.fire({ toast: true, position: "top-end", icon: "success", title: t("addedToCartToast"), timer: 1500, timerProgressBar: true, showConfirmButton: false });
     } catch (err) {
       const Swal = await loadSwal();
-      Swal.fire({ icon: "error", title: "Error", text: err?.response?.data?.message || "Failed to add to cart" });
+      Swal.fire({ icon: "error", title: t("errorTitle"), text: err?.response?.data?.message || t("addToCartFailed") });
     }
-  }, [addToCart, token, navigate]);
+  }, [addToCart, token, navigate, t]);
 
   const submitReview = useCallback(async () => {
     const comment = newReview.comment?.trim();
     if (!comment || newReview.rating === 0) {
       const Swal = await loadSwal();
-      Swal.fire({ icon: "warning", title: "Incomplete", text: "Please provide a rating and comment" });
+      Swal.fire({ icon: "warning", title: t("incompleteTitle"), text: t("provideRatingComment") });
       return;
     }
     if (comment.length > 1000) {
       const Swal = await loadSwal();
-      Swal.fire({ icon: "warning", title: "Too long", text: "Comment must be under 1000 characters" });
+      Swal.fire({ icon: "warning", title: t("tooLongTitle"), text: t("commentTooLong") });
       return;
     }
     try {
@@ -707,19 +885,19 @@ const ShopContent = ({ darkMode, addToCart }) => {
       setNewReview({ rating: 0, comment: "" });
       queryClientLocal.invalidateQueries({ queryKey: ["reviews", shopId] });
       const Swal = await loadSwal();
-      Swal.fire({ toast: true, position: "top-end", icon: "success", title: "Review added!", timer: 1500, timerProgressBar: true, showConfirmButton: false });
+      Swal.fire({ toast: true, position: "top-end", icon: "success", title: t("reviewAddedToast"), timer: 1500, timerProgressBar: true, showConfirmButton: false });
     } catch {
       const Swal = await loadSwal();
-      Swal.fire({ icon: "error", toast: true, position: "top-end", timer: 1500, title: "Failed to submit review", showConfirmButton: false });
+      Swal.fire({ icon: "error", toast: true, position: "top-end", timer: 1500, title: t("submitReviewFailed"), showConfirmButton: false });
     }
-  }, [newReview, shopId, queryClientLocal]);
+  }, [newReview, shopId, queryClientLocal, t]);
 
   const updateReview = useCallback(async () => {
     const comment = editingReview?.comment?.trim();
     if (!comment || editingReview.rating === 0) return;
     if (comment.length > 1000) {
       const Swal = await loadSwal();
-      Swal.fire({ icon: "warning", title: "Too long", text: "Comment must be under 1000 characters" });
+      Swal.fire({ icon: "warning", title: t("tooLongTitle"), text: t("commentTooLong") });
       return;
     }
     try {
@@ -727,26 +905,26 @@ const ShopContent = ({ darkMode, addToCart }) => {
       setEditingReview(null);
       queryClientLocal.invalidateQueries({ queryKey: ["reviews", shopId] });
       const Swal = await loadSwal();
-      Swal.fire({ toast: true, position: "top-end", icon: "success", title: "Review updated!", timer: 1500, timerProgressBar: true, showConfirmButton: false });
+      Swal.fire({ toast: true, position: "top-end", icon: "success", title: t("reviewUpdatedToast"), timer: 1500, timerProgressBar: true, showConfirmButton: false });
     } catch {
       const Swal = await loadSwal();
-      Swal.fire("Error", "Could not update review", "error");
+      Swal.fire(t("errorTitle"), t("updateReviewFailed"), "error");
     }
-  }, [editingReview, queryClientLocal, shopId]);
+  }, [editingReview, queryClientLocal, shopId, t]);
 
   const deleteReview = useCallback(async (reviewId) => {
     const Swal = await loadSwal();
-    const result = await Swal.fire({ title: "Delete Review?", text: "This action cannot be undone", icon: "warning", showCancelButton: true, confirmButtonColor: "#ef4444", confirmButtonText: "Yes, delete" });
+    const result = await Swal.fire({ title: t("deleteReviewTitle"), text: t("deleteReviewText"), icon: "warning", showCancelButton: true, confirmButtonColor: "#ef4444", confirmButtonText: t("deleteConfirmButton") });
     if (result.isConfirmed) {
       try {
         await api.delete(`/api/reviews/cancel/${encodeURIComponent(reviewId)}`);
         queryClientLocal.invalidateQueries({ queryKey: ["reviews", shopId] });
-        Swal.fire({ toast: true, position: "top-end", icon: "success", title: "Review removed!", timer: 1500, timerProgressBar: true, showConfirmButton: false });
+        Swal.fire({ toast: true, position: "top-end", icon: "success", title: t("reviewRemovedToast"), timer: 1500, timerProgressBar: true, showConfirmButton: false });
       } catch {
-        Swal.fire("Error", "Could not delete review", "error");
+        Swal.fire(t("errorTitle"), t("deleteReviewFailed"), "error");
       }
     }
-  }, [queryClientLocal, shopId]);
+  }, [queryClientLocal, shopId, t]);
 
   const toggleCategory = useCallback((catName) => {
     startTransition(() => {
@@ -827,10 +1005,10 @@ const ShopContent = ({ darkMode, addToCart }) => {
   }, []);
 
   const heroStats = useMemo(() => [
-    { value: "98.9%", label: "Customer satisfaction" },
-    { value: "24h", label: "Avg delivery time" },
-    { value: "4.9★", label: "Avg shop rating" },
-  ], []);
+    { value: "98.9%", label: t("customerSatisfaction") },
+    { value: "24h", label: t("avgDelivery") },
+    { value: "4.9★", label: t("avgRating") },
+  ], [t]);
 
   const scrollToProducts = useCallback(() => {
     document.getElementById("shop-products")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -840,14 +1018,22 @@ const ShopContent = ({ darkMode, addToCart }) => {
     ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
     : "–", [reviews]);
 
+  // "1 review" vs "3 reviews" — a simple two-form pluralization. Good enough for
+  // en/fr/ar in this UI; a full ICU plural set isn't needed for a count label.
+  const reviewWord = useCallback((count) => (count === 1 ? t("reviewSingular") : t("reviewPlural")), [t]);
+
   const filterPanelProps = {
-    darkMode, sortBy, setSortBy: (v) => startTransition(() => setSortBy(v)), sortLabels,
+    darkMode, t, sortBy, setSortBy: (v) => startTransition(() => setSortBy(v)), sortLabels,
     selectedCategories, toggleCategory, categories,
     isSortOpen, setIsSortOpen, isCatOpen, setIsCatOpen, isCondOpen, setIsCondOpen, isPriceOpen, setIsPriceOpen,
     selectedCondition, setSelectedCondition: (v) => startTransition(() => setSelectedCondition(v)),
     priceRange, setPriceRange, inStockOnly, setInStockOnly,
     clearFilters: resetFilters, activeFiltersCount,
   };
+
+  // Mirrored chevrons for the bottom pagination bar, same rationale as CategorySlider.
+  const PrevIcon = isRTL ? FiChevronRight : FiChevronLeft;
+  const NextIcon = isRTL ? FiChevronLeft : FiChevronRight;
 
   if (shopLoading) return (
     <div className={`min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"} flex items-center justify-center`}>
@@ -858,29 +1044,29 @@ const ShopContent = ({ darkMode, addToCart }) => {
   if (!shop) return (
     <div className={`min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"} flex flex-col items-center justify-center gap-4`}>
       <EmptyBoxIllustration darkMode={darkMode} />
-      <p className={`text-xl font-bold ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Shop not found</p>
+      <p className={`text-xl font-bold ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{t("shopNotFound")}</p>
     </div>
   );
 
   return (
-    <div className={`min-h-screen overflow-x-hidden ${darkMode ? "bg-gray-900 text-white" : "bg-gray-50"}`}>
+    <div dir={dir} key={language} className={`min-h-screen overflow-x-hidden transition-all duration-500 ${language === "ar" ? "font-cairo" : "font-poppins"} ${darkMode ? "bg-gray-900 text-white" : "bg-gray-50"}`}>
 
       <Suspense fallback={<HeroSkeleton darkMode={darkMode} />}>
         <Hero
           variant="shop"
           darkMode={darkMode}
-          badge={shop?.verified ? "Verified Shop" : "Official Shop"}
+          badge={shop?.verified ? t("verifiedShop") : t("officialShop")}
           headingLine1=""
           headingAccent={sanitizeText(shop?.name) || "Shop Name"}
           headingLine2=""
           description={
             shop?.description
               ? sanitizeText(shop.description)
-              : "Professional repair services with genuine parts and a 6-month warranty."
+              : t("shopDescription")
           }
           buttons={[
-            { label: "View Products", onClick: scrollToProducts, primary: true },
-            { label: "Chat with Shop", onClick: handleOpenChat, primary: false },
+            { label: t("viewProducts"), onClick: scrollToProducts, primary: true },
+            { label: t("chatWithShop"), onClick: handleOpenChat, primary: false },
           ]}
           stats={heroStats}
         >
@@ -889,14 +1075,14 @@ const ShopContent = ({ darkMode, addToCart }) => {
       </Suspense>
 
       {!productsLoading && categorySections.length > 0 && (
-        <div className={`py-10 sm:py-16 ${darkMode ? "bg-gray-950" : "bg-white"}`}>
+        <div className={`py-10 sm:py-16 ${darkMode ? "bg-gray-950" : "bg-emerald-50/70"}`}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="mb-8 sm:mb-12">
-              <span className={`text-xs font-bold uppercase tracking-widest ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>Shop by category</span>
-              <h2 className={`text-2xl sm:text-4xl font-bold tracking-tight mt-1.5 ${darkMode ? "text-white" : "text-gray-900"}`}>Browse this shop's collections</h2>
+              <span className={`text-xs font-bold uppercase tracking-widest ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>{t("browseCategory")}</span>
+              <h2 className={`text-2xl sm:text-4xl font-bold tracking-tight mt-1.5 ${darkMode ? "text-white" : "text-gray-900"}`}>{t("browseCollections")}</h2>
             </div>
             {categorySections.map(({ category, items }) => (
-              <CategorySlider key={category.id} category={category} items={items} darkMode={darkMode} onAddToCart={handleAddToCart} />
+              <CategorySlider key={category.id} category={category} items={items} darkMode={darkMode} onAddToCart={handleAddToCart} onDetails={openDetails} t={t} isRTL={isRTL} />
             ))}
           </div>
         </div>
@@ -912,7 +1098,7 @@ const ShopContent = ({ darkMode, addToCart }) => {
             <div className={`${GLASS} flex items-center justify-between mb-6 flex-wrap gap-3 px-4 py-3`}>
               <div>
                 <span className={`text-xl sm:text-2xl font-extrabold ${darkMode ? "text-white" : "text-gray-900"}`}>{filteredProducts.length}</span>
-                <span className={`ml-2 text-sm font-medium ${darkMode ? "text-gray-400" : "text-gray-500"}`}>products found</span>
+                <span className={`ml-2 text-sm font-medium ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{t("productsFound")}</span>
               </div>
 
               <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
@@ -920,13 +1106,13 @@ const ShopContent = ({ darkMode, addToCart }) => {
                   <FiSearch className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
                   <input
                     type="text" value={search} onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search products..." maxLength={100}
+                    placeholder={t("searchProducts")} maxLength={100}
                     className={`w-40 sm:w-56 pl-9 pr-8 py-2 border text-sm outline-none focus:border-emerald-400 transition-colors ${
                       darkMode ? "bg-gray-800 border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-200 text-gray-900 placeholder-gray-400"
                     }`}
                   />
                   {search && (
-                    <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition" aria-label="Clear">
+                    <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition" aria-label={t("clear")}>
                       <FiX size={14} />
                     </button>
                   )}
@@ -934,7 +1120,7 @@ const ShopContent = ({ darkMode, addToCart }) => {
 
                 <button onClick={() => setIsSidebarOpen(true)}
                   className={`lg:hidden flex items-center gap-1.5 px-3 py-2 border font-semibold text-xs transition-colors duration-150 ${darkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-white border-gray-200 text-gray-700"}`}>
-                  <FiSliders className="w-3.5 h-3.5 text-emerald-500" /> Filters
+                  <FiSliders className="w-3.5 h-3.5 text-emerald-500" /> {t("filters")}
                   {activeFiltersCount > 0 && <span className="w-4 h-4 bg-emerald-500 text-white text-[10px] font-bold flex items-center justify-center">{activeFiltersCount}</span>}
                 </button>
               </div>
@@ -947,7 +1133,7 @@ const ShopContent = ({ darkMode, addToCart }) => {
             ) : filteredProducts.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5 lg:gap-6">
                 {paginatedProducts.map((product, i) => (
-                  <ProductCard key={product.id} product={product} darkMode={darkMode} onAddToCart={handleAddToCart} index={i} />
+                  <ProductCard key={product.id} product={product} darkMode={darkMode} onAddToCart={handleAddToCart} onDetails={openDetails} index={i} t={t} />
                 ))}
               </div>
             ) : (
@@ -955,12 +1141,12 @@ const ShopContent = ({ darkMode, addToCart }) => {
                 <div className="mb-4">
                   <EmptyBoxIllustration darkMode={darkMode} />
                 </div>
-                <p className={`text-base sm:text-xl font-bold mb-2 ${darkMode ? "text-white" : "text-gray-800"}`}>No products found</p>
-                <p className={`text-sm mb-5 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Try adjusting your filters or search term</p>
+                <p className={`text-base sm:text-xl font-bold mb-2 ${darkMode ? "text-white" : "text-gray-800"}`}>{t("noProducts")}</p>
+                <p className={`text-sm mb-5 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{t("adjustFilters")}</p>
                 {activeFiltersCount > 0 && (
                   <button onClick={resetFilters}
                     className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm transition-colors duration-150">
-                    Clear all filters
+                    {t("clearFilters")}
                   </button>
                 )}
               </motion.div>
@@ -969,15 +1155,15 @@ const ShopContent = ({ darkMode, addToCart }) => {
             {totalPages > 1 && (
               <div className="flex justify-center mt-8 sm:mt-14 gap-1.5 sm:gap-2 flex-wrap">
                 <PaginationButton onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} darkMode={darkMode}>
-                  <FiChevronLeft className="w-4 h-4" />
+                  <PrevIcon className="w-4 h-4" />
                 </PaginationButton>
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                   <PaginationButton key={page} onClick={() => setCurrentPage(page)} active={currentPage === page} darkMode={darkMode}>
-                    {page}
+                    <span dir="ltr">{page}</span>
                   </PaginationButton>
                 ))}
                 <PaginationButton onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} darkMode={darkMode}>
-                  <FiChevronRight className="w-4 h-4" />
+                  <NextIcon className="w-4 h-4" />
                 </PaginationButton>
               </div>
             )}
@@ -985,7 +1171,7 @@ const ShopContent = ({ darkMode, addToCart }) => {
         </div>
       </div>
 
-      <ChatCTABanner darkMode={darkMode} onOpenChat={handleOpenChat} />
+      <ChatCTABanner darkMode={darkMode} onOpenChat={handleOpenChat} t={t} />
 
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 md:py-20">
         <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 xl:gap-16 items-start">
@@ -996,37 +1182,37 @@ const ShopContent = ({ darkMode, addToCart }) => {
               </div>
               <div>
                 <h2 className={`text-xl sm:text-2xl md:text-3xl font-extrabold ${darkMode ? "text-white" : "text-gray-900"}`}>
-                  Customer Reviews
+                  {t("customerReviews")}
                 </h2>
                 <span className={`text-xs sm:text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                  {reviews.length} review{reviews.length !== 1 ? "s" : ""}
-                  {reviews.length > 0 && ` · avg ${avgRating} ★`}
+                  <span dir="ltr">{reviews.length}</span> {reviewWord(reviews.length)}
+                  {reviews.length > 0 && <> · {t("avgLabel")} <span dir="ltr">{avgRating}</span> ★</>}
                 </span>
               </div>
             </div>
 
             <div className={`p-4 sm:p-6 md:p-7 border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
               <h3 className={`text-base sm:text-lg font-extrabold mb-3 sm:mb-5 ${darkMode ? "text-gray-100" : "text-gray-800"}`}>
-                Share Your Experience
+                {t("shareYourExperience")}
               </h3>
-              <StarRating value={newReview.rating} onChange={(star) => setNewReview((p) => ({ ...p, rating: star }))} />
+              <StarRating value={newReview.rating} onChange={(star) => setNewReview((p) => ({ ...p, rating: star }))} t={t} />
               <textarea
                 value={newReview.comment}
                 onChange={(e) => setNewReview((p) => ({ ...p, comment: e.target.value }))}
-                placeholder="How was your experience with this shop?..."
+                placeholder={t("reviewPlaceholder")}
                 maxLength={1000}
                 className={`mt-3 sm:mt-4 w-full p-3 sm:p-4 border-2 resize-none text-sm leading-relaxed outline-none focus:border-emerald-400 transition-colors ${
                   darkMode ? "bg-gray-900/70 border-gray-700 text-gray-100 placeholder-gray-500" : "bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400"
                 }`}
                 rows={3}
               />
-              <span className={`text-[10px] ${darkMode ? "text-gray-500" : "text-gray-400"}`}>{newReview.comment.length}/1000</span>
+              <span className={`text-[10px] ${darkMode ? "text-gray-500" : "text-gray-400"}`} dir="ltr">{newReview.comment.length}/1000</span>
               <button
                 onClick={submitReview}
                 disabled={!newReview.comment?.trim() || newReview.rating === 0}
                 className="relative mt-3 w-full py-2.5 sm:py-3 font-bold text-sm flex items-center justify-center gap-2 border-2 border-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-emerald-400 hover:text-gray-900 transition-colors duration-150 text-emerald-600 dark:text-emerald-400"
               >
-                Submit Review
+                {t("submitReview")}
               </button>
             </div>
 
@@ -1051,15 +1237,15 @@ const ShopContent = ({ darkMode, addToCart }) => {
                               <RiStarFill key={i} className={`w-3 h-3 sm:w-4 sm:h-4 ${i < r.rating ? "text-amber-400" : darkMode ? "text-gray-600" : "text-gray-300"}`} />
                             ))}
                           </div>
-                          <span className={`text-[10px] sm:text-xs ${darkMode ? "text-gray-500" : "text-gray-400"}`}>
-                            {new Date(r.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                          <span className={`text-[10px] sm:text-xs ${darkMode ? "text-gray-500" : "text-gray-400"}`} dir="ltr">
+                            {new Date(r.createdAt).toLocaleDateString(dateLocale, { day: "numeric", month: "short", year: "numeric" })}
                           </span>
                         </div>
                         <p className={`text-xs sm:text-sm leading-relaxed ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
                           {sanitizeText(r.comment)}
                         </p>
                         <p className={`mt-1 sm:mt-2 text-[10px] sm:text-xs font-semibold ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>
-                          — {sanitizeText(r.userName) || "Anonymous"}
+                          — {sanitizeText(r.userName) || t("anonymous")}
                         </p>
                       </div>
                     </div>
@@ -1080,8 +1266,8 @@ const ShopContent = ({ darkMode, addToCart }) => {
                   <div className="mb-3 sm:mb-4">
                     <EmptyChatIllustration darkMode={darkMode} />
                   </div>
-                  <p className={`text-base sm:text-lg font-semibold mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>No reviews yet</p>
-                  <p className={`text-xs sm:text-sm ${darkMode ? "text-gray-500" : "text-gray-400"}`}>Be the first to share your experience!</p>
+                  <p className={`text-base sm:text-lg font-semibold mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{t("noReviewsYet")}</p>
+                  <p className={`text-xs sm:text-sm ${darkMode ? "text-gray-500" : "text-gray-400"}`}>{t("beFirstReview")}</p>
                 </div>
               )}
             </div>
@@ -1095,21 +1281,21 @@ const ShopContent = ({ darkMode, addToCart }) => {
                   <div className="absolute inset-0 bg-amber-400/20 rounded-full blur-3xl" />
                   <RiStarFill className="w-24 h-24 sm:w-28 sm:h-28 text-amber-400 drop-shadow-2xl relative z-10" />
                 </div>
-                <h3 className="text-4xl sm:text-5xl font-extrabold bg-gradient-to-r from-emerald-400 to-teal-500 bg-clip-text text-transparent mb-2 sm:mb-3">
+                <h3 className="text-4xl sm:text-5xl font-extrabold bg-gradient-to-r from-emerald-400 to-teal-500 bg-clip-text text-transparent mb-2 sm:mb-3" dir="ltr">
                   {avgRating} / 5
                 </h3>
                 <p className={`text-base sm:text-lg font-bold mb-1.5 ${darkMode ? "text-gray-200" : "text-gray-800"}`}>
-                  {reviews.length > 0 ? "Loved by Customers" : "No reviews yet"}
+                  {reviews.length > 0 ? t("lovedByCustomers") : t("noReviewsYet")}
                 </p>
                 <p className={`text-xs ${darkMode ? "text-gray-500" : "text-gray-400"}`}>
-                  Based on {reviews.length} review{reviews.length !== 1 ? "s" : ""}
+                  {t("basedOn")} <span dir="ltr">{reviews.length}</span> {reviewWord(reviews.length)}
                 </p>
                 <div className="w-full mt-6 sm:mt-8 space-y-2">
                   {[5, 4, 3, 2, 1].map((n) => {
                     const count = reviews.filter((r) => r.rating === n).length;
                     const pct = reviews.length > 0 ? (count / reviews.length) * 100 : 0;
                     return (
-                      <div key={n} className="flex items-center gap-2">
+                      <div key={n} className="flex items-center gap-2" dir="ltr">
                         <span className={`text-xs font-semibold w-3 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{n}</span>
                         <RiStarFill className="text-amber-400 w-3 h-3 flex-shrink-0" />
                         <div className={`flex-1 h-1.5 overflow-hidden ${darkMode ? "bg-gray-700" : "bg-gray-100"}`}>
@@ -1158,9 +1344,9 @@ const ShopContent = ({ darkMode, addToCart }) => {
               className={`w-full max-w-lg p-6 sm:p-8 shadow-2xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}
             >
               <h3 className={`text-xl sm:text-2xl font-extrabold mb-5 ${darkMode ? "text-white" : "text-gray-900"}`}>
-                Edit Review
+                {t("editReview")}
               </h3>
-              <StarRating value={editingReview.rating} onChange={(star) => setEditingReview((p) => ({ ...p, rating: star }))} />
+              <StarRating value={editingReview.rating} onChange={(star) => setEditingReview((p) => ({ ...p, rating: star }))} t={t} />
               <textarea
                 value={editingReview.comment}
                 onChange={(e) => setEditingReview((p) => ({ ...p, comment: e.target.value }))}
@@ -1171,15 +1357,21 @@ const ShopContent = ({ darkMode, addToCart }) => {
               <div className="mt-5 flex justify-end gap-2 sm:gap-3">
                 <button onClick={() => setEditingReview(null)}
                   className={`px-5 sm:px-6 py-2.5 font-bold text-sm ${darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-100 text-gray-700"} transition`}>
-                  Cancel
+                  {t("cancel")}
                 </button>
                 <button onClick={updateReview}
                   className="px-6 sm:px-8 py-2.5 bg-gradient-to-r from-emerald-400 to-teal-500 text-white font-bold text-sm shadow-lg hover:from-emerald-500 hover:to-teal-600 transition">
-                  Update
+                  {t("update")}
                 </button>
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {detailsProduct && (
+          <ProductDetailsModal key={detailsProduct.id} product={detailsProduct} darkMode={darkMode} onClose={closeDetails} onAddToCart={handleAddToCart} t={t} />
         )}
       </AnimatePresence>
 

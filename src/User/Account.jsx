@@ -1,1916 +1,1040 @@
-import React, { useState, useEffect, useCallback, memo, useMemo, useTransition, useRef, Suspense, lazy } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import React, {
+  useState, useEffect, useCallback, useMemo, useTransition, useDeferredValue, memo, Suspense, lazy,
+} from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import Swal from "sweetalert2";
 import {
-  FiUser, FiMapPin, FiBox, FiTool, FiEdit2, FiTrash2,
-  FiX, FiMail, FiPhone, FiPlus, FiInfo, FiCalendar,
-  FiDollarSign, FiHome, FiChevronLeft, FiChevronRight,
-  FiXCircle, FiUsers, FiZap, FiCheckCircle,
-  FiCreditCard, FiTruck, FiCheck, FiShield, FiEdit,
-  FiMapPin as FiLocation,
-  FiNavigation,
-  FiList,
-  FiBell,
-  FiDownload,
-  FiFilter,
-  FiSearch,
-  FiChevronDown,
-  FiClock,
-  FiArrowRight,
-  FiExternalLink,
-  FiCrosshair,
-  FiLoader,
-  FiPieChart,
-  FiTrendingUp,
-  FiTarget,
-  FiSend,
-  FiAward,
-  FiCompass,
-  FiRefreshCw,
-  FiWifi,
-} from "react-icons/fi";
-import api from "../api";
-import { motion, AnimatePresence } from "framer-motion";
-import { jwtDecode } from "jwt-decode";
-import { RiLogoutBoxRLine, RiVerifiedBadgeLine, RiStarFill } from "react-icons/ri";
-import { Dialog, DialogBackdrop, DialogPanel, DialogTitle, Listbox, ListboxButton, ListboxOption, ListboxOptions, Transition } from "@headlessui/react";
-import Hero from "../components/Hero";
+  FiUser, FiMapPin, FiBox, FiTool, FiEdit2, FiTrash2, FiMail, FiPhone, FiPlus, FiInfo, FiCalendar,
+  FiDollarSign, FiHome, FiXCircle, FiZap, FiCheckCircle, FiCreditCard, FiTruck, FiCheck, FiShield,
+  FiNavigation, FiList, FiBell, FiSearch, FiClock, FiExternalLink, FiPieChart, FiTrendingUp, FiTarget,
+  FiSend, FiAward, FiCompass, FiGlobe, FiX,
+} from 'react-icons/fi';
+import { RiLogoutBoxRLine, RiVerifiedBadgeLine } from 'react-icons/ri';
+import { jwtDecode } from 'jwt-decode';
+import api from '../api';
+import { useAppLanguage, languageDirection } from '../utils/useAppLanguage';
+import enTranslations from '../locales/en/translation.json';
+import arTranslations from '../locales/ar/translation.json';
+import frTranslations from '../locales/fr/translation.json';
+import {
+  UI3D_CSS, Defs3D, Glyph3D, Scene3D, Btn3D, Chip3D, InfoRow, EmptyState, ProgressBar3D, Modal3D,
+  Pagination3D, Select3D, Field, cardCls, tileCls, inputCls,
+} from '../components/Ui3D';
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 10_000,
-      refetchOnWindowFocus: true,
-    },
-  },
-});
+/* heavy / rarely used pieces load on demand */
+const Hero = lazy(() => import('../components/Hero'));
+const MapPicker = lazy(() => import('./AccountMap'));
 
-const LIVE_POLL_MS = 15_000;
+const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false } } });
+const LIVE_POLL_MS = 20_000; // only for orders / repairs / notifications; paused in background tabs by react-query
 
-const isEmptyVal = (val) => {
-  if (val === null || val === undefined) return true;
-  if (typeof val === "string" && val.trim() === "") return true;
-  if (typeof val === "number" && val === 0) return true;
-  return false;
+/* ───────────── helpers ───────────── */
+const ACCOUNT_TRANSLATIONS = { en: enTranslations.account, ar: arTranslations.account, fr: frTranslations.account };
+const tr = (lang, key) => ACCOUNT_TRANSLATIONS[lang]?.[key] || ACCOUNT_TRANSLATIONS.en?.[key] || key;
+const LANGUAGES = [['en', 'English'], ['ar', 'العربية'], ['fr', 'Français']];
+
+const isEmpty = (v) => v == null || (typeof v === 'string' && v.trim() === '') || v === 0;
+const unwrap = (res) => { const d = res.data?.content ?? res.data ?? []; return Array.isArray(d) ? d : []; };
+const dayOf = (v) => { const d = new Date(v); return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10); };
+const fmtShort = (v) => new Date(v).toLocaleDateString('en-EG', { month: 'short', day: 'numeric', year: 'numeric' });
+const fmtFull = (v) => new Date(v).toLocaleString('en-EG', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Africa/Cairo' });
+const directionsUrl = (lat, lng) => `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+
+/* sweetalert2 is only needed on interaction – never on first paint */
+let swalPromise;
+const loadSwal = () => (swalPromise ||= import('sweetalert2').then((m) => m.default || m));
+const toast = (o) => loadSwal().then((S) => S.fire({ toast: true, position: 'top-end', timer: 1800, showConfirmButton: false, ...o }));
+const ask = (o) => loadSwal().then((S) => S.fire({ icon: 'warning', showCancelButton: true, ...o }));
+
+const ORDER_STEPS = ['PENDING', 'CONFIRMED', 'PROCESSING', 'FINISHPROCESSING', 'SHIPPED', 'DELIVERED'];
+const REPAIR_STEPS = ['SUBMITTED', 'QUOTE_SENT', 'QUOTE_APPROVED', 'DEVICE_COLLECTED', 'REPAIRING', 'REPAIR_COMPLETED', 'DEVICE_DELIVERED'];
+const ORDER_BAD = new Set(['CANCELLED']);
+const REPAIR_BAD = new Set(['CANCELLED', 'FAILED', 'QUOTE_REJECTED']);
+const DONE = new Set(['DELIVERED', 'DEVICE_DELIVERED', 'CANCELLED', 'FAILED', 'QUOTE_REJECTED']);
+const ORDER_STATUSES = [...ORDER_STEPS, 'CANCELLED'];
+const REPAIR_STATUSES = [...REPAIR_STEPS.slice(0, 3), 'QUOTE_REJECTED', ...REPAIR_STEPS.slice(3), 'CANCELLED', 'FAILED'];
+
+const progressOf = (steps, bad) => (status) => {
+  if (bad.has(status)) return -1;
+  const i = steps.indexOf(status);
+  return i < 0 ? 0 : Math.round((i / (steps.length - 1)) * 100);
 };
+const orderProgress = progressOf(ORDER_STEPS, ORDER_BAD);
+const repairProgress = progressOf(REPAIR_STEPS, REPAIR_BAD);
 
-const isEmptyCoord = (val) => val === null || val === undefined || val === 0;
-
-const toDateOnlyString = (val) => {
-  if (!val) return null;
-  const d = new Date(val);
-  if (isNaN(d.getTime())) return null;
-  return d.toISOString().slice(0, 10);
+const TONE = { good: 'bg-emerald-500', bad: 'bg-rose-500', info: 'bg-sky-500', warn: 'bg-amber-500', violet: 'bg-violet-500', teal: 'bg-teal-500' };
+const TONES = {
+  order: { DELIVERED: 'good', CANCELLED: 'bad', CONFIRMED: 'info', SHIPPED: 'violet', PROCESSING: 'teal', FINISHPROCESSING: 'teal' },
+  repair: { DEVICE_DELIVERED: 'good', CANCELLED: 'bad', FAILED: 'bad', QUOTE_REJECTED: 'bad', QUOTE_APPROVED: 'good', QUOTE_SENT: 'violet', REPAIRING: 'teal', REPAIR_COMPLETED: 'teal', DEVICE_COLLECTED: 'info' },
 };
-
-const STYLES = `
-  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
-
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: #d1d5db transparent;
-  }
-  *::-webkit-scrollbar { width: 5px; height: 5px; }
-  *::-webkit-scrollbar-track { background: transparent; }
-  *::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 999px; }
-  *::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
-
-  .lime-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
-  .lime-scroll::-webkit-scrollbar-track { background: transparent; }
-  .lime-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 999px; }
-  .lime-scroll { scrollbar-width: thin; scrollbar-color: #d1d5db transparent; }
-  .tabs-scroll::-webkit-scrollbar { display: none; }
-  .tabs-scroll { -ms-overflow-style: none; scrollbar-width: none; }
-  .leaflet-container { font-family: inherit; }
-  .pin-pulse { animation: pinpulse 1.8s ease-out infinite; }
-  @keyframes pinpulse {
-    0% { transform: scale(0.6); opacity: 0.55; }
-    70% { transform: scale(2.1); opacity: 0; }
-    100% { transform: scale(2.1); opacity: 0; }
-  }
-
-  .glass {
-    background: rgba(255,255,255,0.55);
-    backdrop-filter: blur(18px) saturate(160%);
-    -webkit-backdrop-filter: blur(18px) saturate(160%);
-    border: 1px solid rgba(255,255,255,0.35);
-  }
-  .glass-dark {
-    background: rgba(17,24,39,0.55);
-    backdrop-filter: blur(18px) saturate(160%);
-    -webkit-backdrop-filter: blur(18px) saturate(160%);
-    border: 1px solid rgba(255,255,255,0.08);
-  }
-  .fast-fade { transition: all 150ms cubic-bezier(0.4,0,0.2,1); }
-
-  @media (prefers-reduced-motion: reduce) {
-    * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
-  }
-`;
-
-const LEAFLET_CSS = `https://unpkg.com/leaflet@1.9.4/dist/leaflet.css`;
-const LEAFLET_JS = `https://unpkg.com/leaflet@1.9.4/dist/leaflet.js`;
-
-const cardVariants = {
-  hidden: { opacity: 0, y: 12 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.22, ease: "easeOut" } },
-  exit: { opacity: 0, y: -8, transition: { duration: 0.12 } }
-};
-
-const ORDER_STEPS = ["PENDING","CONFIRMED","PROCESSING","FINISHPROCESSING","SHIPPED","DELIVERED"];
-const REPAIR_STEPS = ["SUBMITTED","QUOTE_SENT","QUOTE_APPROVED","DEVICE_COLLECTED","REPAIRING","REPAIR_COMPLETED","DEVICE_DELIVERED"];
-
-const getOrderProgress = (status) => {
-  if (status === "CANCELLED") return -1;
-  const idx = ORDER_STEPS.indexOf(status);
-  return idx === -1 ? 0 : Math.round((idx / (ORDER_STEPS.length - 1)) * 100);
-};
-
-const getRepairProgress = (status) => {
-  if (status === "CANCELLED" || status === "FAILED" || status === "QUOTE_REJECTED") return -1;
-  const idx = REPAIR_STEPS.indexOf(status);
-  return idx === -1 ? 0 : Math.round((idx / (REPAIR_STEPS.length - 1)) * 100);
-};
-
-const ProgressBar = memo(({ progress, status, darkMode }) => {
-  if (progress === -1) return (
-    <div className="mt-2.5 mb-1">
-      <div className={`h-1.5 w-full overflow-hidden ${darkMode ? "bg-red-950/40" : "bg-red-100"}`}>
-        <div className="h-full w-full bg-gradient-to-r from-red-400 to-red-500" />
-      </div>
-      <p className="text-[10px] text-red-500 font-bold mt-1.5 uppercase tracking-wide">{status?.replace(/_/g, " ")}</p>
-    </div>
-  );
-  return (
-    <div className="mt-2.5 mb-1">
-      <div className="flex justify-between items-center mb-1.5">
-        <span className={`text-[10px] font-bold uppercase tracking-wide ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>{status?.replace(/_/g," ")}</span>
-        <span className={`text-[10px] font-bold ${darkMode ? "text-gray-500" : "text-gray-400"}`}>{progress}%</span>
-      </div>
-      <div className={`h-1.5 w-full overflow-hidden ${darkMode ? "bg-gray-700" : "bg-gray-100"}`}>
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${progress}%` }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          className="h-full bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500"
-        />
-      </div>
-    </div>
-  );
-});
-
-const LoadingSpinner = memo(({ darkMode }) => (
-  <div className="flex justify-center items-center py-16">
-    <div className={`w-10 h-10 border-[3px] ${darkMode ? "border-emerald-400" : "border-emerald-500"} border-t-transparent rounded-full animate-spin`} />
-  </div>
+const StatusBadge = memo(({ status, type = 'order', t }) => (
+  <span className={`flex-shrink-0 rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-white ${TONE[TONES[type][status]] || TONE.warn}`}>
+    {t(`status_${status}`)}
+  </span>
 ));
 
-const StatusBadge = memo(({ status, type = "order", darkMode }) => {
-  const orderMapLight = { DELIVERED: "bg-emerald-100 text-emerald-700", CANCELLED: "bg-red-100 text-red-700", CONFIRMED: "bg-blue-100 text-blue-700", SHIPPED: "bg-purple-100 text-purple-700", PROCESSING: "bg-cyan-100 text-cyan-700", FINISHPROCESSING: "bg-teal-100 text-teal-700" };
-  const orderMapDark = { DELIVERED: "bg-emerald-500/15 text-emerald-300", CANCELLED: "bg-red-500/15 text-red-300", CONFIRMED: "bg-blue-500/15 text-blue-300", SHIPPED: "bg-purple-500/15 text-purple-300", PROCESSING: "bg-cyan-500/15 text-cyan-300", FINISHPROCESSING: "bg-teal-500/15 text-teal-300" };
-  const repairMapLight = { DEVICE_DELIVERED: "bg-emerald-100 text-emerald-700", CANCELLED: "bg-red-100 text-red-700", FAILED: "bg-red-100 text-red-700", QUOTE_APPROVED: "bg-emerald-100 text-emerald-700", QUOTE_SENT: "bg-purple-100 text-purple-700", QUOTE_REJECTED: "bg-red-100 text-red-700", REPAIRING: "bg-cyan-100 text-cyan-700", REPAIR_COMPLETED: "bg-teal-100 text-teal-700", DEVICE_COLLECTED: "bg-blue-100 text-blue-700" };
-  const repairMapDark = { DEVICE_DELIVERED: "bg-emerald-500/15 text-emerald-300", CANCELLED: "bg-red-500/15 text-red-300", FAILED: "bg-red-500/15 text-red-300", QUOTE_APPROVED: "bg-emerald-500/15 text-emerald-300", QUOTE_SENT: "bg-purple-500/15 text-purple-300", QUOTE_REJECTED: "bg-red-500/15 text-red-300", REPAIRING: "bg-cyan-500/15 text-cyan-300", REPAIR_COMPLETED: "bg-teal-500/15 text-teal-300", DEVICE_COLLECTED: "bg-blue-500/15 text-blue-300" };
-  const map = darkMode
-    ? (type === "repair" ? repairMapDark : orderMapDark)
-    : (type === "repair" ? repairMapLight : orderMapLight);
-  const fallback = darkMode ? "bg-amber-500/15 text-amber-300" : "bg-amber-100 text-amber-700";
-  return (
-    <span className={`text-[10px] px-2.5 py-1 font-bold uppercase tracking-wider flex-shrink-0 ${map[status] || fallback}`}>
-      {status?.replace(/_/g, " ")}
-    </span>
-  );
-});
+const SkeletonList = ({ darkMode }) => (
+  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    {[0, 1, 2].map((i) => <div key={i} className={`h-44 animate-pulse rounded-2xl ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`} />)}
+  </div>
+);
 
-const Pagination = memo(({ page, total, setPage, darkMode }) => {
-  if (total <= 1) return null;
+const TabTitle = ({ icon: Icon, children, darkMode, right }) => (
+  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <h2 className={`flex items-center gap-2.5 text-lg font-extrabold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+      <Chip3D className="h-8 w-8"><Icon className="h-4 w-4" /></Chip3D> {children}
+    </h2>
+    {right}
+  </div>
+);
+
+/* ───────────── list filtering shared by Orders + Repairs ───────────── */
+const useListView = (items, { match, price, ipp = 6 }) => {
+  const [status, setStatus] = useState('');
+  const [date, setDate] = useState('');
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState('newest');
+  const [page, setPage] = useState(1);
+  const term = useDeferredValue(search).trim().toLowerCase();
+
+  const filtered = useMemo(() => {
+    const list = items.filter((x) => (!status || x.status === status) && (!date || dayOf(x.createdAt) === date) && (!term || match(x, term)));
+    const n = (x) => Number(x[price]) || 0;
+    const ts = (x) => Date.parse(x.createdAt) || 0;
+    return list.sort((a, b) => (sort === 'oldest' ? ts(a) - ts(b) : sort === 'price_desc' ? n(b) - n(a) : sort === 'price_asc' ? n(a) - n(b) : ts(b) - ts(a)));
+  }, [items, status, date, term, sort, match, price]);
+
+  useEffect(() => { setPage(1); }, [status, date, term, sort]);
+  const total = Math.max(1, Math.ceil(filtered.length / ipp));
+  const current = Math.min(page, total);
+  const pageItems = useMemo(() => filtered.slice((current - 1) * ipp, current * ipp), [filtered, current, ipp]);
+  const active = !!(status || date || search || sort !== 'newest');
+  const reset = useCallback(() => { setStatus(''); setDate(''); setSearch(''); setSort('newest'); }, []);
+  return { status, setStatus, date, setDate, search, setSearch, sort, setSort, page: current, setPage, total, filtered, pageItems, active, reset };
+};
+
+const FilterBar = memo(({ view, statuses, t, darkMode }) => {
+  const { status, setStatus, date, setDate, search, setSearch, sort, setSort, active, reset, filtered } = view;
   return (
-    <div className="flex justify-center mt-8 gap-1.5 flex-wrap">
-      <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
-        className={`p-2 border fast-fade ${page === 1 ? "opacity-40 cursor-not-allowed" : darkMode ? "bg-gray-800 border-gray-700 text-gray-200 hover:bg-gray-700" : "bg-white border-gray-200 hover:bg-gray-50"}`}>
-        <FiChevronLeft size={14} />
-      </button>
-      {Array.from({ length: total }, (_, i) => i + 1).map((p) => (
-        <button key={p} onClick={() => setPage(p)}
-          className={`w-9 h-9 font-bold text-sm fast-fade border ${
-            page === p ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-transparent shadow-lg shadow-emerald-500/20"
-              : darkMode ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-emerald-900/30" : "bg-white border-gray-200 text-gray-700 hover:bg-emerald-50"
-          }`}>{p}</button>
-      ))}
-      <button onClick={() => setPage((p) => Math.min(total, p + 1))} disabled={page === total}
-        className={`p-2 border fast-fade ${page === total ? "opacity-40 cursor-not-allowed" : darkMode ? "bg-gray-800 border-gray-700 text-gray-200 hover:bg-gray-700" : "bg-white border-gray-200 hover:bg-gray-50"}`}>
-        <FiChevronRight size={14} />
-      </button>
+    <div className={`${cardCls(darkMode)} mb-4 p-3`}>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className={`flex min-w-[150px] flex-1 items-center gap-2 rounded-xl border px-3 py-2 focus-within:border-emerald-500 ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+          <FiSearch className={`h-4 w-4 flex-shrink-0 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+          <input type="search" value={search} maxLength={60} onChange={(e) => setSearch(e.target.value)} placeholder={t('search')} aria-label={t('search')}
+            className={`min-w-0 flex-1 bg-transparent text-sm outline-none ${darkMode ? 'text-white placeholder:text-gray-500' : 'text-gray-900 placeholder:text-gray-500'}`} />
+        </div>
+        <Select3D darkMode={darkMode} value={status} onChange={(e) => setStatus(e.target.value)} aria-label={t('allStatuses')}>
+          <option value="">{t('allStatuses')}</option>
+          {statuses.map((s) => <option key={s} value={s}>{t(`status_${s}`)}</option>)}
+        </Select3D>
+        <Select3D darkMode={darkMode} value={sort} onChange={(e) => setSort(e.target.value)} aria-label={t('sortBy')}>
+          <option value="newest">{t('newestFirst')}</option>
+          <option value="oldest">{t('oldestFirst')}</option>
+          <option value="price_desc">{t('highestPrice')}</option>
+          <option value="price_asc">{t('lowestPrice')}</option>
+        </Select3D>
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label="Date" className={inputCls(darkMode)} />
+        {active && <Btn3D tone="soft" darkMode={darkMode} onClick={reset} className="px-3 py-2 text-xs"><FiX className="h-3.5 w-3.5" /> {t('clear')}</Btn3D>}
+      </div>
+      <p className={`mt-2 text-[11px] font-semibold ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{filtered.length} result{filtered.length === 1 ? '' : 's'}</p>
     </div>
   );
 });
 
-const Dropdown = memo(({ value, onChange, options, placeholder = "All", darkMode, icon }) => {
-  const selected = options.find((o) => o.value === value);
-  return (
-    <Listbox value={value} onChange={onChange}>
-      <div className="relative">
-        <ListboxButton className={`flex items-center gap-2 pl-8 pr-8 py-2 border text-xs font-semibold outline-none fast-fade min-w-[150px] text-left ${
-          darkMode ? "bg-gray-800 border-gray-700 text-gray-100" : "bg-white border-gray-200 text-gray-800"
-        }`}>
-          {icon}
-          <span className="truncate">{selected ? selected.label : placeholder}</span>
-          <FiChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${darkMode ? "text-gray-500" : "text-gray-400"}`} size={11} />
-        </ListboxButton>
-        <Transition as={React.Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
-          <ListboxOptions className={`absolute z-30 mt-1 w-full max-h-64 overflow-auto text-xs shadow-2xl border focus:outline-none ${
-            darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
-          }`}>
-            <ListboxOption value="" className={({ active }) => `cursor-pointer select-none px-3.5 py-2.5 font-semibold ${active ? (darkMode ? "bg-emerald-500/15 text-emerald-300" : "bg-emerald-50 text-emerald-700") : (darkMode ? "text-gray-300" : "text-gray-600")}`}>
-              {placeholder}
-            </ListboxOption>
-            {options.map((opt) => (
-              <ListboxOption key={opt.value} value={opt.value} className={({ active }) => `cursor-pointer select-none px-3.5 py-2.5 font-semibold border-t ${darkMode ? "border-gray-700/60" : "border-gray-50"} ${active ? (darkMode ? "bg-emerald-500/15 text-emerald-300" : "bg-emerald-50 text-emerald-700") : (darkMode ? "text-gray-300" : "text-gray-600")}`}>
-                {opt.label}
-              </ListboxOption>
-            ))}
-          </ListboxOptions>
-        </Transition>
-      </div>
-    </Listbox>
-  );
-});
+/* ───────────── compact cards ───────────── */
+const CardShell = ({ darkMode, index, children }) => (
+  <article style={{ '--i': Math.min(index, 8) }}
+    className={`anim-fade-up flex h-full flex-col gap-3 rounded-2xl border p-3.5 transition-all duration-200 hover:-translate-y-0.5 ${
+      darkMode ? 'border-gray-700 bg-gray-800 hover:shadow-lg hover:shadow-black/30' : 'border-gray-100 bg-white hover:shadow-lg hover:shadow-gray-200/70'}`}>
+    {children}
+  </article>
+);
 
-const FilterBar = memo(({ statusOptions, statusFilter, setStatusFilter, dateFilter, setDateFilter, search, setSearch, sortBy, setSortBy, darkMode, resultCount }) => {
-  const inputCls = `px-3 py-2 border text-xs font-semibold outline-none fast-fade ${
-    darkMode ? "bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-500 focus:border-emerald-400"
-      : "bg-white border-gray-200 text-gray-800 placeholder-gray-400 focus:border-emerald-500"
-  }`;
-  const statusOpts = statusOptions.map((s) => ({ value: s, label: s.replace(/_/g, " ") }));
-  const sortOpts = [
-    { value: "newest", label: "Newest first" },
-    { value: "oldest", label: "Oldest first" },
-    { value: "price_desc", label: "Highest price" },
-    { value: "price_asc", label: "Lowest price" },
-  ];
+const Stat = ({ label, value, darkMode }) => (
+  <div className={`min-w-0 rounded-xl border px-2.5 py-1.5 ${darkMode ? 'border-gray-700 bg-gray-900/50' : 'border-gray-100 bg-gray-50'}`}>
+    <p className={`text-[9px] font-bold uppercase tracking-widest ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{label}</p>
+    <p className={`truncate text-sm font-bold ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>{value}</p>
+  </div>
+);
+
+const OrderCard = memo(({ order, darkMode, t, index, onDetails, onCancel }) => {
+  const count = (order.orderItems || []).reduce((s, i) => s + (Number(i.quantity) || 0), 0) || (order.orderItems || []).length;
+  const canCancel = !DONE.has(order.status);
   return (
-    <div className={`p-3 sm:p-4 mb-5 border glass ${darkMode ? "glass-dark border-gray-700/60" : "border-gray-200"}`}>
-      <div className="flex flex-wrap gap-2 items-center">
-        <div className="relative flex-1 min-w-[160px]">
-          <FiSearch className={`absolute left-3 top-1/2 -translate-y-1/2 ${darkMode ? "text-gray-500" : "text-gray-400"}`} size={13} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." className={`${inputCls} pl-8 w-full`} />
+    <CardShell darkMode={darkMode} index={index}>
+      <div className="flex items-center gap-2.5">
+        <span className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl ${tileCls(darkMode)}`}><Glyph3D kind="box" className="h-7 w-7" /></span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-mono text-[11px] font-bold uppercase tracking-widest text-emerald-500">ORD #{order.id.slice(0, 6)}</p>
+          {!isEmpty(order.createdAt) && <p className={`flex items-center gap-1 text-[11px] ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}><FiCalendar className="h-3 w-3" />{fmtShort(order.createdAt)}</p>}
         </div>
-        <Dropdown value={statusFilter} onChange={setStatusFilter} options={statusOpts} placeholder="All statuses" darkMode={darkMode} icon={<FiFilter className={darkMode ? "text-gray-500" : "text-gray-400"} size={11} />} />
-        {setSortBy && <Dropdown value={sortBy} onChange={setSortBy} options={sortOpts} placeholder="Sort by" darkMode={darkMode} icon={<FiTrendingUp className={darkMode ? "text-gray-500" : "text-gray-400"} size={11} />} />}
-        <input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)} className={inputCls} />
-        {(statusFilter || dateFilter || search || (sortBy && sortBy !== "newest")) && (
-          <button onClick={() => { setStatusFilter(""); setDateFilter(""); setSearch(""); if (setSortBy) setSortBy("newest"); }}
-            className={`flex items-center gap-1 px-3 py-2 text-xs font-bold border fast-fade ${
-              darkMode ? "bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20" : "bg-red-50 text-red-500 border-red-200 hover:bg-red-100"
-            }`}>
-            <FiX size={11} /> Clear
-          </button>
-        )}
+        <StatusBadge status={order.status} t={t} />
       </div>
-      {typeof resultCount === "number" && (
-        <p className={`text-[11px] font-semibold mt-2.5 ${darkMode ? "text-gray-500" : "text-gray-400"}`}>{resultCount} result{resultCount === 1 ? "" : "s"}</p>
+      <ProgressBar3D progress={orderProgress(order.status)} label={t(`status_${order.status}`)} darkMode={darkMode} />
+      <div className="grid grid-cols-2 gap-2">
+        <Stat label={t('items')} value={count} darkMode={darkMode} />
+        <Stat label={t('payment')} value={isEmpty(order.paymentMethod) ? '—' : order.paymentMethod.replace('_', ' ')} darkMode={darkMode} />
+      </div>
+      {!isEmpty(order.totalPrice) && (
+        <p className={`text-xl font-black tabular-nums ${darkMode ? 'text-emerald-400' : 'text-emerald-700'}`}>{order.totalPrice} <span className="text-xs font-semibold opacity-70">EGP</span></p>
       )}
+      <div className={`mt-auto grid gap-2 border-t pt-3 ${canCancel ? 'grid-cols-2' : 'grid-cols-1'} ${darkMode ? 'border-gray-700' : 'border-gray-100'}`}>
+        <Btn3D tone="soft" darkMode={darkMode} onClick={() => onDetails(order)} className="py-2 text-xs"><FiInfo className="h-3.5 w-3.5" /> {t('details')}</Btn3D>
+        {canCancel && <Btn3D tone="danger" onClick={() => onCancel(order.id)} className="py-2 text-xs"><FiXCircle className="h-3.5 w-3.5" /> {t('cancelOrder')}</Btn3D>}
+      </div>
+    </CardShell>
+  );
+});
+
+const RepairCard = memo(({ req, darkMode, t, index, onDetails, onEdit, onAccept, onCancel }) => {
+  const hasPrice = !isEmpty(req.price);
+  const canCancel = ['SUBMITTED', 'QUOTE_SENT', 'QUOTE_APPROVED'].includes(req.status);
+  return (
+    <CardShell darkMode={darkMode} index={index}>
+      <div className="flex items-center gap-2.5">
+        <span className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl ${tileCls(darkMode)}`}><Glyph3D kind="wrench" className="h-7 w-7" /></span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-mono text-[11px] font-bold uppercase tracking-widest text-emerald-500">REQ #{req.id.slice(0, 6)}</p>
+          <p className={`truncate text-sm font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{req.shopName}</p>
+        </div>
+        <StatusBadge status={req.status} type="repair" t={t} />
+      </div>
+      <ProgressBar3D progress={repairProgress(req.status)} label={t(`status_${req.status}`)} darkMode={darkMode} />
+      {!isEmpty(req.description) && <p className={`line-clamp-2 text-xs leading-relaxed ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{req.description}</p>}
+      {hasPrice && <p className={`text-xl font-black tabular-nums ${darkMode ? 'text-emerald-400' : 'text-emerald-700'}`}>{req.price} <span className="text-xs font-semibold opacity-70">EGP</span></p>}
+      <div className={`mt-auto grid grid-cols-2 gap-2 border-t pt-3 ${darkMode ? 'border-gray-700' : 'border-gray-100'}`}>
+        <Btn3D tone="soft" darkMode={darkMode} onClick={() => onDetails(req.id)} className="py-2 text-xs"><FiInfo className="h-3.5 w-3.5" /> {t('details')}</Btn3D>
+        <Btn3D tone="soft" darkMode={darkMode} onClick={() => onEdit(req)} className="py-2 text-xs"><FiEdit2 className="h-3.5 w-3.5" /> {t('edit')}</Btn3D>
+        {req.status === 'QUOTE_SENT' && hasPrice && <Btn3D onClick={() => onAccept(req)} className="col-span-2 py-2 text-xs"><FiCheckCircle className="h-3.5 w-3.5" /> {t('acceptQuote')}</Btn3D>}
+        {canCancel && <Btn3D tone="danger" onClick={() => onCancel(req.id)} className="col-span-2 py-2 text-xs"><FiXCircle className="h-3.5 w-3.5" /> {t('cancelRequest')}</Btn3D>}
+      </div>
+    </CardShell>
+  );
+});
+
+/* ───────────── tabs ───────────── */
+const OrdersTab = memo(({ orders, onDetails, onCancel, darkMode, t }) => {
+  const match = useCallback((o, term) => o.id?.toLowerCase().includes(term), []);
+  const view = useListView(orders, { match, price: 'totalPrice' });
+  return (
+    <>
+      <TabTitle icon={FiBox} darkMode={darkMode}>{t('orders')}</TabTitle>
+      <FilterBar view={view} statuses={ORDER_STATUSES} t={t} darkMode={darkMode} />
+      {view.filtered.length === 0 ? (
+        <EmptyState kind="box" title={t('noOrders')} subtitle={t('ordersHint')} darkMode={darkMode} />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {view.pageItems.map((o, i) => <OrderCard key={o.id} order={o} index={i} darkMode={darkMode} t={t} onDetails={onDetails} onCancel={onCancel} />)}
+          </div>
+          <Pagination3D page={view.page} total={view.total} onChange={view.setPage} darkMode={darkMode} />
+        </>
+      )}
+    </>
+  );
+});
+
+const RepairsTab = memo(({ repairs, onDetails, onEdit, onAccept, onCancel, darkMode, t }) => {
+  const match = useCallback((r, term) => `${r.shopName || ''} ${r.description || ''} ${r.id || ''}`.toLowerCase().includes(term), []);
+  const view = useListView(repairs, { match, price: 'price' });
+  return (
+    <>
+      <TabTitle icon={FiTool} darkMode={darkMode}>{t('repairs')}</TabTitle>
+      <FilterBar view={view} statuses={REPAIR_STATUSES} t={t} darkMode={darkMode} />
+      {view.filtered.length === 0 ? (
+        <EmptyState kind="wrench" title={t('noRepairs')} subtitle={t('repairsHint')} darkMode={darkMode} />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {view.pageItems.map((r, i) => <RepairCard key={r.id} req={r} index={i} darkMode={darkMode} t={t} onDetails={onDetails} onEdit={onEdit} onAccept={onAccept} onCancel={onCancel} />)}
+          </div>
+          <Pagination3D page={view.page} total={view.total} onChange={view.setPage} darkMode={darkMode} />
+        </>
+      )}
+    </>
+  );
+});
+
+const ProfileTab = memo(({ profile, form, setForm, onSave, onDelete, onLogout, language, onChangeLanguage, darkMode, t }) => {
+  const [editing, setEditing] = useState(false);
+  const name = `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim();
+  const submit = async (e) => { e.preventDefault(); setEditing(false); if (!(await onSave())) setEditing(true); };
+  const upd = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const strong = darkMode ? 'text-white' : 'text-gray-900';
+
+  return (
+    <div className="space-y-4">
+      <TabTitle icon={FiUser} darkMode={darkMode} right={!editing && (
+        <Btn3D tone="soft" darkMode={darkMode} onClick={() => setEditing(true)} className="px-3 py-2 text-xs"><FiEdit2 className="h-3.5 w-3.5 text-emerald-500" /> {t('editProfile')}</Btn3D>
+      )}>{editing ? t('editProfile') : t('myProfile')}</TabTitle>
+
+      <section className={`${cardCls(darkMode)} p-4 sm:p-5`}>
+        {editing ? (
+          <form onSubmit={submit} className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label={t('firstName')} darkMode={darkMode}><input className={`${inputCls(darkMode)} w-full`} value={form.first_name} onChange={upd('first_name')} required /></Field>
+              <Field label={t('lastName')} darkMode={darkMode}><input className={`${inputCls(darkMode)} w-full`} value={form.last_name} onChange={upd('last_name')} required /></Field>
+            </div>
+            <Field label={t('phoneNumber')} darkMode={darkMode}><input type="tel" className={`${inputCls(darkMode)} w-full`} value={form.phone} onChange={upd('phone')} required /></Field>
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <Btn3D tone="soft" darkMode={darkMode} type="button" onClick={() => setEditing(false)} className="py-2.5 text-sm">{t('cancel')}</Btn3D>
+              <Btn3D type="submit" className="py-2.5 text-sm"><FiCheck className="h-4 w-4" /> {t('saveChanges')}</Btn3D>
+            </div>
+          </form>
+        ) : (
+          <>
+            <div className="mb-4 flex items-center gap-3">
+              <span className={`flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl ${tileCls(darkMode)}`}><Glyph3D kind="user" className="h-11 w-11" /></span>
+              <div className="min-w-0">
+                {name && <p className={`truncate text-lg font-extrabold ${strong}`}>{name}</p>}
+                {profile?.email && <p className={`truncate text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{profile.email}</p>}
+              </div>
+            </div>
+            <div className={`grid gap-2 rounded-2xl border p-3 sm:grid-cols-2 ${darkMode ? 'border-gray-700 bg-gray-800/60' : 'border-gray-100 bg-gray-50'}`}>
+              {name && <InfoRow icon={FiUser} darkMode={darkMode}>{name}</InfoRow>}
+              {profile?.email && <InfoRow icon={FiMail} darkMode={darkMode}>{profile.email}</InfoRow>}
+              {profile?.phone && <InfoRow icon={FiPhone} darkMode={darkMode}><span dir="ltr">{profile.phone}</span></InfoRow>}
+              <InfoRow icon={FiShield} darkMode={darkMode}>
+                {t('accountStatus')}: <b className={profile?.activate ? 'text-emerald-500' : 'text-rose-500'}>{profile?.activate ? t('active') : t('inactive')}</b>
+              </InfoRow>
+            </div>
+          </>
+        )}
+      </section>
+
+      <section className={`${cardCls(darkMode)} flex flex-wrap items-center justify-between gap-3 p-4`}>
+        <p className={`flex items-center gap-2 text-sm font-bold ${strong}`}><FiGlobe className="h-4 w-4 text-emerald-500" /> {t('language')}</p>
+        <Select3D darkMode={darkMode} value={language} onChange={(e) => onChangeLanguage(e.target.value)} aria-label={t('selectLanguage')}>
+          {LANGUAGES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </Select3D>
+      </section>
+
+      <section className={`rounded-2xl border p-4 ${darkMode ? 'border-rose-500/30 bg-rose-500/5' : 'border-rose-100 bg-rose-50/60'}`}>
+        <h3 className="flex items-center gap-2 text-sm font-extrabold text-rose-500"><FiTrash2 className="h-4 w-4" /> {t('dangerZone')}</h3>
+        <p className={`mt-1 mb-3 text-xs ${darkMode ? 'text-rose-300/80' : 'text-rose-600/80'}`}>{t('dangerZoneHint')}</p>
+        <div className="flex flex-wrap gap-2">
+          <Btn3D tone="danger" onClick={onDelete} className="px-4 py-2 text-xs"><FiTrash2 className="h-3.5 w-3.5" /> {t('deleteAccount')}</Btn3D>
+          <Btn3D tone="soft" darkMode={darkMode} onClick={onLogout} className="px-4 py-2 text-xs"><RiLogoutBoxRLine className="h-3.5 w-3.5" /> {t('logout')}</Btn3D>
+        </div>
+      </section>
     </div>
   );
 });
 
-const EmptyState = memo(({ illustration, title, subtitle, darkMode }) => (
-  <div className={`text-center py-14 border ${darkMode ? "bg-gray-800/60 border-gray-700" : "bg-white border-gray-200"}`}>
-    <div className="mx-auto mb-4 w-40 h-40">{illustration}</div>
-    <p className={`text-lg font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>{title}</p>
-    {subtitle && <p className={`text-sm mt-1 max-w-xs mx-auto ${darkMode ? "text-gray-500" : "text-gray-400"}`}>{subtitle}</p>}
-  </div>
-));
+const EMPTY_ADDR = { state: '', city: '', street: '', building: '', notes: '', isDefault: false, latitude: 0, longitude: 0 };
 
-const IllustrationBox = memo(({ darkMode }) => (
-  <svg viewBox="0 0 200 200" className="w-full h-full">
-    <circle cx="100" cy="100" r="90" fill={darkMode ? "#052e21" : "#ecfdf5"} />
-    <rect x="55" y="80" width="90" height="65" rx="8" fill="#10b981" opacity="0.15" />
-    <rect x="55" y="80" width="90" height="24" rx="8" fill="#10b981" />
-    <path d="M55 100 L100 60 L145 100" fill="none" stroke="#0d9488" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-    <circle cx="100" cy="115" r="9" fill={darkMode ? "#0b1a12" : "#ffffff"} stroke="#10b981" strokeWidth="3" />
-  </svg>
-));
-
-const IllustrationPin = memo(({ darkMode }) => (
-  <svg viewBox="0 0 200 200" className="w-full h-full">
-    <circle cx="100" cy="100" r="90" fill={darkMode ? "#052e21" : "#ecfdf5"} />
-    <ellipse cx="100" cy="155" rx="34" ry="8" fill="#10b981" opacity="0.15" />
-    <path d="M100 45c-24 0-42 18-42 42 0 32 42 68 42 68s42-36 42-68c0-24-18-42-42-42z" fill="#10b981" />
-    <circle cx="100" cy="87" r="16" fill={darkMode ? "#0b1a12" : "#ffffff"} />
-  </svg>
-));
-
-const IllustrationTool = memo(({ darkMode }) => (
-  <svg viewBox="0 0 200 200" className="w-full h-full">
-    <circle cx="100" cy="100" r="90" fill={darkMode ? "#052e21" : "#ecfdf5"} />
-    <rect x="70" y="55" width="60" height="90" rx="10" fill={darkMode ? "#0b1a12" : "#ffffff"} stroke="#10b981" strokeWidth="4" />
-    <rect x="82" y="70" width="36" height="6" rx="3" fill="#10b981" />
-    <rect x="82" y="84" width="24" height="6" rx="3" fill="#a7f3d0" />
-    <path d="M120 120 l16 16 m0 -16 l-16 16" stroke="#0d9488" strokeWidth="6" strokeLinecap="round" />
-  </svg>
-));
-
-const IllustrationBell = memo(({ darkMode }) => (
-  <svg viewBox="0 0 200 200" className="w-full h-full">
-    <circle cx="100" cy="100" r="90" fill={darkMode ? "#052e21" : "#ecfdf5"} />
-    <path d="M100 55c-18 0-28 14-28 32v20l-10 16h76l-10-16V87c0-18-10-32-28-32z" fill="#10b981" />
-    <circle cx="100" cy="50" r="7" fill="#0d9488" />
-    <path d="M88 132a12 12 0 0024 0" fill="none" stroke="#0d9488" strokeWidth="5" strokeLinecap="round" />
-  </svg>
-));
-
-const IllustrationHeart = memo(({ darkMode }) => (
-  <svg viewBox="0 0 200 200" className="w-full h-full">
-    <circle cx="100" cy="100" r="90" fill={darkMode ? "#052e21" : "#ecfdf5"} />
-    <path d="M100 145s-40-24-40-54c0-16 13-27 28-27 8 0 15 4 20 12 5-8 12-12 20-12 15 0 28 11 28 27 0 30-40 54-40 54z" fill="#10b981" />
-  </svg>
-));
-
-const generateInvoicePDF = async (order) => {
-  if (!window.jspdf) {
-    await new Promise((res, rej) => {
-      const s = document.createElement("script");
-      s.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-      s.onload = res; s.onerror = rej;
-      document.head.appendChild(s);
-    });
-  }
-
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  const pageW = doc.internal.pageSize.getWidth();
-
-  const loadPoppinsFont = async () => {
-    try {
-      const fontUrl = "https://fonts.gstatic.com/s/poppins/v20/pxiEyp8kv8JHgFVrJJfecg.woff2";
-      const resp = await fetch(fontUrl);
-      const buf = await resp.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-      doc.addFileToVFS("Poppins-Regular.woff2", base64);
-      doc.addFont("Poppins-Regular.woff2", "Poppins", "normal");
-
-      const boldUrl = "https://fonts.gstatic.com/s/poppins/v20/pxiByp8kv8JHgFVrLCz7Z1xlFQ.woff2";
-      const respB = await fetch(boldUrl);
-      const bufB = await respB.arrayBuffer();
-      const base64B = btoa(String.fromCharCode(...new Uint8Array(bufB)));
-      doc.addFileToVFS("Poppins-Bold.woff2", base64B);
-      doc.addFont("Poppins-Bold.woff2", "Poppins", "bold");
-      return true;
-    } catch {
-      return false;
-    }
+const AddressesTab = memo(({ addresses, inUseIds, onCreate, onUpdate, onDelete, darkMode, t }) => {
+  const [editingId, setEditingId] = useState(null); // null | 'new' | id
+  const [form, setForm] = useState(EMPTY_ADDR);
+  const [mode, setMode] = useState('manual');
+  const formOpen = editingId !== null;
+  const close = () => { setEditingId(null); setForm(EMPTY_ADDR); setMode('manual'); };
+  const upd = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const onMap = useCallback((lat, lng) => setForm((f) => ({ ...f, latitude: lat, longitude: lng })), []);
+  const submit = (e) => {
+    e.preventDefault();
+    const payload = { ...form, latitude: form.latitude || 0, longitude: form.longitude || 0 };
+    if (editingId === 'new') onCreate(payload); else onUpdate(editingId, payload);
+    close();
+  };
+  const startEdit = (a) => {
+    setForm({ state: a.state, city: a.city, street: a.street, building: a.building, notes: a.notes || '', isDefault: !!a.isDefault, latitude: a.latitude || 0, longitude: a.longitude || 0 });
+    setEditingId(a.id);
   };
 
-  const poppinsLoaded = await loadPoppinsFont();
-  const fontFamily = poppinsLoaded ? "Poppins" : "helvetica";
-
-  doc.setFillColor(16, 185, 129);
-  doc.rect(0, 0, pageW, 28, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(18);
-  doc.setFont(fontFamily, "bold");
-  doc.text("TECH-RESTORE", 14, 12);
-  doc.setFontSize(10);
-  doc.setFont(fontFamily, "normal");
-  doc.text("Order Invoice", 14, 20);
-  doc.setTextColor(255, 255, 255);
-  doc.text(`#${order.id?.slice(0, 8).toUpperCase()}`, pageW - 14, 20, { align: "right" });
-
-  doc.setTextColor(50, 50, 50);
-  doc.setFontSize(10);
-  let y = 40;
-  doc.setFont(fontFamily, "bold");
-  doc.text("Invoice Details", 14, y);
-  doc.setFont(fontFamily, "normal");
-  y += 8;
-  doc.text(`Date: ${new Date(order.createdAt).toLocaleDateString("en-EG", { year: "numeric", month: "long", day: "numeric" })}`, 14, y);
-  y += 6;
-  doc.text(`Status: ${order.status?.replace(/_/g, " ")}`, 14, y);
-  y += 6;
-  doc.text(`Payment: ${order.paymentMethod?.replace(/_/g, " ")}`, 14, y);
-
-  y += 14;
-  doc.setFillColor(236, 253, 245);
-  doc.rect(14, y - 5, pageW - 28, 9, "F");
-  doc.setFont(fontFamily, "bold");
-  doc.setFontSize(9);
-  doc.text("Item", 16, y);
-  doc.text("Shop", 85, y);
-  doc.text("Qty", 132, y);
-  doc.text("Unit Price", 148, y);
-  doc.text("Total", pageW - 14, y, { align: "right" });
-
-  doc.setFont(fontFamily, "normal");
-  y += 8;
-  (order.orderItems || []).forEach((item, i) => {
-    if (i % 2 === 0) { doc.setFillColor(249, 250, 251); doc.rect(14, y - 5, pageW - 28, 8, "F"); }
-    doc.setFontSize(8);
-    doc.text(String(item.productName || "—").slice(0, 28), 16, y);
-    doc.text(String(item.shopName || "—").slice(0, 16), 85, y);
-    doc.text(String(item.quantity || "—"), 132, y);
-    doc.text(`${Number(item.priceAtCheckout || 0).toFixed(2)} EGP`, 148, y);
-    doc.text(`${(Number(item.priceAtCheckout) * Number(item.quantity)).toFixed(2)} EGP`, pageW - 14, y, { align: "right" });
-    y += 8;
-  });
-
-  y += 4;
-  doc.setDrawColor(16, 185, 129);
-  doc.setLineWidth(0.5);
-  doc.line(14, y, pageW - 14, y);
-  y += 6;
-  doc.setFont(fontFamily, "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(5, 150, 105);
-  doc.text(`Grand Total: ${order.totalPrice} EGP`, pageW - 14, y, { align: "right" });
-
-  doc.setTextColor(150, 150, 150);
-  doc.setFont(fontFamily, "normal");
-  doc.setFontSize(8);
-  doc.text("Thank you for choosing Tech-Restore!", pageW / 2, 285, { align: "center" });
-
-  doc.save(`Invoice_${order.id?.slice(0, 8).toUpperCase()}.pdf`);
-};
-
-const useLeaflet = () => {
-  const [leafletReady, setLeafletReady] = useState(typeof window !== "undefined" && !!window.L);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (window.L) { setLeafletReady(true); return; }
-    const existingLink = document.querySelector(`link[href="${LEAFLET_CSS}"]`);
-    if (!existingLink) {
-      const link = document.createElement("link"); link.rel = "stylesheet"; link.href = LEAFLET_CSS; document.head.appendChild(link);
-    }
-    const existingScript = document.querySelector(`script[src="${LEAFLET_JS}"]`);
-    if (existingScript) { existingScript.addEventListener("load", () => setLeafletReady(true)); return; }
-    const script = document.createElement("script"); script.src = LEAFLET_JS; script.onload = () => setLeafletReady(true); document.head.appendChild(script);
-  }, []);
-  return leafletReady;
-};
-
-const reverseGeocode = async (lat, lng, signal) => {
-  const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, { signal, headers: { Accept: "application/json" } });
-  if (!res.ok) throw new Error("reverse geocode failed");
-  return res.json();
-};
-
-const searchAddress = async (query, signal) => {
-  const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`, { signal, headers: { Accept: "application/json" } });
-  if (!res.ok) throw new Error("search failed");
-  return res.json();
-};
-
-const buildDirectionsUrl = (lat, lng, originLat, originLng) => {
-  const dest = `${lat},${lng}`;
-  if (originLat != null && originLng != null) {
-    return `https://www.google.com/maps/dir/?api=1&origin=${originLat},${originLng}&destination=${dest}&travelmode=driving`;
-  }
-  return `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`;
-};
-
-const MapPicker = memo(({ latitude, longitude, onChange, darkMode }) => {
-  const mapRef = useRef(null);
-  const mapInstanceRef = useRef(null);
-  const markerRef = useRef(null);
-  const tileLayerRef = useRef(null);
-  const leafletReady = useLeaflet();
-  const defaultLat = latitude && latitude !== 0 ? latitude : 30.0444;
-  const defaultLng = longitude && longitude !== 0 ? longitude : 31.2357;
-
-  const [resolvedAddress, setResolvedAddress] = useState("");
-  const [resolving, setResolving] = useState(false);
-  const [query, setQuery] = useState("");
-  const [suggestions, setSuggestions] = useState([]);
-  const [searching, setSearching] = useState(false);
-  const [originCoords, setOriginCoords] = useState(null);
-  const debounceRef = useRef(null);
-  const abortRef = useRef(null);
-
-  const buildIcon = useCallback(() => {
-    const L = window.L;
-    return L.divIcon({
-      html: `<div style="position:relative;display:flex;flex-direction:column;align-items:center">
-        <div class="pin-pulse" style="position:absolute;top:6px;width:34px;height:34px;border-radius:50%;background:#10b981"></div>
-        <div style="position:relative;filter:drop-shadow(0 6px 10px rgba(0,0,0,0.4))">
-          <div style="width:38px;height:38px;border-radius:50% 50% 50% 0;background:linear-gradient(135deg,#10b981,#0d9488);transform:rotate(-45deg);border:3px solid white;display:flex;align-items:center;justify-content:center">
-            <div style="width:12px;height:12px;border-radius:50%;background:white;transform:rotate(45deg)"></div>
-          </div>
-        </div>
-        <div style="width:2px;height:6px;background:linear-gradient(to bottom,#0d9488,transparent);margin-top:-2px"></div>
-      </div>`,
-      className: "", iconSize: [38, 54], iconAnchor: [19, 54],
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!leafletReady || !mapRef.current) return;
-    if (mapInstanceRef.current) return;
-    const L = window.L;
-    const map = L.map(mapRef.current, { center: [defaultLat, defaultLng], zoom: latitude ? 16 : 12, zoomControl: false });
-    L.control.zoom({ position: "bottomright" }).addTo(map);
-
-    tileLayerRef.current = L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
-      maxZoom: 20, maxNativeZoom: 19, tileSize: 256, detectRetina: true,
-    }).addTo(map);
-
-    const marker = L.marker([defaultLat, defaultLng], { icon: buildIcon(), draggable: true }).addTo(map);
-    marker.on("dragend", (e) => { const { lat, lng } = e.target.getLatLng(); onChange(lat, lng); });
-    map.on("click", (e) => { const { lat, lng } = e.latlng; marker.setLatLng([lat, lng]); onChange(lat, lng); });
-
-    mapInstanceRef.current = map;
-    markerRef.current = marker;
-    return () => { if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; markerRef.current = null; tileLayerRef.current = null; } };
-  }, [leafletReady]);
-
-  useEffect(() => {
-    if (!mapInstanceRef.current || !markerRef.current) return;
-    if (latitude && longitude && (latitude !== 0 || longitude !== 0)) {
-      markerRef.current.setLatLng([latitude, longitude]);
-      mapInstanceRef.current.setView([latitude, longitude], Math.max(mapInstanceRef.current.getZoom(), 16));
-    }
-  }, [latitude, longitude]);
-
-  useEffect(() => {
-    if (!latitude || !longitude || (latitude === 0 && longitude === 0)) { setResolvedAddress(""); return; }
-    if (abortRef.current) abortRef.current.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    setResolving(true);
-    const timer = setTimeout(() => {
-      reverseGeocode(latitude, longitude, controller.signal)
-        .then((data) => setResolvedAddress(data?.display_name || ""))
-        .catch(() => {})
-        .finally(() => setResolving(false));
-    }, 350);
-    return () => { clearTimeout(timer); controller.abort(); };
-  }, [latitude, longitude]);
-
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!query.trim() || query.trim().length < 3) { setSuggestions([]); return; }
-    debounceRef.current = setTimeout(async () => {
-      const controller = new AbortController();
-      setSearching(true);
-      try {
-        const results = await searchAddress(query, controller.signal);
-        setSuggestions(results || []);
-      } catch { }
-      finally { setSearching(false); }
-    }, 400);
-    return () => clearTimeout(debounceRef.current);
-  }, [query]);
-
-  const handleLocateMe = () => {
-    if (!navigator.geolocation || !mapInstanceRef.current) return;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude: lat, longitude: lng } = pos.coords;
-        setOriginCoords({ lat, lng });
-        onChange(lat, lng);
-        if (markerRef.current) markerRef.current.setLatLng([lat, lng]);
-        if (mapInstanceRef.current) mapInstanceRef.current.setView([lat, lng], 17);
-      },
-      () => Swal.fire({ title: "Location Error", text: "Could not get your location.", icon: "error", toast: true, position: "top-end", timer: 2000 }),
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
-    );
-  };
-
-  const selectSuggestion = (s) => {
-    const lat = parseFloat(s.lat), lng = parseFloat(s.lon);
-    onChange(lat, lng);
-    if (markerRef.current) markerRef.current.setLatLng([lat, lng]);
-    if (mapInstanceRef.current) mapInstanceRef.current.setView([lat, lng], 17);
-    setQuery(s.display_name);
-    setSuggestions([]);
-  };
-
-  const directionsUrl = (latitude || longitude)
-    ? buildDirectionsUrl(latitude, longitude, originCoords?.lat, originCoords?.lng)
-    : null;
-
-  return (
-    <div className="space-y-2">
-      <div className="relative">
-        <FiSearch className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? "text-gray-500" : "text-gray-500"}`} />
-        <input
-          type="text" value={query} onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search for an address"
-          className={`w-full pl-9 pr-9 py-2.5 border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 fast-fade ${
-            darkMode ? "bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-500" : "bg-white border-gray-200 text-gray-900 placeholder-gray-400"
-          }`}
-        />
-        {searching && <FiLoader className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-emerald-500" />}
-        {suggestions.length > 0 && (
-          <div className={`absolute z-30 mt-1 w-full border shadow-xl overflow-hidden ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-            {suggestions.map((s, i) => (
-              <button key={i} type="button" onClick={() => selectSuggestion(s)}
-                className={`w-full text-left px-3.5 py-2.5 text-xs font-medium border-b last:border-b-0 fast-fade ${
-                  darkMode ? "border-gray-700 text-gray-300 hover:bg-gray-700" : "border-gray-100 text-gray-600 hover:bg-gray-50"
-                }`}>
-                {s.display_name}
+  if (formOpen) {
+    const fields = [['state', t('stateGovernorate'), t('statePlaceholder')], ['city', t('city'), t('cityPlaceholder')], ['street', t('street'), t('streetPlaceholder')], ['building', t('buildingApartment'), t('buildingPlaceholder')]];
+    return (
+      <>
+        <TabTitle icon={FiMapPin} darkMode={darkMode}>{editingId === 'new' ? t('addAddress') : t('editAddress')}</TabTitle>
+        <form onSubmit={submit} className={`${cardCls(darkMode)} space-y-4 p-4 sm:p-5`}>
+          <div className={`grid grid-cols-2 gap-1 rounded-xl p-1 ${darkMode ? 'bg-gray-900' : 'bg-gray-100'}`} role="tablist">
+            {[['manual', FiList, t('addressInformation')], ['map', FiNavigation, t('pickOnMap')]].map(([m, Icon, label]) => (
+              <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => setMode(m)}
+                className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-colors ${mode === m ? 'bg-emerald-500 text-white shadow-[0_2px_0_0_#047857]' : darkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-800'}`}>
+                <Icon className="h-3.5 w-3.5" /> {label}
               </button>
             ))}
           </div>
-        )}
-      </div>
 
-      {!leafletReady && (
-        <div className={`flex items-center justify-center h-64 border-2 border-dashed ${darkMode ? "border-gray-700 bg-gray-800/50" : "border-gray-300 bg-gray-50"}`}>
-          <div className="flex flex-col items-center gap-2">
-            <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-            <span className={`text-xs font-semibold ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Loading map...</span>
-          </div>
-        </div>
-      )}
-      <div ref={mapRef} className={`w-full overflow-hidden border-2 fast-fade ${darkMode ? "border-gray-700" : "border-gray-200"} ${!leafletReady ? "hidden" : ""}`} style={{ height: "300px", zIndex: 0 }} />
-
-      {leafletReady && (
-        <div className="flex flex-col sm:flex-row gap-2">
-          <button type="button" onClick={handleLocateMe} className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-bold text-xs shadow-md hover:shadow-lg fast-fade">
-            <FiCrosshair size={12} /> Use My Location
-          </button>
-          {directionsUrl && (
-            <a href={directionsUrl} target="_blank" rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold text-xs shadow-md hover:shadow-lg fast-fade">
-              <FiExternalLink size={12} /> Get Directions
-            </a>
-          )}
-          {(latitude !== 0 || longitude !== 0) && (
-            <div className={`flex items-center gap-2 px-3 py-2.5 border text-xs font-semibold flex-1 truncate ${
-              darkMode ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300" : "bg-emerald-50 border-emerald-200 text-emerald-700"
-            }`}>
-              <FiLocation size={11} className="text-emerald-500 flex-shrink-0" />
-              <span className="truncate">{latitude?.toFixed(6)}, {longitude?.toFixed(6)}</span>
+          {mode === 'manual' ? (
+            <div className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {fields.map(([k, label, ph]) => (
+                  <Field key={k} label={label} darkMode={darkMode}><input className={`${inputCls(darkMode)} w-full`} placeholder={ph} value={form[k]} onChange={upd(k)} required /></Field>
+                ))}
+              </div>
+              <Field label={t('additionalNotes')} darkMode={darkMode}><textarea rows={3} className={`${inputCls(darkMode)} w-full resize-none`} value={form.notes} onChange={upd('notes')} /></Field>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <Suspense fallback={<div className={`h-[280px] animate-pulse rounded-2xl ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`} />}>
+                <MapPicker latitude={form.latitude} longitude={form.longitude} onChange={onMap} darkMode={darkMode} />
+              </Suspense>
+              <div className="grid grid-cols-2 gap-3">
+                {[['latitude', 'Latitude'], ['longitude', 'Longitude']].map(([k, label]) => (
+                  <Field key={k} label={label} darkMode={darkMode}>
+                    <input type="number" step="any" className={`${inputCls(darkMode)} w-full`} value={form[k] || ''} onChange={(e) => setForm((f) => ({ ...f, [k]: parseFloat(e.target.value) || 0 }))} />
+                  </Field>
+                ))}
+              </div>
+              <p className={`flex items-start gap-1.5 rounded-xl border p-3 text-xs ${darkMode ? 'border-sky-500/20 bg-sky-500/10 text-sky-300' : 'border-sky-100 bg-sky-50 text-sky-600'}`}><FiInfo className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />{t('manualAddressHint')}</p>
             </div>
           )}
-        </div>
-      )}
 
-      {(resolving || resolvedAddress) && (
-        <div className={`flex items-start gap-2 px-3.5 py-2.5 border text-xs ${darkMode ? "bg-gray-800 border-gray-700 text-gray-300" : "bg-gray-50 border-gray-200 text-gray-600"}`}>
-          <FiMapPin className="text-emerald-500 flex-shrink-0 mt-0.5" size={12} />
-          {resolving ? <span>Locating address...</span> : <span className="leading-relaxed">{resolvedAddress}</span>}
-        </div>
-      )}
-
-      <p className={`text-[10px] ${darkMode ? "text-gray-500" : "text-gray-400"}`}>Click on the map or drag the pin to set your location</p>
-    </div>
-  );
-});
-
-const ConfirmRepairModal = memo(({ open, onClose, req, token, onSuccess, darkMode }) => {
-  const [addresses, setAddresses] = useState([]);
-  const [selectedAddrId, setSelectedAddrId] = useState("");
-  const [deliveryMethod, setDeliveryMethod] = useState("HOME_DELIVERY");
-  const [paymentMethod, setPaymentMethod] = useState("CASH");
-  const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (!open || !token) return;
-    api.get("/api/users/addresses", { headers: { Authorization: `Bearer ${token}` } })
-      .then((res) => { const list = res.data.content || res.data || []; setAddresses(list); const def = list.find((a) => a.isDefault) || list[0]; if (def) setSelectedAddrId(def.id); })
-      .catch(() => { });
-  }, [open, token]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!selectedAddrId) return;
-    setSubmitting(true);
-    try {
-      const res = await api.post(`/api/users/repair-request/repairs/${req.id}/confirm`, { deliveryAddress: selectedAddrId, deliveryMethod, paymentMethod }, { headers: { Authorization: `Bearer ${token}` } });
-      onClose();
-      if (paymentMethod === "CREDIT_CARD" && res.data.paymentURL) {
-        Swal.fire({ title: "Redirecting to Payment", icon: "info", timer: 2000, showConfirmButton: false }).then(() => { window.location.href = res.data.paymentURL; });
-      } else {
-        Swal.fire({ icon: "success", title: "Repair Confirmed!", toast: true, position: "top-end", timer: 2500, showConfirmButton: false });
-        onSuccess();
-      }
-    } catch (err) { Swal.fire("Error", err.response?.data?.message || "Failed to confirm repair", "error"); }
-    finally { setSubmitting(false); }
-  };
-
-  const addrOptions = addresses.map((a) => ({ value: a.id, label: `${a.street}, ${a.building} — ${a.city}${a.isDefault ? " (Default)" : ""}` }));
-  const optBtn = (active) => `flex-1 py-2.5 border-2 text-xs sm:text-sm font-bold fast-fade ${
-    active ? "border-emerald-500 bg-emerald-500 text-white" : darkMode ? "border-gray-700 text-gray-300 hover:border-emerald-400" : "border-gray-200 text-gray-600 hover:border-emerald-400"
-  }`;
-
-  return (
-    <Transition show={open} as={React.Fragment}>
-      <Dialog onClose={onClose} className="relative z-50">
-        <Transition.Child as={React.Fragment} enter="fast-fade" enterFrom="opacity-0" enterTo="opacity-100" leave="fast-fade" leaveFrom="opacity-100" leaveTo="opacity-0">
-          <DialogBackdrop className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
-        </Transition.Child>
-        <div className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
-          <Transition.Child as={React.Fragment} enter="fast-fade" enterFrom="opacity-0 translate-y-4" enterTo="opacity-100 translate-y-0" leave="fast-fade" leaveFrom="opacity-100" leaveTo="opacity-0 translate-y-4">
-            <DialogPanel className={`relative w-full sm:max-w-lg shadow-2xl overflow-hidden border ${darkMode ? "bg-gray-900 border-gray-700" : "glass border-white/60"}`}>
-              <div className="h-1 bg-gradient-to-r from-emerald-500 via-emerald-500 to-teal-500" />
-              <div className={`sm:hidden flex justify-center pt-3 pb-1`}><div className={`w-10 h-1 rounded-full ${darkMode ? "bg-gray-600" : "bg-gray-300"}`} /></div>
-              <div className={`flex items-center justify-between px-5 py-4 border-b ${darkMode ? "border-gray-800" : "border-gray-100"}`}>
-                <DialogTitle className={`text-lg font-extrabold flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}><FiCheckCircle className="text-emerald-500" /> Confirm Repair Order</DialogTitle>
-                <button onClick={onClose} className={`p-2 fast-fade ${darkMode ? "hover:bg-gray-800 text-gray-400" : "hover:bg-gray-100 text-gray-500"}`}><FiX className="w-5 h-5" /></button>
-              </div>
-              {req && (
-                <div className={`mx-5 mt-4 p-4 border ${darkMode ? "bg-emerald-500/10 border-emerald-500/20" : "bg-emerald-50 border-emerald-100"}`}>
-                  <p className={`font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>{req.shopName}</p>
-                  {!isEmptyVal(req.price) && <p className={`text-2xl font-black mt-0.5 ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>{req.price} <span className="text-sm font-medium">EGP</span></p>}
-                </div>
-              )}
-              <form onSubmit={handleSubmit} className="px-5 py-4 space-y-4">
-                <div>
-                  <label className={`block text-sm font-bold mb-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}><FiLocation className="inline mr-1 text-emerald-500" /> Delivery Address</label>
-                  {addresses.length === 0 ? <p className="text-sm text-red-500 font-medium">No addresses found. Please add one in your profile.</p> : (
-                    <Dropdown value={selectedAddrId} onChange={setSelectedAddrId} options={addrOptions} placeholder="Select address" darkMode={darkMode} />
-                  )}
-                </div>
-                <div>
-                  <label className={`block text-sm font-bold mb-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}><FiTruck className="inline mr-1 text-emerald-500" /> Delivery Method</label>
-                  <div className="flex gap-2">
-                    {[["HOME_DELIVERY", "Home Delivery"], ["SHOP_VISIT", "Visit Shop"], ["PICKUP", "Courier"]].map(([val, lbl]) => (
-                      <button type="button" key={val} onClick={() => setDeliveryMethod(val)} className={optBtn(deliveryMethod === val)}>{lbl}</button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className={`block text-sm font-bold mb-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}><FiCreditCard className="inline mr-1 text-emerald-500" /> Payment Method</label>
-                  <div className="flex gap-3">
-                    {[["CASH", "Cash"], ["CREDIT_CARD", "Credit Card"]].map(([val, lbl]) => (
-                      <button type="button" key={val} onClick={() => setPaymentMethod(val)} className={optBtn(paymentMethod === val)}>{lbl}</button>
-                    ))}
-                  </div>
-                  {paymentMethod === "CREDIT_CARD" && <p className={`text-xs mt-2 px-3 py-2 ${darkMode ? "bg-blue-500/10 text-blue-300" : "bg-blue-50 text-blue-600"}`}>You'll be redirected to a secure payment gateway.</p>}
-                </div>
-                <div className="flex gap-3 pt-1 pb-1">
-                  <button type="button" onClick={onClose} className={`flex-1 py-3 border-2 font-bold text-sm fast-fade ${darkMode ? "border-gray-700 text-gray-300 hover:bg-gray-800" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>Cancel</button>
-                  <motion.button whileTap={{ scale: 0.97 }} type="submit" disabled={submitting || addresses.length === 0} className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold shadow-md fast-fade flex items-center justify-center gap-2 disabled:opacity-60">
-                    {submitting ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Processing...</> : <><FiCheckCircle size={14} /> Confirm</>}
-                  </motion.button>
-                </div>
-              </form>
-            </DialogPanel>
-          </Transition.Child>
-        </div>
-      </Dialog>
-    </Transition>
-  );
-});
-
-const ProfileTab = memo(({ isEditingProfile, setIsEditingProfile, userProfile, profileForm, setProfileForm, handleUpdateProfile, handleDeleteAccount, handleLogout, isAuthenticated, inputCls, darkMode }) => {
-  if (isEditingProfile) return (
-    <motion.div variants={cardVariants} initial="hidden" animate="visible" exit="exit" className={`shadow-xl border overflow-hidden ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-      
-      <div className="p-5 sm:p-7">
-        <h3 className={`text-xl font-extrabold flex items-center gap-3 mb-6 ${darkMode ? "text-white" : "text-gray-900"}`}><FiEdit2 className="text-emerald-500" /> Edit Profile</h3>
-        <div className="flex justify-center mb-6">
-          <div className={`w-20 h-20 rounded-full border-4 border-gray-500/40 shadow-lg flex items-center justify-center ${darkMode ? "bg-gray-700" : "bg-gray-100"}`}><FiUser className="text-3xl text-gray-500" /></div>
-        </div>
-        <form onSubmit={handleUpdateProfile} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div><label className={`block text-xs font-semibold mb-1.5 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>First Name</label><input type="text" placeholder="First Name" value={profileForm.first_name} onChange={(e) => setProfileForm({ ...profileForm, first_name: e.target.value })} className={inputCls} required /></div>
-            <div><label className={`block text-xs font-semibold mb-1.5 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Last Name</label><input type="text" placeholder="Last Name" value={profileForm.last_name} onChange={(e) => setProfileForm({ ...profileForm, last_name: e.target.value })} className={inputCls} required /></div>
-          </div>
-          <div><label className={`block text-xs font-semibold mb-1.5 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Phone Number</label><input type="tel" placeholder="Phone Number" value={profileForm.phone} onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })} className={inputCls} required /></div>
-          <div className="flex flex-col sm:flex-row gap-3 pt-2">
-            <motion.button whileTap={{ scale: 0.97 }} type="submit" className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold shadow-md fast-fade flex items-center justify-center gap-2 text-sm"><FiCheck size={14} /> Save Changes</motion.button>
-            <motion.button whileTap={{ scale: 0.97 }} type="button" onClick={() => setIsEditingProfile(false)} className={`flex-1 py-3 border-2 font-bold text-sm fast-fade ${darkMode ? "border-gray-700 text-gray-300 hover:bg-gray-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>Cancel</motion.button>
-          </div>
-        </form>
-      </div>
-    </motion.div>
-  );
-
-  const infoRows = [
-    { icon: <FiUser size={15} />, value: `${userProfile?.first_name || ""} ${userProfile?.last_name || ""}`.trim() },
-    { icon: <FiMail size={15} />, value: userProfile?.email },
-    { icon: <FiPhone size={15} />, value: userProfile?.phone },
-  ].filter((row) => !isEmptyVal(row.value));
-
-  return (
-    <motion.div variants={cardVariants} initial="hidden" animate="visible" exit="exit" className="space-y-5">
-      <div className={`shadow-xl border overflow-hidden ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"}`}>
-
-        <div className="p-5 sm:p-7">
-          <div className="flex flex-wrap justify-between items-start gap-3 mb-6">
-            <h3 className={`text-xl font-extrabold flex items-center gap-3 ${darkMode ? "text-white" : "text-gray-900"}`}><FiUser className="text-emerald-500" /> My Profile</h3>
-            <div className="flex gap-2">
-              <motion.button whileTap={{ scale: 0.96 }} onClick={() => setIsEditingProfile(true)} className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 font-bold text-sm text-white hover:bg-emerald-600 shadow-sm fast-fade"><FiEdit2 size={13} /> Edit Profile</motion.button>
-            </div>
-          </div>
-          <div className="flex flex-col items-center mb-6">
-            <div className={`w-24 h-24 rounded-full border-4 border-gray-500/40 shadow-xl flex items-center justify-center ${darkMode ? "bg-gray-800" : "bg-gray-100"}`}><FiUser className="text-4xl text-gray-500" /></div>
-            {!isEmptyVal(userProfile?.first_name) && (
-              <p className={`mt-3 text-lg font-extrabold ${darkMode ? "text-white" : "text-gray-900"}`}>{userProfile?.first_name} {userProfile?.last_name}</p>
-            )}
-          </div>
-          <div className="space-y-2.5">
-            {infoRows.map((row, i) => (
-              <div key={i} className={`flex items-center gap-3 p-3.5 ${darkMode ? "bg-gray-950" : "bg-gray-50"}`}>
-                <span className="text-emerald-500 flex-shrink-0">{row.icon}</span><span className={`font-medium text-sm truncate ${darkMode ? "text-gray-200" : "text-gray-800"}`}>{row.value}</span>
-              </div>
-            ))}
-            <div className={`flex items-center flex-wrap justify-between gap-2 p-3.5 ${darkMode ? "bg-gray-700/50" : "bg-gray-50"}`}>
-              <div className="flex items-center gap-3"><FiShield className="text-emerald-500" /><span className={`font-medium text-sm ${darkMode ? "text-gray-200" : "text-gray-800"}`}>Account Status</span></div>
-              <span className={`px-3 py-1 text-xs font-bold ${userProfile?.activate ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/30" : darkMode ? "bg-red-500/15 text-red-300" : "bg-red-100 text-red-700"}`}>{userProfile?.activate ? "● Active" : "● Inactive"}</span>
-            </div>
-            {isAuthenticated && (
-              <div className="flex justify-end pt-1">
-                <motion.button whileTap={{ scale: 0.96 }} onClick={handleLogout} className={`flex items-center gap-1.5 px-3.5 py-2 font-semibold text-xs fast-fade ${darkMode ? "bg-gray-700 hover:bg-red-500/15 text-gray-300 hover:text-red-400" : "bg-gray-100 hover:bg-red-50 text-gray-500 hover:text-red-500"}`}>
-                  <RiLogoutBoxRLine size={13} /> Logout
-                </motion.button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className={`border-t overflow-hidden shadow-lg ${darkMode ? "bg-gray-800 border-gray-800" : "bg-white"}`}>
-       
-        <div className="p-5 sm:p-6">
-          <h3 className={`text-base font-extrabold flex items-center gap-2.5 mb-2 ${darkMode ? "text-red-400" : "text-red-600"}`}><FiTrash2 size={15} /> Danger Zone</h3>
-          <p className={`text-sm mb-4 ${darkMode ? "text-red-300/80" : "text-red-600/80"}`}>This action is irreversible. All your data will be permanently deleted.</p>
-          <motion.button whileTap={{ scale: 0.97 }} onClick={handleDeleteAccount} className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-red-500 to-rose-600 text-white font-bold shadow-lg hover:shadow-red-500/30 fast-fade text-sm">
-            <FiTrash2 size={14} /> Yes, Delete My Account
-          </motion.button>
-        </div>
-      </div>
-    </motion.div>
-  );
-});
-
-const AddressesTab = memo(({ isAddingAddress, setIsAddingAddress, editingAddressId, setEditingAddressId, addressForm, setAddressForm, handleUpdateAddress, handleAddAddress, resetAddressForm, addresses, startEditAddress, handleDeleteAddress, isAddressInUse, inputCls, darkMode }) => {
-  const [addressInputMode, setAddressInputMode] = useState("manual");
-  const handleMapChange = useCallback((lat, lng) => { setAddressForm((prev) => ({ ...prev, latitude: lat, longitude: lng })); }, [setAddressForm]);
-
-  if (isAddingAddress || editingAddressId) return (
-    <motion.div variants={cardVariants} initial="hidden" animate="visible" exit="exit" className={`shadow-xl border overflow-hidden ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-      
-      <div className="p-5 sm:p-7">
-        <h3 className={`text-xl font-extrabold flex items-center gap-3 mb-5 ${darkMode ? "text-white" : "text-gray-900"}`}><FiMapPin className="text-emerald-500" /> {editingAddressId ? "Edit Address" : "Add Address"}</h3>
-        <div className={`flex gap-1 p-1 mb-5 ${darkMode ? "bg-gray-900" : "bg-gray-100"}`}>
-          <button type="button" onClick={() => setAddressInputMode("manual")} className={`flex-1 flex items-center justify-center gap-2 py-2 font-bold text-xs sm:text-sm fast-fade ${addressInputMode === "manual" ? "bg-emerald-500 text-white shadow-md" : darkMode ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-800"}`}><FiList size={13} /> Address Information</button>
-          <button type="button" onClick={() => setAddressInputMode("map")} className={`flex-1 flex items-center justify-center gap-2 py-2 font-bold text-xs sm:text-sm fast-fade ${addressInputMode === "map" ? "bg-emerald-500 text-white shadow-md" : darkMode ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-800"}`}><FiNavigation size={13} /> Pick on Map</button>
-        </div>
-        <form onSubmit={editingAddressId ? handleUpdateAddress : handleAddAddress} className="space-y-4">
-          <AnimatePresence mode="wait">
-            {addressInputMode === "manual" ? (
-              <motion.div key="manual" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }} transition={{ duration: 0.15 }} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {[{ label: "State / Governorate", key: "state", ph: "e.g., Cairo" }, { label: "City", key: "city", ph: "e.g., Giza" }, { label: "Street", key: "street", ph: "e.g., Tahrir Street" }, { label: "Building / Apartment", key: "building", ph: "e.g., Bldg 12" }].map(({ label, key, ph }) => (
-                    <div key={key}><label className={`block text-xs font-semibold mb-1.5 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>{label}</label><input type="text" placeholder={ph} value={addressForm[key]} onChange={(e) => setAddressForm({ ...addressForm, [key]: e.target.value })} className={inputCls} required /></div>
-                  ))}
-                </div>
-                <div><label className={`block text-xs font-semibold mb-1.5 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Additional Notes (optional)</label><textarea placeholder="Additional Notes (optional)" value={addressForm.notes} onChange={(e) => setAddressForm({ ...addressForm, notes: e.target.value })} className={`${inputCls} resize-none`} rows={3} /></div>
-              </motion.div>
-            ) : (
-              <motion.div key="map" initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }} transition={{ duration: 0.15 }} className="space-y-4">
-                <MapPicker latitude={addressForm.latitude} longitude={addressForm.longitude} onChange={handleMapChange} darkMode={darkMode} />
-                <div className="grid grid-cols-2 gap-3">
-                  <div><label className={`block text-xs font-semibold mb-1.5 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Latitude</label><input type="number" step="any" placeholder="0.00000" value={addressForm.latitude || ""} onChange={(e) => setAddressForm({ ...addressForm, latitude: parseFloat(e.target.value) || 0 })} className={inputCls} /></div>
-                  <div><label className={`block text-xs font-semibold mb-1.5 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Longitude</label><input type="number" step="any" placeholder="0.00000" value={addressForm.longitude || ""} onChange={(e) => setAddressForm({ ...addressForm, longitude: parseFloat(e.target.value) || 0 })} className={inputCls} /></div>
-                </div>
-                <div className={`p-3 border text-xs font-medium ${darkMode ? "bg-blue-500/10 border-blue-500/20 text-blue-300" : "bg-blue-50 border-blue-100 text-blue-600"}`}><FiInfo className="inline mr-1.5" size={11} />You still need to fill in the manual address fields. Switch to Manual Entry to complete the street details.</div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input type="checkbox" checked={addressForm.isDefault} onChange={(e) => setAddressForm({ ...addressForm, isDefault: e.target.checked })} className="w-4 h-4 accent-emerald-500" />
-            <span className={`text-sm font-semibold ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Set as default address</span>
+          <label className="flex cursor-pointer items-center gap-2.5">
+            <input type="checkbox" className="h-4 w-4 accent-emerald-500" checked={form.isDefault} onChange={(e) => setForm((f) => ({ ...f, isDefault: e.target.checked }))} />
+            <span className={`text-sm font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{t('setDefaultAddress')}</span>
           </label>
-          <div className="flex gap-3 pt-1">
-            <motion.button whileTap={{ scale: 0.97 }} type="submit" className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold shadow-md fast-fade flex items-center justify-center gap-2 text-sm"><FiCheck size={13} /> {editingAddressId ? "Update" : "Save"}</motion.button>
-            <motion.button whileTap={{ scale: 0.97 }} type="button" onClick={() => { resetAddressForm(); setAddressInputMode("manual"); }} className={`flex-1 py-3 border-2 font-bold text-sm fast-fade ${darkMode ? "border-gray-700 text-gray-300 hover:bg-gray-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>Cancel</motion.button>
+          <div className="grid grid-cols-2 gap-3">
+            <Btn3D tone="soft" darkMode={darkMode} type="button" onClick={close} className="py-2.5 text-sm">{t('cancel')}</Btn3D>
+            <Btn3D type="submit" className="py-2.5 text-sm"><FiCheck className="h-4 w-4" /> {editingId === 'new' ? t('save') : t('update')}</Btn3D>
           </div>
         </form>
-      </div>
-    </motion.div>
-  );
+      </>
+    );
+  }
 
   return (
-    <motion.div variants={cardVariants} initial="hidden" animate="visible" exit="exit">
-      <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
-        <h3 className={`text-xl font-extrabold flex items-center gap-3 ${darkMode ? "text-white" : "text-gray-900"}`}><FiMapPin className="text-emerald-500" /> Addresses</h3>
-        <motion.button whileTap={{ scale: 0.96 }} onClick={() => setIsAddingAddress(true)} className="flex items-center gap-1.5 px-4 py-2 border-2 border-emerald-500 text-emerald-500 font-bold text-sm hover:bg-emerald-500 hover:text-white fast-fade"><FiPlus size={13} /> Add Address</motion.button>
-      </div>
+    <>
+      <TabTitle icon={FiMapPin} darkMode={darkMode} right={<Btn3D onClick={() => setEditingId('new')} className="px-3 py-2 text-xs"><FiPlus className="h-3.5 w-3.5" /> {t('addAddress')}</Btn3D>}>{t('addresses')}</TabTitle>
       {addresses.length === 0 ? (
-        <EmptyState illustration={<IllustrationPin darkMode={darkMode} />} title="No saved addresses yet" subtitle="Add an address to speed up checkout and repair pickups." darkMode={darkMode} />
+        <EmptyState kind="pin" title={t('noAddresses')} subtitle={t('addressHint')} darkMode={darkMode} />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {addresses.map((addr) => {
-            const inUse = isAddressInUse(addr.id);
-            const hasCoords = !isEmptyCoord(addr.latitude) && !isEmptyCoord(addr.longitude);
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {addresses.map((a, i) => {
+            const inUse = inUseIds.has(a.id);
+            const hasCoords = !!a.latitude && !!a.longitude;
             return (
-              <motion.div key={addr.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }} whileHover={{ y: -2 }} transition={{ duration: 0.15 }}
-                className={`relative shadow-md hover:shadow-xl border transition-shadow duration-150 overflow-hidden ${darkMode ? "bg-gray-800" : "bg-white"} ${addr.isDefault ? "border-emerald-500" : darkMode ? "border-gray-700" : "border-gray-200"}`}>
-                <div className={`h-1 ${addr.isDefault ? "bg-gradient-to-r from-emerald-500 to-teal-500" : darkMode ? "bg-gray-700" : "bg-gray-200"}`} />
-                {addr.isDefault && <span className="absolute top-3 right-3 flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 shadow-md"><RiVerifiedBadgeLine size={10} /> Default</span>}
-                <div className="p-4 sm:p-5">
-                  <h4 className={`text-base font-bold mb-0.5 pr-16 ${darkMode ? "text-white" : "text-gray-900"}`}>{addr.street}, {addr.building}</h4>
-                  <p className={`text-sm mb-3 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{addr.city}, {addr.state}</p>
-                  {!isEmptyVal(addr.notes) && <p className={`text-xs italic px-3 py-2 mb-3 ${darkMode ? "bg-gray-700/50 text-gray-400" : "bg-gray-50 text-gray-500"}`}>"{addr.notes}"</p>}
-                  {hasCoords && (
-                    <div className="flex items-center gap-2 mb-3">
-                      <p className={`text-[10px] flex items-center gap-1 font-mono ${darkMode ? "text-gray-500" : "text-gray-400"}`}><FiNavigation size={9} className="text-emerald-500" />{addr.latitude?.toFixed(5)}, {addr.longitude?.toFixed(5)}</p>
-                      <a href={buildDirectionsUrl(addr.latitude, addr.longitude)} target="_blank" rel="noopener noreferrer"
-                        className={`ml-auto flex items-center gap-1 text-[10px] font-bold hover:underline ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>
-                        <FiExternalLink size={9} /> Get Directions
-                      </a>
-                    </div>
-                  )}
-                  <div className="flex gap-2">
-                    <motion.button whileTap={{ scale: 0.96 }} onClick={() => !inUse && startEditAddress(addr)} disabled={inUse} className={`flex items-center gap-1.5 px-3 py-2 border-2 font-bold text-xs fast-fade ${inUse ? `opacity-50 cursor-not-allowed ${darkMode ? "border-gray-700 text-gray-500" : "border-gray-300 text-gray-400"}` : "border-emerald-500 text-emerald-500 hover:bg-emerald-500 hover:text-white"}`}><FiEdit2 size={11} /> {inUse ? "In Use" : "Edit"}</motion.button>
-                    <motion.button whileTap={{ scale: 0.96 }} onClick={() => !inUse && handleDeleteAddress(addr.id)} disabled={inUse} className={`flex items-center gap-1.5 px-3 py-2 border-2 font-bold text-xs fast-fade ${inUse ? `opacity-50 cursor-not-allowed ${darkMode ? "border-gray-700 text-gray-500" : "border-gray-300 text-gray-400"}` : "border-red-400 text-red-500 hover:bg-red-500 hover:text-white"}`}><FiTrash2 size={11} /></motion.button>
+              <CardShell key={a.id} darkMode={darkMode} index={i}>
+                <div className="flex items-start gap-2.5">
+                  <span className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl ${tileCls(darkMode)}`}><Glyph3D kind="pin" className="h-7 w-7" /></span>
+                  <div className="min-w-0 flex-1">
+                    <h3 className={`truncate text-sm font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{a.street}, {a.building}</h3>
+                    <p className={`truncate text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{a.city}, {a.state}</p>
                   </div>
-                  {inUse && <p className="text-[10px] mt-2 text-amber-500 font-semibold flex items-center gap-1"><FiInfo size={10} /> Used in active order/repair</p>}
+                  {a.isDefault && <span className="flex flex-shrink-0 items-center gap-1 rounded-md bg-emerald-500 px-2 py-0.5 text-[10px] font-extrabold uppercase text-white"><RiVerifiedBadgeLine className="h-3 w-3" /> {t('default')}</span>}
                 </div>
-              </motion.div>
+                {!isEmpty(a.notes) && <p className={`line-clamp-2 rounded-lg px-2.5 py-1.5 text-xs italic ${darkMode ? 'bg-gray-900/50 text-gray-400' : 'bg-gray-50 text-gray-500'}`}>“{a.notes}”</p>}
+                {hasCoords && (
+                  <a href={directionsUrl(a.latitude, a.longitude)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-500 hover:underline">
+                    <FiExternalLink className="h-3 w-3" /> {t('getDirections')}
+                    <span className={`ms-auto font-mono font-normal ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{a.latitude.toFixed(4)}, {a.longitude.toFixed(4)}</span>
+                  </a>
+                )}
+                <div className={`mt-auto border-t pt-3 ${darkMode ? 'border-gray-700' : 'border-gray-100'}`}>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Btn3D tone="soft" darkMode={darkMode} disabled={inUse} onClick={() => startEdit(a)} className="py-2 text-xs"><FiEdit2 className="h-3.5 w-3.5" /> {inUse ? t('inUse') : t('edit')}</Btn3D>
+                    <Btn3D tone="danger" disabled={inUse} onClick={() => onDelete(a.id)} className="py-2 text-xs" aria-label={t('delete')}><FiTrash2 className="h-3.5 w-3.5" /> {t('delete')}</Btn3D>
+                  </div>
+                  {inUse && <p className="mt-2 flex items-center gap-1 text-[11px] font-semibold text-amber-500"><FiInfo className="h-3 w-3" /> {t('usedInActiveOrderRepair')}</p>}
+                </div>
+              </CardShell>
             );
           })}
         </div>
       )}
-    </motion.div>
+    </>
   );
 });
 
-const OrdersTab = memo(({ orders, ordersPage, setOrdersPage, setSelectedOrder, setIsOrderModalOpen, handleCancelOrder, darkMode }) => {
-  const [statusFilter, setStatusFilter] = useState("");
-  const [dateFilter, setDateFilter] = useState("");
-  const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState("newest");
-  const ipp = 6;
-
-  const filtered = useMemo(() => {
-    let list = orders.filter(o => {
-      if (statusFilter && o.status !== statusFilter) return false;
-      if (dateFilter && toDateOnlyString(o.createdAt) !== dateFilter) return false;
-      if (search && !o.id?.toLowerCase().includes(search.toLowerCase())) return false;
-      return true;
-    });
-    list = [...list].sort((a, b) => {
-      if (sortBy === "oldest") return new Date(a.createdAt) - new Date(b.createdAt);
-      if (sortBy === "price_desc") return (Number(b.totalPrice) || 0) - (Number(a.totalPrice) || 0);
-      if (sortBy === "price_asc") return (Number(a.totalPrice) || 0) - (Number(b.totalPrice) || 0);
-      return new Date(b.createdAt) - new Date(a.createdAt);
-    });
-    return list;
-  }, [orders, statusFilter, dateFilter, search, sortBy]);
-
-  const total = Math.ceil(filtered.length / ipp);
-  const pageOrders = filtered.slice((ordersPage - 1) * ipp, ordersPage * ipp);
-  const statusKeys = ["PENDING","CONFIRMED","PROCESSING","FINISHPROCESSING","SHIPPED","DELIVERED","CANCELLED"];
-
-  return (
-    <motion.div variants={cardVariants} initial="hidden" animate="visible" exit="exit">
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <h3 className={`text-xl font-extrabold flex items-center gap-3 ${darkMode ? "text-white" : "text-gray-900"}`}><FiBox className="text-emerald-500" /> Orders</h3>
-      </div>
-      <FilterBar statusOptions={statusKeys} statusFilter={statusFilter} setStatusFilter={setStatusFilter} dateFilter={dateFilter} setDateFilter={setDateFilter} search={search} setSearch={setSearch} sortBy={sortBy} setSortBy={setSortBy} darkMode={darkMode} resultCount={filtered.length} />
-      {filtered.length === 0 ? (
-        <EmptyState illustration={<IllustrationBox darkMode={darkMode} />} title="No orders placed yet" subtitle="Everything you order will show up here with live status." darkMode={darkMode} />
-      ) : (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            <AnimatePresence>
-            {pageOrders.map((order) => {
-              const isDelivered = order.status === "DELIVERED";
-              const isCancelled = order.status === "CANCELLED";
-              const progress = getOrderProgress(order.status);
-              const hasTotal = !isEmptyVal(order.totalPrice);
-              const itemCount = (order.orderItems || []).reduce((s, it) => s + (Number(it.quantity) || 0), 0);
-              return (
-                <motion.div key={order.id} layout whileHover={{ y: -2 }} transition={{ duration: 0.15 }} className={`shadow-sm hover:shadow-lg border transition-shadow duration-150 overflow-hidden flex flex-col ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-                  <div className={`px-4 sm:px-5 pt-4 pb-3 border-b flex items-center justify-between ${darkMode ? "border-gray-700/70 bg-gray-800/60" : "border-gray-100 bg-gray-50/70"}`}>
-                    <div>
-                      <p className={`font-mono text-[10px] tracking-[2px] uppercase ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>ORD #{order.id.slice(0, 6)}</p>
-                      {!isEmptyVal(order.createdAt) && <p className={`text-[11px] mt-0.5 flex items-center gap-1 ${darkMode ? "text-gray-500" : "text-gray-400"}`}><FiCalendar size={10} />{new Date(order.createdAt).toLocaleDateString("en-EG", { month: "short", day: "numeric", year: "numeric" })}</p>}
-                    </div>
-                    <StatusBadge status={order.status} type="order" darkMode={darkMode} />
-                  </div>
-                  <div className="p-4 sm:p-5 flex flex-col flex-1">
-                    <ProgressBar progress={progress} status={order.status} darkMode={darkMode} />
-                    <div className="grid grid-cols-2 gap-2 my-3">
-                      <div className={`px-3 py-2 border ${darkMode ? "border-gray-700 bg-gray-900/40" : "border-gray-100 bg-gray-50"}`}>
-                        <p className={`text-[9px] font-bold uppercase tracking-widest ${darkMode ? "text-gray-500" : "text-gray-400"}`}>Items</p>
-                        <p className={`text-sm font-bold mt-0.5 ${darkMode ? "text-gray-200" : "text-gray-800"}`}>{itemCount || (order.orderItems || []).length}</p>
-                      </div>
-                      <div className={`px-3 py-2 border ${darkMode ? "border-gray-700 bg-gray-900/40" : "border-gray-100 bg-gray-50"}`}>
-                        <p className={`text-[9px] font-bold uppercase tracking-widest ${darkMode ? "text-gray-500" : "text-gray-400"}`}>Payment</p>
-                        <p className={`text-sm font-bold mt-0.5 truncate ${darkMode ? "text-gray-200" : "text-gray-800"}`}>{!isEmptyVal(order.paymentMethod) ? order.paymentMethod.replace("_", " ") : "—"}</p>
-                      </div>
-                    </div>
-                    {hasTotal && <div className="mb-3"><span className={`text-2xl sm:text-3xl font-black ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>{order.totalPrice}</span><span className={`text-xs ml-1 ${darkMode ? "text-gray-500" : "text-gray-400"}`}>EGP</span></div>}
-                    <div className="flex gap-2 mt-auto flex-wrap">
-                      <motion.button whileTap={{ scale: 0.96 }} onClick={() => { setSelectedOrder(order); setIsOrderModalOpen(true); }} className={`flex-1 font-bold text-xs py-2.5 fast-fade flex items-center justify-center gap-1 ${darkMode ? "bg-blue-500/15 hover:bg-blue-500/25 text-blue-300" : "bg-blue-50 hover:bg-blue-100 text-blue-600"}`}><FiInfo size={11} /> Details</motion.button>
-                      {!isDelivered && !isCancelled && (
-                        <motion.button whileTap={{ scale: 0.96 }} onClick={() => handleCancelOrder(order.id)} className={`flex-1 font-bold text-xs py-2.5 fast-fade flex items-center justify-center gap-1 ${darkMode ? "bg-red-500/15 hover:bg-red-500/25 text-red-300" : "bg-red-50 hover:bg-red-100 text-red-600"}`}><FiXCircle size={11} /> Cancel Order</motion.button>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-            </AnimatePresence>
-          </div>
-          <Pagination page={ordersPage} total={total} setPage={setOrdersPage} darkMode={darkMode} />
-        </>
-      )}
-    </motion.div>
-  );
-});
-
-const RepairsTab = memo(({ repairRequests, repairsPage, setRepairsPage, handleViewRepair, handleEditRepair, handleAcceptQuote, handleCancelRepair, darkMode }) => {
-  const [statusFilter, setStatusFilter] = useState("");
-  const [dateFilter, setDateFilter] = useState("");
-  const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState("newest");
-  const ipp = 6;
-
-  const filtered = useMemo(() => {
-    let list = repairRequests.filter(r => {
-      if (statusFilter && r.status !== statusFilter) return false;
-      if (dateFilter && toDateOnlyString(r.createdAt) !== dateFilter) return false;
-      if (search && !(r.shopName?.toLowerCase().includes(search.toLowerCase()) || r.description?.toLowerCase().includes(search.toLowerCase()) || r.id?.toLowerCase().includes(search.toLowerCase()))) return false;
-      return true;
-    });
-    list = [...list].sort((a, b) => {
-      if (sortBy === "oldest") return new Date(a.createdAt) - new Date(b.createdAt);
-      if (sortBy === "price_desc") return (Number(b.price) || 0) - (Number(a.price) || 0);
-      if (sortBy === "price_asc") return (Number(a.price) || 0) - (Number(b.price) || 0);
-      return new Date(b.createdAt) - new Date(a.createdAt);
-    });
-    return list;
-  }, [repairRequests, statusFilter, dateFilter, search, sortBy]);
-
-  const totalPages = Math.ceil(filtered.length / ipp);
-  const pageRepairs = filtered.slice((repairsPage - 1) * ipp, repairsPage * ipp);
-  const statusKeys = ["SUBMITTED","QUOTE_SENT","QUOTE_APPROVED","QUOTE_REJECTED","DEVICE_COLLECTED","REPAIRING","REPAIR_COMPLETED","DEVICE_DELIVERED","CANCELLED","FAILED"];
-
-  return (
-    <motion.div variants={cardVariants} initial="hidden" animate="visible" exit="exit">
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <h3 className={`text-xl font-extrabold flex items-center gap-3 ${darkMode ? "text-white" : "text-gray-900"}`}><FiTool className="text-emerald-500" /> Repairs</h3>
-      </div>
-      <FilterBar statusOptions={statusKeys} statusFilter={statusFilter} setStatusFilter={setStatusFilter} dateFilter={dateFilter} setDateFilter={setDateFilter} search={search} setSearch={setSearch} sortBy={sortBy} setSortBy={setSortBy} darkMode={darkMode} resultCount={filtered.length} />
-      {filtered.length === 0 ? (
-        <EmptyState illustration={<IllustrationTool darkMode={darkMode} />} title="No repair requests yet" subtitle="Submit a repair request and track it from quote to delivery." darkMode={darkMode} />
-      ) : (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            <AnimatePresence>
-            {pageRepairs.map((req) => {
-              const isQuoteSent = req.status === "QUOTE_SENT";
-              const canCancel = ["QUOTE_APPROVED", "QUOTE_SENT", "SUBMITTED"].includes(req.status);
-              const hasPrice = !isEmptyVal(req.price);
-              const progress = getRepairProgress(req.status);
-              return (
-                <motion.div key={req.id} layout whileHover={{ y: -2 }} transition={{ duration: 0.15 }} className={`shadow-sm hover:shadow-lg border transition-shadow duration-150 overflow-hidden flex flex-col ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-                  <div className={`px-4 sm:px-5 pt-4 pb-3 border-b flex items-center justify-between gap-2 ${darkMode ? "border-gray-700/70 bg-gray-800/60" : "border-gray-100 bg-gray-50/70"}`}>
-                    <div className="min-w-0">
-                      <p className={`font-mono text-[10px] tracking-[2px] uppercase ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>REQ #{req.id.slice(0, 6)}</p>
-                      <p className={`text-sm font-bold mt-0.5 truncate ${darkMode ? "text-white" : "text-gray-900"}`}>{req.shopName}</p>
-                    </div>
-                    <StatusBadge status={req.status} type="repair" darkMode={darkMode} />
-                  </div>
-                  <div className="p-4 sm:p-5 flex flex-col flex-1">
-                    <ProgressBar progress={progress} status={req.status} darkMode={darkMode} />
-                    {!isEmptyVal(req.description) && <p className={`text-xs sm:text-sm line-clamp-2 mb-3 mt-1 flex-1 leading-relaxed ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{req.description}</p>}
-                    {hasPrice && <div className="mb-3 flex items-end gap-1"><span className={`text-2xl font-black ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>{req.price}</span><span className={`text-xs mb-0.5 ${darkMode ? "text-gray-500" : "text-gray-400"}`}>EGP</span></div>}
-                    <div className="grid grid-cols-2 gap-2 mt-auto">
-                      <motion.button whileTap={{ scale: 0.96 }} onClick={() => handleViewRepair(req.id)} className={`font-bold text-xs py-2 fast-fade flex items-center justify-center gap-1 ${darkMode ? "bg-blue-500/15 hover:bg-blue-500/25 text-blue-300" : "bg-blue-50 hover:bg-blue-100 text-blue-600"}`}><FiInfo size={10} /> Details</motion.button>
-                      <motion.button whileTap={{ scale: 0.96 }} onClick={() => handleEditRepair(req)} className={`font-bold text-xs py-2 fast-fade flex items-center justify-center gap-1 ${darkMode ? "bg-amber-500/15 hover:bg-amber-500/25 text-amber-300" : "bg-amber-50 hover:bg-amber-100 text-amber-600"}`}><FiEdit size={10} /> Edit</motion.button>
-                      {isQuoteSent && hasPrice && (
-                        <motion.button whileTap={{ scale: 0.96 }} onClick={() => handleAcceptQuote(req)} className="col-span-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold text-xs py-2 fast-fade flex items-center justify-center gap-1 shadow-sm"><FiCheckCircle size={10} /> Accept Quote</motion.button>
-                      )}
-                      {canCancel && (
-                        <motion.button whileTap={{ scale: 0.96 }} onClick={() => handleCancelRepair(req.id)} className={`col-span-2 font-bold text-xs py-2 fast-fade flex items-center justify-center gap-1.5 ${darkMode ? "bg-red-500/15 hover:bg-red-500/25 text-red-300" : "bg-red-50 hover:bg-red-100 text-red-600"}`}><FiXCircle size={10} /> Cancel Request</motion.button>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-            </AnimatePresence>
-          </div>
-          <Pagination page={repairsPage} total={totalPages} setPage={setRepairsPage} darkMode={darkMode} />
-        </>
-      )}
-    </motion.div>
-  );
-});
-
-const NotificationsTab = memo(({ token, darkMode }) => {
-  const queryClient = useQueryClient();
+const NotificationsTab = memo(({ token, darkMode, t }) => {
+  const qc = useQueryClient();
   const [page, setPage] = useState(1);
-  const ipp = 5;
-
-  const { data: notifications = [], isLoading } = useQuery({
+  const ipp = 6;
+  const { data: items = [], isLoading } = useQuery({
     queryKey: ['notifications'],
-    queryFn: async () => {
-      const res = await api.get("/api/notifications/users", { headers: { Authorization: `Bearer ${token}` } });
-      return res.data.content || res.data || [];
-    },
+    queryFn: async () => unwrap(await api.get('/api/notifications/users', { headers: { Authorization: `Bearer ${token}` } })),
     enabled: !!token,
     refetchInterval: LIVE_POLL_MS,
   });
+  const total = Math.max(1, Math.ceil(items.length / ipp));
+  const current = Math.min(page, total);
+  const pageItems = useMemo(() => items.slice((current - 1) * ipp, current * ipp), [items, current]);
+  const unread = useMemo(() => items.filter((n) => !n.read).length, [items]);
 
-  const deleteNotif = useCallback(async (id) => {
-    const prev = queryClient.getQueryData(['notifications']);
-    queryClient.setQueryData(['notifications'], (old = []) => old.filter(n => n.id !== id));
-    try {
-      await api.delete(`/api/notifications/users/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      Swal.fire({ icon: "success", title: "Deleted", toast: true, position: "top-end", timer: 1500, showConfirmButton: false });
-    } catch {
-      queryClient.setQueryData(['notifications'], prev);
-      Swal.fire({ icon: "error", title: "Failed", toast: true, position: "top-end", timer: 1500, showConfirmButton: false });
-    }
-  }, [queryClient, token]);
-
-  const unreadCount = notifications.filter(n => !n.read).length;
-  const totalPages = Math.ceil(notifications.length / ipp);
-  const pageNotifications = notifications.slice((page - 1) * ipp, page * ipp);
-
-  useEffect(() => {
-    if (page > totalPages && totalPages > 0) setPage(totalPages);
-  }, [totalPages, page]);
+  const remove = useCallback(async (id) => {
+    const prev = qc.getQueryData(['notifications']);
+    qc.setQueryData(['notifications'], (old = []) => old.filter((n) => n.id !== id));
+    try { await api.delete(`/api/notifications/users/${id}`, { headers: { Authorization: `Bearer ${token}` } }); toast({ icon: 'success', title: 'Deleted' }); }
+    catch { qc.setQueryData(['notifications'], prev); toast({ icon: 'error', title: 'Failed' }); }
+  }, [qc, token]);
 
   return (
-    <motion.div variants={cardVariants} initial="hidden" animate="visible" exit="exit">
-      <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
-        <h3 className={`text-xl font-extrabold flex items-center gap-3 ${darkMode ? "text-white" : "text-gray-900"}`}>
-          <FiBell className="text-emerald-500" /> Notifications
-          {unreadCount > 0 && <span className="bg-red-500 text-white text-[10px] font-extrabold px-2 py-0.5">{unreadCount}</span>}
-        </h3>
-      </div>
-      {isLoading ? <LoadingSpinner darkMode={darkMode} /> : notifications.length === 0 ? (
-        <EmptyState illustration={<IllustrationBell darkMode={darkMode} />} title="No notifications yet" subtitle="Updates about your orders and repairs will land here." darkMode={darkMode} />
-      ) : (
-        <>
-          <div className="space-y-3">
-            <AnimatePresence>
-            {pageNotifications.map((notif) => (
-              <motion.div key={notif.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.15 }}
-                className={`relative border p-4 sm:p-5 shadow-sm ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-                {!notif.read && <span className="absolute top-4 right-4 w-2.5 h-2.5 bg-emerald-500 rounded-full" />}
-                <div className="flex items-start gap-3">
-                  <div className={`w-9 h-9 flex-shrink-0 flex items-center justify-center ${darkMode ? "bg-gray-700" : "bg-gray-100"}`}>
-                    <FiBell className="text-emerald-500" size={15} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>{notif.title || notif.subject || "Notification"}</p>
-                    {!isEmptyVal(notif.message || notif.body) && <p className={`text-xs mt-0.5 leading-relaxed ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{notif.message || notif.body}</p>}
-                    {!isEmptyVal(notif.createdAt) && <p className={`text-[10px] mt-1.5 flex items-center gap-1 ${darkMode ? "text-gray-500" : "text-gray-400"}`}><FiClock size={9} />{new Date(notif.createdAt).toLocaleString("en-EG", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>}
-                  </div>
-                </div>
-                <div className="flex gap-2 mt-3">
-                  <button onClick={() => deleteNotif(notif.id)} className={`flex items-center gap-1 px-3 py-1.5 text-xs font-bold fast-fade ${darkMode ? "bg-red-500/15 text-red-300 hover:bg-red-500/25" : "bg-red-50 text-red-500 hover:bg-red-100"}`}>
-                    <FiTrash2 size={10} /> Delete
-                  </button>
-                </div>
-              </motion.div>
-            ))}
-            </AnimatePresence>
-          </div>
-          <Pagination page={page} total={totalPages} setPage={setPage} darkMode={darkMode} />
-        </>
-      )}
-    </motion.div>
+    <>
+      <TabTitle icon={FiBell} darkMode={darkMode} right={unread > 0 && <span className="rounded-md bg-rose-500 px-2 py-0.5 text-[11px] font-extrabold text-white">{unread}</span>}>{t('notifications')}</TabTitle>
+      {isLoading ? <SkeletonList darkMode={darkMode} />
+        : items.length === 0 ? <EmptyState kind="bell" title={t('noNotifications')} subtitle={t('notificationHint')} darkMode={darkMode} />
+          : (
+            <>
+              <ul className="space-y-2.5">
+                {pageItems.map((n, i) => (
+                  <li key={n.id} style={{ '--i': i }} className={`anim-fade-up ${cardCls(darkMode)} flex items-start gap-3 p-3.5`}>
+                    <Chip3D className="h-9 w-9 flex-shrink-0"><FiBell className="h-4 w-4" /></Chip3D>
+                    <div className="min-w-0 flex-1">
+                      <p className={`flex items-center gap-2 text-sm font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                        <span className="truncate">{n.title || n.subject || 'Notification'}</span>
+                        {!n.read && <span className="h-2 w-2 flex-shrink-0 rounded-full bg-emerald-500" aria-label="Unread" />}
+                      </p>
+                      {!isEmpty(n.message || n.body) && <p className={`mt-0.5 text-xs leading-relaxed ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{n.message || n.body}</p>}
+                      {!isEmpty(n.createdAt) && <p className={`mt-1 flex items-center gap-1 text-[10px] ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}><FiClock className="h-3 w-3" />{fmtFull(n.createdAt)}</p>}
+                    </div>
+                    <button type="button" onClick={() => remove(n.id)} aria-label={t('delete')}
+                      className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${darkMode ? 'text-gray-500 hover:bg-rose-500/15 hover:text-rose-400' : 'text-gray-400 hover:bg-rose-50 hover:text-rose-500'}`}><FiTrash2 className="h-4 w-4" /></button>
+                  </li>
+                ))}
+              </ul>
+              <Pagination3D page={current} total={total} onChange={setPage} darkMode={darkMode} />
+            </>
+          )}
+    </>
   );
 });
 
-const CHART_COLORS = ["#10b981", "#0d9488", "#3b82f6", "#8b5cf6", "#f59e0b", "#ef4444", "#06b6d4", "#f97316"];
+const COLORS = ['#10b981', '#0d9488', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#f97316'];
 
-const DonutChart = memo(({ data, size = 168, thickness = 24, darkMode }) => {
+const Donut = memo(({ data, darkMode, size = 144, thickness = 20 }) => {
   const total = data.reduce((s, d) => s + d.value, 0);
-  const radius = (size - thickness) / 2;
-  const circumference = 2 * Math.PI * radius;
-  let cumulative = 0;
-
+  const r = (size - thickness) / 2;
+  const c = 2 * Math.PI * r;
+  let acc = 0;
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`${total} total`}>
       <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
-        {total === 0 ? (
-          <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={darkMode ? "#374151" : "#e5e7eb"} strokeWidth={thickness} />
-        ) : data.map((d, i) => {
-          const fraction = d.value / total;
-          const dash = fraction * circumference;
-          const offset = -cumulative * circumference;
-          cumulative += fraction;
-          return (
-            <circle key={i} cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={d.color}
-              strokeWidth={thickness} strokeDasharray={`${dash} ${circumference - dash}`} strokeDashoffset={offset} />
-          );
-        })}
+        {total === 0 ? <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={darkMode ? '#374151' : '#e5e7eb'} strokeWidth={thickness} />
+          : data.map((d, i) => {
+            const frac = d.value / total;
+            const el = <circle key={i} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={d.color} strokeWidth={thickness} strokeDasharray={`${frac * c} ${c - frac * c}`} strokeDashoffset={-acc * c} />;
+            acc += frac;
+            return el;
+          })}
       </g>
-      <text x="50%" y="47%" textAnchor="middle" fill={darkMode ? "#ffffff" : "#111827"} style={{ fontSize: 26, fontWeight: 800 }}>{total}</text>
-      <text x="50%" y="62%" textAnchor="middle" fill={darkMode ? "#9ca3af" : "#9ca3af"} style={{ fontSize: 11, fontWeight: 600 }}>Total</text>
+      <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fill={darkMode ? '#fff' : '#111827'} style={{ fontSize: 24, fontWeight: 800 }}>{total}</text>
     </svg>
   );
 });
 
-const ChartLegend = memo(({ data, darkMode }) => {
+const Legend = memo(({ data, darkMode }) => {
   const total = data.reduce((s, d) => s + d.value, 0) || 1;
   return (
-    <div className="space-y-2 flex-1 min-w-[160px]">
-      {data.map((d, i) => (
-        <div key={i} className="flex items-center gap-2.5 text-xs">
-          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }} />
-          <span className={`font-semibold flex-1 truncate ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{d.label}</span>
-          <span className={`font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>{d.value}</span>
-          <span className={`w-10 text-right ${darkMode ? "text-gray-500" : "text-gray-400"}`}>{Math.round((d.value / total) * 100)}%</span>
-        </div>
+    <ul className="min-w-[150px] flex-1 space-y-1.5">
+      {data.map((d) => (
+        <li key={d.label} className="flex items-center gap-2 text-xs">
+          <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ backgroundColor: d.color }} />
+          <span className={`flex-1 truncate font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{d.label}</span>
+          <b className={darkMode ? 'text-white' : 'text-gray-900'}>{d.value}</b>
+          <span className={`w-9 text-end ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{Math.round((d.value / total) * 100)}%</span>
+        </li>
       ))}
+    </ul>
+  );
+});
+
+const countBy = (list, label) => {
+  const m = {};
+  list.forEach((x) => { m[x.status] = (m[x.status] || 0) + 1; });
+  return Object.entries(m).map(([k, value], i) => ({ label: label(k), value, color: COLORS[i % COLORS.length] }));
+};
+
+const AnalyticsTab = memo(({ orders, repairs, addresses, darkMode, t }) => {
+  const spent = useMemo(() => orders.reduce((s, o) => s + (Number(o.totalPrice) || 0), 0) + repairs.reduce((s, r) => s + (Number(r.price) || 0), 0), [orders, repairs]);
+  const orderData = useMemo(() => countBy(orders, (k) => t(`status_${k}`)), [orders, t]);
+  const repairData = useMemo(() => countBy(repairs, (k) => t(`status_${k}`)), [repairs, t]);
+  const n = useMemo(() => ({
+    delivered: orders.filter((o) => o.status === 'DELIVERED').length,
+    cancelled: orders.filter((o) => o.status === 'CANCELLED').length,
+    done: repairs.filter((r) => r.status === 'DEVICE_DELIVERED').length,
+    failed: repairs.filter((r) => REPAIR_BAD.has(r.status)).length,
+  }), [orders, repairs]);
+
+  const stats = [
+    { icon: FiBox, value: orders.length, label: t('totalOrders') },
+    { icon: FiTool, value: repairs.length, label: t('totalRepairs') },
+    { icon: FiDollarSign, value: `${spent.toFixed(0)} EGP`, label: t('totalSpent') },
+    { icon: FiMapPin, value: addresses.length, label: t('savedAddresses') },
+  ];
+  const bars = [
+    [t('ordersDelivered'), n.delivered, orders.length, '#10b981'],
+    [t('ordersCancelled'), n.cancelled, orders.length, '#ef4444'],
+    [t('repairsCompleted'), n.done, repairs.length, '#0d9488'],
+    [t('repairsCancelledFailed'), n.failed, repairs.length, '#f59e0b'],
+  ];
+  const panel = `${cardCls(darkMode)} p-4 sm:p-5`;
+  const h = `mb-3 flex items-center gap-2 text-sm font-bold ${darkMode ? 'text-gray-200' : 'text-gray-800'}`;
+
+  return (
+    <div className="space-y-4">
+      <TabTitle icon={FiPieChart} darkMode={darkMode}>{t('analytics')}</TabTitle>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {stats.map(({ icon: Icon, value, label }) => (
+          <div key={label} className={`${cardCls(darkMode)} p-3.5`}>
+            <Chip3D className="mb-2 h-8 w-8"><Icon className="h-4 w-4" /></Chip3D>
+            <p className={`text-xl font-black tabular-nums ${darkMode ? 'text-white' : 'text-gray-900'}`}>{value}</p>
+            <p className={`text-xs font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{label}</p>
+          </div>
+        ))}
+      </div>
+
+      {orders.length === 0 && repairs.length === 0 ? (
+        <EmptyState kind="box" title={t('notEnoughActivity')} subtitle={t('analyticsHint')} darkMode={darkMode} />
+      ) : (
+        <>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {[[FiBox, t('ordersByStatus'), orderData, orders.length, t('noOrdersYet')], [FiTool, t('repairsByStatus'), repairData, repairs.length, t('noRepairs')]].map(([Icon, title, data, count, none]) => (
+              <section key={title} className={panel}>
+                <h3 className={h}><Icon className="h-4 w-4 text-emerald-500" /> {title}</h3>
+                {count === 0 ? <p className={`py-6 text-center text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{none}</p>
+                  : <div className="flex flex-wrap items-center gap-4"><Donut data={data} darkMode={darkMode} /><Legend data={data} darkMode={darkMode} /></div>}
+              </section>
+            ))}
+          </div>
+          <section className={panel}>
+            <h3 className={h}><FiTrendingUp className="h-4 w-4 text-emerald-500" /> {t('performanceOverview')}</h3>
+            <div className="space-y-4">
+              {bars.map(([label, value, total, color]) => {
+                const pct = total ? Math.round((value / total) * 100) : 0;
+                return (
+                  <div key={label}>
+                    <div className="mb-1 flex justify-between text-xs">
+                      <span className={`font-bold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{label}</span>
+                      <span className={darkMode ? 'text-gray-500' : 'text-gray-400'}>{value}/{total} · {pct}%</span>
+                    </div>
+                    <div className={`h-2 overflow-hidden rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                      <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${pct}%`, background: color }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 });
 
-const StatCard = memo(({ icon, value, label, accent, darkMode }) => (
-  <div className={`border p-4 sm:p-5 shadow-sm ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-    <div className="w-9 h-9 flex items-center justify-center mb-3" style={{ backgroundColor: `${accent}1a`, color: accent }}>{icon}</div>
-    <p className={`text-2xl font-black ${darkMode ? "text-white" : "text-gray-900"}`}>{value}</p>
-    <p className={`text-xs font-semibold mt-0.5 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{label}</p>
+const AboutTab = memo(({ darkMode, t }) => {
+  const values = [
+    { icon: FiShield, title: t('verifiedShops'), text: t('verifiedShopsText') },
+    { icon: FiZap, title: t('fastTurnaround'), text: t('fastTurnaroundText') },
+    { icon: FiCreditCard, title: t('securePayments'), text: t('securePaymentsText') },
+    { icon: FiTruck, title: t('doorstepDelivery'), text: t('doorstepDeliveryText') },
+  ];
+  const strong = darkMode ? 'text-white' : 'text-gray-900';
+  const muted = darkMode ? 'text-gray-400' : 'text-gray-500';
+  return (
+    <div className="space-y-4">
+      <TabTitle icon={FiCompass} darkMode={darkMode}>{t('aboutTechRestore')}</TabTitle>
+      <section className={`${cardCls(darkMode)} flex flex-col items-center gap-4 p-5 sm:flex-row`}>
+        <Scene3D className="h-28 w-40 flex-shrink-0" main="store" float="phone" extra="wrench" />
+        <p className={`text-sm leading-relaxed ${muted}`}>{t('aboutDescription')}</p>
+      </section>
+      <section className={`${cardCls(darkMode)} p-4 sm:p-5`}>
+        <h3 className={`mb-3 flex items-center gap-2 text-sm font-extrabold ${strong}`}><FiAward className="h-4 w-4 text-emerald-500" /> {t('whyChooseUs')}</h3>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {values.map(({ icon: Icon, title, text }) => (
+            <div key={title} className={`flex gap-3 rounded-xl p-3 ${darkMode ? 'bg-gray-900/50' : 'bg-gray-50'}`}>
+              <Chip3D className="h-8 w-8 flex-shrink-0"><Icon className="h-4 w-4" /></Chip3D>
+              <div className="min-w-0"><p className={`text-sm font-bold ${strong}`}>{title}</p><p className={`text-xs ${muted}`}>{text}</p></div>
+            </div>
+          ))}
+        </div>
+      </section>
+      <section className={`${cardCls(darkMode)} p-4 sm:p-5`}>
+        <h3 className={`mb-3 flex items-center gap-2 text-sm font-extrabold ${strong}`}><FiSend className="h-4 w-4 text-emerald-500" /> {t('getInTouch')}</h3>
+        <div className={`grid gap-2 rounded-2xl border p-3 sm:grid-cols-3 ${darkMode ? 'border-gray-700 bg-gray-800/60' : 'border-gray-100 bg-gray-50'}`}>
+          <InfoRow icon={FiMail} darkMode={darkMode}>support@tech-restore.com</InfoRow>
+          <InfoRow icon={FiPhone} darkMode={darkMode}><span dir="ltr">+20 100 000 0000</span></InfoRow>
+          <InfoRow icon={FiMapPin} darkMode={darkMode}>Cairo, Egypt</InfoRow>
+        </div>
+      </section>
+    </div>
+  );
+});
+
+const TipsCard = memo(({ t }) => (
+  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-800 p-4 text-white">
+    <div className="pointer-events-none absolute -end-8 -top-10 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
+    <h4 className="relative mb-2.5 flex items-center gap-2 text-sm font-extrabold"><FiTarget className="h-4 w-4" /> {t('tipsTitle')}</h4>
+    <ul className="relative space-y-2">
+      {['tipAddresses', 'tipQuote', 'tipInvoices', 'tipAnalytics'].map((k) => (
+        <li key={k} className="flex gap-2 text-xs leading-relaxed text-emerald-50"><FiCheckCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" /><span>{t(k)}</span></li>
+      ))}
+    </ul>
   </div>
 ));
 
-const StatProgressRow = memo(({ label, value, total, color, darkMode }) => {
-  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+/* ───────────── modals ───────────── */
+const OrderModal = memo(({ order, onClose, darkMode, t }) => {
+  const strong = darkMode ? 'text-white' : 'text-gray-900';
+  const muted = darkMode ? 'text-gray-400' : 'text-gray-500';
+  const items = order.orderItems || [];
   return (
-    <div>
-      <div className="flex justify-between items-center mb-1.5">
-        <span className={`text-xs font-bold ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{label}</span>
-        <span className={`text-xs font-bold ${darkMode ? "text-gray-500" : "text-gray-400"}`}>{value}/{total} · {pct}%</span>
-      </div>
-      <div className={`h-2 w-full overflow-hidden ${darkMode ? "bg-gray-700" : "bg-gray-100"}`}>
-        <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.5, ease: "easeOut" }}
-          className="h-full" style={{ background: `linear-gradient(to right, ${color}, ${color}cc)` }} />
-      </div>
-    </div>
-  );
-});
-
-const AnalyticsTab = memo(({ orders, repairRequests, addresses, darkMode }) => {
-  const orderTotal = orders.length;
-  const repairTotal = repairRequests.length;
-  const totalSpent = orders.reduce((s, o) => s + (Number(o.totalPrice) || 0), 0) + repairRequests.reduce((s, r) => s + (Number(r.price) || 0), 0);
-
-  const orderStatusData = useMemo(() => {
-    const counts = {};
-    orders.forEach((o) => { counts[o.status] = (counts[o.status] || 0) + 1; });
-    return Object.entries(counts).map(([label, value], i) => ({ label: label.replace(/_/g, " "), value, color: CHART_COLORS[i % CHART_COLORS.length] }));
-  }, [orders]);
-
-  const repairStatusData = useMemo(() => {
-    const counts = {};
-    repairRequests.forEach((r) => { counts[r.status] = (counts[r.status] || 0) + 1; });
-    return Object.entries(counts).map(([label, value], i) => ({ label: label.replace(/_/g, " "), value, color: CHART_COLORS[i % CHART_COLORS.length] }));
-  }, [repairRequests]);
-
-  const deliveredOrders = orders.filter((o) => o.status === "DELIVERED").length;
-  const cancelledOrders = orders.filter((o) => o.status === "CANCELLED").length;
-  const completedRepairs = repairRequests.filter((r) => r.status === "DEVICE_DELIVERED").length;
-  const cancelledRepairs = repairRequests.filter((r) => ["CANCELLED", "FAILED", "QUOTE_REJECTED"].includes(r.status)).length;
-
-  const hasData = orderTotal > 0 || repairTotal > 0;
-
-  return (
-    <motion.div variants={cardVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
-      <h3 className={`text-xl font-extrabold flex items-center gap-3 ${darkMode ? "text-white" : "text-gray-900"}`}><FiPieChart className="text-emerald-500" /> Account Analytics</h3>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <StatCard icon={<FiBox size={16} />} value={orderTotal} label="Total Orders" accent="#10b981" darkMode={darkMode} />
-        <StatCard icon={<FiTool size={16} />} value={repairTotal} label="Total Repairs" accent="#0d9488" darkMode={darkMode} />
-        <StatCard icon={<FiDollarSign size={16} />} value={`${totalSpent.toFixed(0)} EGP`} label="Total Spent" accent="#3b82f6" darkMode={darkMode} />
-        <StatCard icon={<FiMapPin size={16} />} value={addresses.length} label="Saved Addresses" accent="#8b5cf6" darkMode={darkMode} />
-      </div>
-
-      {!hasData ? (
-        <EmptyState illustration={<IllustrationBox darkMode={darkMode} />} title="Not enough activity yet" subtitle="Place an order or submit a repair request to see your analytics here." darkMode={darkMode} />
-      ) : (
-        <>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className={`border p-5 sm:p-6 shadow-sm ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-              <h4 className={`text-sm font-bold mb-4 flex items-center gap-2 ${darkMode ? "text-gray-200" : "text-gray-800"}`}><FiBox className="text-emerald-500" size={14} /> Orders by Status</h4>
-              {orderTotal === 0 ? <p className={`text-xs py-8 text-center ${darkMode ? "text-gray-500" : "text-gray-400"}`}>No orders yet</p> : (
-                <div className="flex flex-wrap items-center gap-5">
-                  <DonutChart data={orderStatusData} darkMode={darkMode} />
-                  <ChartLegend data={orderStatusData} darkMode={darkMode} />
-                </div>
-              )}
-            </div>
-            <div className={`border p-5 sm:p-6 shadow-sm ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-              <h4 className={`text-sm font-bold mb-4 flex items-center gap-2 ${darkMode ? "text-gray-200" : "text-gray-800"}`}><FiTool className="text-emerald-500" size={14} /> Repairs by Status</h4>
-              {repairTotal === 0 ? <p className={`text-xs py-8 text-center ${darkMode ? "text-gray-500" : "text-gray-400"}`}>No repair requests yet</p> : (
-                <div className="flex flex-wrap items-center gap-5">
-                  <DonutChart data={repairStatusData} darkMode={darkMode} />
-                  <ChartLegend data={repairStatusData} darkMode={darkMode} />
-                </div>
-              )}
-            </div>
+    <Modal3D open onClose={onClose} darkMode={darkMode} icon={FiBox} size="sm:max-w-2xl" title={`ORD #${order.id.slice(0, 8).toUpperCase()}`}
+      footer={<div className="flex justify-end"><Btn3D tone="soft" darkMode={darkMode} onClick={onClose} className="px-6 py-2 text-sm">{t('close')}</Btn3D></div>}>
+      <div className="space-y-4">
+        <ProgressBar3D progress={orderProgress(order.status)} label={t(`status_${order.status}`)} darkMode={darkMode} />
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {!isEmpty(order.createdAt) && <Stat label={t('orderDate')} value={fmtFull(order.createdAt)} darkMode={darkMode} />}
+          <div className={`rounded-xl border px-2.5 py-1.5 ${darkMode ? 'border-gray-700 bg-gray-900/50' : 'border-gray-100 bg-gray-50'}`}>
+            <p className={`text-[9px] font-bold uppercase tracking-widest ${muted}`}>{t('status')}</p>
+            <div className="mt-0.5"><StatusBadge status={order.status} t={t} /></div>
           </div>
-
-          <div className={`border p-5 sm:p-7 shadow-sm ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
-            <h4 className={`text-sm font-bold mb-5 flex items-center gap-2 ${darkMode ? "text-gray-200" : "text-gray-800"}`}><FiTrendingUp className="text-emerald-500" size={14} /> Performance Overview</h4>
-            <div className="space-y-5">
-              <StatProgressRow label="Orders delivered" value={deliveredOrders} total={orderTotal} color="#10b981" darkMode={darkMode} />
-              <StatProgressRow label="Orders cancelled" value={cancelledOrders} total={orderTotal} color="#ef4444" darkMode={darkMode} />
-              <StatProgressRow label="Repairs completed" value={completedRepairs} total={repairTotal} color="#0d9488" darkMode={darkMode} />
-              <StatProgressRow label="Repairs cancelled or failed" value={cancelledRepairs} total={repairTotal} color="#f59e0b" darkMode={darkMode} />
-            </div>
-          </div>
-        </>
-      )}
-    </motion.div>
-  );
-});
-
-const AboutTab = memo(({ darkMode }) => {
-  const values = [
-    { icon: <FiShield size={16} />, title: "Verified Shops", text: "Every repair shop on Tech-Restore is vetted so your device ends up in trusted hands." },
-    { icon: <FiZap size={16} />, title: "Fast Turnaround", text: "Track every step live, from quote to pickup, so repairs never feel like a black box." },
-    { icon: <FiCreditCard size={16} />, title: "Secure Payments", text: "Pay by cash or card with the same protection you'd expect from any secure checkout." },
-    { icon: <FiTruck size={16} />, title: "Doorstep Delivery", text: "Choose home delivery, courier pickup, or visit the shop yourself — whatever suits you." },
-  ];
-
-  return (
-    <motion.div variants={cardVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
-      <div className={`shadow-xl border overflow-hidden ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"}`}>
-        
-        <div className="p-6 sm:p-8 flex flex-col sm:flex-row gap-6 items-center">
-          <div className="w-36 h-36 flex-shrink-0"><IllustrationHeart darkMode={darkMode} /></div>
-          <div>
-            <h3 className={`text-xl sm:text-2xl font-extrabold mb-2 flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}><FiCompass className="text-emerald-500" /> About Tech-Restore</h3>
-            <p className={`text-sm leading-relaxed ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-              Tech-Restore connects people who need device repairs with verified local shops, and brings retail
-              shopping for parts and accessories into the same place. Our goal is simple: make getting a device
-              fixed as easy and transparent as ordering anything else online.
-            </p>
-          </div>
+          {!isEmpty(order.paymentMethod) && <Stat label={t('paymentMethod')} value={order.paymentMethod.replace('_', ' ')} darkMode={darkMode} />}
         </div>
-      </div>
-
-      <div className={`shadow-xl border overflow-hidden ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"}`}>
-        <div className="p-6 sm:p-8">
-          <h4 className={`text-lg font-extrabold mb-5 flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}><FiAward className="text-emerald-500" /> Why people choose us</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {values.map((v, i) => (
-              <div key={i} className={`flex gap-3 p-4 ${darkMode ? "bg-gray-700/50" : "bg-gray-50"}`}>
-                <div className={`w-9 h-9 flex items-center justify-center flex-shrink-0 ${darkMode ? "bg-emerald-500/15 text-emerald-400" : "bg-emerald-100 text-emerald-600"}`}>{v.icon}</div>
-                <div>
-                  <p className={`text-sm font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>{v.title}</p>
-                  <p className={`text-xs mt-0.5 leading-relaxed ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{v.text}</p>
+        <section>
+          <h3 className={`mb-2 flex items-center gap-2 text-sm font-bold ${strong}`}><FiBox className="h-4 w-4 text-emerald-500" /> {t('orderItems')}</h3>
+          <ul className={`divide-y overflow-hidden rounded-2xl border ${darkMode ? 'divide-gray-800 border-gray-700' : 'divide-gray-100 border-gray-100'}`}>
+            {items.length === 0 ? <li className={`p-8 text-center text-sm ${muted}`}>{t('noItems')}</li> : items.map((it, i) => (
+              <li key={i} className="flex items-center justify-between gap-3 p-3">
+                <div className="min-w-0">
+                  <p className={`truncate text-sm font-semibold ${strong}`}>{it.productName || '—'}</p>
+                  <p className={`truncate text-xs ${muted}`}>{it.shopName || '—'} · {it.quantity} × EGP {Number(it.priceAtCheckout || 0).toFixed(2)}</p>
                 </div>
-              </div>
+                <b className="flex-shrink-0 text-sm tabular-nums text-emerald-500">EGP {(Number(it.priceAtCheckout) * Number(it.quantity)).toFixed(2)}</b>
+              </li>
             ))}
-          </div>
-        </div>
-      </div>
-
-      <div className={`shadow-xl border overflow-hidden ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"}`}>
-        <div className="p-6 sm:p-8">
-          <h4 className={`text-lg font-extrabold mb-4 flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}><FiSend className="text-emerald-500" /> Get in touch</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className={`flex items-center gap-3 p-3.5 ${darkMode ? "bg-gray-700/50" : "bg-gray-50"}`}>
-              <FiMail className="text-emerald-500 flex-shrink-0" size={15} />
-              <span className={`text-sm font-medium ${darkMode ? "text-gray-200" : "text-gray-700"}`}>support@tech-restore.com</span>
-            </div>
-            <div className={`flex items-center gap-3 p-3.5 ${darkMode ? "bg-gray-700/50" : "bg-gray-50"}`}>
-              <FiPhone className="text-emerald-500 flex-shrink-0" size={15} />
-              <span className={`text-sm font-medium ${darkMode ? "text-gray-200" : "text-gray-700"}`}>+20 100 000 0000</span>
-            </div>
-            <div className={`flex items-center gap-3 p-3.5 ${darkMode ? "bg-gray-700/50" : "bg-gray-50"}`}>
-              <FiMapPin className="text-emerald-500 flex-shrink-0" size={15} />
-              <span className={`text-sm font-medium ${darkMode ? "text-gray-200" : "text-gray-700"}`}>Cairo, Egypt</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  );
-});
-
-const TipsCard = memo(() => {
-  const tips = [
-    "Add more than one address so checkout and repair pickups are always ready to go.",
-    "Accept a repair quote quickly to get your device into the queue sooner.",
-    "Download invoices right after delivery so your records stay in one place.",
-    "Check Analytics after a few orders to see your spending and delivery trends.",
-  ];
-  return (
-    <div className="border shadow-lg overflow-hidden bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
-      <div className="p-5">
-        <h4 className="text-sm font-extrabold flex items-center gap-2 mb-3"><FiTarget size={15} /> Tips for Tech-Restore</h4>
-        <ul className="space-y-2.5">
-          {tips.map((tip, i) => (
-            <li key={i} className="flex gap-2 text-xs leading-relaxed text-emerald-50">
-              <FiCheckCircle size={13} className="flex-shrink-0 mt-0.5" />
-              <span>{tip}</span>
+            <li className={`flex items-center justify-between p-3 ${darkMode ? 'bg-gray-800/60' : 'bg-gray-50'}`}>
+              <span className={`text-xs font-bold uppercase tracking-widest ${muted}`}>{t('grandTotal')}</span>
+              <b className="text-lg tabular-nums text-emerald-500">EGP {order.totalPrice ?? '—'}</b>
             </li>
-          ))}
-        </ul>
+          </ul>
+        </section>
       </div>
-    </div>
+    </Modal3D>
   );
 });
 
+const RepairModal = memo(({ repair, onClose, darkMode, t }) => (
+  <Modal3D open onClose={onClose} darkMode={darkMode} icon={FiTool} title={`#${repair.id.slice(0, 8)}`}
+    footer={<div className="flex justify-end"><Btn3D tone="soft" darkMode={darkMode} onClick={onClose} className="px-6 py-2 text-sm">{t('close')}</Btn3D></div>}>
+    <div className="space-y-3">
+      <ProgressBar3D progress={repairProgress(repair.status)} label={t(`status_${repair.status}`)} darkMode={darkMode} />
+      <div className="grid grid-cols-2 gap-2">
+        <Stat label={t('shop')} value={repair.shopName || '—'} darkMode={darkMode} />
+        <div className={`rounded-xl border px-2.5 py-1.5 ${darkMode ? 'border-gray-700 bg-gray-900/50' : 'border-gray-100 bg-gray-50'}`}>
+          <p className={`text-[9px] font-bold uppercase tracking-widest ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{t('status')}</p>
+          <div className="mt-0.5"><StatusBadge status={repair.status} type="repair" t={t} /></div>
+        </div>
+      </div>
+      {!isEmpty(repair.description) && (
+        <div className={`rounded-xl border p-3 ${darkMode ? 'border-gray-700' : 'border-gray-100'}`}>
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-emerald-500">Reported problem</p>
+          <p className={`text-sm leading-relaxed ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{repair.description}</p>
+        </div>
+      )}
+      {(!isEmpty(repair.paymentMethod) || !isEmpty(repair.price)) && (
+        <div className={`flex items-center justify-between rounded-xl border p-3 ${darkMode ? 'border-emerald-900/60 bg-emerald-900/20' : 'border-emerald-100 bg-emerald-50/70'}`}>
+          {!isEmpty(repair.paymentMethod) && <Stat label={t('paymentMethod')} value={repair.paymentMethod} darkMode={darkMode} />}
+          {!isEmpty(repair.price) && <p className="text-xl font-black tabular-nums text-emerald-500">{repair.price} <span className="text-xs">EGP</span></p>}
+        </div>
+      )}
+    </div>
+  </Modal3D>
+));
+
+const EditRepairModal = memo(({ repair, categories, onClose, onSubmit, darkMode }) => {
+  const [desc, setDesc] = useState(repair.description || '');
+  const [cat, setCat] = useState(repair.deviceCategory?.id || repair.deviceCategory || '');
+  const submit = (e) => { e.preventDefault(); onSubmit(repair, desc, cat); };
+  return (
+    <Modal3D open onClose={onClose} darkMode={darkMode} icon={FiEdit2} title="Edit repair" size="sm:max-w-md">
+      <form onSubmit={submit} className="space-y-4">
+        <Field label="Device category" darkMode={darkMode}>
+          <Select3D darkMode={darkMode} className="w-full" value={cat} onChange={(e) => setCat(e.target.value)}>
+            <option value="">Select category</option>
+            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </Select3D>
+        </Field>
+        <Field label="Description" darkMode={darkMode}>
+          <textarea rows={5} required value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Describe the issue…" className={`${inputCls(darkMode)} min-h-[100px] w-full resize-y`} />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Btn3D tone="soft" darkMode={darkMode} type="button" onClick={onClose} className="py-2.5 text-sm">Cancel</Btn3D>
+          <Btn3D type="submit" className="py-2.5 text-sm"><FiCheck className="h-4 w-4" /> Save</Btn3D>
+        </div>
+      </form>
+    </Modal3D>
+  );
+});
+
+const ConfirmRepairModal = memo(({ req, addresses, token, onClose, onSuccess, darkMode }) => {
+  const [addrId, setAddrId] = useState(() => (addresses.find((a) => a.isDefault) || addresses[0])?.id || '');
+  const [delivery, setDelivery] = useState('HOME_DELIVERY');
+  const [payment, setPayment] = useState('CASH');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!addrId) return;
+    setBusy(true);
+    try {
+      const res = await api.post(`/api/users/repair-request/repairs/${req.id}/confirm`, { deliveryAddress: addrId, deliveryMethod: delivery, paymentMethod: payment }, { headers: { Authorization: `Bearer ${token}` } });
+      onClose();
+      if (payment === 'CREDIT_CARD' && res.data.paymentURL) {
+        const S = await loadSwal();
+        S.fire({ title: 'Redirecting to payment', icon: 'info', timer: 1800, showConfirmButton: false }).then(() => { window.location.href = res.data.paymentURL; });
+      } else { toast({ icon: 'success', title: 'Repair confirmed!', timer: 2500 }); onSuccess(); }
+    } catch (err) { toast({ icon: 'error', title: err.response?.data?.message || 'Failed to confirm repair', timer: 2500 }); }
+    finally { setBusy(false); }
+  };
+
+  const opt = (active) => `rounded-xl border-2 py-2 text-xs font-bold transition-colors ${active ? 'border-emerald-500 bg-emerald-500 text-white' : darkMode ? 'border-gray-700 text-gray-300 hover:border-emerald-500' : 'border-gray-200 text-gray-600 hover:border-emerald-500'}`;
+  const lbl = `mb-1.5 flex items-center gap-1.5 text-xs font-bold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`;
+
+  return (
+    <Modal3D open onClose={onClose} darkMode={darkMode} icon={FiCheckCircle} title="Confirm repair order" size="sm:max-w-md">
+      <form onSubmit={submit} className="space-y-4">
+        <div className={`rounded-xl border p-3 ${darkMode ? 'border-emerald-900/60 bg-emerald-900/20' : 'border-emerald-100 bg-emerald-50/70'}`}>
+          <p className={`text-sm font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{req.shopName}</p>
+          {!isEmpty(req.price) && <p className="text-2xl font-black tabular-nums text-emerald-500">{req.price} <span className="text-sm font-semibold">EGP</span></p>}
+        </div>
+        <div>
+          <p className={lbl}><FiMapPin className="h-3.5 w-3.5 text-emerald-500" /> Delivery address</p>
+          {addresses.length === 0 ? <p className="text-sm font-medium text-rose-500">No addresses found. Please add one first.</p> : (
+            <Select3D darkMode={darkMode} className="w-full" value={addrId} onChange={(e) => setAddrId(e.target.value)}>
+              {addresses.map((a) => <option key={a.id} value={a.id}>{a.street}, {a.building} — {a.city}{a.isDefault ? ' (Default)' : ''}</option>)}
+            </Select3D>
+          )}
+        </div>
+        <div>
+          <p className={lbl}><FiTruck className="h-3.5 w-3.5 text-emerald-500" /> Delivery method</p>
+          <div className="grid grid-cols-3 gap-2">
+            {[['HOME_DELIVERY', 'Home'], ['SHOP_VISIT', 'Visit shop'], ['PICKUP', 'Courier']].map(([v, l]) => <button key={v} type="button" onClick={() => setDelivery(v)} aria-pressed={delivery === v} className={opt(delivery === v)}>{l}</button>)}
+          </div>
+        </div>
+        <div>
+          <p className={lbl}><FiCreditCard className="h-3.5 w-3.5 text-emerald-500" /> Payment method</p>
+          <div className="grid grid-cols-2 gap-2">
+            {[['CASH', 'Cash'], ['CREDIT_CARD', 'Credit card']].map(([v, l]) => <button key={v} type="button" onClick={() => setPayment(v)} aria-pressed={payment === v} className={opt(payment === v)}>{l}</button>)}
+          </div>
+          {payment === 'CREDIT_CARD' && <p className={`mt-2 rounded-lg px-3 py-2 text-xs ${darkMode ? 'bg-sky-500/10 text-sky-300' : 'bg-sky-50 text-sky-600'}`}>You&apos;ll be redirected to a secure payment gateway.</p>}
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Btn3D tone="soft" darkMode={darkMode} type="button" onClick={onClose} className="py-2.5 text-sm">Cancel</Btn3D>
+          <Btn3D type="submit" disabled={busy || addresses.length === 0} className="py-2.5 text-sm">{busy ? 'Processing…' : <><FiCheckCircle className="h-4 w-4" /> Confirm</>}</Btn3D>
+        </div>
+      </form>
+    </Modal3D>
+  );
+});
+
+/* ───────────── page ───────────── */
 const AccountContent = ({ darkMode = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const queryClient = useQueryClient();
-  const [isPending, startTransition] = useTransition();
+  const qc = useQueryClient();
+  const language = useAppLanguage();
+  const t = useCallback((k) => tr(language, k), [language]);
+  const [, startTransition] = useTransition();
 
-  useEffect(() => { document.title = "My Account | Tech-Restore"; }, []);
-
-  const [token, setToken] = useState(localStorage.getItem("authToken"));
-  const [activeSection, setActiveSection] = useState("profile");
+  const [token, setToken] = useState(() => localStorage.getItem('authToken'));
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [isAddingAddress, setIsAddingAddress] = useState(false);
-  const [editingAddressId, setEditingAddressId] = useState(null);
-  const [profileForm, setProfileForm] = useState({ first_name: "", last_name: "", phone: "" });
-  const [addressForm, setAddressForm] = useState({ state: "", city: "", street: "", building: "", notes: "", isDefault: false, latitude: 0, longitude: 0 });
-  const [ordersPage, setOrdersPage] = useState(1);
-  const [repairsPage, setRepairsPage] = useState(1);
-  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [section, setSection] = useState('profile');
+  const [profileForm, setProfileForm] = useState({ first_name: '', last_name: '', phone: '' });
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [isRepairModalOpen, setIsRepairModalOpen] = useState(false);
   const [selectedRepair, setSelectedRepair] = useState(null);
-  const [isEditRepairModalOpen, setIsEditRepairModalOpen] = useState(false);
   const [editingRepair, setEditingRepair] = useState(null);
-  const [editDescription, setEditDescription] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [isConfirmRepairOpen, setIsConfirmRepairOpen] = useState(false);
-  const [confirmRepairReq, setConfirmRepairReq] = useState(null);
+  const [confirmReq, setConfirmReq] = useState(null);
 
-  const safe = (val) => (val == null || val === "" ? "—" : String(val).trim());
-  const formatDate = (d) => new Date(d).toLocaleString("en-EG", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Africa/Cairo" });
+  useEffect(() => { document.title = 'My Account | Tech-Restore'; }, []);
 
-  const inputCls = `w-full px-4 py-3 sm:py-3.5 border text-sm fast-fade outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${
-    darkMode ? "bg-gray-800/70 border-gray-700 text-gray-100 placeholder-gray-500" : "bg-white/70 border-gray-300 text-gray-900 placeholder-gray-400"
-  }`;
-
-  const { data: userProfile, isLoading: profileLoading } = useQuery({
-    queryKey: ['profile'],
-    queryFn: async () => { const res = await api.get("/api/users/profile", { headers: { Authorization: `Bearer ${token}` } }); const data = res.data; setProfileForm({ first_name: data.first_name || "", last_name: data.last_name || "", phone: data.phone || "" }); return data; },
-    enabled: !!token,
-    refetchInterval: LIVE_POLL_MS,
-  });
-  const { data: addresses = [], isLoading: addressesLoading } = useQuery({ queryKey: ['addresses'], queryFn: async () => (await api.get("/api/users/addresses", { headers: { Authorization: `Bearer ${token}` } })).data.content || [], enabled: !!token, refetchInterval: LIVE_POLL_MS });
-  const { data: orders = [], isLoading: ordersLoading } = useQuery({ queryKey: ['orders'], queryFn: async () => (await api.get("/api/users/orders", { headers: { Authorization: `Bearer ${token}` } })).data.content || [], enabled: !!token, refetchInterval: LIVE_POLL_MS });
-  const { data: repairRequests = [], isLoading: repairsLoading } = useQuery({ queryKey: ['repairs'], queryFn: async () => (await api.get("/api/users/repair-request", { headers: { Authorization: `Bearer ${token}` } })).data.content || [], enabled: !!token, refetchInterval: LIVE_POLL_MS });
-  const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: async () => (await api.get("/api/categories", { headers: { Authorization: `Bearer ${token}` } })).data.content || [], enabled: !!token });
-
-  const isLoading = profileLoading || addressesLoading || ordersLoading || repairsLoading;
-
-  const safeDecodeJwt = useCallback((tk) => { try { return jwtDecode(tk); } catch { return null; } }, []);
-  const isTokenExpired = useCallback((tk) => { const d = safeDecodeJwt(tk); return !d || !d.exp || d.exp < Date.now() / 1000; }, [safeDecodeJwt]);
-
+  /* auth guard */
   useEffect(() => {
-    const tk = localStorage.getItem("authToken");
-    if (!tk || isTokenExpired(tk)) { localStorage.removeItem("authToken"); setIsAuthenticated(false); navigate("/login"); }
+    const tk = localStorage.getItem('authToken');
+    let ok = false;
+    try { const d = tk && jwtDecode(tk); ok = !!(d && d.exp && d.exp > Date.now() / 1000); } catch { ok = false; }
+    if (!ok) { localStorage.removeItem('authToken'); setIsAuthenticated(false); navigate('/login'); }
     else { setToken(tk); setIsAuthenticated(true); }
-  }, [location.pathname, navigate, isTokenExpired]);
+  }, [location.pathname, navigate]);
 
-  const resetAddressForm = useCallback(() => { setEditingAddressId(null); setIsAddingAddress(false); setAddressForm({ state: "", city: "", street: "", building: "", notes: "", isDefault: false, latitude: 0, longitude: 0 }); }, []);
-  const startEditAddress = useCallback((addr) => { setEditingAddressId(addr.id); setAddressForm({ state: addr.state, city: addr.city, street: addr.street, building: addr.building, notes: addr.notes || "", isDefault: addr.isDefault, latitude: addr.latitude || 0, longitude: addr.longitude || 0 }); }, []);
+  const cfg = useMemo(() => ({ headers: { Authorization: `Bearer ${token}` } }), [token]);
+  const on = !!token;
 
-  const handleUpdateProfile = useCallback(async (e) => {
-    e.preventDefault();
-    const prev = queryClient.getQueryData(['profile']);
-    queryClient.setQueryData(['profile'], (old) => ({ ...old, ...profileForm }));
-    setIsEditingProfile(false);
-    try {
-      await api.put("/api/users/profile", profileForm, { headers: { Authorization: `Bearer ${token}` } });
-      Swal.fire({ title: "Updated!", icon: "success", toast: true, position: "top-end", timer: 1500 });
-    } catch {
-      queryClient.setQueryData(['profile'], prev);
-      setIsEditingProfile(true);
-      Swal.fire({ title: "Error", text: "Update failed", icon: "error", toast: true, position: "top-end", timer: 1500 });
-    }
-  }, [profileForm, token, queryClient]);
+  const { data: profile, isLoading: profileLoading } = useQuery({ queryKey: ['profile'], queryFn: async () => (await api.get('/api/users/profile', cfg)).data, enabled: on });
+  const { data: addresses = [], isLoading: addressesLoading } = useQuery({ queryKey: ['addresses'], queryFn: async () => unwrap(await api.get('/api/users/addresses', cfg)), enabled: on });
+  const { data: orders = [], isLoading: ordersLoading } = useQuery({ queryKey: ['orders'], queryFn: async () => unwrap(await api.get('/api/users/orders', cfg)), enabled: on, refetchInterval: LIVE_POLL_MS });
+  const { data: repairs = [], isLoading: repairsLoading } = useQuery({ queryKey: ['repairs'], queryFn: async () => unwrap(await api.get('/api/users/repair-request', cfg)), enabled: on, refetchInterval: LIVE_POLL_MS });
+  const { data: notifications = [] } = useQuery({ queryKey: ['notifications'], queryFn: async () => unwrap(await api.get('/api/notifications/users', cfg)), enabled: on, refetchInterval: LIVE_POLL_MS });
+  const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: async () => unwrap(await api.get('/api/categories', cfg)), enabled: on && !!editingRepair });
 
-  const handleDeleteAccount = useCallback(async () => {
-    const c = await Swal.fire({ title: "Delete Account?", text: "This action is irreversible. All your data will be permanently deleted.", icon: "warning", showCancelButton: true, confirmButtonColor: "#ef4444", confirmButtonText: "Yes, Delete My Account" });
+  /* keep the edit form in sync with the server profile (no side effects inside queryFn) */
+  useEffect(() => {
+    if (profile) setProfileForm({ first_name: profile.first_name || '', last_name: profile.last_name || '', phone: profile.phone || '' });
+  }, [profile]);
+
+  const unread = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
+  const inUseIds = useMemo(() => {
+    const s = new Set();
+    orders.forEach((o) => { if (o.deliveryAddress && !DONE.has(o.status)) s.add(o.deliveryAddress); });
+    repairs.forEach((r) => { if (r.deliveryAddress && !DONE.has(r.status)) s.add(r.deliveryAddress); });
+    return s;
+  }, [orders, repairs]);
+
+  /* optimistic mutation helper: apply → request → rollback on failure */
+  const mutate = useCallback(async (key, apply, request, { ok, fail }) => {
+    const prev = qc.getQueryData(key);
+    qc.setQueryData(key, apply);
+    try { const res = await request(); toast({ icon: 'success', title: ok }); return res; }
+    catch (err) { qc.setQueryData(key, prev); toast({ icon: 'error', title: err?.response?.data?.message || fail }); return null; }
+  }, [qc]);
+
+  const saveProfile = useCallback(async () => {
+    const res = await mutate(['profile'], (o) => ({ ...o, ...profileForm }), () => api.put('/api/users/profile', profileForm, cfg), { ok: 'Updated!', fail: 'Update failed' });
+    return !!res;
+  }, [mutate, profileForm, cfg]);
+
+  const deleteAccount = useCallback(async () => {
+    const c = await ask({ title: 'Delete account?', text: 'This action is irreversible. All your data will be permanently deleted.', confirmButtonColor: '#ef4444', confirmButtonText: 'Yes, delete my account' });
     if (!c.isConfirmed) return;
-    try { await api.delete("/api/users/profile", { headers: { Authorization: `Bearer ${token}` } }); localStorage.removeItem("authToken"); navigate("/"); }
-    catch { Swal.fire({ title: "Error", text: "Failed to delete", icon: "error", toast: true, position: "top-end", timer: 1500 }); }
-  }, [token, navigate]);
+    try { await api.delete('/api/users/profile', cfg); localStorage.removeItem('authToken'); navigate('/'); }
+    catch { toast({ icon: 'error', title: 'Failed to delete' }); }
+  }, [cfg, navigate]);
 
-  const handleAddAddress = useCallback(async (e) => {
-    e.preventDefault();
-    const prev = queryClient.getQueryData(['addresses']);
+  const logout = useCallback(async () => {
+    const refreshToken = localStorage.getItem('refreshToken');
+    try { if (token && refreshToken) await api.post('/api/auth/logout', { refreshToken }); } catch { /* ignore */ }
+    localStorage.clear(); qc.clear(); setToken(null); setIsAuthenticated(false);
+    toast({ icon: 'success', title: 'Logged out' });
+    navigate('/login', { replace: true });
+  }, [token, navigate, qc]);
+
+  const changeLanguage = useCallback((lang) => {
+    if (!lang || lang === language) return;
+    localStorage.setItem('appLanguage', lang);
+    window.dispatchEvent(new Event('appLanguageChanged'));
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+  }, [language]);
+
+  const createAddress = useCallback(async (form) => {
     const tempId = `temp-${Date.now()}`;
-    const optimisticAddress = { id: tempId, ...addressForm, latitude: addressForm.latitude || 0, longitude: addressForm.longitude || 0 };
-    queryClient.setQueryData(['addresses'], (old = []) => [...old, optimisticAddress]);
-    resetAddressForm();
-    try {
-      const res = await api.post("/api/users/addresses", { ...addressForm, latitude: addressForm.latitude || 0, longitude: addressForm.longitude || 0 }, { headers: { Authorization: `Bearer ${token}` } });
-      const created = res.data && res.data.id ? res.data : optimisticAddress;
-      queryClient.setQueryData(['addresses'], (old = []) => old.map(a => a.id === tempId ? created : a));
-      Swal.fire({ title: "Added!", icon: "success", toast: true, position: "top-end", timer: 1500 });
-    } catch {
-      queryClient.setQueryData(['addresses'], prev);
-      Swal.fire({ title: "Error", text: "Failed to add", icon: "error", toast: true, position: "top-end", timer: 1500 });
-    }
-  }, [addressForm, token, queryClient, resetAddressForm]);
+    const res = await mutate(['addresses'], (o = []) => [...o, { id: tempId, ...form }], () => api.post('/api/users/addresses', form, cfg), { ok: 'Added!', fail: 'Failed to add' });
+    if (res?.data?.id) qc.setQueryData(['addresses'], (o = []) => o.map((a) => (a.id === tempId ? res.data : a)));
+  }, [mutate, cfg, qc]);
+  const updateAddress = useCallback((id, form) => mutate(['addresses'], (o = []) => o.map((a) => (a.id === id ? { ...a, ...form, id } : a)), () => api.put(`/api/users/addresses/${id}`, { ...form, id }, cfg), { ok: 'Updated!', fail: 'Failed to update' }), [mutate, cfg]);
+  const deleteAddress = useCallback(async (id) => {
+    const c = await ask({ title: 'Delete address?' });
+    if (c.isConfirmed) mutate(['addresses'], (o = []) => o.filter((a) => a.id !== id), () => api.delete(`/api/users/addresses/${id}`, cfg), { ok: 'Deleted!', fail: 'Failed to delete' });
+  }, [mutate, cfg]);
 
-  const handleUpdateAddress = useCallback(async (e) => {
-    e.preventDefault();
-    const prev = queryClient.getQueryData(['addresses']);
-    const id = editingAddressId;
-    const updated = { ...addressForm, id, latitude: addressForm.latitude || 0, longitude: addressForm.longitude || 0 };
-    queryClient.setQueryData(['addresses'], (old = []) => old.map(a => a.id === id ? { ...a, ...updated } : a));
-    resetAddressForm();
-    try {
-      await api.put(`/api/users/addresses/${id}`, updated, { headers: { Authorization: `Bearer ${token}` } });
-      Swal.fire({ title: "Updated!", icon: "success", toast: true, position: "top-end", timer: 1500 });
-    } catch {
-      queryClient.setQueryData(['addresses'], prev);
-      Swal.fire({ title: "Error", text: "Failed to update", icon: "error", toast: true, position: "top-end", timer: 1500 });
-    }
-  }, [addressForm, editingAddressId, token, queryClient, resetAddressForm]);
+  const cancelOrder = useCallback(async (id) => {
+    const c = await ask({ title: 'Cancel order?' });
+    if (c.isConfirmed) mutate(['orders'], (o = []) => o.map((x) => (x.id === id ? { ...x, status: 'CANCELLED' } : x)), () => api.delete(`/api/users/orders/${id}/cancel`, cfg), { ok: 'Cancelled!', fail: 'Failed to cancel' });
+  }, [mutate, cfg]);
 
-  const handleDeleteAddress = useCallback(async (id) => {
-    const c = await Swal.fire({ title: "Delete Address?", icon: "warning", showCancelButton: true });
-    if (!c.isConfirmed) return;
-    const prev = queryClient.getQueryData(['addresses']);
-    queryClient.setQueryData(['addresses'], (old = []) => old.filter(a => a.id !== id));
-    try {
-      await api.delete(`/api/users/addresses/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      Swal.fire({ title: "Deleted!", icon: "success", toast: true, position: "top-end", timer: 1500 });
-    } catch {
-      queryClient.setQueryData(['addresses'], prev);
-      Swal.fire({ title: "Error", text: "Failed to delete", icon: "error", toast: true, position: "top-end", timer: 1500 });
-    }
-  }, [token, queryClient]);
+  const viewRepair = useCallback(async (id) => {
+    try { setSelectedRepair((await api.get(`/api/users/repair-request/${id}`, cfg)).data); }
+    catch { toast({ icon: 'error', title: 'Failed to load' }); }
+  }, [cfg]);
 
-  const handleCancelOrder = useCallback(async (id) => {
-    const c = await Swal.fire({ title: "Cancel Order?", icon: "warning", showCancelButton: true });
-    if (!c.isConfirmed) return;
-    const prev = queryClient.getQueryData(['orders']);
-    queryClient.setQueryData(['orders'], (old = []) => old.map(o => o.id === id ? { ...o, status: "CANCELLED" } : o));
-    try {
-      await api.delete(`/api/users/orders/${id}/cancel`, { headers: { Authorization: `Bearer ${token}` } });
-      Swal.fire({ title: "Cancelled!", icon: "success", toast: true, position: "top-end", timer: 1500 });
-    } catch {
-      queryClient.setQueryData(['orders'], prev);
-      Swal.fire({ title: "Error", text: "Failed to cancel", icon: "error", toast: true, position: "top-end", timer: 1500 });
-    }
-  }, [token, queryClient]);
-
-  const handleViewRepair = useCallback(async (id) => { try { const res = await api.get(`/api/users/repair-request/${id}`, { headers: { Authorization: `Bearer ${token}` } }); setSelectedRepair(res.data); setIsRepairModalOpen(true); } catch { Swal.fire({ title: "Error", text: "Failed to load", icon: "error" }); } }, [token]);
-  const handleEditRepair = useCallback((req) => { setEditingRepair(req); setEditDescription(req.description || ""); setSelectedCategory(req.deviceCategory || ""); setIsEditRepairModalOpen(true); }, []);
-
-  const handleUpdateRepairDescription = useCallback(async (e) => {
-    e.preventDefault();
-    if (!editingRepair) return;
-    const prev = queryClient.getQueryData(['repairs']);
-    const categoryId = selectedCategory?.id || selectedCategory;
-    const repairId = editingRepair.id;
-    const shopId = editingRepair.shopId;
-    queryClient.setQueryData(['repairs'], (old = []) => old.map(r => r.id === repairId ? { ...r, description: editDescription, deviceCategory: categoryId } : r));
-    setIsEditRepairModalOpen(false);
+  const submitRepairEdit = useCallback((repair, description, deviceCategory) => {
     setEditingRepair(null);
-    try {
-      await api.put(`/api/users/repair-request/${shopId}/${repairId}`, { description: editDescription, deviceCategory: categoryId }, { headers: { Authorization: `Bearer ${token}` } });
-      Swal.fire({ icon: "success", title: "Updated!", toast: true, position: "top-end", timer: 2500, showConfirmButton: false });
-    } catch {
-      queryClient.setQueryData(['repairs'], prev);
-      Swal.fire({ icon: "error", title: "Failed", toast: true, position: "top-end", timer: 2500, showConfirmButton: false });
-    }
-  }, [editingRepair, editDescription, selectedCategory, token, queryClient]);
+    mutate(['repairs'], (o = []) => o.map((r) => (r.id === repair.id ? { ...r, description, deviceCategory } : r)),
+      () => api.put(`/api/users/repair-request/${repair.shopId}/${repair.id}`, { description, deviceCategory }, cfg), { ok: 'Updated!', fail: 'Failed' });
+  }, [mutate, cfg]);
 
-  const handleAcceptQuote = useCallback(async (req) => {
-    const result = await Swal.fire({ title: "Accept Quote?", text: `Accept ${req.price} EGP from ${req.shopName}?`, icon: "question", showCancelButton: true, confirmButtonText: "Yes, Accept", confirmButtonColor: "#10b981" });
-    if (!result.isConfirmed) return;
-    const prev = queryClient.getQueryData(['repairs']);
-    queryClient.setQueryData(['repairs'], (old = []) => old.map(r => r.id === req.id ? { ...r, status: "QUOTE_APPROVED" } : r));
-    try {
-      await api.put(`/api/users/repair-request/${req.id}/status`, { status: "QUOTE_APPROVED" }, { headers: { Authorization: `Bearer ${token}` } });
-      Swal.fire({ icon: "success", title: "Quote Accepted!", toast: true, position: "top-end", timer: 2000, showConfirmButton: false });
-      setConfirmRepairReq(req);
-      setIsConfirmRepairOpen(true);
-    } catch (err) {
-      queryClient.setQueryData(['repairs'], prev);
-      Swal.fire("Error", err.response?.data?.message || "Failed to accept quote", "error");
-    }
-  }, [token, queryClient]);
+  const acceptQuote = useCallback(async (req) => {
+    const c = await ask({ icon: 'question', title: 'Accept quote?', text: `Accept ${req.price} EGP from ${req.shopName}?`, confirmButtonText: 'Yes, accept', confirmButtonColor: '#10b981' });
+    if (!c.isConfirmed) return;
+    const res = await mutate(['repairs'], (o = []) => o.map((r) => (r.id === req.id ? { ...r, status: 'QUOTE_APPROVED' } : r)),
+      () => api.put(`/api/users/repair-request/${req.id}/status`, { status: 'QUOTE_APPROVED' }, cfg), { ok: 'Quote accepted!', fail: 'Failed to accept quote' });
+    if (res) setConfirmReq(req);
+  }, [mutate, cfg]);
 
-  const handleCancelRepair = useCallback(async (id) => {
-    const result = await Swal.fire({ title: "Cancel Request?", icon: "warning", showCancelButton: true, confirmButtonText: "Yes, Cancel", confirmButtonColor: "#ef4444" });
-    if (!result.isConfirmed) return;
-    const prev = queryClient.getQueryData(['repairs']);
-    queryClient.setQueryData(['repairs'], (old = []) => old.map(r => r.id === id ? { ...r, status: "CANCELLED" } : r));
-    try {
-      await api.delete(`/api/users/repair-request/${id}/cancel`, { headers: { Authorization: `Bearer ${token}` } });
-      Swal.fire({ title: "Cancelled", icon: "success", toast: true, position: "top-end", timer: 2000 });
-    } catch {
-      queryClient.setQueryData(['repairs'], prev);
-      Swal.fire("Error", "Failed to cancel request", "error");
-    }
-  }, [token, queryClient]);
-
-  const handleLogout = useCallback(async () => {
-    const refreshToken = localStorage.getItem("refreshToken");
-    try { if (token && refreshToken) await api.post("/api/auth/logout", { refreshToken }); } catch { }
-    localStorage.clear(); setToken(null); setIsAuthenticated(false);
-    Swal.fire({ icon: "success", text: "Logged out", position: "top-end", toast: true });
-    navigate("/login", { replace: true });
-  }, [token, navigate]);
-
-  const isAddressInUse = useCallback((addressId) => {
-    const activeOrder = orders.some(o => o.deliveryAddress === addressId && o.status !== "DELIVERED" && o.status !== "CANCELLED");
-    const activeRepair = repairRequests.some(r => r.deliveryAddress === addressId && r.status !== "DELIVERED" && r.status !== "CANCELLED");
-    return activeOrder || activeRepair;
-  }, [orders, repairRequests]);
-
-  const { data: notificationsData = [] } = useQuery({
-    queryKey: ['notifications'],
-    queryFn: async () => { const res = await api.get("/api/notifications/users", { headers: { Authorization: `Bearer ${token}` } }); return res.data.content || res.data || []; },
-    enabled: !!token,
-    refetchInterval: LIVE_POLL_MS,
-  });
-  const unreadNotifCount = notificationsData.filter(n => !n.read).length;
+  const cancelRepair = useCallback(async (id) => {
+    const c = await ask({ title: 'Cancel request?', confirmButtonText: 'Yes, cancel', confirmButtonColor: '#ef4444' });
+    if (c.isConfirmed) mutate(['repairs'], (o = []) => o.map((r) => (r.id === id ? { ...r, status: 'CANCELLED' } : r)), () => api.delete(`/api/users/repair-request/${id}/cancel`, cfg), { ok: 'Cancelled', fail: 'Failed to cancel' });
+  }, [mutate, cfg]);
 
   const tabs = useMemo(() => [
-    { id: "profile", label: "Profile", icon: <FiUser size={14} />, badge: null },
-    { id: "addresses", label: "Addresses", icon: <FiMapPin size={14} />, badge: addresses.length || null },
-    { id: "orders", label: "Orders", icon: <FiBox size={14} />, badge: orders.length || null },
-    { id: "repairs", label: "Repairs", icon: <FiTool size={14} />, badge: repairRequests.length || null },
-    { id: "notifications", label: "Notifications", icon: <FiBell size={14} />, badge: unreadNotifCount || null },
-    { id: "analytics", label: "Analytics", icon: <FiPieChart size={14} />, badge: null },
-    { id: "about", label: "About Us", icon: <FiCompass size={14} />, badge: null },
-  ], [addresses.length, orders.length, repairRequests.length, unreadNotifCount]);
+    { id: 'profile', label: t('profile'), icon: FiUser },
+    { id: 'addresses', label: t('addresses'), icon: FiMapPin, badge: addresses.length },
+    { id: 'orders', label: t('orders'), icon: FiBox, badge: orders.length },
+    { id: 'repairs', label: t('repairs'), icon: FiTool, badge: repairs.length },
+    { id: 'notifications', label: t('notifications'), icon: FiBell, badge: unread },
+    { id: 'analytics', label: t('analytics'), icon: FiPieChart },
+    { id: 'about', label: t('aboutUs'), icon: FiCompass },
+  ], [t, addresses.length, orders.length, repairs.length, unread]);
+
+  const loading = { profile: profileLoading, addresses: addressesLoading, orders: ordersLoading, repairs: repairsLoading }[section];
+  const go = useCallback((id) => startTransition(() => setSection(id)), []);
+  const name = profile?.first_name;
+
+  const tabBtn = (tab, vertical) => {
+    const active = section === tab.id;
+    return (
+      <button key={tab.id} type="button" onClick={() => go(tab.id)} aria-current={active ? 'page' : undefined}
+        className={`flex flex-shrink-0 items-center gap-2.5 rounded-xl text-sm font-bold transition-all duration-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ${vertical ? 'w-full px-3 py-2.5' : 'whitespace-nowrap px-3.5 py-2 text-xs'} ${
+          active ? 'bg-gradient-to-b from-emerald-400 to-emerald-600 text-white ring-1 ring-inset ring-white/30 shadow-[0_3px_0_0_#047857]'
+            : darkMode ? 'text-gray-300 hover:bg-emerald-500/10 hover:text-emerald-300' : 'text-gray-600 hover:bg-emerald-50 hover:text-emerald-700'}`}>
+        <tab.icon className={`h-4 w-4 flex-shrink-0 ${active ? '' : 'text-emerald-500'}`} />
+        <span className={vertical ? 'flex-1 text-start' : ''}>{tab.label}</span>
+        {!!tab.badge && <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-extrabold ${active ? 'bg-white/25 text-white' : darkMode ? 'bg-emerald-500/15 text-emerald-300' : 'bg-emerald-100 text-emerald-700'}`}>{tab.badge}</span>}
+      </button>
+    );
+  };
+
+  let content;
+  if (loading) content = <SkeletonList darkMode={darkMode} />;
+  else if (section === 'profile') content = <ProfileTab profile={profile} form={profileForm} setForm={setProfileForm} onSave={saveProfile} onDelete={deleteAccount} onLogout={logout} language={language} onChangeLanguage={changeLanguage} darkMode={darkMode} t={t} />;
+  else if (section === 'addresses') content = <AddressesTab addresses={addresses} inUseIds={inUseIds} onCreate={createAddress} onUpdate={updateAddress} onDelete={deleteAddress} darkMode={darkMode} t={t} />;
+  else if (section === 'orders') content = <OrdersTab orders={orders} onDetails={setSelectedOrder} onCancel={cancelOrder} darkMode={darkMode} t={t} />;
+  else if (section === 'repairs') content = <RepairsTab repairs={repairs} onDetails={viewRepair} onEdit={setEditingRepair} onAccept={acceptQuote} onCancel={cancelRepair} darkMode={darkMode} t={t} />;
+  else if (section === 'notifications') content = <NotificationsTab token={token} darkMode={darkMode} t={t} />;
+  else if (section === 'analytics') content = <AnalyticsTab orders={orders} repairs={repairs} addresses={addresses} darkMode={darkMode} t={t} />;
+  else content = <AboutTab darkMode={darkMode} t={t} />;
 
   return (
-    <div className={`min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
-      <style>{STYLES}</style>
+    <div dir={languageDirection(language)} className={`min-h-screen ${language === 'ar' ? 'font-cairo' : 'font-poppins'} ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
+      <style>{UI3D_CSS}</style>
+      <Defs3D />
 
-      <Hero variant="account" darkMode={darkMode} />
+      <Suspense fallback={<div className={`h-[260px] w-full animate-pulse sm:h-[320px] ${darkMode ? 'bg-gray-900' : 'bg-emerald-50'}`} />}>
+        <Hero variant="account" darkMode={darkMode} />
+      </Suspense>
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-10">
-        <div className="flex gap-5 lg:gap-8">
-
-          <aside className={`hidden lg:flex flex-col w-64 xl:w-72 flex-shrink-0 sticky top-20 self-start border shadow-lg overflow-hidden ${darkMode ? "glass-dark border-gray-700" : "glass border-gray-200"}`}>
-            
-            <div className={`px-4 pt-5 pb-4 border-b ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
-              <div className="flex items-center gap-3">
-                <div className={`w-11 h-11 rounded-full border-2 border-emerald-500/40 flex items-center justify-center flex-shrink-0 ${darkMode ? "bg-emerald-500/10" : "bg-emerald-50"}`}><FiUser className="text-emerald-500 text-lg" /></div>
-                <div className="min-w-0 flex-1">
-                  {!isEmptyVal(userProfile?.first_name) && <p className={`text-sm font-extrabold truncate ${darkMode ? "text-white" : "text-gray-900"}`}>{userProfile?.first_name} {userProfile?.last_name}</p>}
-                  {!isEmptyVal(userProfile?.email) && <p className={`text-xs truncate ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{userProfile?.email}</p>}
-                </div>
-                {isAuthenticated && (
-                  <motion.button whileTap={{ scale: 0.94 }} onClick={handleLogout} title="Logout"
-                    className={`flex-shrink-0 p-2 fast-fade ${darkMode ? "text-gray-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`}>
-                    <RiLogoutBoxRLine size={15} />
-                  </motion.button>
-                )}
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+        <div className="flex items-start gap-6 lg:gap-8">
+          {/* sidebar */}
+          <aside className={`${cardCls(darkMode)} sticky top-20 hidden max-h-[calc(100vh-6rem)] w-64 flex-shrink-0 flex-col gap-3 self-start overflow-y-auto p-3 lg:flex xl:w-72`}>
+            <div className={`flex items-center gap-3 rounded-xl p-3 ${tileCls(darkMode)}`}>
+              <span className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl ${darkMode ? 'bg-white/10' : 'bg-white'}`}><Glyph3D kind="user" className="h-8 w-8" /></span>
+              <div className="min-w-0 flex-1">
+                {name && <p className={`truncate text-sm font-extrabold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{name} {profile?.last_name}</p>}
+                {profile?.email && <p className={`truncate text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{profile.email}</p>}
               </div>
+              {isAuthenticated && (
+                <button type="button" onClick={logout} title={t('logout')} aria-label={t('logout')}
+                  className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${darkMode ? 'text-gray-400 hover:bg-rose-500/15 hover:text-rose-400' : 'text-gray-500 hover:bg-white hover:text-rose-500'}`}><RiLogoutBoxRLine className="h-4 w-4" /></button>
+              )}
             </div>
-            <div className="px-3 py-4 flex flex-col gap-1 flex-1">
-              {tabs.map((tab) => (
-                <motion.button key={tab.id} whileTap={{ scale: 0.97 }} onClick={() => startTransition(() => setActiveSection(tab.id))}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 font-bold text-sm fast-fade ${activeSection === tab.id ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25" : darkMode ? "text-gray-300 hover:bg-emerald-500/10 hover:text-emerald-300" : "text-gray-600 hover:bg-emerald-50 hover:text-emerald-700"}`}>
-                  <span className={activeSection === tab.id ? "text-white" : "text-emerald-500"}>{tab.icon}</span>
-                  <span className="flex-1 text-left">{tab.label}</span>
-                  {tab.badge !== null && <span className={`text-[10px] px-1.5 py-0.5 font-extrabold ${activeSection === tab.id ? "bg-white/20 text-white" : darkMode ? "bg-emerald-500/15 text-emerald-300" : "bg-emerald-100 text-emerald-700"}`}>{tab.badge}</span>}
-                  {activeSection === tab.id && <FiArrowRight size={13} className="opacity-80" />}
-                </motion.button>
-              ))}
-            </div>
-            <div className="px-3 pb-4">
-              <TipsCard />
-            </div>
+            <nav className="flex flex-col gap-1" aria-label="Account sections">{tabs.map((tab) => tabBtn(tab, true))}</nav>
+            <TipsCard t={t} />
           </aside>
 
-          <div className="flex-1 min-w-0">
-
-            <div className={`mb-5 p-4 border sm:mb-7 ${darkMode ? "glass-dark border-gray-700" : "glass border-gray-100"}`}>
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div>
-                  <h1 className={`text-xl sm:text-2xl font-extrabold ${darkMode ? "text-white" : "text-gray-900"}`}>
-                    Welcome back{!isEmptyVal(userProfile?.first_name) ? `, ${userProfile.first_name}` : ""}
-                  </h1>
-                  <p className={`text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Manage your profile, addresses, orders, and repair requests — all in one place.</p>
-                </div>
-               
+          <main className="min-w-0 flex-1">
+            <div className={`${cardCls(darkMode)} mb-4 flex items-center justify-between gap-4 overflow-hidden p-4`}>
+              <div className="min-w-0">
+                <h1 className={`truncate text-xl font-extrabold sm:text-2xl ${darkMode ? 'text-white' : 'text-gray-900'}`}>{t('welcomeBack')}{name ? `, ${name}` : ''}</h1>
+                <p className={`mt-0.5 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{t('manageAccount')}</p>
               </div>
+              <Scene3D compact className="hidden h-20 w-28 sm:block" main="store" float="phone" />
             </div>
 
-            <div className="lg:hidden mb-5 -mx-0.5">
-              <div className="tabs-scroll flex gap-2 overflow-x-auto pb-1 px-0.5">
-                {tabs.map((tab) => (
-                  <motion.button key={tab.id} whileTap={{ scale: 0.96 }} onClick={() => startTransition(() => setActiveSection(tab.id))}
-                    className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5 font-bold text-xs sm:text-sm fast-fade shadow-sm whitespace-nowrap ${activeSection === tab.id ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-emerald-500/20" : darkMode ? "bg-gray-800 border border-gray-700 text-gray-300 hover:bg-emerald-500/10" : "bg-white border border-gray-200 text-gray-700 hover:bg-emerald-50"}`}>
-                    {tab.icon}{tab.label}
-                    {tab.badge !== null && <span className={`text-[10px] px-1.5 py-0.5 font-extrabold ${activeSection === tab.id ? "bg-white/25 text-white" : darkMode ? "bg-emerald-500/15 text-emerald-300" : "bg-emerald-100 text-emerald-700"}`}>{tab.badge}</span>}
-                  </motion.button>
-                ))}
-              </div>
-              <div className="mt-4">
-                <TipsCard />
-              </div>
-            </div>
+            <nav className="hide-scrollbar -mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-2 lg:hidden" aria-label="Account sections">{tabs.map((tab) => tabBtn(tab, false))}</nav>
 
-            <div className="space-y-6">
-              <AnimatePresence mode="wait">
-                {isLoading ? <LoadingSpinner key="spinner" darkMode={darkMode} /> : (
-                  <div key="content">
-                    {activeSection === "profile" && <ProfileTab isEditingProfile={isEditingProfile} setIsEditingProfile={setIsEditingProfile} userProfile={userProfile} profileForm={profileForm} setProfileForm={setProfileForm} handleUpdateProfile={handleUpdateProfile} handleDeleteAccount={handleDeleteAccount} handleLogout={handleLogout} isAuthenticated={isAuthenticated} inputCls={inputCls} darkMode={darkMode} />}
-                    {activeSection === "addresses" && <AddressesTab isAddingAddress={isAddingAddress} setIsAddingAddress={setIsAddingAddress} editingAddressId={editingAddressId} setEditingAddressId={setEditingAddressId} addressForm={addressForm} setAddressForm={setAddressForm} handleUpdateAddress={handleUpdateAddress} handleAddAddress={handleAddAddress} resetAddressForm={resetAddressForm} addresses={addresses} startEditAddress={startEditAddress} handleDeleteAddress={handleDeleteAddress} isAddressInUse={isAddressInUse} inputCls={inputCls} darkMode={darkMode} />}
-                    {activeSection === "orders" && <OrdersTab orders={orders} ordersPage={ordersPage} setOrdersPage={setOrdersPage} setSelectedOrder={setSelectedOrder} setIsOrderModalOpen={setIsOrderModalOpen} handleCancelOrder={handleCancelOrder} darkMode={darkMode} />}
-                    {activeSection === "repairs" && <RepairsTab repairRequests={repairRequests} repairsPage={repairsPage} setRepairsPage={setRepairsPage} handleViewRepair={handleViewRepair} handleEditRepair={handleEditRepair} handleAcceptQuote={handleAcceptQuote} handleCancelRepair={handleCancelRepair} darkMode={darkMode} />}
-                    {activeSection === "notifications" && <NotificationsTab token={token} darkMode={darkMode} />}
-                    {activeSection === "analytics" && <AnalyticsTab orders={orders} repairRequests={repairRequests} addresses={addresses} darkMode={darkMode} />}
-                    {activeSection === "about" && <AboutTab darkMode={darkMode} />}
-                  </div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
+            <div key={section} className="anim-fade-up">{content}</div>
+
+            <div className="mt-6 lg:hidden"><TipsCard t={t} /></div>
+          </main>
         </div>
       </div>
 
-      <Transition show={isOrderModalOpen} as={React.Fragment}>
-        <Dialog onClose={() => setIsOrderModalOpen(false)} className="relative z-50">
-          <Transition.Child as={React.Fragment} enter="fast-fade" enterFrom="opacity-0" enterTo="opacity-100" leave="fast-fade" leaveFrom="opacity-100" leaveTo="opacity-0">
-            <DialogBackdrop className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
-          </Transition.Child>
-          <div className="fixed inset-0 z-50 w-screen overflow-y-auto">
-            <div className="flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4">
-              <Transition.Child as={React.Fragment} enter="fast-fade" enterFrom="opacity-0 translate-y-4" enterTo="opacity-100 translate-y-0" leave="fast-fade" leaveFrom="opacity-100" leaveTo="opacity-0 translate-y-4">
-                <DialogPanel className={`relative transform overflow-hidden text-left shadow-2xl w-full sm:max-w-4xl border ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"}`}>
-                  {selectedOrder && (
-                    <div className="lime-scroll max-h-[90dvh] overflow-y-auto">
-                    
-                      <div className="sm:hidden flex justify-center pt-3 pb-1"><div className={`w-10 h-1 rounded-full ${darkMode ? "bg-gray-600" : "bg-gray-300"}`} /></div>
-                      <div className={`sticky top-0 px-4 sm:px-6 py-3 sm:py-4 border-b flex items-center justify-between z-10 ${darkMode ? "bg-gray-900 border-gray-800" : "bg-white border-gray-100"}`}>
-                        <DialogTitle className={`text-lg font-bold flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}><FiBox className="text-emerald-500" /><span className="font-mono text-xs px-2 py-1 bg-emerald-500 text-white">ORD #{safe(selectedOrder.id).slice(0, 8).toUpperCase()}</span></DialogTitle>
-                        <div className="flex items-center gap-2">
-                 
-                          <button onClick={() => setIsOrderModalOpen(false)} className={`p-2 fast-fade ${darkMode ? "hover:bg-gray-800" : "hover:bg-gray-100"}`}><FiX className={`w-5 h-5 ${darkMode ? "text-gray-500" : "text-gray-400"}`} /></button>
-                        </div>
-                      </div>
-                      <div className="p-4 sm:p-7 space-y-6 text-sm">
-                        <ProgressBar progress={getOrderProgress(selectedOrder.status)} status={selectedOrder.status} darkMode={darkMode} />
-                        <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 sm:p-5 ${darkMode ? "bg-gray-800/60" : "bg-gray-50"}`}>
-                          <div className="space-y-3">
-                            {!isEmptyVal(selectedOrder.createdAt) && <div><span className={`text-xs uppercase tracking-widest font-medium ${darkMode ? "text-gray-500" : "text-gray-500"}`}>Order Date</span><p className={`font-medium mt-0.5 ${darkMode ? "text-white" : "text-gray-900"}`}>{formatDate(selectedOrder.createdAt)}</p></div>}
-                            <div><span className={`text-xs uppercase tracking-widest font-medium ${darkMode ? "text-gray-500" : "text-gray-500"}`}>Status</span><div className="mt-1"><StatusBadge status={selectedOrder.status} type="order" darkMode={darkMode} /></div></div>
-                            {!isEmptyVal(selectedOrder.totalPrice) && <div><span className={`text-xs uppercase tracking-widest font-medium ${darkMode ? "text-gray-500" : "text-gray-500"}`}>Total</span><p className={`text-2xl sm:text-3xl font-bold mt-0.5 ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>{safe(selectedOrder.totalPrice)} EGP</p></div>}
-                          </div>
-                          {!isEmptyVal(selectedOrder.paymentMethod) && (
-                            <div><p className={`font-semibold mb-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Payment Method</p>
-                              <div className={`flex items-center gap-3 p-3 border ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-100"}`}>
-                                <div className={`w-9 h-9 flex items-center justify-center ${selectedOrder.paymentMethod === "CREDIT_CARD" ? darkMode ? "bg-blue-500/15" : "bg-blue-100" : darkMode ? "bg-orange-500/15" : "bg-orange-100"}`}>{selectedOrder.paymentMethod === "CREDIT_CARD" ? <FiCreditCard className={`w-4 h-4 ${darkMode ? "text-blue-300" : "text-blue-600"}`} /> : <FiDollarSign className={`w-4 h-4 ${darkMode ? "text-orange-300" : "text-orange-600"}`} />}</div>
-                                <p className={`font-semibold capitalize text-sm ${darkMode ? "text-white" : "text-gray-900"}`}>{safe(selectedOrder.paymentMethod).toLowerCase().replace("_", " ")}</p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <h3 className={`font-bold text-lg mb-3 flex items-center gap-2 ${darkMode ? "text-gray-200" : "text-gray-800"}`}><FiBox className="text-emerald-500" /> Order Items</h3>
-                          <div className={`border overflow-hidden ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"}`}>
-                            <div className={`grid grid-cols-[auto_auto_auto_auto_auto] gap-x-6 px-4 py-2.5 text-xs font-bold uppercase tracking-widest border-b ${darkMode ? "bg-gray-800/60 border-gray-700 text-gray-500" : "bg-gray-50 border-gray-100 text-gray-500"}`}>
-                              <span>Item</span>
-                              <span className="text-center">From</span>
-                              <span className="text-center">Qty</span>
-                              <span className="text-center">Unit Price</span>
-                              <span className="text-center">Total</span>
-                            </div>
-                            {selectedOrder.orderItems?.length > 0 ? selectedOrder.orderItems.map((item, index) => (
-                              <div key={index} className={`grid grid-cols-[auto_auto_auto_auto_auto] gap-x-6 items-center px-4 py-2.5 border-b last:border-b-0 ${darkMode ? "border-gray-800" : "border-gray-100"}`}>
-                                <div className={`font-semibold text-xs ${darkMode ? "text-white" : "text-gray-900"}`}>{safe(item.productName)}</div>
-                                <div className={`text-xs whitespace-nowrap ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{safe(item.shopName)}</div>
-                                <div className={`text-center text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{safe(item.quantity)}</div>
-                                <div className={`text-right text-sm font-medium whitespace-nowrap ${darkMode ? "text-gray-300" : "text-gray-700"}`}>EGP {Number(item.priceAtCheckout || 0).toFixed(2)}</div>
-                                <div className={`text-right font-bold text-sm whitespace-nowrap ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>EGP {(Number(item.priceAtCheckout) * Number(item.quantity)).toFixed(2)}</div>
-                              </div>
-                            )) : <div className={`p-10 text-center text-sm ${darkMode ? "text-gray-500" : "text-gray-400"}`}>No items</div>}
-                            <div className={`px-4 py-4 flex justify-between items-center border-t ${darkMode ? "bg-gray-800/60 border-gray-700" : "bg-gray-50 border-gray-100"}`}>
-                              <span className={`uppercase text-xs tracking-widest font-medium ${darkMode ? "text-gray-500" : "text-gray-500"}`}>Grand Total</span>
-                              <span className={`text-2xl font-bold ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>EGP {safe(selectedOrder.totalPrice)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className={`p-4 sm:p-6 border-t flex justify-end gap-3 ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
-                        <motion.button whileTap={{ scale: 0.97 }} onClick={() => setIsOrderModalOpen(false)} className={`px-6 py-2.5 font-bold fast-fade text-sm ${darkMode ? "bg-gray-800 text-gray-200 hover:bg-gray-700" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>Close</motion.button>
-                      </div>
-                    </div>
-                  )}
-                </DialogPanel>
-              </Transition.Child>
-            </div>
-          </div>
-        </Dialog>
-      </Transition>
-
-      <Transition show={isRepairModalOpen} as={React.Fragment}>
-        <Dialog onClose={() => setIsRepairModalOpen(false)} className="relative z-50">
-          <Transition.Child as={React.Fragment} enter="fast-fade" enterFrom="opacity-0" enterTo="opacity-100" leave="fast-fade" leaveFrom="opacity-100" leaveTo="opacity-0">
-            <DialogBackdrop className="fixed inset-0 bg-black/40 backdrop-blur-sm" />
-          </Transition.Child>
-          <div className="fixed inset-0 z-50 w-screen overflow-y-auto">
-            <div className="flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4">
-              <Transition.Child as={React.Fragment} enter="fast-fade" enterFrom="opacity-0 translate-y-4" enterTo="opacity-100 translate-y-0" leave="fast-fade" leaveFrom="opacity-100" leaveTo="opacity-0 translate-y-4">
-                <DialogPanel className="relative transform overflow-hidden text-left shadow-2xl w-full sm:max-w-lg border border-gray-200 bg-white">
-                  {selectedRepair && (
-                    <div className="lime-scroll max-h-[85dvh] overflow-y-auto">
-                      <div className="sm:hidden flex justify-center pt-3 pb-1"><div className="w-10 h-1 rounded-full bg-gray-300" /></div>
-                      <div className="h-1.5 bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400" />
-                      <div className="px-5 sm:px-7 pt-5 pb-4 border-b border-gray-100 bg-white flex items-center justify-between">
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">Repair Request</p>
-                          <DialogTitle className="text-lg font-extrabold flex items-center gap-2 text-gray-900 mt-0.5"><FiTool className="text-emerald-500" /> #{safe(selectedRepair.id).slice(0, 8)}</DialogTitle>
-                        </div>
-                        <button onClick={() => setIsRepairModalOpen(false)} className="p-2 fast-fade hover:bg-gray-100 text-gray-400 hover:text-gray-700"><FiX className="w-5 h-5" /></button>
-                      </div>
-                      <div className="px-5 sm:px-7 py-5 space-y-4">
-                        <ProgressBar progress={getRepairProgress(selectedRepair.status)} status={selectedRepair.status} darkMode={false} />
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="border border-gray-100 bg-gray-50 p-3.5">
-                            <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 flex items-center gap-1"><FiHome size={10} className="text-emerald-500" /> Shop</p>
-                            <p className="text-sm font-bold text-gray-900 mt-1 truncate">{selectedRepair.shopName}</p>
-                          </div>
-                          <div className="border border-gray-100 bg-gray-50 p-3.5">
-                            <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Status</p>
-                            <div className="mt-1"><StatusBadge status={selectedRepair.status} type="repair" darkMode={false} /></div>
-                          </div>
-                        </div>
-
-                        {!isEmptyVal(selectedRepair.description) && (
-                          <div className="border border-gray-100 p-3.5">
-                            <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 mb-1.5">Reported Problem</p>
-                            <p className="leading-relaxed text-sm text-gray-700">{selectedRepair.description}</p>
-                          </div>
-                        )}
-
-                        {(!isEmptyVal(selectedRepair.paymentMethod) || !isEmptyVal(selectedRepair.price)) && (
-                          <div className="flex justify-between items-center p-3.5 border border-emerald-100 bg-emerald-50/60">
-                            {!isEmptyVal(selectedRepair.paymentMethod) && <div><p className="text-[9px] uppercase tracking-widest font-bold text-gray-400">Payment Method</p><p className="font-bold text-sm text-gray-800 mt-0.5">{selectedRepair.paymentMethod}</p></div>}
-                            {!isEmptyVal(selectedRepair.price) && <div className="text-right"><p className="text-[9px] uppercase tracking-widest font-bold text-gray-400">Total</p><p className="text-xl font-black text-emerald-600 mt-0.5">{selectedRepair.price} <span className="text-xs font-semibold">EGP</span></p></div>}
-                          </div>
-                        )}
-                      </div>
-                      <div className="border-t border-gray-100 px-5 sm:px-7 py-4 flex justify-end bg-white">
-                        <motion.button whileTap={{ scale: 0.97 }} onClick={() => setIsRepairModalOpen(false)} className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold shadow-md fast-fade text-sm">Close</motion.button>
-                      </div>
-                    </div>
-                  )}
-                </DialogPanel>
-              </Transition.Child>
-            </div>
-          </div>
-        </Dialog>
-      </Transition>
-
-      <Transition show={isEditRepairModalOpen} as={React.Fragment}>
-        <Dialog onClose={() => setIsEditRepairModalOpen(false)} className="relative z-50">
-          <Transition.Child as={React.Fragment} enter="fast-fade" enterFrom="opacity-0" enterTo="opacity-100" leave="fast-fade" leaveFrom="opacity-100" leaveTo="opacity-0">
-            <DialogBackdrop className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
-          </Transition.Child>
-          <div className="fixed inset-0 z-50 w-screen overflow-y-auto">
-            <div className="flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4">
-              <Transition.Child as={React.Fragment} enter="fast-fade" enterFrom="opacity-0 translate-y-4" enterTo="opacity-100 translate-y-0" leave="fast-fade" leaveFrom="opacity-100" leaveTo="opacity-0 translate-y-4">
-                <DialogPanel className={`relative transform overflow-hidden text-left shadow-2xl w-full sm:max-w-md border ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"}`}>
-                  {editingRepair && (
-                    <div>
-                     
-                      <div className="sm:hidden flex justify-center pt-3 pb-1"><div className={`w-10 h-1 rounded-full ${darkMode ? "bg-gray-600" : "bg-gray-300"}`} /></div>
-                      <div className={`flex items-center justify-between px-5 sm:px-7 py-4 border-b ${darkMode ? "border-gray-800" : "border-gray-100"}`}>
-                        <DialogTitle className={`text-lg font-extrabold flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}><FiEdit className="text-emerald-500" /> Edit Repair</DialogTitle>
-                        <button onClick={() => { setIsEditRepairModalOpen(false); setEditingRepair(null); }} className={`p-2 fast-fade ${darkMode ? "hover:bg-gray-800 text-gray-400" : "hover:bg-gray-100 text-gray-500"}`}><FiX className="w-5 h-5" /></button>
-                      </div>
-                      <form onSubmit={handleUpdateRepairDescription} className="p-5 sm:p-7 space-y-5">
-                        <div>
-                          <label className={`block text-xs font-semibold mb-2 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Device Category</label>
-                          <Dropdown
-                            value={selectedCategory?.id || selectedCategory || ""}
-                            onChange={(val) => setSelectedCategory(categories.find((c) => c.id === val) || val)}
-                            options={categories.map((cat) => ({ value: cat.id, label: cat.name }))}
-                            placeholder="Select category"
-                            darkMode={darkMode}
-                          />
-                        </div>
-                        <div>
-                          <label className={`block text-xs font-semibold mb-2 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Description</label>
-                          <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={5} placeholder="Describe the issue..." className={`${inputCls} resize-y min-h-[100px]`} required />
-                        </div>
-                        <div className="flex gap-3">
-                          <motion.button whileTap={{ scale: 0.97 }} type="button" onClick={() => { setIsEditRepairModalOpen(false); setEditingRepair(null); }} className={`flex-1 py-3 border-2 font-bold text-sm fast-fade ${darkMode ? "border-gray-700 text-gray-300 hover:bg-gray-800" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>Cancel</motion.button>
-                          <motion.button whileTap={{ scale: 0.97 }} type="submit" className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold shadow-md fast-fade flex items-center justify-center gap-2 text-sm"><FiCheck size={13} /> Save</motion.button>
-                        </div>
-                      </form>
-                    </div>
-                  )}
-                </DialogPanel>
-              </Transition.Child>
-            </div>
-          </div>
-        </Dialog>
-      </Transition>
-
-      <ConfirmRepairModal open={isConfirmRepairOpen} onClose={() => setIsConfirmRepairOpen(false)} req={confirmRepairReq} token={token} onSuccess={() => queryClient.invalidateQueries({ queryKey: ['repairs'] })} darkMode={darkMode} />
+      {selectedOrder && <OrderModal order={selectedOrder} onClose={() => setSelectedOrder(null)} darkMode={darkMode} t={t} />}
+      {selectedRepair && <RepairModal repair={selectedRepair} onClose={() => setSelectedRepair(null)} darkMode={darkMode} t={t} />}
+      {editingRepair && <EditRepairModal key={editingRepair.id} repair={editingRepair} categories={categories} onClose={() => setEditingRepair(null)} onSubmit={submitRepairEdit} darkMode={darkMode} />}
+      {confirmReq && <ConfirmRepairModal key={confirmReq.id} req={confirmReq} addresses={addresses} token={token} onClose={() => setConfirmReq(null)} onSuccess={() => qc.invalidateQueries({ queryKey: ['repairs'] })} darkMode={darkMode} />}
     </div>
   );
 };

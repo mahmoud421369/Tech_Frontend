@@ -344,11 +344,11 @@ const Categories = ({ darkMode }) => {
                         <td className="p-3">
                           <div className="flex items-center justify-center gap-2">
                             <button onClick={() => { setEditingCategory(c); setCategoryName(c.name || ''); setIsModalOpen(true); }}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-amber-700 bg-transparent dark:bg-amber-800/50 dark:text-amber-300 hover:bg-amber-100 border border-amber-200/60 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                              className="p-1.5 text-gray-500 border border-gray-200 dark:text-white dark:border-gray-800 dark:hover:text-white dark:bg-gray-900 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors">
                               <FiEdit3 size={16} title="Edit Category" />
                             </button>
                             <button onClick={() => deleteCategory(c.id)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 hover:text-white bg-transparent hover:bg-rose-600 border border-rose-200 hover:border-rose-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-1">
+                              className="p-1.5 text-gray-500 border border-gray-200 dark:text-white dark:border-gray-800 dark:hover:text-white dark:bg-gray-900 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors">
                               <FiTrash2 size={16} title="Delete Category" />
                             </button>
                           </div>

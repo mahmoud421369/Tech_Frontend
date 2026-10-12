@@ -1,0 +1,489 @@
+{
+  "signup": {
+    "pageTitle": "Inscription | Tech-Restore",
+    "nav": {
+      "alreadyHaveAccount": "Vous avez déjà un compte ?",
+      "signIn": "Connexion"
+    },
+    "hero": {
+      "titleLine1": "Créez votre",
+      "titleLine2": "compte",
+      "subtitle": "Choisissez votre rôle et commencez dès aujourd'hui.",
+      "badgeRoles": "4 types de rôles",
+      "badgeRolesSub": "choisissez le vôtre",
+      "badgeFree": "Gratuit",
+      "badgeFreeSub": "pour commencer"
+    },
+    "roles": {
+      "chooseRole": "Choisissez votre rôle",
+      "user": "Utilisateur",
+      "shop": "Propriétaire de boutique",
+      "delivery": "Livraison",
+      "assigner": "Répartiteur"
+    },
+    "shopTypeOptions": {
+      "repairer": "Réparateur",
+      "seller": "Vendeur",
+      "both": "Les deux"
+    },
+    "fields": {
+      "firstName": "Prénom",
+      "firstNamePlaceholder": "Prénom",
+      "lastName": "Nom",
+      "lastNamePlaceholder": "Nom",
+      "email": "Adresse e-mail",
+      "emailShort": "E-mail",
+      "emailPlaceholder": "vous@exemple.com",
+      "phone": "Numéro de téléphone",
+      "phoneShort": "Téléphone",
+      "phonePlaceholder": "Numéro de téléphone",
+      "phonePlaceholderShort": "Téléphone",
+      "password": "Mot de passe (6 caractères min.)",
+      "passwordPlaceholder": "Entrez le mot de passe",
+      "shopName": "Nom de la boutique",
+      "shopNamePlaceholder": "Nom de la boutique",
+      "description": "Description",
+      "descriptionPlaceholder": "Brève description",
+      "shopType": "Type de boutique",
+      "shopTypeSelect": "Sélectionner le type",
+      "state": "Gouvernorat",
+      "statePlaceholder": "ex. Le Caire",
+      "city": "Ville",
+      "cityPlaceholder": "ex. Gizeh",
+      "street": "Rue",
+      "streetPlaceholder": "Nom de la rue",
+      "building": "Bâtiment",
+      "buildingPlaceholder": "N° du bâtiment",
+      "fullName": "Nom complet",
+      "fullNamePlaceholder": "Nom complet",
+      "address": "Adresse",
+      "addressPlaceholder": "Adresse",
+      "department": "Département",
+      "departmentPlaceholder": "Département"
+    },
+    "buttons": {
+      "signUpAsUser": "S'inscrire en tant qu'utilisateur",
+      "signUpAsShop": "S'inscrire en tant que propriétaire de boutique",
+      "signUpAsDelivery": "S'inscrire en tant que livreur",
+      "signUpAsAssigner": "S'inscrire en tant que répartiteur",
+      "creatingAccount": "Création du compte...",
+      "back": "Retour"
+    },
+    "footerText": {
+      "alreadyHaveAccount": "Vous avez déjà un compte ?",
+      "logInHere": "Connectez-vous ici"
+    },
+    "otp": {
+      "title": "Vérifiez votre e-mail",
+      "subtitle": "Nous avons envoyé un code à 6 chiffres à",
+      "verifyButton": "Vérifier l'e-mail",
+      "verifying": "Vérification...",
+      "errorIncomplete": "Veuillez saisir les 6 chiffres",
+      "errorInvalid": "Code invalide. Veuillez réessayer.",
+      "successTitle": "E-mail vérifié !",
+      "successText": "Votre compte est prêt. Redirection vers la connexion..."
+    },
+    "errors": {
+      "required": "Champ requis",
+      "emailRequired": "L'e-mail est requis",
+      "emailInvalid": "Veuillez saisir un e-mail valide",
+      "phoneRequired": "Le téléphone est requis",
+      "phoneInvalid": "Numéro de téléphone valide requis (10 à 15 chiffres)",
+      "passwordRequired": "Le mot de passe est requis",
+      "passwordMinLength": "6 caractères minimum",
+      "emailAlreadyExists": "Cet e-mail est déjà enregistré.",
+      "registrationFailed": "Échec de l'inscription. Veuillez réessayer."
+    },
+    "toasts": {
+      "emailExistsTitle": "L'e-mail existe déjà",
+      "registrationFailedTitle": "Échec de l'inscription"
+    }
+  },
+  "footer": {
+    "brand": {
+      "name": "Tech & Restore",
+      "tagline": "Réparer et acheter en toute confiance",
+      "description": "Votre partenaire de confiance pour les réparations d'appareils haut de gamme et l'électronique reconditionnée certifiée à travers l'Égypte.",
+      "badges": {
+        "certified": "Certifié",
+        "genuineParts": "Pièces d'origine",
+        "warranty": "Garantie 6 mois"
+      }
+    },
+    "quickLinks": {
+      "title": "Liens rapides",
+      "home": "Accueil",
+      "devices": "Appareils",
+      "trackOrder": "Suivre la commande",
+      "shops": "Boutiques"
+    },
+    "services": {
+      "title": "Nos services",
+      "deviceRepair": "Réparation d'appareils",
+      "refurbishedSales": "Vente d'appareils reconditionnés",
+      "warrantyPlans": "Plans de garantie",
+      "fastDelivery": "Livraison rapide"
+    },
+    "contact": {
+      "title": "Contactez-nous",
+      "address": "Le Caire, Maadi, Égypte",
+      "phone": "+20 19999",
+      "email": "support@techrestore.com",
+      "hoursTitle": "Support client 24h/24, 7j/7",
+      "hoursSubtitle": "Toujours là pour vous aider"
+    },
+    "bottomBar": {
+      "copyright": "© {{year}} Tech Restore. Tous droits réservés.",
+      "privacyPolicy": "Politique de confidentialité",
+      "termsOfService": "Conditions d'utilisation",
+      "cookiePolicy": "Politique de cookies"
+    }
+  },
+  "hero": {
+    "variants": {
+      "home": {
+        "badge": "Une confiance partagée par des milliers de personnes en Égypte",
+        "headingLine1": "Faites de vos",
+        "headingAccent": "appareils",
+        "headingLine2": "une priorité",
+        "description": "Des réparations rapides et fiables et des appareils reconditionnés haut de gamme — trouvez des techniciens experts et les meilleures boutiques au même endroit."
+      },
+      "devices": {
+        "badge": "Appareils certifiés, prêts à expédier",
+        "headingLine1": "Trouvez votre",
+        "headingAccent": "prochain appareil",
+        "headingLine2": "dès aujourd'hui",
+        "description": "Parcourez des téléphones et ordinateurs portables neufs, d'occasion et reconditionnés auprès de boutiques vérifiées — chaque annonce est contrôlée et garantie."
+      },
+      "track": {
+        "badge": "Suivi des commandes en temps réel",
+        "headingLine1": "Suivez vos",
+        "headingAccent": "commandes",
+        "headingLine2": "en temps réel",
+        "description": "Suivez chaque étape de votre livraison — de l'entrepôt jusqu'à votre porte. Restez informé, gardez le contrôle."
+      },
+      "account": {
+        "badge": "Votre tableau de bord personnel",
+        "headingLine1": "Gérez votre",
+        "headingAccent": "compte",
+        "headingLine2": "au même endroit",
+        "description": "Gérez votre profil, vos adresses, vos commandes et vos demandes de réparation — tout au même endroit."
+      },
+      "repair": {
+        "badge": "Des techniciens experts disponibles maintenant",
+        "headingLine1": "Faites de votre",
+        "headingAccent": "appareil",
+        "headingLine2": "une priorité",
+        "description": "Des réparations rapides et fiables auprès de boutiques locales de confiance. Décrivez votre problème et soyez mis en relation instantanément."
+      },
+      "offers": {
+        "badge": "Offres à durée limitée — profitez-en vite !",
+        "headingLine1": "Des offres",
+        "headingAccent": "exclusives rien que pour vous",
+        "headingLine2": "",
+        "description": "Faites de belles économies sur les réparations, les accessoires et les services premium dans des boutiques de confiance près de chez vous."
+      },
+      "shop": {
+        "badge": "Boutique officielle",
+        "headingAccent": "Boutique de confiance",
+        "description": "Des pièces d'origine, des techniciens experts et un délai d'exécution rapide sur lequel vous pouvez compter."
+      },
+      "category": {
+        "badge": "Vous parcourez une catégorie",
+        "headingLine1": "Tout ce qu'il y a dans",
+        "headingAccent": "cette catégorie",
+        "description": "Des annonces vérifiées, des états réels et des prix justes — filtrez par prix, état et plus encore pour trouver ce qu'il vous faut."
+      }
+    },
+    "chips": {
+      "home": "Boutiques vérifiées",
+      "devices": "Garantis",
+      "track": "Suivi en direct",
+      "account": "Vos données, sécurisées",
+      "repair": "Délai rapide",
+      "offers": "Meilleur prix",
+      "shop": "Officiel",
+      "category": "Sélection organisée"
+    },
+    "buttons": {
+      "bookRepair": "Réserver une réparation",
+      "browseDevices": "Parcourir les appareils",
+      "compareShops": "Comparer les boutiques",
+      "viewMyOrders": "Voir mes commandes",
+      "exploreShop": "Découvrir la boutique",
+      "myOrders": "Mes commandes",
+      "browseShops": "Parcourir les boutiques",
+      "viewProducts": "Voir les produits",
+      "browseAllShops": "Voir toutes les boutiques",
+      "viewAllProducts": "Voir tous les produits"
+    }
+  },
+  "navbar": {
+    "brandName": "Tech & Restore",
+    "nav": {
+      "home": "Accueil",
+      "devices": "Appareils",
+      "shops": "Boutiques",
+      "track": "Suivi",
+      "account": "Compte",
+      "login": "Connexion",
+      "signup": "Inscription"
+    },
+    "ariaLabels": {
+      "notifications": "Notifications",
+      "cart": "Panier",
+      "toggleTheme": "Changer le thème"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "unreadCount": "{{count}} non lues",
+      "unreadCountParen": "({{count}})",
+      "allCaughtUp": "Vous êtes à jour !",
+      "loading": "Chargement...",
+      "noNotifications": "Aucune notification",
+      "noNotifications": "Aucune notification",
+      "loading": "Chargement...",
+      "removedSuccess": "Notification supprimée",
+      "removeFailed": "Échec de la suppression"
+    },
+    "logout": {
+      "button": "Déconnexion",
+      "successToast": "Déconnexion réussie !"
+    }
+  },
+  "offers": {
+    "sectionTitle": "Offres exclusives",
+    "sectionSubtitle": "Profitez des meilleures offres sur les appareils et les services de réparation",
+    "partnerShopFallback": "Boutique partenaire",
+    "descriptionFallback": "Offre à durée limitée sur une sélection d'appareils et de services.",
+    "endsLabel": "Se termine le {{date}}",
+    "dateNotAvailable": "N/A",
+    "offLabel": "-{{value}}%",
+    "offLabelCurrency": "-{{value}} EGP",
+    "statusActive": "ACTIF",
+    "noOffersTitle": "Aucune offre disponible",
+    "noOffersSubtitle": "Revenez bientôt pour de nouvelles offres !",
+    "goToSlide": "Aller à la diapositive {{number}}"
+  },
+  "account": {
+    "profile": "Profil",
+    "addresses": "Adresses",
+    "orders": "Commandes",
+    "repairs": "Réparations",
+    "notifications": "Notifications",
+    "analytics": "Analyses",
+    "aboutUs": "À propos",
+    "welcomeBack": "Bon retour",
+    "manageAccount": "Gérez votre profil, vos adresses, vos commandes et vos demandes de réparation au même endroit.",
+    "myProfile": "Mon profil",
+    "editProfile": "Modifier le profil",
+    "firstName": "Prénom",
+    "lastName": "Nom",
+    "phoneNumber": "Numéro de téléphone",
+    "saveChanges": "Enregistrer les modifications",
+    "cancel": "Annuler",
+    "language": "Langue",
+    "logout": "Déconnexion",
+    "dangerZone": "Zone dangereuse",
+    "deleteAccount": "Oui, supprimer mon compte",
+    "addAddress": "Ajouter une adresse",
+    "editAddress": "Modifier l'adresse",
+    "save": "Enregistrer",
+    "update": "Mettre à jour",
+    "noAddresses": "Aucune adresse enregistrée",
+    "noOrders": "Aucune commande passée",
+    "noRepairs": "Aucune demande de réparation",
+    "noNotifications": "Aucune notification",
+    "search": "Rechercher...",
+    "clear": "Effacer",
+    "allStatuses": "Tous les statuts",
+    "sortBy": "Trier par",
+    "newestFirst": "Plus récent",
+    "oldestFirst": "Plus ancien",
+    "details": "Détails",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "acceptQuote": "Accepter le devis",
+    "cancelRequest": "Annuler la demande",
+    "accountStatus": "État du compte",
+    "active": "Actif",
+    "inactive": "Inactif",
+    "selectLanguage": "Choisir la langue",
+    "noOrdersYet": "Aucune commande",
+    "noAddressesFound": "Aucune adresse trouvée. Veuillez en ajouter une dans votre profil.",
+    "loadingMap": "Chargement de la carte...",
+    "locatingAddress": "Localisation de l'adresse...",
+    "mapHint": "Cliquez sur la carte ou déplacez le repère pour définir votre position",
+    "paymentMethod": "Mode de paiement",
+    "total": "Total",
+    "confirmRepairOrder": "Confirmer la réparation",
+    "processing": "Traitement...",
+    "confirm": "Confirmer",
+    "notification": "Notification",
+    "result": "résultat",
+    "results": "résultats",
+    "highestPrice": "Prix le plus élevé",
+    "lowestPrice": "Prix le plus bas",
+    "editRepair": "Modifier la réparation",
+    "deviceCategory": "Catégorie de l'appareil",
+    "selectCategory": "Choisir une catégorie",
+    "description": "Description",
+    "describeIssue": "Décrivez le problème...",
+    "addressInformation": "Informations de l'adresse",
+    "pickOnMap": "Choisir sur la carte",
+    "shop":"Officiel",
+    "addressHint": "Ajoutez une adresse pour accélérer le paiement et les enlèvements de réparation.",
+    "notificationHint": "Les mises à jour de vos commandes et réparations apparaîtront ici.", "repairsHint": "Envoyez une demande de réparation et suivez-la du devis à la livraison.",
+    "stateGovernorate": "État / gouvernorat", "city": "Ville", "street": "Rue", "buildingApartment": "Bâtiment / appartement",
+    "statePlaceholder": "ex. Le Caire", "cityPlaceholder": "ex. Gizeh", "streetPlaceholder": "ex. rue Tahrir", "buildingPlaceholder": "ex. bât. 12",
+    "additionalNotes": "Notes supplémentaires (facultatif)", "manualAddressHint": "Vous devez encore remplir les champs d'adresse manuels. Passez à la saisie manuelle pour compléter les détails de la rue.",
+    "setDefaultAddress": "Définir comme adresse par défaut", "totalOrders": "Total des commandes", "totalRepairs": "Total des réparations", "totalSpent": "Dépenses totales", "savedAddresses": "Adresses enregistrées",
+    "notEnoughActivity": "Pas encore assez d'activité", "analyticsHint": "Passez une commande ou envoyez une demande de réparation pour voir vos analyses ici.",
+    "ordersByStatus": "Commandes par statut", "repairsByStatus": "Réparations par statut", "performanceOverview": "Aperçu des performances",
+    "ordersDelivered": "Commandes livrées", "ordersCancelled": "Commandes annulées", "repairsCompleted": "Réparations terminées", "repairsCancelledFailed": "Réparations annulées ou échouées",
+    "verifiedShops": "Boutiques vérifiées", "verifiedShopsText": "Chaque boutique de réparation Tech-Restore est contrôlée afin que votre appareil soit entre de bonnes mains.",
+    "fastTurnaround": "Délai rapide", "fastTurnaroundText": "Suivez chaque étape en direct, du devis au retrait, sans zone d'ombre.",
+    "securePayments": "Paiements sécurisés", "securePaymentsText": "Payez en espèces ou par carte avec la protection attendue d'un paiement sécurisé.",
+    "doorstepDelivery": "Livraison à domicile", "doorstepDeliveryText": "Choisissez la livraison à domicile, le retrait par coursier ou rendez-vous en boutique.",
+    "aboutTechRestore": "À propos de Tech-Restore", "aboutDescription": "Tech-Restore met en relation les personnes ayant besoin de réparations avec des boutiques locales vérifiées et réunit l'achat de pièces et d'accessoires au même endroit. Notre objectif est de rendre la réparation aussi simple et transparente qu'une commande en ligne.",
+    "whyChooseUs": "Pourquoi nous choisir",     "getInTouch": "Nous contacter",
+    "tipsTitle": "Conseils Tech-Restore", "tipAddresses": "Ajoutez plusieurs adresses pour faciliter le paiement et les retraits de réparation.", "tipQuote": "Acceptez rapidement un devis pour mettre votre appareil en file d'attente.", "tipInvoices": "Téléchargez les factures après la livraison pour garder vos documents au même endroit.", "tipAnalytics": "Consultez les analyses après quelques commandes pour suivre vos dépenses et livraisons.",
+    "dangerZoneHint": "Cette action est irréversible. Toutes vos données seront définitivement supprimées.", "default": "Par défaut", "getDirections": "Itinéraire", "inUse": "Utilisée", "usedInActiveOrderRepair": "Utilisée dans une commande ou réparation active",
+    "ordersHint": "Toutes vos commandes apparaîtront ici avec leur statut en direct.", "cancelOrder": "Annuler la commande", "items": "Articles", "payment": "Paiement", "orderDate": "Date de commande", "status": "Statut", "orderItems": "Articles de la commande", "item": "Article", "from": "De", "quantity": "Qté", "unitPrice": "Prix unitaire", "noItems": "Aucun article", "grandTotal": "Total général", "close": "Fermer",
+    "status_PENDING": "En attente", "status_CONFIRMED": "Confirmée", "status_PROCESSING": "En traitement", "status_FINISHPROCESSING": "Finalisation", "status_SHIPPED": "Expédiée", "status_DELIVERED": "Livrée", "status_CANCELLED": "Annulée", "status_SUBMITTED": "Envoyée", "status_QUOTE_SENT": "Devis envoyé", "status_QUOTE_APPROVED": "Devis accepté", "status_QUOTE_REJECTED": "Devis refusé", "status_DEVICE_COLLECTED": "Appareil collecté", "status_REPAIRING": "En réparation", "status_REPAIR_COMPLETED": "Réparation terminée", "status_DEVICE_DELIVERED": "Appareil livré", "status_FAILED": "Échec"
+  },
+  "navbar": {
+    "home": "Accueil",
+    "devices": "Appareils",
+    "shops": "Boutiques",
+    "track": "Suivi",
+    "account": "Compte",
+    "login": "Connexion",
+    "signup": "Inscription",
+    "notifications": "Notifications",
+    "unread": "non lues",
+    "allCaughtUp": "Vous êtes à jour !",
+    "logout": "Déconnexion",
+    "cart": "Panier",
+    "toggleTheme": "Changer le thème",
+    "loggedOut": "Déconnexion réussie !",
+    "notificationRemoved": "Notification supprimée",
+    "failedToDelete": "Échec de la suppression"
+  },
+  "cart": {
+    "cart": "Panier", "delivery": "Livraison", "done": "Terminé", "decreaseQuantity": "Diminuer la quantité", "increaseQuantity": "Augmenter la quantité", "removeItem": "Supprimer l'article", "yourCart": "Votre panier", "checkout": "Commande", "orderConfirmed": "Commande confirmée", "item": "article", "items": "articles", "almostThere": "Presque terminé !", "thankYou": "Merci pour votre commande", "secure": "100 % sécurisé et chiffré", "empty": "Votre panier est vide", "addProducts": "Ajoutez des produits pour commencer", "browseDevices": "Parcourir les appareils", "subtotal": "Sous-total", "deliveryFees": "Les frais de livraison seront calculés à la commande", "backToCart": "Retour au panier", "deliveryAddress": "Adresse de livraison", "selectAddress": "Choisir l'adresse de livraison", "noAddresses": "Aucune adresse trouvée", "cashOnDelivery": "Paiement à la livraison", "payOnReceive": "Payez à la réception", "card": "Carte de crédit / débit", "secureGateway": "Paiement sécurisé via la passerelle", "orderSummary": "Résumé de la commande", "total": "Total", "placeOrder": "Passer la commande", "processing": "Traitement...", "orderConfirmedMessage": "Merci d'avoir acheté chez Tech Restore.", "orderPreparing": "Votre commande est en préparation et sera bientôt expédiée. Vous recevrez un e-mail de confirmation.",     "removed": "Supprimé", "loginRequired": "Connexion requise", "goToLogin": "Se connecter", "selectAddressAlert": "Choisir une adresse", "selectPayment": "Choisir le mode de paiement", "redirectingPayment": "Redirection vers le paiement...", "orderFailed": "Échec de la commande", "somethingWrong": "Une erreur est survenue", "paymentMethod": "Mode de paiement", "continueShopping": "Continuer les achats"
+  },
+  "hero": {
+    "chips": {"home": "Boutiques vérifiées", "devices": "Sous garantie", "track": "Suivi en direct", "account": "Vos données sécurisées", "repair": "Service rapide", "offers": "Meilleur prix", "shop": "Officiel", "category": "Sélection soignée"},
+    "variants": {
+      "home": ["Approuvé par des milliers de clients en Égypte", "Prenez soin de vos", "appareils", "avant tout", "Réparations fiables et appareils reconditionnés premium — trouvez des techniciens et boutiques experts au même endroit.", "Réserver une réparation", "Parcourir les appareils"],
+      "devices": ["Appareils certifiés prêts à expédier", "Trouvez votre", "prochain appareil", "aujourd'hui", "Parcourez des téléphones et ordinateurs neufs, d'occasion et reconditionnés auprès de boutiques vérifiées.", "Parcourir les appareils", "Comparer les boutiques"],
+      "track": ["Suivi des commandes en temps réel", "Suivez vos", "commandes", "en temps réel", "Suivez chaque étape de votre livraison et gardez le contrôle.", "Voir mes commandes", "Explorer la boutique"],
+      "account": ["Votre tableau de bord personnel", "Gérez votre", "compte", "au même endroit", "Gérez votre profil, vos adresses, vos commandes et vos réparations au même endroit.", "Mes commandes", "Réserver une réparation"],
+      "repair": ["Techniciens experts disponibles", "Mettez votre", "appareil", "en priorité", "Des réparations rapides et fiables auprès de boutiques locales de confiance.", "Mes commandes", "Réserver une réparation"],
+      "offers": ["Offres limitées — profitez-en vite !", "Offres", "exclusives", "pour vous", "Économisez sur les réparations, accessoires et services premium.", "Parcourir les boutiques", "Réserver une réparation"],
+      "shop": ["Boutique officielle", "", "Boutique de confiance", "", "Pièces authentiques, techniciens experts et service rapide.", "Voir les produits", "Voir toutes les boutiques"],
+      "category": ["Parcourir une catégorie", "Tout dans", "cette catégorie", "", "Des annonces vérifiées, des prix justes et des filtres pour trouver le bon produit.", "Voir tous les produits", ""]
+    },
+    "track": {
+      "orderDetails": "Détails de la commande", "trackRealtime": "Suivi en temps réel", "trackingHelp": "Besoin d'aide ?", "trackingHelpText": "Contactez le support si le statut de votre commande semble bloqué pendant plus de 24 heures.", "loginRequired": "Connexion requise", "loginTrack": "Connectez-vous pour suivre vos commandes.", "noOrders": "Aucune commande", "startShopping": "Commencez vos achats pour voir vos commandes ici", "selectOrder": "Choisir une commande", "liveTracking": "Suivi en direct", "overallProgress": "Progression globale", "currentStatus": "Statut actuel", "items": "Articles", "orderTotal": "Total de la commande", "payment": "Paiement", "deliveringTo": "Livraison à", "deliveredOn": "Livré le", "estimatedDelivery": "Livraison estimée", "trackingId": "Numéro de suivi", "carrier": "Transporteur", "orderDate": "Date de commande", "lastUpdated": "Dernière mise à jour", "orderPlaced": "Commande passée", "orderReceived": "Votre commande a été reçue", "confirmed": "Confirmée", "orderConfirmed": "Commande confirmée par notre équipe", "processing": "En traitement", "itemsPrepared": "Articles en préparation", "readyToShip": "Prête à expédier", "packedReady": "Emballée et prête pour le transporteur", "outForDelivery": "En livraison", "onTheWay": "En route vers votre adresse", "delivered": "Livrée", "packageDelivered": "Colis livré avec succès", "cancelled": "Annulée", "orderCancelled": "Commande annulée", "trackingUpdates": "Notre système se met à jour automatiquement. Vous recevrez également des notifications SMS et e-mail à chaque étape importante.", "standardCourier": "Transporteur standard", "item": "article", "goToLogin": "Se connecter",       "orderNumber": "Commande", "startShoppingButton": "Commencer les achats",
+      "status_PENDING": "En attente", "status_CONFIRMED": "Confirmée", "status_PROCESSING": "En traitement", "status_FINISHPROCESSING": "Finalisation", "status_SHIPPED": "Expédiée", "status_DELIVERED": "Livrée", "status_CANCELLED": "Annulée"
+    },
+    "shops": {
+      "search": "Rechercher des boutiques...", "filters": "Filtres", "shopType": "Type de boutique", "sortBy": "Trier par", "shopType": "Type de boutique", "noTypes": "Aucun type disponible", "city": "Ville", "minimumRating": "Note minimale", "anyRating": "Toutes les notes", "verifiedOnly": "Vérifiées uniquement", "showVerified": "Afficher uniquement les boutiques vérifiées", "on": "ACTIVÉ", "clearFilters": "Effacer tous les filtres", "browseSpecialty": "Parcourir par spécialité", "findExpert": "Trouvez le bon expert", "noShops": "Aucune boutique disponible", "refresh": "Actualiser", "shopsFound": "boutiques trouvées", "noMatch": "Aucune boutique ne correspond à vos filtres", "visitShop": "Visiter la boutique"
+    },
+    "footer": {
+      "tagline": "Réparez et achetez en toute confiance", "description": "Votre partenaire de confiance pour les réparations premium et les appareils reconditionnés certifiés en Égypte.", "certified": "Certifié", "genuineParts": "Pièces authentiques", "warranty": "Garantie 6 mois", "quickLinks": "Liens rapides", "ourServices": "Nos services", "contactUs": "Contactez-nous", "deviceRepair": "Réparation d'appareils", "refurbishedSales": "Vente de reconditionnés", "warrantyPlans": "Plans de garantie", "fastDelivery": "Livraison rapide", "support": "Assistance client 24/7", "alwaysHelp": "Toujours là pour vous aider", "privacy": "Politique de confidentialité", "terms": "Conditions d'utilisation", "cookies": "Politique des cookies", "rights": "Tous droits réservés."
+    },
+    "homepage": {
+    "search": "Rechercher des produits, boutiques et offres...", "quickAccess": "Accès rapide", "browseProducts": "Parcourir les produits", "findShops": "Trouver des boutiques", "bookRepair": "Réserver une réparation", "latestOffers": "Dernières offres", "products": "Produits", "shops": "Boutiques", "offers": "Offres", "added": "Ajouté !", "repairDevice": "Réparer un appareil", "featuredProducts": "Produits vedettes", "topShops": "Meilleures boutiques", "getStarted": "Commencez", "todayPrompt": "Que souhaitez-vous faire aujourd'hui ?", "repairEyebrow": "Réparation", "repairDescription": "Des réparations rapides et fiables par des techniciens experts, avec des pièces authentiques à chaque fois.", "repairMore": "...et bien plus — obtenez un diagnostic gratuit pour savoir exactement ce dont votre appareil a besoin.", "offersEyebrow": "Offres", "offersDescription": "Un aperçu des offres disponibles — les offres réelles changent dans l'application et peuvent varier selon la boutique.", "viewOffers": "Voir les offres", "screenReplacement": "Remplacement d'écran", "batteryReplacement": "Remplacement de batterie", "waterDamage": "Dégâts des eaux", "softwareIssues": "Problèmes logiciels", "cameraRepair": "Réparation de caméra", "chargingPort": "Port de charge", "dataRecovery": "Récupération de données", "speakerMic": "Haut-parleur et micro", "noProducts": "Aucun produit disponible", "noShops": "Aucune boutique disponible", "unnamedShop": "Boutique sans nom", "verified": "Vérifiée", "location": "Emplacement", "about": "À propos", "contact": "Contact", "shopDescription": "Services de réparation professionnels avec pièces authentiques et garantie de 6 mois.", "visitShop": "Visiter la boutique"
+    },
+    "devices": {
+      "search": "Rechercher des produits par nom...", "filters": "Filtres", "sortBy": "Trier par", "category": "Catégorie", "condition": "État", "priceRange": "Fourchette de prix (EGP)", "clearFilters": "Effacer tous les filtres", "browseProducts": "Parcourir les produits", "viewFilters": "Voir les filtres", "shopByCategory": "Acheter par catégorie", "exploreCollections": "Explorez nos collections", "productsFound": "produits trouvés", "noProducts": "Aucun produit trouvé", "adjustFilters": "Essayez d'ajuster vos filtres ou vos termes de recherche", "verified": "Vérifié", "fastShip": "Expédition rapide", "returns": "Retours", "added": "Ajouté", "addToCart": "Ajouter au panier"
+    },
+    "deviceDetail": {
+      "productNotFound": "Produit introuvable", "backToProducts": "Retour aux produits", "verifiedQuality": "Qualité vérifiée", "inStock": "En stock", "onlyLeft": "Plus que {{count}}", "outOfStock": "Rupture de stock", "qualityAssured": "Qualité garantie", "happyBuyers": "Acheteurs satisfaits", "averageRating": "Note moyenne", "premiumQuality": "Qualité premium vérifiée", "brandNew": "Neuf", "preOwned": "D'occasion", "moreDevices": "Autres {{category}} similaires", "otherDevices": "Autres appareils {{condition}}", "addToCart": "Ajouter au panier"
+    },
+    "repair": {
+      "describeProblem": "Décrivez le problème", "specificHelp": "Soyez aussi précis que possible — cela aide les boutiques à proposer des devis précis", "issuePlaceholder": "Ex. écran cassé, batterie qui se vide vite, ne charge pas, surchauffe...", "tip": "Conseil : indiquez le modèle de l'appareil si possible", "selected": "Sélectionné","shopDetails": "Détails de la boutique",
+    "email": "E-mail",
+    "phone": "Téléphone",
+    "type": "Type",
+    "address": "Adresse",
+    "joined": "Inscrit le",
+    "status": "Statut",
+    "active": "Actif",
+    "inactive": "Inactif",
+    "newRating": "Nouveau",
+    "defaultShopName": "la boutique",
+    "defaultCity": "Le Caire",
+    "categorySubtitle": "Choisissez la catégorie qui correspond le mieux à votre appareil",
+    "chooseShopTitle": "Choisissez votre atelier de réparation",
+    "chooseShopSubtitle": "Sélectionnez la boutique à laquelle envoyer votre demande de réparation",
+    "generalType": "Général",
+    "processing": "Traitement en cours...",
+    "shopDetailsAria": "Détails de la boutique",
+    "deviceType": "Type d'appareil",
+"sendRepairRequest": "Envoyer la demande de réparation"
+    },
+    "shopPage": {
+      "verifiedShop": "Boutique vérifiée", "officialShop": "Boutique officielle", "viewProducts": "Voir les produits", "chatWithShop": "Discuter avec la boutique", "shopNotFound": "Boutique introuvable", "browseCategory": "Acheter par catégorie", "noProducts": "Aucun produit trouvé", "clearFilters": "Effacer tous les filtres", "verified": "Vérifiée", "fastShip": "Expédition rapide", "returns": "Retours", "new": "Nouveau", "added": "Ajouté", "addToCart": "Ajouter au panier", "customerSatisfaction": "Satisfaction client", "avgDelivery": "Délai moyen de livraison", "avgRating": "Note moyenne de la boutique", "productsFound": "produits trouvés", "searchProducts": "Rechercher des produits...", "clear": "Effacer", "filters": "Filtres", "sortBy": "Trier par", "condition": "État", "all": "Tous", "adjustFilters": "Modifiez vos filtres ou votre recherche", "shopDescription": "Services de réparation professionnels avec pièces authentiques et garantie de 6 mois.", "browseCollections": "Parcourir les collections de cette boutique", "item": "article", "items": "articles", "viewAll": "Voir tout", "category": "Catégorie",
+      "priceRange": "Fourchette de prix (EGP)",
+      "inStockOnly": "En stock uniquement",
+      "clearAllFilters": "Effacer tous les filtres",
+      "chatBannerTitle": "Vous ne savez pas quelle pièce convient à votre appareil ?",
+      "chatBannerDescription": "Discutez directement avec cette boutique et obtenez une recommandation personnalisée avant d'acheter.",
+      "startChat": "Démarrer la discussion",
+      "customerReviews": "Avis clients",
+      "reviewSingular": "avis",
+      "reviewPlural": "avis",
+      "avgLabel": "moy.",
+      "shareYourExperience": "Partagez votre expérience",
+      "reviewPlaceholder": "Comment s'est passée votre expérience avec cette boutique ?...",
+      "submitReview": "Envoyer l'avis",
+      "noReviewsYet": "Aucun avis pour le moment",
+      "beFirstReview": "Soyez le premier à partager votre expérience !",
+      "lovedByCustomers": "Plébiscité par les clients",
+      "basedOn": "Basé sur",
+      "anonymous": "Anonyme",
+      "editReview": "Modifier l'avis",
+      "cancel": "Annuler",
+      "update": "Mettre à jour",
+      "rateStars": "Noter {star} étoiles",
+      "loginRequiredTitle": "Connexion requise",
+      "loginRequiredText": "Veuillez vous connecter pour ajouter des articles au panier",
+      "loginButton": "Connexion",
+      "addedToCartToast": "Ajouté au panier !",
+      "errorTitle": "Erreur",
+      "addToCartFailed": "Échec de l'ajout au panier",
+      "incompleteTitle": "Incomplet",
+      "provideRatingComment": "Veuillez indiquer une note et un commentaire",
+      "tooLongTitle": "Trop long",
+      "commentTooLong": "Le commentaire doit comporter moins de 1000 caractères",
+      "reviewAddedToast": "Avis ajouté !",
+      "submitReviewFailed": "Échec de l'envoi de l'avis",
+      "reviewUpdatedToast": "Avis mis à jour !",
+      "updateReviewFailed": "Impossible de mettre à jour l'avis",
+      "deleteReviewTitle": "Supprimer l'avis ?",
+      "deleteReviewText": "Cette action est irréversible",
+      "deleteConfirmButton": "Oui, supprimer",
+      "reviewRemovedToast": "Avis supprimé !",
+      "deleteReviewFailed": "Impossible de supprimer l'avis",
+      "loadingShop": "Chargement de la boutique..."
+    },
+    "offersPage": {
+      "activeOffers": "Offres actives", "available": "offres disponibles", "noActive": "Aucune offre active", "checkBack": "Revenez bientôt — de nouvelles offres sont ajoutées chaque jour !"
+    },
+    "service": {
+      "title": "TechCare moderne",
+      "cards": {
+        "expertRepairs": {"title": "Réparations expertes", "desc": "Des techniciens certifiés restaurent vos appareils avec précision et soin."},
+        "premiumDevices": {"title": "Appareils premium", "desc": "Une sélection exclusive de smartphones et gadgets certifiés."},
+        "priorityShipping": {"title": "Expédition prioritaire", "desc": "Livraison rapide avec suivi en temps réel et assurance."},
+        "ironcladWarranty": {"title": "Garantie complète", "desc": "Des plans de protection de 12 mois pour une tranquillité totale."},
+        "dataRecovery": {"title": "Récupération de données", "desc": "Récupération sécurisée de vos photos, fichiers et contacts."},
+        "tradeInProgram": {"title": "Programme de reprise", "desc": "Échangez votre ancien appareil contre un crédit immédiat."}
+      }
+    }
+  }
+}
