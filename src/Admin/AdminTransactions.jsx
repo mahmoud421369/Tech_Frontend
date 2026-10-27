@@ -1,61 +1,315 @@
-import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
+import React, {
+  useState, useEffect, useMemo, useCallback, useRef, memo,
+} from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  FiCreditCard, FiCopy, FiSearch, FiX, FiUser, FiDollarSign,
-  FiClock, FiCheckCircle, FiXCircle, FiChevronLeft, FiChevronRight,
-  FiChevronUp, FiChevronDown, FiActivity, FiDownload, FiEye, FiCheck, FiHash, FiRefreshCw,
-  FiInfo
+  FiCreditCard, FiCopy, FiSearch, FiX, FiUser, FiDollarSign, FiClock, FiCheckCircle,
+  FiXCircle, FiChevronLeft, FiChevronRight, FiChevronUp, FiChevronDown, FiDownload,
+  FiHash, FiRefreshCw, FiInfo, FiAlertCircle, FiFilter,
 } from 'react-icons/fi';
-import Swal from 'sweetalert2';
-import DOMPurify from 'dompurify';
-import api from '../api';
+import api from '../common/api/api';
+import { UI3D_CSS, Defs3D } from '../components/user/Ui3D';
+import { EXTRAS_CSS, Toaster, toast, EmptyState3D } from '../components/user/UiExtras';
 
 const ROWS_OPTIONS = [5, 10, 20, 50];
+const TABS = [
+  { key: 'all', label: 'All' },
+  { key: 'COMPLETED', label: 'Settled' },
+  { key: 'PENDING', label: 'Pending' },
+  { key: 'FAILED', label: 'Rejected' },
+  { key: 'REFUNDED', label: 'Refunded' },
+];
+const STATUS_LABEL = { COMPLETED: 'Settled', PENDING: 'Pending', FAILED: 'Rejected', REFUNDED: 'Refunded' };
+const REDUCED = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-const STATUS_META = {
-  COMPLETED: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600', dot: 'bg-emerald-500' },
-  PENDING:   { bg: 'bg-amber-50 dark:bg-amber-900/20',   text: 'text-amber-600',   dot: 'bg-amber-500'   },
-  FAILED:    { bg: 'bg-red-50 dark:bg-red-900/20',       text: 'text-red-600',     dot: 'bg-red-500'     },
-  REFUNDED:  { bg: 'bg-purple-50 dark:bg-purple-900/20', text: 'text-purple-600',  dot: 'bg-purple-500'  },
+const STATUS_BG = { COMPLETED: '#34d399', PENDING: '#fbbf24', FAILED: '#fb7185', REFUNDED: '#c4b5fd' };
+const STATUS_FALLBACK_BG = '#e8ebe9';
+
+const METHOD_BG = {
+  CASH: '#fbbf24',
+  CARD: '#22d3ee',
+  CREDIT_CARD: '#22d3ee',
+  WALLET: '#c4b5fd',
 };
-const getStatusMeta = (s) => STATUS_META[s] || { bg: 'bg-gray-50 dark:bg-gray-800', text: 'text-gray-500', dot: 'bg-gray-400' };
+const METHOD_FALLBACK_BG = '#34d399';
 
-const showToast = (text, icon) =>
-  Swal.fire({ text, icon, toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
-
-const formatDate = (d) => {
-  if (!d) return 'N/A';
-  return new Date(d).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+const NB_FONT = "'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
+const NB_FONT_STYLE = { fontFamily: NB_FONT };
+const ensureNbFont = () => {
+  if (typeof document === 'undefined' || document.getElementById('nb-font')) return;
+  [['https://fonts.googleapis.com', false], ['https://fonts.gstatic.com', true]].forEach(([href, cors]) => {
+    const l = document.createElement('link');
+    l.rel = 'preconnect'; l.href = href; if (cors) l.crossOrigin = '';
+    document.head.appendChild(l);
+  });
+  const link = document.createElement('link');
+  link.id = 'nb-font';
+  link.rel = 'stylesheet';
+  link.href = 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap';
+  document.head.appendChild(link);
 };
 
+const NB_CSS = `
+.nb{--nb-bg:#f9fafb;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e8ebe9;--nb-dot:#04261a;--nb-accent:#10b981;--nb-btn:#059669;--nb-on:#ffffff;background:var(--nb-bg);color:var(--nb-ink)}
+.nb-dark{--nb-bg:#141414;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#1e1e1e;--nb-dot:#3f3f3f;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-on:#022c22}
+.nb-gray{background:var(--nb-gray)}
+.nb-muted{color:var(--nb-muted)}
+.nb-ic{color:var(--nb-accent)}
+.nb-line{border-color:var(--nb-line)}
+.nb-card{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow);transition:transform .15s ease,box-shadow .15s ease}
+.nb-lift:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--nb-shadow)}
+.nb-bar{display:inline-block;width:40px;height:12px;background:var(--nb-accent);border:2px solid var(--nb-line)}
+.nb-ul{text-decoration:underline;text-decoration-color:var(--nb-accent);text-decoration-thickness:3px;text-underline-offset:4px;text-decoration-skip-ink:none}
+.nb-squig path{stroke:var(--nb-accent)}
+.nb-chip{display:inline-flex;align-items:center;gap:4px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);padding:1px 6px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;line-height:1.5;white-space:nowrap}
+.nb-chip-n{background:var(--nb-gray);color:var(--nb-muted);border-style:dashed}
+.nb-tile{display:inline-flex;align-items:center;justify-content:center;flex:none;border:2px solid var(--nb-line);color:#04261a}
+.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);font-weight:700;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,background-color .12s ease}
+.nb-btn:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--nb-shadow)}
+.nb-btn:active:not(:disabled){transform:translate(1px,1px);box-shadow:0 0 0 var(--nb-shadow)}
+.nb-btn:disabled{opacity:.45;cursor:not-allowed}
+.nb-btn-a,.nb-btn-on{background:var(--nb-btn);color:var(--nb-on)}
+.nb-btn-danger{background:#ef4444;color:#fff}
+.nb-btn:focus-visible,.nb-field:focus-within{outline:3px solid var(--nb-accent);outline-offset:2px}
+.nb-field{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow)}
+.nb-menu{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow)}
+.nb-opt{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;font-size:12px;font-weight:700;text-transform:uppercase;text-align:start;cursor:pointer}
+.nb-opt:hover{background:var(--nb-gray)}
+.nb-opt[aria-selected=true]{background:var(--nb-btn);color:var(--nb-on)}
+.nb select option{background:var(--nb-card);color:var(--nb-ink)}
+.nb-track{height:12px;background:var(--nb-gray);border:2px solid var(--nb-line);overflow:hidden}
+.nb-rows>tr+tr{border-top:2px dotted var(--nb-dot)}
+.nb-rows>tr:hover{background:var(--nb-gray)}
+@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn{transition:none}}
+`;
 
+const SCROLL_CSS = `
+  .slim-scroll { scrollbar-width: thin; scrollbar-color: rgba(52,211,153,.6) transparent; }
+  .slim-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+  .slim-scroll::-webkit-scrollbar-track { background: transparent; }
+  .slim-scroll::-webkit-scrollbar-thumb { background: rgba(52,211,153,.55); }
+  .slim-scroll::-webkit-scrollbar-thumb:hover { background: #34d399; }
+`;
 
+const PAGE_CSS = UI3D_CSS + EXTRAS_CSS + NB_CSS + SCROLL_CSS;
 
+const BTN_MD = 'nb-btn px-3 py-2 text-xs';
+const BTN_ICON = 'nb-btn w-8 h-8';
+const PANEL = 'nb-gray nb-line border-2 border-dotted';
 
-const RowsDropdown = memo(({ value, options, onChange }) => {
+const TONE_BG = { em: '#34d399', teal: '#2dd4bf', lime: '#a3e635', cyan: '#22d3ee', amber: '#fbbf24', red: '#fb7185' };
+
+const DATE_FMT = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+const TIME_FMT = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit' });
+const FULL_FMT = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+const NUM_FMT = new Intl.NumberFormat('en-US');
+const toTs = (v) => { const t = new Date(v).getTime(); return Number.isNaN(t) ? 0 : t; };
+const fmtDate = (f, v) => { const t = toTs(v); return t ? f.format(t) : '—'; };
+
+const num = (v) => Number(v) || 0;
+const pct = (n, total) => (total ? Math.round((n / total) * 100) : 0);
+const money = (v) => `${NUM_FMT.format(num(v))} EGP`;
+const statusOf = (t) => String(t.paymentStatus || t.status || '').toUpperCase();
+const txDate = (t) => t.createdAt || t.paidAt;
+const isSubscription = (t) => t.paymentType === 'SUBSCRIPTION_PAYMENT';
+const accountOf = (t) => (isSubscription(t) ? { label: 'Shop', id: t.shopId, isUser: false } : { label: 'User', id: t.userId, isUser: true });
+
+const CTRL = /[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g;
+const clean = (v) => String(v ?? '').replace(CTRL, '');
+const isSafeId = (id) => /^[A-Za-z0-9_-]{1,64}$/.test(String(id));
+const shortId = (id) => clean(id).slice(0, 8) || '—';
+const errText = (err) => String(err?.response?.data?.message || '').slice(0, 120) || undefined;
+const isCanceled = (err) => err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError' || err?.name === 'AbortError';
+const methodOf = (t) => clean(t.paymentMethod).trim() || 'SYSTEM';
+const methodLabel = (m) => m.replace(/_/g, ' ');
+
+const isNotAdmin = (token) => {
+  try {
+    const raw = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const p = JSON.parse(atob(raw));
+    const found = [p.role, p.roles, p.authorities, p.scope, localStorage.getItem('role')]
+      .flat().filter(Boolean).join(' ').toUpperCase();
+    return found !== '' && !found.includes('ADMIN');
+  } catch { return false; }
+};
+
+const csvCell = (v) => {
+  let s = String(v ?? '');
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  return `"${s.replace(/"/g, '""')}"`;
+};
+
+const downloadCSV = (name, head, rows) => {
+  const text = [head, ...rows].map((r) => r.map(csvCell).join(',')).join('\n');
+  const blob = new Blob([`\ufeff${text}`], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+const pageList = (cur, total) => {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages = [...new Set([1, total, cur - 1, cur, cur + 1])].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);
+  const out = [];
+  pages.forEach((p, i) => { if (i && p - pages[i - 1] > 1) out.push(`gap${p}`); out.push(p); });
+  return out;
+};
+
+const useDarkMode = () => {
+  const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'));
+  useEffect(() => {
+    const el = document.documentElement;
+    const mo = new MutationObserver(() => setDark(el.classList.contains('dark')));
+    mo.observe(el, { attributes: true, attributeFilter: ['class'] });
+    return () => mo.disconnect();
+  }, []);
+  return dark;
+};
+
+const useEscape = (fn) => {
+  useEffect(() => {
+    const h = (e) => { if (e.key === 'Escape') fn(); };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [fn]);
+};
+
+const UnderlinedTitle = memo(({ text }) => {
+  const s = String(text || '');
+  const i = s.lastIndexOf(' ');
+  const head = i > 0 ? s.slice(0, i + 1) : '';
+  const tail = i > 0 ? s.slice(i + 1) : s;
+  return (
+    <>
+      {head}
+      <span className="relative inline-block">
+        {tail}
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 100 10" preserveAspectRatio="none" className="nb-squig pointer-events-none absolute inset-x-0 -bottom-2 h-2.5 w-full">
+          <path d="M1 6 C 20 2, 40 9, 60 5 S 90 3, 99 6" fill="none" strokeWidth="5" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        </svg>
+      </span>
+    </>
+  );
+});
+
+const IconTile = memo(({ icon: Icon, tone = 'em', className = 'w-11 h-11', size = 18 }) => (
+  <span className={`nb-tile ${className}`} style={{ background: TONE_BG[tone] }}>
+    <Icon size={size} aria-hidden="true" />
+  </span>
+));
+
+const Ring = memo(({ percent, color }) => {
+  const r = 26;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className="relative w-16 h-16 flex-shrink-0" role="img" aria-label={`${percent}%`}>
+      <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
+        <circle cx="32" cy="32" r={r} fill="none" strokeWidth="8" style={{ stroke: 'var(--nb-gray)' }} />
+        <circle
+          cx="32" cy="32" r={r} fill="none" strokeWidth="8"
+          stroke={color}
+          strokeDasharray={`${(c * percent) / 100} ${c}`}
+          style={{ transition: REDUCED ? 'none' : 'stroke-dasharray .6s ease' }}
+        />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-[11px] font-extrabold tabular-nums">
+        {percent}%
+      </span>
+    </div>
+  );
+});
+
+const StatCard = memo(({ label, value, description, icon, tone, percent, color }) => (
+  <div className="nb-card nb-lift p-4 sm:p-5 flex items-center justify-between gap-3 min-w-0">
+    <div className="min-w-0 flex-1 text-left">
+      <div className="flex items-center gap-3">
+        <IconTile icon={icon} tone={tone} />
+        <div className="min-w-0">
+          <p className="nb-muted text-[11px] font-bold uppercase tracking-wide truncate">{label}</p>
+          <p className="text-2xl font-extrabold tracking-tight leading-tight tabular-nums truncate">{value}</p>
+        </div>
+      </div>
+      <p className="nb-muted mt-3 text-xs font-semibold truncate">{description}</p>
+    </div>
+    <Ring percent={percent} color={color} />
+  </div>
+));
+
+const StatusPill = memo(({ status }) => (
+  <span className="nb-chip" style={{ background: STATUS_BG[status] || STATUS_FALLBACK_BG, color: '#04261a' }}>
+    <span className="w-1.5 h-1.5 bg-[#04261a]" aria-hidden="true" />
+    {STATUS_LABEL[status] || status || 'Unset'}
+  </span>
+));
+
+const MethodBadge = memo(({ method }) => {
+  const bg = METHOD_BG[String(method).toUpperCase()];
+  const isSystem = String(method).toUpperCase() === 'SYSTEM';
+  return (
+    <span
+      className={`nb-chip ${isSystem ? 'nb-chip-n' : ''}`}
+      style={!isSystem ? { background: bg || METHOD_FALLBACK_BG, color: '#04261a' } : undefined}
+    >
+      <FiCreditCard size={11} aria-hidden="true" />
+      {methodLabel(method)}
+    </span>
+  );
+});
+
+const Tabs = memo(({ label, tabs, value, onChange, counts }) => (
+  <div role="tablist" aria-label={label} className="nb-line flex gap-2 overflow-x-auto p-3 sm:px-4 border-b-2 [scrollbar-width:none]">
+    {tabs.map(({ key, label: text }) => {
+      const active = value === key;
+      return (
+        <button
+          key={key}
+          type="button"
+          role="tab"
+          aria-selected={active}
+          onClick={() => onChange(key)}
+          className={`nb-btn flex-shrink-0 px-3 py-1.5 text-xs uppercase ${active ? 'nb-btn-on' : ''}`}
+        >
+          {text}
+          <span className="nb-chip tabular-nums">{NUM_FMT.format(counts[key] ?? 0)}</span>
+        </button>
+      );
+    })}
+  </div>
+));
+
+const RowsDropdown = memo(({ value, onChange }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
-
   useEffect(() => {
+    if (!open) return undefined;
     const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, []);
+    document.addEventListener('pointerdown', h);
+    return () => document.removeEventListener('pointerdown', h);
+  }, [open]);
 
   return (
-    <div className="relative inline-block" ref={ref}>
-      <button onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-transparent hover:border-emerald-500/20 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
-        <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">{value} Rows</span>
-        <FiChevronDown size={12} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+    <div className="relative" ref={ref}>
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open} className={`${BTN_MD} h-10 min-w-[120px] justify-between uppercase`}>
+        <span>{value} rows</span>
+        <FiChevronDown size={14} className={`transition-transform duration-200 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="absolute right-0 z-20 mt-1 w-32 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
-          {options.map(n => (
-            <button key={n} onClick={() => { onChange(n); setOpen(false); }}
-              className={`w-full flex items-center justify-between px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition ${value === n ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
-              {n} Rows
-              {value === n && <FiCheck size={12} className="text-emerald-500" />}
+        <div role="listbox" className="nb-menu absolute right-0 z-20 mt-2 w-full overflow-hidden">
+          {ROWS_OPTIONS.map((n) => (
+            <button
+              key={n}
+              type="button"
+              role="option"
+              aria-selected={value === n}
+              onClick={() => { onChange(n); setOpen(false); }}
+              className="nb-opt"
+            >
+              {n} rows
             </button>
           ))}
         </div>
@@ -64,362 +318,440 @@ const RowsDropdown = memo(({ value, options, onChange }) => {
   );
 });
 
-const TransactionModal = memo(({ transaction, onClose }) => {
-  if (!transaction) return null;
-  const rows = [
-    { icon: FiHash, label: 'Tx ID', value: transaction.id },
-    { 
-      icon: FiUser, 
-      label: transaction.paymentType === 'SUBSCRIPTION_PAYMENT' ? 'Shop ID' : 'User ID', 
-      value: transaction.paymentType === 'SUBSCRIPTION_PAYMENT' ? transaction.shopId : transaction.userId 
-    },
-    { icon: FiDollarSign, label: 'Amount', value: `${transaction.amount?.toLocaleString()} EGP` },
-    { icon: FiCreditCard, label: 'Method', value: transaction.paymentMethod || 'CASH' },
-    { icon: FiCheckCircle, label: 'Status', value: transaction.paymentStatus || transaction.status },
-    { icon: FiClock, label: 'Date', value: formatDate(transaction.paidAt || transaction.createdAt) },
-  ];
-
+const SortTh = memo(({ label, field, sort, onSort }) => {
+  const active = sort.field === field;
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-md p-4">
-      <div className="w-full max-w-[280px] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
-        <div className="flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/80 px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-          <h3 className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">Transaction Details</h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-red-500 transition-all">
-            <FiX size={16} title="Close" />
-          </button>
-        </div>
-
-        <div className="p-4 space-y-2">
-          {rows.map(({ icon: Icon, label, value }) => (
-            <div key={label} className="group p-2 bg-gray-50 dark:bg-gray-900/40 border border-transparent hover:border-lime-500/20 rounded-xl transition-all duration-300">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center text-lime-500 shadow-sm group-hover:rotate-6 transition-transform">
-                  <Icon size={12} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em]">{label}</p>
-                  <p className="text-[11px] font-bold text-gray-800 dark:text-gray-100 truncate">{value}</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="px-4 pb-4 pt-0">
-          <button onClick={onClose}
-            className="w-full py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[9px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-lime-500 dark:hover:bg-lime-500 dark:hover:text-white transition-all active:scale-[0.98]">
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
+    <th scope="col" className="px-3 py-3 text-left text-[11px] font-extrabold uppercase" aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <button type="button" onClick={() => onSort(field)} className="inline-flex items-center gap-1 uppercase hover:underline underline-offset-4">
+        {label}
+        <span className={`flex flex-col -space-y-1 ${active ? 'nb-ic' : 'nb-muted'}`}>
+          <FiChevronUp size={10} className={active && sort.dir === 'asc' ? '' : 'opacity-50'} />
+          <FiChevronDown size={10} className={active && sort.dir === 'desc' ? '' : 'opacity-50'} />
+        </span>
+      </button>
+    </th>
   );
 });
 
-const StatCard = memo(({ icon: Icon, label, value, color }) => (
-  <div className="bg-white/10  dark:bg-slate-900/40 backdrop-blur-md text-white  border  rounded-2xl p-5 dark:border-gray-700 shadow-xl  hover:shadow-xl hover:shadow-emerald-400/5 transition-all duration-500 group relative overflow-hidden">
-    <div className={`absolute top-0 right-0 w-24 h-24 bg-gray-500/5 rounded-bl-full translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-700`} />
-    <div className="relative flex items-center justify-between">
-      <div className="space-y-1">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">{label}</p>
-        <p className="text-xl font-black text-gray-900 dark:text-white tracking-tighter">{value}</p>
-      </div>
-      <div className={`w-14 h-14 rounded-2xl bg-gray-50 dark:bg-gray-900/20 flex items-center justify-center text-gray-500 group-hover:rotate-12 group-hover:scale-110 transition-all duration-500`}>
-        <Icon size={24} />
-      </div>
-    </div>
-  </div>
+const PlainTh = memo(({ children }) => (
+  <th scope="col" className="px-3 py-3 text-left text-[11px] font-extrabold uppercase">{children}</th>
 ));
 
-const SortIcon = memo(({ field, sortField, sortDir }) => {
-  if (sortField !== field) return <FiChevronDown size={11} className="text-gray-400 dark:text-gray-500" />;
-  return sortDir === 'asc' ? <FiChevronUp size={11} className="text-emerald-600" /> : <FiChevronDown size={11} className="text-emerald-600" />;
-});
-
-const Th = memo(({ field, label, center = true, onSort, sortField, sortDir }) => (
-  <th onClick={() => onSort(field)}
-  scope='col'
-    className={` text-slate-500 font-medium text-xs tracking-wider uppercase border-b border-slate-200 dark:border-slate-800  p-4   cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${center ? 'text-center' : 'text-right'}`}>
-    <span className={`flex items-center gap-1.5 ${center ? 'justify-center' : ''}`}>
-      {label} <SortIcon field={field} sortField={sortField} sortDir={sortDir} />
-    </span>
-  </th>
+const Pagination = memo(({ page, total, onChange }) => (
+  <nav className="flex items-center gap-1.5" aria-label="Pagination">
+    <button type="button" className={BTN_ICON} onClick={() => onChange(page - 1)} disabled={page <= 1} aria-label="Previous page"><FiChevronLeft size={16} /></button>
+    {pageList(page, total).map((p) => (typeof p === 'string'
+      ? <span key={p} className="w-6 text-center text-xs font-bold">…</span>
+      : (
+        <button
+          key={p}
+          type="button"
+          onClick={() => onChange(p)}
+          aria-current={p === page ? 'page' : undefined}
+          className={`nb-btn w-8 h-8 text-xs tabular-nums ${p === page ? 'nb-btn-on' : ''}`}
+        >
+          {p}
+        </button>
+      )))}
+    <button type="button" className={BTN_ICON} onClick={() => onChange(page + 1)} disabled={page >= total} aria-label="Next page"><FiChevronRight size={16} /></button>
+  </nav>
 ));
 
-
-
-const TransactionsPage = ({ darkMode }) => {
-  const navigate = useNavigate();
-  const tokenRef = useRef(localStorage.getItem('authToken'));
-
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [userIdSearch, setUserIdSearch] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [sortField, setSortField] = useState('createdAt');
-  const [sortDir, setSortDir] = useState('desc');
-  const [selectedTx, setSelectedTx] = useState(null);
-
-  useEffect(() => { document.title = 'Admin - Transactions'; }, []);
-
-  const fetchAll = useCallback(async () => {
-    const token = tokenRef.current;
-    if (!token) { navigate('/login'); return; }
-    setLoading(true);
-    try {
-      const { data } = await api.get('/api/admin/transactions/all', { headers: { Authorization: `Bearer ${token}` } });
-      setTransactions(Array.isArray(data) ? data : data?.content || []);
-    } catch (err) {
-      if (err?.response?.status === 401) navigate('/login');
-      else showToast('Sync failed', 'error');
-    } finally { setLoading(false); }
-  }, [navigate]);
-
-  useEffect(() => { fetchAll(); }, [fetchAll]);
-
-  const fetchByUser = useCallback(async () => {
-    if (!userIdSearch.trim()) { fetchAll(); return; }
-    const token = tokenRef.current;
-    setLoading(true);
-    try {
-      const { data } = await api.get(`/api/admin/transactions/${userIdSearch.trim()}`, { headers: { Authorization: `Bearer ${token}` } });
-      setTransactions(Array.isArray(data) ? data : data?.content || []);
-    } catch (err) {
-      showToast(err?.response?.status === 404 ? 'User not found' : 'Fetch failed', 'info');
-      setTransactions([]);
-    } finally { setLoading(false); setCurrentPage(1); }
-  }, [userIdSearch, fetchAll]);
-
-  const stats = useMemo(() => ({
-    total: transactions.length,
-    completed: transactions.filter(t => (t.paymentStatus || t.status) === 'COMPLETED').length,
-    pending: transactions.filter(t => (t.paymentStatus || t.status) === 'PENDING').length,
-    failed: transactions.filter(t => (t.paymentStatus || t.status) === 'FAILED').length,
-    totalAmount: transactions.reduce((s, t) => s + (t.amount || 0), 0),
-  }), [transactions]);
-
-  const handleSort = useCallback((field) => {
-    setSortField(prev => { if (prev === field) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return prev; } setSortDir('desc'); return field; });
-    setCurrentPage(1);
-  }, []);
-
-  const processed = useMemo(() => {
-    return [...transactions].sort((a, b) => {
-      let av = a[sortField], bv = b[sortField];
-      if (sortField === 'status') { av = a.paymentStatus || a.status; bv = b.paymentStatus || b.status; }
-      if (sortField === 'amount') { av = Number(av) || 0; bv = Number(bv) || 0; }
-      else if (sortField === 'createdAt') { av = new Date(a.createdAt || a.paidAt || 0).getTime(); bv = new Date(b.createdAt || b.paidAt || 0).getTime(); }
-      else { av = String(av || '').toLowerCase(); bv = String(bv || '').toLowerCase(); }
-      if (av < bv) return sortDir === 'asc' ? -1 : 1;
-      if (av > bv) return sortDir === 'asc' ? 1 : -1;
-      return 0;
-    });
-  }, [transactions, sortField, sortDir]);
-
-  const totalPages = Math.ceil(processed.length / rowsPerPage);
-  const paginated = useMemo(
-    () => processed.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage),
-    [processed, currentPage, rowsPerPage]
-  );
-
-  const exportCSV = useCallback(() => {
-    const headers = 'Transaction ID,User/Shop ID,Amount,Status,Date,Type';
-    const rows = transactions.map(t => {
-      const displayId = t.paymentType === 'SUBSCRIPTION_PAYMENT' ? t.shopId : t.userId;
-      return `${t.id || ''},${displayId || ''},${t.amount?.toFixed(2) || ''},${t.paymentStatus || t.status || ''},${t.createdAt || t.paidAt ? formatDate(t.createdAt || t.paidAt) : ''},${t.paymentMethod || t.type || ''}`;
-    }).join('\n');
-    const blob = new Blob([`${headers}\n${rows}`], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'financial_registry.csv';
-    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-  }, [transactions]);
-
+const TxRow = memo(({ tx, onDetails, onCopy, onFilterUser }) => {
+  const acc = accountOf(tx);
+  const accId = clean(acc.id);
+  const method = methodOf(tx);
+  const when = tx.paidAt || tx.createdAt;
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
-
-       
-       
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-1.5 rounded-full bg-emerald-500" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">Financial Audit</span>
-            </div>
-            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">Transactions</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Monitor platform cash flow and payment settlement status</p>
-          </div>
-
-          <div className="flex gap-2">
-            <button onClick={fetchAll} disabled={loading} title="Refresh"
-              className="w-10 h-10 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-emerald-500 hover:border-emerald-500/30 transition-all disabled:opacity-40">
-              <FiRefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-            </button>
-            <button onClick={exportCSV} className="p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-sm flex items-center gap-4 hover:border-emerald-500/30 transition-all">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-500">
-                <FiDownload size={18} />
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Export</p>
-              </div>
-            </button>
-          </div>
+    <tr className="transition-colors motion-reduce:transition-none">
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <div className="flex items-center gap-2.5">
+          <IconTile icon={FiCreditCard} tone="em" className="w-9 h-9" size={16} />
+          <span className="inline-flex items-center gap-1.5">
+            <code className="text-xs font-mono font-bold">#{shortId(tx.id)}</code>
+            <button type="button" title="Copy transaction ID" aria-label="Copy transaction ID" onClick={() => onCopy(tx.id, 'Transaction ID')} className="nb-muted hover:text-[var(--nb-accent)] transition-colors"><FiCopy size={12} /></button>
+          </span>
         </div>
-
-        
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard icon={FiDollarSign}  label="Total Volume" value={`${stats.totalAmount.toLocaleString()} EGP`} color="lime" />
-          <StatCard icon={FiCheckCircle} label="Settled"      value={stats.completed}                             color="emerald" />
-          <StatCard icon={FiClock}       label="Pending"      value={stats.pending}                               color="amber" />
-          <StatCard icon={FiXCircle}     label="Rejected"     value={stats.failed}                                color="rose" />
-        </div>
-
-        
-        
-        <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
-          <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
-            <div className="relative flex-1 group">
-              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors" size={16} />
-              <input type="text" placeholder="Search by specific User ..." value={userIdSearch}
-                onChange={e => setUserIdSearch(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && fetchByUser()}
-                className="w-full pl-12 pr-10 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all" />
-              {userIdSearch && (
-                <button onClick={() => { setUserIdSearch(''); fetchAll(); setCurrentPage(1); }}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors"><FiX size={16} title="Reset Filter" /></button>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <button onClick={fetchByUser} className="px-6 py-3.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 dark:hover:bg-emerald-500 dark:hover:text-white transition-all">Filter</button>
-              <button onClick={() => { setUserIdSearch(''); fetchAll(); setCurrentPage(1); }} className="px-6 py-3.5 border-2 border-gray-100 dark:border-gray-700 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:border-emerald-500/50 hover:text-emerald-500 transition-all rounded-2xl">Reset</button>
-            </div>
-            <div className="flex items-center gap-3 px-4 border-l border-gray-100 dark:border-gray-800">
-              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Rows</span>
-              <RowsDropdown value={rowsPerPage} options={ROWS_OPTIONS} onChange={n => { setRowsPerPage(n); setCurrentPage(1); }} />
-            </div>
-          </div>
-        </div>
-
-       
-       
-        <div className="bg-white dark:bg-gray-800 rounded-sm border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
-          {loading ? (
-            <div className="py-32 text-center space-y-4">
-              <div className="w-12 h-12 border-4 border-lime-500 border-t-transparent rounded-full animate-spin mx-auto shadow-lg" />
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 animate-pulse">Syncing ledger...</p>
-            </div>
-          ) : (
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <p className="nb-muted text-[10px] font-bold uppercase">{acc.label}</p>
+        <span className="inline-flex items-center gap-1.5">
+          <code className="text-[11px] font-mono font-bold max-w-[130px] truncate block" title={accId || undefined}>{accId || 'N/A'}</code>
+          {accId && (
             <>
-              <div className="overflow-x-auto w-full rounded-sm border border-gray-200 dark:border-gray-800 shadow-sm custom-scrollbar-thin">
-                <table className="w-full table-auto border-collapse text-center text-sm text-gray-500  min-w-[900px]">
-                  <thead className="bg-gray-50 dark:bg-gray-900">
-                    <tr>
-                      <th className={` text-slate-500 font-semibold text-xs tracking-wider uppercase border-b border-slate-200 dark:border-slate-800  p-4   cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors`}>ID</th>
-                      <Th field="amount"    label="Value"  onSort={handleSort} sortField={sortField} sortDir={sortDir} />
-                      <Th field="status"    label="Status" onSort={handleSort} sortField={sortField} sortDir={sortDir} />
-                      <Th field="createdAt" label="Date"   onSort={handleSort} sortField={sortField} sortDir={sortDir} />
-                      <th className={` text-slate-500 font-semibold text-xs tracking-wider uppercase border-b border-slate-200 dark:border-slate-800  p-4   cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors`}>Method</th>
-                      <th className={` text-slate-500 font-semibold text-xs tracking-wider uppercase border-b border-slate-200 dark:border-slate-800  p-4   cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors`}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                    {paginated.length === 0 ? (
-                      <tr><td colSpan={6} className="py-32 text-center">
-                        <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
-                          <FiCreditCard size={32} className="text-gray-200" />
-                        </div>
-                        <p className="text-gray-400 font-bold">No Financial Records Identified</p>
-                      </td></tr>
-                    ) : paginated.map(t => {
-                      const meta = getStatusMeta(t.status);
-                      return (
-                        <tr key={t.id} className="hover:bg-emerald-50/10 dark:hover:bg-emerald-900/5 transition-colors group">
-                          <td className="p-3">
-                            
-                            <div className="flex items-center justify-center gap-3">
-                              <code className="text-[10px] font-black bg-gray-50 dark:bg-gray-900 px-3 py-1.5 rounded-lg text-gray-500 max-w-[120px] truncate block border border-transparent group-hover:border-emerald-500/20 transition-all">
-                                {t.paymentType === 'SUBSCRIPTION_PAYMENT' 
-                                  ? DOMPurify.sanitize(String(t.shopId || 'N/A')) 
-                                  : DOMPurify.sanitize(String(t.userId || 'N/A'))}
-                              </code>
-                              <button onClick={() => navigator.clipboard.writeText(t.id).then(() => showToast('ID Copied', 'success'))}
-                                className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-lime-500 transition-all"><FiCopy size={14} title="Copy Transaction ID" /></button>
-                            </div>
-                          </td>
-                          <td className="p-3 text-center">
-                            <p className="text-xs font-black text-gray-900 dark:text-white tracking-tight">{t.amount !== undefined ? `${t.amount.toLocaleString()} EGP` : '—'}</p>
-                          </td>
-                          <td className="p-3 text-center">
-                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${getStatusMeta(t.paymentStatus || t.status).bg} ${getStatusMeta(t.paymentStatus || t.status).text}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${getStatusMeta(t.paymentStatus || t.status).dot}`} />
-                              {t.paymentStatus || t.status || 'UNSET'}
-                            </span>
-                          </td>
-                          <td className="p-3 text-center">
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{formatDate(t.paidAt || t.createdAt)}</p>
-                          </td>
-                          <td className="p-3 text-center">
-                            <p className="text-[10px] font-black text-gray-700 dark:text-gray-200 uppercase tracking-widest">{t.paymentMethod || 'SYSTEM'}</p>
-                            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">{t.paymentType || t.type || 'N/A'}</p>
-                          </td>
-                          <td className="p-3">
-                            <div className="flex items-center justify-center">
-                              <button onClick={() => setSelectedTx(t)} className="inline-flex items-center justify-center p-2 rounded-lg text-slate-500 hover:indigo-600 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-950 dark:hover:text-white transition-colors duration-200 focus-outline-none focus-ring-2 focus:ring-indigo-500 focus-ring-offset-2">
-                                <FiInfo size={14} title="View Details" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {totalPages > 1 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between border-t border-gray-50 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 p-3 gap-6">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                    Showing {paginated.length} records of {processed.length}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
-                      className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 text-gray-400 hover:text-emerald-500 disabled:opacity-30 transition-all">
-                      <FiChevronLeft size={16} title="Previous Page" />
-                    </button>
-                    <div className="flex gap-1">
-                      {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                        const p = i + 1;
-                        return (
-                          <button key={p} onClick={() => setCurrentPage(p)}
-                            className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all border ${currentPage === p ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-500 hover:border-emerald-500/50'}`}>
-                            {p}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
-                      className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 text-gray-400 hover:text-emerald-500 disabled:opacity-30 transition-all">
-                      <FiChevronRight size={16} title="Next Page" />
-                    </button>
-                  </div>
-                </div>
+              <button type="button" title={`Copy ${acc.label.toLowerCase()} ID`} aria-label={`Copy ${acc.label.toLowerCase()} ID`} onClick={() => onCopy(acc.id, `${acc.label} ID`)} className="nb-muted hover:text-[var(--nb-accent)] transition-colors"><FiCopy size={12} /></button>
+              {acc.isUser && (
+                <button type="button" title="Show this user's transactions" aria-label="Show this user's transactions" onClick={() => onFilterUser(accId)} className="nb-muted hover:text-[var(--nb-accent)] transition-colors"><FiFilter size={12} /></button>
               )}
             </>
           )}
+        </span>
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap font-mono font-extrabold text-[13px] tabular-nums">
+        {tx.amount !== undefined && tx.amount !== null ? money(tx.amount) : '—'}
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap"><StatusPill status={statusOf(tx)} /></td>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <p className="text-xs font-bold">{fmtDate(DATE_FMT, when)}</p>
+        <p className="nb-muted text-[10px] font-semibold">{fmtDate(TIME_FMT, when)}</p>
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <MethodBadge method={method} />
+        <p className="nb-muted mt-1 text-[10px] font-semibold">{clean(tx.paymentType || tx.type) || 'N/A'}</p>
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <button type="button" title="View details" aria-label="View details" onClick={() => onDetails(tx)} className={BTN_ICON}><FiInfo size={14} /></button>
+      </td>
+    </tr>
+  );
+});
+
+const TransactionModal = memo(({ tx, onClose, onCopy, onFilterUser }) => {
+  useEscape(onClose);
+  const acc = accountOf(tx);
+  const accId = clean(acc.id);
+  const status = statusOf(tx);
+  const rows = [
+    { icon: FiHash, label: 'Transaction ID', value: clean(tx.id) || 'N/A', copy: tx.id, copyLabel: 'Transaction ID' },
+    { icon: FiUser, label: `${acc.label} ID`, value: accId || 'N/A', copy: acc.id, copyLabel: `${acc.label} ID` },
+    { icon: FiDollarSign, label: 'Amount', value: money(tx.amount) },
+    { icon: FiCreditCard, label: 'Method', value: <MethodBadge method={methodOf(tx)} /> },
+    { icon: FiClock, label: 'Date', value: fmtDate(FULL_FMT, tx.paidAt || tx.createdAt) },
+  ];
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
+      <div role="dialog" aria-modal="true" aria-label="Transaction details" className="nb-card relative w-full max-w-md max-h-[92vh] flex flex-col overflow-hidden">
+        <div className="nb-gray nb-line px-5 py-3.5 border-b-2 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-2.5">
+            <IconTile icon={FiCreditCard} tone="cyan" className="w-9 h-9" size={16} />
+            <div>
+              <h3 className="text-sm font-extrabold uppercase"><span className="nb-ul">Transaction details</span></h3>
+              <p className="nb-muted mt-1 flex items-center gap-1.5 text-[10px] font-bold font-mono">
+                #{shortId(tx.id)}
+                <button type="button" aria-label="Copy transaction ID" onClick={() => onCopy(tx.id, 'Transaction ID')} className="hover:text-[var(--nb-accent)] transition-colors"><FiCopy size={10} /></button>
+              </p>
+            </div>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" className={BTN_ICON}><FiX size={15} /></button>
+        </div>
+
+        <div className="px-5 py-4 space-y-2.5 overflow-y-auto slim-scroll">
+          <div className={`${PANEL} p-3 flex items-center justify-between`}>
+            <div className="flex items-center gap-2.5">
+              {status === 'COMPLETED' ? <FiCheckCircle size={15} className="nb-ic" /> : status === 'FAILED' ? <FiXCircle size={15} className="text-red-500" /> : <FiClock size={15} className="text-amber-500" />}
+              <p className="nb-muted text-[9px] font-bold uppercase">Status</p>
+            </div>
+            <StatusPill status={status} />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {rows.map(({ icon: Icon, label, value, copy, copyLabel }) => (
+              <div key={label} className={`${PANEL} p-3 flex items-center gap-2.5`}>
+                <Icon size={15} className="nb-ic flex-shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="nb-muted text-[9px] font-bold uppercase">{label}</p>
+                  <div className="text-xs font-extrabold truncate">{value}</div>
+                </div>
+                {copy && clean(copy) && (
+                  <button type="button" aria-label={`Copy ${copyLabel}`} title={`Copy ${copyLabel}`} onClick={() => onCopy(copy, copyLabel)} className="nb-muted hover:text-[var(--nb-accent)] transition-colors flex-shrink-0"><FiCopy size={13} /></button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="nb-gray nb-line px-5 py-3.5 border-t-2 flex justify-end gap-2 flex-shrink-0">
+          {acc.isUser && accId && (
+            <button type="button" onClick={() => onFilterUser(accId)} className={`${BTN_MD} uppercase`}><FiFilter size={13} /> User's transactions</button>
+          )}
+          <button type="button" onClick={onClose} className={`${BTN_MD} uppercase`}>Close</button>
         </div>
       </div>
-      {selectedTx && <TransactionModal transaction={selectedTx} onClose={() => setSelectedTx(null)} />}
-      <style dangerouslySetInnerHTML={{ __html: `
-        .custom-scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
-        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
-        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
-      `}} />
+    </div>
+  );
+});
+
+const TransactionsPage = () => {
+  const navigate = useNavigate();
+  const darkMode = useDarkMode();
+  const tokenRef = useRef(localStorage.getItem('authToken'));
+  const denied = useMemo(() => !tokenRef.current || isNotAdmin(tokenRef.current), []);
+  const abortRef = useRef(null);
+
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [userInput, setUserInput] = useState('');
+  const [activeUser, setActiveUser] = useState('');
+  const [tab, setTab] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [sort, setSort] = useState({ field: 'createdAt', dir: 'desc' });
+  const [selectedTx, setSelectedTx] = useState(null);
+
+  useEffect(() => { document.title = 'Admin - Transactions'; }, []);
+  useEffect(() => { ensureNbFont(); }, []);
+
+  useEffect(() => {
+    if (!tokenRef.current) { navigate('/login', { replace: true }); return; }
+    if (denied) { toast({ icon: 'error', title: 'Access denied', text: 'Admin accounts only.' }); navigate('/login', { replace: true }); }
+  }, [navigate, denied]);
+
+  const load = useCallback(async (userId = '', { silent = false } = {}) => {
+    if (!tokenRef.current || denied) return;
+    const id = userId.trim();
+    if (id && !isSafeId(id)) {
+      toast({ icon: 'warning', title: 'Invalid user ID', text: 'Use letters, numbers, - and _ only.' });
+      return;
+    }
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    if (!silent) setLoading(true);
+    setError(false);
+    try {
+      const url = id ? `/api/admin/transactions/${encodeURIComponent(id)}` : '/api/admin/transactions/all';
+      const { data } = await api.get(url, { headers: { Authorization: `Bearer ${tokenRef.current}` }, signal: ctrl.signal });
+      if (ctrl.signal.aborted) return;
+      setTransactions(Array.isArray(data) ? data : data?.content || []);
+      setActiveUser(id);
+      setCurrentPage(1);
+      setLastUpdated(new Date());
+    } catch (err) {
+      if (ctrl.signal.aborted || isCanceled(err)) return;
+      const status = err?.response?.status;
+      if (status === 401) navigate('/login', { replace: true });
+      else if (status === 403) { toast({ icon: 'error', title: 'Access denied', text: 'Admin accounts only.' }); navigate('/login', { replace: true }); }
+      else if (id && status === 404) {
+        toast({ icon: 'info', title: 'User not found', text: 'No transactions exist for this user.' });
+        setTransactions([]);
+        setActiveUser(id);
+        setCurrentPage(1);
+      } else {
+        setError(true);
+        toast({ icon: 'error', title: 'Failed to load transactions', text: errText(err) });
+      }
+    } finally {
+      if (abortRef.current === ctrl) setLoading(false);
+    }
+  }, [navigate, denied]);
+
+  useEffect(() => {
+    load('');
+    return () => abortRef.current?.abort();
+  }, [load]);
+
+  const applyFilter = useCallback(() => load(userInput), [load, userInput]);
+  const resetFilter = useCallback(() => { setUserInput(''); load(''); }, [load]);
+  const refresh = useCallback(() => load(activeUser), [load, activeUser]);
+
+  const filterByUser = useCallback((id) => {
+    const safe = String(id ?? '').trim();
+    if (!isSafeId(safe)) return;
+    setUserInput(safe);
+    setSelectedTx(null);
+    load(safe);
+  }, [load]);
+
+  const index = useMemo(() => transactions.map((t) => ({
+    t,
+    status: statusOf(t),
+    amount: num(t.amount),
+    ts: toTs(txDate(t)),
+  })), [transactions]);
+
+  const stats = useMemo(() => {
+    const counts = { all: index.length, COMPLETED: 0, PENDING: 0, FAILED: 0, REFUNDED: 0 };
+    let volume = 0;
+    for (const e of index) { if (e.status in counts) counts[e.status] += 1; volume += e.amount; }
+    return { counts, volume };
+  }, [index]);
+
+  const filtered = useMemo(() => {
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    const list = index.filter((e) => tab === 'all' || e.status === tab);
+    list.sort((a, b) => {
+      if (sort.field === 'amount') return (a.amount - b.amount) * dir;
+      if (sort.field === 'status') return a.status < b.status ? -dir : a.status > b.status ? dir : 0;
+      return (a.ts - b.ts) * dir;
+    });
+    return list.map((e) => e.t);
+  }, [index, tab, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+  const page = Math.min(currentPage, totalPages);
+  const paginated = useMemo(() => filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage), [filtered, page, rowsPerPage]);
+  const from = filtered.length ? (page - 1) * rowsPerPage + 1 : 0;
+  const to = Math.min(page * rowsPerPage, filtered.length);
+
+  const statCards = useMemo(() => {
+    const { counts, volume } = stats;
+    return [
+      { label: 'Total volume', value: money(volume), description: 'Across all loaded records', icon: FiDollarSign, tone: 'cyan', percent: counts.all ? 100 : 0, color: '#22d3ee' },
+      { label: 'Settled', value: NUM_FMT.format(counts.COMPLETED), description: 'Completed payments', icon: FiCheckCircle, tone: 'em', percent: pct(counts.COMPLETED, counts.all), color: '#34d399' },
+      { label: 'Pending', value: NUM_FMT.format(counts.PENDING), description: 'Awaiting settlement', icon: FiClock, tone: 'amber', percent: pct(counts.PENDING, counts.all), color: '#fbbf24' },
+      { label: 'Rejected', value: NUM_FMT.format(counts.FAILED), description: 'Failed payments', icon: FiXCircle, tone: 'red', percent: pct(counts.FAILED, counts.all), color: '#fb7185' },
+    ];
+  }, [stats]);
+
+  const handleTab = useCallback((k) => { setTab(k); setCurrentPage(1); }, []);
+  const handleRows = useCallback((n) => { setRowsPerPage(n); setCurrentPage(1); }, []);
+  const handleSort = useCallback((field) => {
+    setSort((s) => (s.field === field ? { field, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { field, dir: 'desc' }));
+    setCurrentPage(1);
+  }, []);
+  const handleCopy = useCallback(async (id, label = 'Transaction ID') => {
+    try {
+      await navigator.clipboard.writeText(String(id));
+      toast({ icon: 'success', title: 'Copied', text: `${label} copied to clipboard.`, timer: 2000 });
+    } catch {
+      toast({ icon: 'error', title: 'Could not copy', text: 'Allow clipboard access in your browser.' });
+    }
+  }, []);
+  const handleDetails = useCallback((t) => setSelectedTx(t), []);
+  const closeDetails = useCallback(() => setSelectedTx(null), []);
+
+  const exportCSV = useCallback(() => {
+    downloadCSV(
+      'financial_registry.csv',
+      ['Transaction ID', 'User/Shop ID', 'Amount', 'Status', 'Date', 'Method', 'Type'],
+      transactions.map((t) => [
+        t.id, accountOf(t).id, num(t.amount).toFixed(2), statusOf(t),
+        txDate(t) ? fmtDate(FULL_FMT, txDate(t)) : '', t.paymentMethod || '', t.paymentType || t.type || '',
+      ]),
+    );
+  }, [transactions]);
+
+  if (denied) return null;
+
+  const hasData = transactions.length > 0;
+
+  return (
+    <div
+      style={NB_FONT_STYLE}
+      className={`nb ${darkMode ? 'nb-dark' : ''} min-h-screen py-6 lg:pl-64 mt-16 text-left overflow-x-hidden`}
+    >
+      <style>{PAGE_CSS}</style>
+      <Defs3D />
+      <Toaster darkMode={darkMode} />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
+        <div className="flex flex-wrap items-end justify-between gap-3 px-0.5">
+          <div>
+            <p className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wide"><span className="nb-bar" aria-hidden="true" />Payments</p>
+            <h1 className="mt-2.5 text-3xl sm:text-4xl font-extrabold tracking-tight leading-[1.15]">
+              <UnderlinedTitle text="Financial Transactions" />
+            </h1>
+            <p className="nb-muted mt-2 text-sm font-medium">Monitor platform cash flow and payment settlement status</p>
+          </div>
+          <div className="flex items-center gap-2.5">
+            {lastUpdated && <p className="nb-muted hidden sm:block text-[11px] font-bold">Last updated: {TIME_FMT.format(lastUpdated)}</p>}
+            <button type="button" onClick={refresh} aria-label="Refresh" title="Refresh" className={`${BTN_MD} h-10 uppercase`}>
+              <FiRefreshCw size={14} className={loading ? 'animate-spin motion-reduce:animate-none' : ''} /> Refresh
+            </button>
+            <button type="button" onClick={exportCSV} disabled={!hasData} className={`${BTN_MD} h-10 uppercase`}>
+              <FiDownload size={14} /> Export CSV
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
+          {statCards.map((s) => <StatCard key={s.label} {...s} />)}
+        </div>
+
+        <section className="nb-card overflow-hidden">
+          <div className="nb-line p-3 sm:p-4 flex flex-wrap items-center gap-2.5 border-b-2">
+            <div className="nb-field relative flex h-10 min-w-[220px] flex-1 items-center gap-2 px-3">
+              <FiSearch aria-hidden="true" className="h-4 w-4 flex-shrink-0" />
+              <input
+                type="search"
+                value={userInput}
+                maxLength={64}
+                autoComplete="off"
+                spellCheck={false}
+                enterKeyHint="search"
+                aria-label="Filter by user ID"
+                placeholder="Filter by user ID"
+                onChange={(e) => setUserInput(e.target.value.replace(/[^A-Za-z0-9_-]/g, ''))}
+                onKeyDown={(e) => e.key === 'Enter' && applyFilter()}
+                className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60"
+              />
+            </div>
+            <button type="button" onClick={applyFilter} className={`${BTN_MD} nb-btn-a h-10 uppercase`}>Filter</button>
+            {(activeUser || userInput) && <button type="button" onClick={resetFilter} className={`${BTN_MD} h-10 uppercase`}><FiX size={13} /> Reset</button>}
+            <RowsDropdown value={rowsPerPage} onChange={handleRows} />
+          </div>
+
+          {activeUser && (
+            <p className="nb-gray nb-line px-4 py-2 text-[11px] font-bold border-b-2 flex items-center gap-2">
+              <span>Showing transactions for user <b className="font-mono">{activeUser}</b></span>
+              <button type="button" title="Copy user ID" aria-label="Copy user ID" onClick={() => handleCopy(activeUser, 'User ID')} className="hover:text-[var(--nb-accent)] transition-colors"><FiCopy size={12} /></button>
+            </p>
+          )}
+
+          <Tabs label="Payment status" tabs={TABS} value={tab} onChange={handleTab} counts={stats.counts} />
+
+          <div className="overflow-auto max-h-[68vh] slim-scroll">
+            <table className="w-full min-w-[900px] text-left border-collapse">
+              <thead className="nb-gray sticky top-0 z-10 shadow-[0_2px_0_0_var(--nb-line)]">
+                <tr>
+                  <PlainTh>Transaction</PlainTh>
+                  <PlainTh>Account</PlainTh>
+                  <SortTh label="Amount" field="amount" sort={sort} onSort={handleSort} />
+                  <SortTh label="Status" field="status" sort={sort} onSort={handleSort} />
+                  <SortTh label="Date" field="createdAt" sort={sort} onSort={handleSort} />
+                  <PlainTh>Method</PlainTh>
+                  <PlainTh>Details</PlainTh>
+                </tr>
+              </thead>
+              <tbody className="nb-rows">
+                {loading && !hasData ? (
+                  Array.from({ length: Math.min(rowsPerPage, 8) }, (_, i) => (
+                    <tr key={i} className="animate-pulse motion-reduce:animate-none">
+                      {Array.from({ length: 7 }, (__, j) => (
+                        <td key={j} className="px-3 py-4"><div className="nb-gray h-3.5 w-full" /></td>
+                      ))}
+                    </tr>
+                  ))
+                ) : error && !hasData ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-14 text-center">
+                      <FiAlertCircle size={28} className="mx-auto text-red-500" />
+                      <p className="mt-2 text-sm font-extrabold uppercase">Couldn't load transactions</p>
+                      <p className="nb-muted text-xs mb-4">Check your connection and try again.</p>
+                      <button type="button" onClick={refresh} className={`${BTN_MD} nb-btn-a uppercase`}><FiRefreshCw size={13} /> Try again</button>
+                    </td>
+                  </tr>
+                ) : paginated.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-14">
+                      <EmptyState3D kind="box" title="No transactions found" subtitle="The ledger is empty or nothing matches your filters" darkMode={darkMode} />
+                    </td>
+                  </tr>
+                ) : (
+                  paginated.map((t, i) => (
+                    <TxRow key={t.id ?? `row-${i}`} tx={t} onDetails={handleDetails} onCopy={handleCopy} onFilterUser={filterByUser} />
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {filtered.length > 0 && (
+            <div className="nb-gray nb-line px-4 py-3 border-t-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <p className="text-xs font-semibold">
+                Showing <b className="tabular-nums">{NUM_FMT.format(from)}–{NUM_FMT.format(to)}</b> of <b className="tabular-nums">{NUM_FMT.format(filtered.length)}</b> records
+              </p>
+              {totalPages > 1 && <Pagination page={page} total={totalPages} onChange={setCurrentPage} />}
+            </div>
+          )}
+        </section>
+      </div>
+
+      {selectedTx && <TransactionModal tx={selectedTx} onClose={closeDetails} onCopy={handleCopy} onFilterUser={filterByUser} />}
     </div>
   );
 };
 
-export default TransactionsPage;
+export default memo(TransactionsPage);

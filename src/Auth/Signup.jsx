@@ -1,685 +1,481 @@
-import React, { useState, useCallback, useMemo, useEffect, memo } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import Swal from "sweetalert2";
-import api from "../api";
-import { Users, Wrench } from "lucide-react";
+import React, { useState, useCallback, useEffect, useMemo, useRef, memo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { QueryClient } from '@tanstack/react-query';
 import {
-  RiUserLine, RiLockPasswordLine, RiMailLine, RiPhoneLine,
-  RiHome4Line, RiMapPinLine, RiStore2Line,
-  RiFileListLine, RiTruckLine, RiUserSettingsLine,
-  RiEyeLine, RiEyeOffLine, RiArrowDownSLine, RiShieldCheckLine,
-} from "react-icons/ri";
-import { FiArrowLeft, FiCheck } from "react-icons/fi";
+  FiUser, FiMail, FiPhone, FiLock, FiHome, FiMapPin, FiShoppingBag, FiFileText, FiTruck,
+  FiBriefcase, FiClipboard, FiShield, FiArrowLeft, FiEye, FiEyeOff, FiAlertTriangle, FiChevronDown,
+} from 'react-icons/fi';
+import api from '../common/api/api';
+import logo from '../common/images/tech-restore-logo.webp';
+import { UI3D_CSS } from '../components/user/Ui3D';
+import { useLangFont } from '../components/user/ListingKit';
+import { IsoIllustration } from '../components/user/IsoIllustrations';
+import { EXTRAS_CSS, Toaster, toast } from '../components/user/UiExtras';
+import enTranslations from '../locales/en/translation.json';
+import arTranslations from '../locales/ar/translation.json';
+import frTranslations from '../locales/fr/translation.json';
+import { useAppLanguage, languageDirection } from '../common/utils/useAppLanguage';
 
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { refetchOnWindowFocus: false, gcTime: 10 * 60 * 1000 } },
+});
+
+const NB_FONT = "'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
+const NB_FONT_STYLE = { fontFamily: NB_FONT };
+const ensureNbFont = () => {
+  if (typeof document === 'undefined' || document.getElementById('nb-font')) return;
+  [['https://fonts.googleapis.com', false], ['https://fonts.gstatic.com', true]].forEach(([href, cors]) => {
+    const l = document.createElement('link');
+    l.rel = 'preconnect'; l.href = href; if (cors) l.crossOrigin = '';
+    document.head.appendChild(l);
+  });
+  const link = document.createElement('link');
+  link.id = 'nb-font';
+  link.rel = 'stylesheet';
+  link.href = 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap';
+  document.head.appendChild(link);
+};
+
+const NB_CSS = `
+.nb{--nb-bg:#f3f4f6;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b5563;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e5e7eb;--nb-accent:#10b981;--nb-btn:#059669;--nb-on:#ffffff;background:var(--nb-bg);color:var(--nb-ink)}
+.nb-dark{--nb-bg:#141414;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#1e1e1e;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-on:#022c22}
+.nb-bg{background:var(--nb-bg)}
+.nb-gray{background:var(--nb-gray)}
+.nb-muted{color:var(--nb-muted)}
+.nb-ic{color:var(--nb-accent)}
+.nb-line{border-color:var(--nb-line)}
+.nb-card{background:var(--nb-card);border:2px solid var(--nb-line);box-shadow:5px 5px 0 var(--nb-shadow)}
+.nb-bar{display:inline-block;width:52px;height:16px;background:var(--nb-accent);border:2px solid var(--nb-line)}
+.nb-ul{text-decoration:underline;text-decoration-color:var(--nb-accent);text-decoration-thickness:4px;text-underline-offset:5px;text-decoration-skip-ink:none}
+.nb-chip{display:inline-flex;align-items:center;gap:4px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);padding:1px 6px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;line-height:1.5}
+.nb-chip-a{background:var(--nb-btn);color:var(--nb-on)}
+.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow);font-weight:700;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,background-color .12s ease}
+.nb-btn:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--nb-shadow)}
+.nb-btn:active:not(:disabled){transform:translate(2px,2px);box-shadow:0 0 0 var(--nb-shadow)}
+.nb-btn:disabled{opacity:.45;cursor:not-allowed}
+.nb-btn-a,.nb-btn-on{background:var(--nb-btn);color:var(--nb-on)}
+.nb-btn:focus-visible,.nb-field:focus-within{outline:3px solid var(--nb-accent);outline-offset:2px}
+.nb-field{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow)}
+.nb-field-err{border-color:#e11d48;box-shadow:3px 3px 0 #e11d48}
+.nb-field:has(:disabled){opacity:.6}
+.nb-alert{background:var(--nb-card);color:var(--nb-ink);border:2px solid #e11d48;box-shadow:3px 3px 0 #e11d48}
+.nb-link{font-weight:700;text-decoration:underline;text-decoration-color:var(--nb-accent);text-decoration-thickness:2px;text-underline-offset:4px}
+.nb select option{background:var(--nb-card);color:var(--nb-ink)}
+.nb[dir=rtl] .nb-flip{transform:scaleX(-1)}
+@media (prefers-reduced-motion:reduce){.nb-btn,.anim-float,.anim-fade-up{transition:none;animation:none!important}}
+`;
+const PAGE_CSS = `${UI3D_CSS}\n${EXTRAS_CSS}\n${NB_CSS}`;
+
+const NS = { en: enTranslations.signup, ar: arTranslations.signup, fr: frTranslations.signup };
+const T_CACHE = {};
+const getT = (language) => (T_CACHE[language] ||= (key, vars) => {
+  let s = NS[language]?.[key] || NS.en?.[key] || key;
+  if (vars) for (const k in vars) s = s.split(`{{${k}}}`).join(vars[k]);
+  return s;
+});
+
+const SUCCESS_DELAY_MS = 1500;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^\d{10,15}$/;
-const MIN_PASSWORD_LENGTH = 6;
+const MIN_PASSWORD_LENGTH = 8;
+const MAX_PASSWORD_BYTES = 72;
+const encoder = new TextEncoder();
+const byteLength = (s) => encoder.encode(s || '').length;
+const passwordStrengthError = (v, t) => {
+  if (/\s/.test(v)) return t('errNoSpaces');
+  if (!/[a-z]/.test(v)) return t('errLower');
+  if (!/[A-Z]/.test(v)) return t('errUpper');
+  if (!/\d/.test(v)) return t('errNumber');
+  if (!/[^A-Za-z0-9]/.test(v)) return t('errSymbol');
+  return '';
+};
+
+const validators = {
+  email: (v, t) => (!v.trim() ? t('errEmailRequired') : !EMAIL_REGEX.test(v) ? t('errEmailInvalid') : ''),
+  phone: (v, t) => (!v.trim() ? t('errPhoneRequired') : PHONE_REGEX.test(v.replace(/\D/g, '')) ? '' : t('errPhoneInvalid')),
+  password: (v, t) => (!v ? t('errPasswordRequired')
+    : v.length < MIN_PASSWORD_LENGTH ? t('errPasswordMin', { min: MIN_PASSWORD_LENGTH })
+      : byteLength(v) > MAX_PASSWORD_BYTES ? t('errPasswordMax', { max: MAX_PASSWORD_BYTES })
+        : passwordStrengthError(v, t)),
+};
+const validateField = (name, value = '', t) => (validators[name] ? validators[name](value, t) : !String(value).trim() ? t('errRequired') : '');
+
+const isCanceled = (err) => err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError' || err?.name === 'AbortError';
+
+const Spinner = () => <span aria-hidden="true" className="inline-block h-4 w-4 flex-shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" />;
+
+const ErrorBanner = memo(({ message }) => (
+  <div role="alert" className="nb-alert anim-fade-up flex items-start gap-2.5 p-3">
+    <FiAlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 flex-shrink-0 text-rose-500" />
+    <p className="min-w-0 text-sm font-bold leading-snug">{message}</p>
+  </div>
+));
+
+const AuthInput = memo(({ id, label, icon: Icon, error, trailing, ...rest }) => (
+  <div className="space-y-1.5">
+    {label && <label htmlFor={id} className="block text-xs font-extrabold uppercase tracking-wide">{label}</label>}
+    <div className={`nb-field flex h-12 items-center gap-2 ps-3 ${trailing ? 'pe-2' : 'pe-3'} ${error ? 'nb-field-err' : ''}`}>
+      {Icon && <Icon aria-hidden="true" className="nb-ic h-4 w-4 flex-shrink-0" />}
+      <input
+        id={id} aria-invalid={!!error} aria-describedby={error ? `${id}-err` : undefined}
+        className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60"
+        {...rest}
+      />
+      {trailing}
+    </div>
+    {error && <p id={`${id}-err`} className="flex items-center gap-1 text-xs font-bold text-rose-500"><FiAlertTriangle aria-hidden="true" className="h-3 w-3 flex-shrink-0" />{error}</p>}
+  </div>
+));
+
+const SelectField = memo(({ id, label, icon: Icon, error, children, ...rest }) => (
+  <div className="space-y-1.5">
+    <label htmlFor={id} className="block text-xs font-extrabold uppercase tracking-wide">{label}</label>
+    <div className={`nb-field relative flex h-12 items-center gap-2 ps-3 pe-3 ${error ? 'nb-field-err' : ''}`}>
+      <Icon aria-hidden="true" className="nb-ic h-4 w-4 flex-shrink-0" />
+      <select id={id} aria-invalid={!!error} aria-describedby={error ? `${id}-err` : undefined}
+        className="min-w-0 flex-1 cursor-pointer appearance-none bg-transparent pe-6 text-sm font-semibold outline-none" {...rest}>
+        {children}
+      </select>
+      <FiChevronDown aria-hidden="true" className="pointer-events-none absolute end-3 h-4 w-4" />
+    </div>
+    {error && <p id={`${id}-err`} role="alert" className="flex items-center gap-1 text-xs font-bold text-rose-500"><FiAlertTriangle aria-hidden="true" className="h-3 w-3 flex-shrink-0" />{error}</p>}
+  </div>
+));
+
+const EyeToggle = memo(({ shown, onToggle, t }) => (
+  <button type="button" onClick={onToggle} aria-label={shown ? t('hidePassword') : t('showPassword')} aria-pressed={shown}
+    className="nb-ic flex h-8 w-8 flex-shrink-0 items-center justify-center focus-visible:outline focus-visible:outline-2">
+    {shown ? <FiEyeOff className="h-4 w-4" /> : <FiEye className="h-4 w-4" />}
+  </button>
+));
 
 const SHOP_TYPE_OPTIONS = [
-  { value: "REPAIRER", label: "Repairer" },
-  { value: "SELLER", label: "Seller" },
-  { value: "BOTH", label: "Both" },
+  { value: 'REPAIRER', labelKey: 'shopTypeRepairer' },
+  { value: 'SELLER', labelKey: 'shopTypeSeller' },
+  { value: 'BOTH', labelKey: 'shopTypeBoth' },
 ];
 
-const TAB_CONFIG = [
-  { key: "user", label: "User", icon: <RiUserLine size={16} /> },
-  { key: "shop", label: "Shop Owner", icon: <RiStore2Line size={16} /> },
-  { key: "delivery", label: "Delivery", icon: <RiTruckLine size={16} /> },
-  { key: "assigner", label: "Assigner", icon: <RiUserSettingsLine size={16} /> },
-];
+const f = (name, label, icon, placeholder = label, extra = {}) => ({ name, label, icon, placeholder, ...extra });
+const NAME_F = (ac) => f('name', 'fullName', FiUser, 'fullName', { autoComplete: ac });
+const EMAIL_F = f('email', 'email', FiMail, 'phEmail', { type: 'email', autoComplete: 'email' });
+const PHONE_F = f('phone', 'phone', FiPhone, 'phone', { type: 'tel', autoComplete: 'tel' });
 
-const INPUT_BASE = "w-full px-3 sm:px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/70 border-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 transition-all text-sm outline-none focus:ring-4 focus:ring-emerald-300/50 dark:focus:ring-emerald-500/30 focus:border-emerald-500 dark:focus:border-emerald-500 focus:bg-white dark:focus:bg-gray-900";
-const INPUT_NORMAL = "border-gray-200 dark:border-gray-700";
-const INPUT_ERR = "border-red-300 dark:border-red-600 focus:border-red-500 focus:ring-red-300/50";
-const OTP_INPUT = "w-10 h-11 sm:w-11 sm:h-12 text-center text-lg sm:text-xl font-bold rounded-xl bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-4 focus:ring-emerald-300/50 focus:border-emerald-500 transition-all";
+const ROLES = {
+  user: {
+    labelKey: 'roleUser', icon: FiUser, endpoint: '/api/auth/register/user', ctaKey: 'ctaUser',
+    fields: [
+      f('first_name', 'firstName', FiUser, 'firstName', { autoComplete: 'given-name' }),
+      f('last_name', 'lastName', FiUser, 'lastName', { autoComplete: 'family-name' }),
+      EMAIL_F, PHONE_F,
+    ],
+  },
+  shop: {
+    labelKey: 'roleShop', icon: FiShoppingBag, endpoint: '/api/auth/register/shop', ctaKey: 'ctaShop',
+    fields: [
+      f('name', 'shopName', FiShoppingBag, 'shopName'),
+      EMAIL_F, PHONE_F,
+      f('description', 'description', FiFileText, 'phDescription'),
+      f('shopType', 'shopType', FiShoppingBag, 'phSelectType', { type: 'select', options: SHOP_TYPE_OPTIONS }),
+      f('state', 'state', FiMapPin, 'phState'),
+      f('city', 'city', FiMapPin, 'phCity'),
+      f('street', 'street', FiMapPin, 'phStreet'),
+      f('building', 'building', FiMapPin, 'phBuilding'),
+    ],
+    toPayload: ({ state, city, street, building, ...rest }) => ({ ...rest, shopAddress: { state, city, street, building, isDefault: true } }),
+  },
+  delivery: {
+    labelKey: 'roleDelivery', icon: FiTruck, endpoint: '/api/auth/register/delivery', ctaKey: 'ctaDelivery',
+    fields: [NAME_F(), EMAIL_F, PHONE_F, f('address', 'address', FiHome, 'address')],
+  },
+  assigner: {
+    labelKey: 'roleAssigner', icon: FiClipboard, endpoint: '/api/auth/register/assigner', ctaKey: 'ctaAssigner',
+    fields: [NAME_F('name'), f('department', 'department', FiBriefcase, 'department'), EMAIL_F, PHONE_F],
+  },
+};
+const ROLE_KEYS = Object.keys(ROLES);
 
-const toast = (icon, title, text) =>
-  Swal.fire({ icon, title, text, toast: true, position: "top-end", timer: 2500, showConfirmButton: false, timerProgressBar: true });
+const initialValues = () => Object.fromEntries(ROLE_KEYS.map((k) => [k, Object.fromEntries([...ROLES[k].fields.map((x) => [x.name, '']), ['password', '']])]));
+const emptyMap = () => Object.fromEntries(ROLE_KEYS.map((k) => [k, {}]));
 
-const validateEmail = (v) => !v.trim() ? "Email is required" : !EMAIL_REGEX.test(v) ? "Valid email required" : "";
-const validatePhone = (v) => { if (!v.trim()) return "Phone is required"; const c = v.replace(/\D/g, ""); return PHONE_REGEX.test(c) ? "" : "Valid phone required (10-15 digits)"; };
-const validatePassword = (v) => !v ? "Password is required" : v.length < MIN_PASSWORD_LENGTH ? `Min ${MIN_PASSWORD_LENGTH} characters` : "";
+const OTP_LEN = 6;
+const EMPTY_OTP = Array(OTP_LEN).fill('');
 
-const GlobalAnimations = () => (
-  <style>{`
-    @keyframes floatY { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-14px); } }
-    @keyframes spinSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-    @keyframes wrenchTurn { 0%, 100% { transform: rotate(-14deg); } 50% { transform: rotate(14deg); } }
-    @keyframes sparkPulse { 0%, 100% { opacity: 0.35; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1.15); } }
-    @keyframes popIn { from { opacity: 0; transform: translateY(14px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
-    @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
-    @keyframes badgePop { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
-    @keyframes tilt3d { 0%, 100% { transform: rotateX(10deg) rotateY(16deg) rotateZ(0deg); } 50% { transform: rotateX(4deg) rotateY(8deg) rotateZ(-1deg); } }
-    @keyframes floatZ { 0%, 100% { transform: translateZ(var(--tz, 60px)) translateY(0px); } 50% { transform: translateZ(var(--tz, 60px)) translateY(-10px); } }
-    @keyframes ringSpin { from { transform: translateZ(-10px) rotate(0deg); } to { transform: translateZ(-10px) rotate(360deg); } }
-    .anim-float { animation: floatY 5s ease-in-out infinite; }
-    .anim-spin-slow { animation: spinSlow 9s linear infinite; transform-origin: center; }
-    .anim-wrench { animation: wrenchTurn 3.4s ease-in-out infinite; transform-origin: 70% 30%; }
-    .anim-spark { animation: sparkPulse 2.2s ease-in-out infinite; }
-    .anim-pop-in { animation: popIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
-    .anim-fade-up { animation: fadeSlideUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
-    .anim-badge { animation: badgePop 2.6s ease-in-out infinite; transform-origin: center; }
-    .anim-tilt3d { animation: tilt3d 7s ease-in-out infinite; }
-    .anim-float-z { animation: floatZ 4.2s ease-in-out infinite; }
-    .anim-ring-spin { animation: ringSpin 12s linear infinite; }
-  `}</style>
-);
-
-const DotsBackground = () => (
-  <div className="fixed inset-0 pointer-events-none z-0" aria-hidden="true"
-    style={{ backgroundImage: `radial-gradient(circle, rgba(16,185,129,0.13) 1.5px, transparent 1.5px)`, backgroundSize: "28px 28px" }} />
-);
-
-const Spinner = () => (
-  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-  </svg>
-);
-
-function Illustration3D() {
-  return (
-    <div className="anim-float w-full max-w-[300px] sm:max-w-[360px] lg:max-w-[400px] mx-auto" style={{ perspective: "1600px" }}>
-      <div className="anim-tilt3d relative aspect-square" style={{ transformStyle: "preserve-3d" }}>
-
-        <div
-          className="absolute inset-[14%] rounded-[999px] border-[10px] border-emerald-200/70 dark:border-emerald-800/40 anim-ring-spin"
-          style={{ transformStyle: "preserve-3d" }}
-        />
-
-        <div
-          className="absolute inset-[10%] rounded-[2.75rem] bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600"
-          style={{ transform: "translateZ(-50px)", boxShadow: "0 55px 90px -30px rgba(5,150,105,0.55)" }}
-        />
-
-        <div
-          className="absolute inset-[16%] rounded-[2.25rem] bg-white dark:bg-gray-900 border border-emerald-100 dark:border-emerald-900/50 overflow-hidden flex flex-col items-center justify-center gap-3 p-5"
-          style={{ transform: "translateZ(20px)", boxShadow: "0 30px 60px -20px rgba(6,95,70,0.35)" }}
-        >
-          <div className="w-14 h-14 rounded-full bg-emerald-500 flex items-center justify-center">
-            <Users className="w-7 h-7 text-white" />
-          </div>
-          <div className="space-y-1.5 w-full">
-            <div className="h-2.5 w-3/4 mx-auto rounded-full bg-emerald-100 dark:bg-emerald-900/50" />
-            <div className="h-2.5 w-1/2 mx-auto rounded-full bg-emerald-100 dark:bg-emerald-900/50" />
-          </div>
-          <div className="grid grid-cols-2 gap-2 w-full mt-1">
-            <div className="h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/40" />
-            <div className="h-8 rounded-lg bg-emerald-500/90 flex items-center justify-center">
-              <FiCheck className="text-white" size={14} />
-            </div>
-          </div>
-        </div>
-
-        <div
-          className="anim-float-z absolute top-[0%] right-[0%] w-[22%] aspect-square"
-          style={{ "--tz": "95px", transform: "translateZ(95px)" }}
-        >
-          <div className="anim-wrench w-full h-full rounded-2xl bg-white dark:bg-gray-900 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center" style={{ boxShadow: "0 20px 35px -12px rgba(6,95,70,0.4)" }}>
-            <Wrench className="w-1/2 h-1/2 text-emerald-500" />
-          </div>
-        </div>
-
-        <div
-          className="anim-float-z absolute bottom-[4%] left-[-2%] w-[20%] aspect-square rounded-full"
-          style={{ "--tz": "110px", transform: "translateZ(110px)", animationDelay: "0.5s" }}
-        >
-          <div className="w-full h-full rounded-full bg-white dark:bg-gray-900 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center" style={{ boxShadow: "0 20px 35px -12px rgba(6,95,70,0.4)" }}>
-            <RiUserSettingsLine className="text-emerald-500" size={22} />
-          </div>
-        </div>
-
-        <div
-          className="anim-float-z absolute bottom-[-4%] right-[12%] w-[16%] aspect-square"
-          style={{ "--tz": "75px", transform: "translateZ(75px)", animationDelay: "1s" }}
-        >
-          <div className="anim-badge w-full h-full rounded-2xl bg-emerald-500 flex items-center justify-center" style={{ boxShadow: "0 20px 35px -12px rgba(5,150,105,0.5)" }}>
-            <RiShieldCheckLine className="text-white" size={20} />
-          </div>
-        </div>
-
-        <div
-          className="anim-spark absolute top-[8%] left-[6%] w-3 h-3 rounded-full bg-emerald-300"
-          style={{ transform: "translateZ(130px)" }}
-        />
-        <div
-          className="anim-spark absolute bottom-[20%] right-[2%] w-2 h-2 rounded-full bg-teal-400"
-          style={{ transform: "translateZ(140px)", animationDelay: "0.7s" }}
-        />
-      </div>
-    </div>
-  );
-}
-
-const Field = memo(({ label, icon, error, children }) => (
-  <div className="space-y-1">
-    <label className="block text-[10px] sm:text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{label}</label>
-    <div className="relative">
-      <span className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-emerald-600 dark:text-emerald-400 pointer-events-none">{icon}</span>
-      {children}
-    </div>
-    {error && <p className="text-[10px] sm:text-xs text-red-600 dark:text-red-400 font-medium anim-pop-in" role="alert">{error}</p>}
-  </div>
-));
-
-const PasswordInput = memo(({ formType, value, onChange, onBlur, showPassword, onToggle, error }) => (
-  <Field label="Password (min 6 chars)" icon={<RiLockPasswordLine size={15} />} error={error}>
-    <input
-      type={showPassword ? "text" : "password"} name="password" value={value}
-      onChange={onChange} onBlur={(e) => onBlur(e, formType)}
-      placeholder="Enter password" autoComplete="new-password"
-      className={`${INPUT_BASE} pl-9 sm:pl-10 pr-11 ${error ? INPUT_ERR : INPUT_NORMAL}`}
-    />
-    <button type="button" onClick={onToggle} tabIndex={-1}
-      className="absolute inset-y-0 right-0 pr-3 sm:pr-3.5 flex items-center text-emerald-600 dark:text-emerald-400">
-      {showPassword ? <RiEyeOffLine size={15} /> : <RiEyeLine size={15} />}
-    </button>
-  </Field>
-));
-
-const SubmitBtn = memo(({ label, loading }) => (
-  <button type="submit" disabled={loading}
-    className="w-full h-10 sm:h-11 rounded-xl font-bold text-sm bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 active:scale-[0.98]">
-    {loading ? <><Spinner /> Creating Account...</> : label}
-  </button>
-));
-
-const ErrorBanner = memo(({ message }) =>
-  message ? (
-    <div className="anim-pop-in bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 p-2.5 sm:p-3 rounded-xl text-xs text-center font-medium" role="alert">
-      {message}
-    </div>
-  ) : null
-);
-
-const RoleToggle = memo(({ tab, isOn, onToggle }) => (
-  <button
-    type="button"
-    role="switch"
-    aria-checked={isOn}
-    onClick={() => onToggle(tab.key)}
-    className={`flex items-center gap-2.5 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border-2 font-semibold text-xs sm:text-sm transition-all duration-300 ${isOn
-        ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 shadow-sm"
-        : "border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700"
-      }`}
-  >
-    <span className={`flex-shrink-0 transition-transform duration-300 ${isOn ? "scale-110" : ""}`}>{tab.icon}</span>
-    <span className="truncate">{tab.label}</span>
-    <span
-      className={`ml-auto flex-shrink-0 relative w-8 h-4.5 rounded-full transition-colors duration-300 ${isOn ? "bg-emerald-500" : "bg-gray-300 dark:bg-gray-700"}`}
-      style={{ height: "18px" }}
-    >
-      <span
-        className={`absolute top-0.5 left-0.5 w-3.5 h-3.5 rounded-full bg-white shadow transition-transform duration-300 ${isOn ? "translate-x-3.5" : "translate-x-0"}`}
-      />
-    </span>
-  </button>
-));
-
-const Accordion = memo(({ isOpen, children }) => (
-  <div className={`grid transition-all duration-500 ease-in-out ${isOpen ? "grid-rows-[1fr] opacity-100 mt-4" : "grid-rows-[0fr] opacity-0 mt-0"}`}>
-    <div className="overflow-hidden">{children}</div>
-  </div>
-));
-
-const OTPStep = memo(({ email, onSuccess, onBack }) => {
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+const OTPStep = memo(({ email, onSuccess, onBack, t }) => {
+  const [otp, setOtp] = useState(EMPTY_OTP);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const inputsRef = React.useRef([]);
+  const [error, setError] = useState('');
+  const inputsRef = useRef([]);
+  const busyRef = useRef(false);
+  const abortRef = useRef(null);
 
-  const handleOtpChange = useCallback((i, v) => {
+  const otpCode = useMemo(() => otp.join(''), [otp]);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  const change = useCallback((i, v) => {
     if (!/^\d*$/.test(v)) return;
-    const n = [...otp]; n[i] = v.slice(-1); setOtp(n); setError("");
-    if (v && i < 5) inputsRef.current[i + 1]?.focus();
-  }, [otp]);
-
-  const handleKeyDown = useCallback((i, e) => {
-    if (e.key === "Backspace" && !otp[i] && i > 0) inputsRef.current[i - 1]?.focus();
-  }, [otp]);
-
-  const handlePaste = useCallback((e) => {
-    e.preventDefault();
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
-    if (pasted.length === 6) { setOtp(pasted.split("")); inputsRef.current[5]?.focus(); }
+    setOtp((prev) => { const n = [...prev]; n[i] = v.slice(-1); return n; });
+    setError('');
+    if (v && i < OTP_LEN - 1) inputsRef.current[i + 1]?.focus();
   }, []);
 
-  const handleVerify = useCallback(async () => {
-    const code = otp.join("");
-    if (code.length !== 6) { setError("Please enter all 6 digits"); return; }
+  const keyDown = useCallback((i, e) => {
+    if (e.key === 'Backspace' && !e.currentTarget.value && i > 0) inputsRef.current[i - 1]?.focus();
+  }, []);
+
+  const paste = useCallback((e) => {
+    const digits = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LEN);
+    if (!digits) return;
+    e.preventDefault();
+    const n = [...EMPTY_OTP]; digits.split('').forEach((c, i) => { n[i] = c; });
+    setOtp(n); setError('');
+    inputsRef.current[Math.min(digits.length, OTP_LEN - 1)]?.focus();
+  }, []);
+
+  const verify = useCallback(async () => {
+    if (busyRef.current) return;
+    if (otpCode.length !== OTP_LEN) { setError(t('otpIncomplete')); return; }
+    busyRef.current = true;
+    abortRef.current = new AbortController();
     setLoading(true);
+    let ok = false;
     try {
-      await api.post("/api/auth/verify-email", { email, optCode: code });
-      await toast("success", "Email Verified!", "Your account is ready. Redirecting to login...");
+      await api.post('/api/auth/verify-email', { email, optCode: otpCode }, { signal: abortRef.current.signal });
+      ok = true;
+      toast({ icon: 'success', title: t('verifiedTitle'), text: t('verifiedText'), timer: 2500 });
       onSuccess();
     } catch (err) {
-      setError(err.response?.data?.message || "Invalid code. Please try again.");
+      if (!isCanceled(err)) setError(err.response?.data?.message || t('otpInvalid'));
     } finally {
-      setLoading(false);
+      if (!ok) { busyRef.current = false; setLoading(false); }
     }
-  }, [otp, email, onSuccess]);
+  }, [otpCode, email, onSuccess, t]);
 
   return (
-    <div className="anim-fade-up space-y-4 sm:space-y-5">
-      <div className="text-center space-y-2 sm:space-y-3">
-        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center mx-auto">
-          <RiShieldCheckLine size={24} className="text-emerald-600 dark:text-emerald-400" />
-        </div>
+    <div className="anim-fade-up space-y-4">
+      <div className="space-y-3 text-center">
+        <span className="nb-chip nb-chip-a mx-auto !p-3"><FiShield aria-hidden="true" className="h-7 w-7" /></span>
         <div>
-          <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100">Verify Your Email</h3>
-          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
-            We sent a 6-digit code to{" "}
-            <span className="font-semibold text-emerald-600 dark:text-emerald-400 break-all">{email}</span>
-          </p>
+          <h3 className="text-lg font-extrabold uppercase"><span className="nb-ul">{t('otpTitle')}</span></h3>
+          <p className="nb-muted mt-3 text-sm">{t('otpSent')} <b className="nb-ic break-all" dir="ltr">{email}</b></p>
         </div>
       </div>
-      <div className="flex justify-center gap-1.5 sm:gap-2" onPaste={handlePaste}>
+      <div className="flex justify-center gap-1.5 sm:gap-2" dir="ltr" onPaste={paste}>
         {otp.map((d, i) => (
-          <input key={i} ref={el => inputsRef.current[i] = el} type="text" inputMode="numeric" maxLength={1}
-            value={d} onChange={e => handleOtpChange(i, e.target.value)}
-            onKeyDown={e => handleKeyDown(i, e)} autoFocus={i === 0}
-            className={`${OTP_INPUT} ${error ? "border-red-300 dark:border-red-600" : ""}`} />
+          <input key={i} ref={(el) => { inputsRef.current[i] = el; }} type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={1}
+            value={d} aria-label={t('digit', { n: i + 1 })} autoFocus={i === 0}
+            onChange={(e) => change(i, e.target.value)} onKeyDown={(e) => keyDown(i, e)}
+            className={`nb-field h-12 w-10 bg-transparent px-0 text-center text-lg font-extrabold outline-none sm:w-11 ${error ? 'nb-field-err' : ''}`} />
         ))}
       </div>
-      {error && <p className="text-center text-xs text-red-600 dark:text-red-400 font-medium">{error}</p>}
-      <button onClick={handleVerify} disabled={loading || otp.join("").length !== 6}
-        className="w-full h-10 sm:h-11 rounded-xl font-bold text-sm bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white transition-all flex items-center justify-center gap-2 disabled:opacity-70">
-        {loading ? <><Spinner /> Verifying...</> : "Verify Email"}
+      {error && <p role="alert" className="text-center text-xs font-bold text-rose-500">{error}</p>}
+      <button type="button" onClick={verify} disabled={loading || otpCode.length !== OTP_LEN} className="nb-btn nb-btn-a w-full py-3 text-sm uppercase">
+        {loading ? <><Spinner /> {t('verifying')}</> : t('verify')}
       </button>
-      <div className="flex items-center justify-start">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition font-medium">
-          <FiArrowLeft size={13} /> Back
-        </button>
-      </div>
+      <button type="button" onClick={onBack} className="nb-link flex items-center gap-1.5 text-sm">
+        <FiArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" /> {t('back')}
+      </button>
     </div>
   );
 });
 
-const mkErrors = () => ({ user: {}, shop: {}, delivery: {}, assigner: {} });
-const mkTouched = () => ({ user: {}, shop: {}, delivery: {}, assigner: {} });
-
-const Signup = () => {
-  const navigate = useNavigate();
-
-  const [activeTab, setActiveTab] = useState("user");
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState(mkErrors);
-  const [touched, setTouched] = useState(mkTouched);
-  const [showPasswords, setShowPasswords] = useState({ user: false, shop: false, delivery: false, assigner: false });
-  const [shopTypeOpen, setShopTypeOpen] = useState(false);
-  const [otpStep, setOtpStep] = useState(false);
-  const [pendingEmail, setPendingEmail] = useState("");
-
-  const [userData, setUserData] = useState({ first_name: "", last_name: "", email: "", phone: "", password: "" });
-  const [shopData, setShopData] = useState({ name: "", email: "", password: "", description: "", phone: "", shopAddress: { state: "", city: "", street: "", building: "", isDefault: true }, shopType: "" });
-  const [deliveryData, setDeliveryData] = useState({ name: "", email: "", phone: "", password: "", address: "" });
-  const [assignerData, setAssignerData] = useState({ name: "", email: "", phone: "", password: "", department: "" });
-
-  useEffect(() => { document.title = "Sign Up | Tech-Restore"; }, []);
-
-  const getError = useCallback((t, f) => touched[t]?.[f] ? errors[t]?.[f] || "" : "", [touched, errors]);
-
-  const handleToggleRole = useCallback((key) => {
-    setActiveTab(prev => prev === key ? prev : key);
-  }, []);
-
-  const makeChangeHandler = useCallback((setter, formType, addrFields = []) => (e) => {
-    const { name, value } = e.target;
-    if (addrFields.includes(name)) setter(prev => ({ ...prev, shopAddress: { ...prev.shopAddress, [name]: value } }));
-    else setter(prev => ({ ...prev, [name]: value }));
-    let fe = "";
-    if (name === "email") fe = validateEmail(value);
-    if (name === "phone") fe = validatePhone(value);
-    if (name === "password") fe = validatePassword(value);
-    setErrors(prev => ({ ...prev, [formType]: { ...prev[formType], [name]: fe } }));
-  }, []);
-
-  const handleUserChange = useMemo(() => makeChangeHandler(setUserData, "user"), [makeChangeHandler]);
-  const handleShopChange = useMemo(() => makeChangeHandler(setShopData, "shop", ["state", "city", "street", "building"]), [makeChangeHandler]);
-  const handleDeliveryChange = useMemo(() => makeChangeHandler(setDeliveryData, "delivery"), [makeChangeHandler]);
-  const handleAssignerChange = useMemo(() => makeChangeHandler(setAssignerData, "assigner"), [makeChangeHandler]);
-
-  const handleBlur = useCallback((e, formType) => {
-    const { name, value } = e.target;
-    setTouched(prev => ({ ...prev, [formType]: { ...prev[formType], [name]: true } }));
-    let fe = "";
-    if (name === "email") fe = validateEmail(value);
-    else if (name === "phone") fe = validatePhone(value);
-    else if (name === "password") fe = validatePassword(value);
-    else if (!value.trim()) fe = "Required";
-    setErrors(prev => ({ ...prev, [formType]: { ...prev[formType], [name]: fe } }));
-  }, []);
-
-  const makeToggle = useCallback((t) => () => setShowPasswords(prev => ({ ...prev, [t]: !prev[t] })), []);
-  const toggleUser = useMemo(() => makeToggle("user"), [makeToggle]);
-  const toggleShop = useMemo(() => makeToggle("shop"), [makeToggle]);
-  const toggleDelivery = useMemo(() => makeToggle("delivery"), [makeToggle]);
-  const toggleAssigner = useMemo(() => makeToggle("assigner"), [makeToggle]);
-
-  const handleShopTypeSelect = useCallback((value) => {
-    setShopData(prev => ({ ...prev, shopType: value }));
-    setErrors(prev => ({ ...prev, shop: { ...prev.shop, shopType: "" } }));
-    setTouched(prev => ({ ...prev, shop: { ...prev.shop, shopType: true } }));
-    setShopTypeOpen(false);
-  }, []);
-
-  const registerAndVerify = useCallback(async (endpoint, data, formType) => {
-    setLoading(true);
-    try {
-      await api.post(endpoint, data);
-      setPendingEmail(data.email);
-      setOtpStep(true);
-    } catch (err) {
-      const status = err.response?.status;
-      const serverMsg = err.response?.data?.message;
-
-      let msg = "Registration failed. Please try again.";
-      let emailErr = "";
-
-      if (status === 409) {
-        msg = serverMsg || "This email is already registered.";
-        emailErr = msg;
-        setErrors(prev => ({
-          ...prev,
-          [formType]: { ...prev[formType], email: emailErr, general: "" },
-        }));
-        setTouched(prev => ({
-          ...prev,
-          [formType]: { ...prev[formType], email: true },
-        }));
-        toast("error", "Email Already Exists", msg);
-      } else {
-        msg = serverMsg || msg;
-        setErrors(prev => ({ ...prev, [formType]: { ...prev[formType], general: msg } }));
-        toast("error", "Registration Failed", msg);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const handleUserSignup = useCallback((e) => {
-    e.preventDefault();
-    setTouched(prev => ({ ...prev, user: { first_name: true, last_name: true, email: true, phone: true, password: true } }));
-    const ne = {};
-    if (!userData.first_name.trim()) ne.first_name = "Required";
-    if (!userData.last_name.trim()) ne.last_name = "Required";
-    const ee = validateEmail(userData.email); if (ee) ne.email = ee;
-    const pe = validatePhone(userData.phone); if (pe) ne.phone = pe;
-    const pw = validatePassword(userData.password); if (pw) ne.password = pw;
-    if (Object.keys(ne).length) { setErrors(prev => ({ ...prev, user: ne })); return; }
-    registerAndVerify("/api/auth/register/user", userData, "user");
-  }, [userData, registerAndVerify]);
-
-  const handleShopSignup = useCallback((e) => {
-    e.preventDefault();
-    setTouched(prev => ({ ...prev, shop: { name: true, email: true, phone: true, description: true, shopType: true, state: true, city: true, street: true, building: true, password: true } }));
-    const ne = {};
-    if (!shopData.name) ne.name = "Required";
-    const ee = validateEmail(shopData.email); if (ee) ne.email = ee;
-    const pe = validatePhone(shopData.phone); if (pe) ne.phone = pe;
-    const pw = validatePassword(shopData.password); if (pw) ne.password = pw;
-    if (!shopData.description) ne.description = "Required";
-    if (!shopData.shopType) ne.shopType = "Required";
-    if (!shopData.shopAddress.state) ne.state = "Required";
-    if (!shopData.shopAddress.city) ne.city = "Required";
-    if (!shopData.shopAddress.street) ne.street = "Required";
-    if (!shopData.shopAddress.building) ne.building = "Required";
-    if (Object.keys(ne).length) { setErrors(prev => ({ ...prev, shop: ne })); return; }
-    registerAndVerify("/api/auth/register/shop", shopData, "shop");
-  }, [shopData, registerAndVerify]);
-
-  const handleDeliverySignup = useCallback((e) => {
-    e.preventDefault();
-    setTouched(prev => ({ ...prev, delivery: { name: true, email: true, phone: true, address: true, password: true } }));
-    const ne = {};
-    if (!deliveryData.name.trim()) ne.name = "Required";
-    const ee = validateEmail(deliveryData.email); if (ee) ne.email = ee;
-    const pe = validatePhone(deliveryData.phone); if (pe) ne.phone = pe;
-    const pw = validatePassword(deliveryData.password); if (pw) ne.password = pw;
-    if (!deliveryData.address.trim()) ne.address = "Required";
-    if (Object.keys(ne).length) { setErrors(prev => ({ ...prev, delivery: ne })); return; }
-    registerAndVerify("/api/auth/register/delivery", deliveryData, "delivery");
-  }, [deliveryData, registerAndVerify]);
-
-  const handleAssignerSignup = useCallback((e) => {
-    e.preventDefault();
-    setTouched(prev => ({ ...prev, assigner: { name: true, email: true, phone: true, department: true, password: true } }));
-    const ne = {};
-    if (!assignerData.name.trim()) ne.name = "Required";
-    const ee = validateEmail(assignerData.email); if (ee) ne.email = ee;
-    const pe = validatePhone(assignerData.phone); if (pe) ne.phone = pe;
-    const pw = validatePassword(assignerData.password); if (pw) ne.password = pw;
-    if (!assignerData.department.trim()) ne.department = "Required";
-    if (Object.keys(ne).length) { setErrors(prev => ({ ...prev, assigner: ne })); return; }
-    registerAndVerify("/api/auth/register/assigner", assignerData, "assigner");
-  }, [assignerData, registerAndVerify]);
-
-  const handleOtpSuccess = useCallback(() => navigate("/login"), [navigate]);
-  const handleOtpBack = useCallback(() => { setOtpStep(false); setPendingEmail(""); }, []);
-
-  const inp = (formType, name, type, value, onChange, onBlur, placeholder, autoComplete) => {
-    const err = getError(formType, name);
-    return (
-      <input type={type} name={name} value={value} onChange={onChange}
-        onBlur={(e) => onBlur(e, formType)} placeholder={placeholder}
-        disabled={loading} autoComplete={autoComplete}
-        className={`${INPUT_BASE} pl-9 sm:pl-10 ${err ? INPUT_ERR : INPUT_NORMAL}`} />
-    );
-  };
+const RoleForm = memo(({ role, values, errors, touched, onChange, onBlur, onSubmit, loading, showPw, onTogglePw, t }) => {
+  const cfg = ROLES[role];
+  const errOf = (n) => (touched[n] ? errors[n] || '' : '');
+  const pwToggle = useMemo(() => <EyeToggle shown={showPw} onToggle={onTogglePw} t={t} />, [showPw, onTogglePw, t]);
 
   return (
-    <div className="relative min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
-      <GlobalAnimations />
-      <DotsBackground />
+    <form onSubmit={onSubmit} noValidate className="space-y-4" aria-busy={loading}>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {cfg.fields.map(({ name, label, icon, placeholder, type = 'text', autoComplete, options }) => {
+          const id = `${role}-${name}`;
+          const error = errOf(name);
+          if (type === 'select') {
+            return (
+              <SelectField key={name} id={id} name={name} label={t(label)} icon={icon} error={error}
+                value={values[name]} disabled={loading} onChange={onChange} onBlur={onBlur}>
+                <option value="">{t(placeholder)}</option>
+                {options.map((o) => <option key={o.value} value={o.value}>{t(o.labelKey)}</option>)}
+              </SelectField>
+            );
+          }
+          return (
+            <AuthInput key={name} id={id} name={name} label={t(label)} icon={icon} type={type}
+              value={values[name]} placeholder={t(placeholder)} autoComplete={autoComplete} disabled={loading}
+              dir={type === 'email' || type === 'tel' ? 'ltr' : undefined}
+              onChange={onChange} onBlur={onBlur} error={error} />
+          );
+        })}
+      </div>
 
-      <nav className="fixed top-0 w-full z-50 border-b border-gray-200 dark:border-gray-800 bg-white/90 dark:bg-gray-950/90 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-3.5 flex items-center justify-end">
-          <div className="flex items-center gap-3 sm:gap-5">
-            <Link to="/login" className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition hidden sm:block">
-              Already have an account?
-            </Link>
-            <Link to="/login">
-              <button className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-3.5 sm:px-5 py-2 rounded-3xl transition text-xs sm:text-sm shadow-sm">Sign In</button>
-            </Link>
+      <AuthInput id={`${role}-password`} name="password" label={t('passwordLabel')} icon={FiLock}
+        type={showPw ? 'text' : 'password'} value={values.password} placeholder={t('passwordPlaceholder')} autoComplete="new-password" disabled={loading}
+        onChange={onChange} onBlur={onBlur} error={errOf('password')} trailing={pwToggle} />
+
+      {errors.general && <ErrorBanner message={errors.general} />}
+      <button type="submit" disabled={loading} className="nb-btn nb-btn-a w-full py-3 text-sm uppercase sm:text-base">
+        {loading ? <><Spinner /> {t('creating')}</> : t(cfg.ctaKey)}
+      </button>
+    </form>
+  );
+});
+
+const Signup = ({ darkMode = false }) => {
+  const language = useAppLanguage();
+  const t = getT(language);
+  const font = useLangFont(language);
+  const isAr = language === 'ar';
+  const navigate = useNavigate();
+  const [role, setRole] = useState('user');
+  const [values, setValues] = useState(initialValues);
+  const [errors, setErrors] = useState(emptyMap);
+  const [touched, setTouched] = useState(emptyMap);
+  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [otpStep, setOtpStep] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState('');
+  const busyRef = useRef(false);
+  const abortRef = useRef(null);
+  const leaveTimer = useRef();
+
+  useEffect(() => { ensureNbFont(); }, []);
+  useEffect(() => { document.title = t('pageTitle'); }, [t]);
+  useEffect(() => () => { abortRef.current?.abort(); clearTimeout(leaveTimer.current); }, []);
+
+  const patch = useCallback((setter, r, partial) => setter((p) => ({ ...p, [r]: { ...p[r], ...partial } })), []);
+
+  const handleChange = useCallback((e) => {
+    const { name, value } = e.target;
+    patch(setValues, role, { [name]: value });
+    patch(setErrors, role, { [name]: validateField(name, value, t), general: '' });
+  }, [role, patch, t]);
+
+  const handleBlur = useCallback((e) => {
+    const { name, value } = e.target;
+    patch(setTouched, role, { [name]: true });
+    patch(setErrors, role, { [name]: validateField(name, value, t) });
+  }, [role, patch, t]);
+
+  const register = useCallback(async (cfg, payload, r) => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    abortRef.current = new AbortController();
+    setLoading(true);
+    try {
+      await api.post(cfg.endpoint, payload, { signal: abortRef.current.signal });
+      setPendingEmail(payload.email);
+      setOtpStep(true);
+    } catch (err) {
+      if (isCanceled(err)) return;
+      const serverMsg = err.response?.data?.message;
+      if (err.response?.status === 409) {
+        const msg = serverMsg || t('emailExists');
+        patch(setErrors, r, { email: msg, general: '' });
+        patch(setTouched, r, { email: true });
+        toast({ icon: 'error', title: t('emailExistsTitle'), text: msg, timer: 3500 });
+      } else {
+        const msg = serverMsg || t('registerFailed');
+        patch(setErrors, r, { general: msg });
+        toast({ icon: 'error', title: t('registerFailedTitle'), text: msg, timer: 3500 });
+      }
+    } finally { busyRef.current = false; setLoading(false); }
+  }, [patch, t]);
+
+  const handleSubmit = useCallback((e) => {
+    e.preventDefault();
+    if (busyRef.current) return;
+    const cfg = ROLES[role];
+    const vals = values[role];
+    const names = [...cfg.fields.map((x) => x.name), 'password'];
+    const errs = {};
+    names.forEach((n) => { const m = validateField(n, vals[n], t); if (m) errs[n] = m; });
+    setTouched((p) => ({ ...p, [role]: Object.fromEntries(names.map((n) => [n, true])) }));
+    setErrors((p) => ({ ...p, [role]: errs }));
+    if (Object.keys(errs).length) return;
+    register(cfg, cfg.toPayload ? cfg.toPayload(vals) : vals, role);
+  }, [role, values, register, t]);
+
+  const togglePw = useCallback(() => setShowPw((p) => !p), []);
+  const handleOtpSuccess = useCallback(() => {
+    clearTimeout(leaveTimer.current);
+    leaveTimer.current = setTimeout(() => navigate('/login'), SUCCESS_DELAY_MS);
+  }, [navigate]);
+  const handleOtpBack = useCallback(() => { setOtpStep(false); setPendingEmail(''); }, []);
+
+  return (
+    <div
+      dir={languageDirection(language)} lang={language} style={isAr ? font.style : NB_FONT_STYLE}
+      className={`nb ${darkMode ? 'nb-dark' : ''} relative min-h-screen overflow-x-hidden ${isAr ? font.className : ''}`}
+    >
+      <style>{PAGE_CSS}</style>
+      <Toaster darkMode={darkMode} />
+
+      <header className="nb-bg fixed inset-x-0 top-0 z-40">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+          <Link to="/" aria-label="Tech Restore" className="flex-shrink-0 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-[color:var(--nb-accent)]">
+            <img src={logo} alt="Tech Restore" className="h-9 w-auto" width={120} height={36} decoding="async" />
+          </Link>
+          <div className="flex items-center gap-3">
+            <span className="nb-muted hidden text-sm font-semibold sm:block">{t('haveAccount')}</span>
+            <Link to="/login" className="nb-btn nb-btn-a px-4 py-2 text-xs uppercase sm:text-sm">{t('signIn')}</Link>
           </div>
         </div>
-      </nav>
+      </header>
 
-      <section className="relative z-10 pt-16 pb-8 sm:pt-20 sm:pb-16 px-4 sm:px-6 min-h-screen flex items-start">
-        <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-8 sm:gap-12 items-start w-full pt-4 sm:pt-6">
+      <main className="mx-auto grid max-w-6xl items-start gap-8 px-4 pb-12 pt-24 sm:px-6 md:grid-cols-2 lg:gap-14 lg:px-8 lg:pt-28">
+        <div className="hidden md:sticky md:top-28 md:block">
+          <div className="mx-auto max-w-lg p-6">
+            <IsoIllustration type="track" tone="emerald" onGreen={false} darkMode={darkMode} className="aspect-square w-full" />
+          </div>
+        </div>
 
-          <div className="relative md:sticky md:top-24 flex justify-center order-2 md:order-1">
-            <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-none">
-              <Illustration3D />
-              <div className="anim-fade-up absolute -top-2 sm:-top-3 -right-2 sm:-right-3 bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-2.5 sm:p-3.5 flex items-center gap-2 sm:gap-2.5" style={{ animationDelay: "0.15s" }}>
-                <Users className="w-5 h-5 sm:w-7 sm:h-7 text-emerald-500 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100">4 Role Types</p>
-                  <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">choose yours</p>
-                </div>
-              </div>
-              <div className="anim-fade-up absolute -bottom-3 sm:-bottom-5 left-2 sm:left-3 bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-2.5 sm:p-3.5 text-center" style={{ animationDelay: "0.3s" }}>
-                <Wrench className="w-5 h-5 sm:w-7 sm:h-7 mx-auto text-emerald-500 mb-0.5 sm:mb-1" />
-                <p className="font-bold text-sm sm:text-base text-gray-900 dark:text-gray-100">Free</p>
-                <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">to start</p>
-              </div>
-            </div>
+        <div className="anim-fade-up mx-auto w-full max-w-xl space-y-6 md:mx-0">
+          <div>
+            <span className="nb-bar" aria-hidden="true" />
+            <h1 className="mt-3 text-3xl font-extrabold leading-[1.15] tracking-tight sm:text-4xl">
+              {t('titleBefore')}{' '}<span className="nb-ul">{t('titleAccent')}</span>
+            </h1>
+            <p className="mt-3 text-sm opacity-80 sm:text-base">{t('subtitle')}</p>
           </div>
 
-          <div className="anim-fade-up space-y-4 sm:space-y-6 order-1 md:order-2">
-            <div>
-              <h1 className="text-3xl mt-4 sm:text-4xl md:text-5xl font-bold leading-none tracking-tighter text-gray-900 dark:text-gray-50">
-                Create your<br /><span className="text-emerald-500">account</span>
-              </h1>
-              <p className="mt-2 sm:mt-3 text-base sm:text-lg text-gray-500 dark:text-gray-400">Choose your role and get started today.</p>
-            </div>
-
-            <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl sm:rounded-3xl shadow-2xl shadow-emerald-900/5 dark:shadow-black/40 p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-hidden">
-              
-
-              {!otpStep && (
-                <div className="flex items-center gap-2">
-
-                </div>
-              )}
-
-              {otpStep ? (
-                <OTPStep email={pendingEmail} onSuccess={handleOtpSuccess} onBack={handleOtpBack} />
-              ) : (
-                <>
-                  <div className="space-y-2">
-                    <p className="text-[10px] sm:text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Choose your role</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="group">
-                      {TAB_CONFIG.map((tab) => (
-                        <RoleToggle key={tab.key} tab={tab} isOn={activeTab === tab.key} onToggle={handleToggleRole} />
-                      ))}
-                    </div>
+          <div className="nb-card space-y-5 p-4 sm:p-6">
+            {otpStep ? (
+              <OTPStep email={pendingEmail} onSuccess={handleOtpSuccess} onBack={handleOtpBack} t={t} />
+            ) : (
+              <>
+                <div className="space-y-2.5">
+                  <p className="text-xs font-extrabold uppercase tracking-wide">{t('chooseRole')}</p>
+                  <div role="radiogroup" aria-label={t('chooseRole')} className="grid grid-cols-2 gap-3">
+                    {ROLE_KEYS.map((k) => {
+                      const { labelKey, icon: Icon } = ROLES[k];
+                      const on = role === k;
+                      return (
+                        <button key={k} type="button" role="radio" aria-checked={on} onClick={() => setRole(k)}
+                          className={`nb-btn justify-start px-3 py-2.5 text-start text-xs uppercase sm:text-sm ${on ? 'nb-btn-on' : ''}`}>
+                          <Icon aria-hidden="true" className="h-4 w-4 flex-shrink-0" /> <span className="truncate">{t(labelKey)}</span>
+                        </button>
+                      );
+                    })}
                   </div>
+                </div>
 
-                  <Accordion isOpen={activeTab === "user"}>
-                    <form onSubmit={handleUserSignup} className="space-y-3 sm:space-y-4" noValidate>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <Field label="First Name" icon={<RiUserLine className="text-emerald-400" size={15} />} error={getError("user", "first_name")}>
-                          {inp("user", "first_name", "text", userData.first_name, handleUserChange, handleBlur, "First name", "given-name")}
-                        </Field>
-                        <Field label="Last Name" icon={<RiUserLine size={15} />} error={getError("user", "last_name")}>
-                          {inp("user", "last_name", "text", userData.last_name, handleUserChange, handleBlur, "Last name", "family-name")}
-                        </Field>
-                        <Field label="Email Address" icon={<RiMailLine size={15} />} error={getError("user", "email")}>
-                          {inp("user", "email", "email", userData.email, handleUserChange, handleBlur, "you@example.com", "email")}
-                        </Field>
-                        <Field label="Phone Number" icon={<RiPhoneLine size={15} />} error={getError("user", "phone")}>
-                          {inp("user", "phone", "tel", userData.phone, handleUserChange, handleBlur, "Phone number", "tel")}
-                        </Field>
-                      </div>
-                      <PasswordInput formType="user" value={userData.password} onChange={handleUserChange} onBlur={handleBlur} showPassword={showPasswords.user} onToggle={toggleUser} error={getError("user", "password")} />
-                      <ErrorBanner message={errors.user.general} />
-                      <SubmitBtn label="Sign Up as User" loading={loading} />
-                    </form>
-                  </Accordion>
+                <RoleForm
+                  key={role} role={role} values={values[role]} errors={errors[role]} touched={touched[role]}
+                  onChange={handleChange} onBlur={handleBlur} onSubmit={handleSubmit} loading={loading}
+                  showPw={showPw} onTogglePw={togglePw} t={t}
+                />
 
-                  <Accordion isOpen={activeTab === "shop"}>
-                    <form onSubmit={handleShopSignup} className="space-y-3 sm:space-y-4" noValidate>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <Field label="Shop Name" icon={<RiStore2Line size={15} />} error={getError("shop", "name")}>
-                          {inp("shop", "name", "text", shopData.name, handleShopChange, handleBlur, "Shop name", undefined)}
-                        </Field>
-                        <Field label="Email" icon={<RiMailLine size={15} />} error={getError("shop", "email")}>
-                          {inp("shop", "email", "email", shopData.email, handleShopChange, handleBlur, "you@example.com", "email")}
-                        </Field>
-                        <Field label="Phone" icon={<RiPhoneLine size={15} />} error={getError("shop", "phone")}>
-                          {inp("shop", "phone", "tel", shopData.phone, handleShopChange, handleBlur, "Phone", "tel")}
-                        </Field>
-                        <Field label="Description" icon={<RiFileListLine size={15} />} error={getError("shop", "description")}>
-                          {inp("shop", "description", "text", shopData.description, handleShopChange, handleBlur, "Brief description", undefined)}
-                        </Field>
-
-                        <div className="space-y-1">
-                          <label className="block text-[10px] sm:text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Shop Type</label>
-                          <div className="relative">
-                            <div role="combobox" tabIndex={0}
-                              className={`${INPUT_BASE} pl-9 sm:pl-10 cursor-pointer flex items-center justify-between ${getError("shop", "shopType") ? INPUT_ERR : INPUT_NORMAL}`}
-                              onClick={() => setShopTypeOpen(o => !o)}
-                              onBlur={() => { setTouched(prev => ({ ...prev, shop: { ...prev.shop, shopType: true } })); setShopTypeOpen(false); }}
-                              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShopTypeOpen(o => !o); } }}>
-                              <span className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-emerald-600 dark:text-emerald-400 pointer-events-none"><RiStore2Line size={15} /></span>
-                              <span className={shopData.shopType ? "text-gray-900 dark:text-gray-100 text-sm" : "text-gray-400 text-sm"}>
-                                {shopData.shopType ? SHOP_TYPE_OPTIONS.find(o => o.value === shopData.shopType)?.label : "Select type"}
-                              </span>
-                              <RiArrowDownSLine size={15} className={`text-emerald-600 dark:text-emerald-400 transition-transform duration-300 ${shopTypeOpen ? "rotate-180" : ""}`} />
-                            </div>
-                            {shopTypeOpen && (
-                              <ul role="listbox" className="anim-pop-in absolute z-20 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden">
-                                {SHOP_TYPE_OPTIONS.map(opt => (
-                                  <li key={opt.value} role="option" aria-selected={shopData.shopType === opt.value}
-                                    onMouseDown={(e) => { e.preventDefault(); handleShopTypeSelect(opt.value); }}
-                                    className={`px-4 py-2.5 text-sm cursor-pointer flex items-center justify-between transition-colors ${shopData.shopType === opt.value ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-semibold" : "text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
-                                    {opt.label}
-                                    {shopData.shopType === opt.value && <FiCheck size={13} className="text-emerald-600" />}
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-                          {getError("shop", "shopType") && <p className="text-[10px] sm:text-xs text-red-600 dark:text-red-400 font-medium">{errors.shop.shopType}</p>}
-                        </div>
-
-                        <Field label="State" icon={<RiMapPinLine size={15} />} error={getError("shop", "state")}>
-                          {inp("shop", "state", "text", shopData.shopAddress.state, handleShopChange, handleBlur, "e.g. Cairo", undefined)}
-                        </Field>
-                        <Field label="City" icon={<RiMapPinLine size={15} />} error={getError("shop", "city")}>
-                          {inp("shop", "city", "text", shopData.shopAddress.city, handleShopChange, handleBlur, "e.g. Giza", undefined)}
-                        </Field>
-                        <Field label="Street" icon={<RiMapPinLine size={15} />} error={getError("shop", "street")}>
-                          {inp("shop", "street", "text", shopData.shopAddress.street, handleShopChange, handleBlur, "Street name", undefined)}
-                        </Field>
-                        <Field label="Building" icon={<RiMapPinLine size={15} />} error={getError("shop", "building")}>
-                          {inp("shop", "building", "text", shopData.shopAddress.building, handleShopChange, handleBlur, "Building no.", undefined)}
-                        </Field>
-                      </div>
-                      <PasswordInput formType="shop" value={shopData.password} onChange={handleShopChange} onBlur={handleBlur} showPassword={showPasswords.shop} onToggle={toggleShop} error={getError("shop", "password")} />
-                      <ErrorBanner message={errors.shop.general} />
-                      <SubmitBtn label="Sign Up as Shop Owner" loading={loading} />
-                    </form>
-                  </Accordion>
-
-                  <Accordion isOpen={activeTab === "delivery"}>
-                    <form onSubmit={handleDeliverySignup} className="space-y-3 sm:space-y-4" noValidate>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <Field label="Full Name" icon={<RiUserLine size={15} />} error={getError("delivery", "name")}>
-                          {inp("delivery", "name", "text", deliveryData.name, handleDeliveryChange, handleBlur, "Full name", undefined)}
-                        </Field>
-                        <Field label="Email" icon={<RiMailLine size={15} />} error={getError("delivery", "email")}>
-                          {inp("delivery", "email", "email", deliveryData.email, handleDeliveryChange, handleBlur, "you@example.com", "email")}
-                        </Field>
-                        <Field label="Phone" icon={<RiPhoneLine size={15} />} error={getError("delivery", "phone")}>
-                          {inp("delivery", "phone", "tel", deliveryData.phone, handleDeliveryChange, handleBlur, "Phone", "tel")}
-                        </Field>
-                        <Field label="Address" icon={<RiHome4Line size={15} />} error={getError("delivery", "address")}>
-                          {inp("delivery", "address", "text", deliveryData.address, handleDeliveryChange, handleBlur, "Address", undefined)}
-                        </Field>
-                      </div>
-                      <PasswordInput formType="delivery" value={deliveryData.password} onChange={handleDeliveryChange} onBlur={handleBlur} showPassword={showPasswords.delivery} onToggle={toggleDelivery} error={getError("delivery", "password")} />
-                      <ErrorBanner message={errors.delivery.general} />
-                      <SubmitBtn label="Sign Up as Delivery" loading={loading} />
-                    </form>
-                  </Accordion>
-
-                  <Accordion isOpen={activeTab === "assigner"}>
-                    <form onSubmit={handleAssignerSignup} className="space-y-3 sm:space-y-4" noValidate>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <Field label="Full Name" icon={<RiUserLine size={15} />} error={getError("assigner", "name")}>
-                          {inp("assigner", "name", "text", assignerData.name, handleAssignerChange, handleBlur, "Full name", "name")}
-                        </Field>
-                        <Field label="Department" icon={<RiUserSettingsLine size={15} />} error={getError("assigner", "department")}>
-                          {inp("assigner", "department", "text", assignerData.department, handleAssignerChange, handleBlur, "Department", undefined)}
-                        </Field>
-                        <Field label="Email" icon={<RiMailLine size={15} />} error={getError("assigner", "email")}>
-                          {inp("assigner", "email", "email", assignerData.email, handleAssignerChange, handleBlur, "you@example.com", "email")}
-                        </Field>
-                        <Field label="Phone" icon={<RiPhoneLine size={15} />} error={getError("assigner", "phone")}>
-                          {inp("assigner", "phone", "tel", assignerData.phone, handleAssignerChange, handleBlur, "Phone", "tel")}
-                        </Field>
-                      </div>
-                      <PasswordInput formType="assigner" value={assignerData.password} onChange={handleAssignerChange} onBlur={handleBlur} showPassword={showPasswords.assigner} onToggle={toggleAssigner} error={getError("assigner", "password")} />
-                      <ErrorBanner message={errors.assigner.general} />
-                      <SubmitBtn label="Sign Up as Assigner" loading={loading} />
-                    </form>
-                  </Accordion>
-
-                  <p className="text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                    Already have an account?{" "}
-                    <Link to="/login" className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">Log in here</Link>
-                  </p>
-                </>
-              )}
-            </div>
+                <p className="nb-muted text-center text-sm font-semibold">
+                  {t('haveAccount')} <Link to="/login" className="nb-link text-[color:var(--nb-ink)]">{t('loginHere')}</Link>
+                </p>
+              </>
+            )}
           </div>
         </div>
-      </section>
+      </main>
     </div>
   );
 };
 
+export { queryClient };
 export default memo(Signup);

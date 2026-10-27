@@ -1,9 +1,9 @@
-export { default as Navbar } from './Navbar';
-export { default as AssignerHeader } from './AssignerHeader';
-export { default as DeliveryHeader } from './DeliveryHeader';
-export { default as Modal } from './Modal';
-export { default as OffersSlider } from './OffersSlider';
-export { default as Footer } from './Footer';
-export { DashboardSkeleton, TableSkeleton, ProfileSkeleton } from './DeliverySkeleton';
-export { default as Hero } from './Hero';
+export { default as Navbar } from './user/Navbar';
+export { default as AssignerHeader } from './assigner/AssignerHeader';
+export { default as DeliveryHeader } from './delivery/DeliveryHeader';
+export { default as Modal } from './user/Modal';
+export { default as OffersSlider } from './user/OffersSlider';
+export { default as Footer } from './user/Footer';
+export { DashboardSkeleton, TableSkeleton, ProfileSkeleton } from './delivery/DeliverySkeleton';
+export { default as Hero } from './user/Hero';
 

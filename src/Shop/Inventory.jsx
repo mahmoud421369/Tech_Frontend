@@ -1,431 +1,778 @@
-import React, { useState, useEffect, useCallback, useMemo, memo, useRef } from 'react';
+import React, {
+  useState, useEffect, useCallback, useMemo, useRef, useDeferredValue, memo,
+} from 'react';
 import {
-  FiSearch, FiDownload, FiUpload, FiPackage,
-  FiBox, FiChevronLeft, FiChevronRight, FiChevronDown,
-  FiInfo, FiX, FiShield, FiInbox
+  FiSearch, FiDownload, FiUpload, FiPackage, FiBox, FiInfo, FiX, FiFilter, FiRefreshCw,
+  FiLayers, FiAlertTriangle, FiXCircle, FiDollarSign, FiShield, FiChevronUp, FiChevronDown,
+  FiChevronLeft, FiChevronRight, FiCheck,
 } from 'react-icons/fi';
-import { motion, AnimatePresence } from 'framer-motion';
-import Swal from 'sweetalert2';
-import api from '../api';
-import debounce from 'lodash/debounce';
+import api from '../common/api/api';
+import { EXTRAS_CSS, Toaster, toast } from '../components/user/UiExtras';
+import {
+  SEARCH_MAX, getFormats, getCollator, tpl, renderTpl, fmt, num, formatPrice,
+  sanitizeSearch, isSafeId, errText, confirmDialog, useDarkMode, useEscape, useShopLocale,
+} from '../components/shop/TableKit';
+import { ensureShopAssets } from '../common/utils/shopFonts';
 
-const EASE = [0.16, 1, 0.3, 1];
-const ROWS_OPTIONS = [5, 10, 25, 50];
+ensureShopAssets();
+
 const API_BASE = '/api/shop/inventory';
-const COLOR_HEX = { lime: '#84cc16', emerald: '#10b981', orange: '#f97316', red: '#ef4444', indigo: '#6366f1' };
+const DEFAULT_THRESHOLD = 5;
+const STOCK_MAX = 1_000_000;
+const IMPORT_MAX_BYTES = 5 * 1024 * 1024;
+const FETCH_SIZE = 500;
+const SKELETON_COLS = [0, 1, 2, 3, 4];
+const ROW_OPTIONS = [5, 10, 25, 50];
 
-const sanitize = (str) => String(str ?? '').replace(/[<>"'`]/g, '');
-
-
-
-
-const formatPrice = (p) => `EGP ${Number(p || 0).toLocaleString('en-US')}`;
-
-
-
-
-const formatNumber = (n) => {
-  const num = Number(n || 0);
-  if (num >= 1000) return `${parseFloat((num / 1000).toFixed(1)).toLocaleString('en-US')}ك`;
-  return num.toLocaleString('en-US');
+const TABLE_FALLBACK = {
+  en: {
+    showing: 'Showing {range} of {total} {unit}',
+    rows: '{n} rows',
+    prev: 'Previous',
+    next: 'Next',
+    paginationAria: 'Pagination',
+    close: 'Close',
+    reset: 'Reset',
+    apply: 'Apply',
+  },
+  ar: {
+    showing: 'عرض {range} من {total} {unit}',
+    rows: '{n} صفوف',
+    prev: 'السابق',
+    next: 'التالي',
+    paginationAria: 'ترقيم الصفحات',
+    close: 'إغلاق',
+    reset: 'إعادة ضبط',
+    apply: 'تطبيق',
+  },
 };
 
+const mergeLabels = (base, fallback) => {
+  const out = { ...fallback };
+  if (base) for (const k of Object.keys(base)) if (base[k] != null && base[k] !== '') out[k] = base[k];
+  return out;
+};
 
+const PG_CSS = `
+.pg{--pg-bg:#f9fafb;--pg-card:#ffffff;--pg-ink:#04261a;--pg-muted:#4b6b5c;--pg-line:#04261a;--pg-shadow:#04261a;--pg-gray:#e8ebe9;--pg-dot:#04261a;--pg-accent:#10b981;--pg-btn:#059669;--pg-on:#ffffff;background:var(--pg-bg);color:var(--pg-ink)}
+.dark .pg{--pg-bg:#141414;--pg-card:#2a2a2a;--pg-ink:#ffffff;--pg-muted:#a3a3a3;--pg-line:#000000;--pg-shadow:#000000;--pg-gray:#1e1e1e;--pg-dot:#3f3f3f;--pg-accent:#39ff88;--pg-btn:#39ff88;--pg-on:#022c22}
+.pg[dir="rtl"] *{letter-spacing:0!important}
+.pg-gray{background:var(--pg-gray)}
+.pg-muted{color:var(--pg-muted)}
+.pg-line{border-color:var(--pg-line)}
+.pg-dot{border:2px dotted var(--pg-dot)}
+.pg-card{background:var(--pg-card);border:2px solid var(--pg-line);box-shadow:3px 3px 0 var(--pg-shadow)}
+.pg-lift{transition:transform .15s ease,box-shadow .15s ease}
+.pg-lift:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--pg-shadow)}
+.pg-bar{display:inline-block;width:40px;height:12px;background:var(--pg-accent);border:2px solid var(--pg-line)}
+.pg-ul{text-decoration:underline;text-decoration-color:var(--pg-accent);text-decoration-thickness:3px;text-underline-offset:4px;text-decoration-skip-ink:none}
+.pg-chip{display:inline-flex;align-items:center;gap:6px;background:var(--pg-card);color:var(--pg-ink);border:2px solid var(--pg-line);padding:1px 8px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;line-height:1.6;white-space:nowrap}
+.pg-tile{display:inline-flex;align-items:center;justify-content:center;flex:none;border:2px solid var(--pg-line);background:var(--pg-accent);color:#04261a}
+.pg-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--pg-card);color:var(--pg-ink);border:2px solid var(--pg-line);box-shadow:2px 2px 0 var(--pg-shadow);font-weight:700;cursor:pointer;white-space:nowrap;transition:transform .12s ease,box-shadow .12s ease}
+.pg-btn:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--pg-shadow)}
+.pg-btn:active:not(:disabled){transform:translate(1px,1px);box-shadow:0 0 0 var(--pg-shadow)}
+.pg-btn:disabled{opacity:.45;cursor:not-allowed}
+.pg-btn-a,.pg-btn[aria-pressed="true"],.pg-btn[aria-selected="true"],.pg-btn[aria-current="page"]{background:var(--pg-btn);color:var(--pg-on)}
+.pg-btn:focus-visible,.pg-sort:focus-visible{outline:3px solid var(--pg-accent);outline-offset:2px}
+.pg-field{background:var(--pg-card);color:var(--pg-ink);border:2px solid var(--pg-line);box-shadow:2px 2px 0 var(--pg-shadow)}
+.pg-field:focus,.pg-field:focus-within{outline:3px solid var(--pg-accent);outline-offset:2px}
+.pg-field::placeholder{color:var(--pg-muted);opacity:.8}
+.pg-th{background:var(--pg-gray);border-bottom:2px solid var(--pg-line);padding:12px;text-align:start;font-size:11px;font-weight:800;text-transform:uppercase;white-space:nowrap}
+.pg-td{border-top:2px dotted var(--pg-dot)}
+tbody tr:first-child .pg-td{border-top:0}
+.pg-tr{transition:background-color .12s ease}
+.pg-tr:hover{background:var(--pg-gray)}
+.pg-scroll{scrollbar-width:thin;scrollbar-color:var(--pg-accent) transparent}
+.pg-scroll::-webkit-scrollbar{width:6px;height:6px}
+.pg-scroll::-webkit-scrollbar-track{background:transparent}
+.pg-scroll::-webkit-scrollbar-thumb{background:var(--pg-accent);border:1px solid var(--pg-line)}
+@keyframes pgFade{from{opacity:0}to{opacity:1}}
+@keyframes pgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.pg-fade{animation:pgFade .2s ease-out both}
+.pg-in{animation:pgIn .15s ease-out both}
+@media (prefers-reduced-motion:reduce){.pg-btn,.pg-lift,.pg-tr{transition:none}.pg-fade,.pg-in{animation:none}}
+`;
+const PAGE_CSS = PG_CSS + EXTRAS_CSS;
+const STYLE_EL = <style>{PAGE_CSS}</style>;
 
-const StackIllustration = memo(({ color }) => (
-  <svg viewBox="0 0 44 44" className="w-6 h-6">
-    <motion.g
-      animate={{ y: [0, -1.5, 0] }}
-      transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
-    >
-      <rect x="10" y="22" width="24" height="12" rx="2" fill="none" stroke={color} strokeWidth="2.4" />
-      <rect x="13" y="12" width="18" height="12" rx="2" fill="none" stroke={color} strokeWidth="2.2" />
-      <line x1="10" y1="28" x2="34" y2="28" stroke={color} strokeWidth="1.6" opacity="0.5" />
-    </motion.g>
-  </svg>
+const TABS = ['all', 'ok', 'low', 'out'];
+const SORT_VALUES = ['name', 'highest_price', 'lowest_price', 'highest_stock', 'lowest_stock'];
+const STATUS_DOT = { ok: 'bg-emerald-500', low: 'bg-amber-400', out: 'bg-red-500' };
+const TONES = { sky: '#22d3ee', am: '#facc15', ro: '#fb7185', vi: '#2dd4bf', em: '#34d399' };
+
+const statusOf = (i) => (i.stock <= 0 ? 'out' : i.stock < i.threshold ? 'low' : 'ok');
+
+const normalize = (i) => ({
+  ...i,
+  stock: Math.max(0, num(i.stock ?? i.stockQuantity)),
+  price: num(i.price),
+  threshold: num(i.threshold) > 0 ? num(i.threshold) : DEFAULT_THRESHOLD,
+});
+
+const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩';
+const toDigits = (v) => v.replace(/[٠-٩]/g, (d) => ARABIC_DIGITS.indexOf(d)).replace(/\D/g, '');
+
+const pageList = (page, total) => {
+  const keep = new Set([1, total, page - 1, page, page + 1]);
+  const nums = [...keep].filter((n) => n >= 1 && n <= total).sort((a, b) => a - b);
+  const out = [];
+  nums.forEach((n, i) => {
+    if (i && n - nums[i - 1] > 1) out.push(`gap-${n}`);
+    out.push(n);
+  });
+  return out;
+};
+
+const StatusPill = memo(({ status, label }) => (
+  <span className="pg-chip">
+    <span className={`pg-line w-2 h-2 border ${STATUS_DOT[status]}`} />
+    {label}
+  </span>
 ));
 
-const WarningIllustration = memo(({ color }) => (
-  <svg viewBox="0 0 44 44" className="w-6 h-6">
-    <motion.path
-      d="M22,8 L38,34 L6,34 Z"
-      fill="none" stroke={color} strokeWidth="2.4" strokeLinejoin="round"
-      animate={{ opacity: [1, 0.5, 1] }}
-      transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
-    />
-    <line x1="22" y1="18" x2="22" y2="26" stroke={color} strokeWidth="2.6" strokeLinecap="round" />
-    <circle cx="22" cy="30.5" r="1.6" fill={color} />
-  </svg>
-));
-
-const EmptyBoxIllustration = memo(({ color }) => (
-  <svg viewBox="0 0 44 44" className="w-6 h-6">
-    <path d="M8,16 L22,9 L36,16 L36,30 L22,37 L8,30 Z" fill="none" stroke={color} strokeWidth="2.2" strokeLinejoin="round" opacity="0.35" />
-    <motion.path
-      d="M8,16 L22,23 L36,16"
-      fill="none" stroke={color} strokeWidth="2.4" strokeLinejoin="round"
-      animate={{ opacity: [0.3, 1, 0.3] }}
-      transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-    />
-    <line x1="14" y1="27" x2="30" y2="14" stroke={color} strokeWidth="2" strokeLinecap="round" opacity="0.5" />
-  </svg>
-));
-
-const ValueIllustration = memo(({ color }) => (
-  <svg viewBox="0 0 44 44" className="w-6 h-6">
-    <circle cx="22" cy="22" r="15" fill="none" stroke={color} strokeWidth="2" opacity="0.3" />
-    <motion.circle
-      cx="22" cy="22" r="10" fill="none" stroke={color} strokeWidth="2.4"
-      animate={{ scale: [1, 1.08, 1] }}
-      transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-      style={{ transformOrigin: '22px 22px' }}
-    />
-    <text x="22" y="27" textAnchor="middle" fontSize="12" fontWeight="800" fill={color}>$</text>
-  </svg>
-));
-
-
-
-
-const StatCard = memo(({ Illustration, label, value, color, description }) => (
-  <div className="relative group bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 p-6 transition-all duration-500 hover:shadow-2xl hover:shadow-gray-200/50 dark:hover:shadow-none overflow-hidden">
-    <div className={`absolute top-0 right-0 w-24 h-24 bg-${color}-500/5 rounded-bl-full translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-700`} />
-    <div className="flex flex-col h-full relative z-10 text-right">
-      <div className={`w-12 h-12 rounded-full bg-white border-2 border-gray-100 dark:border-gray-800 dark:bg-${color}-900/20 flex items-center justify-center mb-4 group-hover:rotate-6 transition-transform`}>
-        <Illustration color={COLOR_HEX[color] || '#10b981'} />
-      </div>
-      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">{label}</p>
-      <p className="text-2xl font-black text-gray-900 dark:text-white mt-1">{value}</p>
-      <p className="text-[9px] font-bold text-gray-400 mt-2">{description}</p>
+const StatCard = memo(({ label, value, description, icon: Icon, tone }) => (
+  <div className="pg-card pg-lift p-4 sm:p-5 flex items-center gap-3 min-w-0">
+    <span className="pg-tile w-11 h-11" style={{ background: TONES[tone] || TONES.em }}>
+      <Icon size={20} aria-hidden="true" />
+    </span>
+    <div className="min-w-0">
+      <p className="pg-muted text-[11px] font-bold uppercase truncate">{label}</p>
+      <p className="text-2xl font-extrabold tracking-tight leading-tight tabular-nums truncate">{value}</p>
+      <p className="pg-muted text-xs font-semibold truncate">{description}</p>
     </div>
   </div>
 ));
 
-const RowsPerPageDropdown = memo(({ value, onChange }) => {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    if (open) document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
+const RowsSelect = memo(({ value, onChange, label, formatNumber }) => {
+  const options = ROW_OPTIONS.includes(value) ? ROW_OPTIONS : [...ROW_OPTIONS, value].sort((a, b) => a - b);
   return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen(v => !v)}
-        className="w-full sm:w-auto flex items-center justify-between gap-3 px-5 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-xs font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 cursor-pointer transition-all"
-      >
-        <span>{value} عناصر لكل صفحة</span>
-        <FiChevronDown className={`transition-transform duration-150 ${open ? 'rotate-180' : ''}`} size={14} />
+    <select
+      value={value}
+      onChange={(e) => onChange(Number(e.target.value))}
+      aria-label={tpl(label, { n: '' }).trim()}
+      className="pg-field h-10 px-3 text-sm font-bold cursor-pointer"
+    >
+      {options.map((n) => (
+        <option key={n} value={n}>{tpl(label, { n: formatNumber(n) })}</option>
+      ))}
+    </select>
+  );
+});
+
+const SortTh = memo(({ label, active, dir, onClick }) => (
+  <th scope="col" className="pg-th" aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+    <button type="button" onClick={onClick} className="pg-sort inline-flex items-center gap-1 font-extrabold uppercase">
+      {label}
+      {active && dir === 'asc' ? <FiChevronUp size={13} aria-hidden="true" /> : <FiChevronDown size={13} aria-hidden="true" className={active ? '' : 'opacity-30'} />}
+    </button>
+  </th>
+));
+
+const Pagination = memo(({ page, total, onChange, labels, formatNumber }) => {
+  const pages = useMemo(() => pageList(page, total), [page, total]);
+  return (
+    <nav aria-label={labels.paginationAria} className="flex items-center gap-1.5 flex-wrap justify-center">
+      <button type="button" disabled={page <= 1} onClick={() => onChange(page - 1)} aria-label={labels.prev} className="pg-btn h-8 w-8">
+        <FiChevronLeft size={14} className="rtl:rotate-180" aria-hidden="true" />
       </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -6, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.97 }}
-            transition={{ duration: 0.14, ease: EASE }}
-            className="absolute z-30 mt-2 w-full sm:w-44 right-0 rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-2xl overflow-hidden"
+      {pages.map((p) =>
+        typeof p === 'string' ? (
+          <span key={p} className="pg-muted px-1 text-xs font-bold" aria-hidden="true">…</span>
+        ) : (
+          <button
+            key={p}
+            type="button"
+            onClick={() => onChange(p)}
+            aria-current={p === page ? 'page' : undefined}
+            className="pg-btn h-8 min-w-[32px] px-2 text-xs tabular-nums"
           >
-            {ROWS_OPTIONS.map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => { onChange(n); setOpen(false); }}
-                className={`w-full text-right px-5 py-3 text-xs font-bold transition-colors ${
-                  n === value ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                }`}
-              >
-                {n} عناصر لكل صفحة
-              </button>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+            {formatNumber(p)}
+          </button>
+        )
+      )}
+      <button type="button" disabled={page >= total} onClick={() => onChange(page + 1)} aria-label={labels.next} className="pg-btn h-8 w-8">
+        <FiChevronRight size={14} className="rtl:rotate-180" aria-hidden="true" />
+      </button>
+    </nav>
+  );
+});
+
+const Overlay = memo(({ onClose, children }) => {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+  return (
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+      <div className="pg-fade absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
+      {children}
     </div>
   );
 });
 
-const InventoryRow = memo(({ item, onDetails, onUpdateStock }) => {
-  const isLow = item.stock > 0 && item.stock < (item.threshold || 5);
-  const isOut = item.stock === 0;
+const FilterPanel = memo(({ title, note, groups, onReset, onClose, labels }) => {
+  useEscape(onClose);
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
   return (
-    <tr className="hover:bg-emerald-50/10 dark:hover:bg-emerald-900/5 transition-colors group">
-      <td className="px-4 py-3 whitespace-nowrap">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400">
-            <FiBox size={16} />
-          </div>
-          <div>
-            <p className="text-xs font-black text-gray-900 dark:text-white">{sanitize(item.name)}</p>
+    <div className="fixed inset-0 z-[1000] flex justify-end">
+      <div className="pg-fade absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
+      <aside role="dialog" aria-modal="true" aria-label={title} className="pg-card pg-in relative w-full max-w-xs h-full flex flex-col !shadow-none border-y-0 border-e-0">
+        <div className="pg-gray pg-line px-5 py-4 border-b-2 flex items-center justify-between gap-3">
+          <h3 className="text-sm font-extrabold uppercase"><span className="pg-ul">{title}</span></h3>
+          <button type="button" onClick={onClose} aria-label={labels.close} className="pg-btn h-8 w-8"><FiX size={15} aria-hidden="true" /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto pg-scroll p-5 space-y-5">
+          {note && <p className="pg-muted text-xs font-semibold">{note}</p>}
+          {groups.map(([groupTitle, options, value, setter]) => (
+            <fieldset key={groupTitle} className="space-y-2">
+              <legend className="mb-2 text-[11px] font-extrabold uppercase">{groupTitle}</legend>
+              {options.map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  aria-pressed={value === o.value}
+                  onClick={() => setter(o.value)}
+                  className="pg-btn w-full justify-between px-3 h-10 text-xs uppercase"
+                >
+                  {o.label}
+                  {value === o.value && <FiCheck size={14} aria-hidden="true" />}
+                </button>
+              ))}
+            </fieldset>
+          ))}
+        </div>
+        <div className="pg-line p-4 border-t-2 grid grid-cols-2 gap-2.5">
+          <button type="button" onClick={onReset} className="pg-btn h-10 text-xs uppercase">{labels.reset}</button>
+          <button type="button" onClick={onClose} className="pg-btn pg-btn-a h-10 text-xs uppercase">{labels.apply}</button>
+        </div>
+      </aside>
+    </div>
+  );
+});
+
+const InventoryRow = memo(({ item, busy, L, onDetails, onUpdateStock }) => {
+  const t = L.inventory;
+  const fm = getFormats(L.locale);
+  const status = statusOf(item);
+  return (
+    <tr className="pg-tr">
+      <td className="pg-td px-3 py-2.5 whitespace-nowrap">
+        <div className="flex items-center gap-2.5">
+          <span className="pg-tile w-9 h-9"><FiBox size={16} aria-hidden="true" /></span>
+          <div className="min-w-0">
+            <p className="text-xs font-extrabold uppercase truncate max-w-[260px]">{item.name || '—'}</p>
+            <p className="pg-muted text-[10px] font-semibold truncate max-w-[260px]">{item.category || item.categoryName || t.row.uncategorized}</p>
           </div>
         </div>
       </td>
-      <td className="px-4 py-3 whitespace-nowrap text-center font-mono font-black text-xs text-emerald-600">
-        {formatPrice(item.price)}
+      <td className="pg-td px-3 py-2.5 whitespace-nowrap font-extrabold text-[13px] tabular-nums">{formatPrice(item.price, L.table.price, fm.number)}</td>
+      <td className="pg-td px-3 py-2.5 whitespace-nowrap">
+        <span className={`text-sm font-extrabold tabular-nums ${item.stock > 0 ? '' : 'text-red-500'}`}>{fm.number.format(item.stock)}</span>
+        <span className="pg-muted text-[10px] font-semibold ms-1">{t.row.unit}</span>
       </td>
-      <td className="px-4 py-3 whitespace-nowrap text-center">
-        <p className="text-sm font-black text-gray-900 dark:text-white">{formatNumber(item.stock)}</p>
-        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">وحدة</p>
-      </td>
-      <td className="px-4 py-3 whitespace-nowrap text-center">
-     
-     
-
-        {isOut ? (
-          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-gray-100 dark:bg-gray-700 text-gray-500">
-            <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-            نفد المخزون
-          </span>
-        ) : isLow ? (
-          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-red-50 dark:bg-red-900/20 text-red-600">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-            مخزون منخفض
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            متوفر
-          </span>
-        )}
-      </td>
-      <td className="px-4 py-3 whitespace-nowrap text-left">
-        <div className="flex items-center justify-start gap-2">
-          <button onClick={() => onDetails(item)}
-            className="flex items-center text-xs gap-2 font-cairo font-bold p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-emerald-500 transition-all active:scale-95">
-            <FiInfo size={16} title="عرض التفاصيل" />
-          </button>
-          <button title="تحديث المخزون" onClick={() => onUpdateStock(item)}
-            className="flex items-center text-xs gap-2 font-cairo font-bold p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-indigo-500 transition-all active:scale-95">
-            <FiInbox size={16} />
-          </button>
+      <td className="pg-td px-3 py-2.5 whitespace-nowrap"><StatusPill status={status} label={t.status[status]} /></td>
+      <td className="pg-td px-3 py-2.5 whitespace-nowrap">
+        <div className="flex items-center gap-1.5">
+          <button type="button" disabled={busy} onClick={() => onUpdateStock(item)} className="pg-btn h-8 px-2.5 text-[11px] uppercase"><FiLayers size={12} aria-hidden="true" /> {t.row.updateStock}</button>
+          <button type="button" title={t.row.details} aria-label={tpl(t.row.detailsOf, { name: item.name || t.row.fallbackName })} onClick={() => onDetails(item)} className="pg-btn h-8 w-8"><FiInfo size={14} aria-hidden="true" /></button>
         </div>
       </td>
     </tr>
   );
 });
 
+const DetailsModal = memo(({ item, L, onClose }) => {
+  useEscape(onClose);
+  const t = L.inventory;
+  const fm = getFormats(L.locale);
+  const status = statusOf(item);
+  const cells = [
+    [t.details.unitPrice, formatPrice(item.price, L.table.price, fm.number)],
+    [t.details.quantity, `${fm.number.format(item.stock)} ${t.row.unit}`],
+    [t.details.threshold, `${fm.number.format(item.threshold)} ${t.row.unit}`],
+  ];
+  return (
+    <Overlay onClose={onClose}>
+      <div role="dialog" aria-modal="true" aria-label={t.details.title} className="pg-card pg-in relative w-full max-w-sm overflow-hidden">
+        <div className="pg-gray pg-line px-5 py-3.5 border-b-2 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <span className="pg-tile h-9 w-9" style={{ background: TONES.sky }}><FiInfo size={16} aria-hidden="true" /></span>
+            <h3 className="text-sm font-extrabold uppercase"><span className="pg-ul">{t.details.title}</span></h3>
+          </div>
+          <button type="button" onClick={onClose} aria-label={L.table.close} className="pg-btn h-8 w-8"><FiX size={15} aria-hidden="true" /></button>
+        </div>
 
+        <div className="px-5 py-4 space-y-3.5">
+          <div className="flex items-center gap-3">
+            <span className="pg-tile h-12 w-12"><FiPackage size={20} aria-hidden="true" /></span>
+            <div className="min-w-0">
+              <h4 className="text-sm font-extrabold uppercase break-words">{item.name || '—'}</h4>
+              <p className="pg-muted text-[11px] font-semibold">{item.category || item.categoryName || t.row.uncategorized}</p>
+            </div>
+          </div>
 
+          <div className="grid grid-cols-3 gap-2.5">
+            {cells.map(([label, value]) => (
+              <div key={label} className="pg-gray pg-dot p-3 min-w-0">
+                <p className="pg-muted text-[10px] font-bold uppercase mb-1 truncate">{label}</p>
+                <p className="text-xs font-extrabold tabular-nums">{value}</p>
+              </div>
+            ))}
+          </div>
 
+          <div className="pg-gray pg-dot p-3 flex items-center justify-between">
+            <span className="flex items-center gap-2 text-[11px] font-bold uppercase"><FiShield size={14} className="text-[var(--pg-accent)]" aria-hidden="true" /> {t.details.status}</span>
+            <StatusPill status={status} label={t.status[status]} />
+          </div>
+        </div>
+
+        <div className="pg-line px-5 py-3.5 border-t-2">
+          <button type="button" onClick={onClose} className="pg-btn w-full h-10 text-xs uppercase">{L.table.close}</button>
+        </div>
+      </div>
+    </Overlay>
+  );
+});
+
+const StockModal = memo(({ item, busy, L, onClose, onSubmit }) => {
+  useEscape(onClose);
+  const t = L.inventory;
+  const nf = getFormats(L.locale).number;
+  const [value, setValue] = useState(String(item.stock));
+  const [error, setError] = useState('');
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (busy) return;
+    const n = Number(value);
+    if (value === '' || !Number.isInteger(n) || n < 0 || n > STOCK_MAX) {
+      setError(tpl(t.stockModal.error, { max: nf.format(STOCK_MAX) }));
+      return;
+    }
+    onSubmit(n);
+  };
+
+  return (
+    <Overlay onClose={onClose}>
+      <form onSubmit={submit} noValidate role="dialog" aria-modal="true" aria-label={t.stockModal.title} className="pg-card pg-in relative w-full max-w-sm overflow-hidden">
+        <div className="pg-gray pg-line px-5 py-4 border-b-2 flex items-center gap-3">
+          <span className="pg-tile h-10 w-10"><FiLayers size={16} aria-hidden="true" /></span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-extrabold uppercase"><span className="pg-ul">{t.stockModal.title}</span></h3>
+            <p className="pg-muted mt-1 text-[11px] font-semibold truncate">{tpl(t.stockModal.current, { name: item.name, n: nf.format(item.stock) })}</p>
+          </div>
+        </div>
+        <div className="p-5 space-y-2">
+          <label htmlFor="inv-stock" className="text-[11px] font-extrabold uppercase">{t.stockModal.newQty}</label>
+          <input
+            id="inv-stock"
+            type="text"
+            inputMode="numeric"
+            dir="ltr"
+            autoFocus
+            autoComplete="off"
+            maxLength={7}
+            value={value}
+            aria-invalid={!!error}
+            aria-describedby={error ? 'inv-stock-err' : undefined}
+            onChange={(e) => { setValue(toDigits(e.target.value)); setError(''); }}
+            className="pg-field w-full h-12 text-lg font-extrabold text-center tabular-nums"
+          />
+          {error && <p id="inv-stock-err" role="alert" className="text-[11px] font-bold text-red-500">{error}</p>}
+        </div>
+        <div className="px-5 pb-5 flex gap-2.5">
+          <button type="button" onClick={onClose} className="pg-btn flex-1 h-10 text-xs uppercase">{L.table.cancel}</button>
+          <button type="submit" disabled={busy} className="pg-btn pg-btn-a flex-1 h-10 text-xs uppercase">{t.stockModal.submit}</button>
+        </div>
+      </form>
+    </Overlay>
+  );
+});
 
 const Inventory = () => {
-  const [inventory,      setInventory]      = useState([]);
-  const [totalValue,     setTotalValue]     = useState(0);
-  const [searchTerm,     setSearchTerm]     = useState('');
-  const [currentPage,    setCurrentPage]    = useState(1);
-  const [rowsPerPage,    setRowsPerPage]    = useState(10);
-  const [loading,        setLoading]        = useState(true);
-  const [exporting,      setExporting]      = useState(false);
-  const [detailsItem,    setDetailsItem]    = useState(null);
-  const [stockTarget,    setStockTarget]    = useState(null);
-  const [newStockValue,  setNewStockValue]  = useState('');
-  const [showStockModal, setShowStockModal] = useState(false);
-  const abortCtrl   = useRef(new AbortController());
+  const darkMode = useDarkMode();
+  const { language, isAr, dir, font, L, fm } = useShopLocale();
+  const t = L.inventory;
+  const nf = fm.number;
+  const tl = useMemo(() => mergeLabels(L.table, isAr ? TABLE_FALLBACK.ar : TABLE_FALLBACK.en), [L.table, isAr]);
+
+  const tRef = useRef(L);
+  tRef.current = L;
+
+  const [inventory, setInventory] = useState([]);
+  const [totalValue, setTotalValue] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [truncated, setTruncated] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('name');
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [detailsId, setDetailsId] = useState(null);
+  const [stockId, setStockId] = useState(null);
+  const [busyIds, setBusyIds] = useState(() => new Set());
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+
+  const inventoryRef = useRef(inventory);
+  const inflight = useRef(new Set());
+  const abortRef = useRef(null);
+  const totalAbortRef = useRef(null);
   const fileInputRef = useRef(null);
+  inventoryRef.current = inventory;
+  useEffect(() => { document.title = t.docTitle; }, [t.docTitle]);
 
-  useEffect(() => { document.title = 'إدارة المستودع'; }, []);
-
-  const showToast = useCallback((text, icon) =>
-    Swal.fire({ text, icon, toast: true, position: 'top-start', showConfirmButton: false, timer: 3000 }), []);
-
-  
-  
-
-  const stats = useMemo(() => {
-    const threshold = 5;
-    return {
-      totalItems:  inventory.length,
-      lowStock:    inventory.filter(i => i.stock > 0 && i.stock < threshold).length,
-      outOfStock:  inventory.filter(i => i.stock === 0).length,
-    };
-  }, [inventory]);
-
-
-  
-
+  const term = useDeferredValue(search).trim().toLowerCase();
 
   const fetchTotalValue = useCallback(async () => {
+    totalAbortRef.current?.abort();
+    const controller = new AbortController();
+    totalAbortRef.current = controller;
     try {
-      const res = await api.get(`${API_BASE}/total-value`);
-      setTotalValue(Number(res.data?.totalValue ?? res.data) || 0);
-    } catch {}
+      const res = await api.get(`${API_BASE}/total-value`, { signal: controller.signal });
+      if (!controller.signal.aborted) setTotalValue(num(res.data?.totalValue ?? res.data));
+    } catch {
+      setTotalValue((v) => v);
+    }
   }, []);
 
-  useEffect(() => { fetchTotalValue(); }, [fetchTotalValue]);
-
-  const fetchInventory = useCallback(async (query = '') => {
-    if (abortCtrl.current) abortCtrl.current.abort();
-    abortCtrl.current = new AbortController();
-    setLoading(true);
+  const fetchInventory = useCallback(async ({ silent = false } = {}) => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    if (!silent) setLoading(true);
     try {
-      const res = await api.get(`${API_BASE}/search`, { params: { query }, signal: abortCtrl.current.signal });
+      const res = await api.get(`${API_BASE}/search`, {
+        params: { query: '', page: 0, size: FETCH_SIZE },
+        signal: controller.signal,
+      });
       const raw = res.data;
-      setInventory(Array.isArray(raw?.content) ? raw.content : Array.isArray(raw) ? raw : []);
+      const list = Array.isArray(raw?.content) ? raw.content : Array.isArray(raw) ? raw : [];
+      if (!controller.signal.aborted) {
+        const total = num(raw?.totalElements);
+        setInventory(list.map(normalize));
+        setTruncated(total > list.length || (!total && list.length >= FETCH_SIZE));
+        setLoadError(false);
+        setLastUpdated(new Date());
+      }
     } catch (err) {
-      
+      if (!controller.signal.aborted) {
+        setLoadError(true);
+        if (!silent) toast({ icon: 'error', title: tRef.current.inventory.toasts.loadFail, text: errText(err) });
+      }
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
-  }, [showToast]);
-
-  const debouncedFetch = useMemo(() => debounce((q) => fetchInventory(q), 400), [fetchInventory]);
+  }, []);
 
   useEffect(() => {
-    debouncedFetch(searchTerm);
-    return () => { debouncedFetch.cancel(); if (abortCtrl.current) abortCtrl.current.abort(); };
-  }, [searchTerm, debouncedFetch]);
+    fetchInventory();
+    fetchTotalValue();
+    return () => { abortRef.current?.abort(); totalAbortRef.current?.abort(); };
+  }, [fetchInventory, fetchTotalValue]);
 
-  const exportCSV = async () => {
+  const setBusy = useCallback(() => setBusyIds(new Set(inflight.current)), []);
+
+  const refreshAll = useCallback(() => {
+    if (loading) return;
+    fetchInventory();
+    fetchTotalValue();
+  }, [loading, fetchInventory, fetchTotalValue]);
+
+  const updateStock = useCallback(async (id, next) => {
+    if (!isSafeId(id) || inflight.current.has(id)) return;
+    const old = inventoryRef.current.find((i) => i.id === id)?.stock;
+    inflight.current.add(id);
+    setBusy();
+    setInventory((prev) => prev.map((i) => (i.id === id ? { ...i, stock: next } : i)));
+    setStockId(null);
+    try {
+      await api.patch(`/api/shops/products/${encodeURIComponent(id)}/stock`, { newStock: next });
+      toast({ icon: 'success', title: tRef.current.inventory.toasts.stockUpdated });
+      fetchTotalValue();
+    } catch (err) {
+      setInventory((prev) => prev.map((i) => (i.id === id ? { ...i, stock: old ?? i.stock } : i)));
+      toast({ icon: 'error', title: tRef.current.inventory.toasts.stockFail, text: errText(err) });
+    } finally {
+      inflight.current.delete(id);
+      setBusy();
+    }
+  }, [fetchTotalValue, setBusy]);
+
+  const exportCSV = useCallback(async () => {
+    if (exporting) return;
     setExporting(true);
+    const tt = tRef.current.inventory.toasts;
     try {
       const res = await api.get(`${API_BASE}/export`, { responseType: 'blob' });
-      const url = URL.createObjectURL(new Blob([res.data]));
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'text/csv;charset=utf-8;' }));
       const a = document.createElement('a');
       a.href = url;
       a.download = `inventory_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.rel = 'noopener';
       a.click();
-      showToast('تم تصدير البيانات بنجاح', 'success');
-    } catch { showToast('فشل التصدير', 'error'); }
-    finally { setExporting(false); }
-  };
-
-  const handleImport = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const fd = new FormData();
-    fd.append('file', file);
-    try {
-      await api.post('/api/shops/products/import', fd);
-      showToast('تم الاستيراد بنجاح', 'success');
-      fetchInventory(searchTerm);
-    } catch { showToast('فشل الاستيراد', 'error'); }
-    finally { if (fileInputRef.current) fileInputRef.current.value = ''; }
-  };
-
-  const updateStock = async () => {
-    if (newStockValue === '' || newStockValue < 0) return;
-    const targetId  = stockTarget.id;
-    const nextStock = parseInt(newStockValue);
-    const previousInventory = [...inventory];
-
-    setInventory(prev => prev.map(item => item.id === targetId ? { ...item, stock: nextStock } : item));
-    setShowStockModal(false);
-
-    try {
-      await api.patch(`/api/shops/products/${targetId}/stock`, { newStock: nextStock });
-      showToast('تم تحديث المخزون بنجاح', 'success');
-      fetchTotalValue(); 
-    } catch {
-      setInventory(previousInventory);
-      showToast('خطأ في تحديث المخزون', 'error');
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast({ icon: 'success', title: tt.exported });
+    } catch (err) {
+      toast({ icon: 'error', title: tt.exportFail, text: errText(err) });
+    } finally {
+      setExporting(false);
     }
-  };
+  }, [exporting]);
 
-  const paginated  = useMemo(() => inventory.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage), [inventory, currentPage, rowsPerPage]);
-  const totalPages = Math.ceil(inventory.length / rowsPerPage);
+  const handleImport = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || importing) return;
+    const cur = tRef.current;
+    const tt = cur.inventory.toasts;
+    if (!/\.csv$/i.test(file.name)) { toast({ icon: 'error', ...tt.unsupported }); return; }
+    if (file.size === 0) { toast({ icon: 'error', title: tt.emptyFile }); return; }
+    if (file.size > IMPORT_MAX_BYTES) {
+      toast({ icon: 'error', title: tt.tooLarge.title, text: tpl(tt.tooLarge.text, { n: getFormats(cur.locale).number.format(IMPORT_MAX_BYTES / 1024 / 1024) }) });
+      return;
+    }
+
+    const c = cur.inventory.importConfirm;
+    const { isConfirmed } = await confirmDialog({
+      title: c.title,
+      text: tpl(c.text, { name: file.name.slice(0, 60) }),
+      icon: 'question',
+      confirmButtonText: c.button,
+      cancelButtonText: cur.table.cancel,
+      confirmButtonColor: '#059669',
+    });
+    if (!isConfirmed) return;
+
+    setImporting(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file, file.name);
+      await api.post('/api/shops/products/import', fd);
+      toast({ icon: 'success', title: tt.imported });
+      fetchInventory({ silent: true });
+      fetchTotalValue();
+    } catch (err) {
+      toast({ icon: 'error', title: tt.importFail, text: errText(err) });
+    } finally {
+      setImporting(false);
+    }
+  }, [importing, fetchInventory, fetchTotalValue]);
+
+  const index = useMemo(() => inventory.map((i) => ({
+    i,
+    status: statusOf(i),
+    text: [i.name, i.category, i.categoryName].filter(Boolean).join(' ').toLowerCase(),
+  })), [inventory]);
+
+  const counts = useMemo(() => {
+    const c = { all: inventory.length, ok: 0, low: 0, out: 0 };
+    for (const { status } of index) c[status] += 1;
+    return c;
+  }, [index, inventory.length]);
+
+  const computedValue = useMemo(() => inventory.reduce((s, i) => s + i.price * i.stock, 0), [inventory]);
+
+  const filtered = useMemo(() => {
+    const collator = getCollator(L.locale);
+    const list = [];
+    for (const { i, status, text } of index) {
+      if ((statusFilter === 'all' || status === statusFilter) && (!term || text.includes(term))) list.push(i);
+    }
+    list.sort((a, b) => {
+      if (sortBy === 'highest_price') return b.price - a.price;
+      if (sortBy === 'lowest_price') return a.price - b.price;
+      if (sortBy === 'highest_stock') return b.stock - a.stock;
+      if (sortBy === 'lowest_stock') return a.stock - b.stock;
+      return collator.compare(String(a.name || ''), String(b.name || ''));
+    });
+    return list;
+  }, [index, statusFilter, term, sortBy, L.locale]);
+
+  useEffect(() => { setCurrentPage(1); }, [statusFilter, term, sortBy, rowsPerPage]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+  const page = Math.min(currentPage, totalPages);
+  const paginated = useMemo(() => filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage), [filtered, page, rowsPerPage]);
 
   const statCards = useMemo(() => [
-    { Illustration: StackIllustration,   label: 'إجمالي العناصر', value: formatNumber(stats.totalItems),  color: 'emerald', description: 'إجمالي الأصناف بالمخزن' },
-    { Illustration: WarningIllustration, label: 'مخزون منخفض',    value: formatNumber(stats.lowStock),    color: 'orange',  description: 'أقل من 5 وحدات (وليس صفر)' },
-    { Illustration: EmptyBoxIllustration,label: 'نفد المخزون',    value: formatNumber(stats.outOfStock),  color: 'red',     description: 'كمية صفر — يحتاج إعادة تخزين' },
-    { Illustration: ValueIllustration,   label: 'قيمة المستودع',  value: formatPrice(totalValue),         color: 'indigo',  description: 'القيمة السوقية الإجمالية' },
-  ], [stats, totalValue]);
+    { label: t.stats.total.label, value: nf.format(counts.all), description: t.stats.total.desc, icon: FiBox, tone: 'sky' },
+    { label: t.stats.low.label, value: nf.format(counts.low), description: t.stats.low.desc, icon: FiAlertTriangle, tone: 'am' },
+    { label: t.stats.out.label, value: nf.format(counts.out), description: t.stats.out.desc, icon: FiXCircle, tone: 'ro' },
+    { label: t.stats.value.label, value: formatPrice(totalValue ?? computedValue, L.table.price, nf), description: t.stats.value.desc, icon: FiDollarSign, tone: 'vi' },
+  ], [counts, totalValue, computedValue, t, nf, L.table.price]);
+
+  const filterGroups = useMemo(() => [
+    [t.filter.sortBy, SORT_VALUES.map((v) => ({ value: v, label: t.sort[v] })), sortBy, setSortBy],
+  ], [t, sortBy]);
+
+  const detailsItem = useMemo(() => (detailsId == null ? null : inventory.find((i) => i.id === detailsId) || null), [inventory, detailsId]);
+  const stockItem = useMemo(() => (stockId == null ? null : inventory.find((i) => i.id === stockId) || null), [inventory, stockId]);
+  const skeletonRows = useMemo(() => Array.from({ length: Math.min(rowsPerPage, 8) }, (_, i) => i), [rowsPerPage]);
+
+  const handleDetails = useCallback((i) => setDetailsId(i.id), []);
+  const handleStock = useCallback((i) => setStockId(i.id), []);
+  const closeDetails = useCallback(() => setDetailsId(null), []);
+  const closeStock = useCallback(() => setStockId(null), []);
+  const closeFilter = useCallback(() => setShowFilterPanel(false), []);
+  const openFilter = useCallback(() => setShowFilterPanel(true), []);
+  const resetFilters = useCallback(() => setSortBy('name'), []);
+  const togglePriceSort = useCallback(() => setSortBy((s) => (s === 'highest_price' ? 'lowest_price' : 'highest_price')), []);
+  const toggleStockSort = useCallback(() => setSortBy((s) => (s === 'highest_stock' ? 'lowest_stock' : 'highest_stock')), []);
+  const submitStock = useCallback((n) => { if (stockId != null) updateStock(stockId, n); }, [stockId, updateStock]);
+  const handleSearch = useCallback((e) => setSearch(sanitizeSearch(e.target.value)), []);
+  const openFilePicker = useCallback(() => fileInputRef.current?.click(), []);
+
+  const activeFilterCount = sortBy !== 'name' ? 1 : 0;
+  const from = filtered.length ? (page - 1) * rowsPerPage + 1 : 0;
+  const to = Math.min(page * rowsPerPage, filtered.length);
+  const bold = 'tabular-nums';
+  const unitLabel = t.unit ?? t.row?.unit ?? '';
+  const spin = 'animate-spin motion-reduce:animate-none';
 
   return (
-    <div dir="rtl" className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pr-64 mt-16 transition-all duration-500 font-cairo text-right">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-10">
+    <div
+      dir={dir}
+      lang={language}
+      style={font}
+      className="pg min-h-screen py-6 lg:ps-64 mt-16 text-start overflow-x-hidden"
+    >
+      {STYLE_EL}
+      <Toaster darkMode={darkMode} />
 
-       
-       
-
-        <div className="flex flex-col md:flex-row md:items-end mt-3 justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-1.5 rounded-full bg-emerald-500" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">المخزون المركزي</span>
-            </div>
-            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">إدارة <span className="text-emerald-500">المستودع</span></h1>
-            <p className="text-sm font-bold text-gray-500 dark:text-gray-400">تحكم كامل في تدفق المنتجات والكميات المتاحة والأسعار التنافسية</p>
-          </div>
-          <div className="flex gap-3">
-            <button onClick={() => fileInputRef.current?.click()}
-              className="px-8 py-3.5 bg-gray-900 dark:bg-emerald-500 text-white dark:text-white text-xs font-black uppercase tracking-widest rounded-2xl hover:bg-emerald-500 transition-all shadow-xl shadow-gray-900/10 active:scale-95">
-              <FiUpload className="inline-block ml-2" size={16} /> استيراد CSV
+      <div key={language} className="pg-fade max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <header className="px-0.5">
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-[1.15]">
+              {t.title[0]}<span className="pg-ul">{t.title[1]}</span>
+            </h1>
+            <p className="pg-muted mt-2 text-sm font-medium">{t.subtitle}</p>
+          </header>
+          <div className="flex flex-wrap items-center gap-2.5">
+            {lastUpdated && <p className="pg-muted hidden sm:block text-[11px] font-bold">{tpl(L.table.lastUpdated, { time: fmt(fm.time, lastUpdated), t: fmt(fm.time, lastUpdated) })}</p>}
+            <button type="button" onClick={refreshAll} disabled={loading} aria-label={L.table.refresh} title={L.table.refresh} className="pg-btn h-10 px-3 text-xs uppercase">
+              <FiRefreshCw size={14} className={loading ? spin : ''} aria-hidden="true" /> {L.table.refresh}
             </button>
-            <input ref={fileInputRef} type="file" className="hidden" accept=".csv" onChange={handleImport} />
-            <button onClick={exportCSV}
-              className="px-8 py-3.5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-gray-900 dark:text-white text-xs font-black uppercase tracking-widest rounded-2xl hover:border-emerald-500 transition-all shadow-sm active:scale-95">
-              <FiDownload className="inline-block ml-2" size={16} /> تصدير
+            <button type="button" disabled={importing} onClick={openFilePicker} className="pg-btn h-10 px-3 text-xs uppercase">
+              <FiUpload size={14} aria-hidden="true" /> {importing ? t.importing : t.import}
+            </button>
+            <input ref={fileInputRef} type="file" className="hidden" accept=".csv,text/csv" onChange={handleImport} tabIndex={-1} aria-hidden="true" />
+            <button type="button" disabled={exporting} onClick={exportCSV} className="pg-btn pg-btn-a h-10 px-3 text-xs uppercase">
+              <FiDownload size={14} aria-hidden="true" /> {exporting ? t.exporting : t.export}
             </button>
           </div>
         </div>
 
-        
-        
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {statCards.map(s => <StatCard key={s.label} {...s} />)}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
+          {statCards.map((s) => <StatCard key={s.label} {...s} />)}
         </div>
 
-        
-        
-
-        <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none p-6">
-          <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
-            <div className="relative flex-1 group">
-              <FiSearch className="absolute cursor-pointer right-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
-              <input type="text" placeholder="ابحث باسم المنتج..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pr-12 pl-4 py-3.5 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-emerald-200 text-sm font-bold text-gray-900 dark:text-white focus:outline-none transition-all" />
-            </div>
-            <RowsPerPageDropdown value={rowsPerPage} onChange={(n) => { setRowsPerPage(n); setCurrentPage(1); }} />
+        {truncated && (
+          <div role="status" className="pg-card flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold">
+            <span className="pg-tile h-7 w-7" style={{ background: TONES.am }}><FiAlertTriangle size={14} aria-hidden="true" /></span>
+            {tpl(t.truncated, { n: nf.format(FETCH_SIZE) })}
           </div>
-        </div>
+        )}
 
-       
-       
+        <section className="pg-card overflow-hidden">
+          <div className="pg-line p-3 sm:p-4 flex flex-wrap items-center gap-2.5 border-b-2">
+            <div className="pg-field flex h-10 min-w-[220px] flex-1 items-center gap-2 px-3">
+              <FiSearch size={16} className="flex-shrink-0" aria-hidden="true" />
+              <input
+                type="search"
+                value={search}
+                maxLength={SEARCH_MAX}
+                autoComplete="off"
+                spellCheck={false}
+                enterKeyHint="search"
+                aria-label={t.searchAria}
+                placeholder={t.searchPlaceholder}
+                onChange={handleSearch}
+                className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60"
+              />
+            </div>
+            <RowsSelect value={rowsPerPage} onChange={setRowsPerPage} label={tl.rows} formatNumber={nf.format} />
+            <button type="button" onClick={openFilter} className="pg-btn relative h-10 px-3 text-xs uppercase">
+              <FiFilter size={14} aria-hidden="true" /> {L.table.filter}
+              {activeFilterCount > 0 && (
+                <span className="pg-line absolute -top-2 -end-2 w-5 h-5 border-2 bg-[var(--pg-btn)] text-[var(--pg-on)] text-[10px] font-extrabold grid place-items-center">{nf.format(activeFilterCount)}</span>
+              )}
+            </button>
+          </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden">
-          <div className="overflow-x-auto custom-scrollbar-thin">
-            <table className="w-full text-right border-collapse">
-              <thead>
-                <tr className="bg-gray-100 dark:bg-gray-900  dark:border-gray-700">
-                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">المنتج</th>
-                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">السعر</th>
-                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">الكمية</th>
-                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">الحالة</th>
-                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">إجراءات</th>
+          <div role="tablist" aria-label={t.tabsAria} className="pg-line pg-scroll flex gap-2 overflow-x-auto px-3 sm:px-4 py-3 border-b-2">
+            {TABS.map((s) => (
+              <button
+                key={s}
+                type="button"
+                role="tab"
+                aria-selected={statusFilter === s}
+                onClick={() => setStatusFilter(s)}
+                className="pg-btn flex-shrink-0 h-9 px-3 text-xs uppercase"
+              >
+                {t.status[s]}
+                <span className="tabular-nums opacity-80">{nf.format(counts[s])}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="overflow-auto max-h-[68vh] pg-scroll" aria-busy={loading}>
+            <table className="w-full min-w-[820px] text-start border-separate border-spacing-0">
+              <thead className="sticky top-0 z-10">
+                <tr>
+                  <th scope="col" className="pg-th">{t.columns.product}</th>
+                  <SortTh label={t.columns.price} active={sortBy.endsWith('_price')} dir={sortBy === 'lowest_price' ? 'asc' : 'desc'} onClick={togglePriceSort} />
+                  <SortTh label={t.columns.stock} active={sortBy.endsWith('_stock')} dir={sortBy === 'lowest_stock' ? 'asc' : 'desc'} onClick={toggleStockSort} />
+                  <th scope="col" className="pg-th">{t.columns.status}</th>
+                  <th scope="col" className="pg-th">{t.columns.actions}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                {loading ? (
-                  [...Array(rowsPerPage)].map((_, i) => (
-                    <tr key={i} className="animate-pulse">
-                      {[...Array(5)].map((_, j) => (
-                        <td key={j} className="px-4 py-3"><div className="h-4 bg-gray-100 dark:bg-gray-700 rounded-lg w-full" /></td>
+              <tbody>
+                {loading && inventory.length === 0 ? (
+                  skeletonRows.map((i) => (
+                    <tr key={i} className="animate-pulse motion-reduce:animate-none">
+                      {SKELETON_COLS.map((j) => (
+                        <td key={j} className="pg-td px-3 py-4"><div className="pg-gray h-3.5 w-full" /></td>
                       ))}
                     </tr>
                   ))
+                ) : loadError && inventory.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-14 text-center">
+                      <p role="alert" className="text-sm font-extrabold uppercase text-red-500">{t.loadError.title}</p>
+                      <p className="pg-muted mt-1 text-[11px] font-semibold">{t.loadError.hint}</p>
+                      <button type="button" onClick={refreshAll} className="pg-btn pg-btn-a h-10 px-4 mt-4 text-xs uppercase">
+                        <FiRefreshCw size={14} aria-hidden="true" /> {t.loadError.retry}
+                      </button>
+                    </td>
+                  </tr>
                 ) : paginated.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-8 py-24 text-center">
-                      <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-3xl flex items-center justify-center mx-auto mb-6 text-gray-200 dark:text-gray-800">
-                        <FiPackage size={40} />
+                    <td colSpan={5} className="px-6 py-14">
+                      <div className="flex flex-col items-center text-center gap-3">
+                        <span className="pg-tile h-16 w-16"><FiBox size={28} aria-hidden="true" /></span>
+                        <p className="text-base font-extrabold uppercase"><span className="pg-ul">{t.empty.title}</span></p>
+                        <p className="pg-muted text-xs font-semibold max-w-xs">{t.empty.subtitle}</p>
                       </div>
-                      <p className="text-lg font-black text-gray-900 dark:text-white tracking-tight">لا توجد بيانات</p>
-                      <p className="text-sm font-bold text-gray-400 mt-1 uppercase tracking-widest">لم يتم العثور على أي منتجات في المستودع</p>
                     </td>
                   </tr>
                 ) : (
-                  paginated.map(item => (
+                  paginated.map((i) => (
                     <InventoryRow
-                      key={item.id}
-                      item={item}
-                      onDetails={setDetailsItem}
-                      onUpdateStock={(it) => { setStockTarget({ id: it.id, current: it.stock }); setNewStockValue(it.stock ?? 0); setShowStockModal(true); }}
+                      key={i.id}
+                      item={i}
+                      busy={busyIds.has(i.id)}
+                      L={L}
+                      onDetails={handleDetails}
+                      onUpdateStock={handleStock}
                     />
                   ))
                 )}
@@ -433,136 +780,37 @@ const Inventory = () => {
             </table>
           </div>
 
-         
-         
-         
-          {totalPages > 1 && (
-            <div className="p-4 bg-gray-100 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest order-2 sm:order-1">
-                عرض <span className="text-gray-900 dark:text-white">{(currentPage - 1) * rowsPerPage + 1}</span> إلى{' '}
-                <span className="text-gray-900 dark:text-white">{Math.min(currentPage * rowsPerPage, inventory.length)}</span> من{' '}
-                <span className="text-gray-900 dark:text-white">{formatNumber(inventory.length)}</span> عنصر
+          {filtered.length > 0 && (
+            <div className="pg-gray pg-line px-4 py-3 border-t-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <p className="pg-muted text-xs font-bold">
+                {renderTpl(t.showing || tl.showing, {
+                  range: <b className={bold}>{nf.format(from)}–{nf.format(to)}</b>,
+                  total: <b className={bold}>{nf.format(filtered.length)}</b>,
+                  unit: unitLabel,
+                })}
               </p>
-              <div className="flex items-center gap-2 order-1 sm:order-2">
-                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
-                  className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-emerald-500 disabled:opacity-30 transition-all">
-                  <FiChevronRight size={20} />
-                </button>
-                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
-                  className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-emerald-500 disabled:opacity-30 transition-all">
-                  <FiChevronLeft size={20} />
-                </button>
-              </div>
+              {totalPages > 1 && <Pagination page={page} total={totalPages} onChange={setCurrentPage} labels={tl} formatNumber={nf.format} />}
             </div>
           )}
-        </div>
+        </section>
       </div>
 
-   
-   
+      {detailsItem && <DetailsModal item={detailsItem} L={L} onClose={closeDetails} />}
 
-      {detailsItem && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={() => setDetailsItem(null)} />
-          <div className="relative w-full max-w-sm bg-white dark:bg-gray-800 rounded-none shadow-2xl overflow-hidden animate-in zoom-in duration-300">
-            <div className="px-6 py-4 border-b border-gray-50 dark:border-gray-700 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                  <FiInfo size={16} />
-                </div>
-                <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">تفاصيل الجرد</h3>
-              </div>
-              <button onClick={() => setDetailsItem(null)} className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-400 hover:text-red-500 transition-all">
-                <FiX size={16} />
-              </button>
-            </div>
-            <div className="p-6 space-y-6 text-right">
-              <div className="flex items-start gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-300">
-                  <FiPackage size={24} />
-                </div>
-                <div className="space-y-1">
-                  <h4 className="text-lg font-black text-gray-900 dark:text-white tracking-tight leading-none">{sanitize(detailsItem.name)}</h4>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{detailsItem.category || 'بدون تصنيف'}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-none border border-transparent hover:border-emerald-500/20 transition-all space-y-1">
-                  <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">سعر الوحدة</p>
-                  <p className="text-base font-black text-emerald-600">{formatPrice(detailsItem.price)}</p>
-                </div>
-                <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-none border border-transparent hover:border-emerald-500/20 transition-all space-y-1">
-                  <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">الكمية</p>
-                  <p className="text-base font-black text-gray-900 dark:text-white">{formatNumber(detailsItem.stock)} <span className="text-[10px]">وحدة</span></p>
-                </div>
-                <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-none border border-transparent hover:border-emerald-500/20 transition-all space-y-1">
-                  <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">الحد الأدنى</p>
-                  <p className="text-base font-black text-red-400">{formatNumber(detailsItem.threshold || 5)} <span className="text-[10px]">وحدة</span></p>
-                </div>
-              </div>
-              <div className="p-5 bg-emerald-500/5 dark:bg-emerald-900/10 rounded-none border border-emerald-500/10 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center">
-                    <FiShield size={16} />
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest leading-none">الحالة</p>
-                    <p className="text-[10px] font-black text-gray-900 dark:text-white">
-                      {detailsItem.stock === 0 ? 'نفد المخزون' : detailsItem.stock < (detailsItem.threshold || 5) ? 'مخزون منخفض' : 'متوفر بالمستودع'}
-                    </p>
-                  </div>
-                </div>
-                <div className={`w-2 h-2 rounded-full ${detailsItem.stock === 0 ? 'bg-gray-400' : detailsItem.stock < (detailsItem.threshold || 5) ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse`} />
-              </div>
-            </div>
-            <div className="px-6 pb-6 pt-2">
-              <button onClick={() => setDetailsItem(null)}
-                className="w-full py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-500 dark:hover:bg-emerald-500 dark:hover:text-white transition-all shadow-sm">
-                إغلاق
-              </button>
-            </div>
-          </div>
-        </div>
+      {showFilterPanel && (
+        <FilterPanel title={t.filter.title} note={t.filter.note} groups={filterGroups} onReset={resetFilters} onClose={closeFilter} labels={tl} />
       )}
 
-   
-   
-      {showStockModal && stockTarget && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={() => setShowStockModal(false)} />
-          <div className="relative w-full max-w-sm bg-white dark:bg-gray-800 rounded-none shadow-2xl overflow-hidden animate-in zoom-in duration-300">
-            <div className="p-8 border-b border-gray-50 dark:border-gray-700">
-              <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">تعديل المخزون</h3>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">تحديث الكمية المتوفرة</p>
-            </div>
-            <div className="p-8 space-y-6 text-right">
-              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-2xl">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">الكمية الحالية</span>
-                <span className="text-sm font-black text-gray-900 dark:text-white">{formatNumber(stockTarget.current)} وحدة</span>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">الكمية الجديدة</label>
-                <input type="number" value={newStockValue} onChange={e => setNewStockValue(e.target.value)}
-                  className="w-full px-5 py-4 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-emerald-200 text-lg font-black text-gray-900 dark:text-white focus:outline-none transition-all text-center" />
-              </div>
-            </div>
-            <div className="px-8 pb-8 flex gap-3">
-              <button onClick={() => setShowStockModal(false)}
-                className="flex-1 py-4 bg-gray-50 dark:bg-gray-900 rounded-2xl text-[10px] font-black text-gray-400 uppercase tracking-widest">إلغاء</button>
-              <button onClick={updateStock}
-                className="flex-1 py-4 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20">تحديث</button>
-            </div>
-          </div>
-        </div>
+      {stockItem && (
+        <StockModal
+          key={stockItem.id}
+          item={stockItem}
+          busy={busyIds.has(stockItem.id)}
+          L={L}
+          onClose={closeStock}
+          onSubmit={submitStock}
+        />
       )}
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        .custom-scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
-        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
-        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #1f2937; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #10b981; }
-      `}} />
     </div>
   );
 };

@@ -1,6 +1,6 @@
 
 
-export { default as Header } from './Header';
+export { default as Header } from '../components/admin/Header';
 export { default as Shops } from './Shops';
 export { default as Users } from './Users';
 export { default as Category } from './Category';

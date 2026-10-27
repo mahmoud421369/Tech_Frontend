@@ -1,490 +1,575 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, {
+  useState, useEffect, useCallback, useMemo, useRef, useDeferredValue, memo,
+} from 'react';
 import {
-  FiPackage, FiSearch, FiUser, FiMapPin, FiCopy,
-  FiTruck, FiXCircle, FiChevronLeft, FiChevronRight, FiClock
-  , FiInfo, FiClipboard, FiUserCheck,
-  FiPhone,
-  FiDollarSign
+  FiCopy, FiInfo, FiMapPin, FiPhone, FiClock, FiShoppingBag, FiClipboard,
+  FiUserCheck, FiTruck, FiXCircle, FiPackage,
 } from 'react-icons/fi';
-import { RiStore2Line } from '@remixicon/react';
-import Swal from 'sweetalert2';
-import api from '../api';
-import Modal from '../components/Modal';
-import { RiMapPin2Line } from 'react-icons/ri';
+import api from '../common/api/api';
+import {
+  PageShell, PageHeader, StatCard, Toolbar, Tabs, SortTh, Th, PageBar, Pill, EmptyState, ErrorState,
+  CardSkeleton, SkeletonRows, Route, CustomerBox, InfoRow, AgentPicker, NotesField, DrawerShell, IdSubtitle,
+  useI18n, useLatest, useDarkMode, useMediaQuery, useAuth, ensureFonts, notify,
+  asList, toItem, normAgent, sortAgents, reconcile, errText, isSafeId, sanitizeNotes, shortId, cap, pct,
+  nextSort, validDate, statusLabel, TONE_BG, BTN_ICON, BTN_LG,
+} from '../components/assigner/AssignerKit';
 
-
-
-
-const ROWS_OPTIONS = [10, 25, 50];
-
-
-
-
-const STATUS_STYLE = {
-  PENDING: { bg: 'bg-yellow-50 dark:bg-yellow-900/20', border: 'border-yellow-200 dark:border-yellow-700', text: 'text-yellow-700 dark:text-yellow-400', dot: 'bg-yellow-500' },
-  PENDING_PICKUP: { bg: 'bg-orange-50 dark:bg-orange-900/20', border: 'border-orange-200 dark:border-orange-700', text: 'text-orange-700 dark:text-orange-400', dot: 'bg-orange-500' },
-  ASSIGNED: { bg: 'bg-purple-50 dark:bg-purple-900/20', border: 'border-purple-200 dark:border-purple-700', text: 'text-purple-700 dark:text-purple-400', dot: 'bg-purple-500' },
-  IN_TRANSIT: { bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-700', text: 'text-blue-700 dark:text-blue-400', dot: 'bg-blue-500' },
-  IN_PROGRESS: { bg: 'bg-indigo-50 dark:bg-indigo-900/20', border: 'border-indigo-200 dark:border-indigo-700', text: 'text-indigo-700 dark:text-indigo-400', dot: 'bg-indigo-500' },
-  COMPLETED: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-200 dark:border-emerald-700', text: 'text-emerald-700 dark:text-emerald-400', dot: 'bg-emerald-500' },
+export const ORDERS_REASSIGN_CONFIG = {
+  kind: 'order',
+  icon: FiPackage,
+  eyebrowKey: 'eyebrow.reassign',
+  titleKey: 'orders.reassign.title',
+  subtitleKey: 'orders.reassign.subtitle',
+  docTitleKey: 'orders.reassign.doc',
+  pendingUrl: '/api/assigner/orders-for-assignment',
+  reassignUrl: '/api/assigner/reassign-order',
+  logType: 'ORDER',
+  logIdField: 'orderId',
+  priceField: 'totalPrice',
+  priceLabelKey: 'price.order',
+  valueLabelKey: 'value.total',
 };
 
-const getStatusStyle = (s) =>
-  STATUS_STYLE[s] || { bg: 'bg-gray-50 dark:bg-gray-800', border: 'border-gray-200 dark:border-gray-700', text: 'text-gray-600 dark:text-gray-400', dot: 'bg-gray-400' };
+const LAYOUT_DEFAULTS = {
+  rowsOptions: [6, 12, 24, 48],
+  defaultRows: 6,
+  defaultView: 'cards',
+  stopKeys: { pickup: 'stop.pickupShop', dropoff: 'stop.dropCustomer' },
+};
 
-const showToast = (text, icon) =>
-  Swal.fire({ text, icon, toast: true, position: 'top-end', showConfirmButton: false, timer: 2500, timerProgressBar: true });
+const TABLE_MQ = '(min-width: 1280px)';
+const GRID_CLS = 'grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3';
+const COLS = 8;
+const REDUCED = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+const TABS = [
+  { key: 'all', tk: 'tab.all' },
+  { key: 'progress', tk: 'tab.progress' },
+  { key: 'unassigned', tk: 'tab.unassigned' },
+];
+const SORT_KEY = { id: 'id', user: 'user', route: 'shop', amount: 'amount', date: 'date', agent: 'agent', status: 'status' };
+const STATUS_TONE = {
+  PENDING: 'am', SUBMITTED: 'am', QUOTE_PENDING: 'am', PENDING_PICKUP: 'am', ASSIGNED: 'em',
+  IN_TRANSIT: 'bl', IN_PROGRESS: 'bl', SHIPPED: 'bl', COMPLETED: 'em', CANCELLED: 'rd',
+};
+const isStrong = (item) => !!item.deliveryId && item.status !== 'CANCELLED';
 
-const formatDate = (date) => {
-  if (!date) return '—';
-  const d = new Date(date);
+const QueueCard = memo(({ item, noun, labels, agentName, onOpen, onCopy }) => {
+  const { t, f } = useI18n();
+  const assigned = !!item.deliveryId;
+  const strong = isStrong(item);
+  const canMove = item.status !== 'COMPLETED';
+  const sid = shortId(item.id);
   return (
-    <div className="flex flex-col">
-      <span className="font-bold text-gray-800 dark:text-gray-200">{d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
-      <span className="text-[10px] text-gray-400 font-mono tracking-tighter">{d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
-    </div>
-  );
-};
-
-const formatAddress = (addr) => {
-  if (!addr) return 'N/A';
-  return [addr.street, addr.city, addr.state].filter(Boolean).join(', ') || 'Not specified';
-};
-
-
-
-const StatCard = ({ label, value, icon: Icon, color }) => (
-  <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-md shadow-sm p-5 flex items-center justify-between group hover:shadow-lg hover:shadow-lime-500/5 transition-all duration-500">
-    <div className="space-y-1">
-      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">{label}</p>
-      <p className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter">{value}</p>
-    </div>
-    <div className={`w-12 h-12 rounded-2xl bg-${color}-50 dark:bg-${color}-900/20 flex items-center justify-center text-${color}-500 group-hover:scale-110 transition-transform duration-500`}>
-      <Icon size={20} />
-    </div>
-  </div>
-);
-
-
-
-const ReassignOrders = ({ darkMode }) => {
-  const navigate = useNavigate();
-  const token = localStorage.getItem('authToken');
-
-  const [orders, setOrders] = useState([]);
-  const [deliveryPersons, setDeliveryPersons] = useState([]);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [viewDetail, setViewDetail] = useState(null);
-  const [notes, setNotes] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => { document.title = 'Assigner - Reassign Orders'; }, []);
-
-  const fetchData = useCallback(async () => {
-    if (!token) return navigate('/login');
-    setLoading(true);
-    try {
-      const [ordersRes, logsRes, deliveryRes] = await Promise.all([
-        api.get('/api/assigner/orders-for-assignment', { headers: { Authorization: `Bearer ${token}` } }),
-        api.get('/api/assigner/assignment-log', { headers: { Authorization: `Bearer ${token}` }, params: { assignmentType: 'ORDER' } }),
-        api.get('/api/assigner/delivery-persons', { headers: { Authorization: `Bearer ${token}` } }),
-      ]);
-
-      const current = (ordersRes.data.content || ordersRes.data || []).map(o => ({ ...o, userName: `${o.firstName || ''} ${o.lastName || ''}`.trim() || 'Unknown Customer' }));
-      const assigned = (logsRes.data.content || logsRes.data || []).map(l => ({
-        id: l.orderId || l.id, userId: l.userId,
-        firstName: l.firstName, lastName: l.lastName,
-        userName: l.userName || `${l.firstName || ''} ${l.lastName || ''}`.trim(),
-        userAddress: l.userAddress || {}, shopId: l.shopId, shopName: l.shopName,
-        shopAddress: l.shopAddress || {}, status: l.status || 'ASSIGNED',
-        createdAt: l.createdAt, deliveryId: l.deliveryId, totalPrice: l.totalPrice || 0
-      }));
-
-      const unique = Array.from(new Map([...current, ...assigned].map(o => [o.id, o])).values());
-
-      setOrders(unique.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
-      setDeliveryPersons(deliveryRes.data.content || deliveryRes.data || []);
-    } catch (err) {
-      if (err.response?.status === 401) { localStorage.clear(); navigate('/login'); }
-      else showToast('Failed to load data', 'error');
-    } finally { setLoading(false); }
-  }, [token, navigate]);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  const reassignOrder = async (newDeliveryId) => {
-    if (!selectedOrder?.id || !newDeliveryId) return;
-    try {
-      await api.put(`/api/assigner/reassign-order/${selectedOrder.id}`, { newDeliveryId, notes }, { headers: { Authorization: `Bearer ${token}` } });
-      showToast('Order transferred successfully', 'success');
-      setSelectedOrder(null); setNotes(''); fetchData();
-    } catch (err) {
-      showToast(err.response?.data?.message || 'Reassignment failed', 'error');
-    }
-  };
-
-  const stats = useMemo(() => ({
-    total: orders.length,
-    assigned: orders.filter(o => o.deliveryId).length,
-    unassigned: orders.filter(o => !o.deliveryId).length,
-    revenue: orders.reduce((acc, o) => acc + (parseFloat(o.totalPrice) || 0), 0)
-  }), [orders]);
-
-  const filtered = useMemo(() => orders.filter(o => {
-    const searchable = [o.id, o.userName, o.shopName, o.status].join(' ').toLowerCase();
-    return !searchTerm || searchable.includes(searchTerm.toLowerCase());
-  }), [orders, searchTerm]);
-
-  const totalPages = Math.ceil(filtered.length / rowsPerPage);
-  const paginated = useMemo(() => filtered.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage), [filtered, currentPage, rowsPerPage]);
-
-  const copyToClipboard = (id) => { navigator.clipboard.writeText(id); showToast('Order ID copied', 'success'); };
-
-
-   const STYLES = `
-  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
-  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
-
-  
-  html[dir="rtl"],
-  html[dir="rtl"] body,
-  html[dir="rtl"] * {
-    font-family: 'Cairo', sans-serif !important;
-  }
-
-  
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: #d1d5db transparent;
-  }
-  *::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
-  }
-  *::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  *::-webkit-scrollbar-thumb {
-    background: #d1d5db;
-    border-radius: 999px;
-  }
-  *::-webkit-scrollbar-thumb:hover {
-    background: #9ca3af;
-  }
-
-  .lime-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
-  .lime-scroll::-webkit-scrollbar-track { background: transparent; }
-  .lime-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 999px; }
-  .lime-scroll { scrollbar-width: thin; scrollbar-color: #d1d5db transparent; }
-  .tabs-scroll::-webkit-scrollbar { display: none; }
-  .tabs-scroll { -ms-overflow-style: none; scrollbar-width: none; }
-  .leaflet-container { font-family: inherit; }
-  [dir="rtl"] .rtl-flip { transform: scaleX(-1); }
-`;
-
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
-     <style>{STYLES}</style>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
-
-
-
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-1.5 rounded-full bg-emerald-500" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">Dynamic Re-routing</span>
-            </div>
-            <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Reassign Orders</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Transfer orders between agents or fix assignment errors</p>
+    <li className="min-w-0">
+      <article className={`nb-card h-full flex flex-col gap-4 p-4 ${strong ? 'nb-tint' : ''}`}>
+        <header className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <button type="button" onClick={() => onCopy(item.id)} aria-label={t('copy.aria', { item: noun, id: sid })} className="nb-btn h-8 px-3 text-xs">
+              #{sid} <FiCopy size={12} aria-hidden="true" />
+            </button>
+            <p className="nb-muted mt-2 text-xs font-bold">{f.short(item.createdAt)}</p>
           </div>
-          <button onClick={fetchData} className="px-5 py-2.5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-sm text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">
-            Refresh Data
+          <p className="text-base font-extrabold whitespace-nowrap tabular-nums">{f.price(item.amount)}</p>
+        </header>
+
+        <CustomerBox item={item} />
+        <Route item={item} labels={labels} />
+
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Pill tone={STATUS_TONE[item.status] || 'gr'}>{statusLabel(t, item.status)}</Pill>
+          <span className={`inline-flex items-center gap-1.5 min-w-0 text-xs font-extrabold ${assigned ? '' : 'nb-muted'}`}>
+            <FiTruck size={12} className="flex-shrink-0" aria-hidden="true" />
+            <span className="truncate max-w-[150px]">{assigned ? agentName : t('agent.none')}</span>
+          </span>
+        </div>
+
+        <div className={`mt-auto grid gap-3 pt-1 ${canMove ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          <button type="button" onClick={() => onOpen(item)} aria-label={t('details.aria', { item: noun, id: sid })} className={BTN_LG}>
+            {t('details')}
           </button>
-        </div>
-
-
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Total Orders" value={stats.total} icon={FiPackage} color="lime" />
-          <StatCard label="In Progress" value={stats.assigned} icon={FiTruck} color="amber" />
-          <StatCard label="Unassigned" value={stats.unassigned} icon={FiXCircle} color="red" />
-          <StatCard label="Total Value" value={`EGP ${stats.revenue.toLocaleString()}`} icon={FiClipboard} color="blue" />
-        </div>
-
-
-
-        <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-6">
-          <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
-            <div className="relative flex-1 group">
-              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={18} />
-              <input
-                type="text"
-                placeholder="Search by ID, customer, shop, or status..."
-                value={searchTerm}
-                onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-sm text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/10 focus:border-lime-200 transition-all"
-              />
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Rows</span>
-                <div className="relative group">
-                  <select
-                    value={rowsPerPage}
-                    onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                    className="appearance-none pl-5 pr-12 py-3 rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-4 focus:ring-lime-500/5 focus:border-lime-200 cursor-pointer transition-all"
-                  >
-                    {ROWS_OPTIONS.map(n => <option key={n} value={n} className="dark:bg-gray-800">{n}</option>)}
-                  </select>
-                  <FiChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-lime-500 transition-colors rotate-90" size={16} />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto custom-scrollbar-thin">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50/50 dark:bg-gray-900/30 text-center border-b border-gray-100 dark:border-gray-700">
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Date</th>
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Order ID</th>
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Customer</th>
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Status</th>
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                {loading ? (
-                  [...Array(5)].map((_, i) => (
-                    <tr key={i} className="animate-pulse">
-                      {[...Array(6)].map((_, j) => (
-                        <td key={j} className="px-6 py-6"><div className="h-4 bg-gray-100 dark:bg-gray-700 rounded-lg w-full" /></td>
-                      ))}
-                    </tr>
-                  ))
-                ) : paginated.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-24 text-center">
-                      <FiPackage className="mx-auto text-gray-200 dark:text-gray-700 mb-4" size={48} />
-                      <p className="text-gray-400 font-medium">No orders found for reassignment</p>
-                    </td>
-                  </tr>
-                ) : (
-                  paginated.map(order => {
-                    const cs = getStatusStyle(order.status);
-                    return (
-                      <tr key={order.id} className="hover:bg-emerald-50/10 dark:hover:bg-emerald-900/5 transition-colors group">
-                        <td className="px-4 py-3 text-xs text-center whitespace-nowrap">{formatDate(order.createdAt)}</td>
-                        <td className="px-4 py-3 text-xs text-center whitespace-nowrap">
-                          <div className="flex items-center justify-center gap-2">
-                            <span className="text-xs font-mono font-bold text-gray-800 dark:text-gray-200">#{order.id?.slice(-8)}</span>
-                            <button onClick={() => copyToClipboard(order.id)} className="opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-lime-500 transition-all">
-                              <FiCopy size={12} />
-                            </button>
-                          </div>
-                        </td>
-                        <td className="text-xs font-black text-center text-gray-700 dark:text-gray-100 leading-none mb-1.5">
-                          {order.userName}
-                        </td>
-                       
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="flex justify-center items-center">
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border ${cs.bg} ${cs.border} ${cs.text}`}>
-                              <span className={`w-1 h-1 rounded-full ${cs.dot}`} />
-                              {order.status.replace(/_/g, ' ')}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-center whitespace-nowrap space-x-2">
-                          <div className="flex justify-center items-center gap-3">
-                            <button
-                              title="View Details"
-                              onClick={() => setViewDetail(order)}
-                              className="flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-transparent border dark:border-transparent dark:bg-gray-700 text-gray-400 dark:text-gray-300 text-xs font-bold transition-all "
-                            >
-                              <FiInfo size={14} />
-
-                            </button>
-                            <button
-                              onClick={() => setSelectedOrder(order)}
-                              className="flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-transparent border border-emerald-200 dark:border-transparent dark:bg-gray-700 hover:opacity-70 text-emerald-400 dark:text-gray-300 text-xs font-bold transition-all"
-                            >
-                              <FiUserCheck size={14} />
-                              Reassign
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-
-          {totalPages > 1 && (
-            <div className="px-6 py-5 bg-gray-50/50 dark:bg-gray-900/30 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <p className="text-xs font-bold text-gray-500 dark:text-gray-400">
-                Showing <span className="text-gray-900 dark:text-white">{(currentPage - 1) * rowsPerPage + 1}–{Math.min(currentPage * rowsPerPage, filtered.length)}</span> of <span className="text-gray-900 dark:text-white">{filtered.length}</span> orders
-              </p>
-              <div className="flex items-center gap-1">
-                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="w-10 h-10 flex items-center justify-center rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all"><FiChevronLeft size={18} /></button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                  <button key={p} onClick={() => setCurrentPage(p)} className={`w-10 h-10 rounded-xl text-xs font-black transition-all ${currentPage === p ? 'bg-lime-500 text-white shadow-lg' : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400'}`}>{p}</button>
-                ))}
-                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="w-10 h-10 flex items-center justify-center rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all"><FiChevronRight size={18} /></button>
-              </div>
-            </div>
+          {canMove && (
+            <button type="button" onClick={() => onOpen(item)} aria-label={t(assigned ? 'reassign.aria' : 'assign.aria', { item: noun, id: sid })} className={`${BTN_LG} nb-btn-a`}>
+              {t(assigned ? 'reassign' : 'assign')}
+            </button>
           )}
         </div>
+      </article>
+    </li>
+  );
+});
 
+const Row = memo(({ item, noun, agentName, onOpen, onCopy }) => {
+  const { t, f } = useI18n();
+  const name = item.userName || t('customer.unknown');
+  const assigned = !!item.deliveryId;
+  const strong = isStrong(item);
+  const canMove = item.status !== 'COMPLETED';
+  const created = validDate(item.createdAt);
+  const sid = shortId(item.id);
+  return (
+    <tr className={strong ? 'nb-row-on' : ''}>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <span className="inline-flex items-center gap-1.5">
+          <code className="text-[11px] font-mono font-bold">#{sid}</code>
+          <button type="button" title={t('copy.title')} aria-label={t('copy.short', { item: noun })} onClick={() => onCopy(item.id)} className="nb-muted hover:text-[var(--nb-accent)] transition-colors">
+            <FiCopy size={12} aria-hidden="true" />
+          </button>
+        </span>
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <div className="flex items-center gap-2.5">
+          <span className="nb-tile w-9 h-9 text-sm font-extrabold uppercase" style={{ background: TONE_BG.em }}>{name.charAt(0)}</span>
+          <div className="min-w-0">
+            <p className="text-xs font-extrabold uppercase truncate max-w-[170px]">{name}</p>
+            <p dir="ltr" className="nb-muted text-[10px] font-semibold truncate max-w-[170px] text-start">{item.userPhone || t('phone.noneShort')}</p>
+          </div>
+        </div>
+      </td>
+      <td className="px-3 py-2.5">
+        <p className="flex items-center gap-1.5 text-xs font-bold">
+          <FiShoppingBag size={12} className="nb-ic flex-shrink-0" aria-hidden="true" />
+          <span className="truncate max-w-[150px]">{item.shopName || '—'}</span>
+        </p>
+        <p className="nb-muted flex items-center gap-1.5 text-[11px] font-semibold mt-0.5">
+          <FiMapPin size={12} className="flex-shrink-0" aria-hidden="true" />
+          <span className="truncate max-w-[150px]">{item.userAddr.city || '—'}</span>
+        </p>
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap text-xs font-extrabold tabular-nums">{f.price(item.amount)}</td>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <div className="leading-tight">
+          <p className="text-xs font-extrabold">{created ? f.day(created) : '—'}</p>
+          <p className="nb-muted text-[10px] font-mono">{created ? f.clock(created) : ''}</p>
+        </div>
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <span className={`inline-flex items-center gap-1.5 text-xs font-extrabold ${assigned ? '' : 'nb-muted'}`}>
+          <FiTruck size={12} className="flex-shrink-0" aria-hidden="true" />
+          <span className="truncate max-w-[130px]">{assigned ? agentName : '—'}</span>
+        </span>
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap"><Pill tone={STATUS_TONE[item.status] || 'gr'}>{statusLabel(t, item.status)}</Pill></td>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <div className="flex items-center gap-1.5">
+          <button type="button" title={t('details')} aria-label={t('details.aria', { item: noun, id: sid })} onClick={() => onOpen(item)} className={BTN_ICON}>
+            <FiInfo size={14} aria-hidden="true" />
+          </button>
+          {canMove && (
+            <button type="button" onClick={() => onOpen(item)} aria-label={t(assigned ? 'reassign.aria' : 'assign.aria', { item: noun, id: sid })} className="nb-btn nb-btn-a h-8 px-3 text-xs uppercase">
+              <FiUserCheck size={13} aria-hidden="true" /> {t(assigned ? 'reassign' : 'assign')}
+            </button>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+});
 
+const Drawer = ({ cfg, item, currentName, candidates, notes, onNotes, picked, onPick, busy, onClose, onSubmit, onCopy, labels }) => {
+  const { t, f } = useI18n();
+  const assigned = !!item.deliveryId;
+  const canMove = item.status !== 'COMPLETED';
+  const noun = t(`${cfg.kind}.one`);
+  const title = canMove ? t(assigned ? 'drawer.reassign' : 'drawer.assign', { item: noun }) : t('drawer.details', { Item: cap(noun), item: noun });
+  const pickedAgent = candidates.find((a) => a.id === picked);
+  const firstName = pickedAgent ? pickedAgent.name.split(' ')[0] || t('drawer.agentWord') : '';
 
-        {viewDetail && (
-          <Modal onClose={() => setViewDetail(null)} title="Order Case Details" darkMode={darkMode}>
-            <div className="space-y-6">
-              <div className="p-5 bg-gray-50 dark:bg-gray-800 rounded-md  space-y-4">
-                <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Order Ref</p>
-                  <p className="text-xs font-mono font-bold text-gray-950 dark:text-white tracking-tight">#{viewDetail.id}</p>
-                </div>
-                <div className="text-left">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Status</p>
-                  <span className={`inline-flex  px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider border ${getStatusStyle(viewDetail.status).bg} ${getStatusStyle(viewDetail.status).border} ${getStatusStyle(viewDetail.status).text}`}>
-                    {viewDetail.status.replace(/_/g, ' ')}
-                  </span>
-                </div>
-              </div>
+  const footer = (
+    <>
+      <button type="button" onClick={onClose} disabled={busy} className={`${BTN_LG} flex-1`}>
+        {canMove ? t('drawer.cancel') : t('drawer.close')}
+      </button>
+      {canMove && (
+        <button type="button" onClick={onSubmit} disabled={busy || !picked} className={`${BTN_LG} nb-btn-a flex-[1.6]`}>
+          <FiUserCheck size={16} aria-hidden="true" />
+          {busy ? t('drawer.saving') : pickedAgent ? t(assigned ? 'drawer.transferTo' : 'drawer.assignTo', { name: firstName }) : t('drawer.pick')}
+        </button>
+      )}
+    </>
+  );
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-4">
-                  <div className="flex items-center gap-2">
-                    <FiUser className="text-gray-500" />
-                    <span className="text-xs font-black uppercase tracking-wider text-gray-400">Customer Info</span>
-                  </div><hr className="border border-gray-200 mt-3" />
-
-                  <div className="space-y-1 flex items-center gap-3 flex-row-reverse">
-                    <p className="text-xs font-semibold text-green-800 dark:text-gray-100">{viewDetail.userAddress?.city}, {viewDetail.userAddress?.state},{viewDetail.userAddress?.street},{viewDetail.userAddress?.building}</p>
-                    <FiMapPin className='text-gray-500 text-lg' />
-                  </div>
-
-                  <div className="space-y-1">
-                    <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{viewDetail.userName} </p>
-                    <p className="text-xs text-gray-500 flex items-center gap-2"><FiPhone size={12} /> {viewDetail.phone || "Not specified"}</p>
-                  </div>
-
-                </div>
-                <div className="p-5 bg-gray-50 dark:bg-gray-800 rounded-md  space-y-4">
-                  <div className="flex items-center gap-2">
-                    <FiClipboard className="text-gray-500" />
-                    <span className="text-xs font-black uppercase tracking-widest text-gray-400">Shop Info</span>
-                  </div><hr className="border border-gray-200 mt-3" />
-
-                  <div className="space-y-1 flex items-center gap-2 flex-row-reverse justify-end">
-                    <p className="text-xs font-semibold text-green-800 dark:text-white">{viewDetail.shopName}</p>
-                    <RiStore2Line size={12} className='text-gray-500 text-xs' />
-                  </div>
-
-                  <div className="space-y-1 flex items-center gap-2 flex-row-reverse justify-end">
-                    <p className="text-xs font-semibold text-green-800 dark:text-white">{formatAddress(viewDetail.shopAddress)}</p>
-                    <RiMapPin2Line className='text-gray-500 text-sm' />
-                  </div>
-
-
-
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-md  space-y-3">
-                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400">
-                    <FiDollarSign size={14} className="text-lime-500" /> Total Price
-                  </div>
-                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{viewDetail.totalPrice}</p>
-                </div>
-                <div className="p-4 bg-gray-50 dark:bg-gray-900/10 rounded-md  space-y-3">
-                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-600">
-                    <FiMapPin size={14} /> Shipping Address
-                  </div>
-                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{formatAddress(viewDetail.userAddress)}</p>
-                </div>
-              </div>
-
-              <div className="pt-4 flex items-center gap-2 text-[10px] text-gray-400 uppercase tracking-widest font-bold">
-                <FiClock size={12} /> Recorded on: {new Date(viewDetail.createdAt).toLocaleString()}
-              </div>
-            </div>
-          </Modal>
-        )}
-
-
-
-        {selectedOrder && (
-          <Modal onClose={() => { setSelectedOrder(null); setNotes(''); }} title="Reassign Order Agent" darkMode={darkMode}>
-            <div className="space-y-6">
-              <div className="p-5 bg-gray-50 dark:bg-gray-900/50 rounded-3xl border border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Current Agent</p>
-                  <p className="text-sm font-mono font-bold text-gray-500">ID: {selectedOrder.deliveryId ? `…${selectedOrder.deliveryId.slice(-12)}` : 'N/A'}</p>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Transfer Reason / Notes</label>
-                <textarea
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                  placeholder="Reason for reassigning this order..."
-                  className="w-full px-5 py-4 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm text-gray-800 dark:text-white focus:outline-none focus:ring-4 focus:ring-lime-500/10 focus:border-lime-200 transition-all resize-none h-24"
-                />
-              </div>
-
-              <div className="space-y-4">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Select New Agent</label>
-                <div className="grid grid-cols-1 gap-2.5 max-h-72 overflow-y-auto pr-2 custom-scrollbar-thin">
-                  {deliveryPersons.filter(p => p.id !== selectedOrder.deliveryId).map(person => (
-                    <button
-                      key={person.id}
-                      onClick={() => reassignOrder(person.id)}
-                      className="group flex items-center justify-between p-4 rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-lime-500 hover:bg-lime-50/20 transition-all duration-300"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-400 group-hover:text-lime-500 transition-colors"><FiUser size={18} /></div>
-                        <div className="text-left">
-                          <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{person.name}</p>
-                          <p className="text-[10px] font-bold text-emerald-500 flex items-center gap-1">
-                            {person.activeAssignments || 0} Active Tasks
-                          </p>
-                        </div>
-                      </div>
-                      <FiChevronRight size={18} className="text-gray-300 group-hover:text-lime-500 transition-colors" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </Modal>
-        )}
+  return (
+    <DrawerShell title={title} busy={busy} onClose={onClose} footer={footer} subtitle={<IdSubtitle id={item.id} onCopy={onCopy} />}>
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="nb-muted text-xs font-bold">{t(cfg.priceLabelKey)}</p>
+          <p className="text-2xl font-extrabold tabular-nums">{f.price(item.amount)}</p>
+        </div>
+        <Pill tone={STATUS_TONE[item.status] || 'gr'}>{statusLabel(t, item.status)}</Pill>
+      </div>
+      <CustomerBox item={item} />
+      <Route item={item} labels={labels} />
+      <div className="space-y-2.5">
+        <InfoRow icon={FiTruck} label={t('drawer.currentAgent')} value={currentName || (assigned ? `#${shortId(item.deliveryId)}` : t('drawer.notAssigned'))} />
+        <InfoRow icon={FiClock} label={t('drawer.recordedOn')} value={f.full(item.createdAt)} />
+        {item.shopPhone && <InfoRow icon={FiPhone} label={t('drawer.shopPhone')} value={item.shopPhone} ltr />}
+        {item.assignerName && <InfoRow icon={FiUserCheck} label={t('drawer.assignedBy')} value={item.assignerName} />}
       </div>
 
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        .custom-scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
-        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
-        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
-      `}} />
-    </div>
+      {canMove && (
+        <>
+          <NotesField id="reassign-notes" label={t('drawer.notes.reassign')} value={notes} onChange={onNotes} />
+          <AgentPicker agents={candidates} picked={picked} onPick={onPick} busy={busy} title={t('drawer.chooseNew')} emptyKey="drawer.noOther" />
+        </>
+      )}
+    </DrawerShell>
   );
 };
 
-export default ReassignOrders;
+export const ReassignQueue = memo(({ config = ORDERS_REASSIGN_CONFIG }) => {
+  const cfg = useMemo(() => ({ ...LAYOUT_DEFAULTS, ...config }), [config]);
+  const cfgRef = useLatest(cfg);
+  const ctx = useI18n();
+  const ctxRef = useLatest(ctx);
+  const { t, f } = ctx;
+  const darkMode = useDarkMode();
+  const isTable = useMediaQuery(TABLE_MQ);
+  const { tokenRef, denied, logout, forbid } = useAuth();
+
+  const [items, setItems] = useState([]);
+  const [agents, setAgents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [search, setSearch] = useState('');
+  const [tab, setTab] = useState('all');
+  const [view, setView] = useState(cfg.defaultView);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(cfg.defaultRows);
+  const [sort, setSort] = useState({ field: 'date', dir: 'desc' });
+  const [drawerId, setDrawerId] = useState(null);
+  const [notes, setNotes] = useState('');
+  const [picked, setPicked] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const abortRef = useRef(null);
+  const busyRef = useRef(false);
+  const term = useDeferredValue(search).trim().toLowerCase();
+
+  const noun = t(`${cfg.kind}.one`);
+  const nouns = t(`${cfg.kind}.many`);
+  const labels = useMemo(() => ({ pickup: t(cfg.stopKeys.pickup), dropoff: t(cfg.stopKeys.dropoff) }), [t, cfg.stopKeys]);
+
+  useEffect(() => { document.title = t(cfg.docTitleKey); }, [t, cfg.docTitleKey]);
+  useEffect(() => { ensureFonts(); }, []);
+
+  const fetchData = useCallback(async ({ silent = false } = {}) => {
+    if (denied) return;
+    const c = cfgRef.current;
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    if (!silent) setLoading(true);
+    setError(false);
+    const req = { headers: { Authorization: `Bearer ${tokenRef.current}` }, signal: ctrl.signal };
+    try {
+      const [pendingRes, logRes, agentsRes] = await Promise.allSettled([
+        api.get(c.pendingUrl, req),
+        api.get('/api/assigner/assignment-log', { ...req, params: { assignmentType: c.logType } }),
+        api.get('/api/assigner/delivery-persons', req),
+      ]);
+      if (ctrl.signal.aborted) return;
+
+      const statuses = [pendingRes, logRes, agentsRes].map((r) => (r.status === 'rejected' ? r.reason?.response?.status : null));
+      if (statuses.includes(401)) { logout(); return; }
+      if (statuses.includes(403)) { forbid(); return; }
+      if (pendingRes.status === 'rejected' && logRes.status === 'rejected') throw logRes.reason;
+      if (!silent && (pendingRes.status === 'rejected' || logRes.status === 'rejected')) {
+        notify('warning', ctxRef.current.t('toast.partial', { items: ctxRef.current.t(`${c.kind}.many`) }));
+      }
+
+      const map = new Map();
+      if (pendingRes.status === 'fulfilled') {
+        asList(pendingRes.value).forEach((o) => {
+          if (o?.id == null) return;
+          map.set(o.id, toItem(o, c.priceField, o.id, false, 'PENDING'));
+        });
+      }
+      if (logRes.status === 'fulfilled') {
+        asList(logRes.value).forEach((l) => {
+          const id = l[c.logIdField] || l.id;
+          if (!id) return;
+          map.set(id, toItem(l, c.priceField, id, true, 'ASSIGNED'));
+        });
+      }
+
+      setItems((prev) => reconcile(prev, Array.from(map.values())));
+      if (agentsRes.status === 'fulfilled') setAgents((prev) => reconcile(prev, asList(agentsRes.value).map(normAgent)));
+      else if (!silent) notify('warning', ctxRef.current.t('toast.agentsDown.reassign'));
+      setLastUpdated(new Date());
+    } catch (err) {
+      if (ctrl.signal.aborted || err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError') return;
+      if (!silent) {
+        setError(true);
+        notify('error', ctxRef.current.t('toast.loadFail', { items: ctxRef.current.t(`${c.kind}.many`) }), errText(err));
+      }
+    } finally {
+      if (abortRef.current === ctrl) setLoading(false);
+    }
+  }, [denied, logout, forbid, tokenRef, cfgRef, ctxRef]);
+
+  useEffect(() => {
+    fetchData();
+    return () => abortRef.current?.abort();
+  }, [fetchData]);
+
+  const handleCopy = useCallback(async (id) => {
+    const { t: tr } = ctxRef.current;
+    try {
+      await navigator.clipboard.writeText(String(id));
+      notify('success', tr('copied'));
+    } catch {
+      notify('error', tr('copyFail.title'), tr('copyFail'));
+    }
+  }, [ctxRef]);
+
+  const agentById = useMemo(() => new Map(agents.map((a) => [a.id, a])), [agents]);
+
+  const index = useMemo(() => items.map((it) => {
+    const user = it.userName.toLowerCase();
+    const shop = it.shopName.toLowerCase();
+    const id = String(it.id ?? '').toLowerCase();
+    const agent = (agentById.get(it.deliveryId)?.name || '').toLowerCase();
+    return {
+      it, user, shop, id, agent,
+      status: it.status,
+      amount: it.amount,
+      date: it.ts,
+      asg: it.deliveryId ? 1 : 0,
+      text: `${id} ${user} ${shop} ${it.status.toLowerCase().replace(/_/g, ' ')} ${agent} ${it.userPhone.toLowerCase()}`,
+    };
+  }), [items, agentById]);
+
+  const stats = useMemo(() => {
+    let progress = 0; let value = 0;
+    for (const i of items) { if (i.deliveryId) progress += 1; value += i.amount; }
+    return { all: items.length, progress, unassigned: items.length - progress, value };
+  }, [items]);
+  const counts = useMemo(() => ({ all: stats.all, progress: stats.progress, unassigned: stats.unassigned }), [stats]);
+
+  const filtered = useMemo(() => {
+    const key = SORT_KEY[sort.field] || 'date';
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    const list = index.filter((e) => (
+      (tab === 'all' || (tab === 'progress' ? e.asg === 1 : e.asg === 0))
+      && (!term || e.text.includes(term))
+    ));
+    list.sort((a, b) => (a[key] < b[key] ? -dir : a[key] > b[key] ? dir : 0));
+    return list.map((e) => e.it);
+  }, [index, tab, term, sort]);
+
+  useEffect(() => { setCurrentPage(1); }, [tab, term, rowsPerPage, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+  const page = Math.min(currentPage, totalPages);
+  const paginated = useMemo(() => filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage), [filtered, page, rowsPerPage]);
+
+  const statCards = useMemo(() => [
+    { label: t('stat.total', { items: nouns }), value: f.num(stats.all), description: t('stat.total.log'), icon: cfg.icon || FiPackage, tone: 'em', percent: stats.all ? 100 : 0, color: TONE_BG.em },
+    { label: t('stat.progress'), value: f.num(stats.progress), description: t('stat.progress.desc'), icon: FiTruck, tone: 'teal', percent: pct(stats.progress, stats.all), color: TONE_BG.teal },
+    { label: t('stat.unassigned'), value: f.num(stats.unassigned), description: t('stat.unassigned.desc'), icon: FiXCircle, tone: 'lime', percent: pct(stats.unassigned, stats.all), color: TONE_BG.lime },
+    { label: t(cfg.valueLabelKey), value: f.price(stats.value), description: t('stat.valueDesc', { items: nouns }), icon: FiClipboard, tone: 'cyan' },
+  ], [stats, cfg, t, f, nouns]);
+
+  const resetDrawerState = useCallback(() => { setNotes(''); setPicked(null); }, []);
+  const closeDrawer = useCallback(() => { setDrawerId(null); resetDrawerState(); }, [resetDrawerState]);
+  const openItem = useCallback((item) => { resetDrawerState(); setDrawerId(item.id); }, [resetDrawerState]);
+
+  const drawerItem = useMemo(() => (drawerId ? items.find((i) => i.id === drawerId) || null : null), [drawerId, items]);
+  useEffect(() => { if (drawerId && !drawerItem) closeDrawer(); }, [drawerId, drawerItem, closeDrawer]);
+
+  const candidates = useMemo(
+    () => sortAgents(agents.filter((a) => !drawerItem || a.id !== drawerItem.deliveryId)),
+    [agents, drawerItem]
+  );
+  const currentName = drawerItem?.deliveryId ? agentById.get(drawerItem.deliveryId)?.name || '' : '';
+
+  const submitReassign = useCallback(async () => {
+    if (busyRef.current || !drawerItem || !picked || !isSafeId(picked) || !isSafeId(drawerItem.id)) return;
+    const { t: tr } = ctxRef.current;
+    const c = cfgRef.current;
+    const target = agentById.get(picked);
+    if (target && !target.available) {
+      notify('warning', tr('toast.agentOffline'));
+      return;
+    }
+    const nounOne = tr(`${c.kind}.one`);
+    busyRef.current = true;
+    setBusy(true);
+    const { id } = drawerItem;
+    const oldId = drawerItem.deliveryId;
+    try {
+      await api.put(`${c.reassignUrl}/${encodeURIComponent(id)}`, {
+        newDeliveryId: picked,
+        notes: sanitizeNotes(notes).trim(),
+      }, { headers: { Authorization: `Bearer ${tokenRef.current}` } });
+      setItems((prev) => prev.map((i) => (i.id === id ? { ...i, deliveryId: picked, status: i.status === 'PENDING' ? 'ASSIGNED' : i.status } : i)));
+      setAgents((prev) => prev.map((a) => {
+        if (a.id === picked) return { ...a, active: a.active + 1 };
+        if (oldId && a.id === oldId) return { ...a, active: Math.max(0, a.active - 1) };
+        return a;
+      }));
+      notify('success', tr('toast.transferred', { Item: cap(nounOne), item: nounOne }));
+      closeDrawer();
+      fetchData({ silent: true });
+    } catch (err) {
+      const s = err?.response?.status;
+      if (s === 401) { logout(); return; }
+      notify('error', s === 404 ? tr('toast.notFound', { Item: cap(nounOne), item: nounOne }) : tr('toast.reassign.fail'), errText(err));
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  }, [drawerItem, picked, notes, agentById, closeDrawer, fetchData, logout, tokenRef, cfgRef, ctxRef]);
+
+  const handleSort = useCallback((field) => setSort((s) => nextSort(s, field, field === 'date' ? 'desc' : 'asc')), []);
+  const refresh = useCallback(() => fetchData(), [fetchData]);
+  const clearSearch = useCallback(() => setSearch(''), []);
+  const handleRows = useCallback((v) => setRowsPerPage(Number(v)), []);
+  const goToPage = useCallback((p) => {
+    setCurrentPage(p);
+    window.scrollTo({ top: 0, behavior: REDUCED ? 'auto' : 'smooth' });
+  }, []);
+
+  if (denied) return null;
+
+  const showTable = isTable && view === 'table';
+  const isLoading = loading && items.length === 0 && !error;
+  let stateNode = null;
+  if (!isLoading) {
+    if (error && items.length === 0) {
+      stateNode = <ErrorState title={t('err.title', { items: nouns })} subtitle={t('err.sub')} retryLabel={t('err.retry')} onRetry={refresh} />;
+    } else if (items.length === 0) {
+      stateNode = <EmptyState darkMode={darkMode} title={t('empty.none.title', { items: nouns })} subtitle={t('empty.none.msg', { items: nouns })} actionLabel={t('empty.none.action')} onAction={refresh} />;
+    } else if (filtered.length === 0) {
+      stateNode = <EmptyState darkMode={darkMode} title={t('empty.match.title', { items: nouns })} subtitle={t('empty.match.reassign')} actionLabel={search ? t('empty.match.action') : undefined} onAction={clearSearch} />;
+    }
+  }
+
+  return (
+    <PageShell darkMode={darkMode}>
+      <PageHeader
+        eyebrow={t(cfg.eyebrowKey)}
+        title={t(cfg.titleKey)}
+        subtitle={t(cfg.subtitleKey)}
+        lastUpdated={lastUpdated}
+        loading={loading}
+        onRefresh={refresh}
+        refreshLabel={t('refresh')}
+      />
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
+        {statCards.map((s) => <StatCard key={s.tone} {...s} />)}
+      </div>
+
+      <section className="nb-card overflow-hidden">
+        <Toolbar
+          id="queue-search"
+          search={search}
+          onSearch={setSearch}
+          placeholder={t('search.reassign')}
+          label={t('search.label', { items: nouns })}
+          rows={rowsPerPage}
+          rowsOptions={cfg.rowsOptions}
+          onRows={handleRows}
+          rowsLabel={t('perPage', { items: cap(nouns) })}
+          showViews={isTable}
+          view={view}
+          onView={setView}
+        />
+        <Tabs tabs={TABS} value={tab} counts={counts} onChange={setTab} />
+
+        {showTable && (
+          <>
+            <div className="overflow-auto max-h-[68vh] slim-scroll">
+              <table className="w-full min-w-[1020px] text-start border-collapse">
+                <thead className="nb-gray sticky top-0 z-10 shadow-[0_2px_0_0_var(--nb-line)]">
+                  <tr>
+                    <SortTh label={t('col.id')} field="id" sort={sort} onSort={handleSort} />
+                    <SortTh label={t('col.customer')} field="user" sort={sort} onSort={handleSort} />
+                    <SortTh label={t('col.route')} field="route" sort={sort} onSort={handleSort} />
+                    <SortTh label={t(cfg.priceLabelKey)} field="amount" sort={sort} onSort={handleSort} />
+                    <SortTh label={t('col.date')} field="date" sort={sort} onSort={handleSort} />
+                    <SortTh label={t('col.agent')} field="agent" sort={sort} onSort={handleSort} />
+                    <SortTh label={t('col.status')} field="status" sort={sort} onSort={handleSort} />
+                    <Th>{t('col.actions')}</Th>
+                  </tr>
+                </thead>
+                <tbody className="nb-rows">
+                  {isLoading ? (
+                    <SkeletonRows count={Math.min(rowsPerPage, 8)} cols={COLS} />
+                  ) : stateNode ? (
+                    <tr><td colSpan={COLS} className="px-6 py-14 text-center">{stateNode}</td></tr>
+                  ) : (
+                    paginated.map((i) => (
+                      <Row
+                        key={i.id}
+                        item={i}
+                        noun={noun}
+                        agentName={i.deliveryId ? agentById.get(i.deliveryId)?.name || `#${shortId(i.deliveryId)}` : ''}
+                        onOpen={openItem}
+                        onCopy={handleCopy}
+                      />
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {filtered.length > 0 && !isLoading && (
+              <PageBar page={page} totalPages={totalPages} total={filtered.length} perPage={rowsPerPage} items={nouns} onChange={goToPage} />
+            )}
+          </>
+        )}
+      </section>
+
+      {!showTable && (
+        isLoading ? (
+          <ul className={GRID_CLS} aria-busy="true" aria-label={t('loading', { items: nouns })}>
+            {[0, 1, 2].map((i) => <CardSkeleton key={i} />)}
+          </ul>
+        ) : stateNode ? (
+          <div className="nb-card px-6 py-12">{stateNode}</div>
+        ) : (
+          <>
+            <ul className={GRID_CLS}>
+              {paginated.map((i) => (
+                <QueueCard
+                  key={i.id}
+                  item={i}
+                  noun={noun}
+                  labels={labels}
+                  agentName={i.deliveryId ? agentById.get(i.deliveryId)?.name || `#${shortId(i.deliveryId)}` : ''}
+                  onOpen={openItem}
+                  onCopy={handleCopy}
+                />
+              ))}
+            </ul>
+            <PageBar boxed page={page} totalPages={totalPages} total={filtered.length} perPage={rowsPerPage} items={nouns} onChange={goToPage} />
+          </>
+        )
+      )}
+
+      {drawerItem && (
+        <Drawer
+          cfg={cfg}
+          item={drawerItem}
+          currentName={currentName}
+          candidates={candidates}
+          notes={notes}
+          onNotes={setNotes}
+          picked={picked}
+          onPick={setPicked}
+          busy={busy}
+          onClose={closeDrawer}
+          onSubmit={submitReassign}
+          onCopy={handleCopy}
+          labels={labels}
+        />
+      )}
+    </PageShell>
+  );
+});
+
+const ReassignOrders = () => <ReassignQueue config={ORDERS_REASSIGN_CONFIG} />;
+
+export default memo(ReassignOrders);

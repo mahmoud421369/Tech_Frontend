@@ -1,240 +1,365 @@
 import React, {
-  useState, useEffect, useCallback, useRef, useMemo, memo,
-  Suspense, lazy, useDeferredValue,
+  useState, useEffect, useCallback, useRef, useMemo, memo, Suspense, lazy, useDeferredValue, useTransition,
 } from 'react';
-import {
-  FiSearch, FiShoppingCart, FiChevronLeft, FiChevronRight, FiX, FiChevronDown,
-  FiSliders, FiCheck, FiGrid, FiList, FiArrowRight, FiArrowUp, FiTruck, FiShield,
-  FiRefreshCw, FiHeadphones, FiTag,
-} from 'react-icons/fi';
-import { motion, AnimatePresence } from 'framer-motion';
-import api from '../api';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  FiShoppingCart, FiX, FiSliders, FiCheck, FiGrid, FiList, FiArrowUp, FiRefreshCw,
+  FiArrowRight, FiChevronDown, FiChevronLeft, FiChevronRight, FiSearch,
+} from 'react-icons/fi';
+import { LazyMotion, domAnimation, m, AnimatePresence } from 'framer-motion';
+import api from '../common/api/api';
 import enTranslations from '../locales/en/translation.json';
 import arTranslations from '../locales/ar/translation.json';
 import frTranslations from '../locales/fr/translation.json';
+import { useAppLanguage, languageDirection } from '../common/utils/useAppLanguage';
+import { UI3D_CSS, Defs3D, Glyph3D } from '../components/user/Ui3D';
+import { EXTRAS_CSS, Toaster, toast } from '../components/user/UiExtras';
+import {
+  LISTING_CSS, PAGE_SIZES, readStorage, safeImageUrl, clamp, clean, loadSwal,
+  useLangFont, useBackToTop, useModalLock,
+} from '../components/user/ListingKit';
+import { IsoIllustration, isoCatKey } from '../components/user/IsoIllustrations';
 
-const Hero = lazy(() => import('../components/Hero'));
-const loadSwal = () => import('sweetalert2').then((m) => m.default);
-const queryClient = new QueryClient();
+const Hero = lazy(() => import('../components/user/Hero'));
 
-/* ───────────── helpers (safe storage, translations, URL safety) ───────────── */
-const readStorage = (key) => {
-  try { return typeof window !== 'undefined' ? window.localStorage.getItem(key) : null; } catch { return null; }
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { refetchOnWindowFocus: false, retry: 1 } },
+});
+
+const LATEST_LIMIT = 8;
+const CARD_IMG_W = 600;
+const CARD_IMG_H = 400;
+const MOBILE_QUERY = '(max-width: 1023px)';
+const MOBILE_BATCH = 8;
+
+const NB_FONT = "'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
+const NB_FONT_STYLE = { fontFamily: NB_FONT };
+const ensureNbFont = () => {
+  if (typeof document === 'undefined' || document.getElementById('nb-font')) return;
+  [['https://fonts.googleapis.com', false], ['https://fonts.gstatic.com', true]].forEach(([href, cors]) => {
+    const l = document.createElement('link');
+    l.rel = 'preconnect'; l.href = href; if (cors) l.crossOrigin = '';
+    document.head.appendChild(l);
+  });
+  const link = document.createElement('link');
+  link.id = 'nb-font';
+  link.rel = 'stylesheet';
+  link.href = 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap';
+  document.head.appendChild(link);
 };
-const DEVICE_TRANSLATIONS = {
+
+const DEFAULT_TEXT = {
+  en: { eyebrowCategories: 'Categories', eyebrowProducts: 'Shop', prevPage: 'Previous page', nextPage: 'Next page', pageN: 'Page {{n}}', loadingMore: 'Loading more devices', endOfList: 'You have seen all devices' },
+  ar: { eyebrowCategories: 'التصنيفات', eyebrowProducts: 'المتجر', prevPage: 'الصفحة السابقة', nextPage: 'الصفحة التالية', pageN: 'صفحة {{n}}', loadingMore: 'جارٍ تحميل المزيد من الأجهزة', endOfList: 'لقد شاهدت جميع الأجهزة' },
+  fr: { eyebrowCategories: 'Catégories', eyebrowProducts: 'Boutique', prevPage: 'Page précédente', nextPage: 'Page suivante', pageN: 'Page {{n}}', loadingMore: "Chargement d'autres appareils", endOfList: 'Vous avez vu tous les appareils' },
+};
+const DEVICE_SECTIONS = {
   en: enTranslations.devices,
-  ar: arTranslations.devices || arTranslations.hero?.devices,
-  fr: frTranslations.devices || frTranslations.hero?.devices,
+  ar: arTranslations.devices,
+  fr: frTranslations.devices,
 };
-const getDeviceTranslation = (key) =>
-  DEVICE_TRANSLATIONS[readStorage('appLanguage') || 'en']?.[key] || DEVICE_TRANSLATIONS.en?.[key] || key;
-
-// Only allow http(s), same-site paths and inline images – blocks javascript: and similar schemes.
-const safeImageUrl = (url) => {
-  if (typeof url !== 'string') return '';
-  const u = url.trim();
-  if (!u) return '';
-  if (/^https?:\/\//i.test(u) || (u.startsWith('/') && !u.startsWith('//')) || /^data:image\/(png|jpe?g|webp|gif|svg\+xml);/i.test(u)) return u;
-  return '';
-};
-const money = (n) => `EGP ${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
-const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
-
-const conditionConfig = {
-  NEW: { badge: 'bg-emerald-500', label: 'New' },
-  USED: { badge: 'bg-amber-500', label: 'Used' },
-  REFURBISHED: { badge: 'bg-sky-500', label: 'Refurbished' },
+const translators = {};
+const getT = (lang) => {
+  if (!translators[lang]) {
+    const dict = { ...DEFAULT_TEXT.en, ...DEVICE_SECTIONS.en, ...DEFAULT_TEXT[lang], ...DEVICE_SECTIONS[lang] };
+    translators[lang] = (key, values) => {
+      let text = dict[key] ?? key;
+      if (values) for (const k of Object.keys(values)) text = text.split(`{{${k}}}`).join(String(values[k]));
+      return text;
+    };
+  }
+  return translators[lang];
 };
 
-const pageStyles = `
-  @keyframes floatY { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
-  .anim-float { animation: floatY 6s ease-in-out infinite; }
-  .hide-scrollbar { scrollbar-width: none; }
-  .hide-scrollbar::-webkit-scrollbar { display: none; }
-  @media (prefers-reduced-motion: reduce) { .anim-float { animation: none !important; } }
-`;
+const interpolateNodes = (text, nodes) =>
+  text.split(/(\{\{\w+\}\})/).map((part, i) => {
+    const hit = /^\{\{(\w+)\}\}$/.exec(part);
+    return hit && nodes[hit[1]] !== undefined ? <React.Fragment key={i}>{nodes[hit[1]]}</React.Fragment> : part;
+  });
 
-/* ───────────── 3D icon system: emerald glass, gradients defined once ───────────── */
+const NUMBER_FORMAT = new Intl.NumberFormat(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const money = (n, currency) => `${currency} ${NUMBER_FORMAT.format(Number(n) || 0)}`;
+
+const MAX_QUERY = 60;
+const sanitizeQuery = (raw) =>
+  String(raw ?? '')
+    .replace(/[\p{Cc}\p{Cf}<>]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trimStart()
+    .slice(0, MAX_QUERY);
+const fold = (s) =>
+  String(s ?? '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f\u064B-\u065F\u0670\u0640]/g, '')
+    .toLowerCase();
+
+const CONDITION_CONFIG = {
+  NEW: { badge: 'bg-emerald-600', key: 'conditionNew' },
+  USED: { badge: 'bg-amber-600', key: 'conditionUsed' },
+  REFURBISHED: { badge: 'bg-sky-600', key: 'conditionRefurbished' },
+};
+const CONDITION_ENTRIES = Object.entries(CONDITION_CONFIG);
+const condOf = (c) => (typeof c === 'string' && Object.prototype.hasOwnProperty.call(CONDITION_CONFIG, c) ? CONDITION_CONFIG[c] : null);
+const condLabel = (t, c) => { const cfg = condOf(c); return cfg ? t(cfg.key) : clean(c, 30) || t('conditionUnknown'); };
+
 const kindOf = (name = '') => {
-  const k = name.toLowerCase();
+  const k = String(name).toLowerCase();
   if (k.includes('laptop') || k.includes('notebook') || k.includes('computer')) return 'laptop';
   if (k.includes('phone') || k.includes('mobile')) return 'phone';
   if (k.includes('tablet') || k.includes('ipad')) return 'tablet';
   if (k.includes('audio') || k.includes('headphone') || k.includes('earbud')) return 'audio';
   if (k.includes('watch') || k.includes('wear')) return 'watch';
   if (k.includes('monitor') || k.includes('screen') || k.includes('tv') || k.includes('display')) return 'monitor';
+  if (k.includes('game') || k.includes('console')) return 'gaming';
+  if (k.includes('camera') || k.includes('photo')) return 'camera';
   return 'box';
 };
 
-const Defs3D = memo(() => (
-  <svg width="0" height="0" className="absolute" aria-hidden="true" focusable="false">
-    <defs>
-      {[['em', '#6EE7B7', '#047857'], ['fr', '#0F766E', '#022C22'], ['sd', '#064E3B', '#011A14'], ['sc', '#A7F3D0', '#059669'], ['lt', '#FFFFFF', '#BBF7D0']].map(([id, a, b]) => (
-        <linearGradient key={id} id={`g3-${id}`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor={a} /><stop offset="100%" stopColor={b} />
-        </linearGradient>
-      ))}
-    </defs>
-  </svg>
-));
+const SORT_KEYS = [
+  ['relevance', 'sortRelevance'],
+  ['priceLowToHigh', 'sortPriceLow'],
+  ['priceHighToLow', 'sortPriceHigh'],
+  ['newest', 'sortNewest'],
+];
+const PRICE_STEP = (max) => (max >= 20000 ? 500 : max >= 2000 ? 100 : 10);
+const HISTOGRAM_BINS = 16;
+const EMPTY_LIST = [];
 
-const Glyph3D = memo(({ name = '', className = 'w-10 h-10' }) => {
-  const fr = 'url(#g3-fr)', sd = 'url(#g3-sd)', sc = 'url(#g3-sc)', lt = 'url(#g3-lt)', em = 'url(#g3-em)';
-  const W = '#fff';
-  let body;
-  switch (kindOf(name)) {
-    case 'laptop':
-      body = (<>
-        <rect x="14" y="12" width="42" height="29" rx="4" fill={sd} />
-        <rect x="11" y="9" width="42" height="29" rx="4" fill={fr} />
-        <rect x="14" y="12" width="36" height="23" rx="2" fill={sc} />
-        <path d="M14 28V14a2 2 0 012-2h20z" fill={W} opacity="0.3" />
-        <rect x="18" y="17" width="16" height="3" rx="1.5" fill={W} opacity="0.9" />
-        <rect x="18" y="23" width="10" height="2.5" rx="1.2" fill={W} opacity="0.55" />
-        <rect x="4" y="45" width="56" height="8" rx="4" fill={sd} />
-        <rect x="4" y="41" width="56" height="8" rx="4" fill={lt} />
-        <rect x="26" y="41" width="12" height="2.5" rx="1.2" fill="#6EE7B7" />
-      </>); break;
-    case 'phone':
-      body = (<>
-        <rect x="22" y="6" width="26" height="56" rx="7" fill={sd} />
-        <rect x="18" y="2" width="26" height="56" rx="7" fill={fr} />
-        <rect x="21" y="5.5" width="20" height="49" rx="4.5" fill={sc} />
-        <path d="M21 32V10a4.5 4.5 0 014.5-4.5H34z" fill={W} opacity="0.3" />
-        <rect x="24" y="12" width="14" height="3.5" rx="1.7" fill={W} opacity="0.9" />
-        <rect x="24" y="19" width="9" height="2.5" rx="1.2" fill={W} opacity="0.55" />
-        <rect x="24" y="40" width="14" height="10" rx="3" fill={W} opacity="0.3" />
-      </>); break;
-    case 'tablet':
-      body = (<>
-        <rect x="12" y="9" width="48" height="52" rx="8" fill={sd} />
-        <rect x="8" y="5" width="48" height="52" rx="8" fill={fr} />
-        <rect x="12" y="9" width="40" height="44" rx="4.5" fill={sc} />
-        <path d="M12 36V13.5A4.5 4.5 0 0116.5 9H32z" fill={W} opacity="0.3" />
-        <rect x="17" y="16" width="20" height="4" rx="2" fill={W} opacity="0.9" />
-        <rect x="17" y="38" width="30" height="10" rx="3" fill={W} opacity="0.3" />
-      </>); break;
-    case 'audio':
-      body = (<>
-        <path d="M15 36v-5a17 17 0 0134 0v5" fill="none" stroke={sd} strokeWidth="7" strokeLinecap="round" transform="translate(2 3)" />
-        <path d="M15 36v-5a17 17 0 0134 0v5" fill="none" stroke={em} strokeWidth="7" strokeLinecap="round" />
-        <rect x="9" y="38" width="14" height="22" rx="6" fill={sd} />
-        <rect x="45" y="38" width="14" height="22" rx="6" fill={sd} />
-        <rect x="7" y="34" width="14" height="22" rx="6" fill={fr} />
-        <rect x="43" y="34" width="14" height="22" rx="6" fill={fr} />
-        <rect x="10" y="38" width="8" height="13" rx="4" fill={sc} />
-        <rect x="46" y="38" width="8" height="13" rx="4" fill={sc} />
-      </>); break;
-    case 'watch':
-      body = (<>
-        <rect x="22" y="2" width="20" height="16" rx="4" fill={em} />
-        <rect x="22" y="46" width="20" height="16" rx="4" fill={em} />
-        <rect x="16" y="17" width="38" height="36" rx="11" fill={sd} />
-        <rect x="13" y="14" width="38" height="36" rx="11" fill={fr} />
-        <rect x="17" y="18" width="30" height="28" rx="8" fill={sc} />
-        <path d="M17 34V26a8 8 0 018-8h10z" fill={W} opacity="0.3" />
-        <path d="M32 24v8l5 3" stroke={W} strokeWidth="2.6" strokeLinecap="round" fill="none" />
-      </>); break;
-    case 'monitor':
-      body = (<>
-        <rect x="8" y="11" width="54" height="36" rx="5" fill={sd} />
-        <rect x="5" y="8" width="54" height="36" rx="5" fill={fr} />
-        <rect x="9" y="12" width="46" height="28" rx="2.5" fill={sc} />
-        <path d="M9 32V14.5A2.5 2.5 0 0111.5 12H34z" fill={W} opacity="0.3" />
-        <rect x="14" y="17" width="18" height="3.5" rx="1.7" fill={W} opacity="0.9" />
-        <rect x="28" y="44" width="8" height="8" fill={em} />
-        <rect x="17" y="52" width="30" height="6" rx="3" fill={lt} />
-      </>); break;
-    default:
-      body = (<>
-        <path d="M32 5l24 12-24 12L8 17z" fill={lt} />
-        <path d="M8 17l24 12v29L8 46z" fill={em} />
-        <path d="M56 17L32 29v29l24-12z" fill={fr} />
-        <path d="M20 11l24 12" stroke="#6EE7B7" strokeWidth="4" strokeLinecap="round" opacity="0.9" />
-      </>);
-  }
-  return (
-    <svg viewBox="0 0 64 64" className={`drop-shadow-[0_6px_5px_rgba(2,44,34,0.35)] ${className}`} aria-hidden="true">
-      {body}
-    </svg>
-  );
-});
+const STAGGER = Array.from({ length: 8 }, (_, i) => ({ '--i': i }));
 
-/* Emerald illustration shown when a product image is missing / failed / too slow */
-const DeviceArt = memo(({ name, categoryName, darkMode }) => (
-  <div
-    className={`relative flex h-full w-full flex-col items-center justify-center overflow-hidden ${darkMode ? 'bg-gradient-to-br from-emerald-950 via-gray-900 to-emerald-950' : 'bg-gradient-to-br from-emerald-50 via-white to-emerald-100'}`}
-    role="img" aria-label={`${name || 'Product'} – image unavailable`}
-  >
-    <div className={`absolute h-40 w-40 rounded-full blur-2xl ${darkMode ? 'bg-emerald-500/20' : 'bg-emerald-300/40'}`} />
-    <div className={`absolute h-[78%] w-[78%] rounded-full border-2 border-dashed ${darkMode ? 'border-emerald-500/25' : 'border-emerald-300/70'}`} />
-    <span className="anim-float absolute left-[16%] top-[20%] h-2 w-2 rotate-45 bg-emerald-400/80" />
-    <span className="anim-float absolute bottom-[26%] right-[15%] h-1.5 w-1.5 rotate-45 bg-emerald-500/70" />
-    <Glyph3D name={categoryName || name} className="anim-float relative h-1/2 w-1/2" />
-    <div className="relative -mt-1 h-2 w-1/3 rounded-full bg-emerald-900/25 blur-[3px]" />
-    <span className={`relative mt-3 rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${darkMode ? 'bg-emerald-500/10 text-emerald-300' : 'bg-emerald-100 text-emerald-700'}`}>Image unavailable</span>
-  </div>
-));
+const NB_CSS = `
+.nb{--nb-bg:#eef9f3;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e8ebe9;--nb-soft:#e9ebed;--nb-accent:#10b981;--nb-on:#04261a;background:var(--nb-bg);color:var(--nb-ink)}
+.nb-dark{--nb-bg:#141414;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#1e1e1e;--nb-soft:#1e1e1e;--nb-accent:#39ff88;--nb-on:#022c22}
+.nb-dark .nb-drawer{border-color:#3a3a3a}
+.nb-bg{background:var(--nb-bg)}
+.nb-gray{background:var(--nb-gray)}
+.nb-soft{background:var(--nb-soft)}
+.nb-muted{color:var(--nb-muted)}
+.nb-line{border-color:var(--nb-line)}
+.nb-card{background:var(--nb-card);border:2px solid var(--nb-line);box-shadow:5px 5px 0 var(--nb-shadow);transition:transform .15s ease,box-shadow .15s ease}
+.nb-lift:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--nb-shadow)}
+.nb-num{display:inline-flex;align-items:center;justify-content:center;flex:none;width:28px;height:28px;background:var(--nb-accent);color:var(--nb-on);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+.nb-num-sm{width:24px;height:24px;font-size:10px;box-shadow:1px 1px 0 var(--nb-shadow)}
+.nb-bar{display:inline-block;width:52px;height:16px;background:var(--nb-accent);border:2px solid var(--nb-line)}
+.nb-ul{text-decoration:underline;text-decoration-color:var(--nb-accent);text-decoration-thickness:4px;text-underline-offset:5px;text-decoration-skip-ink:none}
+.nb-rule{display:block;width:100%;height:4px;margin-top:8px;background:var(--nb-accent)}
+.nb-divider{display:block;height:8px;background:var(--nb-accent);border-block:2px solid var(--nb-line)}
+.nb-squig path{stroke:var(--nb-accent)}
+.nb-chip{display:inline-flex;align-items:center;gap:4px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);padding:1px 6px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;line-height:1.5}
+.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow);font-weight:700;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,background-color .12s ease}
+.nb-btn:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--nb-shadow)}
+.nb-btn:active:not(:disabled){transform:translate(2px,2px);box-shadow:0 0 0 var(--nb-shadow)}
+.nb-btn:disabled{opacity:.45;cursor:not-allowed}
+.nb-btn-a,.nb-btn-on{background:var(--nb-accent);color:var(--nb-on)}
+.nb-btn:focus-visible,.nb-field:focus-within{outline:3px solid var(--nb-accent);outline-offset:2px}
+.nb-arrow{display:inline-flex;align-items:center;justify-content:center;flex:none;width:36px;height:36px;background:var(--nb-accent);color:var(--nb-on);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);transition:transform .15s ease}
+.nb-lift:hover .nb-arrow{transform:translateX(3px)}
+.nb[dir=rtl] .nb-lift:hover .nb-arrow{transform:translateX(-3px)}
+.nb[dir=rtl] .nb-flip{transform:scaleX(-1)}
+.nb-field{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow)}
+.nb-field option{background:var(--nb-card);color:var(--nb-ink)}
+.nb-media{background:var(--nb-gray)}
+.nb-media-b{border-radius:1rem;contain:layout paint}
+.nb-search::-webkit-search-cancel-button,.nb-search::-webkit-search-decoration{display:none;-webkit-appearance:none}
+.nb-box{display:flex;align-items:center;justify-content:center;flex:none;width:20px;height:20px;border:2px solid var(--nb-line);background:var(--nb-card);color:var(--nb-on)}
+.nb-box-on{background:var(--nb-accent)}
+.nb-bin{background:var(--nb-gray)}
+.nb-bin-on{background:var(--nb-accent);box-shadow:inset 0 0 0 1.5px var(--nb-line)}
+.nb-range{position:absolute;inset:0;width:100%;height:20px;margin:0;appearance:none;-webkit-appearance:none;background:transparent;pointer-events:none}
+.nb-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;box-sizing:border-box;pointer-events:auto;width:20px;height:20px;border-radius:0;background:var(--nb-accent);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);cursor:grab}
+.nb-range::-moz-range-thumb{box-sizing:border-box;pointer-events:auto;width:20px;height:20px;border-radius:0;background:var(--nb-accent);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);cursor:grab}
+.nb-dot{background:var(--nb-card);color:var(--nb-ink);border:2px dotted var(--nb-line);cursor:pointer;transition:transform .15s ease,background-color .15s ease}
+.nb-dark .nb-dot{border-color:#3f3f3f}
+.nb-dot:hover,.nb-dot-on{background:var(--nb-accent);color:var(--nb-on)}
+.nb-dot:hover{transform:translateY(-3px)}
+.nb-dot:hover .nb-chip,.nb-dot-on .nb-chip{background:var(--nb-on);color:#ecfdf5;border-color:var(--nb-on)}
+.nb-dot:focus-visible{outline:3px solid var(--nb-accent);outline-offset:3px}
+.nb-aside{scrollbar-width:thin;scrollbar-color:var(--nb-line) transparent}
+@keyframes nbSpin{to{transform:rotate(360deg)}}
+.nb-spin{animation:nbSpin .7s linear infinite}
+@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn,.nb-arrow,.nb-dot{transition:none}.nb-spin{animation:none}}
+`;
+const STYLE_EL = <style>{`${UI3D_CSS}${EXTRAS_CSS}${LISTING_CSS}${NB_CSS}`}</style>;
 
-/* Modern emerald device scene used for section illustrations */
-const DeviceScene = memo(({ className = 'w-40 h-32', compact = false }) => (
-  <div className={`relative flex-shrink-0 ${className}`} aria-hidden="true">
-    <div className="absolute inset-x-3 bottom-0 h-4 rounded-full bg-emerald-900/25 blur-md" />
-    <Glyph3D name="laptop" className="absolute bottom-1 left-0 h-[78%] w-[62%]" />
-    <Glyph3D name="phone" className="anim-float absolute right-[10%] top-0 h-[72%] w-[28%]" />
-    {!compact && <Glyph3D name="watch" className="absolute bottom-0 right-0 h-[40%] w-[24%]" />}
-    {!compact && <Glyph3D name="audio" className="anim-float absolute left-[34%] top-0 h-[34%] w-[24%]" />}
-  </div>
-));
-
-/* 3D push button (button or link) */
-const Btn3D = memo(({ as: Tag = 'button', tone = 'em', darkMode, className = '', children, ...rest }) => {
-  const tones = {
-    em: 'bg-gradient-to-b from-emerald-400 to-emerald-600 text-white ring-1 ring-inset ring-white/30 shadow-[0_4px_0_0_#047857,0_10px_16px_-8px_rgba(5,150,105,0.6)] hover:from-emerald-300 hover:to-emerald-500 active:shadow-[0_1px_0_0_#047857]',
-    rose: 'bg-rose-500 text-white shadow-[0_4px_0_0_#9f1239] hover:bg-rose-400 active:shadow-[0_1px_0_0_#9f1239]',
-    soft: darkMode
-      ? 'bg-gray-800 text-gray-200 border border-gray-700 shadow-[0_4px_0_0_#030712] hover:bg-gray-700 active:shadow-[0_1px_0_0_#030712]'
-      : 'bg-white text-gray-700 border border-gray-200 shadow-[0_4px_0_0_#d1d5db] hover:bg-gray-50 active:shadow-[0_1px_0_0_#d1d5db]',
-  };
-  return (
-    <Tag
-      className={`inline-flex items-center justify-center gap-1.5 rounded-xl font-bold transition-all duration-100 active:translate-y-[3px] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${tones[tone]} ${className}`}
-      {...rest}
-    >
-      {children}
-    </Tag>
-  );
-});
-
-const Chip3D = ({ tone = 'em', children, className = '' }) => {
-  const bg = { em: 'from-emerald-300 to-emerald-600 shadow-[0_3px_0_0_#047857]', sky: 'from-sky-300 to-sky-600 shadow-[0_3px_0_0_#075985]', am: 'from-amber-300 to-amber-600 shadow-[0_3px_0_0_#92400e]', vi: 'from-violet-300 to-violet-600 shadow-[0_3px_0_0_#5b21b6]' }[tone];
-  return <span className={`flex items-center justify-center rounded-xl bg-gradient-to-br text-white ${bg} ${className}`}><span className="drop-shadow-[0_2px_1px_rgba(0,0,0,0.35)]">{children}</span></span>;
+const useIsMobile = () => {
+  const [mobile, setMobile] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.(MOBILE_QUERY).matches);
+  useEffect(() => {
+    const mq = window.matchMedia?.(MOBILE_QUERY);
+    if (!mq) return undefined;
+    const sync = () => setMobile(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
+  return mobile;
 };
 
-/* ───────────── Product card ───────────── */
-const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0, layout = 'grid' }) => {
-  const src = safeImageUrl(product.imageUrl);
+const UnderlinedTitle = memo(({ text }) => {
+  const s = String(text || '');
+  const i = s.lastIndexOf(' ');
+  const head = i > 0 ? s.slice(0, i + 1) : '';
+  const tail = i > 0 ? s.slice(i + 1) : s;
+  return (
+    <>
+      {head}
+      <span className="relative inline-block">
+        {tail}
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 100 10" preserveAspectRatio="none" className="nb-squig pointer-events-none absolute inset-x-0 -bottom-2 h-2.5 w-full">
+          <path d="M1 6 C 20 2, 40 9, 60 5 S 90 3, 99 6" fill="none" strokeWidth="5" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        </svg>
+      </span>
+    </>
+  );
+});
+
+const SectionHead = memo(({ eyebrow, title, subtitle }) => (
+  <header className="mb-6 sm:mb-8">
+    <p className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide"><span className="nb-bar" aria-hidden="true" />{eyebrow}</p>
+    <h2 className="mt-3 text-3xl font-extrabold leading-[1.15] tracking-tight sm:text-4xl lg:text-5xl"><UnderlinedTitle text={title} /></h2>
+    {subtitle && <p className="nb-muted mt-4 max-w-2xl text-base sm:text-lg">{subtitle}</p>}
+  </header>
+));
+
+const NbDropdown = memo(({ value, onChange, options, ariaLabel, className = '' }) => {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+  const selected = options.find((o) => String(o.value) === String(value));
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onPointerDown = (e) => {
+      if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false);
+    };
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className={`relative ${open ? 'z-30' : ''} ${className}`}>
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={ariaLabel}
+        onClick={() => setOpen((v) => !v)}
+        className="nb-field flex h-10 w-full cursor-pointer items-center justify-between gap-2 px-3 text-xs font-bold uppercase"
+      >
+        <span className="min-w-0 truncate">{selected?.label || ''}</span>
+        <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <ul
+          role="listbox"
+          aria-label={ariaLabel}
+          className="nb-card absolute z-30 mt-2 max-h-60 w-full min-w-0 overflow-y-auto overscroll-contain p-1"
+        >
+          {options.map((o) => {
+            const active = String(o.value) === String(value);
+            return (
+              <li key={String(o.value)} role="option" aria-selected={active}>
+                <button
+                  type="button"
+                  onClick={() => { onChange(o.value); setOpen(false); }}
+                  className={`flex w-full items-center justify-between gap-2 px-2.5 py-2 text-start text-xs font-bold uppercase transition-colors hover:bg-[color:var(--nb-gray)] ${active ? 'nb-btn-on' : ''}`}
+                >
+                  <span className="min-w-0 truncate">{o.label}</span>
+                  {active && <FiCheck aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0" />}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+});
+
+const SearchField = memo(({ value, onChange, placeholder, ariaLabel, clearLabel, pending }) => {
+  const inputRef = useRef(null);
+  const handleChange = useCallback((e) => onChange(sanitizeQuery(e.target.value)), [onChange]);
+  const handleClear = useCallback(() => { onChange(''); inputRef.current?.focus(); }, [onChange]);
+  return (
+    <div className="nb-field relative flex h-10 min-w-0 flex-1 items-center gap-2 px-3" role="search">
+      <FiSearch aria-hidden="true" className="h-4 w-4 flex-shrink-0" />
+      <input
+        ref={inputRef}
+        type="search" inputMode="search" enterKeyHint="search"
+        autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false}
+        maxLength={MAX_QUERY}
+        value={value} onChange={handleChange} placeholder={placeholder} aria-label={ariaLabel}
+        className="nb-search min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60"
+      />
+      {pending && <span aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" />}
+      {value && (
+        <button type="button" onClick={handleClear} aria-label={clearLabel} className="flex-shrink-0 focus-visible:outline focus-visible:outline-2">
+          <FiX className="h-4 w-4" />
+        </button>
+      )}
+    </div>
+  );
+});
+
+const FilterChip = memo(({ label, onRemove }) => (
+  <button type="button" onClick={onRemove} className="nb-btn gap-1.5 px-2.5 py-1 text-xs">
+    <span className="max-w-[10rem] truncate">{label}</span><FiX className="h-3 w-3 flex-shrink-0" />
+  </button>
+));
+
+const DeviceArt = memo(({ name, categoryName, darkMode, label, tone = 'emerald' }) => (
+  <div
+    className="nb-gray absolute inset-0 flex flex-col items-center justify-center gap-1 overflow-hidden"
+    role="img" aria-label={name ? `${name} – ${label}` : label}
+  >
+    <IsoIllustration
+      type={isoCatKey(kindOf(categoryName || name))} tone={tone} darkMode={darkMode} onGreen={false}
+      className="h-[64%] w-[64%] transition-transform duration-300 group-hover:scale-105"
+    />
+    <span className="nb-muted max-w-full truncate px-2 text-[9px] font-extrabold uppercase tracking-widest">{label}</span>
+  </div>
+));
+
+const DeviceScene = memo(({ className = 'h-24 w-32' }) => (
+  <div className={`relative flex-shrink-0 ${className}`} aria-hidden="true">
+    <div className="absolute inset-x-3 bottom-0 h-4 rounded-full bg-black/20 blur-md" />
+    <Glyph3D kind="laptop" className="absolute bottom-1 start-0 h-[78%] w-[62%]" />
+    <Glyph3D kind="phone" className="lk-float absolute end-[10%] top-0 h-[72%] w-[28%]" />
+  </div>
+));
+
+const ProductCard = memo(({ product, darkMode, onAddToCart, onOpen, number, layout = 'grid', variant = 'grid', tone = 'emerald', t, className = '' }) => {
+  const src = useMemo(() => safeImageUrl(product.imageUrl), [product.imageUrl]);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(!src);
   const [cartAdded, setCartAdded] = useState(false);
   const [adding, setAdding] = useState(false);
   const mounted = useRef(true);
-  useEffect(() => () => { mounted.current = false; }, []);
+  const loadedRef = useRef(false);
+  const addedTimer = useRef();
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; clearTimeout(addedTimer.current); }; }, []);
 
-  // Reset when the image changes; treat a very slow image as "not loaded".
   useEffect(() => {
+    loadedRef.current = false;
     setImgLoaded(false);
     setImgError(!src);
     if (!src) return undefined;
-    const t = setTimeout(() => setImgLoaded((ok) => { if (!ok) setImgError(true); return ok; }), 8000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => { if (!loadedRef.current) setImgError(true); }, 8000);
+    return () => clearTimeout(timer);
   }, [src]);
 
-  const cond = conditionConfig[product.condition] || { badge: 'bg-gray-500', label: product.condition || 'Unknown' };
   const outOfStock = product.stock === 0;
   const isList = layout === 'list';
   const hasDiscount = product.discount > 0;
+  const currency = t('currency');
+  const snippet = useMemo(() => clean(product.description, 140) || t('noDescription'), [product.description, t]);
 
   const handleCart = useCallback(async (e) => {
     e.stopPropagation();
@@ -243,82 +368,141 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, index = 0, layout = 
     const ok = await onAddToCart(product);
     if (!mounted.current) return;
     setAdding(false);
-    if (ok) { setCartAdded(true); setTimeout(() => mounted.current && setCartAdded(false), 1400); }
+    if (ok) {
+      setCartAdded(true);
+      clearTimeout(addedTimer.current);
+      addedTimer.current = setTimeout(() => mounted.current && setCartAdded(false), 1400);
+    }
   }, [onAddToCart, product, outOfStock, adding]);
 
-  const go = useCallback(() => window.location.assign(`/device/${encodeURIComponent(product.id)}`), [product.id]);
+  const go = useCallback(() => onOpen(product.id), [onOpen, product.id]);
+  const handleKey = useCallback((e) => { if (e.key === 'Enter' && e.target === e.currentTarget) go(); }, [go]);
+  const handleLoad = useCallback(() => { loadedRef.current = true; setImgLoaded(true); }, []);
+  const handleImgError = useCallback(() => setImgError(true), []);
+
+  const media = (
+    <div className={`nb-media nb-media-b relative overflow-hidden ${isList ? 'min-h-[8rem] flex-1' : 'aspect-[3/2] w-full'}`}>
+      {imgError ? (
+        <DeviceArt name={product.name} categoryName={product.categoryName} darkMode={darkMode} label={t('imageUnavailable')} tone={tone} />
+      ) : (
+        <>
+          {!imgLoaded && <div className="absolute inset-0 animate-pulse bg-black/5" />}
+          <img
+            src={src} alt={product.name} width={CARD_IMG_W} height={CARD_IMG_H}
+            loading="lazy" decoding="async" fetchPriority="low" referrerPolicy="no-referrer"
+            onLoad={handleLoad} onError={handleImgError}
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-200 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+          />
+        </>
+      )}
+    </div>
+  );
+
+  const head = (
+    <div className="min-w-0">
+      <h3 className={`text-[13px] font-extrabold uppercase leading-snug sm:text-sm ${isList ? 'line-clamp-2' : 'line-clamp-2 min-h-[2.4rem]'}`}>
+        {product.name}
+      </h3>
+      <span className="nb-rule" aria-hidden="true" />
+    </div>
+  );
+
+  const text = (
+    <div className="min-w-0">
+      <p className="nb-muted mb-1 truncate text-[10px] font-bold uppercase tracking-wide">{product.categoryName || t('uncategorized')}</p>
+      <p className={`line-clamp-2 text-xs leading-5 opacity-90 ${isList ? '' : 'min-h-[2.5rem]'}`}>{snippet}</p>
+    </div>
+  );
+
+  const footer = (
+    <div
+      className={`mt-auto flex gap-2 ${
+        isList ? 'items-center justify-between' : 'flex-col sm:flex-row sm:items-center sm:justify-between'
+      } ${variant === 'latest' && !isList ? 'border-t-2 nb-line pt-3' : ''}`}
+    >
+      <div className={`flex min-w-0 flex-col ${isList ? '' : 'max-sm:rtl:items-end'}`} dir="ltr">
+        <span className="truncate text-base font-extrabold tabular-nums tracking-tight">{money(product.finalPrice, currency)}</span>
+        {hasDiscount && <span className="nb-muted text-[11px] tabular-nums line-through">{money(product.price, currency)}</span>}
+      </div>
+      <div className={`flex items-center gap-2 ${isList ? 'flex-shrink-0' : 'w-full sm:w-auto sm:flex-shrink-0'}`}>
+        <button
+          type="button" onClick={handleCart} disabled={outOfStock || adding} aria-label={t('addToCart')}
+          className={`nb-btn h-9 ${isList ? 'w-9' : 'flex-1 sm:w-9 sm:flex-none'} ${cartAdded ? 'nb-btn-on' : ''}`}
+        >
+          {adding ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            : cartAdded ? <FiCheck className="h-4 w-4" /> : <FiShoppingCart className="h-4 w-4" />}
+        </button>
+        <span className="nb-arrow" aria-hidden="true"><FiArrowRight className="nb-flip h-4 w-4" /></span>
+      </div>
+    </div>
+  );
 
   return (
-    <motion.article
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2, delay: Math.min(index, 8) * 0.025 }}
+    <article
       onClick={go}
-      onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) go(); }}
+      onKeyDown={handleKey}
       tabIndex={0}
       aria-label={product.name}
-      className={`group relative flex h-full cursor-pointer overflow-hidden rounded-2xl border transition-all duration-200 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 ${isList ? 'flex-row' : 'flex-col'} ${
-        darkMode ? 'border-gray-700 bg-gray-800 hover:shadow-lg hover:shadow-black/30' : 'border-gray-100 bg-white hover:shadow-lg hover:shadow-gray-200/70'
-      }`}
+      style={STAGGER[(number - 1) % 8]}
+      className={`anim-fade-up nb-card nb-lift group relative flex h-full cursor-pointer focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--nb-accent)] ${isList ? 'flex-row' : 'flex-col'} ${className}`}
     >
-      <div className="absolute left-3 top-3 z-10 flex flex-col gap-1.5">
-        <span className={`rounded-md px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-[0_2px_0_0_rgba(0,0,0,0.25)] ${cond.badge}`}>{cond.label}</span>
-        {hasDiscount && <span className="rounded-md bg-rose-600 px-2 py-1 text-[10px] font-extrabold text-white shadow-[0_2px_0_0_#9f1239]">-{product.discount}%</span>}
+      {isList && <div className="flex w-28 flex-shrink-0 self-stretch p-2.5 pe-0 sm:w-44">{media}</div>}
+      <div className="flex min-w-0 flex-1 flex-col gap-3 p-3 sm:p-4">
+        {head}
+        {isList ? text : variant === 'latest' ? <>{media}{text}</> : <>{text}{media}</>}
+        {footer}
+        {outOfStock && <p className="text-[10px] font-extrabold uppercase text-rose-500">{t('outOfStock')}</p>}
       </div>
-
-      <div className={`relative aspect-square overflow-hidden ${isList ? 'w-40 flex-shrink-0 sm:w-52' : 'w-full'} ${darkMode ? 'bg-gray-700/40' : 'bg-gray-50'}`}>
-        {imgError ? (
-          <DeviceArt name={product.name} categoryName={product.categoryName} darkMode={darkMode} />
-        ) : (
-          <>
-            {!imgLoaded && <div className={`absolute inset-0 animate-pulse ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`} />}
-            <img
-              src={src}
-              alt={product.name}
-              width={400}
-              height={400}
-              loading="lazy"
-              decoding="async"
-              referrerPolicy="no-referrer"
-              onLoad={() => setImgLoaded(true)}
-              onError={() => setImgError(true)}
-              className={`h-full w-full object-contain p-4 transition-opacity duration-200 sm:p-5 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
-            />
-          </>
-        )}
-      </div>
-
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5 p-4">
-        <span className={`text-[11px] font-bold uppercase tracking-wide ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{product.categoryName || 'Uncategorized'}</span>
-        <h3 className={`line-clamp-2 text-sm font-semibold leading-snug ${darkMode ? 'text-white' : 'text-gray-900'}`}>{product.name}</h3>
-        <p className={`line-clamp-2 text-xs leading-relaxed ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{product.description || 'No description available.'}</p>
-
-        <div className={`mt-auto flex items-center justify-between gap-2 border-t pt-3 ${darkMode ? 'border-gray-700' : 'border-gray-100'}`}>
-          <div className="flex min-w-0 flex-col">
-            <span className={`truncate text-lg font-extrabold tabular-nums tracking-tight ${darkMode ? 'text-emerald-400' : 'text-emerald-700'}`}>{money(product.finalPrice)}</span>
-            {hasDiscount && <span className={`text-xs tabular-nums line-through ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{money(product.price)}</span>}
-          </div>
-          <Btn3D
-            tone={cartAdded ? 'em' : 'soft'}
-            darkMode={darkMode}
-            onClick={handleCart}
-            disabled={outOfStock || adding}
-            aria-label={getDeviceTranslation('addToCart')}
-            className="h-10 w-10 flex-shrink-0"
-          >
-            {adding ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              : cartAdded ? <FiCheck className="h-4 w-4 drop-shadow-[0_2px_0_rgba(0,0,0,0.3)]" />
-              : <FiShoppingCart className={`h-4 w-4 drop-shadow-[0_2px_0_rgba(0,0,0,0.2)] ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`} />}
-          </Btn3D>
-        </div>
-        {outOfStock && <p className="text-[11px] font-semibold text-rose-500">Out of stock</p>}
-      </div>
-    </motion.article>
+    </article>
   );
 });
 
-/* ───────────── Categories ───────────── */
-const CategoryGrid = memo(({ categories, productsByCategory, selectedCategoryId, onSelect, darkMode }) => {
+const ProductGrid = memo(({ products, offset, layout, darkMode, onAddToCart, onOpen, t }) => (
+  <div className={`grid gap-4 sm:gap-6 ${layout === 'grid' ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-1'}`}>
+    {products.map((p, i) => (
+      <ProductCard key={p.id} product={p} darkMode={darkMode} onAddToCart={onAddToCart} onOpen={onOpen} number={offset + i + 1} layout={layout} t={t} />
+    ))}
+  </div>
+));
+
+const InfiniteSentinel = memo(({ hasMore, count, onMore, t }) => {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !hasMore) return undefined;
+    if (typeof IntersectionObserver === 'undefined') { onMore(); return undefined; }
+    const io = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) onMore(); }, { rootMargin: '700px 0px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore, count, onMore]);
+  return (
+    <div ref={ref} className="flex min-h-[3.5rem] items-center justify-center pt-8" role="status" aria-live="polite">
+      {hasMore ? (
+        <span className="nb-chip !px-3 !py-1.5">
+          <span aria-hidden="true" className="nb-spin h-3.5 w-3.5 rounded-full border-2 border-current border-t-transparent" />
+          {t('loadingMore')}
+        </span>
+      ) : count > MOBILE_BATCH ? (
+        <span className="nb-chip !px-3 !py-1.5"><FiCheck aria-hidden="true" className="h-3 w-3" />{t('endOfList')}</span>
+      ) : null}
+    </div>
+  );
+});
+
+const LatestSection = memo(({ products, darkMode, onAddToCart, onOpen, t }) => (
+  <section aria-label={t('latestArrivals')} className="lk-cv nb-soft nb-line border-y-2 py-12 sm:py-20">
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <SectionHead eyebrow={t('justIn')} title={t('latestArrivals')} subtitle={t('latestArrivalsSub')} />
+      <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+        {products.map((p, i) => (
+          <ProductCard key={p.id} product={p} darkMode={darkMode} onAddToCart={onAddToCart} onOpen={onOpen} number={i + 1} variant="latest" tone="emerald" t={t} />
+        ))}
+      </div>
+    </div>
+  </section>
+));
+
+const CategoryGrid = memo(({ categories, productsByCategory, selectedCategoryId, onSelect, darkMode, t }) => {
   const top = useMemo(
     () => [...categories].sort((a, b) => (productsByCategory[b.id]?.length || 0) - (productsByCategory[a.id]?.length || 0)).slice(0, 6),
     [categories, productsByCategory]
@@ -326,49 +510,23 @@ const CategoryGrid = memo(({ categories, productsByCategory, selectedCategoryId,
   if (!top.length) return null;
 
   return (
-    <section className={`relative overflow-hidden py-12 sm:py-16 ${darkMode ? 'bg-[#04120b]' : 'bg-emerald-50/70'}`}>
-      <div className={`pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full blur-3xl ${darkMode ? 'bg-emerald-500/10' : 'bg-emerald-300/30'}`} />
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="mb-8 flex flex-wrap items-end justify-between gap-6 sm:mb-10">
-          <div className="flex items-center gap-6">
-            <div>
-              <h2 className={`text-2xl font-bold tracking-tight sm:text-3xl ${darkMode ? 'text-white' : 'text-emerald-950'}`}>Browse categories</h2>
-              <p className={`mt-1.5 text-sm sm:text-base ${darkMode ? 'text-emerald-200/60' : 'text-emerald-800/70'}`}>Pick a device type to filter the list below.</p>
-            </div>
-            <DeviceScene className="hidden h-28 w-40 lg:block" />
-          </div>
-          <Btn3D tone="em" onClick={() => onSelect('all')} className="px-4 py-2 text-sm">
-            All categories <FiArrowRight className="h-4 w-4" />
-          </Btn3D>
-        </div>
+    <section aria-label={t('browseCategories')} className="lk-cv nb-bg nb-line border-t-2 py-12 sm:py-20">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <SectionHead eyebrow={t('eyebrowCategories')} title={t('browseCategories')} subtitle={t('browseCategoriesSub')} />
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-6">
           {top.map((cat) => {
             const active = selectedCategoryId === cat.id;
             const count = productsByCategory[cat.id]?.length || 0;
             return (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => onSelect(cat.id)}
-                aria-pressed={active}
-                className={`group relative flex flex-col items-center gap-2.5 overflow-hidden rounded-3xl border p-4 text-center transition-all duration-150 hover:-translate-y-1 active:translate-y-[3px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 sm:p-5 ${
-                  active
-                    ? 'border-emerald-400 bg-gradient-to-b from-emerald-500 to-emerald-700 shadow-[0_6px_0_0_#047857,0_16px_24px_-10px_rgba(5,150,105,0.6)]'
-                    : darkMode
-                    ? 'border-emerald-900/70 bg-gradient-to-b from-emerald-900/50 to-emerald-950 shadow-[0_6px_0_0_#022c22] hover:border-emerald-600'
-                    : 'border-emerald-200 bg-gradient-to-b from-white to-emerald-100 shadow-[0_6px_0_0_#a7f3d0] hover:border-emerald-400'
-                }`}
-              >
-                <span className={`flex h-20 w-20 items-center justify-center rounded-2xl ring-1 transition-transform duration-200 group-hover:scale-105 ${
-                  active ? 'bg-white/20 ring-white/40' : darkMode ? 'bg-emerald-400/10 ring-emerald-400/20' : 'bg-white/80 ring-emerald-200'
-                }`}>
-                  <Glyph3D name={cat.name} className="h-14 w-14 transition-transform duration-200 group-hover:-rotate-3 group-hover:scale-110" />
-                </span>
-                <span className={`line-clamp-1 text-sm font-bold ${active ? 'text-white' : darkMode ? 'text-white' : 'text-emerald-950'}`}>{cat.name}</span>
-                <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-                  active ? 'bg-white/25 text-white' : darkMode ? 'bg-emerald-500/15 text-emerald-300' : 'bg-emerald-600/10 text-emerald-700'
-                }`}>{count} items</span>
+              <button key={cat.id} type="button" onClick={() => onSelect(cat.id)} aria-pressed={active}
+                className={`nb-dot group relative flex flex-col items-center gap-2 p-3 pt-9 text-center sm:gap-2.5 sm:p-4 sm:pt-10 ${active ? 'nb-dot-on' : ''}`}>
+                <IsoIllustration
+                  type={isoCatKey(kindOf(cat.name))} darkMode={darkMode} onGreen={false}
+                  className="h-14 w-14 transition-transform duration-200 group-hover:scale-110 sm:h-16 sm:w-16"
+                />
+                <span className="line-clamp-1 w-full text-sm font-extrabold uppercase">{cat.name}</span>
+                <span className="nb-chip">{t('itemsCount', { count })}</span>
               </button>
             );
           })}
@@ -378,118 +536,108 @@ const CategoryGrid = memo(({ categories, productsByCategory, selectedCategoryId,
   );
 });
 
-const TrustStrip = memo(({ darkMode }) => {
-  const items = [
-    { icon: FiTruck, tone: 'em', title: 'Fast delivery', text: 'Across Egypt' },
-    { icon: FiShield, tone: 'em', title: 'Warranty included', text: 'On every device' },
-    { icon: FiRefreshCw, tone: 'em', title: 'Easy returns', text: '14-day window' },
-    { icon: FiHeadphones, tone: 'em', title: 'Real support', text: 'Talk to a person' },
-  ];
-  return (
-    <div className={`border-y ${darkMode ? 'border-gray-800 bg-gray-900' : 'border-gray-100 bg-white'}`}>
-      <div className="mx-auto grid max-w-7xl grid-cols-2 gap-4 px-4 py-5 sm:px-6 md:grid-cols-4 lg:px-8">
-        {items.map(({ icon: Icon, tone, title, text }) => (
-          <div key={title} className="flex items-center gap-3">
-            <Chip3D tone={tone} className="h-10 w-10 flex-shrink-0"><Icon className="h-5 w-5" /></Chip3D>
-            <div className="min-w-0">
-              <p className={`truncate text-sm font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{title}</p>
-              <p className={`truncate text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{text}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-});
-
-/* ───────────── Filters ───────────── */
-const FilterSection = memo(({ title, isOpen, onToggle, darkMode, children }) => (
-  <div className={`border-b py-4 ${darkMode ? 'border-gray-800' : 'border-gray-100'}`}>
-    <button type="button" onClick={onToggle} aria-expanded={isOpen}
-      className={`flex w-full items-center justify-between text-xs font-bold uppercase tracking-wider ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-      {title}
-      <FiChevronDown className={`h-4 w-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''} ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
-    </button>
-    <div className={`grid transition-[grid-template-rows,opacity] duration-200 ${isOpen ? 'mt-3 grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
-      <div className="overflow-hidden">{children}</div>
-    </div>
-  </div>
-));
-
-const OptionRow = memo(({ type, label, count, selected, onClick, darkMode }) => (
-  <button type="button" role={type === 'radio' ? 'radio' : 'checkbox'} aria-checked={selected} onClick={onClick}
-    className="group flex w-full items-center gap-3 rounded-md py-1.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400">
-    <span className={`flex h-4 w-4 flex-shrink-0 items-center justify-center border-2 transition-colors ${type === 'radio' ? 'rounded-full' : 'rounded'} ${
-      selected ? `border-emerald-500 ${type === 'check' ? 'bg-emerald-500' : ''}` : darkMode ? 'border-gray-600' : 'border-gray-300'}`}>
-      {selected && (type === 'radio' ? <span className="h-2 w-2 rounded-full bg-emerald-500" /> : <FiCheck className="h-3 w-3 text-white" />)}
+const OptionRow = memo(({ type, label, count, selected, onClick }) => (
+  <button
+    type="button" role={type === 'check' ? 'checkbox' : 'radio'} aria-checked={selected} onClick={onClick}
+    className="flex w-full items-center gap-2.5 py-1.5 text-start text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-[color:var(--nb-accent)]"
+  >
+    <span className={`nb-box ${type === 'radio' ? 'rounded-full' : ''} ${selected ? 'nb-box-on' : ''}`}>
+      {selected && (type === 'check' ? <FiCheck className="h-3 w-3" strokeWidth={3} /> : <span className="h-2 w-2 rounded-full bg-[color:var(--nb-on)]" />)}
     </span>
-    <span className={`flex-1 truncate text-sm ${selected ? 'font-semibold text-emerald-500' : darkMode ? 'text-gray-300 group-hover:text-white' : 'text-gray-600 group-hover:text-gray-900'}`}>{label}</span>
-    {count !== undefined && <span className={`text-xs tabular-nums ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{count}</span>}
+    <span className="min-w-0 flex-1 truncate">{label}</span>
+    {count !== undefined && <span className="nb-muted text-xs tabular-nums" dir="ltr">{count}</span>}
   </button>
 ));
 
-const NumField = memo(({ value, onCommit, label, darkMode }) => {
+const FilterBlock = memo(({ num, title, isOpen, onToggle, children }) => (
+  <section className="border-t-2 nb-line">
+    <button type="button" onClick={onToggle} aria-expanded={isOpen} className="flex w-full items-center gap-2.5 py-3 text-start">
+      <span className="nb-num nb-num-sm">{num}</span>
+      <span className="min-w-0 flex-1 truncate text-[13px] font-extrabold uppercase"><span className="nb-ul">{title}</span></span>
+      <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+    </button>
+    {isOpen && <div className="min-w-0 pb-4">{children}</div>}
+  </section>
+));
+
+const NumField = memo(({ value, onCommit, label, t }) => {
   const [draft, setDraft] = useState(String(value));
-  useEffect(() => setDraft(String(value)), [value]);
-  const commit = () => { const n = Number(draft); if (Number.isFinite(n)) onCommit(n); else setDraft(String(value)); };
+  const [error, setError] = useState('');
+  useEffect(() => { setDraft(String(value)); }, [value]);
+  const commit = () => {
+    const n = Number(draft);
+    if (draft.trim() === '' || !Number.isFinite(n)) { setError(t('errorInvalidNumber')); setDraft(String(value)); return; }
+    const msg = onCommit(n);
+    if (msg) { setError(msg); setDraft(String(value)); } else setError('');
+  };
   return (
     <label className="min-w-0 flex-1">
-      <span className={`mb-1 block text-[11px] font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{label}</span>
-      <div className={`flex items-center rounded-lg border px-2 py-1.5 text-xs font-bold focus-within:border-emerald-500 ${darkMode ? 'border-gray-700 bg-gray-800 text-white' : 'border-gray-200 bg-white text-gray-800'}`}>
-        <span className={`mr-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>EGP</span>
-        <input type="number" inputMode="numeric" value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit}
+      <span className="mb-1 block text-[11px] font-bold uppercase">{label}</span>
+      <div className={`nb-field flex items-center px-2 py-1.5 text-xs font-bold ${error ? '!border-rose-500' : ''}`} dir="ltr">
+        <span className="nb-muted me-1">{t('currency')}</span>
+        <input type="number" inputMode="numeric" min={0} value={draft} aria-invalid={!!error}
+          onChange={(e) => { setDraft(e.target.value); setError(''); }} onBlur={commit}
           onKeyDown={(e) => e.key === 'Enter' && commit()} className="w-full min-w-0 bg-transparent tabular-nums outline-none" />
       </div>
+      {error && <p role="alert" className="mt-1 text-[11px] font-semibold text-rose-500">{error}</p>}
     </label>
   );
 });
 
-const PriceRangeFilter = memo(({ bounds, value, onChange, histogram, darkMode }) => {
+const PriceRangeFilter = memo(({ bounds, value, onChange, histogram, t }) => {
   const { max, step } = bounds;
   const [lo, hi] = value;
   const leftPct = (lo / max) * 100;
   const rightPct = (hi / max) * 100;
   const peak = Math.max(1, ...histogram);
-  const thumb =
-    'absolute inset-0 h-1.5 w-full appearance-none bg-transparent pointer-events-none ' +
-    '[&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full ' +
-    '[&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-emerald-500 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_3px_0_0_#047857] ' +
-    '[&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:cursor-grab [&::-moz-range-thumb]:rounded-full ' +
-    '[&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-emerald-500 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-[0_3px_0_0_#047857]';
-  const presets = [
-    { label: 'Under 5K', r: [0, Math.min(5000, max)] },
-    { label: '5K – 20K', r: [Math.min(5000, max), Math.min(20000, max)] },
-    { label: '20K+', r: [Math.min(20000, max), max] },
-  ].filter((p) => p.r[0] < p.r[1]);
+  const presets = useMemo(() => [
+    { label: t('presetUnder', { value: 5 }), r: [0, Math.min(5000, max)] },
+    { label: t('presetRange', { min: 5, max: 20 }), r: [Math.min(5000, max), Math.min(20000, max)] },
+    { label: t('presetOver', { value: 20 }), r: [Math.min(20000, max), max] },
+  ].filter((p) => p.r[0] < p.r[1]), [t, max]);
+
+  const commitMin = (n) => {
+    if (n < 0) return t('errorNegative');
+    if (n > hi) return t('errorMinGreater');
+    onChange([n, hi]);
+    return '';
+  };
+  const commitMax = (n) => {
+    if (n < 0) return t('errorNegative');
+    if (n < lo) return t('errorMaxLess');
+    if (n > max) return t('errorMaxPrice', { max: max.toLocaleString() });
+    onChange([lo, n]);
+    return '';
+  };
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4" dir="ltr">
       <div className="flex h-12 items-end gap-[3px]" aria-hidden="true">
         {histogram.map((c, i) => {
           const binStart = (i / histogram.length) * max;
           const binEnd = ((i + 1) / histogram.length) * max;
           const inRange = binEnd > lo && binStart < hi;
-          return <div key={i} className={`flex-1 rounded-t ${inRange ? 'bg-emerald-500' : darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} style={{ height: `${Math.max(c ? 12 : 4, (c / peak) * 100)}%`, opacity: c ? 1 : 0.5 }} />;
+          return <div key={i} className={`flex-1 ${inRange ? 'nb-bin-on' : 'nb-bin'}`} style={{ height: `${Math.max(c ? 12 : 4, (c / peak) * 100)}%`, opacity: c ? 1 : 0.5 }} />;
         })}
       </div>
       <div className="relative flex h-5 items-center">
-        <div className={`absolute inset-x-0 h-1.5 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
-        <div className="absolute h-1.5 rounded-full bg-emerald-500" style={{ left: `${leftPct}%`, right: `${100 - rightPct}%` }} />
-        <input type="range" aria-label="Minimum price" min={0} max={max} step={step} value={lo}
-          onChange={(e) => onChange([Math.min(Number(e.target.value), hi - step), hi])} className={thumb} style={{ zIndex: lo > max - step * 3 ? 5 : 3 }} />
-        <input type="range" aria-label="Maximum price" min={0} max={max} step={step} value={hi}
-          onChange={(e) => onChange([lo, Math.max(Number(e.target.value), lo + step)])} className={thumb} style={{ zIndex: 4 }} />
+        <div className="nb-gray nb-line absolute inset-x-0 h-2 border-2" />
+        <div className="absolute h-2 border-y-2 nb-line bg-[color:var(--nb-accent)]" style={{ left: `${leftPct}%`, right: `${100 - rightPct}%` }} />
+        <input type="range" aria-label={t('minPriceAria')} min={0} max={max} step={step} value={lo}
+          onChange={(e) => onChange([Math.max(0, Math.min(Number(e.target.value), hi - step)), hi])} className="nb-range" style={{ zIndex: lo > max - step * 3 ? 5 : 3 }} />
+        <input type="range" aria-label={t('maxPriceAria')} min={0} max={max} step={step} value={hi}
+          onChange={(e) => onChange([lo, Math.max(Number(e.target.value), lo + step)])} className="nb-range" style={{ zIndex: 4 }} />
       </div>
-      <div className="flex gap-2">
-        <NumField label="Min" value={lo} darkMode={darkMode} onCommit={(n) => onChange([clamp(n, 0, hi - step), hi])} />
-        <NumField label="Max" value={hi} darkMode={darkMode} onCommit={(n) => onChange([lo, clamp(n, lo + step, max)])} />
+      <div className="flex flex-col gap-4 min-[380px]:flex-row min-[380px]:gap-6">
+        <NumField label={t('priceMin')} value={lo} onCommit={commitMin} t={t} />
+        <NumField label={t('priceMax')} value={hi} onCommit={commitMax} t={t} />
       </div>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-2">
         {presets.map((p) => {
           const on = lo === p.r[0] && hi === p.r[1];
           return (
-            <button key={p.label} type="button" onClick={() => onChange(p.r)}
-              className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors ${on ? 'border-emerald-500 bg-emerald-500 text-white' : darkMode ? 'border-gray-700 text-gray-300 hover:border-emerald-500' : 'border-gray-200 text-gray-600 hover:border-emerald-500'}`}>
+            <button key={p.r.join('-')} type="button" onClick={() => onChange(p.r)} aria-pressed={on}
+              className={`nb-btn px-2.5 py-1 text-[11px] ${on ? 'nb-btn-on' : ''}`}>
               {p.label}
             </button>
           );
@@ -499,152 +647,165 @@ const PriceRangeFilter = memo(({ bounds, value, onChange, histogram, darkMode })
   );
 });
 
-const TradeInCard = memo(({ darkMode }) => (
-  <div className={`relative mt-5 overflow-hidden rounded-2xl p-5 ${darkMode ? 'bg-gradient-to-br from-emerald-900 to-gray-900 ring-1 ring-emerald-500/30' : 'bg-gradient-to-br from-emerald-500 to-emerald-700'}`}>
-    <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-white/10 blur-xl" />
-    <DeviceScene compact className="absolute -bottom-2 -right-2 h-24 w-28 opacity-95" />
-    <div className="relative max-w-[62%]">
-      <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white"><FiTag className="h-3 w-3" /> Trade-in</span>
-      <p className="mt-2 text-base font-extrabold leading-tight text-white">Get up to EGP 5,000 for your old device</p>
-      <p className="mt-1 text-xs text-emerald-50/80">Credit applied to your next purchase.</p>
-      <Btn3D as="a" href="/trade-in" tone="soft" darkMode={false} className="mt-3 px-3.5 py-2 text-xs !text-emerald-700">Get an estimate</Btn3D>
-    </div>
-  </div>
-));
-
 const FilterPanel = memo((p) => {
-  const { darkMode, categories, productsByCategory, selectedCategoryId, setSelectedCategoryId, selectedConditions, toggleCondition, conditionCounts,
+  const { t, categories, productsByCategory, selectedCategoryId, setSelectedCategoryId, selectedConditions, toggleCondition, conditionCounts,
     priceBounds, priceValue, setPriceRange, histogram, inStockOnly, setInStockOnly, open, setOpen, clearFilters, activeFiltersCount, totalCount } = p;
   const toggle = (k) => setOpen((o) => ({ ...o, [k]: !o[k] }));
   return (
-    <div className={`rounded-2xl border p-5 ${darkMode ? 'border-emerald-900/60 bg-gray-900' : 'border-emerald-100 bg-white'}`}>
-      <div className={`relative mb-4 overflow-hidden rounded-xl p-4 ${darkMode ? 'bg-gradient-to-br from-emerald-900 to-emerald-950 ring-1 ring-emerald-500/20' : 'bg-gradient-to-br from-emerald-100 to-emerald-50 ring-1 ring-emerald-200'}`}>
-        <div className="relative max-w-[58%]">
-          <p className={`text-sm font-extrabold ${darkMode ? 'text-emerald-200' : 'text-emerald-900'}`}>Find your device</p>
-          <p className={`mt-0.5 text-xs leading-snug ${darkMode ? 'text-emerald-200/60' : 'text-emerald-800/70'}`}>Narrow by price, condition and category.</p>
-        </div>
-        <DeviceScene compact className="absolute -bottom-1 -right-1 h-20 w-24" />
-      </div>
-      <div className="mb-1 flex items-center justify-between">
-        <h3 className={`flex items-center gap-2 text-sm font-extrabold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-          <Chip3D className="h-7 w-7"><FiSliders className="h-3.5 w-3.5" /></Chip3D> Filters
+    <div className="nb-card w-full min-w-0 max-w-full overflow-x-hidden p-3 sm:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 pb-3">
+        <h3 className="flex min-w-0 items-center gap-2 text-base font-extrabold uppercase">
+          <FiSliders aria-hidden="true" className="h-4 w-4 flex-shrink-0" /> <span className="nb-ul truncate">{t('filters')}</span>
         </h3>
-        {activeFiltersCount > 0 && <button type="button" onClick={clearFilters} className="text-xs font-semibold text-emerald-500 hover:text-emerald-400">Reset all</button>}
+        {activeFiltersCount > 0 && <button type="button" onClick={clearFilters} className="flex-shrink-0 text-xs font-bold underline underline-offset-4">{t('resetAll')}</button>}
       </div>
 
-      <FilterSection title={getDeviceTranslation('priceRange')} isOpen={open.price} onToggle={() => toggle('price')} darkMode={darkMode}>
-        <PriceRangeFilter bounds={priceBounds} value={priceValue} onChange={setPriceRange} histogram={histogram} darkMode={darkMode} />
-      </FilterSection>
+      <FilterBlock num="01" title={t('priceRange')} isOpen={open.price} onToggle={() => toggle('price')}>
+        <div className="min-w-0 px-1">
+          <PriceRangeFilter bounds={priceBounds} value={priceValue} onChange={setPriceRange} histogram={histogram} t={t} />
+        </div>
+      </FilterBlock>
 
-      <FilterSection title={getDeviceTranslation('condition')} isOpen={open.cond} onToggle={() => toggle('cond')} darkMode={darkMode}>
-        {Object.entries(conditionConfig).map(([value, cfg]) => (
-          <OptionRow key={value} type="check" label={cfg.label} count={conditionCounts[value] || 0} selected={selectedConditions.includes(value)} onClick={() => toggleCondition(value)} darkMode={darkMode} />
-        ))}
-        <OptionRow type="check" label="In stock only" selected={inStockOnly} onClick={() => setInStockOnly((v) => !v)} darkMode={darkMode} />
-      </FilterSection>
+      <FilterBlock num="02" title={t('condition')} isOpen={open.cond} onToggle={() => toggle('cond')}>
+        <div className="min-w-0 break-words">
+          {CONDITION_ENTRIES.map(([value, cfg]) => (
+            <OptionRow key={value} type="check" label={t(cfg.key)} count={conditionCounts[value] || 0} selected={selectedConditions.includes(value)} onClick={() => toggleCondition(value)} />
+          ))}
+          <OptionRow type="check" label={t('inStockOnly')} selected={inStockOnly} onClick={() => setInStockOnly((v) => !v)} />
+        </div>
+      </FilterBlock>
 
-      <FilterSection title={getDeviceTranslation('category')} isOpen={open.cat} onToggle={() => toggle('cat')} darkMode={darkMode}>
-        <div className="max-h-52 overflow-y-auto pr-1" role="radiogroup" aria-label="Category">
-          <OptionRow type="radio" label="All" count={totalCount} selected={selectedCategoryId === 'all'} onClick={() => setSelectedCategoryId('all')} darkMode={darkMode} />
+      <FilterBlock num="03" title={t('category')} isOpen={open.cat} onToggle={() => toggle('cat')}>
+        <div className="max-h-44 min-w-0 overflow-y-auto overscroll-contain break-words pe-1 sm:max-h-52" role="radiogroup" aria-label={t('category')}>
+          <OptionRow type="radio" label={t('all')} count={totalCount} selected={selectedCategoryId === 'all'} onClick={() => setSelectedCategoryId('all')} />
           {categories.map((c) => (
-            <OptionRow key={c.id} type="radio" label={c.name} count={productsByCategory[c.id]?.length || 0} selected={selectedCategoryId === c.id} onClick={() => setSelectedCategoryId(c.id)} darkMode={darkMode} />
+            <OptionRow key={c.id} type="radio" label={c.name} count={productsByCategory[c.id]?.length || 0} selected={selectedCategoryId === c.id} onClick={() => setSelectedCategoryId(c.id)} />
           ))}
         </div>
-      </FilterSection>
-
-      <TradeInCard darkMode={darkMode} />
+      </FilterBlock>
     </div>
   );
 });
 
-/* ───────────── Pagination ───────────── */
-function getPaginationRange(current, total) {
-  if (total <= 1) return [1];
-  const middle = [];
-  for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) middle.push(i);
-  const range = [1];
-  if (current - 1 > 2) range.push('…');
-  range.push(...middle);
-  if (current + 1 < total - 1) range.push('…');
-  range.push(total);
-  return range;
-}
+const pageWindow = (cur, total) => {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const set = new Set([1, total, cur - 1, cur, cur + 1]);
+  if (cur <= 3) [2, 3, 4].forEach((n) => set.add(n));
+  if (cur >= total - 2) [total - 1, total - 2, total - 3].forEach((n) => set.add(n));
+  const nums = [...set].filter((n) => n >= 1 && n <= total).sort((a, b) => a - b);
+  const out = [];
+  nums.forEach((n, i) => { if (i && n - nums[i - 1] > 1) out.push(`gap-${n}`); out.push(n); });
+  return out;
+};
 
-const PageBtn = memo(({ children, active, darkMode, ...rest }) => (
-  <button type="button" aria-current={active ? 'page' : undefined} {...rest}
-    className={`flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold transition-all duration-100 active:translate-y-[2px] disabled:cursor-not-allowed disabled:opacity-40 ${
-      active ? 'bg-emerald-500 text-white shadow-[0_3px_0_0_#047857]'
-        : darkMode ? 'bg-gray-800 text-gray-300 shadow-[0_3px_0_0_#030712] hover:text-emerald-400' : 'bg-white text-gray-600 shadow-[0_3px_0_0_#d1d5db] border border-gray-200 hover:text-emerald-700'}`}>
-    {children}
-  </button>
-));
-
-/* ───────────── Page ───────────── */
-const PRICE_STEP = (max) => (max >= 20000 ? 500 : max >= 2000 ? 100 : 10);
+const Pagination = memo(({ page, total, onChange, t }) => {
+  const items = useMemo(() => pageWindow(page, total), [page, total]);
+  if (total <= 1) return null;
+  return (
+    <nav aria-label={t('pageN', { n: page })} className="mt-8 flex flex-wrap items-center justify-center gap-2">
+      <button type="button" className="nb-btn h-10 w-10" disabled={page <= 1} onClick={() => onChange(page - 1)} aria-label={t('prevPage')}>
+        <FiChevronLeft className="nb-flip h-4 w-4" />
+      </button>
+      {items.map((n) => (typeof n === 'number' ? (
+        <button key={n} type="button" onClick={() => onChange(n)} aria-label={t('pageN', { n })} aria-current={n === page ? 'page' : undefined}
+          className={`nb-btn h-10 min-w-[2.5rem] px-2 text-sm tabular-nums ${n === page ? 'nb-btn-on' : ''}`}>{n}</button>
+      ) : <span key={n} aria-hidden="true" className="px-1 font-extrabold">…</span>))}
+      <button type="button" className="nb-btn h-10 w-10" disabled={page >= total} onClick={() => onChange(page + 1)} aria-label={t('nextPage')}>
+        <FiChevronRight className="nb-flip h-4 w-4" />
+      </button>
+    </nav>
+  );
+});
 
 const ProductsContent = memo(({ darkMode }) => {
+  const language = useAppLanguage();
+  const t = getT(language);
+  const dir = languageDirection(language);
+  const font = useLangFont(language);
+  const isAr = language === 'ar';
+  const navigate = useNavigate();
+  const isMobile = useIsMobile();
+  const [, startTransition] = useTransition();
+
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDeferredValue(searchTerm);
+  const searchPending = searchTerm !== deferredSearch;
   const [selectedCategoryId, setSelectedCategoryId] = useState('all');
-  const [priceRange, setPriceRangeState] = useState(null); // null = no price filter
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(12);
+  const [priceRange, setPriceRangeState] = useState(null);
+  const [page, setPage] = useState(1);
+  const [visibleCount, setVisibleCount] = useState(MOBILE_BATCH);
+  const [pageSize, setPageSize] = useState(PAGE_SIZES[0]);
   const [viewMode, setViewMode] = useState('grid');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
   const [selectedConditions, setSelectedConditions] = useState([]);
   const [inStockOnly, setInStockOnly] = useState(false);
   const [sortBy, setSortBy] = useState('relevance');
   const [open, setOpen] = useState({ price: true, cond: true, cat: true });
-  const [showTop, setShowTop] = useState(false);
   const [token] = useState(() => readStorage('authToken'));
-  const sliderRef = useRef(null);
   const gridRef = useRef(null);
+  const showTop = useBackToTop();
+  const closeSidebar = useCallback(() => setIsSidebarOpen(false), []);
+  const openSidebar = useCallback(() => setIsSidebarOpen(true), []);
+  useModalLock(isSidebarOpen, closeSidebar);
 
-  useEffect(() => { document.title = 'Our Products | Tech-Restore'; }, []);
+  useEffect(() => { ensureNbFont(); }, []);
+  useEffect(() => { document.title = t('pageTitle'); }, [t]);
+
+  const sortOptions = useMemo(() => SORT_KEYS.map(([value, key]) => ({ value, label: t(key) })), [t]);
+  const rowOptions = useMemo(() => PAGE_SIZES.map((n) => ({ value: n, label: t('perPage', { count: n }) })), [t]);
 
   const authConfig = useMemo(() => (token ? { headers: { Authorization: `Bearer ${token}` } } : undefined), [token]);
 
-  const { data: categories = [] } = useQuery({
+  const { data: categories = EMPTY_LIST } = useQuery({
     queryKey: ['categories'],
-    queryFn: async () => {
-      const res = await api.get('/api/categories', authConfig);
+    queryFn: async ({ signal }) => {
+      const res = await api.get('/api/categories', { ...authConfig, signal });
       const cats = res.data?.content || res.data || [];
       return Array.isArray(cats) ? cats.map((c) => ({ id: c.id, name: String(c.name || c.id) })) : [];
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 10 * 60 * 1000,
     retry: false,
   });
 
-  // Always load the full list; category filtering happens client-side so counts stay correct.
-  const { data: products = [], isLoading, isError, refetch } = useQuery({
+  const { data: products = EMPTY_LIST, isLoading, isError, refetch } = useQuery({
     queryKey: ['products'],
-    queryFn: async () => {
-      const res = await api.get('/api/products');
+    queryFn: async ({ signal }) => {
+      const res = await api.get('/api/products', { signal });
       const list = res.data?.content || res.data || [];
       if (!Array.isArray(list)) return [];
-      return list.filter((p) => p && !p.deleted).map((p) => {
+      const out = [];
+      for (const p of list) {
+        if (!p || p.deleted) continue;
         const price = Number(p.price) || 0;
         const discount = clamp(Number(p.discount) || 0, 0, 100);
-        return { ...p, price, discount, finalPrice: discount ? Math.round(price * (1 - discount / 100) * 100) / 100 : price };
-      });
+        out.push({
+          ...p, price, discount,
+          finalPrice: discount ? Math.round(price * (1 - discount / 100) * 100) / 100 : price,
+          _text: fold(`${p.name || ''} ${p.categoryName || ''}`),
+          _ts: Date.parse(p.createdAt) || 0,
+        });
+      }
+      return out;
     },
     staleTime: 5 * 60 * 1000,
   });
 
-  /* price bounds follow real data, so expensive products are never hidden by a hard-coded cap */
   const priceBounds = useMemo(() => {
-    const top = products.reduce((m, p) => Math.max(m, p.finalPrice, p.price), 0);
+    const top = products.reduce((mx, p) => Math.max(mx, p.finalPrice, p.price), 0);
     const step = PRICE_STEP(top);
     return { max: Math.max(step * 10, Math.ceil(top / step) * step), step };
   }, [products]);
-  const priceValue = useMemo(
-    () => (priceRange ? [clamp(priceRange[0], 0, priceBounds.max), clamp(priceRange[1], 0, priceBounds.max)] : [0, priceBounds.max]),
-    [priceRange, priceBounds.max]
-  );
+  const priceValue = useMemo(() => {
+    if (!priceRange) return [0, priceBounds.max];
+    const hi = clamp(Number(priceRange[1]) || 0, 0, priceBounds.max);
+    const lo = Math.min(clamp(Number(priceRange[0]) || 0, 0, priceBounds.max), hi);
+    return [lo, hi];
+  }, [priceRange, priceBounds.max]);
+  const deferredPriceValue = useDeferredValue(priceValue);
   const setPriceRange = useCallback((r) => {
-    setPriceRangeState(r[0] <= 0 && r[1] >= priceBounds.max ? null : r);
+    const hi = clamp(Number(r[1]) || 0, 0, priceBounds.max);
+    const lo = Math.min(clamp(Number(r[0]) || 0, 0, priceBounds.max), hi);
+    setPriceRangeState(lo <= 0 && hi >= priceBounds.max ? null : [lo, hi]);
   }, [priceBounds.max]);
 
   const productsByCategory = useMemo(() => {
@@ -653,17 +814,13 @@ const ProductsContent = memo(({ darkMode }) => {
     return map;
   }, [products]);
 
-  const latestProducts = useMemo(
-    () => [...products].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 8),
-    [products]
-  );
+  const latestProducts = useMemo(() => [...products].sort((a, b) => b._ts - a._ts).slice(0, LATEST_LIMIT), [products]);
 
-  /* everything except price – used for the histogram and condition counts */
   const baseFiltered = useMemo(() => {
-    const term = deferredSearch.trim().toLowerCase();
+    const term = fold(deferredSearch).trim();
     return products.filter((p) => {
       if (selectedCategoryId !== 'all' && p.categoryId !== selectedCategoryId) return false;
-      if (term && !`${p.name || ''} ${p.categoryName || ''}`.toLowerCase().includes(term)) return false;
+      if (term && !p._text.includes(term)) return false;
       if (inStockOnly && p.stock === 0) return false;
       return true;
     });
@@ -676,277 +833,227 @@ const ProductsContent = memo(({ darkMode }) => {
   }, [baseFiltered]);
 
   const histogram = useMemo(() => {
-    const bins = Array(16).fill(0);
+    const bins = Array(HISTOGRAM_BINS).fill(0);
     baseFiltered.forEach((p) => {
       if (selectedConditions.length && !selectedConditions.includes(p.condition)) return;
-      bins[Math.min(15, Math.floor((p.finalPrice / priceBounds.max) * 16))]++;
+      bins[Math.min(HISTOGRAM_BINS - 1, Math.floor((p.finalPrice / priceBounds.max) * HISTOGRAM_BINS))]++;
     });
     return bins;
   }, [baseFiltered, selectedConditions, priceBounds.max]);
 
   const filteredProducts = useMemo(() => {
-    const [lo, hi] = priceValue;
+    const [lo, hi] = deferredPriceValue;
     const list = baseFiltered.filter(
       (p) => p.finalPrice >= lo && p.finalPrice <= hi && (!selectedConditions.length || selectedConditions.includes(p.condition))
     );
     if (sortBy === 'priceLowToHigh') list.sort((a, b) => a.finalPrice - b.finalPrice);
     else if (sortBy === 'priceHighToLow') list.sort((a, b) => b.finalPrice - a.finalPrice);
-    else if (sortBy === 'newest') list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    else if (sortBy === 'newest') list.sort((a, b) => b._ts - a._ts);
     return list;
-  }, [baseFiltered, priceValue, selectedConditions, sortBy]);
+  }, [baseFiltered, deferredPriceValue, selectedConditions, sortBy]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
-  useEffect(() => { setCurrentPage(1); }, [selectedCategoryId, pageSize, deferredSearch, priceRange, selectedConditions, inStockOnly, sortBy]);
-  useEffect(() => { setCurrentPage((pg) => Math.min(pg, totalPages)); }, [totalPages]);
+  const currentPage = Math.min(page, totalPages);
+  useEffect(() => {
+    setPage(1);
+    setVisibleCount(MOBILE_BATCH);
+  }, [selectedCategoryId, pageSize, deferredSearch, deferredPriceValue, selectedConditions, inStockOnly, sortBy]);
 
-  const paginatedProducts = useMemo(() => filteredProducts.slice((currentPage - 1) * pageSize, currentPage * pageSize), [filteredProducts, currentPage, pageSize]);
-  const startItem = filteredProducts.length ? (currentPage - 1) * pageSize + 1 : 0;
-  const endItem = Math.min(currentPage * pageSize, filteredProducts.length);
+  const pageOffset = (currentPage - 1) * pageSize;
+  const paginatedProducts = useMemo(() => filteredProducts.slice(pageOffset, pageOffset + pageSize), [filteredProducts, pageOffset, pageSize]);
+  const infiniteProducts = useMemo(() => filteredProducts.slice(0, visibleCount), [filteredProducts, visibleCount]);
+  const listProducts = isMobile ? infiniteProducts : paginatedProducts;
+  const listOffset = isMobile ? 0 : pageOffset;
+  const hasMore = isMobile && visibleCount < filteredProducts.length;
+  const startItem = filteredProducts.length ? listOffset + 1 : 0;
+  const endItem = isMobile ? infiniteProducts.length : Math.min(pageOffset + pageSize, filteredProducts.length);
 
-  const sortLabels = { relevance: 'Relevance', priceLowToHigh: 'Price: low to high', priceHighToLow: 'Price: high to low', newest: 'Newest arrivals' };
+  const loadMore = useCallback(() => startTransition(() => setVisibleCount((c) => c + MOBILE_BATCH)), []);
+
+  const scrollToGrid = useCallback(() => gridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), []);
+  const scrollToTop = useCallback(() => window.scrollTo({ top: 0, behavior: 'smooth' }), []);
+  const goToPage = useCallback((pg) => { setPage(pg); scrollToGrid(); }, [scrollToGrid]);
+  const selectCategory = useCallback((id) => { setSelectedCategoryId(id); scrollToGrid(); }, [scrollToGrid]);
+  const openProduct = useCallback((id) => navigate(`/device/${encodeURIComponent(id)}`), [navigate]);
 
   const handleAddToCart = useCallback(async (product) => {
-    if (!token) {
+    const tk = readStorage('authToken');
+    if (!tk) {
       const Swal = await loadSwal();
-      const r = await Swal.fire({ title: 'Please log in', text: 'You need to log in before adding items to your cart.', icon: 'info', showCancelButton: true, confirmButtonText: 'Go to login' });
-      if (r.isConfirmed) window.location.assign('/login');
+      const r = await Swal.fire({
+        title: t('loginRequiredTitle'), text: t('loginRequiredText'), icon: 'info',
+        showCancelButton: true, confirmButtonText: t('goToLogin'), cancelButtonText: t('cancel'),
+      });
+      if (r.isConfirmed) navigate('/login');
       return false;
     }
     try {
-      // The server must re-validate price/name; the client sends only the product id and quantity.
-      const res = await api.post('/api/cart/items', { productId: product.id, quantity: 1 }, authConfig);
+      const res = await api.post('/api/cart/items', { productId: product.id, quantity: 1 }, { headers: { Authorization: `Bearer ${tk}` } });
       if (res.status < 200 || res.status >= 300) throw new Error('Unexpected response');
       window.dispatchEvent(new Event('cart:updated'));
-      const Swal = await loadSwal();
-      Swal.fire({ title: 'Added!', text: `${product.name} added to cart`, icon: 'success', toast: true, position: 'top-end', timer: 1500, timerProgressBar: true, showConfirmButton: false });
+      toast({ icon: 'success', title: t('addedToCartTitle'), text: t('addedToCartText', { name: clean(product.name, 60) }), timer: 2800 });
       return true;
-    } catch {
-      const Swal = await loadSwal();
-      Swal.fire({ title: 'Error', text: 'Failed to add to cart', icon: 'error', toast: true, position: 'top-end', timer: 1500, showConfirmButton: false });
+    } catch (err) {
+      toast({ icon: 'error', title: t('addToCartFailedTitle'), text: err?.response?.data?.message, timer: 3500 });
       return false;
     }
-  }, [token, authConfig]);
-
-  const scrollToGrid = useCallback(() => gridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), []);
-  const selectCategory = useCallback((id) => { setSelectedCategoryId(id); scrollToGrid(); }, [scrollToGrid]);
-
-  const scrollSlider = useCallback((dir) => sliderRef.current?.scrollBy({ left: dir === 'left' ? -340 : 340, behavior: 'smooth' }), []);
-  useEffect(() => {
-    const slider = sliderRef.current;
-    if (!slider) return undefined;
-    let raf;
-    const check = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        setCanScrollLeft(slider.scrollLeft > 2);
-        setCanScrollRight(slider.scrollLeft + slider.clientWidth < slider.scrollWidth - 5);
-      });
-    };
-    check();
-    slider.addEventListener('scroll', check, { passive: true });
-    window.addEventListener('resize', check);
-    return () => { slider.removeEventListener('scroll', check); window.removeEventListener('resize', check); cancelAnimationFrame(raf); };
-  }, [latestProducts]);
-
-  useEffect(() => {
-    let raf;
-    const onScroll = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => setShowTop(window.scrollY > 700)); };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => { window.removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); };
-  }, []);
-
-  useEffect(() => {
-    if (!isSidebarOpen) return undefined;
-    const onKey = (e) => e.key === 'Escape' && setIsSidebarOpen(false);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    window.addEventListener('keydown', onKey);
-    return () => { document.body.style.overflow = prev; window.removeEventListener('keydown', onKey); };
-  }, [isSidebarOpen]);
+  }, [navigate, t]);
 
   const clearFilters = useCallback(() => {
-    setSearchTerm(''); setPriceRangeState(null); setSelectedCategoryId('all'); setSelectedConditions([]); setInStockOnly(false); setSortBy('relevance'); setCurrentPage(1);
+    setSearchTerm(''); setPriceRangeState(null); setSelectedCategoryId('all'); setSelectedConditions([]); setInStockOnly(false); setSortBy('relevance'); setPage(1); setVisibleCount(MOBILE_BATCH);
   }, []);
   const toggleCondition = useCallback((c) => setSelectedConditions((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c])), []);
+  const resetCategory = useCallback(() => setSelectedCategoryId('all'), []);
+  const resetPrice = useCallback(() => setPriceRangeState(null), []);
+  const resetStock = useCallback(() => setInStockOnly(false), []);
+  const resetSearch = useCallback(() => setSearchTerm(''), []);
 
   const activeFiltersCount = (searchTerm ? 1 : 0) + (selectedCategoryId !== 'all' ? 1 : 0) + selectedConditions.length + (priceRange ? 1 : 0) + (inStockOnly ? 1 : 0);
-  const showSliderArrows = latestProducts.length > 3 && (canScrollLeft || canScrollRight);
-  const selectedCategoryName = categories.find((c) => c.id === selectedCategoryId)?.name;
+  const selectedCategoryName = useMemo(() => categories.find((c) => c.id === selectedCategoryId)?.name, [categories, selectedCategoryId]);
+  const currency = t('currency');
+  const totalCount = products.length;
 
-  const filterPanelProps = {
-    darkMode, categories, productsByCategory, selectedCategoryId, setSelectedCategoryId, selectedConditions, toggleCondition, conditionCounts,
-    priceBounds, priceValue, setPriceRange, histogram, inStockOnly, setInStockOnly, open, setOpen, clearFilters, activeFiltersCount, totalCount: products.length,
-  };
+  const filterPanelProps = useMemo(() => ({
+    t, categories, productsByCategory, selectedCategoryId, setSelectedCategoryId, selectedConditions, toggleCondition, conditionCounts,
+    priceBounds, priceValue, setPriceRange, histogram, inStockOnly, setInStockOnly, open, setOpen, clearFilters, activeFiltersCount, totalCount,
+  }), [t, categories, productsByCategory, selectedCategoryId, selectedConditions, toggleCondition, conditionCounts,
+    priceBounds, priceValue, setPriceRange, histogram, inStockOnly, open, clearFilters, activeFiltersCount, totalCount]);
 
-  const gridCols = viewMode === 'grid' ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-1';
-  const arrowBtn = (dir, disabled) => (
-    <Btn3D tone="soft" darkMode={darkMode} onClick={() => scrollSlider(dir)} disabled={disabled} aria-label={`Scroll ${dir}`} className="h-10 w-10">
-      {dir === 'left' ? <FiChevronLeft className="h-5 w-5" /> : <FiChevronRight className="h-5 w-5" />}
-    </Btn3D>
-  );
-
-  const chip = (label, onRemove) => (
-    <span key={label} className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${darkMode ? 'bg-emerald-400/10 text-emerald-400' : 'bg-emerald-50 text-emerald-700'}`}>
-      {label}
-      <button type="button" onClick={onRemove} aria-label={`Remove ${label}`}><FiX className="h-3 w-3" /></button>
-    </span>
-  );
+  const layout = isMobile ? 'grid' : viewMode;
+  const skeletonCols = layout === 'grid' ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-1';
+  const stale = searchPending || deferredPriceValue !== priceValue;
 
   return (
-    <div className={`min-h-screen ${readStorage('appLanguage') === 'ar' ? 'font-cairo' : 'font-poppins'} ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
-      <style>{pageStyles}</style>
+    <div
+      dir={dir} lang={language} style={isAr ? font.style : NB_FONT_STYLE}
+      className={`nb ${darkMode ? 'nb-dark' : ''} min-h-screen overflow-x-hidden ${isAr ? font.className : ''}`}
+    >
+      {STYLE_EL}
       <Defs3D />
+      <Toaster darkMode={darkMode} />
 
-      <Suspense fallback={<div className={`h-[420px] w-full animate-pulse sm:h-[480px] ${darkMode ? 'bg-gray-900' : 'bg-emerald-50'}`} />}>
-        <Hero variant="devices" darkMode={darkMode} buttons={undefined} />
+      <Suspense fallback={<div className="nb-gray h-[360px] w-full animate-pulse sm:h-[480px]" />}>
+        <Hero variant="devices" darkMode={darkMode} />
       </Suspense>
 
-      <TrustStrip darkMode={darkMode} />
-      <CategoryGrid categories={categories} productsByCategory={productsByCategory} selectedCategoryId={selectedCategoryId} onSelect={selectCategory} darkMode={darkMode} />
+      <CategoryGrid categories={categories} productsByCategory={productsByCategory} selectedCategoryId={selectedCategoryId} onSelect={selectCategory} darkMode={darkMode} t={t} />
 
       {!isLoading && latestProducts.length > 0 && (
-        <section className={`py-12 sm:py-16 ${darkMode ? 'bg-gray-900' : 'bg-white'}`}>
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className={`relative mb-8 overflow-hidden rounded-3xl p-6 sm:p-8 ${darkMode ? 'bg-gradient-to-br from-emerald-900 via-emerald-950 to-gray-950 ring-1 ring-emerald-500/20' : 'bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-800'}`}>
-              <div className="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
-              <div className="pointer-events-none absolute -bottom-20 left-1/3 h-48 w-48 rounded-full bg-emerald-300/10 blur-2xl" />
-              <div className="relative flex flex-wrap items-center justify-between gap-6">
-                <div className="max-w-md">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold text-white"><FiTag className="h-3 w-3" /> Just in</span>
-                  <h2 className="mt-3 text-2xl font-bold tracking-tight text-white sm:text-3xl">Latest arrivals</h2>
-                  <p className="mt-1 text-sm text-emerald-50/80">Freshly listed and ready to ship.</p>
-                  {showSliderArrows && <div className="mt-4 flex gap-2">{arrowBtn('left', !canScrollLeft)}{arrowBtn('right', !canScrollRight)}</div>}
-                </div>
-                <DeviceScene className="hidden h-32 w-48 sm:block lg:h-36 lg:w-56" />
-              </div>
-            </div>
-            <div ref={sliderRef} className="hide-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-4 sm:gap-5">
-              {latestProducts.map((p, i) => (
-                <div key={p.id} className="w-[200px] flex-shrink-0 snap-start sm:w-[250px] md:w-[270px]">
-                  <ProductCard product={p} darkMode={darkMode} onAddToCart={handleAddToCart} index={i} />
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        <LatestSection products={latestProducts} darkMode={darkMode} onAddToCart={handleAddToCart} onOpen={openProduct} t={t} />
       )}
 
-      <div id="products-grid" ref={gridRef} className="mx-auto max-w-7xl scroll-mt-20 px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
-        <div className="flex items-start gap-6 lg:gap-8">
-          <aside className="sticky top-20 hidden max-h-[calc(100vh-5rem)] w-64 flex-shrink-0 self-start overflow-y-auto xl:w-72 lg:block">
-            <FilterPanel {...filterPanelProps} />
-          </aside>
+      <section aria-label={t('allProducts')} className="nb-bg">
+        <span className="nb-divider" aria-hidden="true" />
+        <div id="products-grid" ref={gridRef} className="mx-auto max-w-7xl scroll-mt-20 px-4 py-12 sm:px-6 sm:py-20 lg:px-8">
+          <SectionHead eyebrow={t('eyebrowProducts')} title={t('allProducts')} subtitle={t('allProductsSubtitle')} />
 
-          <div className="w-full min-w-0 flex-1">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
-                <p className={`whitespace-nowrap text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} aria-live="polite">
-                  Showing <b className={darkMode ? 'text-white' : 'text-gray-900'}>{startItem}–{endItem}</b> of <b className={darkMode ? 'text-white' : 'text-gray-900'}>{filteredProducts.length}</b> items
-                </p>
-                <div className={`flex min-w-[160px] max-w-xs flex-1 items-center gap-2 rounded-xl border px-3 py-2 focus-within:border-emerald-500 ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
-                  <FiSearch className={`h-4 w-4 flex-shrink-0 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
-                  <input type="search" value={searchTerm} maxLength={80} onChange={(e) => setSearchTerm(e.target.value)} placeholder={getDeviceTranslation('search')} aria-label="Search products"
-                    className={`min-w-0 flex-1 bg-transparent text-sm outline-none ${darkMode ? 'text-white placeholder:text-gray-500' : 'text-gray-900 placeholder:text-gray-500'}`} />
-                  {searchTerm && <button type="button" onClick={() => setSearchTerm('')} aria-label="Clear search" className={darkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-800'}><FiX className="h-3.5 w-3.5" /></button>}
+          <div className="flex items-start gap-5 lg:gap-8">
+            <aside className="nb-aside sticky top-20 hidden max-h-[calc(100vh-6rem)] w-[17rem] min-w-0 flex-shrink-0 self-start overflow-y-auto overscroll-contain pb-2 pe-2 lg:block xl:w-[19rem]">
+              <FilterPanel {...filterPanelProps} />
+            </aside>
+
+            <div className="w-full min-w-0 flex-1">
+              <div className="nb-card mb-6 flex flex-col gap-3 p-3 sm:p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm opacity-80" aria-live="polite">
+                    {interpolateNodes(t('showing'), {
+                      range: <b className="opacity-100" dir="ltr">{startItem}–{endItem}</b>,
+                      total: <b dir="ltr">{filteredProducts.length}</b>,
+                    })}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="hidden items-center gap-2 lg:flex">
+                      <NbDropdown ariaLabel={t('rowsPerPage')} value={pageSize} onChange={setPageSize} options={rowOptions} className="w-36 flex-shrink-0" />
+                      {[['grid', FiGrid, t('gridView')], ['list', FiList, t('listView')]].map(([mode, Icon, label]) => (
+                        <button key={mode} type="button" onClick={() => setViewMode(mode)} aria-label={label} aria-pressed={viewMode === mode}
+                          className={`nb-btn h-10 w-10 ${viewMode === mode ? 'nb-btn-on' : ''}`}>
+                          <Icon className="h-4 w-4" />
+                        </button>
+                      ))}
+                    </div>
+                    <button type="button" onClick={openSidebar} className="nb-btn h-10 px-3 text-xs uppercase lg:hidden">
+                      <FiSliders className="h-3.5 w-3.5" /> {t('filters')}
+                      {activeFiltersCount > 0 && <span className="flex h-4 min-w-[1rem] items-center justify-center bg-[color:var(--nb-on)] px-1 text-[10px] font-bold text-white">{activeFiltersCount}</span>}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <SearchField value={searchTerm} onChange={setSearchTerm} placeholder={t('search')} ariaLabel={t('searchAria')} clearLabel={t('clearSearch')} pending={searchPending} />
+                  <NbDropdown ariaLabel={t('sortProducts')} value={sortBy} onChange={setSortBy} options={sortOptions} className="w-full sm:w-52" />
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                <div className="flex gap-1.5">
-                  {[['grid', FiGrid], ['list', FiList]].map(([mode, Icon]) => (
-                    <Btn3D key={mode} tone={viewMode === mode ? 'em' : 'soft'} darkMode={darkMode} onClick={() => setViewMode(mode)} aria-label={`${mode} view`} aria-pressed={viewMode === mode} className="h-9 w-9">
-                      <Icon className="h-4 w-4" />
-                    </Btn3D>
-                  ))}
+              {activeFiltersCount > 0 && (
+                <div className="mb-6 flex flex-wrap items-center gap-2">
+                  {selectedCategoryId !== 'all' && <FilterChip label={selectedCategoryName || t('category')} onRemove={resetCategory} />}
+                  {selectedConditions.map((c) => <FilterChip key={c} label={condLabel(t, c)} onRemove={() => toggleCondition(c)} />)}
+                  {priceRange && <FilterChip label={`${money(priceValue[0], currency)} – ${money(priceValue[1], currency)}`} onRemove={resetPrice} />}
+                  {inStockOnly && <FilterChip label={t('inStock')} onRemove={resetStock} />}
+                  {searchTerm && <FilterChip label={`“${searchTerm.slice(0, 20)}”`} onRemove={resetSearch} />}
+                  <button type="button" onClick={clearFilters} className="text-xs font-bold underline underline-offset-4">{t('clearAll')}</button>
                 </div>
-                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} aria-label="Sort products"
-                  className={`rounded-xl border px-3 py-2 text-sm font-medium outline-none focus:border-emerald-500 ${darkMode ? 'border-gray-700 bg-gray-800 text-gray-200' : 'border-gray-200 bg-white text-gray-700'}`}>
-                  {Object.entries(sortLabels).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                </select>
-                <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} aria-label="Items per page"
-                  className={`hidden rounded-xl border px-3 py-2 text-sm font-medium outline-none focus:border-emerald-500 sm:block ${darkMode ? 'border-gray-700 bg-gray-800 text-gray-200' : 'border-gray-200 bg-white text-gray-700'}`}>
-                  {[12, 24, 48].map((n) => <option key={n} value={n}>{n} / page</option>)}
-                </select>
-                <Btn3D tone="soft" darkMode={darkMode} onClick={() => setIsSidebarOpen(true)} className="px-3 py-2 text-xs lg:hidden">
-                  <FiSliders className="h-3.5 w-3.5 text-emerald-500" /> Filters
-                  {activeFiltersCount > 0 && <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-bold text-white">{activeFiltersCount}</span>}
-                </Btn3D>
-              </div>
+              )}
+
+              {isLoading ? (
+                <div className={`grid gap-4 sm:gap-6 ${skeletonCols}`} role="status" aria-busy="true">
+                  {Array.from({ length: 8 }).map((_, i) => <div key={i} className="nb-gray nb-line h-[300px] animate-pulse border-2 motion-reduce:animate-none sm:h-[360px]" />)}
+                </div>
+              ) : isError ? (
+                <div className="nb-card px-4 py-14 text-center sm:py-20">
+                  <DeviceScene className="mx-auto mb-4 h-24 w-32" />
+                  <p className="mb-2 text-lg font-extrabold uppercase sm:text-xl">{t('loadErrorTitle')}</p>
+                  <p className="mb-6 text-sm opacity-80">{t('loadErrorText')}</p>
+                  <button type="button" onClick={() => refetch()} className="nb-btn nb-btn-a px-6 py-3 text-sm uppercase"><FiRefreshCw className="h-4 w-4" /> {t('tryAgain')}</button>
+                </div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="nb-card px-4 py-14 text-center sm:py-24">
+                  <DeviceScene className="mx-auto mb-4 h-24 w-32" />
+                  <p className="mb-2 text-lg font-extrabold uppercase sm:text-2xl">{t('noProducts')}</p>
+                  <p className="mb-6 text-sm opacity-80 sm:text-base">{t('adjustFilters')}</p>
+                  <button type="button" onClick={clearFilters} className="nb-btn nb-btn-a px-6 py-3 text-sm uppercase sm:text-base">{t('clearFilters')}</button>
+                </div>
+              ) : (
+                <div aria-busy={stale} className={`transition-opacity duration-150 motion-reduce:transition-none ${stale ? 'opacity-70' : 'opacity-100'}`}>
+                  <ProductGrid products={listProducts} offset={listOffset} layout={layout} darkMode={darkMode} onAddToCart={handleAddToCart} onOpen={openProduct} t={t} />
+                  {isMobile
+                    ? <InfiniteSentinel hasMore={hasMore} count={filteredProducts.length} onMore={loadMore} t={t} />
+                    : <Pagination page={currentPage} total={totalPages} onChange={goToPage} t={t} />}
+                </div>
+              )}
             </div>
-
-            {activeFiltersCount > 0 && (
-              <div className="mb-5 flex flex-wrap items-center gap-2">
-                {selectedCategoryId !== 'all' && chip(selectedCategoryName || 'Category', () => setSelectedCategoryId('all'))}
-                {selectedConditions.map((c) => chip(conditionConfig[c]?.label || c, () => toggleCondition(c)))}
-                {priceRange && chip(`${money(priceValue[0])} – ${money(priceValue[1])}`, () => setPriceRangeState(null))}
-                {inStockOnly && chip('In stock', () => setInStockOnly(false))}
-                {searchTerm && chip(`“${searchTerm.slice(0, 20)}”`, () => setSearchTerm(''))}
-                <button type="button" onClick={clearFilters} className="text-xs font-semibold text-emerald-500 hover:text-emerald-400">Clear all</button>
-              </div>
-            )}
-
-            {isLoading ? (
-              <div className={`grid gap-4 sm:gap-5 lg:gap-6 ${gridCols}`}>
-                {Array.from({ length: 9 }).map((_, i) => <div key={i} className={`h-[300px] animate-pulse rounded-2xl sm:h-[360px] ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`} />)}
-              </div>
-            ) : isError ? (
-              <div className="py-20 text-center">
-                <DeviceScene compact className="mx-auto mb-4 h-24 w-32" />
-                <p className={`mb-2 text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>We couldn’t load the products</p>
-                <p className={`mb-6 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Check your connection and try again.</p>
-                <Btn3D onClick={() => refetch()} className="px-6 py-3 text-sm">Try again</Btn3D>
-              </div>
-            ) : filteredProducts.length === 0 ? (
-              <div className="py-20 text-center sm:py-28">
-                <DeviceScene compact className="mx-auto mb-4 h-24 w-32" />
-                <p className={`mb-2 text-xl font-bold sm:text-2xl ${darkMode ? 'text-white' : 'text-gray-800'}`}>{getDeviceTranslation('noProducts')}</p>
-                <p className={`mb-6 text-sm sm:text-base ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{getDeviceTranslation('adjustFilters')}</p>
-                <Btn3D onClick={clearFilters} className="px-6 py-3 text-sm sm:text-base">{getDeviceTranslation('clearFilters')}</Btn3D>
-              </div>
-            ) : (
-              <div className={`grid gap-4 sm:gap-5 lg:gap-6 ${gridCols}`}>
-                {paginatedProducts.map((p, i) => <ProductCard key={p.id} product={p} darkMode={darkMode} onAddToCart={handleAddToCart} index={i} layout={viewMode} />)}
-              </div>
-            )}
-
-            {totalPages > 1 && (
-              <nav aria-label="Pagination" className="mt-10 flex flex-wrap items-center justify-center gap-2 sm:mt-14">
-                <PageBtn darkMode={darkMode} aria-label="Previous page" onClick={() => { setCurrentPage((p) => Math.max(1, p - 1)); scrollToGrid(); }} disabled={currentPage === 1}><FiChevronLeft className="h-4 w-4" /></PageBtn>
-                {getPaginationRange(currentPage, totalPages).map((pg, i) =>
-                  pg === '…'
-                    ? <span key={`d${i}`} className={`w-8 text-center text-sm ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>…</span>
-                    : <PageBtn key={pg} darkMode={darkMode} active={currentPage === pg} onClick={() => { setCurrentPage(pg); scrollToGrid(); }}>{pg}</PageBtn>
-                )}
-                <PageBtn darkMode={darkMode} aria-label="Next page" onClick={() => { setCurrentPage((p) => Math.min(totalPages, p + 1)); scrollToGrid(); }} disabled={currentPage === totalPages}><FiChevronRight className="h-4 w-4" /></PageBtn>
-              </nav>
-            )}
           </div>
         </div>
-      </div>
+      </section>
 
-      <AnimatePresence>
-        {showTop && (
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }} className="fixed bottom-5 right-5 z-40">
-            <Btn3D onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Back to top" className="h-11 w-11"><FiArrowUp className="h-5 w-5" /></Btn3D>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <LazyMotion features={domAnimation}>
+        <AnimatePresence>
+          {showTop && (
+            <m.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }} className="fixed bottom-5 end-5 z-40">
+              <button type="button" onClick={scrollToTop} aria-label={t('backToTop')} className="nb-btn nb-btn-a h-11 w-11"><FiArrowUp className="h-5 w-5" /></button>
+            </m.div>
+          )}
+        </AnimatePresence>
 
-      <AnimatePresence>
-        {isSidebarOpen && (
-          <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Filters">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="absolute inset-0 bg-black/50" onClick={() => setIsSidebarOpen(false)} />
-            <motion.div initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: 'tween', duration: 0.2 }}
-              className={`absolute bottom-0 left-0 top-0 w-80 max-w-[90vw] overflow-y-auto p-4 ${darkMode ? 'bg-gray-950' : 'bg-gray-50'}`}>
-              <div className="mb-3 flex justify-end">
-                <Btn3D tone="soft" darkMode={darkMode} onClick={() => setIsSidebarOpen(false)} aria-label="Close filters" className="h-9 w-9"><FiX className="h-5 w-5" /></Btn3D>
-              </div>
-              <FilterPanel {...filterPanelProps} />
-              <Btn3D onClick={() => { setIsSidebarOpen(false); scrollToGrid(); }} className="mt-4 w-full py-3 text-sm">Show {filteredProducts.length} items</Btn3D>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+        <AnimatePresence>
+          {isSidebarOpen && (
+            <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label={t('filters')}>
+              <m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="absolute inset-0 bg-black/60" onClick={closeSidebar} />
+              <m.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'tween', duration: 0.22 }}
+                className="nb-bg nb-line nb-drawer absolute inset-x-0 bottom-0 flex max-h-[88vh] min-w-0 transform-gpu flex-col border-t-2 sm:inset-y-0 sm:end-auto sm:start-0 sm:max-h-none sm:w-[22rem] sm:max-w-[90vw] sm:border-e-2 sm:border-t-0 md:w-96">
+                <div className="flex items-center justify-between px-3 pb-2 pt-4 sm:px-4">
+                  <h3 className="text-base font-extrabold uppercase"><span className="nb-ul">{t('filters')}</span></h3>
+                  <button type="button" onClick={closeSidebar} aria-label={t('closeFilters')} className="nb-btn h-9 w-9"><FiX className="h-5 w-5" /></button>
+                </div>
+                <div className="min-w-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4 pe-4 sm:px-4 sm:pe-5"><FilterPanel {...filterPanelProps} /></div>
+                <div className="nb-line nb-drawer border-t-2 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4">
+                  <button type="button" onClick={() => { closeSidebar(); scrollToGrid(); }} className="nb-btn nb-btn-a w-full py-3 text-sm uppercase">{t('showItems', { count: filteredProducts.length })}</button>
+                </div>
+              </m.div>
+            </div>
+          )}
+        </AnimatePresence>
+      </LazyMotion>
     </div>
   );
 });
@@ -956,5 +1063,5 @@ const Products = memo((props) => (
     <ProductsContent {...props} />
   </QueryClientProvider>
 ));
-
+export { queryClient };
 export default Products;

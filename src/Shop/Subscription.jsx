@@ -1,246 +1,401 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
+import React, {
+  useState, useEffect, useCallback, useMemo, useRef, memo,
+} from 'react';
 import {
-  FaCalendar, FaCreditCard, FaMoneyBillWave, FaHeadset, FaCogs,
-} from 'react-icons/fa';
-import { FiChevronDown, FiX, FiCheck, FiRefreshCw, FiZap, FiActivity, FiArrowLeft, FiClock, FiShield, FiMoreHorizontal } from 'react-icons/fi';
-import { RiCalendar2Line, RiStore2Line, RiVerifiedBadgeLine } from 'react-icons/ri';
-import Swal from 'sweetalert2';
-import api from '../api';
+  FiCheck, FiZap, FiActivity, FiClock, FiShield, FiCreditCard, FiDollarSign, FiRefreshCw,
+} from 'react-icons/fi';
+import api from '../common/api/api';
+import { UI3D_CSS, Defs3D } from '../components/user/Ui3D';
+import { EXTRAS_CSS, Toaster, toast, EmptyState3D } from '../components/user/UiExtras';
+import {
+  BTN, BTN_MD, BTN_PRIMARY, CARD, PANEL, TH, SCROLL_CSS,
+  toTs, fmt, formatPrice, tpl, renderTpl, shortId, errText, confirmDialog,
+  useDarkMode, useShopLocale, StatCard, RowsDropdown, Pagination, SectionTitle,
+} from '../components/shop/TableKit';
+import { ensureShopAssets } from '../common/utils/shopFonts';
+
+ensureShopAssets();
+
+const PRICE_PER_MONTH = { COMMISSION: 1000, RATIO: 800 };
+const PLANS = Object.keys(PRICE_PER_MONTH);
+const DURATIONS = [1, 3, 6, 12];
+const TAB_KEYS = ['all', 'active', 'expired'];
+const SKELETON_ROWS = [0, 1, 2, 3];
+const SKELETON_COLS = [0, 1, 2, 3];
+
+const PAGE_CSS = UI3D_CSS + EXTRAS_CSS + SCROLL_CSS;
+const INK = '#04261a';
+const ACTIVE_CHIP = { background: '#34d399', color: INK };
+const EXPIRED_CHIP = { background: '#ef4444', color: '#ffffff' };
+const HEAD_CLS = 'sticky top-0 z-10 nb-gray shadow-[0_2px_0_0_var(--nb-line)]';
+
+const PAYMENT_HOSTS = [];
+
+const safePaymentUrl = (raw) => {
+  try {
+    const u = new URL(String(raw));
+    if (u.protocol !== 'https:') return null;
+    if (PAYMENT_HOSTS.length && !PAYMENT_HOSTS.some((h) => u.hostname === h || u.hostname.endsWith(`.${h}`))) return null;
+    return u.href;
+  } catch { return null; }
+};
+
+const payError = (err, e) => {
+  const status = err?.response?.status;
+  const data = err?.response?.data || {};
+  const raw = String(data.message || '');
+  const code = String(data.error_code || data.code || '');
+  if (/amount_cents|amount must|price must/i.test(raw)) return e.amount;
+  if (/payment not found/i.test(raw)) return e.paymentNotFound;
+  if (/not a cash payment/i.test(raw)) return e.notCash;
+  if (/no enum constant|paymentstatus|cannot be converted|invalid status/i.test(raw)) return e.badStatus;
+  if (/not found/i.test(raw) || status === 404) return e.notFound;
+  if (/already completed/i.test(raw)) return e.alreadyCompleted;
+  if (/duplicate|paymob|unprocessable/i.test(raw) || status === 422) return e.duplicate;
+  if (status === 401) return e.session;
+  if (status === 403) return e.forbidden;
+  if (status >= 500 || /RUNTIME_ERROR|RT_001/i.test(`${raw} ${code}`)) return e.unexpected;
+  return errText(err);
+};
+
+const isActiveSub = (end) => toTs(end) > Date.now();
 
 
 
+const TabBtn = memo(({ k, active, label, count, onSelect }) => {
+  const click = useCallback(() => onSelect(k), [onSelect, k]);
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={click}
+      className={`${BTN} flex-shrink-0 px-3 py-2 text-xs uppercase rtl:tracking-normal ${active ? 'nb-btn-on' : ''}`}
+    >
+      {label}
+      <span className="nb-chip !px-1.5" style={active ? undefined : { background: 'var(--nb-gray)' }}>{count}</span>
+    </button>
+  );
+});
 
-const PRICE_PER_MONTH  = { COMMISSION: 1000, RATIO: 800 };
-const TYPE_LABELS      = { COMMISSION: 'خطة العمولة الذكية', RATIO: 'الخطة الثابتة الاحترافية' };
-const CURRENCY         = 'EGP';
+const ChoiceCard = memo(({ value, on, onSelect, className = '', children }) => {
+  const click = useCallback(() => onSelect(value), [onSelect, value]);
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={on}
+      onClick={click}
+      className={`${BTN} ${className} ${on ? 'nb-btn-on' : ''}`}
+    >
+      {children}
+    </button>
+  );
+});
 
-
-
-
-const showToast = (text, icon) =>
-  Swal.fire({ text, icon, toast: true, position: 'top-start', showConfirmButton: false, timer: 3000 });
-
-
-
-
-const StatCard = memo(({ icon: Icon, label, value, color, description }) => (
-  <div className="relative group bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 p-6 transition-all duration-500 hover:shadow-2xl hover:shadow-gray-200/50 dark:hover:shadow-none overflow-hidden">
-    <div className={`absolute top-0 right-0 w-24 h-24 bg-${color}-500/5 rounded-bl-full translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-700`} />
-    <div className="flex flex-col h-full relative z-10 text-right">
-      <div className={`w-12 h-12 rounded-full bg-white border-2 border-gray-100 dark:border-gray-800 dark:bg-${color}-900/20 flex items-center justify-center text-${color}-600 dark:text-${color}-400 mb-4 group-hover:rotate-6 transition-transform`}>
-        <Icon size={22} />
-      </div>
-      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">{label}</p>
-      <p className="text-lg font-black text-gray-900 dark:text-white mt-1">{value}</p>
-      <p className="text-[9px] font-bold text-gray-400 mt-2">{description}</p>
-    </div>
-  </div>
-));
-
+const SubRow = memo(({ sub, loc }) => {
+  const { L, fm } = loc;
+  const t = L.subs;
+  return (
+    <tr>
+      <td className="whitespace-nowrap px-3 py-3">
+        <p className="text-xs font-extrabold">{t.plans[sub.type]?.label || sub.type || '—'}</p>
+        <p dir="ltr" className="nb-muted text-start text-[10px] font-bold tabular-nums">#{shortId(sub.id)}</p>
+      </td>
+      <td className="whitespace-nowrap px-3 py-3 text-[13px] font-extrabold tabular-nums">{formatPrice(sub.totalAmount, L.table.price, fm.number)}</td>
+      <td className="whitespace-nowrap px-3 py-3">
+        <p className="text-xs font-extrabold">{fmt(fm.date, sub.startDate)}</p>
+        <p className="nb-muted text-[10px] font-semibold">{tpl(t.history.to, { d: fmt(fm.date, sub.endDate) })}</p>
+      </td>
+      <td className="whitespace-nowrap px-3 py-3">
+        <span className="nb-chip !normal-case" style={sub.active ? ACTIVE_CHIP : EXPIRED_CHIP}>
+          {sub.active ? t.status.active : t.status.expired}
+        </span>
+      </td>
+    </tr>
+  );
+});
 
 
 
 const Subscriptions = () => {
+  const darkMode = useDarkMode();
+  const loc = useShopLocale();
+  const { language, L, fm, dir, font } = loc;
+  const t = L.subs;
+  const tt = L.table;
+  const nf = fm.number;
+
   const [currentSub, setCurrentSub] = useState(null);
-  const [allSubs, setAllSubs]       = useState([]);
-  const [loading, setLoading]       = useState(true);
+  const [allSubs, setAllSubs] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [duration, setDuration]     = useState(1);
-  const [type, setType]             = useState('COMMISSION');
+  const [duration, setDuration] = useState(1);
+  const [type, setType] = useState('COMMISSION');
+  const [tab, setTab] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  useEffect(() => { document.title = 'إدارة الاشتراكات الاحترافية'; }, []);
+  const submittingRef = useRef(false);
+  const abortRef = useRef(null);
+  const locRef = useRef(loc);
+  useEffect(() => { locRef.current = loc; }, [loc]);
+  useEffect(() => { document.title = t.docTitle; }, [t.docTitle]);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [currentRes, allRes] = await Promise.allSettled([
-        api.get('/api/subscriptions'),
-        api.get('/api/subscriptions/all'),
-      ]);
-      if (currentRes.status === 'fulfilled') {
-        const data = currentRes.value.data;
-        setCurrentSub(Array.isArray(data) ? data[0] : data);
-      }
-      if (allRes.status === 'fulfilled') {
-        const data = allRes.value.data;
-        setAllSubs(Array.isArray(data) ? data : data?.content || []);
-      }
-    } catch { showToast('فشل تحميل بيانات الاشتراكات', 'error'); }
-    finally { setLoading(false); }
+  useEffect(() => {
+    const onShow = (e) => { if (e.persisted) { submittingRef.current = false; setSubmitting(false); } };
+    window.addEventListener('pageshow', onShow);
+    return () => window.removeEventListener('pageshow', onShow);
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  const fetchData = useCallback(async () => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const { signal } = controller;
+    setLoading(true);
+    const [cur, all] = await Promise.allSettled([
+      api.get('/api/subscriptions', { signal }),
+      api.get('/api/subscriptions/all', { signal }),
+    ]);
+    if (signal.aborted) return;
+    if (cur.status === 'fulfilled') {
+      const d = cur.value.data;
+      setCurrentSub((Array.isArray(d) ? d[0] : d) || null);
+    }
+    if (all.status === 'fulfilled') {
+      const d = all.value.data;
+      setAllSubs((Array.isArray(d) ? d : d?.content || []).map((s) => ({ ...s, active: isActiveSub(s.endDate) })));
+    }
+    if (cur.status === 'rejected' && all.status === 'rejected') {
+      const x = locRef.current.L.subs;
+      toast({ icon: 'error', title: x.toasts.loadFail, text: payError(cur.reason, x.errors) });
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchData(); return () => abortRef.current?.abort(); }, [fetchData]);
 
   const handleSubscribe = useCallback(async (method) => {
-    setSubmitting(true);
+    if (submittingRef.current) return;
+    const { L: LL, fm: ff } = locRef.current;
+    const x = LL.subs;
+    if (!PLANS.includes(type) || !DURATIONS.includes(duration)) {
+      toast({ icon: 'error', title: x.toasts.invalidChoice, text: x.toasts.invalidChoiceText });
+      return;
+    }
+    const card = method === 'card';
+    let isConfirmed = false;
     try {
-      const payload = { months: duration, type: type.toUpperCase() };
-      const endpoint = method === 'card' ? '/api/subscriptions/card' : '/api/subscriptions/cash';
-      const res = await api.post(endpoint, payload);
-      
-      if (method === 'card' && res.data.paymentURL) {
-        window.location.href = res.data.paymentURL;
-      } else {
-        showToast(method === 'card' ? 'تم تفعيل الاشتراك بنجاح' : 'تم إرسال طلب الدفع النقدي', 'success');
-        fetchData();
+      ({ isConfirmed } = await confirmDialog({
+        title: card ? x.confirm.cardTitle : x.confirm.cashTitle,
+        text: `${x.plans[type].label} · ${x.durations[duration]} · ${formatPrice(PRICE_PER_MONTH[type] * duration, LL.table.price, ff.number)}`,
+        icon: 'question',
+        confirmButtonText: card ? x.confirm.cardBtn : x.confirm.cashBtn,
+        cancelButtonText: LL.table.cancel,
+        confirmButtonColor: '#10b981',
+      }));
+    } catch {
+      toast({ icon: 'error', title: x.toasts.confirmFail, text: x.toasts.confirmFailText });
+      return;
+    }
+    if (!isConfirmed) return;
+
+    submittingRef.current = true;
+    setSubmitting(true);
+    let leaving = false;
+    try {
+      const res = await api.post(card ? '/api/subscriptions/card' : '/api/subscriptions/cash', { months: duration, type });
+      if (card) {
+        const url = safePaymentUrl(res.data?.paymentURL);
+        if (!url) {
+          toast({ icon: 'error', title: res.data?.paymentURL ? x.toasts.unsafeLink : x.toasts.noLink, text: x.toasts.noLinkText });
+          fetchData();
+          return;
+        }
+        leaving = true;
+        window.location.assign(url);
+        return;
       }
-    } catch { showToast('فشل إتمام العملية', 'error'); }
-    finally { setSubmitting(false); }
+      toast({ icon: 'success', title: x.toasts.cashSent });
+      fetchData();
+    } catch (err) {
+      const y = locRef.current.L.subs;
+      toast({ icon: 'error', title: y.toasts.failed, text: payError(err, y.errors) });
+    } finally {
+      if (!leaving) {
+        submittingRef.current = false;
+        setSubmitting(false);
+      }
+    }
   }, [duration, type, fetchData]);
 
-  const isActive = useCallback((date) => date && new Date(date) > new Date(), []);
+  const payByCard = useCallback(() => handleSubscribe('card'), [handleSubscribe]);
+  const payByCash = useCallback(() => handleSubscribe('cash'), [handleSubscribe]);
+  const refresh = useCallback(() => fetchData(), [fetchData]);
 
+  const sorted = useMemo(() => [...allSubs].sort((a, b) => toTs(b.startDate) - toTs(a.startDate)), [allSubs]);
+  const counts = useMemo(() => {
+    const active = allSubs.filter((s) => s.active).length;
+    return { all: allSubs.length, active, expired: allSubs.length - active };
+  }, [allSubs]);
+  const filtered = useMemo(() => (tab === 'all' ? sorted : sorted.filter((s) => s.active === (tab === 'active'))), [sorted, tab]);
+
+  useEffect(() => { setCurrentPage(1); }, [tab, rowsPerPage]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+  const page = Math.min(currentPage, totalPages);
+  const paginated = useMemo(() => filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage), [filtered, page, rowsPerPage]);
+  const from = filtered.length ? (page - 1) * rowsPerPage + 1 : 0;
+  const to = Math.min(page * rowsPerPage, filtered.length);
+
+  const activeNow = isActiveSub(currentSub?.endDate);
   const statCards = useMemo(() => [
-    { icon: FiShield, label: 'حالة الحساب', value: isActive(currentSub?.endDate) ? "نشط" : "منتهي", color: "emerald", description: "بناءً على اشتراكك الحالي" },
-    { icon: FiClock, label: 'تاريخ الانتهاء', value: currentSub?.endDate ? new Date(currentSub.endDate).toLocaleDateString('ar-EG') : "—", color: "orange", description: "موعد تجديد الاشتراك" },
-    { icon: FiZap, label: 'الخطة الحالية', value: currentSub?.type ? (TYPE_LABELS[currentSub.type] || currentSub.type) : "لا يوجد", color: "blue", description: "نوع الاشتراك المفعل" },
-    { icon: FiActivity, label: 'العمليات', value: allSubs.length.toLocaleString('ar-EG'), color: "indigo", description: "إجمالي سجل المدفوعات" },
-  ], [currentSub, allSubs.length, isActive]);
+    { label: t.stats.status.label, value: activeNow ? t.stats.status.active : t.stats.status.expired, description: t.stats.status.desc, icon: FiShield, tone: activeNow ? 'em' : 'ro' },
+    { label: t.stats.expiry.label, value: currentSub?.endDate ? fmt(fm.date, currentSub.endDate) : '—', description: t.stats.expiry.desc, icon: FiClock, tone: 'am' },
+    { label: t.stats.plan.label, value: currentSub?.type ? (t.plans[currentSub.type]?.label || currentSub.type) : t.stats.plan.none, description: t.stats.plan.desc, icon: FiZap, tone: 'sky' },
+    { label: t.stats.ops.label, value: nf.format(allSubs.length), description: t.stats.ops.desc, icon: FiActivity, tone: 'vi' },
+  ], [currentSub, allSubs.length, activeNow, t, fm, nf]);
+
+  const total = PRICE_PER_MONTH[type] * duration;
 
   return (
-    <div dir="rtl" className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pr-64 mt-16 transition-all duration-500 font-cairo text-right">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-10">
+    <div
+      dir={dir}
+      lang={language}
+      style={font}
+      className="nb-page min-h-screen py-6 lg:ps-64 mt-16 text-start"
+    >
+      <style>{PAGE_CSS}</style>
+      <Defs3D />
+      <Toaster darkMode={darkMode} />
 
-      
-      
-
-        <div className="flex flex-col md:flex-row md:items-end mt-3 justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-1.5 rounded-full bg-emerald-500" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">نظام العضويات</span>
-            </div>
-            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">باقات <span className="text-emerald-500">الاشتراك</span></h1>
-            <p className="text-sm font-bold text-gray-500 dark:text-gray-400">اختر الباقة المناسبة لحجم أعمالك واستمتع بمميزات تقنية غير محدودة</p>
+      <div key={language} className="lang-fade mx-auto max-w-7xl space-y-6 px-4 sm:px-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <span className="nb-bar" aria-hidden="true" />
+            <h1 className="mt-2 text-2xl font-extrabold leading-[1.15] tracking-tight rtl:tracking-normal sm:text-3xl">
+              <span className="nb-ul">{t.title[0]}{t.title[1]}</span>
+            </h1>
+            <p className="nb-muted mt-2 text-xs font-semibold">{t.subtitle}</p>
           </div>
+          <button type="button" onClick={refresh} aria-label={tt.refresh} title={tt.refresh} className={`${BTN_MD} h-10 uppercase rtl:tracking-normal`}>
+            <FiRefreshCw size={14} className={loading ? 'animate-spin motion-reduce:animate-none' : ''} aria-hidden="true" /> {tt.refresh}
+          </button>
         </div>
 
-       
-       
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4  gap-6">
-           {statCards.map(s => <StatCard  key={s.label} {...s} />)}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {statCards.map((s) => <StatCard key={s.label} {...s} />)}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          
-           <div className="lg:col-span-1 space-y-6">
-              <div className="bg-white dark:bg-gray-800 rounded-none border border-gray-100 dark:border-gray-700 p-8 shadow-xl shadow-gray-200/20 dark:shadow-none space-y-8">
-                 <div className="space-y-4">
-                    <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">اختر خطتك</h3>
-                    <div className="space-y-3">
-                       {['COMMISSION', 'RATIO'].map(t => (
-                          <button key={t} onClick={() => setType(t)} className={`w-full p-5 rounded-none border-2 transition-all text-right group ${type === t ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/10' : 'border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 hover:border-emerald-200'}`}>
-                             <div className="flex items-center justify-between mb-1">
-                                <p className={`text-xs font-black uppercase tracking-widest ${type === t ? 'text-emerald-600' : 'text-gray-400'}`}>{t === 'COMMISSION' ? "الأكثر شيوعاً" : "للمحترفين"}</p>
-                                {type === t && <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-white"><FiCheck size={12} /></div>}
-                             </div>
-                             <p className={`text-sm font-black ${type === t ? 'text-gray-900 dark:text-white' : 'text-gray-500'}`}>{TYPE_LABELS[t]}</p>
-                             <p className="text-xl font-black text-emerald-600 mt-2">{PRICE_PER_MONTH[t]} {CURRENCY} <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">/ شهر</span></p>
-                          </button>
-                       ))}
-                    </div>
-                 </div>
-
-                 <div className="space-y-4">
-                    <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">مدة الاشتراك</h3>
-                    <div className="grid grid-cols-2 gap-3">
-                       {[1, 3, 6, 12].map(m => (
-                          <button title="اختر المدة" key={m} onClick={() => setDuration(m)} className={`py-4 rounded-2xl border transition-all text-[10px] font-black uppercase tracking-widest ${duration === m ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-transparent shadow-xl' : 'bg-gray-50 dark:bg-gray-900 border-transparent text-gray-400 hover:bg-gray-100'}`}>
-                             {m === 1 ? "شهر واحد" : m === 12 ? "سنة كاملة" : `${m} أشهر`}
-                          </button>
-                       ))}
-                    </div>
-                 </div>
-
-                 <div className="pt-6 border-t border-gray-100 dark:border-gray-700 space-y-4 text-center">
-                    <div className="flex items-center justify-between px-2">
-                       <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">الإجمالي المطلوب</span>
-                       <span className="text-2xl font-black text-gray-900 dark:text-white">{(PRICE_PER_MONTH[type] * duration).toLocaleString('ar-EG')} {CURRENCY}</span>
-                    </div>
-                    <div className="flex gap-3">
-                       <button title="الدفع بالبطاقة" onClick={() => handleSubscribe('card')} disabled={submitting} className="flex-1 py-4 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 active:scale-95">الدفع بالبطاقة</button>
-                       <button title="الدفع نقداً" onClick={() => handleSubscribe('cash')} disabled={submitting} className="flex-1 py-4 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-200 dark:hover:bg-gray-600 transition-all active:scale-95">دفع نقدي</button>
-                    </div>
-                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-relaxed">بضغطك على زر الاشتراك أنت توافق على شروط الخدمة وسياسة الخصوصية الخاصة بالمنصة</p>
-                 </div>
+        <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-3">
+          <section className={`${CARD} space-y-5 p-5 lg:col-span-1`}>
+            <div className="space-y-3">
+              <SectionTitle>{t.choosePlan}</SectionTitle>
+              <div role="radiogroup" aria-label={t.planAria} className="space-y-2.5">
+                {PLANS.map((p) => (
+                  <ChoiceCard key={p} value={p} on={type === p} onSelect={setType} className="w-full !items-start !justify-between p-3.5 text-start">
+                    <span className="space-y-1">
+                      <span className="block text-[10px] font-bold uppercase opacity-80 rtl:tracking-normal">{t.plans[p].badge}</span>
+                      <span className="block text-xs font-extrabold uppercase rtl:tracking-normal">{t.plans[p].label}</span>
+                      <span className="block text-base font-extrabold tabular-nums">
+                        {formatPrice(PRICE_PER_MONTH[p], tt.price, nf)} <span className="text-[10px] font-semibold opacity-80">{t.perMonth}</span>
+                      </span>
+                    </span>
+                    {type === p && (
+                      <span className="nb-ico h-5 w-5 flex-shrink-0" style={{ background: '#34d399' }}><FiCheck size={12} aria-hidden="true" /></span>
+                    )}
+                  </ChoiceCard>
+                ))}
               </div>
-           </div>
+            </div>
 
-           
-           
-           <div className="lg:col-span-2 space-y-6">
-              <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden">
-                 <div className="px-8 py-6 border-b border-gray-50 dark:border-gray-700 flex items-center justify-between bg-gray-50/30 dark:bg-gray-900/30">
-                    <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">سجل المدفوعات والاشتراكات</h3>
-                    
-                 </div>
-                 <div className="overflow-x-auto custom-scrollbar-thin">
-                    <table className="w-full text-right border-collapse">
-                       <thead>
-                          <tr className="bg-gray-50 dark:bg-gray-900 border-b border-gray-50 dark:border-gray-800">
-                             <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">النوع</th>
-                             <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">المبلغ</th>
-                             <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">الصلاحية</th>
-                             <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-left">الحالة</th>
-                          </tr>
-                       </thead>
-                       <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                          {loading ? (
-                             [...Array(3)].map((_, i) => (
-                                <tr key={i} className="animate-pulse">
-                                   {[...Array(4)].map((_, j) => <td key={j} className="px-8 py-6"><div className="h-4 bg-gray-100 dark:bg-gray-700 rounded-lg w-full" /></td>)}
-                                </tr>
-                             ))
-                          ) : allSubs.length === 0 ? (
-                             <tr>
-                                <td colSpan={4} className="px-8 py-20 text-center">
-                                   <div className="w-16 h-16 bg-gray-50 dark:bg-gray-900 rounded-2xl flex items-center justify-center mx-auto mb-4 text-gray-200">
-                                      <FiZap size={32} />
-                                   </div>
-                                   <p className="text-xs font-black text-gray-400 uppercase tracking-widest">لا يوجد سجل مدفوعات حالياً</p>
-                                </td>
-                             </tr>
-                          ) : allSubs.map(sub => {
-                             const active = isActive(sub.endDate);
-                             return (
-                                <tr key={sub.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/50 transition-colors">
-                                   <td className="px-8 py-6 whitespace-nowrap">
-                                      <p className="text-xs font-black text-gray-900 dark:text-white">{TYPE_LABELS[sub.type] || sub.type}</p>
-                                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">#{sub.id?.slice(0, 8)}</p>
-                                   </td>
-                                   <td className="px-8 py-6 whitespace-nowrap text-center  font-black text-sm text-emerald-600">
-                                      {Number(sub.totalAmount)} {CURRENCY}
-                                   </td>
-                                   <td className="px-8 py-6 whitespace-nowrap text-center">
-                                      <p className="text-[10px] font-black text-gray-900 dark:text-white">{new Date(sub.startDate).toLocaleDateString('ar-EG')}</p>
-                                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">إلى {new Date(sub.endDate).toLocaleDateString('ar-EG')}</p>
-                                   </td>
-                                   <td className="px-8 py-6 whitespace-nowrap text-left">
-                                      <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${active ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 'bg-red-50 dark:bg-red-900/20 text-red-600'}`}>
-                                         <span className={`w-1 h-1 rounded-full ${active ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                                         {active ? "نشط" : "منتهي"}
-                                      </span>
-                                   </td>
-                                </tr>
-                             );
-                          })}
-                       </tbody>
-                    </table>
-                 </div>
+            <div className="space-y-3">
+              <SectionTitle>{t.durationTitle}</SectionTitle>
+              <div role="radiogroup" aria-label={t.durationAria} className="grid grid-cols-2 gap-2.5">
+                {DURATIONS.map((m) => (
+                  <ChoiceCard key={m} value={m} on={duration === m} onSelect={setDuration} className="py-2.5 text-xs uppercase rtl:tracking-normal">
+                    {t.durations[m]}
+                  </ChoiceCard>
+                ))}
               </div>
-           </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className={`${PANEL} flex items-center justify-between px-4 py-3`}>
+                <span className="nb-muted text-[10px] font-bold uppercase rtl:tracking-normal">{t.totalDue}</span>
+                <span className="text-xl font-extrabold tabular-nums">{formatPrice(total, tt.price, nf)}</span>
+              </div>
+              <div className="flex gap-2.5">
+                <button type="button" disabled={submitting} onClick={payByCard} className={`${BTN_PRIMARY} h-10 flex-1 uppercase rtl:tracking-normal`}>
+                  <FiCreditCard size={13} aria-hidden="true" /> {t.payCard}
+                </button>
+                <button type="button" disabled={submitting} onClick={payByCash} className={`${BTN_MD} h-10 flex-1 uppercase rtl:tracking-normal`}>
+                  <FiDollarSign size={13} aria-hidden="true" /> {t.payCash}
+                </button>
+              </div>
+              <p className="nb-muted text-[10px] font-semibold leading-relaxed">{t.note}</p>
+            </div>
+          </section>
+
+          <section className={`${CARD} min-w-0 overflow-hidden lg:col-span-2`}>
+            <div className="nb-gray nb-line flex flex-wrap items-center justify-between gap-2 border-b-2 px-4 py-3.5 sm:px-5">
+              <SectionTitle>{t.history.title}</SectionTitle>
+              <RowsDropdown value={rowsPerPage} onChange={setRowsPerPage} label={tt.rows} formatNumber={nf.format} />
+            </div>
+
+            <div role="tablist" aria-label={t.history.tabsAria} className="slim-scroll nb-line flex gap-2 overflow-x-auto border-b-2 p-3">
+              {TAB_KEYS.map((key) => (
+                <TabBtn key={key} k={key} active={tab === key} label={t.tabs[key]} count={nf.format(counts[key])} onSelect={setTab} />
+              ))}
+            </div>
+
+            <div className="slim-scroll max-h-[60vh] overflow-auto" aria-busy={loading}>
+              <table className="w-full min-w-[560px] border-collapse text-start">
+                <thead className={HEAD_CLS}>
+                  <tr>
+                    <th scope="col" className={TH}>{t.history.columns.type}</th>
+                    <th scope="col" className={TH}>{t.history.columns.amount}</th>
+                    <th scope="col" className={TH}>{t.history.columns.validity}</th>
+                    <th scope="col" className={TH}>{t.history.columns.status}</th>
+                  </tr>
+                </thead>
+                <tbody className="nb-rows">
+                  {loading && allSubs.length === 0 ? (
+                    SKELETON_ROWS.map((i) => (
+                      <tr key={i} className="animate-pulse motion-reduce:animate-none">
+                        {SKELETON_COLS.map((j) => (
+                          <td key={j} className="px-3 py-4"><div className="nb-gray nb-line h-3.5 w-full border-2" /></td>
+                        ))}
+                      </tr>
+                    ))
+                  ) : paginated.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-12">
+                        <EmptyState3D kind="box" title={t.history.emptyTitle} subtitle={t.history.emptySub} darkMode={darkMode} />
+                      </td>
+                    </tr>
+                  ) : (
+                    paginated.map((s) => <SubRow key={s.id ?? `${s.startDate}-${s.type}`} sub={s} loc={loc} />)
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {filtered.length > 0 && (
+              <div className="nb-gray nb-line flex flex-col items-center justify-between gap-3 border-t-2 px-4 py-3 sm:flex-row">
+                <p className="nb-muted text-xs font-semibold">
+                  {renderTpl(t.history.showing, {
+                    range: <b className="tabular-nums" style={{ color: 'var(--nb-ink)' }}>{nf.format(from)}–{nf.format(to)}</b>,
+                    total: <b className="tabular-nums" style={{ color: 'var(--nb-ink)' }}>{nf.format(filtered.length)}</b>,
+                  })}
+                </p>
+                {totalPages > 1 && <Pagination page={page} total={totalPages} onChange={setCurrentPage} labels={tt} formatNumber={nf.format} />}
+              </div>
+            )}
+          </section>
         </div>
       </div>
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        .custom-scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
-        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
-        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #1f2937; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
-      `}} />
     </div>
   );
 };

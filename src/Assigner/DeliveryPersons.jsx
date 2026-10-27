@@ -1,412 +1,682 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, {
+  useState, useEffect, useCallback, useMemo, useRef, useDeferredValue, memo,
+} from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  FiMapPin, FiUser, FiSearch,
-  FiCopy, FiUsers, FiTrendingUp, FiClock,
-  FiChevronRight, FiChevronLeft, FiPhone, FiMail, FiCheck, FiInfo,
-  FiActivity,
-  FiTool
+  FiSearch, FiX, FiCopy, FiMail, FiPhone, FiMapPin, FiUsers, FiUserCheck, FiUserX,
+  FiActivity, FiChevronUp, FiChevronDown, FiChevronLeft, FiChevronRight, FiRefreshCw,
+  FiAlertCircle,
 } from 'react-icons/fi';
-import Swal from 'sweetalert2';
-import api from '../api';
-import Modal from '../components/Modal';
+import { jwtDecode } from 'jwt-decode';
+import api from '../common/api/api';
+import { UI3D_CSS, Defs3D } from '../components/user/Ui3D';
+import { EXTRAS_CSS, Toaster, toast, EmptyState3D } from '../components/user/UiExtras';
 
+const DOC_TITLE = 'Assigner - Delivery Network | Tech Restore';
+const ENDPOINT = '/api/assigner/delivery-persons';
+const ROWS_OPTIONS = [8, 16, 24, 48];
+const TABS = [
+  { key: 'all', label: 'All' },
+  { key: 'available', label: 'Available' },
+  { key: 'unavailable', label: 'Unavailable' },
+];
+const SEARCH_MAX = 60;
+const POLL_MS = 60_000;
+const REDUCED = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-const ROWS_OPTIONS = [6, 12, 24, 50];
+const NB_FONT = "'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
+const NB_FONT_STYLE = { fontFamily: NB_FONT };
+const ensureNbFont = () => {
+  if (typeof document === 'undefined' || document.getElementById('nb-font')) return;
+  [['https://fonts.googleapis.com', false], ['https://fonts.gstatic.com', true]].forEach(([href, cors]) => {
+    const l = document.createElement('link');
+    l.rel = 'preconnect';
+    l.href = href;
+    if (cors) l.crossOrigin = '';
+    document.head.appendChild(l);
+  });
+  const link = document.createElement('link');
+  link.id = 'nb-font';
+  link.rel = 'stylesheet';
+  link.href = 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap';
+  document.head.appendChild(link);
+};
 
-const showToast = (text, icon) =>
-  Swal.fire({ text, icon, toast: true, position: 'top-end', showConfirmButton: false, timer: 2500, timerProgressBar: true });
-
-const DeliveryPersons = ({ darkMode }) => {
-  const navigate = useNavigate();
-
-  const [persons, setPersons] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(12);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [selectedPerson, setSelectedPerson] = useState(null);
-
-  useEffect(() => { document.title = 'Assigner - Delivery Agents'; }, []);
-
-  useEffect(() => {
-    const t = setTimeout(() => { setDebouncedSearch(searchTerm); setCurrentPage(1); }, 400);
-    return () => clearTimeout(t);
-  }, [searchTerm]);
-
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-    showToast('ID copied to clipboard', 'success');
-  };
-
-  const fetchDeliveryPersons = useCallback(async () => {
-    const token = localStorage.getItem('authToken');
-    if (!token) { navigate('/login'); return; }
-    setLoading(true);
-    try {
-      const res = await api.get('/api/assigner/delivery-persons', { headers: { Authorization: `Bearer ${token}` } });
-      setPersons(res.data.content || res.data || []);
-    } catch (err) {
-      if (err.response?.status === 401) { localStorage.clear(); navigate('/login'); }
-      else showToast('Could not fetch delivery agents', 'error');
-    } finally { setLoading(false); }
-  }, [navigate]);
-
-  useEffect(() => { fetchDeliveryPersons(); }, [fetchDeliveryPersons]);
-
-  const filtered = useMemo(() =>
-    persons.filter(p =>
-      p.name?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      p.email?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      p.phone?.includes(debouncedSearch)
-    ), [persons, debouncedSearch]);
-
-  const totalPages = Math.ceil(filtered.length / rowsPerPage);
-  const paginated = useMemo(() => filtered.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage), [filtered, currentPage, rowsPerPage]);
-
-  const stats = useMemo(() => ({
-    total: persons.length,
-    busy: persons.filter(p => (p.activeAssignments || 0) > 0).length,
-    available: persons.filter(p => (p.activeAssignments || 0) === 0).length,
-  }), [persons]);
-
-  const STYLES = `
-  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
-  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
-
-  
-  html[dir="rtl"],
-  html[dir="rtl"] body,
-  html[dir="rtl"] * {
-    font-family: 'Cairo', sans-serif !important;
-  }
-
-  
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: #d1d5db transparent;
-  }
-  *::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
-  }
-  *::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  *::-webkit-scrollbar-thumb {
-    background: #d1d5db;
-    border-radius: 999px;
-  }
-  *::-webkit-scrollbar-thumb:hover {
-    background: #9ca3af;
-  }
-
-  .lime-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
-  .lime-scroll::-webkit-scrollbar-track { background: transparent; }
-  .lime-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 999px; }
-  .lime-scroll { scrollbar-width: thin; scrollbar-color: #d1d5db transparent; }
-  .tabs-scroll::-webkit-scrollbar { display: none; }
-  .tabs-scroll { -ms-overflow-style: none; scrollbar-width: none; }
-  .leaflet-container { font-family: inherit; }
-  [dir="rtl"] .rtl-flip { transform: scaleX(-1); }
+const NB_CSS = `
+.nb{--nb-bg:#f9fafb;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e8ebe9;--nb-dot:#04261a;--nb-accent:#10b981;--nb-btn:#059669;--nb-on:#ffffff;background:var(--nb-bg);color:var(--nb-ink)}
+.nb-dark{--nb-bg:#141414;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#1e1e1e;--nb-dot:#3f3f3f;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-on:#022c22}
+.nb-gray{background:var(--nb-gray)}
+.nb-muted{color:var(--nb-muted)}
+.nb-ic{color:var(--nb-accent)}
+.nb-line{border-color:var(--nb-line)}
+.nb-card{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow);transition:transform .15s ease,box-shadow .15s ease}
+.nb-lift:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--nb-shadow)}
+.nb-bar{display:inline-block;width:40px;height:12px;background:var(--nb-accent);border:2px solid var(--nb-line)}
+.nb-ul{text-decoration:underline;text-decoration-color:var(--nb-accent);text-decoration-thickness:3px;text-underline-offset:4px;text-decoration-skip-ink:none}
+.nb-squig path{stroke:var(--nb-accent)}
+.nb-chip{display:inline-flex;align-items:center;gap:4px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);padding:1px 6px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;line-height:1.5;white-space:nowrap}
+.nb-tile{display:inline-flex;align-items:center;justify-content:center;flex:none;border:2px solid var(--nb-line);color:#04261a}
+.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);font-weight:700;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,background-color .12s ease}
+.nb-btn:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--nb-shadow)}
+.nb-btn:active:not(:disabled){transform:translate(1px,1px);box-shadow:0 0 0 var(--nb-shadow)}
+.nb-btn:disabled{opacity:.45;cursor:not-allowed}
+.nb-btn-a,.nb-btn-on{background:var(--nb-btn);color:var(--nb-on)}
+.nb-btn:focus-visible,.nb-field:focus-within{outline:3px solid var(--nb-accent);outline-offset:2px}
+.nb-field{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow)}
+.nb-menu{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow)}
+.nb-opt{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;font-size:12px;font-weight:700;text-transform:uppercase;text-align:start;cursor:pointer}
+.nb-opt:hover{background:var(--nb-gray)}
+.nb-opt[aria-selected=true]{background:var(--nb-btn);color:var(--nb-on)}
+.nb-track{height:12px;background:var(--nb-gray);border:2px solid var(--nb-line);overflow:hidden}
+.nb-rows>tr+tr{border-top:2px dotted var(--nb-dot)}
+.nb-rows>tr:hover{background:var(--nb-gray)}
+@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn{transition:none}}
 `;
 
+const SCROLL_CSS = `
+  .slim-scroll { scrollbar-width: thin; scrollbar-color: rgba(52,211,153,.6) transparent; }
+  .slim-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+  .slim-scroll::-webkit-scrollbar-track { background: transparent; }
+  .slim-scroll::-webkit-scrollbar-thumb { background: rgba(52,211,153,.55); }
+  .slim-scroll::-webkit-scrollbar-thumb:hover { background: #34d399; }
+`;
+
+const PAGE_CSS = UI3D_CSS + EXTRAS_CSS + NB_CSS + SCROLL_CSS;
+const STYLE_HTML = { __html: PAGE_CSS };
+
+const BTN_MD = 'nb-btn px-3 py-2 text-xs';
+const BTN_ICON = 'nb-btn w-8 h-8';
+const TONE_BG = { em: '#34d399', teal: '#2dd4bf', lime: '#a3e635', cyan: '#22d3ee', red: '#fb7185', amber: '#fbbf24' };
+
+const TIME_FMT = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit' });
+const DATE_FMT = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+const INT_FMT = new Intl.NumberFormat('en-US');
+
+const isTokenExpired = (token) => {
+  if (!token) return true;
+  try { const d = jwtDecode(token); return !d.exp || d.exp < Date.now() / 1000; } catch { return true; }
+};
+
+const isNotAssigner = (token) => {
+  try {
+    const p = jwtDecode(token);
+    const found = [p.role, p.roles, p.authorities, p.scope, localStorage.getItem('role')]
+      .flat().filter(Boolean).join(' ').toUpperCase();
+    return found !== '' && !found.includes('ASSIGNER');
+  } catch { return false; }
+};
+
+const CTRL = /[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g;
+const SEARCH_STRIP_RE = /[^\p{L}\p{M}\p{N} @._+\-#,'’/()]/gu;
+const clean = (v) => String(v ?? '').replace(CTRL, '');
+const txt = (v) => (typeof v === 'string' || typeof v === 'number' ? clean(v) : '');
+const sanitizeSearch = (v) =>
+  clean(v)
+    .normalize('NFC')
+    .replace(SEARCH_STRIP_RE, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/^\s+/, '')
+    .slice(0, SEARCH_MAX);
+const errText = (err) => String(err?.response?.data?.message || '').slice(0, 120) || undefined;
+const asList = (res) => { const d = res?.data; return Array.isArray(d) ? d : d?.content || []; };
+const shortId = (id) => clean(id).slice(-8).toUpperCase();
+const num = (v) => INT_FMT.format(v);
+const pct = (n, total) => (total ? Math.round((n / total) * 100) : 0);
+const validDate = (v) => { const d = v ? new Date(v) : null; return d && !Number.isNaN(d.getTime()) ? d : null; };
+const fmtDate = (v) => { const d = validDate(v); return d ? DATE_FMT.format(d) : '—'; };
+const phoneHref = (p) => {
+  const digits = String(p ?? '').replace(/[^\d+]/g, '');
+  return digits ? `tel:${digits}` : null;
+};
+const mailHref = (e) => (/^[^\s@]+@[^\s@]+$/.test(String(e ?? '')) ? `mailto:${e}` : null);
+const mapsUrl = (a) => (a ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a)}` : null);
+
+const loadLevel = (n) => {
+  if (n >= 8) return { color: TONE_BG.red, label: 'Overloaded' };
+  if (n >= 5) return { color: TONE_BG.amber, label: 'Busy' };
+  if (n >= 1) return { color: TONE_BG.em, label: 'Active' };
+  return { color: TONE_BG.em, label: 'Idle' };
+};
+
+const pageList = (cur, total) => {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages = [...new Set([1, total, cur - 1, cur, cur + 1])].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);
+  const out = [];
+  pages.forEach((p, i) => { if (i && p - pages[i - 1] > 1) out.push(`gap${p}`); out.push(p); });
+  return out;
+};
+
+const nextSort = (s, field, first = 'asc') =>
+  (s.field === field ? { field, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { field, dir: first });
+
+const useDarkMode = () => {
+  const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'));
+  useEffect(() => {
+    const el = document.documentElement;
+    const mo = new MutationObserver(() => setDark(el.classList.contains('dark')));
+    mo.observe(el, { attributes: true, attributeFilter: ['class'] });
+    return () => mo.disconnect();
+  }, []);
+  return dark;
+};
+
+const UnderlinedTitle = memo(({ text }) => {
+  const s = String(text || '');
+  const i = s.lastIndexOf(' ');
+  const head = i > 0 ? s.slice(0, i + 1) : '';
+  const tail = i > 0 ? s.slice(i + 1) : s;
   return (
+    <>
+      {head}
+      <span className="relative inline-block">
+        {tail}
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 100 10" preserveAspectRatio="none" className="nb-squig pointer-events-none absolute inset-x-0 -bottom-2 h-2.5 w-full">
+          <path d="M1 6 C 20 2, 40 9, 60 5 S 90 3, 99 6" fill="none" strokeWidth="5" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        </svg>
+      </span>
+    </>
+  );
+});
 
+const IconTile = memo(({ icon: Icon, tone = 'em', className = 'w-11 h-11', size = 18 }) => (
+  <span className={`nb-tile ${className}`} style={{ background: TONE_BG[tone] }}>
+    <Icon size={size} aria-hidden="true" />
+  </span>
+));
 
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
-      <style>{STYLES}</style>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
+const Ring = memo(({ percent, color }) => {
+  const r = 26;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className="relative w-16 h-16 flex-shrink-0" role="img" aria-label={`${percent}%`}>
+      <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
+        <circle cx="32" cy="32" r={r} fill="none" strokeWidth="8" style={{ stroke: 'var(--nb-gray)' }} />
+        <circle
+          cx="32" cy="32" r={r} fill="none" strokeWidth="8"
+          stroke={color}
+          strokeDasharray={`${(c * percent) / 100} ${c}`}
+          style={{ transition: REDUCED ? 'none' : 'stroke-dasharray .6s ease' }}
+        />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-[11px] font-extrabold tabular-nums">
+        {percent}%
+      </span>
+    </div>
+  );
+});
 
+const StatCard = memo(({ label, value, description, icon, tone, percent, color }) => (
+  <div className="nb-card nb-lift p-4 sm:p-5 flex items-center justify-between gap-3 min-w-0">
+    <div className="min-w-0 flex-1 text-start">
+      <div className="flex items-center gap-3">
+        <IconTile icon={icon} tone={tone} />
+        <div className="min-w-0">
+          <p className="nb-muted text-[11px] font-bold uppercase tracking-wide truncate">{label}</p>
+          <p className="text-2xl font-extrabold tracking-tight leading-tight tabular-nums truncate">{value}</p>
+        </div>
+      </div>
+      <p className="nb-muted mt-3 text-xs font-semibold truncate">{description}</p>
+    </div>
+    <Ring percent={percent} color={color} />
+  </div>
+));
 
+const StatusPill = memo(({ on }) => (
+  <span className="nb-chip" style={{ background: on ? TONE_BG.em : TONE_BG.red, color: '#04261a' }}>
+    <span className="w-1.5 h-1.5 bg-[#04261a]" aria-hidden="true" />
+    {on ? 'Available' : 'Unavailable'}
+  </span>
+));
 
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-1.5 rounded-full bg-emerald-500" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">Delivery Management</span>
-            </div>
-            <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Delivery Agents</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Monitor and manage your active delivery workforce</p>
+const RowsDropdown = memo(({ value, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open} aria-label="Agents per page" className={`${BTN_MD} h-10 min-w-[120px] justify-between uppercase`}>
+        <span>{value} rows</span>
+        <FiChevronDown size={14} className={`transition-transform duration-200 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div role="listbox" className="nb-menu absolute right-0 z-20 mt-2 w-full overflow-hidden">
+          {ROWS_OPTIONS.map((n) => (
+            <button
+              key={n}
+              type="button"
+              role="option"
+              aria-selected={value === n}
+              onClick={() => { onChange(n); setOpen(false); }}
+              className="nb-opt"
+            >
+              {n} rows
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
+
+const SortTh = memo(({ label, field, sort, onSort }) => {
+  const active = sort.field === field;
+  return (
+    <th scope="col" className="px-3 py-3 text-start text-[11px] font-extrabold uppercase" aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <button type="button" onClick={() => onSort(field)} className="inline-flex items-center gap-1 uppercase hover:underline underline-offset-4">
+        {label}
+        <span className={`flex flex-col -space-y-1 ${active ? 'nb-ic' : 'nb-muted'}`} aria-hidden="true">
+          <FiChevronUp size={10} className={active && sort.dir === 'asc' ? '' : 'opacity-50'} />
+          <FiChevronDown size={10} className={active && sort.dir === 'desc' ? '' : 'opacity-50'} />
+        </span>
+      </button>
+    </th>
+  );
+});
+
+const Pagination = memo(({ page, total, onChange }) => (
+  <nav className="flex items-center gap-1.5" aria-label="Pagination">
+    <button type="button" className={BTN_ICON} onClick={() => onChange(page - 1)} disabled={page <= 1} aria-label="Previous page"><FiChevronLeft size={16} /></button>
+    {pageList(page, total).map((p) => (typeof p === 'string'
+      ? <span key={p} className="w-6 text-center text-xs font-bold">…</span>
+      : (
+        <button
+          key={p}
+          type="button"
+          onClick={() => onChange(p)}
+          aria-label={`Go to page ${p}`}
+          aria-current={p === page ? 'page' : undefined}
+          className={`nb-btn w-8 h-8 text-xs tabular-nums ${p === page ? 'nb-btn-on' : ''}`}
+        >
+          {p}
+        </button>
+      )))}
+    <button type="button" className={BTN_ICON} onClick={() => onChange(page + 1)} disabled={page >= total} aria-label="Next page"><FiChevronRight size={16} /></button>
+  </nav>
+));
+
+const AgentRow = memo(({ agent, onCopy }) => {
+  const level = loadLevel(agent.active);
+  const tel = phoneHref(agent.phone);
+  const mail = mailHref(agent.email);
+  const map = mapsUrl(agent.address);
+  return (
+    <tr className="transition-colors motion-reduce:transition-none">
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <div className="flex items-center gap-2.5">
+          <span className="nb-tile w-9 h-9 text-sm font-extrabold uppercase" style={{ background: TONE_BG.em }}>
+            {agent.name.charAt(0)}
+          </span>
+          <div className="min-w-0">
+            <p className="text-xs font-extrabold uppercase truncate max-w-[200px]">{agent.name}</p>
+            <p dir="ltr" className="nb-muted text-[10px] font-semibold truncate max-w-[200px]">{agent.email || '—'}</p>
           </div>
-          <button
-            onClick={fetchDeliveryPersons}
-            className="px-5 py-2.5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-sm text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
-          >
-            Refresh Agents
+        </div>
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <span className="inline-flex items-center gap-1.5">
+          <code className="text-[11px] font-mono font-bold">#{shortId(agent.id)}</code>
+          <button type="button" title="Copy agent ID" aria-label={`Copy agent ID ${shortId(agent.id)}`} onClick={() => onCopy(agent.id)} className="nb-muted hover:text-[var(--nb-accent)] transition-colors">
+            <FiCopy size={12} aria-hidden="true" />
           </button>
+        </span>
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <p dir="ltr" className="text-xs font-bold">{agent.phone || '—'}</p>
+      </td>
+      <td className="px-3 py-2.5 text-xs font-semibold"><span className="block truncate max-w-[220px]">{agent.address || '—'}</span></td>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <div className="flex items-center gap-2.5">
+          <span className="text-xs font-extrabold tabular-nums w-5">{agent.active}</span>
+          <span className="nb-track w-20" title={level.label}>
+            <span className="block h-full" style={{ width: `${Math.min(100, agent.active * 10)}%`, background: level.color }} />
+          </span>
+          <span className="nb-muted text-[10px] font-bold uppercase">{level.label}</span>
+        </div>
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap"><StatusPill on={agent.available} /></td>
+      <td className="nb-muted px-3 py-2.5 whitespace-nowrap text-xs font-bold">{fmtDate(agent.createdAt)}</td>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <div className="flex items-center gap-1.5">
+          {tel && (
+            <a href={tel} title="Call agent" aria-label={`Call ${agent.name}`} className={BTN_ICON}>
+              <FiPhone size={14} aria-hidden="true" />
+            </a>
+          )}
+          {mail && (
+            <a href={mail} title="Email agent" aria-label={`Email ${agent.name}`} className={BTN_ICON}>
+              <FiMail size={14} aria-hidden="true" />
+            </a>
+          )}
+          {map && (
+            <a href={map} target="_blank" rel="noopener noreferrer" title="Open address in maps" aria-label={`Open ${agent.name} address in maps`} className={BTN_ICON}>
+              <FiMapPin size={14} aria-hidden="true" />
+            </a>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+});
+
+const COLS = 8;
+
+const DeliveryNetwork = () => {
+  const navigate = useNavigate();
+  const darkMode = useDarkMode();
+  const tokenRef = useRef(localStorage.getItem('authToken'));
+  const denied = useMemo(
+    () => !tokenRef.current || isTokenExpired(tokenRef.current) || isNotAssigner(tokenRef.current),
+    []
+  );
+
+  const [agents, setAgents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [search, setSearch] = useState('');
+  const [tab, setTab] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(ROWS_OPTIONS[0]);
+  const [sort, setSort] = useState({ field: 'tasks', dir: 'asc' });
+
+  const abortRef = useRef(null);
+  const term = useDeferredValue(search).trim().toLowerCase();
+
+  useEffect(() => { document.title = DOC_TITLE; }, []);
+  useEffect(() => { ensureNbFont(); }, []);
+
+  useEffect(() => {
+    if (!denied) return;
+    const token = tokenRef.current;
+    if (token && !isTokenExpired(token)) toast({ icon: 'error', title: 'Access denied', text: 'Assigner accounts only.' });
+    else localStorage.clear();
+    navigate('/login', { replace: true });
+  }, [denied, navigate]);
+
+  const fetchData = useCallback(async ({ silent = false } = {}) => {
+    if (denied) return;
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    if (!silent) setLoading(true);
+    setError(false);
+    try {
+      const res = await api.get(ENDPOINT, {
+        headers: { Authorization: `Bearer ${tokenRef.current}` },
+        signal: ctrl.signal,
+      });
+      if (ctrl.signal.aborted) return;
+      setAgents(asList(res).map((a) => ({
+        id: a.id,
+        name: txt(a.name) || 'Unnamed agent',
+        email: txt(a.email),
+        phone: txt(a.phone),
+        address: txt(a.address),
+        active: Number(a.activeAssignments) || 0,
+        createdAt: a.createdAt,
+        available: a.available !== false,
+      })));
+      setLastUpdated(new Date());
+    } catch (err) {
+      if (ctrl.signal.aborted || err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError') return;
+      const status = err?.response?.status;
+      if (status === 401) { localStorage.clear(); navigate('/login', { replace: true }); return; }
+      if (status === 403) { toast({ icon: 'error', title: 'Access denied', text: 'Assigner accounts only.' }); navigate('/login', { replace: true }); return; }
+      if (!silent) {
+        setError(true);
+        toast({ icon: 'error', title: 'Failed to load agents', text: errText(err) });
+      }
+    } finally {
+      if (abortRef.current === ctrl) setLoading(false);
+    }
+  }, [denied, navigate]);
+
+  useEffect(() => {
+    fetchData();
+    return () => abortRef.current?.abort();
+  }, [fetchData]);
+
+  useEffect(() => {
+    if (denied) return undefined;
+    const id = setInterval(() => { if (!document.hidden) fetchData({ silent: true }); }, POLL_MS);
+    return () => clearInterval(id);
+  }, [denied, fetchData]);
+
+  const handleCopy = useCallback(async (id) => {
+    try {
+      await navigator.clipboard.writeText(String(id));
+      toast({ icon: 'success', title: 'Copied', text: 'Agent ID copied to clipboard.', timer: 2000 });
+    } catch {
+      toast({ icon: 'error', title: 'Could not copy', text: 'Allow clipboard access in your browser.' });
+    }
+  }, []);
+
+  const index = useMemo(() => agents.map((a) => ({
+    a,
+    name: a.name.toLowerCase(),
+    id: String(a.id ?? '').toLowerCase(),
+    phone: a.phone,
+    address: a.address.toLowerCase(),
+    tasks: a.active,
+    joined: Date.parse(a.createdAt) || 0,
+    status: a.available ? 1 : 0,
+    text: `${a.id} ${a.name} ${a.email} ${a.phone} ${a.address}`.toLowerCase(),
+  })), [agents]);
+
+  const stats = useMemo(() => {
+    let available = 0; let tasks = 0; let busy = 0;
+    for (const a of agents) {
+      if (a.available) available += 1;
+      if (a.active > 0) busy += 1;
+      tasks += a.active;
+    }
+    return { all: agents.length, available, unavailable: agents.length - available, tasks, busy };
+  }, [agents]);
+
+  const filtered = useMemo(() => {
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    const key = sort.field;
+    const list = index.filter((e) => (
+      (tab === 'all' || (tab === 'available' ? e.status === 1 : e.status === 0))
+      && (!term || e.text.includes(term))
+    ));
+    list.sort((x, y) => (x[key] < y[key] ? -dir : x[key] > y[key] ? dir : 0));
+    return list.map((e) => e.a);
+  }, [index, tab, term, sort]);
+
+  useEffect(() => { setCurrentPage(1); }, [tab, term, rowsPerPage, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+  const page = Math.min(currentPage, totalPages);
+  const paginated = useMemo(() => filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage), [filtered, page, rowsPerPage]);
+  const from = filtered.length ? (page - 1) * rowsPerPage + 1 : 0;
+  const to = Math.min(page * rowsPerPage, filtered.length);
+
+  const statCards = useMemo(() => [
+    { label: 'Total agents', value: num(stats.all), description: 'In the delivery network', icon: FiUsers, tone: 'em', percent: stats.all ? 100 : 0, color: TONE_BG.em },
+    { label: 'Available', value: num(stats.available), description: 'Ready for new work', icon: FiUserCheck, tone: 'teal', percent: pct(stats.available, stats.all), color: TONE_BG.teal },
+    { label: 'Unavailable', value: num(stats.unavailable), description: 'Not taking assignments', icon: FiUserX, tone: 'red', percent: pct(stats.unavailable, stats.all), color: TONE_BG.red },
+    { label: 'Active tasks', value: num(stats.tasks), description: `${num(stats.busy)} agents are working`, icon: FiActivity, tone: 'lime', percent: pct(stats.busy, stats.all), color: TONE_BG.lime },
+  ], [stats]);
+
+  const tabCounts = useMemo(
+    () => ({ all: stats.all, available: stats.available, unavailable: stats.unavailable }),
+    [stats]
+  );
+
+  const handleSort = useCallback((field) => setSort((s) => nextSort(s, field, field === 'joined' ? 'desc' : 'asc')), []);
+  const refresh = useCallback(() => fetchData(), [fetchData]);
+  const clearSearch = useCallback(() => setSearch(''), []);
+  const handleSearchChange = useCallback((e) => setSearch(sanitizeSearch(e.target.value)), []);
+  const handleSearchPaste = useCallback((e) => {
+    const pasted = e.clipboardData?.getData('text') || '';
+    if (pasted.length > 500) e.preventDefault();
+  }, []);
+  const handleSearchKey = useCallback((e) => {
+    if (e.key === 'Escape') setSearch('');
+    else if (e.key === 'Enter') e.preventDefault();
+  }, []);
+  const goToPage = useCallback((p) => {
+    setCurrentPage(p);
+    window.scrollTo({ top: 0, behavior: REDUCED ? 'auto' : 'smooth' });
+  }, []);
+
+  if (denied) return null;
+
+  return (
+    <div
+      style={NB_FONT_STYLE}
+      className={`nb ${darkMode ? 'nb-dark' : ''} min-h-screen py-6 lg:ps-64 mt-16 text-start overflow-x-hidden`}
+    >
+      <style dangerouslySetInnerHTML={STYLE_HTML} />
+      <Defs3D />
+      <Toaster darkMode={darkMode} />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
+        <div className="flex flex-wrap items-end justify-between gap-3 px-0.5">
+          <div>
+            <p className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wide"><span className="nb-bar" aria-hidden="true" />Logistics</p>
+            <h1 className="mt-2.5 text-3xl sm:text-4xl font-extrabold tracking-tight leading-[1.15]">
+              <UnderlinedTitle text="Delivery Network" />
+            </h1>
+            <p className="nb-muted mt-2 text-sm font-medium">Track agent availability and workload</p>
+          </div>
+          <div className="flex items-center gap-2.5">
+            {lastUpdated && <p className="nb-muted hidden sm:block text-[11px] font-bold">Last updated: {TIME_FMT.format(lastUpdated)}</p>}
+            <button type="button" onClick={refresh} aria-label="Refresh agents" title="Refresh" className={`${BTN_MD} h-10 uppercase`}>
+              <FiRefreshCw size={14} className={loading ? 'animate-spin motion-reduce:animate-none' : ''} aria-hidden="true" /> Refresh
+            </button>
+          </div>
         </div>
 
-
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-md p-6 flex items-center justify-between group hover:shadow-lg transition-all duration-500">
-            <div className="space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Total Agents</p>
-              <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">{stats.total}</p>
-            </div>
-            <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
-              <FiUsers size={24} />
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-md p-6 flex items-center justify-between group hover:shadow-lg transition-all duration-500">
-            <div className="space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Busy Agents</p>
-              <p className="text-3xl font-black text-amber-600 tracking-tighter">{stats.busy}</p>
-            </div>
-            <div className="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
-              <FiClock size={24} />
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-2xl  rounded-md p-6 flex items-center justify-between group  transition-all duration-500">
-            <div className="space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Available</p>
-              <p className="text-3xl font-black text-emerald-600 tracking-tighter">{stats.available}</p>
-            </div>
-            <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-transform">
-              <FiCheck size={24} />
-            </div>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
+          {statCards.map((s) => <StatCard key={s.label} {...s} />)}
         </div>
 
-
-
-        <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 shadow-sm p-6">
-          <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
-
-
-            <div className="relative flex-1 group">
-              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={18} />
+        <section className="nb-card overflow-hidden">
+          <div className="nb-line p-3 sm:p-4 flex flex-wrap items-center gap-2.5 border-b-2">
+            <div className="nb-field relative flex h-10 min-w-[220px] flex-1 items-center gap-2 px-3">
+              <FiSearch aria-hidden="true" className="h-4 w-4 flex-shrink-0" />
+              <label htmlFor="agent-search" className="sr-only">Search agents</label>
               <input
-                type="text"
-                placeholder="Search by Name, Email, or Phone..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="w-full cursor-pointer pl-12 pr-4 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-sm text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-200 transition-all"
+                id="agent-search"
+                name="agent-search"
+                type="search"
+                inputMode="search"
+                enterKeyHint="search"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                maxLength={SEARCH_MAX}
+                value={search}
+                onChange={handleSearchChange}
+                onPaste={handleSearchPaste}
+                onKeyDown={handleSearchKey}
+                placeholder="Search name, email, phone or address"
+                className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60 [&::-webkit-search-cancel-button]:appearance-none"
               />
+              {search && (
+                <button type="button" onClick={clearSearch} aria-label="Clear search" className="flex-shrink-0 nb-muted hover:text-[var(--nb-accent)]">
+                  <FiX size={15} aria-hidden="true" />
+                </button>
+              )}
             </div>
-
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Show</span>
-                <div className="relative group">
-                  <select
-                    value={rowsPerPage}
-                    onChange={e => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                    className="appearance-none pl-5 pr-12 py-3 rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-4 focus:ring-lime-500/5 focus:border-lime-200 cursor-pointer transition-all"
-                  >
-                    {ROWS_OPTIONS.map(n => <option key={n} value={n} className="dark:bg-gray-800">{n}</option>)}
-                  </select>
-                  <FiChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-lime-500 transition-colors rotate-90" size={16} />
-                </div>
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Rows</span>
-              </div>
-            </div>
+            <RowsDropdown value={rowsPerPage} onChange={setRowsPerPage} />
           </div>
-        </div>
 
+          <div role="tablist" aria-label="Agent availability" className="nb-line flex gap-2 overflow-x-auto p-3 sm:px-4 border-b-2 [scrollbar-width:none]">
+            {TABS.map(({ key, label }) => {
+              const active = tab === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setTab(key)}
+                  className={`nb-btn flex-shrink-0 px-3 py-1.5 text-xs uppercase ${active ? 'nb-btn-on' : ''}`}
+                >
+                  {label}
+                  <span className="nb-chip tabular-nums">{num(tabCounts[key] || 0)}</span>
+                </button>
+              );
+            })}
+          </div>
 
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto custom-scrollbar-thin">
-            <table className="w-full text-left border-collapse">
-              <thead className='border-b border-gray-100'>
-                <tr className="bg-gray-100 dark:bg-gray-900/30 border-b border-gray-100 dark:border-gray-700">
-                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Agent </th>
-                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Status</th>
-                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Active Tasks</th>
-                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Phone</th>
-                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Info</th>
+          <div className="overflow-auto max-h-[68vh] slim-scroll">
+            <table className="w-full min-w-[1040px] text-start border-collapse">
+              <thead className="nb-gray sticky top-0 z-10 shadow-[0_2px_0_0_var(--nb-line)]">
+                <tr>
+                  <SortTh label="Agent" field="name" sort={sort} onSort={handleSort} />
+                  <SortTh label="ID" field="id" sort={sort} onSort={handleSort} />
+                  <SortTh label="Phone" field="phone" sort={sort} onSort={handleSort} />
+                  <SortTh label="Address" field="address" sort={sort} onSort={handleSort} />
+                  <SortTh label="Active tasks" field="tasks" sort={sort} onSort={handleSort} />
+                  <SortTh label="Status" field="status" sort={sort} onSort={handleSort} />
+                  <SortTh label="Joined" field="joined" sort={sort} onSort={handleSort} />
+                  <th scope="col" className="px-3 py-3 text-start text-[11px] font-extrabold uppercase">Actions</th>
                 </tr>
               </thead>
-              <tbody className="text-center divide-y divide-gray-100 dark:divide-gray-700">
-                {loading ? (
-                  [...Array(5)].map((_, i) => (
-                    <tr key={i} className="animate-pulse">
-                      {[...Array(5)].map((_, j) => (
-                        <td key={j} className="px-6 py-6"><div className="h-4 bg-gray-100 dark:bg-gray-700 rounded-lg w-full" /></td>
+              <tbody className="nb-rows">
+                {loading && agents.length === 0 ? (
+                  Array.from({ length: Math.min(rowsPerPage, 8) }, (_, i) => (
+                    <tr key={i} className="animate-pulse motion-reduce:animate-none">
+                      {Array.from({ length: COLS }, (__, j) => (
+                        <td key={j} className="px-3 py-4"><div className="nb-gray h-3.5 w-full" /></td>
                       ))}
                     </tr>
                   ))
+                ) : error && agents.length === 0 ? (
+                  <tr>
+                    <td colSpan={COLS} className="px-6 py-14 text-center">
+                      <FiAlertCircle size={28} className="mx-auto text-red-500" />
+                      <p className="mt-2 text-sm font-extrabold uppercase">Couldn't load agents</p>
+                      <p className="nb-muted text-xs mb-4">Check your connection and try again.</p>
+                      <button type="button" onClick={refresh} className={`${BTN_MD} nb-btn-a uppercase`}><FiRefreshCw size={13} /> Try again</button>
+                    </td>
+                  </tr>
                 ) : paginated.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-24 text-center">
-                      <FiUsers className="mx-auto text-gray-200 dark:text-gray-700 mb-4" size={48} />
-                      <p className="text-gray-400 font-medium">No delivery agents found</p>
+                    <td colSpan={COLS} className="px-6 py-14">
+                      <EmptyState3D
+                        kind="box"
+                        title={agents.length === 0 ? 'No agents yet' : 'No matching agents'}
+                        subtitle={agents.length === 0 ? 'Delivery agents will appear here once they join the network' : 'Try a different name, email, phone or address, or switch tab'}
+                        darkMode={darkMode}
+                      />
                     </td>
                   </tr>
                 ) : (
-                  paginated.map(person => {
-                    const isBusy = (person.activeAssignments || 0) > 0;
-                    return (
-                      <tr key={person.id} className="hover:bg-lime-50/10 dark:hover:bg-lime-900/5 transition-colors group">
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="flex items-center justify-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-400 group-hover:text-lime-500 transition-colors">
-                              <FiUser className='text-emerald-400' size={20} />
-                            </div>
-                            <div>
-                              <p className="text-xs font-black text-gray-700 dark:text-gray-100 leading-none mb-1.5">{person.name}</p>
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-[10px] font-mono text-gray-400">#{person.id?.slice(-8)}</span>
-                                <button onClick={() => copyToClipboard(person.id)} className="opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-lime-500 transition-all">
-                                  <FiCopy size={12} />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border ${isBusy ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700 text-amber-700 dark:text-amber-400' : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400'}`}>
-                            <span className={`w-1 h-1 rounded-full ${isBusy ? 'bg-amber-500' : 'bg-emerald-500'}`} />
-                            {isBusy ? 'Busy' : 'Available'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="flex items-center justify-center gap-2">
-                            <FiTrendingUp className={`text-${isBusy ? 'amber' : 'emerald'}-500`} size={14} />
-                            <span className="text-xs font-bold text-gray-700 dark:text-gray-300">{person.activeAssignments || 0} tasks</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="space-y-1">
-
-                            <div className="flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-emerald-700 dark:font-semibold">
-                              <FiPhone size={12} className="text-emerald-500" />
-                              0{person.phone}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3  whitespace-nowrap">
-                          <div className='flex items-center justify-center'>
-                            <button
-                              title='View Details'
-                              onClick={() => setSelectedPerson(person)}
-                              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-transparent border-2 border-gray-100 dark:border-transparent dark:bg-gray-700 text-gray-400 dark:text-gray-300 text-xs font-bold transition-all"
-                            >
-                              <FiInfo size={14} />
-
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
+                  paginated.map((a) => <AgentRow key={a.id} agent={a} onCopy={handleCopy} />)
                 )}
               </tbody>
             </table>
           </div>
 
-
-
-          {totalPages > 1 && (
-            <div className="px-6 py-5 bg-gray-50/50 dark:bg-gray-900/30 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <p className="text-xs font-bold text-gray-500 dark:text-gray-400">
-                Showing <span className="text-gray-900 dark:text-white">{(currentPage - 1) * rowsPerPage + 1}–{Math.min(currentPage * rowsPerPage, filtered.length)}</span> of <span className="text-gray-900 dark:text-white">{filtered.length}</span> agents
+          {filtered.length > 0 && (
+            <div className="nb-gray nb-line px-4 py-3 border-t-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <p className="text-xs font-semibold">
+                Showing <b className="tabular-nums">{num(from)}–{num(to)}</b> of <b className="tabular-nums">{num(filtered.length)}</b> agents
               </p>
-
-              <div className="flex items-center gap-1">
-                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
-                  <FiChevronLeft size={18} />
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                  <button key={p} onClick={() => setCurrentPage(p)}
-                    className={`w-10 h-10 flex items-center justify-center rounded-xl text-xs font-black transition-all ${currentPage === p ? 'bg-lime-500 text-white shadow-lg' : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-lime-500 hover:text-lime-500'}`}>
-                    {p}
-                  </button>
-                ))}
-                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
-                  <FiChevronRight size={18} />
-                </button>
-              </div>
+              {totalPages > 1 && <Pagination page={page} total={totalPages} onChange={goToPage} />}
             </div>
           )}
-        </div>
-
-
-
-        {selectedPerson && (
-          <Modal className="lime-scroll" onClose={() => setSelectedPerson(null)} title="Agent Information" darkMode={darkMode}>
-            <div className="space-y-6 -ml-2 lime-scroll">
-              <div className="flex items-center gap-4 p-5 bg-gray-50 dark:bg-gray-900/50 rounded-md  lime-scroll">
-                <div className="w-16 h-16 rounded-2xl bg-white dark:bg-gray-800 shadow-sm flex items-center justify-center text-emerald-500 border border-gray-100 dark:border-gray-700">
-                  <FiUser size={32} />
-                </div>
-                <div>
-                  <div className="flex justify-between items-center flex-wrap ">
-                    <h2 className="text-xs font-black text-gray-900 dark:text-white tracking-tight">{selectedPerson.name}</h2>
-                    <p className="text-xs font-sans font-semibold bg-emerald-400  text-white p-1 rounded-3xl mt-1 ">{selectedPerson.verified === true ? 'Active' : 'Inactive'}</p>
-
-                  </div>
-                  <p className="text-xs font-mono text-gray-400 mt-1 uppercase">ID: {selectedPerson.id}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-5 bg-gray-50 dark:bg-gray-900 rounded-md   space-y-3">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Contact Info</span>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
-                      <FiMail className="text-lime-500" /> {selectedPerson.email}
-                    </div>
-                    <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
-                      <FiPhone className="text-lime-500" /> 0{selectedPerson.phone}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-5 bg-gray-50 dark:bg-gray-900 rounded-md  space-y-3">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Current Tasks</span>
-                  <div className="flex items-center gap-4">
-                    <div className="text-3xl font-black text-gray-900 dark:text-white">{selectedPerson.activeAssignments || 0}</div>
-                    <div className="text-[10px] font-black uppercase tracking-widest text-gray-500 leading-tight">Active tasks<br />Assigned</div>
-                  </div>
-                </div>
-              </div>
-
-
-              <div className="p-6 bg-gray-50 dark:bg-gray-900 rounded-md  space-y-3">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Active Orders</span>
-                <div className="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-                  <FiActivity className="text-orange-500 mt-1 flex-shrink-0" />
-                  {selectedPerson.activeOrderDeliveries || 0}
-                </div>
-              </div>
-
-              <div className="p-6 bg-gray-50 dark:bg-gray-900 rounded-md  space-y-3">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Active Repairs</span>
-                <div className="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-                  <FiTool className="text-amber-500 mt-1 flex-shrink-0" />
-                  {selectedPerson.activeRepairDeliveries || 0}
-                </div>
-              </div>
-
-
-              <div className="p-6 bg-gray-50 dark:bg-gray-900 rounded-md   space-y-3">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Address</span>
-                <div className="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-                  <FiMapPin className="text-red-500 mt-1 flex-shrink-0" />
-                  {selectedPerson.address || 'No base address registered for this agent.'}
-                </div>
-              </div>
-            </div>
-          </Modal>
-        )}
+        </section>
       </div>
-
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        .custom-scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
-        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
-        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
-      `}} />
     </div>
   );
 };
 
-export default DeliveryPersons;
+export default memo(DeliveryNetwork);

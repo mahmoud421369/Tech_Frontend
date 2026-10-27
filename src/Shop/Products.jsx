@@ -1,386 +1,399 @@
 import React, {
-  useState, useEffect, useCallback, useMemo, useRef, memo, Suspense, lazy,
+  useState, useEffect, useCallback, useMemo, useRef, useDeferredValue, memo, Suspense, lazy,
 } from 'react';
 import {
-  FiPackage, FiPlus, FiSearch, FiChevronDown, FiChevronRight, FiChevronLeft,
-  FiImage, FiX, FiEdit3, FiTrash2, FiFilter, FiAlertCircle,
+  FiPackage, FiPlus, FiSearch, FiFilter, FiEdit3, FiTrash2, FiRefreshCw, FiCheckCircle,
+  FiTag, FiX, FiLayers, FiAlertCircle, FiImage, FiChevronLeft, FiChevronRight, FiChevronUp,
+  FiChevronDown, FiCheck, FiBox,
 } from 'react-icons/fi';
-import api from '../api';
-import debounce from 'lodash/debounce';
+import api from '../common/api/api';
+import { EXTRAS_CSS, Toaster, toast } from '../components/user/UiExtras';
+import {
+  SEARCH_MAX, fmt, num, formatPrice, tpl, renderTpl,
+  getCollator, sanitizeSearch, isSafeId, errText, upper, confirmDialog, useDarkMode, useEscape,
+  useShopLocale,
+} from '../components/shop/TableKit';
+import { ensureShopAssets } from '../common/utils/shopFonts';
+import {
+  CONDITIONS, EMPTY_PRODUCT, STOCK_MAX, rawImageOf, validateProduct, buildFormData,
+} from '../common/utils/productutils';
 
-const ProductModal = lazy(() => import('../components/ProductModal'));
+ensureShopAssets();
 
-const ROWS_OPTIONS = [5, 10, 25, 50];
+const ProductModal = lazy(() => import('../components/user/ProductModal'));
 
-const formatPrice = (p) => `EGP ${Number(p || 0).toLocaleString('en-US')}`;
+const PG_CSS = `
+.pg{--pg-bg:#f9fafb;--pg-card:#ffffff;--pg-ink:#04261a;--pg-muted:#4b6b5c;--pg-line:#04261a;--pg-shadow:#04261a;--pg-gray:#e8ebe9;--pg-dot:#04261a;--pg-accent:#10b981;--pg-btn:#059669;--pg-on:#ffffff;background:var(--pg-bg);color:var(--pg-ink)}
+.dark .pg{--pg-bg:#141414;--pg-card:#2a2a2a;--pg-ink:#ffffff;--pg-muted:#a3a3a3;--pg-line:#000000;--pg-shadow:#000000;--pg-gray:#1e1e1e;--pg-dot:#3f3f3f;--pg-accent:#39ff88;--pg-btn:#39ff88;--pg-on:#022c22}
+.pg[dir="rtl"] *{letter-spacing:0!important}
+.pg-gray{background:var(--pg-gray)}
+.pg-muted{color:var(--pg-muted)}
+.pg-line{border-color:var(--pg-line)}
+.pg-dot{border:2px dotted var(--pg-dot)}
+.pg-card{background:var(--pg-card);border:2px solid var(--pg-line);box-shadow:3px 3px 0 var(--pg-shadow)}
+.pg-lift{transition:transform .15s ease,box-shadow .15s ease}
+.pg-lift:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--pg-shadow)}
+.pg-ul{text-decoration:underline;text-decoration-color:var(--pg-accent);text-decoration-thickness:3px;text-underline-offset:4px;text-decoration-skip-ink:none}
+.pg-chip{display:inline-flex;align-items:center;gap:6px;background:var(--pg-card);color:var(--pg-ink);border:2px solid var(--pg-line);padding:1px 8px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;line-height:1.6;white-space:nowrap}
+.pg-tile{display:inline-flex;align-items:center;justify-content:center;flex:none;border:2px solid var(--pg-line);background:var(--pg-accent);color:#04261a}
+.pg-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--pg-card);color:var(--pg-ink);border:2px solid var(--pg-line);box-shadow:2px 2px 0 var(--pg-shadow);font-weight:700;cursor:pointer;white-space:nowrap;transition:transform .12s ease,box-shadow .12s ease}
+.pg-btn:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--pg-shadow)}
+.pg-btn:active:not(:disabled){transform:translate(1px,1px);box-shadow:0 0 0 var(--pg-shadow)}
+.pg-btn:disabled{opacity:.45;cursor:not-allowed}
+.pg-btn-a,.pg-btn[aria-pressed="true"],.pg-btn[aria-selected="true"],.pg-btn[aria-current="page"]{background:var(--pg-btn);color:var(--pg-on)}
+.pg-btn-danger:hover:not(:disabled){background:#ef4444;color:#fff}
+.pg-btn:focus-visible,.pg-sort:focus-visible,.pg-link:focus-visible{outline:3px solid var(--pg-accent);outline-offset:2px}
+.pg-field{background:var(--pg-card);color:var(--pg-ink);border:2px solid var(--pg-line);box-shadow:2px 2px 0 var(--pg-shadow)}
+.pg-field:focus,.pg-field:focus-within{outline:3px solid var(--pg-accent);outline-offset:2px}
+.pg-field::placeholder{color:var(--pg-muted);opacity:.8}
+.pg-th{background:var(--pg-gray);border-bottom:2px solid var(--pg-line);padding:12px;text-align:start;font-size:11px;font-weight:800;text-transform:uppercase;white-space:nowrap}
+.pg-td{border-top:2px dotted var(--pg-dot)}
+tbody tr:first-child .pg-td{border-top:0}
+.pg-tr{transition:background-color .12s ease}
+.pg-tr:hover{background:var(--pg-gray)}
+.pg-scroll{scrollbar-width:thin;scrollbar-color:var(--pg-accent) transparent}
+.pg-scroll::-webkit-scrollbar{width:6px;height:6px}
+.pg-scroll::-webkit-scrollbar-track{background:transparent}
+.pg-scroll::-webkit-scrollbar-thumb{background:var(--pg-accent);border:1px solid var(--pg-line)}
+.pg-spin{border:4px solid var(--pg-accent);border-top-color:transparent;border-radius:50%;animation:pgSpin .8s linear infinite}
+@keyframes pgSpin{to{transform:rotate(360deg)}}
+@keyframes pgFade{from{opacity:0}to{opacity:1}}
+@keyframes pgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.pg-fade{animation:pgFade .2s ease-out both}
+.pg-in{animation:pgIn .15s ease-out both}
+@media (prefers-reduced-motion:reduce){.pg-btn,.pg-lift,.pg-tr{transition:none}.pg-fade,.pg-in,.pg-spin{animation:none}}
+`;
+const STYLE_EL = <style>{PG_CSS + EXTRAS_CSS}</style>;
 
-const CONDITION_LABELS = { NEW: 'جديد', USED: 'مستعمل', REFURBISHED: 'مجدّد', all: 'كل الحالات' };
-const CONDITIONS = ['NEW', 'USED', 'REFURBISHED'];
-const CONDITION_STYLE = {
-  NEW: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600', dot: 'bg-emerald-500' },
-  USED: { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-600', dot: 'bg-amber-500' },
-  REFURBISHED: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600', dot: 'bg-blue-500' },
+const TONES = { sky: '#22d3ee', am: '#facc15', ro: '#fb7185', vi: '#a3e635', te: '#2dd4bf', em: '#34d399' };
+const ROW_OPTIONS = [5, 10, 25, 50];
+
+const pageList = (page, total) => {
+  const keep = new Set([1, total, page - 1, page, page + 1]);
+  const nums = [...keep].filter((n) => n >= 1 && n <= total).sort((a, b) => a - b);
+  const out = [];
+  nums.forEach((n, i) => {
+    if (i && n - nums[i - 1] > 1) out.push(`gap-${n}`);
+    out.push(n);
+  });
+  return out;
 };
-const getCondStyle = (c) => CONDITION_STYLE[c] || { bg: 'bg-gray-50', text: 'text-gray-600', dot: 'bg-gray-400' };
 
-const STOCK_STATUSES = [
-  { value: 'all', label: 'كل الحالات' },
-  { value: 'in', label: 'متوفر بالمخزون' },
-  { value: 'out', label: 'نفد المخزون' },
-];
-
-const SORT_OPTIONS = [
-  { value: 'name', label: 'الاسم أ-ي' },
-  { value: 'highest_price', label: 'الأعلى سعراً' },
-  { value: 'lowest_price', label: 'الأقل سعراً' },
-  { value: 'highest_stock', label: 'الأعلى مخزوناً' },
-  { value: 'lowest_stock', label: 'الأقل مخزوناً' },
-];
-
-// NOTE: `categoryId` matches the /api/shops/products/v2 payload directly.
-// `image` holds a File object once picked (sent as multipart/form-data) — never a base64 string.
-const EMPTY_PRODUCT = { name: '', description: '', price: '', categoryId: '', stockQuantity: '', condition: 'NEW', image: null };
-
-let swalPromise = null;
-const loadSwal = () => {
-  if (!swalPromise) swalPromise = import('sweetalert2').then((m) => m.default);
-  return swalPromise;
+const useLockScroll = () => {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
 };
 
-const EmptyProductsIllustration = memo(() => (
-  <svg viewBox="0 0 140 110" className="w-28 h-24 mx-auto">
-    <ellipse cx="70" cy="96" rx="42" ry="6" fill="rgba(0,0,0,0.05)" className="dark:fill-white/5" />
-    <path d="M24 42 L70 24 L116 42 L116 78 L70 92 L24 78 Z" fill="#f3f4f6" stroke="#e5e7eb" strokeWidth="2" className="dark:fill-gray-800 dark:stroke-gray-700" />
-    <path d="M24 42 L70 58 L116 42" fill="none" stroke="#e5e7eb" strokeWidth="2" className="dark:stroke-gray-700" />
-    <path d="M70 58 L70 92" fill="none" stroke="#e5e7eb" strokeWidth="2" className="dark:stroke-gray-700" />
-    <path d="M46 34 L94 50" fill="none" stroke="#d1d5db" strokeWidth="2" className="dark:stroke-gray-600" />
-    <circle cx="70" cy="16" r="8" fill="none" stroke="#10b981" strokeWidth="2.4" />
-    <path d="M65 16 h10 M70 11 v10" stroke="#10b981" strokeWidth="2" strokeLinecap="round" />
-  </svg>
+const Tile = memo(({ icon: Icon, tone = 'em', className = 'h-9 w-9', size = 16 }) => (
+  <span className={`pg-tile ${className}`} style={{ background: TONES[tone] || TONES.em }}>
+    <Icon size={size} aria-hidden="true" />
+  </span>
 ));
-EmptyProductsIllustration.displayName = 'EmptyProductsIllustration';
 
-const CrateIllustration = memo(() => (
-  <svg viewBox="0 0 64 64" className="w-full h-full">
-    <circle cx="32" cy="32" r="27" fill="#84cc16" opacity="0.12" />
-    <circle cx="32" cy="32" r="19" fill="none" stroke="#84cc16" strokeWidth="1.5" strokeDasharray="2 4" opacity="0.5" />
-    <path d="M16 22 L32 14 L48 22 L48 42 L32 50 L16 42 Z" fill="none" stroke="#84cc16" strokeWidth="2.4" strokeLinejoin="round" />
-    <path d="M16 22 L32 30 L48 22" fill="none" stroke="#84cc16" strokeWidth="2.4" strokeLinejoin="round" />
-    <line x1="32" y1="30" x2="32" y2="50" stroke="#84cc16" strokeWidth="2.2" />
-  </svg>
+const Empty = memo(({ title, subtitle }) => (
+  <div className="flex flex-col items-center text-center gap-3">
+    <span className="pg-tile h-16 w-16"><FiBox size={28} aria-hidden="true" /></span>
+    <p className="text-base font-extrabold uppercase"><span className="pg-ul">{title}</span></p>
+    <p className="pg-muted text-xs font-semibold max-w-xs">{subtitle}</p>
+  </div>
 ));
-CrateIllustration.displayName = 'CrateIllustration';
 
-const ShieldCheckIllustration = memo(() => (
-  <svg viewBox="0 0 64 64" className="w-full h-full">
-    <circle cx="32" cy="32" r="27" fill="#10b981" opacity="0.12" />
-    <circle cx="32" cy="32" r="19" fill="none" stroke="#10b981" strokeWidth="1.5" strokeDasharray="2 4" opacity="0.5" />
-    <path d="M32 15 L44 19 L44 30 C44 38 39 42 32 45 C25 42 20 38 20 30 L20 19 Z" fill="none" stroke="#10b981" strokeWidth="2.4" strokeLinejoin="round" className="dark:stroke-emerald-400" />
-    <path d="M27 30 L31 34 L38 25" fill="none" stroke="#10b981" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" className="dark:stroke-emerald-400" />
-  </svg>
-));
-ShieldCheckIllustration.displayName = 'ShieldCheckIllustration';
-
-const SparkleTagIllustration = memo(() => (
-  <svg viewBox="0 0 64 64" className="w-full h-full">
-    <circle cx="32" cy="32" r="27" fill="#3b82f6" opacity="0.12" />
-    <circle cx="32" cy="32" r="19" fill="none" stroke="#3b82f6" strokeWidth="1.5" strokeDasharray="2 4" opacity="0.5" />
-    <path d="M18 18 L34 18 L46 30 L30 46 L18 34 Z" fill="none" stroke="#3b82f6" strokeWidth="2.4" strokeLinejoin="round" />
-    <circle cx="24" cy="24" r="2.6" fill="#3b82f6" />
-    <path d="M46 14 L47.7 18.3 L52 20 L47.7 21.7 L46 26 L44.3 21.7 L40 20 L44.3 18.3 Z" fill="#3b82f6" />
-  </svg>
-));
-SparkleTagIllustration.displayName = 'SparkleTagIllustration';
-
-const RecycleWaveIllustration = memo(() => (
-  <svg viewBox="0 0 64 64" className="w-full h-full">
-    <circle cx="32" cy="32" r="27" fill="#f97316" opacity="0.12" />
-    <circle cx="32" cy="32" r="19" fill="none" stroke="#f97316" strokeWidth="1.5" strokeDasharray="2 4" opacity="0.5" />
-    <path d="M15 32 H24 L28 20 L35 44 L40 32 H49" fill="none" stroke="#f97316" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-));
-RecycleWaveIllustration.displayName = 'RecycleWaveIllustration';
-
-const ModalFallback = () => (
-  <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-    <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" />
-    <div className="relative w-full max-w-2xl bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-16 flex items-center justify-center">
-      <div className="w-10 h-10 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin" />
+const StatCard = memo(({ label, value, description, icon, tone }) => (
+  <div className="pg-card pg-lift p-4 sm:p-5 flex items-center gap-3 min-w-0">
+    <Tile icon={icon} tone={tone} className="h-11 w-11" size={20} />
+    <div className="min-w-0">
+      <p className="pg-muted text-[11px] font-bold uppercase truncate">{label}</p>
+      <p className="text-2xl font-extrabold tracking-tight leading-tight tabular-nums truncate">{value}</p>
+      <p className="pg-muted text-xs font-semibold truncate">{description}</p>
     </div>
   </div>
-);
+));
 
-const RowsDropdown = memo(({ value, onChange, options }) => {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
+const RowsSelect = memo(({ value, onChange, label, formatNumber }) => {
+  const options = ROW_OPTIONS.includes(value) ? ROW_OPTIONS : [...ROW_OPTIONS, value].sort((a, b) => a - b);
+  const text = label || '{n}';
   return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center justify-between gap-3 min-w-[168px] px-5 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-xs font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 cursor-pointer transition-all"
-      >
-        {value} منتجات لكل صفحة
-        <FiChevronDown className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`} size={14} />
+    <select
+      value={value}
+      onChange={(e) => onChange(Number(e.target.value))}
+      aria-label={tpl(text, { n: '' }).trim()}
+      className="pg-field h-10 px-3 text-sm font-bold cursor-pointer"
+    >
+      {options.map((n) => <option key={n} value={n}>{tpl(text, { n: formatNumber(n) })}</option>)}
+    </select>
+  );
+});
+
+const SortTh = memo(({ label, active, dir, onClick }) => (
+  <th scope="col" className="pg-th" aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+    <button type="button" onClick={onClick} className="pg-sort inline-flex items-center gap-1 font-extrabold uppercase">
+      {label}
+      {active && dir === 'asc' ? <FiChevronUp size={13} aria-hidden="true" /> : <FiChevronDown size={13} aria-hidden="true" className={active ? '' : 'opacity-30'} />}
+    </button>
+  </th>
+));
+
+const Pagination = memo(({ page, total, onChange, labels, formatNumber }) => {
+  const pages = useMemo(() => pageList(page, total), [page, total]);
+  return (
+    <nav aria-label={labels.paginationAria || 'Pagination'} className="flex items-center gap-1.5 flex-wrap justify-center">
+      <button type="button" disabled={page <= 1} onClick={() => onChange(page - 1)} aria-label={labels.prev || 'Previous'} className="pg-btn h-8 w-8">
+        <FiChevronLeft size={14} className="rtl:rotate-180" aria-hidden="true" />
       </button>
-      {open && (
-        <div className="absolute z-20 mt-2 w-full rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl overflow-hidden">
-          {options.map((n) => (
-            <button
-              key={n}
-              onClick={() => { onChange(n); setOpen(false); }}
-              className={`w-full text-right px-5 py-2.5 text-xs font-bold transition ${
-                value === n ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/60'
-              }`}
-            >
-              {n} منتجات لكل صفحة
-            </button>
+      {pages.map((p) => (typeof p === 'string'
+        ? <span key={p} className="pg-muted px-1 text-xs font-bold" aria-hidden="true">…</span>
+        : (
+          <button key={p} type="button" onClick={() => onChange(p)} aria-current={p === page ? 'page' : undefined} className="pg-btn h-8 min-w-[32px] px-2 text-xs tabular-nums">
+            {formatNumber(p)}
+          </button>
+        )))}
+      <button type="button" disabled={page >= total} onClick={() => onChange(page + 1)} aria-label={labels.next || 'Next'} className="pg-btn h-8 w-8">
+        <FiChevronRight size={14} className="rtl:rotate-180" aria-hidden="true" />
+      </button>
+    </nav>
+  );
+});
+
+const Overlay = memo(({ onClose, children }) => {
+  useLockScroll();
+  return (
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+      <div className="pg-fade absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
+      {children}
+    </div>
+  );
+});
+
+const FilterPanel = memo(({ title, note, groups, onReset, onClose, labels }) => {
+  useEscape(onClose);
+  useLockScroll();
+  return (
+    <div className="fixed inset-0 z-[1000] flex justify-end">
+      <div className="pg-fade absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
+      <aside role="dialog" aria-modal="true" aria-label={title} className="pg-card pg-in relative w-full max-w-xs h-full flex flex-col !shadow-none border-y-0 border-e-0">
+        <div className="pg-gray pg-line px-5 py-4 border-b-2 flex items-center justify-between gap-3">
+          <h3 className="text-sm font-extrabold uppercase"><span className="pg-ul">{title}</span></h3>
+          <button type="button" onClick={onClose} aria-label={labels.close || 'Close'} className="pg-btn h-8 w-8"><FiX size={15} aria-hidden="true" /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto pg-scroll p-5 space-y-5">
+          {note && <p className="pg-muted text-xs font-semibold">{note}</p>}
+          {groups.map(([groupTitle, options, value, setter]) => (
+            <fieldset key={groupTitle} className="space-y-2">
+              <legend className="mb-2 text-[11px] font-extrabold uppercase">{groupTitle}</legend>
+              {options.map((o) => (
+                <button key={o.value} type="button" aria-pressed={value === o.value} onClick={() => setter(o.value)} className="pg-btn w-full justify-between px-3 h-10 text-xs uppercase">
+                  {o.label}
+                  {value === o.value && <FiCheck size={14} aria-hidden="true" />}
+                </button>
+              ))}
+            </fieldset>
           ))}
         </div>
-      )}
+        <div className="pg-line p-4 border-t-2 grid grid-cols-2 gap-2.5">
+          <button type="button" onClick={onReset} className="pg-btn h-10 text-xs uppercase">{labels.reset || 'Reset'}</button>
+          <button type="button" onClick={onClose} className="pg-btn pg-btn-a h-10 text-xs uppercase">{labels.apply || 'Apply'}</button>
+        </div>
+      </aside>
     </div>
   );
 });
-RowsDropdown.displayName = 'RowsDropdown';
 
-const STAT_ILLUSTRATIONS = {
-  'إجمالي المنتجات': CrateIllustration,
-  'متوفر حالياً': ShieldCheckIllustration,
-  'حالة جديدة': SparkleTagIllustration,
-  'مستعمل / مجدد': RecycleWaveIllustration,
+const LOW_STOCK = 5;
+const TABS = ['all', ...CONDITIONS];
+const UPLOAD_CONFIG = { timeout: 120_000 };
+
+const apiOrigin = () => {
+  const base = String(api?.defaults?.baseURL || '').trim();
+  if (/^https?:\/\//i.test(base)) return base.replace(/\/+$/, '').replace(/\/api$/i, '');
+  return typeof window !== 'undefined' ? window.location.origin : '';
 };
 
-const StatCard = memo(({ label, value, description }) => {
-  const Illustration = STAT_ILLUSTRATIONS[label];
+const imageSrc = (raw) => {
+  if (!raw || typeof raw !== 'string') return '';
+  const value = raw.trim();
+  if (!value) return '';
+  if (/^(https?:|data:|blob:)/i.test(value)) return value;
+  const path = value.startsWith('/') ? value : `/${value}`;
+  return `${apiOrigin()}${path}`;
+};
+
+const uploadErrText = (err, u) => {
+  const status = err?.response?.status;
+  if (status === 413) return u.tooLarge;
+  if (status === 415) return u.unsupported;
+  if (err?.code === 'ECONNABORTED') return u.timeout;
+  return errText(err);
+};
+
+const COND_DOT = { NEW: 'bg-emerald-500', USED: 'bg-amber-400', REFURBISHED: 'bg-blue-500' };
+const STOCK_FILTER_KEYS = ['all', 'in', 'low', 'out'];
+const SORT_KEYS = ['name', 'highest_price', 'lowest_price', 'highest_stock', 'lowest_stock'];
+
+const stockMeta = (n, s) => {
+  if (n <= 0) return { label: s.out, dot: 'bg-red-500' };
+  if (n <= LOW_STOCK) return { label: s.low, dot: 'bg-amber-400' };
+  return { label: s.in, dot: 'bg-emerald-500' };
+};
+
+const normalize = (p) => ({
+  ...p,
+  condition: upper(p.condition),
+  stock: Math.max(0, num(p.stock ?? p.stockQuantity)),
+  price: num(p.price),
+  image: rawImageOf(p) || p.imageUrl || p.image_url || '',
+});
+
+const ProductThumb = memo(({ raw, alt = '', className = 'w-12 h-12', iconSize = 18 }) => {
+  const src = useMemo(() => imageSrc(raw), [raw]);
+  const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => { setFailed(false); setLoaded(false); }, [src]);
+
+  const showImage = src && !failed;
+
   return (
-    <div className="group bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 p-4 flex items-center gap-3 transition-all duration-300 hover:shadow-lg hover:shadow-gray-200/50 dark:hover:shadow-none">
-      <div className="w-11 h-11 flex-shrink-0 group-hover:scale-105 transition-transform">
-        {Illustration && <Illustration />}
-      </div>
-      <div className="min-w-0 text-right">
-        <p className="text-[9px] font-black uppercase tracking-[0.15em] text-gray-400 truncate">{label}</p>
-        <p className="text-xl font-black text-gray-900 dark:text-white leading-tight">{value}</p>
-        <p className="text-[9px] font-bold text-gray-400 truncate">{description}</p>
-      </div>
-    </div>
+    <span className={`${className} pg-gray pg-line relative flex-shrink-0 overflow-hidden border-2 flex items-center justify-center`}>
+      {showImage && (
+        <img
+          src={src}
+          alt={alt}
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          onLoad={() => setLoaded(true)}
+          onError={() => setFailed(true)}
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-200 motion-reduce:transition-none ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        />
+      )}
+      {(!showImage || !loaded) && (
+        <FiImage size={iconSize} className={`pg-muted ${showImage ? 'animate-pulse motion-reduce:animate-none' : ''}`} aria-hidden="true" />
+      )}
+    </span>
   );
 });
-StatCard.displayName = 'StatCard';
 
-const LEGEND_ITEMS = [
-  { icon: FiEdit3, tone: 'text-amber-500 border-amber-200 dark:border-amber-900/50', label: 'تعديل', desc: 'تحديث بيانات المنتج وصورته وسعره' },
-  { icon: FiTrash2, tone: 'text-red-600 border-red-200 dark:border-red-900/50', label: 'حذف', desc: 'إزالة المنتج نهائياً من الكتالوج' },
-];
-
-const IconLegendCard = memo(() => (
-  <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 p-5">
-    <div className="flex items-center gap-2 mb-4">
-      <div className="w-7 h-7 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 flex items-center justify-center text-gray-400">
-        <FiAlertCircle size={13} />
-      </div>
-      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">دليل الأيقونات</p>
-    </div>
-    <div className="flex flex-wrap gap-x-8 gap-y-4">
-      {LEGEND_ITEMS.map(({ icon: Icon, tone, label, desc }) => (
-        <div key={label} className="flex items-start gap-3 min-w-[200px] flex-1">
-          <div className={`w-8 h-8 rounded-lg border flex items-center justify-center flex-shrink-0 ${tone}`}>
-            <Icon size={13} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-black text-gray-900 dark:text-white">{label}</p>
-            <p className="text-[10px] font-bold text-gray-400 leading-relaxed mt-0.5">{desc}</p>
-          </div>
-        </div>
-      ))}
-    </div>
-    <div className="mt-4 pt-4 border-t border-gray-50 dark:border-gray-700 flex items-start gap-1.5">
-      <FiAlertCircle className="text-blue-500 flex-shrink-0 mt-0.5" size={12} />
-      <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 leading-relaxed">
-        المنتجات التي نفد مخزونها تظهر بلون أحمر في عمود المخزون لتنبيهك بضرورة إعادة التخزين.
-      </p>
-    </div>
-  </div>
+const Pill = memo(({ dot, children }) => (
+  <span className="pg-chip">
+    <span className={`pg-line w-2 h-2 border ${dot}`} />
+    {children}
+  </span>
 ));
-IconLegendCard.displayName = 'IconLegendCard';
 
-const ProductRow = memo(({ product, onEdit, onDelete }) => {
-  const cs = getCondStyle(product.condition);
+const ProductRow = memo(({ product, busy, loc, onEdit, onDelete, onStock }) => {
+  const { L, fm } = loc;
+  const t = L.products;
+  const nf = fm.number;
+  const sm = stockMeta(product.stock, t.stock);
   return (
-    <tr className="hover:bg-emerald-50/10 dark:hover:bg-emerald-900/5 transition-colors group">
-      <td className="px-4 py-3 whitespace-nowrap">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-300 overflow-hidden border border-gray-100 dark:border-gray-700">
-            {product.imageUrl ? (
-              <img src={product.imageUrl} className="w-full h-full object-cover" alt={product.name} loading="lazy" />
-            ) : (
-              <FiImage size={20} />
-            )}
-          </div>
-          <div>
-            <p className="text-xs font-black text-gray-900 dark:text-white">{product.name}</p>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{product.categoryName || 'غير مصنف'}</p>
+    <tr className="pg-tr">
+      <td className="pg-td px-3 py-2.5">
+        <div className="flex items-center gap-3 min-w-[220px]">
+          <ProductThumb raw={product.image} alt={product.name || ''} className="w-14 h-14" iconSize={20} />
+          <div className="min-w-0">
+            <p className="text-xs font-extrabold uppercase truncate max-w-[240px]">{product.name || '—'}</p>
+            <p className="pg-muted text-[10px] font-semibold truncate max-w-[240px]">{product.categoryName || t.uncategorized}</p>
           </div>
         </div>
       </td>
-      <td className="px-4 py-3 whitespace-nowrap text-center">
-        <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest ${cs.bg} ${cs.text}`}>
-          {CONDITION_LABELS[product.condition] || product.condition}
-        </span>
+      <td className="pg-td px-3 py-2.5 whitespace-nowrap">
+        <Pill dot={COND_DOT[product.condition] || 'bg-gray-400'}>{t.conditions[product.condition] || product.condition || '—'}</Pill>
       </td>
-      <td className="px-4 py-3 whitespace-nowrap text-center font-mono font-black text-xs text-emerald-600">
-        {formatPrice(product.price)}
+      <td className="pg-td px-3 py-2.5 whitespace-nowrap font-extrabold text-[13px] tabular-nums">
+        {formatPrice(product.price, L.table.price, nf)}
       </td>
-      <td className="px-4 py-3 whitespace-nowrap text-center">
-        <p className={`text-sm font-black ${(product.stock ?? 0) > 0 ? 'text-gray-900 dark:text-white' : 'text-red-500'}`}>{product.stock ?? 0}</p>
-        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">وحدة متوفرة</p>
+      <td className="pg-td px-3 py-2.5 whitespace-nowrap">
+        <div className="flex items-center gap-2">
+          <span className={`text-sm font-extrabold tabular-nums ${product.stock > 0 ? '' : 'text-red-500'}`}>{nf.format(product.stock)}</span>
+          <Pill dot={sm.dot}>{sm.label}</Pill>
+        </div>
       </td>
-      <td className="px-4 py-3 whitespace-nowrap text-left">
-        <div className="flex items-center justify-start gap-1.5">
-          <button title="تعديل المنتج" onClick={() => onEdit(product)} className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-all active:scale-95">
-            <FiEdit3 size={14} />
-          </button>
-          <button title="حذف المنتج" onClick={() => onDelete(product.id)} className="p-2 rounded-lg border border-red-200 dark:border-red-900/50 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all active:scale-95">
-            <FiTrash2 size={14} />
-          </button>
+      <td className="pg-td px-3 py-2.5 whitespace-nowrap">
+        <div className="flex items-center gap-1.5">
+          <button type="button" disabled={busy} onClick={() => onStock(product)} className="pg-btn px-2.5 h-8 text-[11px] uppercase"><FiLayers size={12} aria-hidden="true" /> {t.stockBtn}</button>
+          <button type="button" disabled={busy} title={t.editAria} aria-label={t.editAria} onClick={() => onEdit(product)} className="pg-btn h-8 w-8"><FiEdit3 size={14} aria-hidden="true" /></button>
+          <button type="button" disabled={busy} title={t.deleteAria} aria-label={t.deleteAria} onClick={() => onDelete(product)} className="pg-btn pg-btn-danger h-8 w-8"><FiTrash2 size={14} aria-hidden="true" /></button>
         </div>
       </td>
     </tr>
   );
 });
-ProductRow.displayName = 'ProductRow';
 
-const FilterPanel = memo(({
-  conditionFilter, onConditionChange, categoryFilter, onCategoryChange,
-  categories, stockFilter, onStockChange, sortBy, onSortChange, onClose,
-}) => (
-  <div className="fixed inset-0 z-[100] flex items-end lg:items-center justify-center p-0 lg:p-4">
-    <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={onClose} />
-    <div className="relative w-full lg:max-w-md bg-white dark:bg-gray-800 shadow-2xl overflow-hidden animate-in slide-in-from-bottom-20 duration-500 max-h-[90vh] flex flex-col">
-      <div className="p-6 border-b border-gray-50 dark:border-gray-700 flex items-center justify-between flex-shrink-0">
-        <div>
-          <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">تصفية المنتجات</h3>
-          <p className="text-xs font-bold text-gray-400 mt-1 uppercase tracking-widest">خصص طريقة عرض الكتالوج</p>
-        </div>
-        <button onClick={onClose} className="w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-red-500 hover:border-red-300 transition-all">
-          <FiX size={16} />
-        </button>
-      </div>
+const StockModal = memo(({ product, busy, loc, onClose, onSubmit }) => {
+  useEscape(onClose);
+  const t = loc.L.products.stockModal;
+  const nf = loc.fm.number;
+  const [value, setValue] = useState(String(product.stock));
+  const [error, setError] = useState('');
 
-      <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar-thin">
-        <div>
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">حالة المنتج</p>
-          <div className="grid grid-cols-2 gap-3">
-            {['all', ...CONDITIONS].map((c) => (
-              <button
-                key={c}
-                onClick={() => onConditionChange(c)}
-                className={`px-4 py-3.5 rounded-2xl border-2 text-[10px] font-black uppercase tracking-widest transition-all ${
-                  conditionFilter === c
-                    ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                    : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-700 text-gray-500 hover:border-emerald-500 hover:text-emerald-600'
-                }`}
-              >
-                {CONDITION_LABELS[c]}
-              </button>
-            ))}
+  const submit = (e) => {
+    e.preventDefault();
+    const n = Number(value);
+    if (value === '' || !Number.isInteger(n) || n < 0 || n > STOCK_MAX) { setError(tpl(t.invalid, { n: nf.format(STOCK_MAX) })); return; }
+    onSubmit(n);
+  };
+
+  return (
+    <Overlay onClose={onClose}>
+      <form onSubmit={submit} noValidate role="dialog" aria-modal="true" aria-label={t.title} className="pg-card pg-in relative w-full max-w-sm overflow-hidden">
+        <div className="pg-gray pg-line px-5 py-4 border-b-2 flex items-center gap-3">
+          <ProductThumb raw={product.image} alt="" className="w-10 h-10" iconSize={16} />
+          <div className="min-w-0">
+            <h3 className="text-sm font-extrabold uppercase"><span className="pg-ul">{t.title}</span></h3>
+            <p className="pg-muted mt-1 text-[11px] font-semibold truncate">{product.name} · {tpl(t.current, { n: nf.format(product.stock) })}</p>
           </div>
         </div>
-
-        <div>
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">حالة المخزون</p>
-          <div className="flex flex-wrap gap-2">
-            {STOCK_STATUSES.map((o) => (
-              <button
-                key={o.value}
-                onClick={() => onStockChange(o.value)}
-                className={`px-4 py-2.5 rounded-full border-2 text-[10px] font-black uppercase tracking-widest transition-all ${
-                  stockFilter === o.value
-                    ? 'bg-emerald-500 border-emerald-500 text-white'
-                    : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-700 text-gray-500 hover:border-emerald-500 hover:text-emerald-600'
-                }`}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
+        <div className="p-5 space-y-2">
+          <label htmlFor="stock-new" className="text-[11px] font-extrabold uppercase">{t.newQty}</label>
+          <input
+            id="stock-new"
+            type="text"
+            inputMode="numeric"
+            dir="ltr"
+            autoFocus
+            autoComplete="off"
+            maxLength={7}
+            value={value}
+            aria-invalid={!!error}
+            onChange={(e) => { setValue(e.target.value.replace(/\D/g, '')); setError(''); }}
+            className="pg-field w-full h-12 text-lg font-extrabold text-center tabular-nums"
+          />
+          {error && <p role="alert" className="text-[11px] font-bold text-red-500">{error}</p>}
         </div>
-
-        {categories.length > 0 && (
-          <div>
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">الفئة</p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => onCategoryChange('all')}
-                className={`px-4 py-2.5 rounded-full border-2 text-[10px] font-black uppercase tracking-widest transition-all ${
-                  categoryFilter === 'all'
-                    ? 'bg-gray-900 dark:bg-emerald-500 border-gray-900 dark:border-emerald-500 text-white'
-                    : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-700 text-gray-500 hover:border-gray-400'
-                }`}
-              >
-                كل الفئات
-              </button>
-              {categories.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => onCategoryChange(c.id)}
-                  className={`px-4 py-2.5 rounded-full border-2 text-[10px] font-black uppercase tracking-widest transition-all ${
-                    categoryFilter === c.id
-                      ? 'bg-gray-900 dark:bg-emerald-500 border-gray-900 dark:border-emerald-500 text-white'
-                      : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-700 text-gray-500 hover:border-gray-400'
-                  }`}
-                >
-                  {c.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div>
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">الترتيب حسب</p>
-          <div className="grid grid-cols-2 gap-3">
-            {SORT_OPTIONS.map((o) => (
-              <button
-                key={o.value}
-                onClick={() => onSortChange(o.value)}
-                className={`px-4 py-3 rounded-2xl border-2 text-[10px] font-black uppercase tracking-widest transition-all ${
-                  sortBy === o.value
-                    ? 'bg-gray-900 dark:bg-emerald-500 border-gray-900 dark:border-emerald-500 text-white'
-                    : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-700 text-gray-500 hover:border-gray-400'
-                }`}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
+        <div className="px-5 pb-5 flex gap-2.5">
+          <button type="button" onClick={onClose} className="pg-btn flex-1 h-10 text-xs uppercase">{t.cancel}</button>
+          <button type="submit" disabled={busy} className="pg-btn pg-btn-a flex-1 h-10 text-xs uppercase">{t.update}</button>
         </div>
-      </div>
+      </form>
+    </Overlay>
+  );
+});
 
-      <div className="p-6 border-t border-gray-50 dark:border-gray-700 flex-shrink-0">
-        <button onClick={onClose} className="w-full py-3.5 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20">
-          تطبيق الفلاتر
-        </button>
-      </div>
-    </div>
+const ModalFallback = memo(({ label }) => (
+  <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4" role="status" aria-label={label}>
+    <div className="absolute inset-0 bg-black/60" />
+    <div className="pg-spin relative w-10 h-10" />
   </div>
 ));
-FilterPanel.displayName = 'FilterPanel';
 
 const Products = () => {
-  const [allProducts, setAllProducts] = useState([]);
+  const darkMode = useDarkMode();
+  const loc = useShopLocale();
+  const { language, L, fm, dir, font } = loc;
+  const t = L.products;
+  const tt = L.table;
+  const nf = fm.number;
+
+  const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-
   const [conditionFilter, setConditionFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [stockFilter, setStockFilter] = useState('all');
@@ -389,497 +402,388 @@ const Products = () => {
 
   const [newProduct, setNewProduct] = useState(EMPTY_PRODUCT);
   const [editingProduct, setEditingProduct] = useState(null);
-  const [stockTarget, setStockTarget] = useState(null);
-  const [newStockValue, setNewStockValue] = useState('');
-
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showStockModal, setShowStockModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [stockId, setStockId] = useState(null);
+  const [busyIds, setBusyIds] = useState(() => new Set());
 
-  useEffect(() => { document.title = 'إدارة المنتجات'; }, []);
+  const productsRef = useRef(products);
+  const inflight = useRef(new Set());
+  const savingRef = useRef(false);
+  const abortRef = useRef(null);
+  const categoriesAbortRef = useRef(null);
+  const tRef = useRef(t);
+  const ttRef = useRef(tt);
+  useEffect(() => { productsRef.current = products; }, [products]);
+  useEffect(() => { tRef.current = t; ttRef.current = tt; }, [t, tt]);
+  useEffect(() => { document.title = t.docTitle; }, [t.docTitle]);
 
-  const showToast = useCallback(async (text, icon) => {
-    const Swal = await loadSwal();
-    Swal.fire({
-      text, icon, toast: true, position: 'top-start',
-      showConfirmButton: false, timer: 3000,
-    });
-  }, []);
+  const term = useDeferredValue(search).trim().toLowerCase();
 
-  const fetchProducts = useCallback(async () => {
-    setLoading(true);
+  const fetchProducts = useCallback(async ({ silent = false } = {}) => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    if (!silent) setLoading(true);
     try {
-      const res = await api.get('/api/shops/products');
-      setAllProducts(Array.isArray(res.data) ? res.data : res.data.content || []);
-    } catch { }
-    finally { setLoading(false); }
+      const res = await api.get('/api/shops/products', {
+        params: { page: 0, size: 500 },
+        signal: controller.signal,
+      });
+      const data = Array.isArray(res.data) ? res.data : res.data?.content || [];
+      if (!controller.signal.aborted) { setProducts(data.map(normalize)); setLastUpdated(new Date()); }
+    } catch (err) {
+      if (!controller.signal.aborted && !silent) toast({ icon: 'error', title: tRef.current.toasts.loadFail, text: errText(err) });
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
+    }
   }, []);
 
-  const debouncedApiSearch = useRef(
-    debounce(async (q) => {
-      if (!q) return;
-      try {
-        const res = await api.get('/api/shops/products', { params: { query: q } });
-        setAllProducts(Array.isArray(res.data) ? res.data : res.data.content || []);
-      } catch { }
-    }, 400),
-  ).current;
+  const fetchCategories = useCallback(async () => {
+    categoriesAbortRef.current?.abort();
+    const controller = new AbortController();
+    categoriesAbortRef.current = controller;
+    try {
+      const res = await api.get('/api/categories', { signal: controller.signal });
+      if (!controller.signal.aborted) setCategories(Array.isArray(res.data) ? res.data : res.data?.content || []);
+    } catch {}
+  }, []);
 
   useEffect(() => {
     fetchProducts();
-    return () => debouncedApiSearch.cancel();
-  }, [fetchProducts, debouncedApiSearch]);
+    fetchCategories();
+    return () => { abortRef.current?.abort(); categoriesAbortRef.current?.abort(); };
+  }, [fetchProducts, fetchCategories]);
 
-  useEffect(() => {
-    if (searchTerm.trim()) {
-      debouncedApiSearch(searchTerm.trim());
-    } else {
-      debouncedApiSearch.cancel();
-      fetchProducts();
-    }
-    setCurrentPage(1);
-  }, [searchTerm]);
-
-  const fetchCategories = useCallback(async () => {
-    try {
-      const res = await api.get('/api/categories');
-      setCategories(Array.isArray(res.data) ? res.data : res.data.content || []);
-    } catch { }
-  }, []);
-
-  useEffect(() => { fetchCategories(); }, [fetchCategories]);
-
-  const products = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase();
-    let list = allProducts;
-
-    if (q) {
-      list = list.filter((p) =>
-        (p.name || '').toLowerCase().includes(q) ||
-        (p.categoryName || '').toLowerCase().includes(q) ||
-        (p.description || '').toLowerCase().includes(q));
-    }
-
-    if (conditionFilter !== 'all') {
-      list = list.filter((p) => p.condition === conditionFilter);
-    }
-    if (categoryFilter !== 'all') {
-      list = list.filter((p) => p.categoryId === categoryFilter);
-    }
-    if (stockFilter === 'in') {
-      list = list.filter((p) => (p.stock ?? 0) > 0);
-    } else if (stockFilter === 'out') {
-      list = list.filter((p) => (p.stock ?? 0) === 0);
-    }
-
-    const sorted = [...list];
-    if (sortBy === 'highest_price') sorted.sort((a, b) => (b.price || 0) - (a.price || 0));
-    else if (sortBy === 'lowest_price') sorted.sort((a, b) => (a.price || 0) - (b.price || 0));
-    else if (sortBy === 'highest_stock') sorted.sort((a, b) => (b.stock || 0) - (a.stock || 0));
-    else if (sortBy === 'lowest_stock') sorted.sort((a, b) => (a.stock || 0) - (b.stock || 0));
-    else sorted.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'));
-
-    return sorted;
-  }, [allProducts, searchTerm, conditionFilter, categoryFilter, stockFilter, sortBy]);
-
-  const stats = useMemo(() => ({
-    total: allProducts.length,
-    inStock: allProducts.filter((p) => (p.stock ?? 0) > 0).length,
-    newCond: allProducts.filter((p) => p.condition === 'NEW').length,
-    usedOrRefurb: allProducts.filter((p) => p.condition !== 'NEW').length,
-  }), [allProducts]);
-
-  const paginated = useMemo(() => products.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage), [products, currentPage, rowsPerPage]);
-  const totalPages = Math.ceil(products.length / rowsPerPage);
-
-  // Shared validation for the v2 payload: name, description, price, categoryId, stockQuantity, condition, image are all required.
-  const validateProduct = useCallback((p) => {
-    if (!p.name?.trim()) return 'اسم المنتج مطلوب';
-    if (!p.description?.trim()) return 'وصف المنتج مطلوب';
-    if (p.price === '' || p.price === null || Number(p.price) <= 0) return 'السعر مطلوب';
-    if (!p.categoryId) return 'يرجى اختيار فئة';
-    if (p.stockQuantity === '' || p.stockQuantity === null || Number(p.stockQuantity) < 0) return 'الكمية مطلوبة';
-    if (!p.condition) return 'حالة المنتج مطلوبة';
-    if (!p.image) return 'صورة المنتج مطلوبة';
-    return null;
-  }, []);
-
-  // The backend expects multipart/form-data so it can receive an actual image file alongside the fields.
-  const buildFormData = useCallback((p) => {
-    const fd = new FormData();
-    fd.append('name', p.name.trim());
-    fd.append('description', p.description.trim());
-    fd.append('price', Number(p.price) || 0);
-    fd.append('categoryId', p.categoryId);
-    fd.append('stockQuantity', Number(p.stockQuantity) || 0);
-    fd.append('condition', p.condition);
-    // Only attach when a new file was picked — on edit, an unchanged image stays a URL string and is skipped
-    // so the backend keeps the existing image.
-    if (p.image instanceof File) fd.append('image', p.image);
-    return fd;
-  }, []);
+  const setBusy = useCallback(() => setBusyIds(new Set(inflight.current)), []);
 
   const addProduct = useCallback(async () => {
-    const error = validateProduct(newProduct);
-    if (error) { showToast(error, 'error'); return; }
-
-    const formData = buildFormData(newProduct);
-    const categoryName = categories.find((c) => c.id === newProduct.categoryId)?.name || '';
-    const previewUrl = newProduct.image instanceof File ? URL.createObjectURL(newProduct.image) : '';
-
-    const tempId = Date.now();
-    const optimisticProduct = {
-      id: tempId,
-      name: newProduct.name.trim(),
-      description: newProduct.description.trim(),
-      price: Number(newProduct.price) || 0,
-      categoryId: newProduct.categoryId,
-      stock: Number(newProduct.stockQuantity) || 0,
-      condition: newProduct.condition,
-      imageUrl: previewUrl,
-      categoryName,
-    };
-    setAllProducts((prev) => [optimisticProduct, ...prev]);
-    setShowAddModal(false);
-    setNewProduct(EMPTY_PRODUCT);
-
+    if (savingRef.current) return;
+    const x = tRef.current;
+    const problem = validateProduct(newProduct, categories);
+    if (problem) { toast({ icon: 'error', title: x.toasts.invalidData, text: problem }); return; }
+    savingRef.current = true;
+    setSaving(true);
     try {
-      const res = await api.post('/api/shops/products/v2', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      setAllProducts((prev) => prev.map((p) => (p.id === tempId ? res.data : p)));
-      showToast('تم إضافة المنتج بنجاح', 'success');
-    } catch {
-      setAllProducts((prev) => prev.filter((p) => p.id !== tempId));
-      showToast('فشل في الإضافة', 'error');
+      await api.post('/api/shops/products/v2', buildFormData(newProduct), UPLOAD_CONFIG);
+      toast({ icon: 'success', title: x.toasts.added });
+      setShowAddModal(false);
+      setNewProduct(EMPTY_PRODUCT);
+      fetchProducts({ silent: true });
+    } catch (err) {
+      toast({ icon: 'error', title: x.toasts.addFail, text: uploadErrText(err, x.upload) });
     } finally {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      savingRef.current = false;
+      setSaving(false);
     }
-  }, [newProduct, categories, buildFormData, validateProduct, showToast]);
+  }, [newProduct, categories, fetchProducts]);
 
   const updateProduct = useCallback(async () => {
-    const error = validateProduct(editingProduct);
-    if (error) { showToast(error, 'error'); return; }
-
-    const formData = buildFormData(editingProduct);
-    const categoryName = categories.find((c) => c.id === editingProduct.categoryId)?.name || '';
-    const previewUrl = editingProduct.image instanceof File ? URL.createObjectURL(editingProduct.image) : editingProduct.image;
-
-    const previousProducts = [...allProducts];
-    setAllProducts((prev) => prev.map((p) => (p.id === editingProduct.id
-      ? {
-        ...p,
-        name: editingProduct.name.trim(),
-        description: editingProduct.description.trim(),
-        price: Number(editingProduct.price) || 0,
-        categoryId: editingProduct.categoryId,
-        stock: Number(editingProduct.stockQuantity) || 0,
-        condition: editingProduct.condition,
-        imageUrl: previewUrl,
-        categoryName,
-      }
-      : p)));
-    setShowEditModal(false);
-
+    if (savingRef.current || !editingProduct) return;
+    const x = tRef.current;
+    const id = editingProduct.id;
+    if (!isSafeId(id)) { toast({ icon: 'error', title: x.toasts.invalidId }); return; }
+    const problem = validateProduct(editingProduct, categories);
+    if (problem) { toast({ icon: 'error', title: x.toasts.invalidData, text: problem }); return; }
+    savingRef.current = true;
+    setSaving(true);
     try {
-      const res = await api.put(`/api/shops/products/${editingProduct.id}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      setAllProducts((prev) => prev.map((p) => (p.id === editingProduct.id ? res.data : p)));
-      showToast('تم تعديل المنتج بنجاح', 'success');
-    } catch {
-      setAllProducts(previousProducts);
-      showToast('خطأ في تعديل المنتج', 'error');
+      await api.put(`/api/shops/products/${encodeURIComponent(id)}`, buildFormData(editingProduct), UPLOAD_CONFIG);
+      toast({ icon: 'success', title: x.toasts.updated });
+      setEditingProduct(null);
+      fetchProducts({ silent: true });
+    } catch (err) {
+      toast({ icon: 'error', title: x.toasts.updateFail, text: uploadErrText(err, x.upload) });
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
     }
-  }, [editingProduct, allProducts, categories, buildFormData, validateProduct, showToast]);
+  }, [editingProduct, categories, fetchProducts]);
 
-  const updateStock = useCallback(async () => {
-    if (newStockValue === '' || newStockValue < 0) return;
-    const targetId = stockTarget.id;
-    const nextStock = parseInt(newStockValue, 10);
-
-    const previousProducts = [...allProducts];
-    setAllProducts((prev) => prev.map((p) => (p.id === targetId ? { ...p, stock: nextStock } : p)));
-    setShowStockModal(false);
-
+  const updateStock = useCallback(async (id, next) => {
+    if (!isSafeId(id) || inflight.current.has(id)) return;
+    const x = tRef.current;
+    const old = productsRef.current.find((p) => p.id === id)?.stock;
+    inflight.current.add(id);
+    setBusy();
+    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, stock: next } : p)));
+    setStockId(null);
     try {
-      await api.patch(`/api/shops/products/${targetId}/stock`, { newStock: nextStock });
-      showToast('تم تحديث المخزون', 'success');
-    } catch {
-      setAllProducts(previousProducts);
-      showToast('خطأ في تحديث المخزون', 'error');
+      await api.patch(`/api/shops/products/${encodeURIComponent(id)}/stock`, { newStock: next });
+      toast({ icon: 'success', title: x.toasts.stockUpdated });
+    } catch (err) {
+      setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, stock: old ?? p.stock } : p)));
+      toast({ icon: 'error', title: x.toasts.stockFail, text: errText(err) });
+    } finally {
+      inflight.current.delete(id);
+      setBusy();
     }
-  }, [newStockValue, stockTarget, allProducts, showToast]);
+  }, [setBusy]);
 
-  const deleteProduct = useCallback(async (id) => {
-    const Swal = await loadSwal();
-    const result = await Swal.fire({
-      title: 'تأكيد الحذف', text: 'هل تريد حذف المنتج نهائياً؟', icon: 'warning',
-      showCancelButton: true, confirmButtonText: 'نعم، احذف', cancelButtonText: 'إلغاء',
-      confirmButtonColor: '#ef4444',
+  const deleteProduct = useCallback(async (product) => {
+    const { id } = product;
+    if (!isSafeId(id) || inflight.current.has(id)) return;
+    const x = tRef.current;
+    let isConfirmed = false;
+    try {
+      ({ isConfirmed } = await confirmDialog({
+        title: x.confirmDelete.title,
+        text: x.confirmDelete.text,
+        icon: 'warning',
+        confirmButtonText: x.confirmDelete.yes,
+        cancelButtonText: ttRef.current.cancel,
+        confirmButtonColor: '#ef4444',
+      }));
+    } catch {
+      toast({ icon: 'error', title: x.toasts.confirmFail, text: x.toasts.confirmFailText });
+      return;
+    }
+    if (!isConfirmed) return;
+
+    inflight.current.add(id);
+    setBusy();
+    setProducts((prev) => prev.filter((p) => p.id !== id));
+    try {
+      await api.delete(`/api/shops/products/${encodeURIComponent(id)}`);
+      toast({ icon: 'success', title: x.toasts.deleted });
+    } catch (err) {
+      setProducts((prev) => (prev.some((p) => p.id === id) ? prev : [product, ...prev]));
+      toast({ icon: 'error', title: x.toasts.deleteFail, text: errText(err) });
+    } finally {
+      inflight.current.delete(id);
+      setBusy();
+    }
+  }, [setBusy]);
+
+  const index = useMemo(() => products.map((p) => ({
+    p,
+    text: [p.name, p.categoryName, p.description].filter(Boolean).join(' ').toLowerCase(),
+  })), [products]);
+
+  const counts = useMemo(() => {
+    const c = { all: products.length, inStock: 0 };
+    for (const p of products) { c[p.condition] = (c[p.condition] || 0) + 1; if (p.stock > 0) c.inStock += 1; }
+    return c;
+  }, [products]);
+
+  const filtered = useMemo(() => {
+    const collator = getCollator(L.locale);
+    const list = index.filter(({ p, text }) => (
+      (conditionFilter === 'all' || p.condition === conditionFilter)
+      && (categoryFilter === 'all' || String(p.categoryId) === categoryFilter)
+      && (stockFilter === 'all'
+        || (stockFilter === 'in' && p.stock > 0)
+        || (stockFilter === 'low' && p.stock > 0 && p.stock <= LOW_STOCK)
+        || (stockFilter === 'out' && p.stock <= 0))
+      && (!term || text.includes(term))
+    )).map((e) => e.p);
+    list.sort((a, b) => {
+      if (sortBy === 'highest_price') return b.price - a.price;
+      if (sortBy === 'lowest_price') return a.price - b.price;
+      if (sortBy === 'highest_stock') return b.stock - a.stock;
+      if (sortBy === 'lowest_stock') return a.stock - b.stock;
+      return collator.compare(String(a.name || ''), String(b.name || ''));
     });
-    if (!result.isConfirmed) return;
+    return list;
+  }, [index, conditionFilter, categoryFilter, stockFilter, term, sortBy, L.locale]);
 
-    const previousProducts = [...allProducts];
-    setAllProducts((prev) => prev.filter((p) => p.id !== id));
+  useEffect(() => { setCurrentPage(1); }, [conditionFilter, categoryFilter, stockFilter, term, sortBy, rowsPerPage]);
 
-    try {
-      await api.delete(`/api/shops/products/${id}`);
-      showToast('تم حذف المنتج', 'success');
-    } catch {
-      setAllProducts(previousProducts);
-      showToast('خطأ في حذف المنتج', 'error');
-    }
-  }, [allProducts, showToast]);
-
-  const closeModals = useCallback(() => {
-    setShowAddModal(false);
-    setShowEditModal(false);
-  }, []);
-
-  const handleAddChange = useCallback((f, v) => setNewProduct((prev) => ({ ...prev, [f]: v })), []);
-  const handleEditChange = useCallback((f, v) => setEditingProduct((prev) => ({ ...prev, [f]: v })), []);
-
-  const openEdit = useCallback((p) => {
-    setEditingProduct({
-      id: p.id,
-      name: p.name,
-      description: p.description,
-      price: p.price,
-      categoryId: p.categoryId,
-      stockQuantity: p.stock,
-      condition: p.condition,
-      // Starts as the existing image URL (string) so the dropzone previews it as-is.
-      // Only becomes a File if the user picks a new image, which is what gets uploaded.
-      image: p.imageUrl,
-    });
-    setShowEditModal(true);
-  }, []);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+  const page = Math.min(currentPage, totalPages);
+  const paginated = useMemo(() => filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage), [filtered, page, rowsPerPage]);
+  const skeletonRows = useMemo(() => Array.from({ length: Math.min(rowsPerPage, 8) }, (_, i) => i), [rowsPerPage]);
 
   const statCards = useMemo(() => [
-    { label: 'إجمالي المنتجات', value: stats.total.toLocaleString('ar-EG'), description: 'جميع المنتجات المسجلة' },
-    { label: 'متوفر حالياً', value: stats.inStock.toLocaleString('ar-EG'), description: 'منتجات متاحة للبيع' },
-    { label: 'حالة جديدة', value: stats.newCond.toLocaleString('ar-EG'), description: 'منتجات بحالة المصنع' },
-    { label: 'مستعمل / مجدد', value: stats.usedOrRefurb.toLocaleString('ar-EG'), description: 'منتجات مجددة أو مستعملة' },
-  ], [stats]);
+    { label: t.stats.total.label, value: nf.format(counts.all), description: t.stats.total.desc, icon: FiPackage, tone: 'sky' },
+    { label: t.stats.inStock.label, value: nf.format(counts.inStock), description: t.stats.inStock.desc, icon: FiCheckCircle, tone: 'em' },
+    { label: t.stats.fresh.label, value: nf.format(counts.NEW || 0), description: t.stats.fresh.desc, icon: FiTag, tone: 'vi' },
+    { label: t.stats.used.label, value: nf.format((counts.USED || 0) + (counts.REFURBISHED || 0)), description: t.stats.used.desc, icon: FiRefreshCw, tone: 'am' },
+  ], [counts, t, nf]);
 
-  const activeFilterCount = (conditionFilter !== 'all' ? 1 : 0) + (categoryFilter !== 'all' ? 1 : 0) + (stockFilter !== 'all' ? 1 : 0) + (sortBy !== 'name' ? 1 : 0);
+  const categoryOptions = useMemo(() => [
+    { value: 'all', label: t.allCategories },
+    ...categories.map((c) => ({ value: String(c.id), label: String(c.name ?? '').slice(0, 40) })),
+  ], [categories, t]);
+
+  const sortOptions = useMemo(() => SORT_KEYS.map((k) => ({ value: k, label: t.sort[k] })), [t]);
+  const stockOptions = useMemo(
+    () => STOCK_FILTER_KEYS.map((k) => ({ value: k, label: tpl(t.stockFilters[k], { n: nf.format(LOW_STOCK) }) })),
+    [t, nf],
+  );
+
+  const filterGroups = useMemo(() => [
+    [t.groups.sort, sortOptions, sortBy, setSortBy],
+    [t.groups.stock, stockOptions, stockFilter, setStockFilter],
+    ...(categories.length ? [[t.groups.category, categoryOptions, categoryFilter, setCategoryFilter]] : []),
+  ], [t, sortOptions, stockOptions, sortBy, stockFilter, categoryFilter, categories.length, categoryOptions]);
+
+  const stockProduct = useMemo(() => products.find((p) => p.id === stockId) || null, [products, stockId]);
+
+  const handleEdit = useCallback((p) => {
+    setEditingProduct({
+      id: p.id,
+      name: p.name || '',
+      description: p.description || '',
+      price: String(p.price ?? ''),
+      categoryId: p.categoryId != null ? String(p.categoryId) : '',
+      stockQuantity: String(p.stock ?? ''),
+      condition: p.condition || 'NEW',
+      image: p.image || null,
+    });
+  }, []);
+  const handleStock = useCallback((p) => setStockId(p.id), []);
+  const handleAddChange = useCallback((f, v) => setNewProduct((prev) => ({ ...prev, [f]: v })), []);
+  const handleEditChange = useCallback((f, v) => setEditingProduct((prev) => (prev ? { ...prev, [f]: v } : prev)), []);
+  const openAdd = useCallback(() => setShowAddModal(true), []);
+  const closeAdd = useCallback(() => { if (!savingRef.current) { setShowAddModal(false); setNewProduct(EMPTY_PRODUCT); } }, []);
+  const closeEdit = useCallback(() => { if (!savingRef.current) setEditingProduct(null); }, []);
+  const closeStock = useCallback(() => setStockId(null), []);
+  const openFilter = useCallback(() => setShowFilterPanel(true), []);
+  const closeFilter = useCallback(() => setShowFilterPanel(false), []);
+  const resetFilters = useCallback(() => { setStockFilter('all'); setCategoryFilter('all'); setSortBy('name'); }, []);
+  const refresh = useCallback(() => fetchProducts(), [fetchProducts]);
+  const clearSearch = useCallback(() => setSearch(''), []);
+  const handleSearch = useCallback((e) => setSearch(sanitizeSearch(e.target.value)), []);
+  const submitStock = useCallback((n) => updateStock(stockId, n), [updateStock, stockId]);
+  const togglePriceSort = useCallback(() => setSortBy((s) => (s === 'highest_price' ? 'lowest_price' : 'highest_price')), []);
+  const toggleStockSort = useCallback(() => setSortBy((s) => (s === 'highest_stock' ? 'lowest_stock' : 'highest_stock')), []);
+
+  const activeFilterCount = (stockFilter !== 'all') + (categoryFilter !== 'all') + (sortBy !== 'name');
+  const from = filtered.length ? (page - 1) * rowsPerPage + 1 : 0;
+  const to = Math.min(page * rowsPerPage, filtered.length);
 
   return (
-    <div dir="rtl" className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pr-64 mt-16 transition-all duration-500 font-cairo text-right">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
-        <div className="flex flex-col md:flex-row md:items-end mt-3 justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-1.5 rounded-full bg-emerald-500" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">كتالوج المنتجات</span>
-            </div>
-            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">إدارة <span className="text-emerald-500">المنتجات</span></h1>
-            <p className="text-sm font-bold text-gray-500 dark:text-gray-400">تحكم في منتجات متجرك، حدث الأسعار، وراقب توفر المخزون</p>
-          </div>
+    <div dir={dir} lang={language} style={font} className="pg min-h-screen py-6 lg:ps-64 mt-16 text-start overflow-x-hidden">
+      {STYLE_EL}
+      <Toaster darkMode={darkMode} />
 
-          <div className="flex items-center gap-3">
-            <button
-              title="تصفية النتائج"
-              onClick={() => setShowFilterPanel(true)}
-              className="relative flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-xs font-black uppercase tracking-widest hover:border-emerald-300 hover:text-emerald-600 transition-all active:scale-95"
-            >
-              <FiFilter size={16} /> تصفية
-              {activeFilterCount > 0 && (
-                <span className="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-red-500 text-white text-[9px] font-black flex items-center justify-center">{activeFilterCount}</span>
-              )}
+      <div key={language} className="pg-fade max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <header className="px-0.5">
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-[1.15]">{t.title[0]}<span className="pg-ul">{t.title[1]}</span></h1>
+            <p className="pg-muted mt-2 text-sm font-medium">{t.subtitle}</p>
+          </header>
+          <div className="flex flex-wrap items-center gap-2.5">
+            {lastUpdated && <p className="pg-muted hidden sm:block text-[11px] font-bold">{tpl(tt.lastUpdated, { t: fmt(fm.time, lastUpdated) })}</p>}
+            <button type="button" onClick={refresh} aria-label={tt.refresh} title={tt.refresh} className="pg-btn h-10 px-3 text-xs uppercase">
+              <FiRefreshCw size={14} className={loading ? 'animate-spin motion-reduce:animate-none' : ''} aria-hidden="true" /> {tt.refresh}
             </button>
-            <button
-              title="إضافة منتج جديد"
-              onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-gray-900 dark:bg-emerald-500 text-white dark:text-white text-xs font-black uppercase tracking-widest hover:bg-emerald-500 dark:hover:bg-emerald-500 hover:text-white transition-all shadow-xl shadow-gray-900/10 active:scale-95"
-            >
-              <FiPlus size={16} /> إضافة منتج جديد
+            <button type="button" onClick={openAdd} className="pg-btn pg-btn-a h-10 px-3 text-xs uppercase">
+              <FiPlus size={14} aria-hidden="true" /> {t.add}
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
           {statCards.map((s) => <StatCard key={s.label} {...s} />)}
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none p-6">
-          <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
-            <div className="relative flex-1 group">
-              <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={18} />
+        <section className="pg-card overflow-hidden">
+          <div className="pg-line p-3 sm:p-4 flex flex-wrap items-center gap-2.5 border-b-2">
+            <div className="pg-field flex h-10 min-w-[220px] flex-1 items-center gap-2 px-3">
+              <FiSearch size={16} className="flex-shrink-0" aria-hidden="true" />
               <input
-                type="text"
-                placeholder="ابحث بالاسم، الفئة أو المواصفات..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pr-12 pl-4 py-3.5 cursor-pointer rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-sm text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-200 transition-all"
+                type="search"
+                value={search}
+                maxLength={SEARCH_MAX}
+                autoComplete="off"
+                spellCheck={false}
+                enterKeyHint="search"
+                aria-label={t.searchAria}
+                placeholder={t.searchPlaceholder}
+                onChange={handleSearch}
+                className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60 [&::-webkit-search-cancel-button]:hidden"
               />
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-red-400 transition-colors"
-                >
-                  <FiX size={16} />
-                </button>
+              {search && (
+                <button type="button" aria-label={t.clearSearch} onClick={clearSearch} className="pg-link flex-shrink-0"><FiX size={14} aria-hidden="true" /></button>
               )}
             </div>
-            <RowsDropdown value={rowsPerPage} onChange={(n) => { setRowsPerPage(n); setCurrentPage(1); }} options={ROWS_OPTIONS} />
+            <RowsSelect value={rowsPerPage} onChange={setRowsPerPage} label={tt.rows} formatNumber={nf.format} />
+            <button type="button" onClick={openFilter} className="pg-btn relative h-10 px-3 text-xs uppercase">
+              <FiFilter size={14} aria-hidden="true" /> {tt.filter}
+              {activeFilterCount > 0 && (
+                <span className="pg-line absolute -top-2 -end-2 w-5 h-5 border-2 bg-[var(--pg-btn)] text-[var(--pg-on)] text-[10px] font-extrabold grid place-items-center">{nf.format(activeFilterCount)}</span>
+              )}
+            </button>
           </div>
 
-          {searchTerm && (
-            <p className="mt-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">
-              {products.length === 0
-                ? 'لا توجد نتائج مطابقة'
-                : `${products.length} نتيجة لـ "${searchTerm}"`}
-            </p>
-          )}
-        </div>
+          <div role="tablist" aria-label={t.conditionsAria} className="pg-line pg-scroll flex gap-2 overflow-x-auto px-3 sm:px-4 py-3 border-b-2">
+            {TABS.map((s) => (
+              <button key={s} type="button" role="tab" aria-selected={conditionFilter === s} onClick={() => setConditionFilter(s)} className="pg-btn flex-shrink-0 h-9 px-3 text-xs uppercase">
+                {t.conditions[s] || s}
+                <span className="tabular-nums opacity-80">{nf.format(counts[s] || 0)}</span>
+              </button>
+            ))}
+          </div>
 
-        <IconLegendCard />
-
-        <div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden">
-            <div className="overflow-x-auto custom-scrollbar-thin">
-              <table className="w-full text-right border-collapse">
-                <thead>
-                  <tr className="bg-gray-100 dark:bg-gray-900 dark:border-gray-700">
-                    <th className="px-4 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 text-center">المنتج</th>
-                    <th className="px-4 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 text-center">الحالة</th>
-                    <th className="px-4 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 text-center">السعر</th>
-                    <th className="px-4 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 text-center">المخزون</th>
-                    <th className="px-4 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 text-center">إجراءات</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                  {loading ? (
-                    [...Array(rowsPerPage)].map((_, i) => (
-                      <tr key={i} className="animate-pulse">
-                        {[...Array(5)].map((_, j) => (
-                          <td key={j} className="px-4 py-3"><div className="h-4 bg-gray-100 dark:bg-gray-700 rounded-lg w-full" /></td>
-                        ))}
-                      </tr>
-                    ))
-                  ) : paginated.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-8 py-24 text-center">
-                        <div className="mb-6">
-                          <EmptyProductsIllustration />
-                        </div>
-                        <p className="text-lg font-black text-gray-900 dark:text-white tracking-tight">
-                          {searchTerm ? 'لا توجد نتائج مطابقة' : 'لا توجد منتجات'}
-                        </p>
-                        <p className="text-sm font-bold text-gray-400 mt-1 uppercase tracking-widest">
-                          {searchTerm ? `لم يتم العثور على "${searchTerm}"` : 'كتالوج المنتجات فارغ حالياً'}
-                        </p>
-                      </td>
+          <div className="overflow-auto max-h-[68vh] pg-scroll" aria-busy={loading}>
+            <table className="w-full min-w-[880px] text-start border-separate border-spacing-0">
+              <thead className="sticky top-0 z-10">
+                <tr>
+                  <th scope="col" className="pg-th">{t.columns.product}</th>
+                  <th scope="col" className="pg-th">{t.columns.condition}</th>
+                  <SortTh label={t.columns.price} active={sortBy.endsWith('_price')} dir={sortBy === 'lowest_price' ? 'asc' : 'desc'} onClick={togglePriceSort} />
+                  <SortTh label={t.columns.stock} active={sortBy.endsWith('_stock')} dir={sortBy === 'lowest_stock' ? 'asc' : 'desc'} onClick={toggleStockSort} />
+                  <th scope="col" className="pg-th">{t.columns.actions}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading && products.length === 0 ? (
+                  skeletonRows.map((i) => (
+                    <tr key={i} className="animate-pulse motion-reduce:animate-none">
+                      {[0, 1, 2, 3, 4].map((j) => <td key={j} className="pg-td px-3 py-4"><div className="pg-gray h-3.5 w-full" /></td>)}
                     </tr>
-                  ) : (
-                    paginated.map((p) => (
-                      <ProductRow
-                        key={p.id}
-                        product={p}
-                        onEdit={openEdit}
-                        onDelete={deleteProduct}
-                      />
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {totalPages > 1 && (
-              <div className="p-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest order-2 sm:order-1">
-                  عرض <span className="text-gray-900 dark:text-white">{(currentPage - 1) * rowsPerPage + 1}</span> إلى <span className="text-gray-900 dark:text-white">{Math.min(currentPage * rowsPerPage, products.length)}</span> من <span className="text-gray-900 dark:text-white">{products.length}</span> منتج
-                </p>
-                <div className="flex items-center gap-2 order-1 sm:order-2">
-                  <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-emerald-500 hover:border-emerald-300 disabled:opacity-30 transition-all">
-                    <FiChevronRight size={20} />
-                  </button>
-                  <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-emerald-500 hover:border-emerald-300 disabled:opacity-30 transition-all">
-                    <FiChevronLeft size={20} />
-                  </button>
-                </div>
-              </div>
-            )}
+                  ))
+                ) : paginated.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-14">
+                      <Empty title={term ? t.empty.noResults : t.empty.none} subtitle={term ? t.empty.noResultsSub : t.empty.noneSub} />
+                    </td>
+                  </tr>
+                ) : (
+                  paginated.map((p) => (
+                    <ProductRow key={p.id} product={p} busy={busyIds.has(p.id)} loc={loc} onEdit={handleEdit} onDelete={deleteProduct} onStock={handleStock} />
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-        </div>
+
+          {filtered.length > 0 && (
+            <div className="pg-gray pg-line px-4 py-3 border-t-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <p className="pg-muted text-xs font-bold">
+                {renderTpl(t.showing, {
+                  range: <b className="tabular-nums">{nf.format(from)}–{nf.format(to)}</b>,
+                  total: <b className="tabular-nums">{nf.format(filtered.length)}</b>,
+                })}
+              </p>
+              {totalPages > 1 && <Pagination page={page} total={totalPages} onChange={setCurrentPage} labels={tt} formatNumber={nf.format} />}
+            </div>
+          )}
+        </section>
+
+        <p className="pg-muted flex items-center gap-1.5 text-[11px] font-bold">
+          <FiAlertCircle size={12} aria-hidden="true" /> {t.lowNote}
+        </p>
       </div>
 
-      <Suspense fallback={<ModalFallback />}>
+      <Suspense fallback={<ModalFallback label={tt.loadingAria} />}>
         {showAddModal && (
-          <ProductModal
-            mode="add"
-            data={newProduct}
-            categories={categories}
-            onChange={handleAddChange}
-            onSubmit={addProduct}
-            onClose={closeModals}
-          />
+          <ProductModal mode="add" data={newProduct} categories={categories} busy={saving} onChange={handleAddChange} onSubmit={addProduct} onClose={closeAdd} />
         )}
-        {showEditModal && editingProduct && (
-          <ProductModal
-            mode="edit"
-            data={editingProduct}
-            categories={categories}
-            onChange={handleEditChange}
-            onSubmit={updateProduct}
-            onClose={closeModals}
-          />
+        {editingProduct && (
+          <ProductModal mode="edit" data={editingProduct} categories={categories} busy={saving} onChange={handleEditChange} onSubmit={updateProduct} onClose={closeEdit} />
         )}
       </Suspense>
 
       {showFilterPanel && (
-        <FilterPanel
-          conditionFilter={conditionFilter}
-          onConditionChange={(c) => { setConditionFilter(c); setCurrentPage(1); }}
-          categoryFilter={categoryFilter}
-          onCategoryChange={(c) => { setCategoryFilter(c); setCurrentPage(1); }}
-          categories={categories}
-          stockFilter={stockFilter}
-          onStockChange={(s) => { setStockFilter(s); setCurrentPage(1); }}
-          sortBy={sortBy}
-          onSortChange={setSortBy}
-          onClose={() => setShowFilterPanel(false)}
-        />
+        <FilterPanel title={t.filterTitle} note={t.filterNote} groups={filterGroups} labels={tt} onReset={resetFilters} onClose={closeFilter} />
       )}
 
-      {showStockModal && stockTarget && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={() => setShowStockModal(false)} />
-          <div className="relative w-full max-w-sm bg-white dark:bg-gray-800 rounded-md shadow-2xl overflow-hidden animate-in zoom-in duration-300">
-            <div className="p-8 border-b border-gray-50 dark:border-gray-700">
-              <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">تعديل المخزون</h3>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">تحديث الكمية المتوفرة</p>
-            </div>
-            <div className="p-8 space-y-6 text-right">
-              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-2xl">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">الكمية الحالية</span>
-                <span className="text-sm font-black text-gray-900 dark:text-white">{stockTarget.current} وحدة</span>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">الكمية الجديدة</label>
-                <input type="number" value={newStockValue} onChange={(e) => setNewStockValue(e.target.value)} className="w-full px-5 py-4 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-emerald-200 text-lg font-black text-gray-900 dark:text-white focus:outline-none transition-all text-center" />
-              </div>
-            </div>
-            <div className="px-8 pb-8 flex gap-3">
-              <button onClick={() => setShowStockModal(false)} className="flex-1 py-4 bg-gray-50 dark:bg-gray-900 rounded-2xl text-[10px] font-black text-gray-400 uppercase tracking-widest">إلغاء</button>
-              <button onClick={updateStock} className="flex-1 py-4 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20">تحديث</button>
-            </div>
-          </div>
-        </div>
+      {stockProduct && (
+        <StockModal key={stockProduct.id} product={stockProduct} busy={busyIds.has(stockProduct.id)} loc={loc} onClose={closeStock} onSubmit={submitStock} />
       )}
-
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        .custom-scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
-        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
-        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #1f2937; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
-      `,
-      }}
-      />
     </div>
   );
 };

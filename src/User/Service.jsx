@@ -1,7 +1,6 @@
-import React, { memo } from 'react';
-import { FiTool, FiMonitor, FiTruck, FiShield, FiArrowRight } from 'react-icons/fi';
-import { useAppLanguage, languageDirection } from '../utils/useAppLanguage';
-import { Defs3D, Device3DStyles, Glyph3D, Chip3D, Btn3D, useOnScreen } from '../components/Device3D';
+import React, { memo, useEffect, useMemo } from 'react';
+import { useAppLanguage, languageDirection } from '../common/utils/useAppLanguage';
+import { IsoIllustration } from '../components/user/IsoIllustrations';
 import enTranslations from '../locales/en/translation.json';
 import arTranslations from '../locales/ar/translation.json';
 import frTranslations from '../locales/fr/translation.json';
@@ -12,122 +11,168 @@ const SERVICE_TRANSLATIONS = {
   fr: frTranslations.service || frTranslations.hero?.service,
 };
 
-// Same four translation keys as before; the last two (data recovery / trade-in) were dropped.
+
 const SERVICES = [
-  { key: 'expertRepairs', icon: FiTool, tone: 'em' },
-  { key: 'premiumDevices', icon: FiMonitor, tone: 'sky' },
-  { key: 'priorityShipping', icon: FiTruck, tone: 'am' },
-  { key: 'ironcladWarranty', icon: FiShield, tone: 'vi' },
+  { key: 'expertRepairs', illustration: 'repairCard' },
+  { key: 'premiumDevices', illustration: 'devices' },
+  { key: 'priorityShipping', illustration: 'track' },
 ];
 
-const getCard = (language, key) => ({
-  title: SERVICE_TRANSLATIONS[language]?.cards?.[key]?.title || SERVICE_TRANSLATIONS.en?.cards?.[key]?.title || key,
-  desc: SERVICE_TRANSLATIONS[language]?.cards?.[key]?.desc || SERVICE_TRANSLATIONS.en?.cards?.[key]?.desc || '',
-});
+const NUMBER_LOCALE = { en: 'en', fr: 'fr', ar: 'ar-EG' };
 
-/* ───────────── 3D scene: device cluster on a glass plate, orbit ring, floating labels ───────────── */
-const FloatLabel = ({ icon: Icon, tone, label, darkMode, className, delay = '0s' }) => (
-  <div
-    style={{ animationDelay: delay }}
-    className={`anim-float absolute flex items-center gap-2 rounded-2xl border py-1.5 pl-1.5 pr-3 text-[11px] font-bold shadow-lg backdrop-blur-sm ${
-      darkMode ? 'border-emerald-500/20 bg-gray-900/80 text-emerald-200' : 'border-emerald-100 bg-white/90 text-emerald-900'
-    } ${className}`}
-  >
-    <Chip3D tone={tone} className="h-7 w-7"><Icon className="h-3.5 w-3.5" /></Chip3D>
-    <span className="whitespace-nowrap">{label}</span>
-  </div>
-);
 
-const ServiceScene = memo(({ darkMode }) => {
-  const [ref, visible] = useOnScreen();
+const fmtCache = {};
+const pad2 = (language, n) => {
+  const fmt = fmtCache[language]
+    || (fmtCache[language] = new Intl.NumberFormat(NUMBER_LOCALE[language] || 'en', { minimumIntegerDigits: 2, useGrouping: false }));
+  return fmt.format(n);
+};
+
+const getCard = (language, key) => {
+  const own = SERVICE_TRANSLATIONS[language]?.cards?.[key];
+  const en = SERVICE_TRANSLATIONS.en?.cards?.[key];
+  return { title: own?.title || en?.title || key, desc: own?.desc || en?.desc || '' };
+};
+
+
+
+const FONT_URLS = {
+  jakarta: 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap',
+  cairo: 'https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap',
+};
+const ensureFont = (key) => {
+  if (typeof document === 'undefined') return;
+  const href = FONT_URLS[key];
+  if (document.head.querySelector(`link[href="${href}"]`)) return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = href;
+  document.head.appendChild(link);
+};
+
+const SVC_STYLES = `
+  .svc-font-latin, .svc-font-latin * { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+  .svc-font-ar, .svc-font-ar * { font-family: 'Cairo', system-ui, sans-serif; }
+  .svc-hl, .svc-hl-dark {
+    padding-bottom: 0.2em;
+    background-position: left bottom;
+    background-repeat: no-repeat;
+    background-size: 100% 0.3em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+  .svc-hl      { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2310b981' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
+  .svc-hl-dark { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2339ff88' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
+`;
+let svcStylesInjected = false;
+const injectSvcStylesOnce = () => {
+  if (svcStylesInjected || typeof document === 'undefined') return;
+  const tag = document.createElement('style');
+  tag.setAttribute('data-service-styles', 'true');
+  tag.textContent = SVC_STYLES;
+  document.head.appendChild(tag);
+  svcStylesInjected = true;
+};
+injectSvcStylesOnce();
+
+
+const splitHeading = (text) => {
+  const str = String(text ?? '');
+  if (str.includes('**')) return str.split('**').map((part, i) => ({ part, hl: i % 2 === 1 }));
+  const m = str.match(/^(.*[,،]\s*)([^,،]+)$/);
+  if (m) return [{ part: m[1], hl: false }, { part: m[2], hl: true }];
+  const words = str.split(' ');
+  if (words.length < 2) return [{ part: str, hl: true }];
+  const n = words.length <= 3 ? 1 : 2;
+  return [{ part: `${words.slice(0, -n).join(' ')} `, hl: false }, { part: words.slice(-n).join(' '), hl: true }];
+};
+
+const SectionHeading = memo(({ label, title, darkMode, isAr }) => {
+  const hl = darkMode ? 'svc-hl-dark' : 'svc-hl';
+  const parts = useMemo(() => splitHeading(title), [title]);
   return (
-    <div ref={ref} aria-hidden="true" className={`relative mx-auto aspect-square w-full max-w-[200px] sm:max-w-[420px] ${visible ? '' : 'anim-paused'}`}>
-      {/* glow + orbit ring */}
-      <div className={`absolute inset-[10%] rounded-full blur-3xl ${darkMode ? 'bg-emerald-500/20' : 'bg-emerald-300/50'}`} />
-      <div className={`anim-orbit absolute inset-[4%] rounded-full border-2 border-dashed ${darkMode ? 'border-emerald-500/25' : 'border-emerald-300/80'}`} />
-
-      {/* tilted glass plate */}
-      <div className="absolute inset-[16%] [perspective:800px]">
-        <div
-          className={`h-full w-full rounded-[2.2rem] ring-1 ${darkMode ? 'bg-gradient-to-br from-emerald-900/70 to-emerald-950 ring-emerald-400/20 shadow-[0_30px_40px_-20px_rgba(0,0,0,0.7)]' : 'bg-gradient-to-br from-white to-emerald-100 ring-emerald-200 shadow-[0_30px_40px_-24px_rgba(5,150,105,0.5)]'}`}
-          style={{ transform: 'rotateX(52deg) rotateZ(-8deg) translateY(22%)' }}
+    <div className="mb-10 sm:mb-14">
+      <div className="mb-5 flex items-center gap-3">
+        <span
+          aria-hidden="true"
+          className={`h-3.5 w-12 border-2 ${darkMode ? 'border-[#39ff88] bg-[#39ff88]' : 'border-emerald-950 bg-emerald-400'}`}
         />
+        <span className={`text-sm font-bold uppercase ${isAr ? 'tracking-normal' : 'tracking-wide'} ${darkMode ? 'text-white' : 'text-emerald-950'}`}>
+          {label}
+        </span>
       </div>
-
-      {/* devices */}
-      <Glyph3D name="laptop" className="absolute left-[12%] top-[34%] h-[46%] w-[60%]" />
-      <Glyph3D name="phone" className="anim-float absolute right-[14%] top-[10%] h-[44%] w-[22%]" style={{ animationDelay: '0.4s' }} />
-      <Glyph3D name="tablet" className="absolute bottom-[10%] right-[18%] h-[26%] w-[26%]" />
-      <Glyph3D name="watch" className="anim-float absolute bottom-[14%] left-[10%] h-[24%] w-[18%]" style={{ animationDelay: '1.1s' }} />
-      <Glyph3D name="audio" className="anim-float absolute left-[24%] top-[8%] h-[24%] w-[24%]" style={{ animationDelay: '0.8s' }} />
-
-      {/* floating labels (hidden on very small screens) */}
-      <div className="hidden sm:block">
-        <FloatLabel icon={FiTool} tone="em" label="Trusted repairs" darkMode={darkMode} className="left-[-2%] top-[40%]" delay="0.2s" />
-        <FloatLabel icon={FiTruck} tone="am" label="Fast delivery" darkMode={darkMode} className="right-[-2%] top-[52%]" delay="0.9s" />
-        <FloatLabel icon={FiShield} tone="vi" label="Warranty" darkMode={darkMode} className="bottom-[2%] left-[34%]" delay="1.5s" />
-      </div>
+      <h2
+        className={`max-w-4xl text-3xl font-extrabold [text-wrap:balance] sm:text-5xl lg:text-6xl ${
+          isAr ? 'leading-[1.4] tracking-normal' : 'leading-[1.18] tracking-[-0.04em]'
+        } ${darkMode ? 'text-white' : 'text-emerald-950'}`}
+      >
+        {parts.map(({ part, hl: on }, i) => (on ? <span key={i} className={hl}>{part}</span> : part))}
+      </h2>
     </div>
   );
 });
 
-const ServiceCard = memo(({ icon: Icon, tone, title, desc, darkMode }) => (
-  <article
-    className={`group relative flex h-full flex-col gap-4 rounded-2xl border p-5 transition-all duration-200 hover:-translate-y-0.5 sm:p-6 ${
-      darkMode
-        ? 'border-gray-700 bg-gray-800 hover:shadow-lg hover:shadow-black/30'
-        : 'border-gray-100 bg-white hover:shadow-lg hover:shadow-gray-200/70'
-    }`}
-  >
-    <Chip3D tone={tone} className="h-12 w-12 flex-shrink-0 transition-transform duration-200 group-hover:scale-105"><Icon className="h-6 w-6" /></Chip3D>
-    <div className="min-w-0 flex-1">
-      <h3 className={`text-base font-bold leading-snug tracking-tight sm:text-lg ${darkMode ? 'text-white' : 'text-gray-900'}`}>{title}</h3>
-      <p className={`mt-1.5 text-sm leading-relaxed ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{desc}</p>
+
+const CARD_BASE =
+  '[--dx:1] rtl:[--dx:-1] flex flex-col border-[3px] border-[color:var(--ink)] p-5 sm:p-6 ' +
+  '[box-shadow:calc(var(--dx)*8px)_8px_0_0_var(--sh)]';
+const CARD_THEME = {
+  light: `${CARD_BASE} [--ink:#022c22] [--sh:#022c22] bg-white`,
+  dark: `${CARD_BASE} [--ink:#000] [--sh:#000] bg-[#2a2a2a]`,
+};
+const BADGE_THEME = {
+  light: 'border-emerald-950 bg-emerald-400 [box-shadow:calc(var(--dx)*3px)_3px_0_0_#022c22]',
+  dark: 'border-black bg-[#39ff88] [box-shadow:calc(var(--dx)*3px)_3px_0_0_#000]',
+};
+
+const ServiceCard = memo(({ index, illustration, title, desc, darkMode, isAr }) => (
+  <li className={darkMode ? CARD_THEME.dark : CARD_THEME.light}>
+    <div className="flex items-center gap-3">
+      <span
+        aria-hidden="true"
+        className={`inline-flex h-9 min-w-9 flex-shrink-0 items-center justify-center border-2 px-1.5 text-sm font-extrabold tabular-nums text-emerald-950 ${darkMode ? BADGE_THEME.dark : BADGE_THEME.light}`}
+      >
+        {index}
+      </span>
+      <h3 className={`text-xl font-extrabold uppercase sm:text-2xl ${isAr ? 'tracking-normal' : 'tracking-[-0.02em]'} ${darkMode ? 'text-white' : 'text-emerald-950'}`}>
+        <span className={darkMode ? 'svc-hl-dark' : 'svc-hl'}>{title}</span>
+      </h3>
     </div>
-    <span className="h-0.5 w-10 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 opacity-70 transition-all duration-200 group-hover:w-16 group-hover:opacity-100" />
-  </article>
+
+    <div aria-hidden="true" className="my-6 aspect-[3/2] w-full">
+      <IsoIllustration type={illustration} darkMode={darkMode} onGreen={false} className="h-full w-full" />
+    </div>
+
+    <p className={`mt-auto text-base font-medium leading-relaxed sm:text-lg ${darkMode ? 'text-neutral-200' : 'text-gray-800'}`}>{desc}</p>
+  </li>
 ));
 
-/**
- * Props:
- *  darkMode   – boolean
- *  standalone – set true only if this section is rendered on its own page
- *               (Homepage already renders <Defs3D /> and <Device3DStyles />).
- */
-const Service = ({ darkMode = false, standalone = false }) => {
+const Service = ({ darkMode = false }) => {
   const language = useAppLanguage();
+  const isAr = language === 'ar';
   const heading = SERVICE_TRANSLATIONS[language]?.title || SERVICE_TRANSLATIONS.en?.title;
-  const isRtl = languageDirection(language) === 'rtl';
+  const label = SERVICE_TRANSLATIONS[language]?.badge || 'Services';
+
+  useEffect(() => { ensureFont(isAr ? 'cairo' : 'jakarta'); }, [isAr]);
+
+  const cards = useMemo(
+    () => SERVICES.map((s, i) => ({ ...s, ...getCard(language, s.key), index: pad2(language, i + 1) })),
+    [language],
+  );
 
   return (
     <section
       dir={languageDirection(language)}
-      className={`relative overflow-hidden py-12 sm:py-16 ${language === 'ar' ? 'font-cairo' : 'font-poppins'} ${darkMode ? 'bg-[#04120b]' : 'bg-emerald-50/70'}`}
+      className={`relative overflow-hidden py-14 sm:py-20 [content-visibility:auto] [contain-intrinsic-size:auto_900px] ${isAr ? 'svc-font-ar' : 'svc-font-latin'} ${darkMode ? 'bg-[#141414]' : 'bg-gray-50'}`}
     >
-      {standalone && <><Defs3D /><Device3DStyles /></>}
-      <div className={`pointer-events-none absolute -top-24 h-72 w-72 rounded-full blur-3xl ${isRtl ? '-left-24' : '-right-24'} ${darkMode ? 'bg-emerald-500/10' : 'bg-emerald-300/30'}`} />
-
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="mb-8 flex flex-wrap items-end justify-between gap-4 sm:mb-10">
-          <h2 className={`text-2xl font-bold tracking-tight sm:text-3xl ${darkMode ? 'text-white' : 'text-emerald-950'}`}>{heading}</h2>
-          <Btn3D as="a" href="/repair" className="px-4 py-2 text-sm">
-            Book a repair <FiArrowRight className={`h-4 w-4 ${isRtl ? 'rotate-180' : ''}`} />
-          </Btn3D>
-        </div>
+        <SectionHeading label={label} title={heading} darkMode={darkMode} isAr={isAr} />
 
-        {/* cards + illustration share ONE row from lg up */}
-        <div className="grid items-center gap-8 lg:grid-cols-12 lg:gap-10">
-          <div className="order-last grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:order-none lg:col-span-7">
-            {SERVICES.map(({ key, icon, tone }) => {
-              const { title, desc } = getCard(language, key);
-              return <ServiceCard key={key} icon={icon} tone={tone} darkMode={darkMode} title={title} desc={desc} />;
-            })}
-          </div>
-
-          <div className="order-first lg:order-none lg:col-span-5">
-            <ServiceScene darkMode={darkMode} />
-          </div>
-        </div>
+        <ol className="grid grid-cols-1 gap-8 pb-2 pe-2 md:grid-cols-3 lg:gap-10">
+          {cards.map(({ key, ...card }) => (
+            <ServiceCard key={key} darkMode={darkMode} isAr={isAr} {...card} />
+          ))}
+        </ol>
       </div>
     </section>
   );

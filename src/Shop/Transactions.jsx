@@ -1,406 +1,408 @@
-import React, { useEffect, useState, useCallback, useMemo, useRef, memo } from 'react';
+import React, {
+  useState, useEffect, useCallback, useMemo, useRef, useDeferredValue, memo,
+} from 'react';
 import {
-  FiDollarSign, FiSearch, FiTool, FiShoppingCart,
-  FiChevronRight, FiChevronLeft, FiCheckCircle, FiClock, FiXCircle,
-  FiDownload, FiActivity, FiArrowUp, FiArrowDown, FiMoreHorizontal, FiCalendar, FiCreditCard, FiHash, FiChevronDown
+  FiSearch, FiFilter, FiDownload, FiRefreshCw, FiCopy, FiHash,
+  FiDollarSign, FiCreditCard, FiTool, FiShoppingCart, FiCheckCircle,
 } from 'react-icons/fi';
-import { motion, AnimatePresence } from 'framer-motion';
-import api from '../api';
+import api from '../common/api/api';
+import { UI3D_CSS, Defs3D } from '../components/user/Ui3D';
+import { EXTRAS_CSS, Toaster, toast, EmptyState3D } from '../components/user/UiExtras';
+import {
+  POLL_MS, SEARCH_MAX, SPAN_MS, BTN, BTN_MD, CARD, TH, SCROLL_CSS,
+  toTs, fmt, num, formatPrice, tpl, renderTpl, sanitizeSearch, shortId, errText, upper,
+  csvCell, useDarkMode, useShopLocale, StatCard, RowsDropdown, SortTh, Pagination, FilterPanel,
+} from '../components/shop/TableKit';
+import { ensureShopAssets } from '../common/utils/shopFonts';
 
-const EASE = [0.16, 1, 0.3, 1];
+ensureShopAssets();
 
-const ROWS_OPTIONS = [5, 10, 25, 50];
+const INK = '#04261a';
+const TYPE_META = {
+  ORDER_PAYMENT: { icon: FiShoppingCart, hex: '#38bdf8', ink: INK },
+  REPAIR_PAYMENT: { icon: FiTool, hex: '#fbbf24', ink: INK },
+};
+const FALLBACK_TYPE = { icon: FiDollarSign, hex: '#9ca3af', ink: INK };
+const TABS = ['all', 'ORDER_PAYMENT', 'REPAIR_PAYMENT'];
+const METHOD_KEYS = ['CASH', 'CARD', 'ONLINE'];
+const SORT_KEYS = ['newest', 'oldest', 'highest', 'lowest'];
+const RANGE_KEYS = ['all', 'today', 'week', 'month'];
+const SKELETON_COLS = [0, 1, 2, 3, 4];
 
-const generateUUID = () =>
-  'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-    const r = Math.random() * 16 | 0;
-    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-  });
-
-
-
-const formatDate = (dateString) => {
-  if (!dateString) return '-';
-  return new Date(dateString).toLocaleDateString('ar-EG', {
-    day: 'numeric', month: 'short', year: 'numeric'
-  });
+const SORTERS = {
+  newest: (a, b) => b.ts - a.ts,
+  oldest: (a, b) => a.ts - b.ts,
+  highest: (a, b) => b.price - a.price,
+  lowest: (a, b) => a.price - b.price,
 };
 
-const getServiceType = (txn) => {
-  if (txn.paymentType === 'ORDER_PAYMENT')  return 'طلب بيع';
-  if (txn.paymentType === 'REPAIR_PAYMENT') return 'طلب إصلاح';
-  return txn.paymentType || '-';
-};
+const PAGE_CSS = UI3D_CSS + EXTRAS_CSS + SCROLL_CSS;
+const HEAD_CLS = 'sticky top-0 z-10 nb-gray shadow-[0_2px_0_0_var(--nb-line)]';
 
-const getPaymentMethod = (txn) => {
-  if (txn.paymentMethod === 'CASH') return 'نقدي';
-  if (txn.paymentMethod === 'CREDIT_CARD') return 'بطاقة ائتمان';
-  return txn.paymentMethod || '-';
-};
+const normMethod = (m) => { const v = upper(m); return v === 'CREDIT_CARD' ? 'CARD' : v; };
+const pick = (reported, fallback) => (reported != null && Number.isFinite(Number(reported)) ? Number(reported) : fallback);
 
-const COLOR_HEX = { lime: '#84cc16', emerald: '#10b981', blue: '#3b82f6', orange: '#f97316' };
-
-const CoinsIllustration = memo(({ color }) => (
-  <svg viewBox="0 0 44 44" className="w-6 h-6">
-    <motion.g
-      animate={{ y: [0, -2, 0] }}
-      transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-    >
-      <ellipse cx="18" cy="28" rx="12" ry="5" fill="none" stroke={color} strokeWidth="2.4" />
-      <path d="M6,28 L6,22" stroke={color} strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M30,28 L30,22" stroke={color} strokeWidth="2.4" strokeLinecap="round" />
-      <ellipse cx="18" cy="22" rx="12" ry="5" fill="none" stroke={color} strokeWidth="2.4" />
-    </motion.g>
-    <circle cx="30" cy="12" r="7" fill="none" stroke={color} strokeWidth="2.4" />
-    <text x="30" y="15.5" textAnchor="middle" fontSize="8" fontWeight="800" fill={color}>$</text>
-  </svg>
-));
-
-const WrenchIllustration = memo(({ color }) => (
-  <svg viewBox="0 0 44 44" className="w-6 h-6">
-    <motion.g
-      animate={{ rotate: [-12, 12, -12] }}
-      style={{ transformOrigin: '30px 14px' }}
-      transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
-    >
-      <rect x="16" y="20" width="26" height="7" rx="3.5" fill="none" stroke={color} strokeWidth="2.4" transform="rotate(-32 29 23.5)" />
-      <circle cx="12" cy="12" r="7.5" fill="none" stroke={color} strokeWidth="2.4" strokeDasharray="22 100" strokeLinecap="round" transform="rotate(140 12 12)" />
-    </motion.g>
-  </svg>
-));
-
-const BagIllustration = memo(({ color }) => (
-  <svg viewBox="0 0 44 44" className="w-6 h-6">
-    <path d="M12,17 H32 L30,36 H14 Z" fill="none" stroke={color} strokeWidth="2.4" strokeLinejoin="round" />
-    <motion.path
-      d="M17,17 V13 C17,9.5 19.5,7 22,7 C24.5,7 27,9.5 27,13 V17"
-      fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round"
-      animate={{ opacity: [0.5, 1, 0.5] }}
-      transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
-    />
-    <circle cx="22" cy="24" r="1.8" fill={color} />
-  </svg>
-));
-
-const PulseIllustration = memo(({ color }) => (
-  <svg viewBox="0 0 44 44" className="w-6 h-6">
-    <circle cx="22" cy="22" r="15" fill="none" stroke={color} strokeWidth="2" opacity="0.35" />
-    <motion.path
-      d="M7,22 H16 L20,12 L25,32 L29,22 H37"
-      fill="none" stroke={color} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"
-      initial={{ pathLength: 0 }}
-      animate={{ pathLength: 1 }}
-      transition={{ duration: 1.4, repeat: Infinity, repeatDelay: 1.2, ease: EASE }}
-    />
-  </svg>
-));
-
-const StatCard = memo(({ Illustration, label, value, color, description }) => (
-  <div className="relative group bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 p-6 transition-all duration-500 hover:shadow-2xl hover:shadow-gray-200/50 dark:hover:shadow-none overflow-hidden">
-    <div className={`absolute top-0 right-0 w-24 h-24 bg-${color}-500/5 rounded-bl-full translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-700`} />
-    <div className="flex flex-col h-full relative z-10 text-right">
-      <div className={`w-12 h-12 rounded-full bg-white border-2 border-gray-100 dark:border-gray-800 dark:bg-${color}-900/20 flex items-center justify-center mb-4 group-hover:rotate-6 transition-transform`}>
-        <Illustration color={COLOR_HEX[color] || '#10b981'} />
-      </div>
-      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">{label}</p>
-      <p className="text-2xl font-black text-gray-900 dark:text-white mt-1">{value}</p>
-      <p className="text-[9px] font-bold text-gray-400 mt-2">{description}</p>
-    </div>
-  </div>
-));
-
-const FilterDropdown = memo(({ value, options, onChange, icon: Icon }) => {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    if (open) document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
-  const current = options.find(o => o.value === value);
-
+const TabBtn = memo(({ k, active, label, count, onSelect }) => {
+  const click = useCallback(() => onSelect(k), [onSelect, k]);
   return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen(v => !v)}
-        className="w-full sm:w-auto flex items-center justify-between gap-3 px-5 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-xs font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 cursor-pointer transition-all"
-      >
-        <span className="flex items-center gap-2">
-          {Icon && <Icon size={13} className="text-emerald-500" />}
-          {current?.label}
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={click}
+      className={`${BTN} flex-shrink-0 px-3 py-2 text-xs uppercase rtl:tracking-normal ${active ? 'nb-btn-on' : ''}`}
+    >
+      {label}
+      <span className="nb-chip !px-1.5" style={active ? undefined : { background: 'var(--nb-gray)' }}>{count}</span>
+    </button>
+  );
+});
+
+const TxnRow = memo(({ txn, loc, onCopy }) => {
+  const { L, fm } = loc;
+  const t = L.transactions;
+  const meta = TYPE_META[txn.type] || FALLBACK_TYPE;
+  const TypeIcon = meta.icon;
+  const MethodIcon = txn.method === 'CASH' ? FiDollarSign : FiCreditCard;
+  const copy = useCallback(() => onCopy(txn.reference), [onCopy, txn.reference]);
+  return (
+    <tr>
+      <td className="whitespace-nowrap px-3 py-3">
+        <p className="text-xs font-extrabold">{fmt(fm.date, txn.paidAt)}</p>
+        <p className="nb-muted text-[10px] font-semibold">{fmt(fm.time, txn.paidAt)}</p>
+      </td>
+      <td className="whitespace-nowrap px-3 py-3">
+        <span className="nb-chip !normal-case" style={{ background: meta.hex, color: meta.ink }}>
+          <TypeIcon size={12} aria-hidden="true" /> {t.types[txn.type] || txn.type || '—'}
         </span>
-        <FiChevronDown className={`transition-transform duration-150 ${open ? 'rotate-180' : ''}`} size={14} />
-      </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -6, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.97 }}
-            transition={{ duration: 0.14, ease: EASE }}
-            className="absolute z-30 mt-2 w-full sm:w-52 right-0 rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-2xl overflow-hidden"
-          >
-            {options.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => { onChange(opt.value); setOpen(false); }}
-                className={`w-full text-right px-5 py-3 text-xs font-bold transition-colors ${
-                  opt.value === value ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+      </td>
+      <td className="whitespace-nowrap px-3 py-3">
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold">
+          <MethodIcon size={12} className="nb-ic" aria-hidden="true" />
+          {t.method[txn.method] || txn.method || '—'}
+        </span>
+      </td>
+      <td className="whitespace-nowrap px-3 py-3">
+        <div className="flex items-center gap-1.5">
+          <FiHash size={12} className="nb-muted" aria-hidden="true" />
+          <span dir="ltr" className="text-[11px] font-bold tabular-nums">{txn.reference}</span>
+          <button type="button" title={t.copyAria} aria-label={t.copyAria} onClick={copy} className="nb-muted hover:text-[color:var(--nb-accent)]"><FiCopy size={11} /></button>
+        </div>
+      </td>
+      <td className="whitespace-nowrap px-3 py-3 text-[13px] font-extrabold tabular-nums">
+        {formatPrice(txn.amount, L.table.price, fm.number)}
+      </td>
+    </tr>
   );
 });
 
 const Transactions = () => {
-  const [transactions, setTransactions]   = useState([]);
-  const [financialReport, setFinancialReport] = useState(null);
-  const [loading, setLoading]             = useState(true);
-  const [searchTerm, setSearchTerm]       = useState('');
-  const [currentPage, setCurrentPage]     = useState(1);
-  const [rowsPerPage, setRowsPerPage]     = useState(10);
-  const [filterType, setFilterType]       = useState('ALL');
-  const [filterMethod, setFilterMethod]   = useState('ALL');
+  const darkMode = useDarkMode();
+  const loc = useShopLocale();
+  const { language, L, fm, dir, font } = loc;
+  const t = L.transactions;
+  const tt = L.table;
+  const nf = fm.number;
 
-  useEffect(() => { document.title = 'السجل المالي للمتجر'; }, []);
+  const [rows, setRows] = useState([]);
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [methodFilter, setMethodFilter] = useState('all');
+  const [dateRange, setDateRange] = useState('all');
+  const [sortBy, setSortBy] = useState('newest');
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [reportRes, repairRes, orderRes] = await Promise.all([
-        api.get('/api/shops/payments/financial-report'),
-        api.get('/api/shops/payments/repairs'),
-        api.get('/api/shops/payments/orders'),
+  const abortRef = useRef(null);
+  const locRef = useRef(loc);
+  useEffect(() => { locRef.current = loc; }, [loc]);
+  useEffect(() => { document.title = t.docTitle; }, [t.docTitle]);
+
+  const term = useDeferredValue(search).trim().toLowerCase();
+
+  const fetchAll = useCallback(async ({ silent = false } = {}) => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const { signal } = controller;
+    if (!silent) setLoading(true);
+
+    const list = (res, kind) => (res.status === 'fulfilled'
+      ? (Array.isArray(res.value.data) ? res.value.data : res.value.data?.content || [])
+        .map((x, i) => ({ ...x, paymentType: x.paymentType || kind, _kind: kind, _key: `${kind}-${x.id ?? x.paymentReference ?? i}` }))
+      : null);
+
+    const [rep, rep2, ord] = await Promise.allSettled([
+      api.get('/api/shops/payments/financial-report', { signal }),
+      api.get('/api/shops/payments/repairs', { signal }),
+      api.get('/api/shops/payments/orders', { signal }),
+    ]);
+    if (signal.aborted) return;
+
+    const repairs = list(rep2, 'REPAIR_PAYMENT');
+    const orders = list(ord, 'ORDER_PAYMENT');
+    if (rep.status === 'fulfilled') setReport(rep.value.data);
+    if (repairs || orders) {
+      setRows((prev) => [
+        ...(repairs ?? prev.filter((x) => x._kind === 'REPAIR_PAYMENT')),
+        ...(orders ?? prev.filter((x) => x._kind === 'ORDER_PAYMENT')),
       ]);
-      setFinancialReport(reportRes.data);
-      const merged = [...(repairRes.data || []), ...(orderRes.data || [])].map(t => ({
-        ...t, id: t.id || generateUUID()
-      }));
-      setTransactions(merged);
-    } catch { }
-    finally { setLoading(false); }
+      setLastUpdated(new Date());
+    }
+    if (!silent && (!repairs || !orders)) {
+      const failed = [rep2, ord].find((r) => r.status === 'rejected');
+      toast({ icon: 'error', title: locRef.current.L.transactions.toasts.partialFail, text: errText(failed?.reason) });
+    }
+    setLoading(false);
   }, []);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => {
+    fetchAll();
+    const iv = setInterval(() => { if (!document.hidden) fetchAll({ silent: true }); }, POLL_MS);
+    return () => { clearInterval(iv); abortRef.current?.abort(); };
+  }, [fetchAll]);
+
+  const index = useMemo(() => rows.map((r) => {
+    const type = upper(r.paymentType);
+    const method = normMethod(r.paymentMethod);
+    const reference = String(r.paymentReference || shortId(r.id) || '—');
+    return {
+      txn: { key: r._key, paidAt: r.paidAt, type, method, reference, amount: num(r.amount) },
+      ts: toTs(r.paidAt),
+      price: num(r.amount),
+      text: [reference, r.details, t.types[type], t.method[method]].filter(Boolean).join(' ').toLowerCase(),
+    };
+  }), [rows, t.types, t.method]);
+
+  const counts = useMemo(() => {
+    const c = { all: index.length };
+    for (const { txn } of index) c[txn.type] = (c[txn.type] || 0) + 1;
+    return c;
+  }, [index]);
 
   const stats = useMemo(() => {
-    const total = financialReport?.totalEarnings || transactions.reduce((s, t) => s + (Number(t.amount) || 0), 0);
-    const repair = financialReport?.repairEarnings || transactions.filter(t => t.paymentType === 'REPAIR_PAYMENT').reduce((s, t) => s + (Number(t.amount) || 0), 0);
-    const order = financialReport?.salesEarnings || transactions.filter(t => t.paymentType === 'ORDER_PAYMENT').reduce((s, t) => s + (Number(t.amount) || 0), 0);
-    return { total, repair, order };
-  }, [financialReport, transactions]);
+    let total = 0; let repair = 0; let order = 0;
+    for (const { txn } of index) {
+      total += txn.amount;
+      if (txn.type === 'REPAIR_PAYMENT') repair += txn.amount;
+      else if (txn.type === 'ORDER_PAYMENT') order += txn.amount;
+    }
+    return {
+      total: pick(report?.totalEarnings, total),
+      repair: pick(report?.repairEarnings, repair),
+      order: pick(report?.salesEarnings, order),
+    };
+  }, [report, index]);
 
   const filtered = useMemo(() => {
-    return transactions.filter(t => {
-      const matchesSearch = [t.details, t.paymentReference, t.paymentType].join(' ').toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesType = filterType === 'ALL' || t.paymentType === filterType;
-      const matchesMethod = filterMethod === 'ALL' || t.paymentMethod === filterMethod;
-      return matchesSearch && matchesType && matchesMethod;
-    });
-  }, [transactions, searchTerm, filterType, filterMethod]);
+    const now = Date.now();
+    const span = SPAN_MS[dateRange];
+    const list = index.filter(({ txn, ts, text }) => (
+      (typeFilter === 'all' || txn.type === typeFilter)
+      && (methodFilter === 'all' || txn.method === methodFilter)
+      && (!span || now - ts <= span)
+      && (!term || text.includes(term))
+    ));
+    list.sort(SORTERS[sortBy] || SORTERS.newest);
+    return list.map((e) => e.txn);
+  }, [index, typeFilter, methodFilter, dateRange, term, sortBy]);
 
-  const paginated = useMemo(() => filtered.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage), [filtered, currentPage, rowsPerPage]);
-  const totalPages = Math.ceil(filtered.length / rowsPerPage);
+  useEffect(() => { setCurrentPage(1); }, [typeFilter, methodFilter, dateRange, term, sortBy, rowsPerPage]);
 
-  const exportToCSV = useCallback(() => {
-    const headers = ['التاريخ', 'نوع الخدمة', 'طريقة الدفع', 'المبلغ (ج.م)'];
-    const rows = filtered.map(t => [formatDate(t.paidAt), getServiceType(t), getPaymentMethod(t), t.amount]);
-    const BOM = '\uFEFF';
-    const csv = BOM + [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `transactions_${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-  }, [filtered]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+  const page = Math.min(currentPage, totalPages);
+  const paginated = useMemo(() => filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage), [filtered, page, rowsPerPage]);
+  const skeletonRows = useMemo(() => Array.from({ length: Math.min(rowsPerPage, 8) }, (_, i) => i), [rowsPerPage]);
 
   const statCards = useMemo(() => [
-    { Illustration: CoinsIllustration, label: 'إجمالي الأرباح', value: `${stats.total.toLocaleString('ar-EG')} ج.م`, color: "lime", description: "إجمالي الدخل المحقق" },
-    { Illustration: WrenchIllustration, label: 'أرباح الصيانة', value: `${stats.repair.toLocaleString('ar-EG')} ج.م`, color: "orange", description: "من طلبات الإصلاح" },
-    { Illustration: BagIllustration, label: 'أرباح المبيعات', value: `${stats.order.toLocaleString('ar-EG')} ج.م`, color: "blue", description: "من مبيعات المنتجات" },
-    { Illustration: PulseIllustration, label: 'العمليات المكتملة', value: transactions.length.toLocaleString('ar-EG'), color: "emerald", description: "إجمالي الفواتير" },
-  ], [stats, transactions.length]);
+    { label: t.stats.total.label, value: formatPrice(stats.total, tt.price, nf), description: t.stats.total.desc, icon: FiDollarSign, tone: 'em' },
+    { label: t.stats.repair.label, value: formatPrice(stats.repair, tt.price, nf), description: t.stats.repair.desc, icon: FiTool, tone: 'am' },
+    { label: t.stats.sales.label, value: formatPrice(stats.order, tt.price, nf), description: t.stats.sales.desc, icon: FiShoppingCart, tone: 'sky' },
+    { label: t.stats.done.label, value: nf.format(counts.all), description: t.stats.done.desc, icon: FiCheckCircle, tone: 'vi' },
+  ], [stats, counts.all, t, tt, nf]);
 
-  const typeOptions = useMemo(() => ([
-    { value: 'ALL', label: 'جميع الخدمات' },
-    { value: 'REPAIR_PAYMENT', label: 'طلبات الإصلاح' },
-    { value: 'ORDER_PAYMENT', label: 'طلبات البيع' },
-  ]), []);
+  const handleCopy = useCallback(async (value) => {
+    const x = locRef.current.L.transactions.toasts;
+    try {
+      await navigator.clipboard.writeText(String(value));
+      toast({ icon: 'success', title: x.copied, text: x.copiedText, timer: 2000 });
+    } catch {
+      toast({ icon: 'error', title: x.copyFail, text: x.copyFailText });
+    }
+  }, []);
 
-  const methodOptions = useMemo(() => ([
-    { value: 'ALL', label: 'جميع طرق الدفع' },
-    { value: 'CASH', label: 'نقدي' },
-    { value: 'CARD', label: 'بطاقة ائتمان' },
-  ]), []);
+  const exportToCSV = useCallback(() => {
+    const { L: LL, fm: ff } = locRef.current;
+    const x = LL.transactions;
+    if (!filtered.length) { toast({ icon: 'info', title: x.toasts.noData }); return; }
+    const header = [x.csv.date, x.csv.type, x.csv.method, x.csv.ref, x.csv.amount];
+    const body = filtered.map((r) => [
+      csvCell(fmt(ff.date, r.paidAt)),
+      csvCell(x.types[r.type] || r.type),
+      csvCell(x.method[r.method] || r.method),
+      csvCell(r.reference),
+      num(r.amount),
+    ].join(','));
+    const csv = `\uFEFF${[header.map(csvCell).join(','), ...body].join('\r\n')}`;
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transactions_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.rel = 'noopener';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }, [filtered]);
 
-  const rowsOptions = useMemo(() => ROWS_OPTIONS.map(n => ({ value: n, label: `${n} صفوف` })), []);
+  const resetFilters = useCallback(() => { setMethodFilter('all'); setDateRange('all'); setSortBy('newest'); }, []);
+  const closeFilter = useCallback(() => setShowFilterPanel(false), []);
+  const openFilter = useCallback(() => setShowFilterPanel(true), []);
+  const refresh = useCallback(() => fetchAll(), [fetchAll]);
+  const handleSearch = useCallback((e) => setSearch(sanitizeSearch(e.target.value)), []);
+  const toggleDateSort = useCallback(() => setSortBy((s) => (s === 'newest' ? 'oldest' : 'newest')), []);
+  const toggleAmountSort = useCallback(() => setSortBy((s) => (s === 'highest' ? 'lowest' : 'highest')), []);
+
+  const filterGroups = useMemo(() => [
+    [t.groups.sort, SORT_KEYS.map((k) => ({ value: k, label: t.sort[k] })), sortBy, setSortBy],
+    [t.groups.method, [{ value: 'all', label: t.methodAll }, ...METHOD_KEYS.map((k) => ({ value: k, label: t.method[k] }))], methodFilter, setMethodFilter],
+    [t.groups.range, RANGE_KEYS.map((k) => ({ value: k, label: t.ranges[k] })), dateRange, setDateRange],
+  ], [t, sortBy, methodFilter, dateRange]);
+
+  const activeFilterCount = (methodFilter !== 'all') + (dateRange !== 'all') + (sortBy !== 'newest');
+  const from = filtered.length ? (page - 1) * rowsPerPage + 1 : 0;
+  const to = Math.min(page * rowsPerPage, filtered.length);
 
   return (
-    <div dir="rtl" className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pr-64 mt-16 transition-all duration-500 font-cairo text-right">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-10">
+    <div
+      dir={dir}
+      lang={language}
+      style={font}
+      className="nb-page min-h-screen py-6 lg:ps-64 mt-16 text-start"
+    >
+      <style>{PAGE_CSS}</style>
+      <Defs3D />
+      <Toaster darkMode={darkMode} />
 
-       
-       
-        <div className="flex flex-col md:flex-row md:items-end mt-3 justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-1.5 rounded-full bg-emerald-500" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">المركز المالي</span>
-            </div>
-            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">سجل <span className="text-emerald-500">العمليات</span></h1>
-            <p className="text-sm font-bold text-gray-500 dark:text-gray-400">تتبع تدفقاتك النقدية وحلل أداء مبيعاتك وخدماتك المالية بدقة</p>
+      <div key={language} className="lang-fade mx-auto max-w-7xl space-y-6 px-4 sm:px-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <span className="nb-bar" aria-hidden="true" />
+            <h1 className="mt-2 text-2xl font-extrabold leading-[1.15] tracking-tight rtl:tracking-normal sm:text-3xl">
+              <span className="nb-ul">{t.title[0]}{t.title[1]}</span>
+            </h1>
+            <p className="nb-muted mt-2 text-xs font-semibold">{t.subtitle}</p>
           </div>
-
-          <button 
-            title="تصدير التقرير"
-            onClick={exportToCSV}
-            className="flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-gray-900 dark:bg-emerald-500 text-white dark:text-white text-xs font-black uppercase tracking-widest hover:bg-emerald-500 dark:hover:bg-emerald-500 hover:text-white transition-all shadow-xl shadow-gray-900/10 active:scale-95"
-          >
-            <FiDownload size={16} /> تصدير التقرير المالي
-          </button>
+          <div className="flex items-center gap-2.5">
+            {lastUpdated && (
+              <p className="nb-chip hidden !normal-case sm:inline-flex" role="status" aria-live="polite">
+                {tpl(tt.lastUpdated, { t: fmt(fm.time, lastUpdated) })}
+              </p>
+            )}
+            <button type="button" onClick={refresh} aria-label={tt.refresh} title={tt.refresh} className={`${BTN_MD} h-10 uppercase rtl:tracking-normal`}>
+              <FiRefreshCw size={14} className={loading ? 'animate-spin motion-reduce:animate-none' : ''} aria-hidden="true" /> {tt.refresh}
+            </button>
+            <button type="button" onClick={exportToCSV} className={`${BTN_MD} h-10 uppercase rtl:tracking-normal`}>
+              <FiDownload size={14} aria-hidden="true" /> {t.export}
+            </button>
+          </div>
         </div>
 
-        
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-           {statCards.map(s => <StatCard key={s.label} {...s} />)}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {statCards.map((s) => <StatCard key={s.label} {...s} />)}
         </div>
 
-       
-       
-        <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none p-6">
-          <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
-            <div className="relative flex-1 group">
-              <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
+        <section className={`${CARD} min-w-0 overflow-hidden`}>
+          <div className="nb-gray nb-line flex flex-wrap items-center gap-2.5 border-b-2 p-3 sm:p-4">
+            <div className="relative min-w-[220px] flex-1">
+              <FiSearch className="nb-muted pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2" size={16} aria-hidden="true" />
               <input
-                type="text"
-                placeholder="ابحث برقم الفاتورة أو نوع العملية..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pr-12 pl-4 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-sm text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-200 transition-all"
+                type="search"
+                value={search}
+                maxLength={SEARCH_MAX}
+                autoComplete="off"
+                spellCheck={false}
+                enterKeyHint="search"
+                aria-label={t.searchAria}
+                placeholder={t.searchPlaceholder}
+                onChange={handleSearch}
+                className="nb-input h-10 w-full ps-10 pe-3 text-sm font-semibold"
               />
             </div>
-            <FilterDropdown value={filterType} options={typeOptions} onChange={(v) => { setFilterType(v); setCurrentPage(1); }} icon={FiTool} />
-            <FilterDropdown value={filterMethod} options={methodOptions} onChange={(v) => { setFilterMethod(v); setCurrentPage(1); }} icon={FiCreditCard} />
-            <FilterDropdown value={rowsPerPage} options={rowsOptions} onChange={(v) => { setRowsPerPage(Number(v)); setCurrentPage(1); }} />
+            <RowsDropdown value={rowsPerPage} onChange={setRowsPerPage} label={tt.rows} formatNumber={nf.format} />
+            <button type="button" onClick={openFilter} className={`${BTN_MD} relative h-10 uppercase rtl:tracking-normal`}>
+              <FiFilter size={14} aria-hidden="true" /> {tt.filter}
+              {activeFilterCount > 0 && (
+                <span className="nb-chip absolute -end-2 -top-2.5 !px-1.5" style={{ background: 'var(--nb-accent)', color: INK }}>{nf.format(activeFilterCount)}</span>
+              )}
+            </button>
           </div>
-        </div>
 
-       
-       
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden">
-          <div className="overflow-x-auto custom-scrollbar-thin">
-            <table className="w-full text-right border-collapse">
-              <thead>
-                <tr className="bg-gray-100 dark:bg-gray-900  dark:border-gray-700">
-                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">التاريخ</th>
-                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">نوع الخدمة</th>
-                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">المبلغ</th>
-                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">طريقة الدفع</th>
-                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">رقم العملية</th>
+          <div role="tablist" aria-label={t.tabsAria} className="slim-scroll nb-line flex gap-2 overflow-x-auto border-b-2 p-3">
+            {TABS.map((s) => (
+              <TabBtn key={s} k={s} active={typeFilter === s} label={t.tabs[s]} count={nf.format(counts[s] || 0)} onSelect={setTypeFilter} />
+            ))}
+          </div>
+
+          <div className="slim-scroll max-h-[68vh] overflow-auto" aria-busy={loading}>
+            <table className="w-full min-w-[820px] border-collapse text-start">
+              <thead className={HEAD_CLS}>
+                <tr>
+                  <SortTh label={t.columns.date} active={sortBy === 'newest' || sortBy === 'oldest'} dir={sortBy === 'oldest' ? 'asc' : 'desc'} onClick={toggleDateSort} />
+                  <th scope="col" className={TH}>{t.columns.type}</th>
+                  <th scope="col" className={TH}>{t.columns.method}</th>
+                  <th scope="col" className={TH}>{t.columns.ref}</th>
+                  <SortTh label={t.columns.amount} active={sortBy === 'highest' || sortBy === 'lowest'} dir={sortBy === 'lowest' ? 'asc' : 'desc'} onClick={toggleAmountSort} />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                {loading ? (
-                   [...Array(rowsPerPage)].map((_, i) => (
-                    <tr key={i} className="animate-pulse">
-                      {[...Array(5)].map((_, j) => (
-                        <td key={j} className="px-4 py-3"><div className="h-4 bg-gray-100 dark:bg-gray-700 rounded-lg w-full" /></td>
+              <tbody className="nb-rows">
+                {loading && rows.length === 0 ? (
+                  skeletonRows.map((i) => (
+                    <tr key={i} className="animate-pulse motion-reduce:animate-none">
+                      {SKELETON_COLS.map((j) => (
+                        <td key={j} className="px-3 py-4"><div className="nb-gray nb-line h-3.5 w-full border-2" /></td>
                       ))}
                     </tr>
                   ))
                 ) : paginated.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-8 py-24 text-center">
-                      <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-3xl flex items-center justify-center mx-auto mb-6 text-gray-200 dark:text-gray-800">
-                        <FiDollarSign size={40} />
-                      </div>
-                      <p className="text-lg font-black text-gray-900 dark:text-white tracking-tight">لا توجد عمليات حالياً</p>
-                      <p className="text-sm font-bold text-gray-400 mt-1 uppercase tracking-widest">لم يتم العثور على أي بيانات مالية مسجلة</p>
+                    <td colSpan={5} className="px-6 py-14">
+                      <EmptyState3D kind="box" title={t.empty.title} subtitle={t.empty.sub} darkMode={darkMode} />
                     </td>
                   </tr>
                 ) : (
-                  paginated.map(t => (
-                    <tr key={t.id} className="hover:bg-emerald-50/10 dark:hover:bg-emerald-900/5 transition-colors group">
-                      <td className="px-4 py-3 whitespace-nowrap">
-                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400">
-                               <FiCalendar size={18} />
-                            </div>
-                            <div>
-                               <p className="text-xs font-black text-gray-900 dark:text-white">{formatDate(t.paidAt)}</p>
-                               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{new Date(t.paidAt).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'})}</p>
-                            </div>
-                         </div>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-center">
-                         <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest ${t.paymentType === 'REPAIR_PAYMENT' ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600' : 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600'}`}>
-                            {t.paymentType === 'REPAIR_PAYMENT' ? <FiTool size={12} /> : <FiShoppingCart size={12} />}
-                            {getServiceType(t)}
-                         </span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-center font-mono font-black text-xs text-emerald-600">
-                          EGP {Number(t.amount)}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-center">
-                         <div className="flex flex-col items-center">
-                            <p className="text-xs font-black text-gray-900 dark:text-white flex items-center gap-1.5 justify-center">
-                               {t.paymentMethod === 'CARD' ? <FiCreditCard size={14} className="text-blue-500" /> : <FiDollarSign size={14} className="text-emerald-500" />}
-                               {getPaymentMethod(t)}
-                            </p>
-                         </div>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-left">
-                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center justify-end gap-1.5">
-                            <FiHash size={12} /> {t.paymentReference || t.id?.slice(0, 8)}
-                         </p>
-                      </td>
-                    </tr>
-                  ))
+                  paginated.map((r) => <TxnRow key={r.key} txn={r} loc={loc} onCopy={handleCopy} />)
                 )}
               </tbody>
             </table>
           </div>
 
-          
-          
-          {totalPages > 1 && (
-            <div className="px-4 py-4 bg-gray-100 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest order-2 sm:order-1">
-                 عرض <span className="text-gray-900 dark:text-white">{(currentPage - 1) * rowsPerPage + 1}</span> إلى <span className="text-gray-900 dark:text-white">{Math.min(currentPage * rowsPerPage, filtered.length)}</span> من <span className="text-gray-900 dark:text-white">{filtered.length}</span> عملية
-               </p>
-               <div className="flex items-center gap-2 order-1 sm:order-2">
-                  <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-emerald-500 disabled:opacity-30 transition-all">
-                     <FiChevronRight size={20} />
-                  </button>
-                  <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-emerald-500 disabled:opacity-30 transition-all">
-                     <FiChevronLeft size={20} />
-                  </button>
-               </div>
+          {filtered.length > 0 && (
+            <div className="nb-gray nb-line flex flex-col items-center justify-between gap-3 border-t-2 px-4 py-3 sm:flex-row">
+              <p className="nb-muted text-xs font-semibold">
+                {renderTpl(t.showing, {
+                  range: <b className="tabular-nums" style={{ color: 'var(--nb-ink)' }}>{nf.format(from)}–{nf.format(to)}</b>,
+                  total: <b className="tabular-nums" style={{ color: 'var(--nb-ink)' }}>{nf.format(filtered.length)}</b>,
+                })}
+              </p>
+              {totalPages > 1 && <Pagination page={page} total={totalPages} onChange={setCurrentPage} labels={tt} formatNumber={nf.format} />}
             </div>
           )}
-        </div>
+        </section>
       </div>
 
-      <style dangerouslySetInnerHTML={{ __html: `
-        .custom-scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
-        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
-        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #1f2937; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #10b981; }
-      `}} />
+      {showFilterPanel && (
+        <FilterPanel
+          title={t.filterTitle}
+          note={t.filterNote}
+          groups={filterGroups}
+          labels={tt}
+          onReset={resetFilters}
+          onClose={closeFilter}
+        />
+      )}
     </div>
   );
 };

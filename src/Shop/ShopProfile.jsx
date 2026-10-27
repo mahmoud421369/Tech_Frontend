@@ -1,346 +1,928 @@
-import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
-import Swal from 'sweetalert2';
+import React, {
+  useState, useEffect, useCallback, useMemo, useRef, memo,
+} from 'react';
 import {
-  FiEdit3, FiMapPin, FiTrash2, FiCheckSquare, FiX,
-  FiMail, FiPhone, FiStar, FiCalendar, FiTag, FiCheckCircle,
-  FiShield, FiLock, FiPlus, FiCheck, FiCamera, FiLayout, FiActivity, FiGlobe, FiPackage, FiInfo, FiHash
+  FiEdit3, FiMapPin, FiTrash2, FiX, FiMail, FiPhone, FiStar, FiTag, FiCheckCircle, FiShield,
+  FiLock, FiPlus, FiMinus, FiCamera, FiGlobe, FiRefreshCw, FiHash, FiHome, FiAlertCircle,
+  FiSearch, FiNavigation, FiExternalLink,
 } from 'react-icons/fi';
 import { FaStore } from 'react-icons/fa';
-import api from '../api';
-import useAuthStore from '../store/Auth';
+import api from '../common/api/api';
+import useAuthStore from '../common/store/Auth';
+import { UI3D_CSS, Defs3D } from '../components/user/Ui3D';
+import { EXTRAS_CSS, Toaster, toast, EmptyState3D } from '../components/user/UiExtras';
+import {
+  BTN, BTN_MD, BTN_ICON, BTN_PRIMARY, CARD, PANEL, FIELD, LABEL, SCROLL_CSS, fmt, tpl, shortId, errText, isSafeId,
+  confirmDialog, useDarkMode, useEscape, useShopLocale, StatCard, Overlay, IconTile,
+} from '../components/shop/TableKit';
+import { ensureShopAssets } from '../common/utils/shopFonts';
+import { resolveImageSrc, validateImageFile } from '../common/utils/productutils';
 
+ensureShopAssets();
 
-const showToast = (text, icon) =>
-  Swal.fire({ text, icon, toast: true, position: 'top-start', showConfirmButton: false, timer: 3000 });
+const NAME_MAX = 100;
+const DESC_MAX = 1000;
+const PASS_MIN = 8;
+const PASS_MAX = 72;
+const ADDR_MAX = 100;
+const DEFAULT_CENTER = { lat: 30.0444, lng: 31.2357 };
+const GEO_BASE = 'https://nominatim.openstreetmap.org';
+const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const TILE_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>';
+const GEO_CACHE_MAX = 40;
+const GEO_DEBOUNCE = 600;
 
-const EMPTY_SHOP = {
-  id: '', email: '', name: '', description: '', password: '',
-  verified: false, phone: '', rating: 0,
-  createdAt: '', updatedAt: '', shopType: '', activate: false,
-};
 const EMPTY_ADDR = { state: '', city: '', street: '', building: '', isDefault: false };
 
-const StorefrontIllustration = memo(() => (
-  <svg viewBox="0 0 140 110" className="w-full h-full">
-    <circle cx="112" cy="22" r="30" fill="rgba(255,255,255,0.10)" />
-    <circle cx="20" cy="88" r="22" fill="rgba(255,255,255,0.08)" />
-    <path d="M22 40 L70 22 L118 40 L118 50 L22 50 Z" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.4)" strokeWidth="2" />
-    <rect x="28" y="50" width="84" height="42" rx="3" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.35)" strokeWidth="2" />
-    <rect x="58" y="64" width="24" height="28" rx="2" fill="rgba(255,255,255,0.25)" />
-    <circle cx="76" cy="78" r="1.8" fill="rgba(255,255,255,0.7)" />
-    <path d="M34 30 L38 22 L34 22 L40 12 L36 22 L39 22 Z" fill="#fde68a" fillOpacity="0.9" />
-  </svg>
+const MAP_TXT = {
+  en: {
+    hint: 'Drag the map to move the pin',
+    search: 'Search a place or address',
+    searchGo: 'Search',
+    locate: 'Use my location',
+    locateFail: 'Could not get your location. Allow location access and try again.',
+    zoomIn: 'Zoom in',
+    zoomOut: 'Zoom out',
+    resolving: 'Finding address…',
+    resolveFail: 'Could not read this spot. Fill in the fields manually.',
+    idle: 'Move the map to pick a spot.',
+    pinned: 'Pinned',
+    noResults: 'No places found',
+    searchFail: 'Search failed. Try again.',
+    mapFail: 'The map could not load. You can still fill in the address manually.',
+    mapLoading: 'Loading map…',
+    details: 'Address details',
+    openMap: 'Open in maps',
+    onMap: 'On map',
+  },
+  ar: {
+    hint: 'حرّك الخريطة لتغيير مكان الدبوس',
+    search: 'ابحث عن مكان أو عنوان',
+    searchGo: 'بحث',
+    locate: 'استخدم موقعي',
+    locateFail: 'تعذر تحديد موقعك. اسمح بالوصول إلى الموقع وحاول مرة أخرى.',
+    zoomIn: 'تكبير',
+    zoomOut: 'تصغير',
+    resolving: 'جارٍ تحديد العنوان…',
+    resolveFail: 'تعذر قراءة هذا المكان. املأ الحقول يدويًا.',
+    idle: 'حرّك الخريطة لاختيار المكان.',
+    pinned: 'تم التحديد',
+    noResults: 'لا توجد نتائج',
+    searchFail: 'فشل البحث. حاول مرة أخرى.',
+    mapFail: 'تعذر تحميل الخريطة. يمكنك إدخال العنوان يدويًا.',
+    mapLoading: 'جارٍ تحميل الخريطة…',
+    details: 'تفاصيل العنوان',
+    openMap: 'فتح في الخرائط',
+    onMap: 'على الخريطة',
+  },
+};
+
+const MAP_CSS = `
+.nb-map{position:relative;isolation:isolate;border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow);background:var(--nb-gray);overflow:hidden;touch-action:none}
+.nb-map .leaflet-container{font-family:inherit;outline:none;background:var(--nb-gray);width:100%;height:100%;cursor:grab}
+.nb-map .leaflet-container:active{cursor:grabbing}
+.nb-map.is-dark .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) saturate(1.1) brightness(.95) contrast(.95)}
+.nb-map .leaflet-control-attribution{font-size:9px;background:var(--nb-card);color:var(--nb-muted);border-top:2px solid var(--nb-line);border-inline-start:2px solid var(--nb-line);padding:0 5px;margin:0}
+.nb-map .leaflet-control-attribution a{color:var(--nb-muted)}
+.nb-map .leaflet-tile{will-change:transform}
+.nb-map-vig{background:radial-gradient(ellipse at center,transparent 52%,rgba(4,38,26,.3) 100%);pointer-events:none}
+.nb-pin{position:absolute;left:-22px;top:-54px;width:44px;height:56px;transform-origin:50% 100%;transition:transform .45s cubic-bezier(.34,1.8,.5,1);filter:drop-shadow(0 3px 0 rgba(4,38,26,.35));will-change:transform}
+.nb-pin.is-lift{transform:translateY(-18px) scale(1.08);transition-duration:.14s;transition-timing-function:ease-out}
+.nb-pin-shadow{position:absolute;left:-10px;top:-3px;width:20px;height:7px;border-radius:50%;background:rgba(4,38,26,.55);transition:transform .2s ease,opacity .2s ease}
+.nb-pin-shadow.is-lift{transform:scale(.5);opacity:.4}
+.nb-pin-ring{position:absolute;left:-20px;top:-10px;width:40px;height:20px;border:3px solid var(--nb-accent);border-radius:50%;animation:nbPing 1.7s ease-out infinite}
+.nb-pin-ring.is-lift{animation:none;opacity:0}
+@keyframes nbPing{0%{transform:scale(.35);opacity:.95}100%{transform:scale(1.7);opacity:0}}
+@media (prefers-reduced-motion:reduce){.nb-pin,.nb-pin-shadow{transition:none}.nb-pin-ring{animation:none;opacity:.6}}
+`;
+
+const BASE_CSS = UI3D_CSS + EXTRAS_CSS;
+const PAGE_CSS = BASE_CSS + SCROLL_CSS + MAP_CSS;
+const UPLOAD_CONFIG = { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120_000 };
+
+const uploadErrText = (err, u) => {
+  const status = err?.response?.status;
+  if (status === 413) return u.tooLarge;
+  if (status === 415) return u.unsupported;
+  if (err?.code === 'ECONNABORTED') return u.timeout;
+  return errText(err);
+};
+
+const toCoord = (v) => {
+  if (v === '' || v == null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+const coordsOf = (a) => {
+  const lat = toCoord(a?.latitude ?? a?.lat);
+  const lng = toCoord(a?.longitude ?? a?.lng ?? a?.lon);
+  return lat != null && lng != null && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng } : null;
+};
+
+const round6 = (n) => Number(n.toFixed(6));
+const cut = (v, max = ADDR_MAX) => String(v ?? '').slice(0, max);
+const geoKey = (lat, lng) => `${lat.toFixed(5)},${lng.toFixed(5)}`;
+
+const addrPayload = (a, coords) => ({
+  state: String(a.state).trim(),
+  city: String(a.city).trim(),
+  street: String(a.street).trim(),
+  building: String(a.building ?? '').trim(),
+  isDefault: !!a.isDefault,
+  ...(coords ? { latitude: coords.lat, longitude: coords.lng } : {}),
+});
+
+const validateAddr = (a, v) => {
+  if (!String(a.state).trim()) return v.state;
+  if (!String(a.city).trim()) return v.city;
+  if (!String(a.street).trim()) return v.street;
+  if ([a.state, a.city, a.street].some((x) => String(x).length > ADDR_MAX) || String(a.building ?? '').length > 50) return v.tooLong;
+  return null;
+};
+
+const Field = ({ label, htmlFor, hint, children }) => (
+  <div>
+    <label htmlFor={htmlFor} className={LABEL}>{label}</label>
+    {children}
+    {hint && <p className="nb-muted mt-1 text-[10px] font-semibold">{hint}</p>}
+  </div>
+);
+
+const PinMarker = memo(({ lifted }) => (
+  <div className="pointer-events-none absolute left-1/2 top-1/2 z-[900]" aria-hidden="true">
+    <span className={`nb-pin-ring ${lifted ? 'is-lift' : ''}`} />
+    <span className={`nb-pin-shadow ${lifted ? 'is-lift' : ''}`} />
+    <svg className={`nb-pin ${lifted ? 'is-lift' : ''}`} viewBox="0 0 44 56" fill="none">
+      <path d="M22 2C11.5 2 3 10.3 3 20.6 3 34.5 22 54 22 54s19-19.5 19-33.4C41 10.3 32.5 2 22 2z" fill="var(--nb-accent)" stroke="#04261a" strokeWidth="3" strokeLinejoin="round" />
+      <circle cx="22" cy="20.5" r="8" fill="#ffffff" stroke="#04261a" strokeWidth="3" />
+      <circle cx="22" cy="20.5" r="3" fill="#04261a" />
+    </svg>
+  </div>
 ));
 
-const EmptyMapIllustration = memo(() => (
-  <svg viewBox="0 0 140 110" className="w-28 h-24 mx-auto">
-    <ellipse cx="70" cy="94" rx="42" ry="6" fill="rgba(0,0,0,0.05)" className="dark:fill-white/5" />
-    <path d="M20 30 L52 22 L88 30 L120 22 V78 L88 86 L52 78 L20 86 Z" fill="#f3f4f6" stroke="#e5e7eb" strokeWidth="2" className="dark:fill-gray-800 dark:stroke-gray-700" />
-    <path d="M52 22 V78 M88 30 V86" stroke="#e5e7eb" strokeWidth="1.6" strokeDasharray="3 3" className="dark:stroke-gray-700" />
-    <g transform="translate(70,44)">
-      <path d="M0 0 C-9 0 -16 7 -16 16 C-16 27 0 44 0 44 C0 44 16 27 16 16 C16 7 9 0 0 0 Z" fill="none" stroke="#10b981" strokeWidth="2.6" strokeLinejoin="round" />
-      <circle cx="0" cy="16" r="5" fill="#10b981" fillOpacity="0.25" stroke="#10b981" strokeWidth="2" />
-    </g>
-  </svg>
-));
+const PinMap = memo(({ start, apiRef, onPick, onDragging, onReady, onFail, loadingText }) => {
+  const elRef = useRef(null);
+  const cbRef = useRef({ onPick, onDragging, onReady, onFail });
+  const [ready, setReady] = useState(false);
 
-const InfoIllustration = memo(() => (
-  <svg viewBox="0 0 64 64" className="w-full h-full">
-    <circle cx="32" cy="32" r="26" fill="rgba(16,185,129,0.10)" className="dark:fill-emerald-900/20" />
-    <circle cx="32" cy="32" r="18" fill="none" stroke="#10b981" strokeWidth="2.4" className="dark:stroke-emerald-400" />
-    <circle cx="32" cy="24" r="1.8" fill="#10b981" className="dark:fill-emerald-400" />
-    <path d="M32 30 V40" stroke="#10b981" strokeWidth="2.6" strokeLinecap="round" className="dark:stroke-emerald-400" />
-  </svg>
-));
+  useEffect(() => { cbRef.current = { onPick, onDragging, onReady, onFail }; }, [onPick, onDragging, onReady, onFail]);
 
-const EditDocIllustration = memo(() => (
-  <svg viewBox="0 0 64 64" className="w-full h-full">
-    <circle cx="32" cy="32" r="26" fill="rgba(16,185,129,0.10)" className="dark:fill-emerald-900/20" />
-    <rect x="18" y="14" width="24" height="32" rx="3" fill="none" stroke="#10b981" strokeWidth="2.2" className="dark:stroke-emerald-400" />
-    <path d="M23 22 H37 M23 28 H37 M23 34 H31" stroke="#10b981" strokeWidth="2" strokeLinecap="round" className="dark:stroke-emerald-400" />
-    <path d="M36 40 L48 28 L52 32 L40 44 L34 46 Z" fill="#34d399" stroke="#10b981" strokeWidth="1.6" strokeLinejoin="round" />
-  </svg>
-));
+  useEffect(() => {
+    let cancelled = false;
+    let map = null;
+    let observer = null;
+    let loadTimer = null;
+    let loaded = false;
+    let last = null;
+
+    (async () => {
+      try {
+        const [mod] = await Promise.all([import('leaflet'), import('leaflet/dist/leaflet.css')]);
+        if (cancelled || !elRef.current) return;
+        const L = mod.default || mod;
+
+        map = L.map(elRef.current, {
+          center: [start.lat, start.lng],
+          zoom: start.zoom,
+          minZoom: 3,
+          maxZoom: 19,
+          zoomControl: false,
+          attributionControl: false,
+          preferCanvas: true,
+          worldCopyJump: true,
+          zoomSnap: 1,
+          wheelPxPerZoomLevel: 90,
+          inertiaDeceleration: 3400,
+        });
+
+        L.control.attribution({ prefix: false, position: 'bottomright' }).addTo(map);
+
+        const tiles = L.tileLayer(TILE_URL, {
+          maxZoom: 19,
+          attribution: TILE_ATTR,
+          updateWhenIdle: true,
+          updateWhenZooming: false,
+          keepBuffer: 2,
+        }).addTo(map);
+
+        const markLoaded = () => {
+          if (loaded || cancelled) return;
+          loaded = true;
+          clearTimeout(loadTimer);
+          setReady(true);
+        };
+        tiles.once('tileload', markLoaded);
+        tiles.once('load', markLoaded);
+        loadTimer = setTimeout(() => { if (!loaded && !cancelled) cbRef.current.onFail(); }, 20000);
+
+        map.on('movestart', () => { if (!cancelled) cbRef.current.onDragging(true); });
+        map.on('moveend', () => {
+          if (cancelled) return;
+          cbRef.current.onDragging(false);
+          const c = map.getCenter().wrap();
+          if (last && Math.abs(last.lat - c.lat) < 1e-7 && Math.abs(last.lng - c.lng) < 1e-7) return;
+          last = { lat: c.lat, lng: c.lng };
+          cbRef.current.onPick(c.lat, c.lng);
+        });
+        map.on('click', (e) => map.panTo(e.latlng, { animate: true, duration: 0.45 }));
+
+      
+        if (typeof ResizeObserver !== 'undefined') {
+          let raf = 0;
+          observer = new ResizeObserver(() => {
+            cancelAnimationFrame(raf);
+            raf = requestAnimationFrame(() => { if (!cancelled && map) map.invalidateSize(); });
+          });
+          observer.observe(elRef.current);
+        }
+
+        apiRef.current = {
+          flyTo: (lat, lng, z) => map.flyTo([lat, lng], z ?? Math.max(map.getZoom(), 16), { duration: 1.2 }),
+          zoomIn: () => map.zoomIn(),
+          zoomOut: () => map.zoomOut(),
+        };
+
+       
+        const c0 = map.getCenter().wrap();
+        last = { lat: c0.lat, lng: c0.lng };
+        cbRef.current.onReady(c0.lat, c0.lng);
+      } catch {
+        if (!cancelled) cbRef.current.onFail();
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      clearTimeout(loadTimer);
+      observer?.disconnect();
+      apiRef.current = null;
+      try { map?.remove(); } catch { }
+    };
+  }, [start, apiRef]);
+
+  return (
+    <>
+      <div className="absolute inset-0 z-0 isolate">
+        <div ref={elRef} className="h-full w-full" />
+      </div>
+      {!ready && (
+        <div className="nb-gray absolute inset-0 z-[950] flex items-center justify-center text-xs font-extrabold uppercase">
+          <FiRefreshCw size={14} className="me-2 animate-spin motion-reduce:animate-none" /> {loadingText}
+        </div>
+      )}
+    </>
+  );
+});
+
+const AddressModal = memo(({ initial, busy, loc, dark, onClose, onSubmit }) => {
+  useEscape(onClose);
+  const { L, language } = loc;
+  const t = L.profile;
+  const m = t.modal;
+  const x = MAP_TXT[language] || MAP_TXT.en;
+  const isEdit = !!initial;
+
+  const [form, setForm] = useState(() => ({ ...EMPTY_ADDR, ...(initial || {}), building: initial?.building ?? '' }));
+  const [coords, setCoords] = useState(() => coordsOf(initial));
+  const [start] = useState(() => {
+    const c = coordsOf(initial);
+    return c ? { ...c, zoom: 17 } : { ...DEFAULT_CENTER, zoom: 16 };
+  });
+  const [error, setError] = useState('');
+  const [label, setLabel] = useState('');
+  const [resolving, setResolving] = useState(false);
+  const [geoFail, setGeoFail] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [mapFailed, setMapFailed] = useState(false);
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState(null);
+  const [searching, setSearching] = useState(false);
+  const [locating, setLocating] = useState(false);
+
+  const mapApi = useRef(null);
+  const geoTimer = useRef(null);
+  const geoAbort = useRef(null);
+  const searchAbort = useRef(null);
+  const geoCache = useRef(new Map());
+
+  useEffect(() => () => {
+    clearTimeout(geoTimer.current);
+    geoAbort.current?.abort();
+    searchAbort.current?.abort();
+  }, []);
+
+  const set = (k) => (e) => { setError(''); setForm((p) => ({ ...p, [k]: e.target.value.slice(0, k === 'building' ? 50 : ADDR_MAX) })); };
+
+  const applyGeo = useCallback((d) => {
+    const a = d?.address || {};
+    setLabel(String(d?.display_name || ''));
+    setForm((p) => ({
+      ...p,
+      state: cut(a.state || a.governorate || a.region || a.state_district || p.state),
+      city: cut(a.city || a.town || a.village || a.suburb || a.city_district || a.county || p.city),
+      street: cut(a.road || a.pedestrian || a.footway || a.neighbourhood || a.suburb || p.street),
+      building: cut(a.house_number || a.building || p.building, 50),
+    }));
+  }, []);
+
+  const handlePick = useCallback((lat, lng) => {
+    setCoords({ lat: round6(lat), lng: round6(lng) });
+    setError('');
+    clearTimeout(geoTimer.current);
+    geoAbort.current?.abort();
+    const key = `${language}:${geoKey(lat, lng)}`;
+    const cached = geoCache.current.get(key);
+    if (cached) {
+      setResolving(false);
+      setGeoFail(false);
+      applyGeo(cached);
+      return;
+    }
+    geoTimer.current = setTimeout(async () => {
+      const ctrl = new AbortController();
+      geoAbort.current = ctrl;
+      setResolving(true);
+      setGeoFail(false);
+      try {
+        const res = await fetch(`${GEO_BASE}/reverse?format=jsonv2&addressdetails=1&zoom=18&accept-language=${language}&lat=${lat}&lon=${lng}`, { signal: ctrl.signal });
+        if (!res.ok) throw new Error('geo');
+        const d = await res.json();
+        if (ctrl.signal.aborted) return;
+        if (geoCache.current.size >= GEO_CACHE_MAX) geoCache.current.delete(geoCache.current.keys().next().value);
+        geoCache.current.set(key, d);
+        applyGeo(d);
+      } catch (err) {
+        if (!ctrl.signal.aborted && err?.name !== 'AbortError') { setGeoFail(true); setLabel(''); }
+      } finally {
+        if (geoAbort.current === ctrl) setResolving(false);
+      }
+    }, GEO_DEBOUNCE);
+  }, [language, applyGeo]);
+
+  const handleFail = useCallback(() => setMapFailed(true), []);
+  const handleReady = useCallback((lat, lng) => {
+    setCoords((p) => p || { lat: round6(lat), lng: round6(lng) });
+  }, []);
+
+  const runSearch = useCallback(async () => {
+    const q = query.trim();
+    if (!q || searching) return;
+    searchAbort.current?.abort();
+    const ctrl = new AbortController();
+    searchAbort.current = ctrl;
+    setSearching(true);
+    try {
+      const res = await fetch(`${GEO_BASE}/search?format=jsonv2&limit=5&accept-language=${language}&q=${encodeURIComponent(q)}`, { signal: ctrl.signal });
+      if (!res.ok) throw new Error('search');
+      const d = await res.json();
+      if (!ctrl.signal.aborted) setResults(Array.isArray(d) ? d : []);
+    } catch (err) {
+      if (!ctrl.signal.aborted && err?.name !== 'AbortError') {
+        setResults(null);
+        toast({ icon: 'error', title: x.searchFail });
+      }
+    } finally {
+      if (searchAbort.current === ctrl) setSearching(false);
+    }
+  }, [query, searching, language, x.searchFail]);
+
+  const onSearchKey = useCallback((e) => {
+    if (e.key === 'Enter') { e.preventDefault(); runSearch(); }
+  }, [runSearch]);
+
+  const pickResult = useCallback((r) => {
+    const lat = toCoord(r.lat);
+    const lng = toCoord(r.lon);
+    setResults(null);
+    if (lat != null && lng != null) mapApi.current?.flyTo(lat, lng, 17);
+  }, []);
+
+  const locateMe = useCallback(() => {
+    if (!navigator.geolocation || locating) { toast({ icon: 'error', title: x.locateFail }); return; }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setLocating(false); mapApi.current?.flyTo(pos.coords.latitude, pos.coords.longitude, 17); },
+      () => { setLocating(false); toast({ icon: 'error', title: x.locateFail }); },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
+    );
+  }, [locating, x.locateFail]);
+
+  const zoomIn = useCallback(() => mapApi.current?.zoomIn(), []);
+  const zoomOut = useCallback(() => mapApi.current?.zoomOut(), []);
+
+  const submit = (e) => {
+    e.preventDefault();
+    const problem = validateAddr(form, t.validation);
+    if (problem) { setError(problem); return; }
+    onSubmit(addrPayload(form, coords));
+  };
+
+  const status = resolving ? x.resolving : geoFail ? x.resolveFail : label || x.idle;
+
+  return (
+    <Overlay onClose={onClose}>
+      <form onSubmit={submit} noValidate role="dialog" aria-modal="true" aria-label={isEdit ? m.editTitle : m.addTitle} className="nb-card relative w-full max-w-4xl max-h-[94vh] flex flex-col overflow-hidden">
+        <div className="nb-gray nb-line px-5 py-3.5 border-b-2 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-2.5">
+            <IconTile icon={FiMapPin} tone={isEdit ? 'am' : 'em'} className="w-9 h-9" size={16} />
+            <h3 className="text-sm font-extrabold uppercase"><span className="nb-ul">{isEdit ? m.editTitle : m.addTitle}</span></h3>
+          </div>
+          <button type="button" onClick={onClose} aria-label={m.close} className={BTN_ICON}><FiX size={15} /></button>
+        </div>
+
+        <div className="overflow-y-auto slim-scroll p-4 sm:p-5 grid grid-cols-1 lg:grid-cols-5 gap-4">
+          <div className="lg:col-span-3 space-y-3 min-w-0">
+            <div className={`nb-map h-80 sm:h-[28rem] ${dark ? 'is-dark' : ''}`}>
+              {mapFailed ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center">
+                  <FiAlertCircle size={26} className="text-red-500" />
+                  <p className="text-xs font-bold">{x.mapFail}</p>
+                </div>
+              ) : (
+                <>
+                  <PinMap start={start} apiRef={mapApi} onPick={handlePick} onDragging={setDragging} onReady={handleReady} onFail={handleFail} loadingText={x.mapLoading} />
+                  <div className="nb-map-vig absolute inset-0 z-[500]" aria-hidden="true" />
+                  <PinMarker lifted={dragging} />
+
+                  <div className="absolute start-2 end-2 top-2 z-[1000]">
+                    <div className="nb-field flex h-10 items-center gap-2 ps-3 pe-1">
+                      <FiSearch size={15} aria-hidden="true" className="flex-shrink-0" />
+                      <input
+                        type="text"
+                        value={query}
+                        maxLength={120}
+                        autoComplete="off"
+                        aria-label={x.search}
+                        placeholder={x.search}
+                        onChange={(e) => { setQuery(e.target.value); setResults(null); }}
+                        onKeyDown={onSearchKey}
+                        className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60"
+                      />
+                      <button type="button" onClick={runSearch} disabled={searching || !query.trim()} className={`${BTN_PRIMARY} h-8 uppercase`}>
+                        {searching ? <FiRefreshCw size={13} className="animate-spin motion-reduce:animate-none" /> : x.searchGo}
+                      </button>
+                    </div>
+                    {results && (
+                      <div className="nb-menu mt-1.5 max-h-52 overflow-y-auto slim-scroll">
+                        {results.length ? results.map((r) => (
+                          <button key={r.place_id} type="button" onClick={() => pickResult(r)} className="nb-opt !normal-case !justify-start">
+                            <FiMapPin size={14} aria-hidden="true" className="nb-ic flex-shrink-0" />
+                            <span className="line-clamp-2">{r.display_name}</span>
+                          </button>
+                        )) : <p className="nb-muted px-3 py-3 text-xs font-bold">{x.noResults}</p>}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="nb-chip absolute start-2 bottom-7 z-[1000] !normal-case">
+                    <FiMapPin size={11} aria-hidden="true" /> {dragging ? x.hint : x.pinned}
+                  </div>
+
+                  <div className="absolute end-2 bottom-7 z-[1000] flex flex-col gap-2">
+                    <button type="button" onClick={locateMe} disabled={locating} title={x.locate} aria-label={x.locate} className={`${BTN} nb-btn-a h-9 w-9`}>
+                      {locating ? <FiRefreshCw size={15} className="animate-spin motion-reduce:animate-none" /> : <FiNavigation size={15} />}
+                    </button>
+                    <button type="button" onClick={zoomIn} title={x.zoomIn} aria-label={x.zoomIn} className={`${BTN} h-9 w-9`}><FiPlus size={16} /></button>
+                    <button type="button" onClick={zoomOut} title={x.zoomOut} aria-label={x.zoomOut} className={`${BTN} h-9 w-9`}><FiMinus size={16} /></button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className={`${PANEL} p-3 flex items-start gap-2.5`} aria-live="polite">
+              {resolving
+                ? <FiRefreshCw size={15} className="nb-ic mt-0.5 flex-shrink-0 animate-spin motion-reduce:animate-none" />
+                : <FiMapPin size={15} className="nb-ic mt-0.5 flex-shrink-0" />}
+              <div className="min-w-0">
+                <p className="text-xs font-extrabold break-words">{status}</p>
+                {coords && (
+                  <p dir="ltr" className="nb-muted mt-1 text-[10px] font-bold tabular-nums text-start">
+                    {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-2 space-y-3.5 min-w-0">
+            <p className="flex items-center gap-2 text-[11px] font-extrabold uppercase rtl:tracking-normal"><span className="nb-bar" aria-hidden="true" />{x.details}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={m.state} htmlFor="ad-state"><input id="ad-state" autoComplete="address-level1" value={form.state} onChange={set('state')} className={FIELD} /></Field>
+              <Field label={m.city} htmlFor="ad-city"><input id="ad-city" autoComplete="address-level2" value={form.city} onChange={set('city')} className={FIELD} /></Field>
+            </div>
+            <Field label={m.street} htmlFor="ad-street"><input id="ad-street" autoComplete="street-address" value={form.street} onChange={set('street')} className={FIELD} /></Field>
+            <Field label={m.building} htmlFor="ad-building"><input id="ad-building" value={form.building} onChange={set('building')} className={FIELD} /></Field>
+            <label className="flex items-center gap-2 text-xs font-bold cursor-pointer">
+              <input type="checkbox" checked={form.isDefault} onChange={(e) => setForm((p) => ({ ...p, isDefault: e.target.checked }))} className="w-4 h-4 accent-emerald-500" />
+              {m.makeDefault}
+            </label>
+            {error && (
+              <p role="alert" className="nb-card flex items-center gap-1.5 px-3 py-2 text-[11px] font-bold !border-red-500 text-red-600 dark:text-red-300">
+                <FiAlertCircle size={13} /> {error}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="nb-gray nb-line px-5 py-3.5 border-t-2 flex gap-2.5 flex-shrink-0">
+          <button type="button" onClick={onClose} disabled={busy} className={`${BTN_MD} flex-1 uppercase`}>{m.cancel}</button>
+          <button type="submit" disabled={busy} className={`${BTN_PRIMARY} flex-1 uppercase`}>{busy ? m.saving : isEdit ? m.save : m.add}</button>
+        </div>
+      </form>
+    </Overlay>
+  );
+});
+
+const AddressRow = memo(({ addr, busy, loc, onEdit, onDelete }) => {
+  const t = loc.L.profile.addresses;
+  const x = MAP_TXT[loc.language] || MAP_TXT.en;
+  const sep = loc.isAr ? '،' : ',';
+  const c = coordsOf(addr);
+  return (
+    <div className={`${PANEL} p-3.5 flex items-center justify-between gap-3`}>
+      <div className="flex items-center gap-3 min-w-0">
+        <IconTile icon={FiHome} tone="em" className="w-9 h-9" size={15} />
+        <div className="min-w-0">
+          <p className="flex flex-wrap items-center gap-2 text-xs font-extrabold">
+            <span className="truncate">{addr.state}{sep} {addr.city}</span>
+            {addr.isDefault && <span className="nb-chip flex-shrink-0" style={{ background: '#34d399', color: '#04261a' }}>{t.primary}</span>}
+            {c && <span className="nb-chip flex-shrink-0"><FiMapPin size={10} aria-hidden="true" />{x.onMap}</span>}
+          </p>
+          <p className="nb-muted text-[11px] font-semibold truncate">{[addr.street, addr.building].filter(Boolean).join(' — ')}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-1.5 flex-shrink-0">
+        {c && (
+          <a
+            href={`https://www.openstreetmap.org/?mlat=${c.lat}&mlon=${c.lng}#map=17/${c.lat}/${c.lng}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={x.openMap}
+            aria-label={x.openMap}
+            className={BTN_ICON}
+          >
+            <FiExternalLink size={14} />
+          </a>
+        )}
+        <button type="button" disabled={busy} title={t.edit} aria-label={t.edit} onClick={() => onEdit(addr)} className={`${BTN_ICON} !text-amber-600 dark:!text-amber-300`}><FiEdit3 size={14} /></button>
+        <button type="button" disabled={busy} title={t.delete} aria-label={t.delete} onClick={() => onDelete(addr)} className={`${BTN_ICON} !text-red-600 dark:!text-red-300`}><FiTrash2 size={14} /></button>
+      </div>
+    </div>
+  );
+});
 
 const ShopProfile = () => {
+  const darkMode = useDarkMode();
+  const loc = useShopLocale();
+  const { language, L, fm, dir, font } = loc;
+  const t = L.profile;
+  const tt = L.table;
+  const nf = fm.number;
   const { accessToken, user } = useAuthStore();
-  const shopId = localStorage.getItem('id') || user?.id || user?.shopId;
+  const shopId = String(user?.id ?? user?.shopId ?? localStorage.getItem('id') ?? '');
+  const validShop = isSafeId(shopId);
+
+  const [shop, setShop] = useState(null);
+  const [form, setForm] = useState({ name: '', description: '' });
+  const [pass, setPass] = useState({ next: '', confirm: '' });
+  const [addresses, setAddresses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingPass, setSavingPass] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [logoVer, setLogoVer] = useState(0);
+  const [logoBroken, setLogoBroken] = useState(false);
+  const [addrModal, setAddrModal] = useState(null);
+  const [addrSaving, setAddrSaving] = useState(false);
+  const [busyAddr, setBusyAddr] = useState(null);
+
   const logoInputRef = useRef(null);
+  const abortRef = useRef(null);
+  const addressesRef = useRef(addresses);
+  const busyAddrRef = useRef(null);
+  const locRef = useRef(loc);
+  useEffect(() => { addressesRef.current = addresses; }, [addresses]);
+  useEffect(() => { locRef.current = loc; }, [loc]);
+  useEffect(() => { document.title = t.docTitle; }, [t.docTitle]);
 
-  const [shop, setShop]                       = useState(EMPTY_SHOP);
-  const [addresses, setAddresses]             = useState([]);
-  const [loading, setLoading]                 = useState(true);
-  const [saving, setSaving]                   = useState(false);
-  const [addrSaving, setAddrSaving]           = useState(false);
+  const fetchAll = useCallback(async ({ only, resetForm = true } = {}) => {
+    if (!accessToken || !validShop) { setLoading(false); return; }
+    const full = !only;
+    let signal;
+    if (full) {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      ({ signal } = controller);
+      setLoading(true);
+    }
+    const [shopRes, addrRes] = await Promise.allSettled([
+      only === 'addresses' ? null : api.get(`/api/shops/${encodeURIComponent(shopId)}`, { signal }),
+      only === 'shop' ? null : api.get('/api/shops/address', { signal }),
+    ]);
+    if (signal?.aborted) return;
+    if (shopRes.status === 'fulfilled' && shopRes.value) {
+      const d = shopRes.value.data || {};
+      setShop(d);
+      if (resetForm) setForm({ name: d.name || '', description: d.description || '' });
+      setLogoBroken(false);
+    } else if (shopRes.status === 'rejected') {
+      toast({ icon: 'error', title: locRef.current.L.profile.toasts.loadFail, text: errText(shopRes.reason) });
+    }
+    if (addrRes.status === 'fulfilled' && addrRes.value) {
+      const d = addrRes.value.data;
+      setAddresses(Array.isArray(d) ? d : d?.content || []);
+    }
+    if (full) setLoading(false);
+  }, [accessToken, shopId, validShop]);
 
-  const [showAddForm, setShowAddForm]         = useState(false);
-  const [newAddress, setNewAddress]           = useState(EMPTY_ADDR);
-  const [editingAddrId, setEditingAddrId]     = useState(null);
-  const [editingAddr, setEditingAddr]         = useState(EMPTY_ADDR);
+  useEffect(() => { fetchAll(); return () => abortRef.current?.abort(); }, [fetchAll]);
+  const refresh = useCallback(() => fetchAll(), [fetchAll]);
 
-  useEffect(() => { document.title = 'الملف المهني للمتجر'; }, []);
+  const dirty = shop && (form.name.trim() !== (shop.name || '') || form.description.trim() !== (shop.description || ''));
 
-  const fetchAllData = useCallback(async () => {
-    if (!accessToken || !shopId) return;
-    setLoading(true);
+  const saveProfile = useCallback(async (e) => {
+    e.preventDefault();
+    const x = locRef.current.L.profile.toasts;
+    const name = form.name.trim();
+    if (!name) { toast({ icon: 'warning', title: x.nameRequired }); return; }
+    if (savingProfile) return;
+    setSavingProfile(true);
     try {
-      const [shopRes, addrRes] = await Promise.allSettled([
-        api.get(`/api/shops/${shopId}`),
-        api.get('/api/shops/address'),
-      ]);
+      await api.put(`/api/shops/${encodeURIComponent(shopId)}`, { name, description: form.description.trim() });
+      toast({ icon: 'success', title: x.updated });
+      fetchAll({ only: 'shop' });
+    } catch (err) {
+      toast({ icon: 'error', title: x.updateFail, text: errText(err) });
+    } finally {
+      setSavingProfile(false);
+    }
+  }, [form, shopId, savingProfile, fetchAll]);
 
-      if (shopRes.status === 'fulfilled') {
-        const d = shopRes.value.data || {};
-        setShop({ ...d, password: '' });
-        if (addrRes.status === 'fulfilled') {
-          setAddresses(addrRes.value.data?.content || addrRes.value.data || []);
-        }
-      }
-    } catch { showToast('فشل تحميل بيانات المتجر', 'error'); }
-    finally { setLoading(false); }
-  }, [accessToken, shopId]);
+  const passProblem = useMemo(() => {
+    if (!pass.next) return '';
+    if (pass.next.length < PASS_MIN) return tpl(t.passShort, { n: nf.format(PASS_MIN) });
+    if (!/[A-Za-z]/.test(pass.next) || !/\d/.test(pass.next)) return t.passMix;
+    if (pass.confirm && pass.next !== pass.confirm) return t.passMismatch;
+    return '';
+  }, [pass, t, nf]);
 
-  useEffect(() => { fetchAllData(); }, [fetchAllData]);
-
-  const updateShop = useCallback(async () => {
-    if (!shop.name.trim()) { showToast('اسم المتجر مطلوب', 'warning'); return; }
-    setSaving(true);
+  const savePassword = useCallback(async (e) => {
+    e.preventDefault();
+    const x = locRef.current.L.profile;
+    if (!pass.next || passProblem || pass.next !== pass.confirm || savingPass) {
+      if (pass.next && pass.next !== pass.confirm) toast({ icon: 'warning', title: x.passMismatch });
+      return;
+    }
+    setSavingPass(true);
     try {
-      const payload = { name: shop.name, description: shop.description };
-      if (shop.password?.trim()) payload.password = shop.password.trim();
-      await api.put(`/api/shops/${shopId}`, payload);
-      showToast('تم تحديث البيانات بنجاح', 'success');
-      setShop(p => ({ ...p, password: '' }));
-      fetchAllData();
-    } catch { showToast('فشل التحديث', 'error'); }
-    finally { setSaving(false); }
-  }, [shop.name, shop.description, shop.password, shopId, fetchAllData]);
+      await api.put(`/api/shops/${encodeURIComponent(shopId)}`, { name: (shop?.name || form.name).trim(), description: (shop?.description || '').trim(), password: pass.next });
+      toast({ icon: 'success', title: x.toasts.passChanged });
+    } catch (err) {
+      toast({ icon: 'error', title: x.toasts.passFail, text: errText(err) });
+    } finally {
+      setPass({ next: '', confirm: '' });
+      setSavingPass(false);
+    }
+  }, [pass, passProblem, savingPass, shop, form.name, shopId]);
 
   const handleLogoUpload = useCallback(async (e) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const fd = new FormData();
-    fd.append('file', file);
+    e.target.value = '';
+    if (!file || uploading) return;
+    const x = locRef.current.L.profile;
+    const problem = await validateImageFile(file);
+    if (problem) { toast({ icon: 'error', title: x.toasts.invalidImage, text: problem }); return; }
+    setUploading(true);
     try {
-      await api.post(`/api/shops/${shopId}/logo`, fd);
-      showToast('تم تحديث الشعار بنجاح', 'success');
-      fetchAllData();
-    } catch { showToast('فشل تحميل الشعار', 'error'); }
-  }, [shopId, fetchAllData]);
+      const fd = new FormData();
+      fd.append('file', file, file.name);
+      await api.post(`/api/shops/${encodeURIComponent(shopId)}/logo`, fd, UPLOAD_CONFIG);
+      toast({ icon: 'success', title: x.toasts.logoUpdated });
+      setLogoVer(Date.now());
+      await fetchAll({ only: 'shop', resetForm: false });
+    } catch (err) {
+      toast({ icon: 'error', title: x.toasts.logoFail, text: uploadErrText(err, x.upload) });
+    } finally {
+      setUploading(false);
+    }
+  }, [shopId, uploading, fetchAll]);
 
-  const addAddress = async () => {
+  const logoSrc = useMemo(() => {
+    const s = resolveImageSrc(shop?.logoUrl ?? shop?.logo ?? shop?.logoPath ?? '');
+    return s && logoVer && /^https?:/i.test(s) ? `${s}${s.includes('?') ? '&' : '?'}v=${logoVer}` : s;
+  }, [shop, logoVer]);
+
+  const saveAddress = useCallback(async (payload) => {
+    if (addrSaving) return;
+    const x = locRef.current.L.profile.toasts;
+    const editing = addrModal && addrModal !== 'new' ? addrModal : null;
+    if (editing && !isSafeId(editing.id)) { toast({ icon: 'error', title: x.invalidAddrId }); return; }
     setAddrSaving(true);
     try {
-      await api.post('/api/shops/address', newAddress);
-      showToast('تمت إضافة العنوان بنجاح', 'success');
-      setNewAddress(EMPTY_ADDR); setShowAddForm(false); fetchAllData();
-    } catch { showToast('فشل إضافة العنوان', 'error'); }
-    finally { setAddrSaving(false); }
-  };
+      if (editing) await api.put(`/api/shops/address/${encodeURIComponent(editing.id)}`, payload);
+      else await api.post('/api/shops/address', payload);
+      toast({ icon: 'success', title: editing ? x.addrUpdated : x.addrAdded });
+      setAddrModal(null);
+      fetchAll({ only: 'addresses' });
+    } catch (err) {
+      toast({ icon: 'error', title: editing ? x.addrUpdateFail : x.addrAddFail, text: errText(err) });
+    } finally {
+      setAddrSaving(false);
+    }
+  }, [addrModal, addrSaving, fetchAll]);
 
-  const deleteAddress = async (id) => {
-    const { isConfirmed } = await Swal.fire({
-      title: 'حذف العنوان؟', text: 'سيتم إزالة هذا العنوان نهائياً من سجلاتك',
-      icon: 'warning', showCancelButton: true, confirmButtonText: 'نعم، احذف', cancelButtonText: 'إلغاء',
-      confirmButtonColor: '#ef4444',
-    });
+  const deleteAddress = useCallback(async (addr) => {
+    if (!isSafeId(addr.id) || busyAddrRef.current) return;
+    const { L: LL } = locRef.current;
+    const x = LL.profile;
+    let isConfirmed = false;
+    try {
+      ({ isConfirmed } = await confirmDialog({
+        title: x.confirmDelete.title,
+        text: x.confirmDelete.text,
+        icon: 'warning',
+        confirmButtonText: x.confirmDelete.yes,
+        cancelButtonText: LL.table.cancel,
+        confirmButtonColor: '#ef4444',
+      }));
+    } catch {
+      toast({ icon: 'error', title: x.toasts.confirmFail, text: x.toasts.confirmFailText });
+      return;
+    }
     if (!isConfirmed) return;
+    busyAddrRef.current = addr.id;
+    setBusyAddr(addr.id);
+    const idx = addressesRef.current.findIndex((a) => a.id === addr.id);
+    setAddresses((prev) => prev.filter((a) => a.id !== addr.id));
     try {
-      await api.delete(`/api/shops/address/${id}`);
-      showToast('تم حذف العنوان', 'success');
-      fetchAllData();
-    } catch { showToast('فشل حذف العنوان', 'error'); }
+      await api.delete(`/api/shops/address/${encodeURIComponent(addr.id)}`);
+      toast({ icon: 'success', title: locRef.current.L.profile.toasts.addrDeleted });
+    } catch (err) {
+      setAddresses((prev) => (prev.some((a) => a.id === addr.id)
+        ? prev
+        : [...prev.slice(0, Math.max(idx, 0)), addr, ...prev.slice(Math.max(idx, 0))]));
+      toast({ icon: 'error', title: locRef.current.L.profile.toasts.addrDeleteFail, text: errText(err) });
+    } finally {
+      busyAddrRef.current = null;
+      setBusyAddr(null);
+    }
+  }, []);
+
+  const handleEdit = useCallback((a) => setAddrModal(a), []);
+  const openNewAddr = useCallback(() => setAddrModal('new'), []);
+  const openLogoPicker = useCallback(() => logoInputRef.current?.click(), []);
+  const closeAddr = useCallback(() => { if (!addrSaving) setAddrModal(null); }, [addrSaving]);
+  const onLogoError = useCallback(() => setLogoBroken(true), []);
+
+  const statCards = useMemo(() => [
+    { label: t.stats.rating.label, value: shop?.rating ? nf.format(Number(Number(shop.rating).toFixed(1))) : '—', description: t.stats.rating.desc, icon: FiStar, tone: 'am' },
+    { label: t.stats.status.label, value: shop?.activate ? t.stats.status.active : t.stats.status.suspended, description: t.stats.status.desc, icon: FiShield, tone: shop?.activate ? 'em' : 'ro' },
+    { label: t.stats.verification.label, value: shop?.verified ? t.stats.verification.verified : t.stats.verification.unverified, description: t.stats.verification.desc, icon: FiCheckCircle, tone: shop?.verified ? 'sky' : 'te' },
+    { label: t.stats.addresses.label, value: nf.format(addresses.length), description: t.stats.addresses.desc, icon: FiMapPin, tone: 'vi' },
+  ], [shop, addresses.length, t, nf]);
+
+  const overview = useMemo(() => [
+    [FiMail, t.email, shop?.email || '—', true],
+    [FiPhone, t.phone, shop?.phone || t.notSet, true],
+    [FiGlobe, t.joined, fmt(fm.date, shop?.createdAt), false],
+    [FiHash, t.recordId, shop?.id ? `SH-${shortId(shop.id)}` : '—', true],
+  ], [shop, t, fm]);
+
+  const wrapperProps = {
+    dir,
+    lang: language,
+    style: font,
+    className: 'nb-page min-h-screen py-6 lg:ps-64 mt-16 text-start',
   };
 
-  const updateAddress = async () => {
-    setAddrSaving(true);
-    try {
-      await api.put(`/api/shops/address/${editingAddrId}`, editingAddr);
-      showToast('تم تحديث العنوان بنجاح', 'success');
-      setEditingAddrId(null); setEditingAddr(EMPTY_ADDR); fetchAllData();
-    } catch { showToast('فشل تحديث العنوان', 'error'); }
-    finally { setAddrSaving(false); }
-  };
+  if (!accessToken || !validShop) {
+    return (
+      <div {...wrapperProps}>
+        <style>{PAGE_CSS}</style><Defs3D />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6"><div className={`${CARD} p-10`}><EmptyState3D kind="box" title={t.noShop.title} subtitle={t.noShop.sub} darkMode={darkMode} /></div></div>
+      </div>
+    );
+  }
 
   return (
-    <div dir="rtl" className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pr-64 mt-16 transition-all duration-500 font-cairo text-right">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-10">
+    <div {...wrapperProps}>
+      <style>{PAGE_CSS}</style>
+      <Defs3D />
+      <Toaster darkMode={darkMode} />
 
-       
-       
-        <div className="relative h-64 lg:h-80 w-full rounded-none overflow-hidden shadow-2xl group">
-           <div className="absolute inset-0 bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-500 opacity-90 group-hover:scale-105 transition-transform duration-1000" />
-           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10" />
-           <div className="absolute top-6 left-6 w-32 h-24 lg:w-40 lg:h-32 opacity-90 pointer-events-none hidden sm:block">
-              <StorefrontIllustration />
-           </div>
-           <div className="absolute bottom-0 left-0 right-0 p-8 lg:p-12 flex flex-col md:flex-row items-center md:items-end justify-between gap-6">
-              <div className="flex flex-col md:flex-row items-center md:items-end gap-6 text-center md:text-right">
-                  <div className="relative group/avatar cursor-pointer" onClick={() => logoInputRef.current?.click()}>
-                    <div className="w-32 h-32 lg:w-40 h-40 rounded-none p-2 relative">
-                       <div className="w-full h-full rounded-[2rem] bg-gray-100 flex items-center justify-center text-emerald-500 overflow-hidden relative">
-                          { shop.name ? <span className="text-5xl font-black">{shop.name[0]}</span> : <FaStore size={48} />}
-                          
-                       </div>
-                    </div>
-                    <input ref={logoInputRef} type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
-                  </div>
-                 <div className="text-white space-y-2 mb-2">
-                    <div className="flex items-center justify-center md:justify-start gap-2">
-                       <h1 className="text-3xl lg:text-5xl font-black tracking-tighter">{shop.name || "متجر جديد"}</h1>
-                       {shop.verified && <FiCheckCircle className="text-emerald-100 fill-emerald-400" size={24} />}
-                    </div>
-                    <p className="text-emerald-50/80 text-sm lg:text-base font-bold flex items-center justify-center md:justify-start gap-2">
-                       <FiTag size={16} /> {shop.shopType || "مركز صيانة معتمد"}
-                    </p>
-                 </div>
-              </div>
-              <div className="flex gap-3 mb-2">
-                 <div className="px-6 py-4 bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl text-center min-w-[100px]">
-                    <p className="text-[10px] font-black text-emerald-100 uppercase tracking-widest">التقييم</p>
-                    <p className="text-xl font-black text-white">{shop.rating ? Number(shop.rating).toFixed(1) : "5.0"}</p>
-                 </div>
-                 <div className="px-6 py-4 bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl text-center min-w-[100px]">
-                    <p className="text-[10px] font-black text-emerald-100 uppercase tracking-widest">الحالة</p>
-                    <p className="text-xl font-black text-white">{shop.activate ? "نشط" : "معلق"}</p>
-                 </div>
-              </div>
-           </div>
+      <div key={language} className="lang-fade max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-4 min-w-0">
+            <button
+              type="button"
+              onClick={openLogoPicker}
+              disabled={uploading}
+              title={t.changeLogo}
+              aria-label={t.changeLogoAria}
+              className="nb-btn nb-gray relative w-16 h-16 overflow-hidden flex-shrink-0 group"
+            >
+              {logoSrc && !logoBroken
+                ? <img src={logoSrc} alt="" width={64} height={64} decoding="async" referrerPolicy="no-referrer" onError={onLogoError} className="w-full h-full object-cover" />
+                : shop?.name ? <span className="nb-ic text-2xl font-extrabold">{[...shop.name][0]}</span> : <FaStore size={26} className="nb-ic" />}
+              <span className="absolute inset-0 bg-black/55 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity motion-reduce:transition-none">
+                <FiCamera size={18} className={uploading ? 'animate-pulse motion-reduce:animate-none' : ''} />
+              </span>
+            </button>
+            <input ref={logoInputRef} type="file" className="hidden" accept="image/jpeg,image/png,image/webp" onChange={handleLogoUpload} />
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 text-[11px] font-extrabold uppercase rtl:tracking-normal tracking-wide">
+                <span className="nb-bar" aria-hidden="true" />
+                <FiTag size={12} aria-hidden="true" /> {shop?.shopType || t.defaultType}
+              </p>
+              <h1 className="mt-2 flex items-center gap-2 text-2xl sm:text-3xl font-extrabold tracking-tight rtl:tracking-normal leading-[1.15]">
+                <span className="nb-ul truncate">{shop?.name || t.defaultName}</span>
+                {shop?.verified && <FiCheckCircle className="nb-ic flex-shrink-0" size={20} aria-label={t.verifiedAria} />}
+              </h1>
+            </div>
+          </div>
+          <button type="button" onClick={refresh} aria-label={tt.refresh} title={tt.refresh} className={`${BTN_MD} h-10 uppercase`}>
+            <FiRefreshCw size={14} className={loading ? 'animate-spin motion-reduce:animate-none' : ''} /> {tt.refresh}
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-           <div className="lg:col-span-1 space-y-8">
-              <div className="bg-white dark:bg-gray-800 rounded-none border border-gray-100 dark:border-gray-700 p-8 shadow-xl shadow-gray-200/20 dark:shadow-none space-y-6">
-                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 flex-shrink-0"><InfoIllustration /></div>
-                    <h3 className="text-lg font-black text-gray-900 dark:text-white">نظرة عامة</h3>
-                 </div>
-                 <div className="space-y-4">
-                    {[
-                       { icon: FiMail, label: "البريد الإلكتروني", value: shop.email },
-                       { icon: FiPhone, label: "رقم التواصل", value: shop.phone || "لم يتم التحديد" },
-                       { icon: FiGlobe, label: "تاريخ الانضمام", value: new Date(shop.createdAt).toLocaleDateString('ar-EG') },
-                       { icon: FiShield, label: "رقم السجل", value: `SH-${shop.id?.slice(0, 8)}` },
-                    ].map(item => (
-                       <div key={item.label} className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-gray-100 dark:border-gray-700/50">
-                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{item.label}</p>
-                          <div className="flex items-center gap-2 text-gray-900 dark:text-white font-bold text-sm">
-                             <item.icon size={14} className="text-emerald-400" /> {item.value}
-                          </div>
-                       </div>
-                    ))}
-                 </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+          {statCards.map((s) => <StatCard key={s.label} {...s} />)}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+          <section className={`${CARD} p-5 space-y-3 lg:col-span-1`} aria-busy={loading}>
+            <h3 className="text-sm font-extrabold uppercase"><span className="nb-ul">{t.overview}</span></h3>
+            {overview.map(([Icon, label, value, ltr]) => (
+              <div key={label} className={`${PANEL} p-3`}>
+                <p className="nb-muted text-[9px] font-bold uppercase mb-1">{label}</p>
+                <p className="flex items-center gap-2 text-xs font-extrabold break-all">
+                  <Icon size={13} className="nb-ic flex-shrink-0" />
+                  <bdi dir={ltr ? 'ltr' : undefined}>{loading && !shop ? '…' : value}</bdi>
+                </p>
               </div>
-           </div>
+            ))}
+          </section>
 
-          
-           <div className="lg:col-span-2 space-y-8">
-             
-              <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 p-8 shadow-xl shadow-gray-200/20 dark:shadow-none">
-                 <div className="flex items-center justify-between mb-8">
-                    <h3 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-3">
-                       <span className="w-9 h-9 flex-shrink-0"><EditDocIllustration /></span> بيانات المتجر
-                    </h3>
-                    <button title="حفظ البيانات" onClick={updateShop} disabled={saving} className="px-6 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black rounded-2xl hover:bg-emerald-400 dark:hover:bg-emerald-400 hover:text-white transition-all disabled:opacity-50">
-                       {saving ? "جاري الحفظ..." : "حفظ التغييرات"}
-                    </button>
-                 </div>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">اسم الكيان التجاري</label>
-                       <input type="text" value={shop.name} onChange={e => setShop({...shop, name: e.target.value})} className="w-full px-5 py-4 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-emerald-300 text-sm font-bold text-gray-900 dark:text-white focus:outline-none transition-all" />
-                    </div>
-                    <div className="space-y-2">
-                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">تغيير كلمة المرور</label>
-                       <input type="password" value={shop.password} onChange={e => setShop({...shop, password: e.target.value})} placeholder="اتركها فارغة للأمان" className="w-full px-5 py-4 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-emerald-300 text-sm font-bold text-gray-900 dark:text-white focus:outline-none transition-all" />
-                    </div>
-                    <div className="space-y-2 md:col-span-2">
-                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">وصف النشاط التجاري</label>
-                       <textarea value={shop.description} onChange={e => setShop({...shop, description: e.target.value})} rows="4" className="w-full px-5 py-4 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-emerald-300 text-sm font-bold text-gray-900 dark:text-white focus:outline-none transition-all resize-none" placeholder="اكتب هنا خدمات متجرك ومميزاته..." />
-                    </div>
-                 </div>
+          <div className="lg:col-span-2 space-y-5">
+            <form onSubmit={saveProfile} noValidate className={`${CARD} p-5 space-y-4`}>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-extrabold uppercase"><span className="nb-ul">{t.store.title}</span></h3>
+                <button type="submit" disabled={savingProfile || !dirty} className={`${BTN_PRIMARY} h-9 uppercase`}>{savingProfile ? t.store.saving : t.store.save}</button>
               </div>
+              <Field label={t.store.name} htmlFor="sp-name">
+                <input id="sp-name" type="text" maxLength={NAME_MAX} autoComplete="organization" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} className={FIELD} />
+              </Field>
+              <Field label={t.store.desc} htmlFor="sp-desc" hint={`${nf.format(form.description.length)} / ${nf.format(DESC_MAX)}`}>
+                <textarea id="sp-desc" rows={4} maxLength={DESC_MAX} value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} placeholder={t.store.descPlaceholder} className="nb-input w-full px-3 py-2 text-sm font-semibold resize-none" />
+              </Field>
+            </form>
 
-             
-              <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 p-8 shadow-xl shadow-gray-200/20 dark:shadow-none">
-                 <div className="flex items-center justify-between mb-8">
-                    <h3 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
-                       <FiMapPin className="text-emerald-400" /> عناوين الفروع
-                    </h3>
-                    <button title="إضافة عنوان جديد" onClick={() => setShowAddForm(true)} className="w-10 h-10 bg-emerald-400 text-white rounded-2xl flex items-center justify-center hover:bg-emerald-500 transition-all active:scale-90 shadow-lg shadow-emerald-400/20">
-                       <FiPlus size={20} />
-                    </button>
-                 </div>
-
-                 {showAddForm && (
-                    <div className="mb-8 p-6 bg-gray-50 dark:bg-gray-900 rounded-md  space-y-6 animate-in slide-in-from-top-4 duration-300">
-                       <div className="grid grid-cols-2 dark:text-white gap-4">
-                          <input type="text" placeholder="المحافظة" value={newAddress.state} onChange={e => setNewAddress({...newAddress, state: e.target.value})} className="px-5 py-3 rounded-xl bg-white dark:bg-gray-800 border-none text-sm font-bold" />
-                          <input type="text" placeholder="المدينة" value={newAddress.city} onChange={e => setNewAddress({...newAddress, city: e.target.value})} className="px-5 py-3 rounded-xl bg-white dark:bg-gray-800 border-none text-sm font-bold" />
-                          <input type="text" placeholder="الشارع" value={newAddress.street} onChange={e => setNewAddress({...newAddress, street: e.target.value})} className="px-5 py-3 rounded-xl bg-white dark:bg-gray-800 border-none text-sm font-bold md:col-span-2" />
-                       </div>
-                       <div className="flex gap-3">
-                          <button onClick={addAddress} disabled={addrSaving} className="flex-1 py-3 bg-emerald-400 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-400/10">إضافة العنوان</button>
-                          <button onClick={() => setShowAddForm(false)} className="px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded-xl text-xs font-black transition-all">إلغاء</button>
-                       </div>
-                    </div>
-                 )}
-
-                 <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-                    {addresses.length === 0 ? (
-                       <div className="md:col-span-2 py-12 text-center bg-gray-50 dark:bg-gray-900/50 rounded-[2rem] border-2 border-dashed border-gray-200 dark:border-gray-700">
-                          <EmptyMapIllustration />
-                          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-3">لم تقم بإضافة أي عناوين حتى الآن</p>
-                       </div>
-                    ) : addresses.map(addr => (
-                       editingAddrId === addr.id ? (
-                          <div key={addr.id} className="p-5 bg-gray-50 dark:bg-gray-900 rounded-md  space-y-4  animate-in fade-in duration-300">
-                             <div className="grid grid-cols-2 dark:text-white gap-3">
-                                <input type="text" placeholder="المحافظة" value={editingAddr.state} onChange={e => setEditingAddr({...editingAddr, state: e.target.value})} className="px-4 py-2.5 rounded-xl bg-white dark:bg-gray-800 border-none text-xs font-bold" />
-                                <input type="text" placeholder="المدينة" value={editingAddr.city} onChange={e => setEditingAddr({...editingAddr, city: e.target.value})} className="px-4 py-2.5 rounded-xl bg-white dark:bg-gray-800 border-none text-xs font-bold" />
-                                <input type="text" placeholder="الشارع" value={editingAddr.street} onChange={e => setEditingAddr({...editingAddr, street: e.target.value})} className="px-4 py-2.5 rounded-xl bg-white dark:bg-gray-800 border-none text-xs font-bold md:col-span-2" />
-                             </div>
-                             <div className="flex gap-2">
-                                <button onClick={updateAddress} disabled={addrSaving} className="flex-1 py-2.5 bg-emerald-400 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-400/10">حفظ التعديلات</button>
-                                <button onClick={() => setEditingAddrId(null)} className="px-5 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded-xl text-[10px] font-black transition-all">إلغاء</button>
-                             </div>
-                          </div>
-                       ) : (
-                       <div key={addr.id} className="group p-5 bg-gray-50 dark:bg-gray-900/50 rounded-md border border-gray-200 dark:border-gray-700 hover:border-emerald-400/50 transition-all">
-                          <div className="flex items-start justify-between">
-                             <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                   <p className="text-sm font-black text-gray-900 dark:text-white">{addr.state}، {addr.city}</p>
-                                   {addr.isDefault && <span className="px-2 py-0.5 bg-emerald-400 text-white text-[8px] font-black uppercase rounded-full">أساسي</span>}
-                                </div>
-                                <p className="text-xs font-bold text-gray-400">{addr.street}</p>
-                             </div>
-                             <div className="flex flex-col gap-1 md:flex-row md:gap-2">
-                               <button title="تعديل العنوان" onClick={() => { setEditingAddrId(addr.id); setEditingAddr(addr); }} className="p-2 text-gray-400 hover:text-emerald-400 transition-colors">
-                                  <FiEdit3 size={16} />
-                               </button>
-                               <button title="حذف العنوان" onClick={() => deleteAddress(addr.id)} className="p-2 text-gray-400 hover:text-red-500 transition-colors">
-                                  <FiTrash2 size={16} />
-                               </button>
-                             </div>
-                          </div>
-                       </div>
-                       )
-                    ))}
-                 </div>
+            <form onSubmit={savePassword} noValidate className={`${CARD} p-5 space-y-4`}>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="flex items-center gap-2 text-sm font-extrabold uppercase"><FiLock size={14} className="nb-ic" /> <span className="nb-ul">{t.security.title}</span></h3>
+                <button type="submit" disabled={savingPass || !pass.next || !pass.confirm || !!passProblem} className={`${BTN_MD} h-9 uppercase`}>{savingPass ? t.security.submitting : t.security.submit}</button>
               </div>
-           </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field label={t.security.next} htmlFor="sp-pass">
+                  <input id="sp-pass" type="password" autoComplete="new-password" maxLength={PASS_MAX} value={pass.next} onChange={(e) => setPass((p) => ({ ...p, next: e.target.value }))} className={FIELD} />
+                </Field>
+                <Field label={t.security.confirm} htmlFor="sp-pass2">
+                  <input id="sp-pass2" type="password" autoComplete="new-password" maxLength={PASS_MAX} value={pass.confirm} onChange={(e) => setPass((p) => ({ ...p, confirm: e.target.value }))} className={FIELD} />
+                </Field>
+              </div>
+              {passProblem && <p role="alert" className="text-[11px] font-bold text-red-500">{passProblem}</p>}
+            </form>
+
+            <section className={`${CARD} p-5 space-y-3`}>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="flex items-center gap-2 text-sm font-extrabold uppercase"><FiMapPin size={14} className="nb-ic" /> <span className="nb-ul">{t.addresses.title}</span></h3>
+                <button type="button" onClick={openNewAddr} className={`${BTN_PRIMARY} h-9 uppercase`}><FiPlus size={14} /> {t.addresses.add}</button>
+              </div>
+              {addresses.length === 0 ? (
+                <div className="py-8"><EmptyState3D kind="box" title={t.addresses.emptyTitle} subtitle={t.addresses.emptySub} darkMode={darkMode} /></div>
+              ) : (
+                <div className="space-y-2.5">
+                  {addresses.map((a) => <AddressRow key={a.id} addr={a} busy={busyAddr === a.id} loc={loc} onEdit={handleEdit} onDelete={deleteAddress} />)}
+                </div>
+              )}
+            </section>
+          </div>
         </div>
       </div>
 
-      <style dangerouslySetInnerHTML={{ __html: `
-        .custom-scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
-        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
-        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #1f2937; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #34d399; }
-      `}} />
+      {addrModal && (
+        <AddressModal
+          key={addrModal === 'new' ? 'new' : addrModal.id}
+          initial={addrModal === 'new' ? null : addrModal}
+          busy={addrSaving}
+          loc={loc}
+          dark={darkMode}
+          onClose={closeAddr}
+          onSubmit={saveAddress}
+        />
+      )}
     </div>
   );
 };

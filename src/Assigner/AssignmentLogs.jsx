@@ -1,592 +1,750 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, {
+  useState, useEffect, useCallback, useMemo, useRef, useDeferredValue, memo,
+} from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  FiClipboard, FiUser, FiClock, FiPackage,
-  FiTool, FiChevronLeft, FiChevronRight, FiPhone,
-  FiCheck, FiSearch, FiInfo, FiMapPin
+  FiSearch, FiX, FiCopy, FiInfo, FiMapPin, FiPhone, FiClock, FiUser, FiShoppingBag, FiClipboard,
+  FiChevronUp, FiChevronDown, FiChevronLeft, FiChevronRight, FiRefreshCw, FiAlertCircle,
+  FiCheck, FiPackage, FiTool, FiUserCheck, FiTruck, FiNavigation,
 } from 'react-icons/fi';
-import { FaStore } from 'react-icons/fa';
-import Swal from 'sweetalert2';
-import api from '../api';
-import Modal from '../components/Modal';
-import { RiMap2Line, RiPhoneLine, RiStore2Line, RiUser2Line } from '@remixicon/react';
+import { jwtDecode } from 'jwt-decode';
+import api from '../common/api/api';
+import { UI3D_CSS, Defs3D } from '../components/user/Ui3D';
+import { EXTRAS_CSS, Toaster, toast, EmptyState3D } from '../components/user/UiExtras';
 
-
-
+const DOC_TITLE = 'Assigner - Assignment Logs | Tech Restore';
+const ENDPOINT = '/api/assigner/assignment-log';
 const ROWS_OPTIONS = [10, 25, 50, 100];
+const SEARCH_MAX = 60;
+const POLL_MS = 60_000;
+const REDUCED = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-const FILTER_OPTIONS = [
-  { value: 'ALL', label: 'All Assignments' },
-  { value: 'ORDER', label: 'Orders' },
-  { value: 'REPAIR', label: 'Repairs' },
+const TABS = [
+  { key: 'all', label: 'All' },
+  { key: 'ORDER', label: 'Orders' },
+  { key: 'REPAIR', label: 'Repairs' },
 ];
+const SORT_KEY = { date: 'date', type: 'type', user: 'user', shop: 'shop', assigner: 'assigner', status: 'status' };
+const TONE_BG = {
+  em: '#34d399', teal: '#2dd4bf', lime: '#a3e635', cyan: '#22d3ee',
+  amber: '#fbbf24', blue: '#60a5fa', violet: '#a78bfa', gray: '#d1d5db',
+};
+const TYPE_META = {
+  ORDER: { tone: 'blue', label: 'Order' },
+  REPAIR: { tone: 'violet', label: 'Repair' },
+};
+const UNKNOWN_META = { tone: 'gray', label: 'Unknown' };
 
-
-
-
-const TYPE_STYLE = {
-  ORDER: {
-    bg: 'bg-blue-50 dark:bg-blue-900/20',
-    border: 'border-blue-200 dark:border-blue-700',
-    text: 'text-blue-700 dark:text-blue-400',
-    dot: 'bg-blue-500',
-    label: 'Order'
-  },
-  REPAIR: {
-    bg: 'bg-purple-50 dark:bg-purple-900/20',
-    border: 'border-purple-200 dark:border-purple-700',
-    text: 'text-purple-700 dark:text-purple-400',
-    dot: 'bg-purple-500',
-    label: 'Repair'
-  },
+const NB_FONT = "'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
+const NB_FONT_STYLE = { fontFamily: NB_FONT };
+const ensureNbFont = () => {
+  if (typeof document === 'undefined' || document.getElementById('nb-font')) return;
+  [['https://fonts.googleapis.com', false], ['https://fonts.gstatic.com', true]].forEach(([href, cors]) => {
+    const l = document.createElement('link');
+    l.rel = 'preconnect';
+    l.href = href;
+    if (cors) l.crossOrigin = '';
+    document.head.appendChild(l);
+  });
+  const link = document.createElement('link');
+  link.id = 'nb-font';
+  link.rel = 'stylesheet';
+  link.href = 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap';
+  document.head.appendChild(link);
 };
 
-const getTypeStyle = (t) =>
-  TYPE_STYLE[t] || {
-    bg: 'bg-gray-50 dark:bg-gray-800',
-    border: 'border-gray-200 dark:border-gray-700',
-    text: 'text-gray-600 dark:text-gray-400',
-    dot: 'bg-gray-400',
-    label: 'Unknown'
-  };
+const NB_CSS = `
+.nb{--nb-bg:#f9fafb;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e8ebe9;--nb-dot:#04261a;--nb-accent:#10b981;--nb-btn:#059669;--nb-on:#ffffff;background:var(--nb-bg);color:var(--nb-ink)}
+.nb-dark{--nb-bg:#141414;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#1e1e1e;--nb-dot:#3f3f3f;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-on:#022c22}
+.nb-gray{background:var(--nb-gray)}
+.nb-muted{color:var(--nb-muted)}
+.nb-ic{color:var(--nb-accent)}
+.nb-line{border-color:var(--nb-line)}
+.nb-card{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow);transition:transform .15s ease,box-shadow .15s ease}
+.nb-lift:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--nb-shadow)}
+.nb-bar{display:inline-block;width:40px;height:12px;background:var(--nb-accent);border:2px solid var(--nb-line)}
+.nb-ul{text-decoration:underline;text-decoration-color:var(--nb-accent);text-decoration-thickness:3px;text-underline-offset:4px;text-decoration-skip-ink:none}
+.nb-squig path{stroke:var(--nb-accent)}
+.nb-chip{display:inline-flex;align-items:center;gap:4px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);padding:1px 6px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;line-height:1.5;white-space:nowrap}
+.nb-tile{display:inline-flex;align-items:center;justify-content:center;flex:none;border:2px solid var(--nb-line);color:#04261a}
+.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);font-weight:700;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,background-color .12s ease}
+.nb-btn:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--nb-shadow)}
+.nb-btn:active:not(:disabled){transform:translate(1px,1px);box-shadow:0 0 0 var(--nb-shadow)}
+.nb-btn:disabled{opacity:.45;cursor:not-allowed}
+.nb-btn-a,.nb-btn-on{background:var(--nb-btn);color:var(--nb-on)}
+.nb-btn:focus-visible,.nb-field:focus-within{outline:3px solid var(--nb-accent);outline-offset:2px}
+.nb-field{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow)}
+.nb-menu{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow)}
+.nb-opt{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;font-size:12px;font-weight:700;text-transform:uppercase;text-align:start;cursor:pointer}
+.nb-opt:hover{background:var(--nb-gray)}
+.nb-opt[aria-selected=true]{background:var(--nb-btn);color:var(--nb-on)}
+.nb-rows>tr+tr{border-top:2px dotted var(--nb-dot)}
+.nb-rows>tr:hover{background:var(--nb-gray)}
+.nb-rows>tr.nb-done{box-shadow:inset 4px 0 0 0 var(--nb-accent)}
+@keyframes drawer-in{from{transform:translateX(100%)}to{transform:none}}
+.drawer-in{animation:drawer-in .22s ease-out}
+@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn{transition:none}.drawer-in{animation:none}}
+`;
 
-const showToast = (text, icon) =>
-  Swal.fire({
-    text,
-    icon,
-    toast: true,
-    position: 'top-end',
-    showConfirmButton: false,
-    timer: 2500,
-    timerProgressBar: true,
-  });
+const SCROLL_CSS = `
+  .slim-scroll { scrollbar-width: thin; scrollbar-color: rgba(52,211,153,.6) transparent; }
+  .slim-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+  .slim-scroll::-webkit-scrollbar-track { background: transparent; }
+  .slim-scroll::-webkit-scrollbar-thumb { background: rgba(52,211,153,.55); }
+  .slim-scroll::-webkit-scrollbar-thumb:hover { background: #34d399; }
+`;
 
-const formatDate = (date) => {
-  if (!date) return '—';
-  const d = new Date(date);
+const PAGE_CSS = UI3D_CSS + EXTRAS_CSS + NB_CSS + SCROLL_CSS;
+const STYLE_HTML = { __html: PAGE_CSS };
+
+const BTN_MD = 'nb-btn px-3 py-2 text-xs';
+const BTN_ICON = 'nb-btn w-8 h-8';
+const PANEL = 'nb-gray nb-line border-2 border-dotted';
+
+const TIME_FMT = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit' });
+const DAY_FMT = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short' });
+const CLOCK_FMT = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' });
+const FULL_FMT = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+const INT_FMT = new Intl.NumberFormat('en-US');
+
+const isTokenExpired = (token) => {
+  if (!token) return true;
+  try { const d = jwtDecode(token); return !d.exp || d.exp < Date.now() / 1000; } catch { return true; }
+};
+
+const isNotAssigner = (token) => {
+  try {
+    const p = jwtDecode(token);
+    const found = [p.role, p.roles, p.authorities, p.scope, localStorage.getItem('role')]
+      .flat().filter(Boolean).join(' ').toUpperCase();
+    return found !== '' && !found.includes('ASSIGNER');
+  } catch { return false; }
+};
+
+const CTRL = /[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g;
+const clean = (v) => String(v ?? '').replace(CTRL, '');
+const txt = (v) => (typeof v === 'string' || typeof v === 'number' ? clean(v) : '');
+const sanitizeSearch = (v) => clean(v).replace(/[<>]/g, '').replace(/\s{2,}/g, ' ').slice(0, SEARCH_MAX);
+const errText = (err) => String(err?.response?.data?.message || '').slice(0, 120) || undefined;
+const asList = (res) => { const d = res?.data; return Array.isArray(d) ? d : d?.content || []; };
+const shortId = (id) => clean(id).slice(-8).toUpperCase();
+const num = (v) => INT_FMT.format(v);
+const pct = (n, total) => (total ? Math.round((n / total) * 100) : 0);
+const refOf = (l) => (l.assignmentType === 'ORDER' ? l.orderId : l.repairRequestId) || l.id;
+const statusLabel = (s) => clean(s).replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
+const validDate = (v) => { const d = v ? new Date(v) : null; return d && !Number.isNaN(d.getTime()) ? d : null; };
+const fmtFull = (v) => { const d = validDate(v); return d ? FULL_FMT.format(d) : '—'; };
+const phoneHref = (p) => {
+  const digits = String(p ?? '').replace(/[^\d+]/g, '');
+  return digits ? `tel:${digits}` : null;
+};
+const mapsUrl = (a) => {
+  const q = [txt(a?.street), txt(a?.city), txt(a?.state)].filter(Boolean).join(', ');
+  return q ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}` : null;
+};
+const addrLine = (a) => (a ? [a.building, a.street, a.city, a.state].map(txt).filter(Boolean).join(', ') : '') || '';
+
+const pageList = (cur, total) => {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages = [...new Set([1, total, cur - 1, cur, cur + 1])].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);
+  const out = [];
+  pages.forEach((p, i) => { if (i && p - pages[i - 1] > 1) out.push(`gap${p}`); out.push(p); });
+  return out;
+};
+
+const nextSort = (s, field, first = 'asc') =>
+  (s.field === field ? { field, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { field, dir: first });
+
+const useDarkMode = () => {
+  const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'));
+  useEffect(() => {
+    const el = document.documentElement;
+    const mo = new MutationObserver(() => setDark(el.classList.contains('dark')));
+    mo.observe(el, { attributes: true, attributeFilter: ['class'] });
+    return () => mo.disconnect();
+  }, []);
+  return dark;
+};
+
+const UnderlinedTitle = memo(({ text }) => {
+  const s = String(text || '');
+  const i = s.lastIndexOf(' ');
+  const head = i > 0 ? s.slice(0, i + 1) : '';
+  const tail = i > 0 ? s.slice(i + 1) : s;
   return (
-    <div className="flex flex-col">
-      <span className="font-bold text-gray-800 dark:text-gray-200">{d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
-      <span className="text-[10px] text-gray-400 font-mono tracking-tighter">{d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+    <>
+      {head}
+      <span className="relative inline-block">
+        {tail}
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 100 10" preserveAspectRatio="none" className="nb-squig pointer-events-none absolute inset-x-0 -bottom-2 h-2.5 w-full">
+          <path d="M1 6 C 20 2, 40 9, 60 5 S 90 3, 99 6" fill="none" strokeWidth="5" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        </svg>
+      </span>
+    </>
+  );
+});
+
+const IconTile = memo(({ icon: Icon, tone = 'em', className = 'w-11 h-11', size = 18 }) => (
+  <span className={`nb-tile ${className}`} style={{ background: TONE_BG[tone] }}>
+    <Icon size={size} aria-hidden="true" />
+  </span>
+));
+
+const Pill = memo(({ tone, children }) => (
+  <span className="nb-chip" style={{ background: TONE_BG[tone] || TONE_BG.gray, color: '#04261a' }}>
+    <span className="w-1.5 h-1.5 bg-[#04261a]" aria-hidden="true" />
+    {children}
+  </span>
+));
+
+const Ring = memo(({ percent, color }) => {
+  const r = 26;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className="relative w-16 h-16 flex-shrink-0" role="img" aria-label={`${percent}%`}>
+      <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
+        <circle cx="32" cy="32" r={r} fill="none" strokeWidth="8" style={{ stroke: 'var(--nb-gray)' }} />
+        <circle
+          cx="32" cy="32" r={r} fill="none" strokeWidth="8"
+          stroke={color}
+          strokeDasharray={`${(c * percent) / 100} ${c}`}
+          style={{ transition: REDUCED ? 'none' : 'stroke-dasharray .6s ease' }}
+        />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-[11px] font-extrabold tabular-nums">
+        {percent}%
+      </span>
     </div>
   );
-};
+});
 
-const formatAddress = (addr) => {
-  if (!addr) return 'N/A';
-  const parts = [addr.building, addr.street, addr.city, addr.state]
-    .filter(Boolean)
-    .join(', ');
-  return parts || 'N/A';
-};
-
-
-
-const StatCard = ({ label, value, icon: Icon, color }) => (
-  <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-sm p-5 flex items-center justify-between group hover:shadow-lg hover:shadow-lime-500/5 transition-all duration-500">
-    <div className="space-y-1">
-      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">{label}</p>
-      <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">{value}</p>
+const StatCard = memo(({ label, value, description, icon, tone, percent, color }) => (
+  <div className="nb-card nb-lift p-4 sm:p-5 flex items-center justify-between gap-3 min-w-0">
+    <div className="min-w-0 flex-1 text-start">
+      <div className="flex items-center gap-3">
+        <IconTile icon={icon} tone={tone} />
+        <div className="min-w-0">
+          <p className="nb-muted text-[11px] font-bold uppercase tracking-wide truncate">{label}</p>
+          <p className="text-2xl font-extrabold tracking-tight leading-tight tabular-nums truncate">{value}</p>
+        </div>
+      </div>
+      <p className="nb-muted mt-3 text-xs font-semibold truncate">{description}</p>
     </div>
-    <div className={`w-14 h-14 rounded-2xl bg-${color}-50 dark:bg-${color}-900/20 flex items-center justify-center text-${color}-500 group-hover:scale-110 transition-transform duration-500`}>
-      <Icon size={24} />
-    </div>
+    <Ring percent={percent} color={color} />
   </div>
-);
+));
 
+const RowsDropdown = memo(({ value, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
 
+  return (
+    <div className="relative" ref={ref}>
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open} aria-label="Logs per page" className={`${BTN_MD} h-10 min-w-[120px] justify-between uppercase`}>
+        <span>{value} rows</span>
+        <FiChevronDown size={14} className={`transition-transform duration-200 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div role="listbox" className="nb-menu absolute right-0 z-20 mt-2 w-full overflow-hidden">
+          {ROWS_OPTIONS.map((n) => (
+            <button
+              key={n}
+              type="button"
+              role="option"
+              aria-selected={value === n}
+              onClick={() => { onChange(n); setOpen(false); }}
+              className="nb-opt"
+            >
+              {n} rows
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
 
-const AssignmentLogs = ({ darkMode }) => {
+const SortTh = memo(({ label, field, sort, onSort }) => {
+  const active = sort.field === field;
+  return (
+    <th scope="col" className="px-3 py-3 text-start text-[11px] font-extrabold uppercase" aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <button type="button" onClick={() => onSort(field)} className="inline-flex items-center gap-1 uppercase hover:underline underline-offset-4">
+        {label}
+        <span className={`flex flex-col -space-y-1 ${active ? 'nb-ic' : 'nb-muted'}`} aria-hidden="true">
+          <FiChevronUp size={10} className={active && sort.dir === 'asc' ? '' : 'opacity-50'} />
+          <FiChevronDown size={10} className={active && sort.dir === 'desc' ? '' : 'opacity-50'} />
+        </span>
+      </button>
+    </th>
+  );
+});
+
+const Pagination = memo(({ page, total, onChange }) => (
+  <nav className="flex items-center gap-1.5" aria-label="Pagination">
+    <button type="button" className={BTN_ICON} onClick={() => onChange(page - 1)} disabled={page <= 1} aria-label="Previous page"><FiChevronLeft size={16} /></button>
+    {pageList(page, total).map((p) => (typeof p === 'string'
+      ? <span key={p} className="w-6 text-center text-xs font-bold">…</span>
+      : (
+        <button
+          key={p}
+          type="button"
+          onClick={() => onChange(p)}
+          aria-label={`Go to page ${p}`}
+          aria-current={p === page ? 'page' : undefined}
+          className={`nb-btn w-8 h-8 text-xs tabular-nums ${p === page ? 'nb-btn-on' : ''}`}
+        >
+          {p}
+        </button>
+      )))}
+    <button type="button" className={BTN_ICON} onClick={() => onChange(page + 1)} disabled={page >= total} aria-label="Next page"><FiChevronRight size={16} /></button>
+  </nav>
+));
+
+const InfoRow = memo(({ icon: Icon, label, value, ltr, href }) => (
+  <div className={`${PANEL} p-3 flex items-center gap-2.5`}>
+    <Icon size={15} className="nb-ic flex-shrink-0" aria-hidden="true" />
+    <div className="min-w-0 flex-1">
+      <p className="nb-muted text-[9px] font-bold uppercase">{label}</p>
+      <p dir={ltr ? 'ltr' : undefined} className="text-xs font-extrabold break-words">{value || '—'}</p>
+    </div>
+    {href && (
+      <a
+        href={href}
+        {...(href.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+        aria-label={`Open ${label}`}
+        className={`${BTN_ICON} flex-shrink-0`}
+      >
+        {href.startsWith('tel:') ? <FiPhone size={14} aria-hidden="true" /> : <FiNavigation size={14} aria-hidden="true" />}
+      </a>
+    )}
+  </div>
+));
+
+const Row = memo(({ log, onOpen, onCopy }) => {
+  const meta = TYPE_META[log.assignmentType] || UNKNOWN_META;
+  const name = txt(log.userName) || 'Not specified';
+  const ref = refOf(log);
+  const d = validDate(log.createdAt);
+  const done = log.status === 'COMPLETED';
+  return (
+    <tr className={`transition-colors motion-reduce:transition-none ${done ? 'nb-done' : ''}`}>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        {d ? (
+          <div className="leading-tight">
+            <p className="text-xs font-extrabold">{DAY_FMT.format(d)}</p>
+            <p className="nb-muted text-[10px] font-bold font-mono">{CLOCK_FMT.format(d)}</p>
+          </div>
+        ) : <span className="nb-muted text-xs">—</span>}
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap"><Pill tone={meta.tone}>{meta.label}</Pill></td>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <span className="inline-flex items-center gap-1.5">
+          <code className="text-[11px] font-mono font-bold">#{shortId(ref)}</code>
+          <button type="button" title="Copy ID" aria-label={`Copy ID ${shortId(ref)}`} onClick={() => onCopy(ref)} className="nb-muted hover:text-[var(--nb-accent)] transition-colors">
+            <FiCopy size={12} aria-hidden="true" />
+          </button>
+        </span>
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <div className="flex items-center gap-2.5">
+          <span className="nb-tile w-9 h-9 text-sm font-extrabold uppercase" style={{ background: TONE_BG.em }}>
+            {name.charAt(0)}
+          </span>
+          <div className="min-w-0">
+            <p className="text-xs font-extrabold uppercase truncate max-w-[170px]">{name}</p>
+            <p dir="ltr" className="nb-muted text-[10px] font-semibold truncate max-w-[170px]">{txt(log.userPhone) || 'No phone'}</p>
+          </div>
+        </div>
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <p className="flex items-center gap-1.5 text-xs font-extrabold">
+          <FiShoppingBag size={12} className="nb-ic flex-shrink-0" aria-hidden="true" />
+          <span className="truncate max-w-[150px]">{txt(log.shopName) || 'Not specified'}</span>
+        </p>
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap text-xs font-bold">
+        <span className="block truncate max-w-[140px]">{txt(log.assignerName) || 'System'}</span>
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <Pill tone={done ? 'em' : 'amber'}>{log.status ? statusLabel(log.status) : 'Assigned'}</Pill>
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <button
+          type="button"
+          title="View details"
+          aria-label={`View details for log ${shortId(ref)}`}
+          onClick={() => onOpen(log)}
+          className={BTN_ICON}
+        >
+          <FiInfo size={14} aria-hidden="true" />
+        </button>
+      </td>
+    </tr>
+  );
+});
+
+const Drawer = memo(({ log, onClose, onCopy }) => {
+  const closeRef = useRef(null);
+  const meta = TYPE_META[log.assignmentType] || UNKNOWN_META;
+  const ref = refOf(log);
+  const userAddr = addrLine(log.userAddress);
+  const shopAddr = addrLine(log.shopAddress);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    closeRef.current?.focus();
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[100]">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
+      <aside role="dialog" aria-modal="true" aria-label="Assignment details" className="nb-card drawer-in absolute right-0 top-0 bottom-0 w-full max-w-md flex flex-col">
+        <div className="nb-gray nb-line flex items-center justify-between gap-3 px-5 h-16 border-b-2 flex-shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <IconTile icon={FiClipboard} tone="cyan" className="w-9 h-9" size={16} />
+            <div className="min-w-0">
+              <h2 className="text-sm font-extrabold uppercase truncate"><span className="nb-ul">Assignment details</span></h2>
+              <p className="nb-muted mt-1 flex items-center gap-1.5 text-[10px] font-bold font-mono">
+                #{shortId(ref)}
+                <button type="button" aria-label="Copy ID" onClick={() => onCopy(ref)} className="hover:text-[var(--nb-accent)] transition-colors"><FiCopy size={10} aria-hidden="true" /></button>
+              </p>
+            </div>
+          </div>
+          <button ref={closeRef} type="button" onClick={onClose} aria-label="Close" className={BTN_ICON}>
+            <FiX size={15} aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto slim-scroll px-5 py-4 space-y-2.5">
+          <div className="flex items-center justify-between gap-3 pb-1">
+            <Pill tone={meta.tone}>{meta.label}</Pill>
+            {log.status && <Pill tone={log.status === 'COMPLETED' ? 'em' : 'amber'}>{statusLabel(log.status)}</Pill>}
+          </div>
+          <InfoRow icon={FiUserCheck} label="Assigned by" value={txt(log.assignerName) || 'System'} />
+          <InfoRow icon={FiUser} label="Customer" value={txt(log.userName) || 'N/A'} />
+          <InfoRow icon={FiPhone} label="Customer phone" value={txt(log.userPhone) || 'N/A'} ltr href={phoneHref(log.userPhone)} />
+          <InfoRow icon={FiMapPin} label="Customer address" value={userAddr || 'N/A'} href={mapsUrl(log.userAddress)} />
+          <InfoRow icon={FiShoppingBag} label="Shop" value={txt(log.shopName) || 'N/A'} />
+          <InfoRow icon={FiPhone} label="Shop phone" value={txt(log.shopPhone) || 'N/A'} ltr href={phoneHref(log.shopPhone)} />
+          <InfoRow icon={FiMapPin} label="Shop address" value={shopAddr || 'N/A'} href={mapsUrl(log.shopAddress)} />
+          {log.deliveryId && <InfoRow icon={FiTruck} label="Delivery agent" value={`#${shortId(log.deliveryId)}`} />}
+          <InfoRow icon={FiClock} label="Recorded on" value={fmtFull(log.createdAt)} />
+        </div>
+
+        <div className="nb-gray nb-line px-5 py-3.5 border-t-2 flex justify-end flex-shrink-0">
+          <button type="button" onClick={onClose} className={`${BTN_MD} uppercase`}>Close</button>
+        </div>
+      </aside>
+    </div>
+  );
+});
+
+const COLS = 8;
+
+const AssignmentLogs = () => {
   const navigate = useNavigate();
-  const token = localStorage.getItem('authToken');
+  const darkMode = useDarkMode();
+  const tokenRef = useRef(localStorage.getItem('authToken'));
+  const denied = useMemo(
+    () => !tokenRef.current || isTokenExpired(tokenRef.current) || isNotAssigner(tokenRef.current),
+    []
+  );
 
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState('ALL');
+  const [error, setError] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [search, setSearch] = useState('');
+  const [tab, setTab] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [selectedLog, setSelectedLog] = useState(null);
+  const [rowsPerPage, setRowsPerPage] = useState(ROWS_OPTIONS[0]);
+  const [sort, setSort] = useState({ field: 'date', dir: 'desc' });
+  const [selected, setSelected] = useState(null);
 
-  useEffect(() => { document.title = 'Assigner - Logs'; }, []);
+  const abortRef = useRef(null);
+  const term = useDeferredValue(search).trim().toLowerCase();
 
-  const fetchLogs = useCallback(async () => {
-    if (!token) return navigate('/login');
+  useEffect(() => { document.title = DOC_TITLE; }, []);
+  useEffect(() => { ensureNbFont(); }, []);
+
+  useEffect(() => {
+    if (!denied) return;
+    const token = tokenRef.current;
+    if (token && !isTokenExpired(token)) toast({ icon: 'error', title: 'Access denied', text: 'Assigner accounts only.' });
+    else localStorage.clear();
+    navigate('/login', { replace: true });
+  }, [denied, navigate]);
+
+  const fetchLogs = useCallback(async ({ silent = false } = {}) => {
+    if (denied) return;
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    if (!silent) setLoading(true);
+    setError(false);
     try {
-      setLoading(true);
-      const res = await api.get('/api/assigner/assignment-log', {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await api.get(ENDPOINT, {
+        headers: { Authorization: `Bearer ${tokenRef.current}` },
+        signal: ctrl.signal,
       });
-      const data = (res.data.content || res.data || []).sort(
-        (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
-      );
-      setLogs(data);
+      if (ctrl.signal.aborted) return;
+      setLogs(asList(res));
+      setLastUpdated(new Date());
     } catch (err) {
-      if (err.response?.status === 401) {
-        localStorage.clear();
-        navigate('/login');
-      } else {
-        showToast('Failed to load logs', 'error');
+      if (ctrl.signal.aborted || err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError') return;
+      const status = err?.response?.status;
+      if (status === 401) { localStorage.clear(); navigate('/login', { replace: true }); return; }
+      if (status === 403) { toast({ icon: 'error', title: 'Access denied', text: 'Assigner accounts only.' }); navigate('/login', { replace: true }); return; }
+      if (!silent) {
+        setError(true);
+        toast({ icon: 'error', title: 'Failed to load logs', text: errText(err) || (status === 404 ? 'Assignment log is unavailable' : undefined) });
       }
     } finally {
-      setLoading(false);
+      if (abortRef.current === ctrl) setLoading(false);
     }
-  }, [token, navigate]);
+  }, [denied, navigate]);
 
-  useEffect(() => { fetchLogs(); }, [fetchLogs]);
+  useEffect(() => {
+    fetchLogs();
+    return () => abortRef.current?.abort();
+  }, [fetchLogs]);
 
-  const stats = useMemo(() => ({
-    total: logs.length,
-    orders: logs.filter(l => l.assignmentType === 'ORDER').length,
-    repairs: logs.filter(l => l.assignmentType === 'REPAIR').length,
-    completed: logs.filter(l => l.status === 'COMPLETED').length,
+  useEffect(() => {
+    if (denied) return undefined;
+    const id = setInterval(() => { if (!document.hidden) fetchLogs({ silent: true }); }, POLL_MS);
+    return () => clearInterval(id);
+  }, [denied, fetchLogs]);
+
+  const handleCopy = useCallback(async (id) => {
+    try {
+      await navigator.clipboard.writeText(String(id));
+      toast({ icon: 'success', title: 'Copied', text: 'ID copied to clipboard.', timer: 2000 });
+    } catch {
+      toast({ icon: 'error', title: 'Could not copy', text: 'Allow clipboard access in your browser.' });
+    }
+  }, []);
+
+  const index = useMemo(() => logs.map((l, n) => {
+    const user = String(l.userName || '').toLowerCase();
+    const shop = String(l.shopName || '').toLowerCase();
+    const assigner = String(l.assignerName || '').toLowerCase();
+    const status = String(l.status || '').toLowerCase();
+    return {
+      l,
+      key: l.id ?? `${refOf(l)}-${n}`,
+      user, shop, assigner, status,
+      type: String(l.assignmentType || ''),
+      date: Date.parse(l.createdAt) || 0,
+      text: `${String(refOf(l) ?? '').toLowerCase()} ${user} ${shop} ${assigner} ${status.replace(/_/g, ' ')} ${String(l.deliveryId || '').toLowerCase()} ${String(l.userPhone || '').toLowerCase()}`,
+    };
   }), [logs]);
 
+  const stats = useMemo(() => {
+    let orders = 0; let repairs = 0; let done = 0;
+    for (const l of logs) {
+      if (l.assignmentType === 'ORDER') orders += 1;
+      else if (l.assignmentType === 'REPAIR') repairs += 1;
+      if (l.status === 'COMPLETED') done += 1;
+    }
+    return { all: logs.length, ORDER: orders, REPAIR: repairs, completed: done };
+  }, [logs]);
+
+  const tabCounts = useMemo(() => ({ all: stats.all, ORDER: stats.ORDER, REPAIR: stats.REPAIR }), [stats]);
+
   const filtered = useMemo(() => {
-    return logs.filter(l => {
-      const matchesType = typeFilter === 'ALL' || l.assignmentType === typeFilter;
-      const searchable = [
-        l.orderId, l.repairRequestId, l.userName, l.shopName,
-        l.deliveryId, l.assignerName, l.userPhone
-      ].join(' ').toLowerCase();
-      const matchesSearch = !searchTerm || searchable.includes(searchTerm.toLowerCase());
-      return matchesType && matchesSearch;
-    });
-  }, [logs, searchTerm, typeFilter]);
+    const key = SORT_KEY[sort.field] || 'date';
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    const list = index.filter((e) => (tab === 'all' || e.type === tab) && (!term || e.text.includes(term)));
+    list.sort((a, b) => (a[key] < b[key] ? -dir : a[key] > b[key] ? dir : 0));
+    return list;
+  }, [index, tab, term, sort]);
 
-  const totalPages = Math.ceil(filtered.length / rowsPerPage);
-  const paginated = useMemo(() => filtered.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage), [filtered, currentPage, rowsPerPage]);
+  useEffect(() => { setCurrentPage(1); }, [tab, term, rowsPerPage, sort]);
 
-  const copyToClipboard = (text) => {
-    if (!text) return;
-    navigator.clipboard.writeText(text);
-    showToast('Copied to clipboard', 'success');
-  };
+  const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+  const page = Math.min(currentPage, totalPages);
+  const paginated = useMemo(() => filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage), [filtered, page, rowsPerPage]);
+  const from = filtered.length ? (page - 1) * rowsPerPage + 1 : 0;
+  const to = Math.min(page * rowsPerPage, filtered.length);
 
-  const STYLES = `
-  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
-  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+  const statCards = useMemo(() => [
+    { label: 'Total logs', value: num(stats.all), description: 'Every assignment', icon: FiClipboard, tone: 'em', percent: stats.all ? 100 : 0, color: TONE_BG.em },
+    { label: 'Orders', value: num(stats.ORDER), description: 'Order assignments', icon: FiPackage, tone: 'teal', percent: pct(stats.ORDER, stats.all), color: TONE_BG.teal },
+    { label: 'Repairs', value: num(stats.REPAIR), description: 'Repair assignments', icon: FiTool, tone: 'lime', percent: pct(stats.REPAIR, stats.all), color: TONE_BG.lime },
+    { label: 'Completed', value: num(stats.completed), description: 'Finished tasks', icon: FiCheck, tone: 'cyan', percent: pct(stats.completed, stats.all), color: TONE_BG.cyan },
+  ], [stats]);
 
-  
-  html[dir="rtl"],
-  html[dir="rtl"] body,
-  html[dir="rtl"] * {
-    font-family: 'Cairo', sans-serif !important;
-  }
+  const handleSort = useCallback((field) => setSort((s) => nextSort(s, field, field === 'date' ? 'desc' : 'asc')), []);
+  const openLog = useCallback((l) => setSelected(l), []);
+  const closeLog = useCallback(() => setSelected(null), []);
+  const refresh = useCallback(() => fetchLogs(), [fetchLogs]);
+  const clearSearch = useCallback(() => setSearch(''), []);
+  const handleSearchChange = useCallback((e) => setSearch(sanitizeSearch(e.target.value)), []);
+  const goToPage = useCallback((p) => {
+    setCurrentPage(p);
+    window.scrollTo({ top: 0, behavior: REDUCED ? 'auto' : 'smooth' });
+  }, []);
 
-  
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: #d1d5db transparent;
-  }
-  *::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
-  }
-  *::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  *::-webkit-scrollbar-thumb {
-    background: #d1d5db;
-    border-radius: 999px;
-  }
-  *::-webkit-scrollbar-thumb:hover {
-    background: #9ca3af;
-  }
-
-  .lime-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
-  .lime-scroll::-webkit-scrollbar-track { background: transparent; }
-  .lime-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 999px; }
-  .lime-scroll { scrollbar-width: thin; scrollbar-color: #d1d5db transparent; }
-  .tabs-scroll::-webkit-scrollbar { display: none; }
-  .tabs-scroll { -ms-overflow-style: none; scrollbar-width: none; }
-  .leaflet-container { font-family: inherit; }
-  [dir="rtl"] .rtl-flip { transform: scaleX(-1); }
-`;
+  if (denied) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
+    <div
+      style={NB_FONT_STYLE}
+      className={`nb ${darkMode ? 'nb-dark' : ''} min-h-screen py-6 lg:ps-64 mt-16 text-start overflow-x-hidden`}
+    >
+      <style dangerouslySetInnerHTML={STYLE_HTML} />
+      <Defs3D />
+      <Toaster darkMode={darkMode} />
 
-      <style>{STYLES}</style>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
-
-
-
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-1.5 rounded-full bg-emerald-500" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">History & Tracking</span>
-            </div>
-            <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Assignment Logs</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Review all your previous assignments in detail</p>
+        <div className="flex flex-wrap items-end justify-between gap-3 px-0.5">
+          <div>
+            <p className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wide"><span className="nb-bar" aria-hidden="true" />Assignments</p>
+            <h1 className="mt-2.5 text-3xl sm:text-4xl font-extrabold tracking-tight leading-[1.15]">
+              <UnderlinedTitle text="Assignment Logs" />
+            </h1>
+            <p className="nb-muted mt-2 text-sm font-medium">Review every assignment you have made</p>
           </div>
-
-          <div className="flex items-center gap-2 bg-white dark:bg-gray-800 p-1 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
-            <button
-              onClick={fetchLogs}
-              className="px-4 py-2 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl transition-all"
-            >
-              Refresh Data
+          <div className="flex items-center gap-2.5">
+            {lastUpdated && <p className="nb-muted hidden sm:block text-[11px] font-bold">Last updated: {TIME_FMT.format(lastUpdated)}</p>}
+            <button type="button" onClick={refresh} aria-label="Refresh logs" title="Refresh" className={`${BTN_MD} h-10 uppercase`}>
+              <FiRefreshCw size={14} className={loading ? 'animate-spin motion-reduce:animate-none' : ''} aria-hidden="true" /> Refresh
             </button>
           </div>
         </div>
 
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Grand Total" value={stats.total} icon={FiClipboard} color="lime" />
-          <StatCard label="Orders" value={stats.orders} icon={FiPackage} color="blue" />
-          <StatCard label="Repairs" value={stats.repairs} icon={FiTool} color="purple" />
-          <StatCard label="Completed" value={stats.completed} icon={FiCheck} color="emerald" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
+          {statCards.map((s) => <StatCard key={s.label} {...s} />)}
         </div>
 
-
-
-        <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-6 space-y-4">
-          <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
-
-
-            <div className="relative flex-1 group">
-              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={18} />
+        <section className="nb-card overflow-hidden">
+          <div className="nb-line p-3 sm:p-4 flex flex-wrap items-center gap-2.5 border-b-2">
+            <div className="nb-field relative flex h-10 min-w-[220px] flex-1 items-center gap-2 px-3">
+              <FiSearch aria-hidden="true" className="h-4 w-4 flex-shrink-0" />
+              <label htmlFor="log-search" className="sr-only">Search logs</label>
               <input
+                id="log-search"
                 type="text"
-                placeholder="Search by ID, User, Agent, or Shop..."
-                value={searchTerm}
-                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-sm text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-lime-500/10 focus:border-lime-200 transition-all"
+                inputMode="search"
+                enterKeyHint="search"
+                autoComplete="off"
+                spellCheck={false}
+                maxLength={SEARCH_MAX}
+                value={search}
+                onChange={handleSearchChange}
+                placeholder="Search ID, customer, phone, shop or assigner"
+                className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60"
               />
+              {search && (
+                <button type="button" onClick={clearSearch} aria-label="Clear search" className="flex-shrink-0 nb-muted hover:text-[var(--nb-accent)]">
+                  <FiX size={15} aria-hidden="true" />
+                </button>
+              )}
             </div>
-
-            <div className="flex flex-wrap items-center gap-4">
-
-
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Type</span>
-                <div className="relative group">
-                  <select
-                    value={typeFilter}
-                    onChange={(e) => { setTypeFilter(e.target.value); setCurrentPage(1); }}
-                    className="appearance-none pl-5 pr-12 py-3 rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-4 focus:ring-lime-500/5 focus:border-lime-200 cursor-pointer transition-all"
-                  >
-                    {FILTER_OPTIONS.map(opt => (
-                      <option key={opt.value} value={opt.value} className="dark:bg-gray-800">{opt.label}</option>
-                    ))}
-                  </select>
-                  <FiChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-lime-500 transition-colors rotate-90" size={16} />
-                </div>
-              </div>
-
-
-
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Rows</span>
-                <div className="relative group">
-                  <select
-                    value={rowsPerPage}
-                    onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                    className="appearance-none pl-5 pr-12 py-3 rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-4 focus:ring-lime-500/5 focus:border-lime-200 cursor-pointer transition-all"
-                  >
-                    {ROWS_OPTIONS.map(n => (
-                      <option key={n} value={n} className="dark:bg-gray-800">{n}</option>
-                    ))}
-                  </select>
-                  <FiChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-lime-500 transition-colors rotate-90" size={16} />
-                </div>
-              </div>
-            </div>
+            <RowsDropdown value={rowsPerPage} onChange={setRowsPerPage} />
           </div>
-        </div>
 
+          <div role="tablist" aria-label="Assignment type" className="nb-line flex gap-2 overflow-x-auto p-3 sm:px-4 border-b-2 [scrollbar-width:none]">
+            {TABS.map(({ key, label }) => {
+              const active = tab === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setTab(key)}
+                  className={`nb-btn flex-shrink-0 px-3 py-1.5 text-xs uppercase ${active ? 'nb-btn-on' : ''}`}
+                >
+                  {label}
+                  <span className="nb-chip tabular-nums">{num(tabCounts[key] || 0)}</span>
+                </button>
+              );
+            })}
+          </div>
 
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto custom-scrollbar-thin">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50/50 dark:bg-gray-900/30 text-center border-b border-gray-100 dark:border-gray-700">
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Date</th>
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Type</th>
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Customer</th>
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Shop</th>
-                  <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Actions</th>
+          <div className="overflow-auto max-h-[68vh] slim-scroll">
+            <table className="w-full min-w-[980px] text-start border-collapse">
+              <thead className="nb-gray sticky top-0 z-10 shadow-[0_2px_0_0_var(--nb-line)]">
+                <tr>
+                  <SortTh label="Date" field="date" sort={sort} onSort={handleSort} />
+                  <SortTh label="Type" field="type" sort={sort} onSort={handleSort} />
+                  <th scope="col" className="px-3 py-3 text-start text-[11px] font-extrabold uppercase">ID</th>
+                  <SortTh label="Customer" field="user" sort={sort} onSort={handleSort} />
+                  <SortTh label="Shop" field="shop" sort={sort} onSort={handleSort} />
+                  <SortTh label="Assigned by" field="assigner" sort={sort} onSort={handleSort} />
+                  <SortTh label="Status" field="status" sort={sort} onSort={handleSort} />
+                  <th scope="col" className="px-3 py-3 text-start text-[11px] font-extrabold uppercase">Details</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                {loading ? (
-                  [...Array(5)].map((_, i) => (
-                    <tr key={i} className="animate-pulse">
-                      {[...Array(6)].map((_, j) => (
-                        <td key={j} className="px-6 py-6"><div className="h-4 bg-gray-100 dark:bg-gray-700 rounded-lg w-full" /></td>
+              <tbody className="nb-rows">
+                {loading && logs.length === 0 ? (
+                  Array.from({ length: Math.min(rowsPerPage, 8) }, (_, i) => (
+                    <tr key={i} className="animate-pulse motion-reduce:animate-none">
+                      {Array.from({ length: COLS }, (__, j) => (
+                        <td key={j} className="px-3 py-4"><div className="nb-gray h-3.5 w-full" /></td>
                       ))}
                     </tr>
                   ))
+                ) : error && logs.length === 0 ? (
+                  <tr>
+                    <td colSpan={COLS} className="px-6 py-14 text-center">
+                      <FiAlertCircle size={28} className="mx-auto text-red-500" />
+                      <p className="mt-2 text-sm font-extrabold uppercase">Couldn't load the logs</p>
+                      <p className="nb-muted text-xs mb-4">Check your connection and try again.</p>
+                      <button type="button" onClick={refresh} className={`${BTN_MD} nb-btn-a uppercase`}><FiRefreshCw size={13} /> Try again</button>
+                    </td>
+                  </tr>
                 ) : paginated.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-24 text-center">
-                      <FiClipboard className="mx-auto text-gray-200 dark:text-gray-700 mb-4" size={48} />
-                      <p className="text-gray-400 font-medium">No logs found matching your criteria</p>
+                    <td colSpan={COLS} className="px-6 py-14">
+                      <EmptyState3D
+                        kind="box"
+                        title={logs.length === 0 ? 'No logs yet' : 'No matching logs'}
+                        subtitle={logs.length === 0 ? 'Assignments you make will be recorded here' : 'Try a different ID, customer, phone, shop or assigner, or switch tab'}
+                        darkMode={darkMode}
+                      />
                     </td>
                   </tr>
                 ) : (
-                  paginated.map((log) => {
-                    const ts = getTypeStyle(log.assignmentType);
-                    const refId = log.assignmentType === 'ORDER' ? log.orderId : log.repairRequestId;
-
-                    return (
-                      <tr key={log.id} className="hover:bg-lime-50/10 dark:hover:bg-lime-900/5 transition-colors group">
-                        <td className="px-4 py-3 text-xs text-emerald-400 text-center whitespace-nowrap">{formatDate(log.createdAt)}</td>
-                        <td className="px-4 py-3 text-center whitespace-nowrap">
-                          <div className="space-y-1.5">
-                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border ${ts.bg} ${ts.border} ${ts.text}`}>
-                              {ts.label}
-                            </span>
-
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="flex items-center justify-center gap-2 font-bold text-gray-500  dark:text-gray-100 text-xs">
-                            <FiUser size={12} className="text-gray-400" />
-                            {log.userName || 'Not Specified'}
-                          </div>
-                        </td>
-
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="flex items-center justify-center gap-2 text-xs font-bold text-gray-950 dark:text-gray-300">
-                            <FaStore size={12} className="text-gray-950" />
-                            {log.shopName || 'Not Specified'}
-                          </div>
-                        </td>
-
-                        <td className="px-4 py-3 text-right whitespace-nowrap">
-                          <div className="flex justify-center items-center">
-                            <button
-                              title='View Details'
-                              onClick={() => setSelectedLog(log)}
-                              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-transparent border-2 border-gray-100 dark:border-transparent dark:bg-gray-700 text-gray-400 dark:text-gray-300 text-xs font-bold transition-all"
-                            >
-                              <FiInfo size={14} />
-
-                            </button>
-                          </div>
-
-                        </td>
-                      </tr>
-                    );
-                  })
+                  paginated.map((e) => <Row key={e.key} log={e.l} onOpen={openLog} onCopy={handleCopy} />)
                 )}
               </tbody>
             </table>
           </div>
 
-
-
-          {totalPages > 1 && (
-            <div className="px-6 py-5 bg-gray-50/50 dark:bg-gray-900/30 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <p className="text-xs font-bold text-gray-500 dark:text-gray-400">
-                Showing <span className="text-gray-900 dark:text-white">{(currentPage - 1) * rowsPerPage + 1}–{Math.min(currentPage * rowsPerPage, filtered.length)}</span> of <span className="text-gray-900 dark:text-white">{filtered.length}</span> entries
+          {filtered.length > 0 && (
+            <div className="nb-gray nb-line px-4 py-3 border-t-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <p className="text-xs font-semibold">
+                Showing <b className="tabular-nums">{num(from)}–{num(to)}</b> of <b className="tabular-nums">{num(filtered.length)}</b> logs
               </p>
-
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                >
-                  <FiChevronLeft size={18} />
-                </button>
-
-                {Array.from({ length: totalPages }, (_, i) => i + 1).filter(p => {
-                  if (totalPages <= 5) return true;
-                  return Math.abs(p - currentPage) <= 1 || p === 1 || p === totalPages;
-                }).map((p, i, arr) => (
-                  <React.Fragment key={p}>
-                    {i > 0 && arr[i - 1] !== p - 1 && <span className="px-2 text-gray-400">...</span>}
-                    <button
-                      onClick={() => setCurrentPage(p)}
-                      className={`w-10 h-10 flex items-center justify-center rounded-xl text-xs font-black transition-all ${currentPage === p
-                        ? 'bg-lime-500 text-white shadow-lg shadow-lime-500/30'
-                        : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-lime-500 hover:text-lime-500'
-                        }`}
-                    >
-                      {p}
-                    </button>
-                  </React.Fragment>
-                ))}
-
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-400 hover:text-lime-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                >
-                  <FiChevronRight size={18} />
-                </button>
-              </div>
+              {totalPages > 1 && <Pagination page={page} total={totalPages} onChange={goToPage} />}
             </div>
           )}
-        </div>
-
-
-
-        {selectedLog && (
-          <Modal
-            onClose={() => setSelectedLog(null)}
-            title="Assignment Details"
-            darkMode={darkMode}
-          >
-            <div className="space-y-6 bg-white">
-
-
-              <div className="flex flex-col flex-wrap p-4 bg-gray-50 dark:bg-gray-900/50 rounded-md border border-gray-100 dark:border-gray-700">
-                <div className="space-y-1 ">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Reference ID</p>
-                  <p className="text-sm font-mono font-bold text-gray-950 dark:text-white tracking-tight">
-                    #{(selectedLog.assignmentType === 'ORDER' ? selectedLog.orderId : selectedLog.repairRequestId)}
-                  </p>
-                </div><br />
-                <div className="text-left space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Log Type</p>
-                  <span className={`inline-flex px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider border ${getTypeStyle(selectedLog.assignmentType).bg} ${getTypeStyle(selectedLog.assignmentType).border} ${getTypeStyle(selectedLog.assignmentType).text}`}>
-                    {selectedLog.assignmentType}
-                  </span>
-                </div>
-              </div>
-
-
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-
-                <div className="p-5 bg-gray-100 dark:bg-gray-800 rounded-md border border-gray-50 dark:border-gray-700 space-y-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-900/20 flex items-center justify-center text-gray-500">
-                      <FiUser size={16} />
-                    </div>
-                    <span className="text-xs font-black uppercase tracking-wider text-gray-400">Customer Info</span>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{selectedLog.userName || 'N/A'}</p>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <FiPhone size={12} className="text-lime-500" />
-                      {selectedLog.userPhone || 'No phone provided'}
-                    </div>
-                  </div>
-                </div>
-
-
-
-                <div className="p-5 bg-gray-100 dark:bg-gray-800 rounded-md border border-gray-50 dark:border-gray-700 space-y-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-900/20 flex items-center justify-center text-gray-500">
-                      <FiPackage size={16} />
-                    </div>
-                    <span className="text-xs font-black uppercase tracking-wider text-gray-400">Assignment Info</span>
-                  </div>
-                  <div className="space-y-2">
-                    
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                      <FiCheck size={12} className="text-emerald-500" />
-                      Assigned by: <br /><span className='font-bold font-sans text-gray-950' >{selectedLog.assignerName || 'System'}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-
-
-              <div className="space-y-4">
-                <div className="p-5 bg-gray-50  dark:bg-gray-800 rounded-md   space-y-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-900/20 flex items-center justify-center text-gray-500">
-                      <FaStore size={14} />
-                    </div>
-                    <span className="text-xs font-black uppercase tracking-wider text-gray-400">Shop Details</span>
-                  </div>
-                  <div className="space-y-1 ml-5">
-                    <span className="text-xs font-bold  tracking-wider text-gray-950 flex gap-3 items-center"><RiStore2Line size={12} />Store Name</span>
-
-                    <p className="text-xs ml-6 font-semibold text-orange-800 dark:text-gray-100">{selectedLog.shopName || 'Not Specified'}</p>
-
-                  </div>
-
-                  <div className="space-y-1 ml-5">
-                    <span className="text-xs font-bold  tracking-wider text-gray-950 flex gap-3 items-center"><RiPhoneLine size={12} />Phone</span>
-
-                    <p className="text-xs ml-6 font-semibold text-orange-800 dark:text-gray-100">{selectedLog.shopPhone || 'Not Specified'}</p>
-
-                  </div>
-
-                  <div className="space-y-1 ml-5">
-                    <span className="text-xs font-bold  tracking-wider text-gray-950 flex gap-3 items-center"><RiMap2Line size={12} />Address</span>
-
-                    <p className="text-xs ml-6 font-semibold text-orange-800 dark:text-gray-100">{selectedLog.shopAddress?.city || 'Not Specified'}</p>
-
-                  </div>
-                </div>
-
-                <div className="p-5 bg-gray-50 dark:bg-lime-900/10 rounded-md   space-y-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-600 ">
-                      <FiMapPin size={16} />
-                    </div>
-                    <span className="text-xs font-black uppercase tracking-wider text-gray-400">Customer Details</span>
-                  </div>
-
-                  <div className="space-y-1 ml-5">
-                    <span className="text-xs font-bold  tracking-wider text-gray-950 flex gap-3 items-center"><RiUser2Line size={12} />Customer Name</span>
-
-                    <p className="text-xs ml-6 font-semibold text-orange-800 dark:text-gray-100">{selectedLog.userName || 'Not Specified'}</p>
-
-                  </div>
-
-                  <div className="space-y-1 ml-5">
-                    <span className="text-xs font-bold  tracking-wider text-gray-950 flex gap-3 items-center"><RiPhoneLine size={12} />Phone</span>
-
-                    <p className="text-xs ml-6 font-semibold text-orange-800 dark:text-gray-100">{selectedLog.userPhone || 'Not Specified'}</p>
-
-                  </div>
-
-                  <div className="space-y-1 ml-5">
-                    <span className="text-xs font-bold  tracking-wider text-gray-950 flex gap-3 items-center"><RiMap2Line size={12} />Address</span>
-
-                    <p className="text-xs ml-6 font-semibold text-orange-800 dark:text-gray-100">  {formatAddress(selectedLog.userAddress)}</p>
-
-                  </div>
-
-
-                </div>
-              </div>
-
-              <div className="pt-4 flex items-center gap-2 text-[10px] text-gray-400 uppercase tracking-widest font-bold">
-                <FiClock size={12} />
-                Recorded on: {new Date(selectedLog.createdAt).toLocaleString()}
-              </div>
-            </div>
-          </Modal>
-        )}
+        </section>
       </div>
 
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        .custom-scrollbar-thin::-webkit-scrollbar {
-          height: 6px;
-          width: 6px;
-        }
-        .custom-scrollbar-thin::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb {
-          background: #d1d5db;
-          border-radius: 10px;
-        }
-        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb {
-          background: #374151;
-        }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover {
-          background: #84cc16;
-        }
-      `}} />
+      {selected && <Drawer log={selected} onClose={closeLog} onCopy={handleCopy} />}
     </div>
   );
 };
 
-export default AssignmentLogs;
+export default memo(AssignmentLogs);

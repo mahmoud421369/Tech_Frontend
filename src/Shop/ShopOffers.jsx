@@ -1,496 +1,380 @@
 import React, {
-  useState, useEffect, useCallback, useMemo, useRef, memo,
+  useState, useEffect, useCallback, useMemo, useRef, useDeferredValue, memo, Suspense, lazy,
 } from 'react';
 import {
-  FiChevronDown, FiSearch, FiInfo, FiChevronLeft, FiChevronRight, FiX,
-  FiHash, FiCheck, FiFilter, FiCopy, FiPlus, FiEdit3, FiTrash2, FiTag,
-  FiAlertCircle, FiCalendar,
+  FiSearch, FiInfo, FiX, FiCheck, FiFilter, FiCopy, FiPlus, FiEdit3, FiTrash2, FiTag,
+  FiCalendar, FiRefreshCw, FiCheckCircle, FiPercent, FiDollarSign, FiPower,
 } from 'react-icons/fi';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
-import { ar } from 'date-fns/locale';
-import api from '../api';
-import debounce from 'lodash/debounce';
+import { ar, enUS } from 'date-fns/locale';
+import api from '../common/api/api';
+import { UI3D_CSS, Defs3D } from '../components/user/Ui3D';
+import { EXTRAS_CSS, Toaster, toast, EmptyState3D, Dropdown } from '../components/user/UiExtras';
+import {
+  SEARCH_MAX, BTN, BTN_MD, BTN_ICON, BTN_PRIMARY, CARD, PANEL, TH, SCROLL_CSS, LABEL,
+  toTs, fmt, num, tpl, renderTpl, sanitizeSearch, isSafeId, shortId, errText,
+  confirmDialog, useDarkMode, useEscape, useShopLocale,
+  StatCard, RowsDropdown, SortTh, Pagination, Overlay, FilterPanel, IconTile,
+} from '../components/shop/TableKit';
+import { ensureShopAssets } from '../common/utils/shopFonts';
 
-const ROWS_OPTIONS = [5, 10, 25, 50];
+ensureShopAssets();
 
-const STATUS_TRANSLATIONS = {
-  ACTIVE: 'نشط',
-  SCHEDULED: 'قادم',
-  EXPIRED: 'منتهي',
-  all: 'جميع الحالات',
-};
+const DatePicker = lazy(() => Promise.all([
+  import('react-datepicker'),
+  import('react-datepicker/dist/react-datepicker.css'),
+]).then(([m]) => ({ default: m.default })));
 
+const INK = '#04261a';
 const STATUSES = ['ACTIVE', 'SCHEDULED', 'EXPIRED'];
-
-const DISCOUNT_TYPES = [
-  { value: 'all', label: 'كل الأنواع' },
-  { value: 'PERCENTAGE', label: 'خصم مئوي' },
-  { value: 'FIXED_AMOUNT', label: 'خصم ثابت' },
-];
-
-const SORT_OPTIONS = [
-  { value: 'newest', label: 'الأحدث أولاً' },
-  { value: 'oldest', label: 'الأقدم أولاً' },
-  { value: 'highest', label: 'الأعلى خصماً' },
-  { value: 'lowest', label: 'الأقل خصماً' },
-];
+const TABS = ['all', ...STATUSES];
+const TYPE_KEYS = ['all', 'PERCENTAGE', 'FIXED_AMOUNT'];
+const SORT_KEYS = ['newest', 'oldest', 'highest', 'lowest'];
+const FIXED = 'FIXED_AMOUNT';
+const CURRENCY = 'EGP';
+const SKELETON_COLS = [0, 1, 2, 3, 4];
 
 const STATUS_STYLE = {
-  ACTIVE: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600', dot: 'bg-emerald-500' },
-  SCHEDULED: { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-600', dot: 'bg-amber-500' },
-  EXPIRED: { bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-600', dot: 'bg-red-500' },
+  ACTIVE:    { hex: '#34d399', ink: INK },
+  SCHEDULED: { hex: '#fbbf24', ink: INK },
+  EXPIRED:   { hex: '#ef4444', ink: '#ffffff' },
 };
-
-const getStatusStyle = (s) => STATUS_STYLE[s] || { bg: 'bg-gray-50', text: 'text-gray-600', dot: 'bg-gray-400' };
-const formatDiscount = (o) => `${o.discountValue}${o.discountType === 'PERCENTAGE' ? '%' : ' ج.م'}`;
+const FALLBACK_STATUS = { hex: '#9ca3af', ink: INK };
 
 const EMPTY_FORM = {
   name: '', description: '', discountValue: '',
-  discountType: 'PERCENTAGE', status: 'ACTIVE',
+  discountType: FIXED, status: 'ACTIVE',
   startDate: null, endDate: null,
 };
 
-let swalPromise = null;
-const loadSwal = () => {
-  if (!swalPromise) swalPromise = import('sweetalert2').then((m) => m.default);
-  return swalPromise;
+const MAX_FIXED = 1_000_000;
+const NAME_MAX = 80;
+const DESC_MAX = 300;
+
+const INPUT = 'nb-input w-full px-3.5 py-2.5 text-sm font-semibold';
+const HEAD_CLS = 'sticky top-0 z-10 nb-gray shadow-[0_2px_0_0_var(--nb-line)]';
+const ACTION_BTN = `${BTN} h-8 px-2.5 text-[11px] uppercase rtl:tracking-normal`;
+
+
+const DATEPICKER_CSS = `
+.react-datepicker-wrapper{width:100%}
+.react-datepicker{font-family:inherit;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);border-radius:0;box-shadow:3px 3px 0 var(--nb-shadow)}
+.react-datepicker__header{background:var(--nb-gray);border-bottom:2px solid var(--nb-line);border-radius:0}
+.react-datepicker__current-month,.react-datepicker__day-name,.react-datepicker-time__header,.react-datepicker__day,.react-datepicker__time-list-item{color:var(--nb-ink);font-weight:700}
+.react-datepicker__day:hover,.react-datepicker__time-list-item:hover{background:var(--nb-gray)!important;border-radius:0}
+.react-datepicker__day--selected,.react-datepicker__day--keyboard-selected,.react-datepicker__time-list-item--selected{background:var(--nb-btn)!important;color:var(--nb-on)!important;border-radius:0}
+.react-datepicker__day--disabled{opacity:.35}
+.react-datepicker__triangle{display:none}
+.react-datepicker__time-container,.react-datepicker__time,.react-datepicker__time-box{background:var(--nb-card)}
+.react-datepicker__time-container{border-inline-start:2px solid var(--nb-line)}
+`;
+const PAGE_CSS = `${UI3D_CSS}${EXTRAS_CSS}${SCROLL_CSS}${DATEPICKER_CSS}`;
+
+const SORTERS = {
+  newest: (a, b) => b.ts - a.ts,
+  oldest: (a, b) => a.ts - b.ts,
+  highest: (a, b) => b.value - a.value,
+  lowest: (a, b) => a.value - b.value,
 };
 
-const EmptyOffersIllustration = memo(() => (
-  <svg viewBox="0 0 140 110" className="w-28 h-24 mx-auto">
-    <ellipse cx="70" cy="96" rx="42" ry="6" fill="rgba(0,0,0,0.05)" className="dark:fill-white/5" />
-    <path d="M24 42 L70 24 L116 42 L116 78 L70 92 L24 78 Z" fill="#f3f4f6" stroke="#e5e7eb" strokeWidth="2" className="dark:fill-gray-800 dark:stroke-gray-700" />
-    <path d="M24 42 L70 58 L116 42" fill="none" stroke="#e5e7eb" strokeWidth="2" className="dark:stroke-gray-700" />
-    <path d="M70 58 L70 92" fill="none" stroke="#e5e7eb" strokeWidth="2" className="dark:stroke-gray-700" />
-    <g transform="translate(56,2) rotate(-14)">
-      <path d="M0,8 L16,8 L26,18 L16,28 L0,28 Z" fill="none" stroke="#10b981" strokeWidth="2.2" strokeLinejoin="round" />
-      <circle cx="6" cy="14" r="2" fill="#10b981" />
-    </g>
-  </svg>
-));
-EmptyOffersIllustration.displayName = 'EmptyOffersIllustration';
+const isValidDate = (d) => d instanceof Date && !Number.isNaN(d.getTime());
 
-const TagIllustration = memo(() => (
-  <svg viewBox="0 0 64 64" className="w-full h-full">
-    <circle cx="32" cy="32" r="27" fill="#84cc16" opacity="0.12" />
-    <circle cx="32" cy="32" r="19" fill="none" stroke="#84cc16" strokeWidth="1.5" strokeDasharray="2 4" opacity="0.5" />
-    <path d="M18 18 L34 18 L46 30 L30 46 L18 34 Z" fill="none" stroke="#84cc16" strokeWidth="2.4" strokeLinejoin="round" />
-    <circle cx="24" cy="24" r="2.6" fill="#84cc16" />
-  </svg>
-));
-TagIllustration.displayName = 'TagIllustration';
-
-const ShieldCheckIllustration = memo(() => (
-  <svg viewBox="0 0 64 64" className="w-full h-full">
-    <circle cx="32" cy="32" r="27" fill="#10b981" opacity="0.12" />
-    <circle cx="32" cy="32" r="19" fill="none" stroke="#10b981" strokeWidth="1.5" strokeDasharray="2 4" opacity="0.5" />
-    <path d="M32 15 L44 19 L44 30 C44 38 39 42 32 45 C25 42 20 38 20 30 L20 19 Z" fill="none" stroke="#10b981" strokeWidth="2.4" strokeLinejoin="round" className="dark:stroke-emerald-400" />
-    <path d="M27 30 L31 34 L38 25" fill="none" stroke="#10b981" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" className="dark:stroke-emerald-400" />
-  </svg>
-));
-ShieldCheckIllustration.displayName = 'ShieldCheckIllustration';
-
-const PercentIllustration = memo(() => (
-  <svg viewBox="0 0 64 64" className="w-full h-full">
-    <circle cx="32" cy="32" r="27" fill="#3b82f6" opacity="0.12" />
-    <circle cx="32" cy="32" r="19" fill="none" stroke="#3b82f6" strokeWidth="1.5" strokeDasharray="2 4" opacity="0.5" />
-    <circle cx="25" cy="25" r="4.4" fill="none" stroke="#3b82f6" strokeWidth="2.4" />
-    <circle cx="39" cy="39" r="4.4" fill="none" stroke="#3b82f6" strokeWidth="2.4" />
-    <line x1="39" y1="25" x2="25" y2="39" stroke="#3b82f6" strokeWidth="2.6" strokeLinecap="round" />
-  </svg>
-));
-PercentIllustration.displayName = 'PercentIllustration';
-
-const CoinsIllustration = memo(() => (
-  <svg viewBox="0 0 64 64" className="w-full h-full">
-    <circle cx="32" cy="32" r="27" fill="#f97316" opacity="0.12" />
-    <circle cx="32" cy="32" r="19" fill="none" stroke="#f97316" strokeWidth="1.5" strokeDasharray="2 4" opacity="0.5" />
-    <ellipse cx="27" cy="38" rx="11" ry="4.5" fill="none" stroke="#f97316" strokeWidth="2.2" />
-    <ellipse cx="27" cy="33" rx="11" ry="4.5" fill="none" stroke="#f97316" strokeWidth="2.2" />
-    <circle cx="38" cy="21" r="6.5" fill="none" stroke="#f97316" strokeWidth="2.2" />
-    <text x="38" y="24.5" textAnchor="middle" fontSize="7.5" fontWeight="800" fill="#f97316">$</text>
-  </svg>
-));
-CoinsIllustration.displayName = 'CoinsIllustration';
-
-const RowsDropdown = memo(({ value, onChange, options }) => {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center justify-between gap-3 min-w-[168px] px-5 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-xs font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 cursor-pointer transition-all"
-      >
-        {value} عروض لكل صفحة
-        <FiChevronDown className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`} size={14} />
-      </button>
-      {open && (
-        <div className="absolute z-20 mt-2 w-full rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl overflow-hidden">
-          {options.map((n) => (
-            <button
-              key={n}
-              onClick={() => { onChange(n); setOpen(false); }}
-              className={`w-full text-right px-5 py-2.5 text-xs font-bold transition ${
-                value === n ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/60'
-              }`}
-            >
-              {n} عروض لكل صفحة
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-});
-RowsDropdown.displayName = 'RowsDropdown';
-
-const STAT_ILLUSTRATIONS = {
-  'إجمالي العروض': TagIllustration,
-  'العروض النشطة': ShieldCheckIllustration,
-  'خصم مئوي': PercentIllustration,
-  'خصم ثابت': CoinsIllustration,
+const normType = (v) => {
+  const s = String(v ?? '').toUpperCase();
+  if (s === 'PERCENTAGE' || s === 'PERCENT') return 'PERCENTAGE';
+  if (s === 'FIXED_AMOUNT' || s === 'FIXED_VALUE' || s === 'FIXED') return FIXED;
+  return '';
 };
 
-const StatCard = memo(({ label, value, description }) => {
-  const Illustration = STAT_ILLUSTRATIONS[label];
+const formatDiscount = (o, nf) => {
+  const n = nf.format(num(o.discountValue));
+  return o.discountType === 'PERCENTAGE' ? `${n}%` : `${n}\u00A0${CURRENCY}`;
+};
+
+const CLEAN_RE = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069<>]/g;
+const cleanText = (v, max) => String(v ?? '').replace(CLEAN_RE, '').slice(0, max);
+const sanitizeNumber = (v) => {
+  const s = String(v ?? '').replace(/[^\d.]/g, '');
+  const i = s.indexOf('.');
+  return (i < 0 ? s : `${s.slice(0, i + 1)}${s.slice(i + 1).replace(/\./g, '')}`).slice(0, 10);
+};
+
+const validateForm = (f, v) => {
+  const e = {};
+  if (cleanText(f.name, NAME_MAX).trim().length < 2) e.name = v.name;
+  const n = Number(f.discountValue);
+  if (!f.discountValue || !Number.isFinite(n) || n <= 0) e.discountValue = v.value;
+  else if (n > MAX_FIXED) e.discountValue = v.valueTooBig;
+  if (!isValidDate(f.startDate)) e.startDate = v.startRequired;
+  if (!isValidDate(f.endDate)) e.endDate = v.endRequired;
+  else if (isValidDate(f.startDate) && f.endDate <= f.startDate) e.endDate = v.endAfter;
+  return e;
+};
+
+const buildPayload = (f) => ({
+  name: cleanText(f.name, NAME_MAX).trim(),
+  description: cleanText(f.description, DESC_MAX).trim(),
+  discountValue: Number(f.discountValue),
+  discountType: FIXED,
+  status: STATUSES.includes(f.status) ? f.status : 'ACTIVE',
+  startDate: f.startDate.toISOString(),
+  endDate: f.endDate.toISOString(),
+});
+
+
+
+const StatusPill = memo(({ status, labels }) => {
+  const m = STATUS_STYLE[status] || FALLBACK_STATUS;
   return (
-    <div className="group bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 p-4 flex items-center gap-3 transition-all duration-300 hover:shadow-lg hover:shadow-gray-200/50 dark:hover:shadow-none">
-      <div className="w-11 h-11 flex-shrink-0 group-hover:scale-105 transition-transform">
-        {Illustration && <Illustration />}
-      </div>
-      <div className="min-w-0 text-right">
-        <p className="text-[9px] font-black uppercase tracking-[0.15em] text-gray-400 truncate">{label}</p>
-        <p className="text-xl font-black text-gray-900 dark:text-white leading-tight">{value}</p>
-        <p className="text-[9px] font-bold text-gray-400 truncate">{description}</p>
-      </div>
-    </div>
+    <span className="nb-chip !normal-case" style={{ background: m.hex, color: m.ink }}>
+      {labels[status] || status || '—'}
+    </span>
   );
 });
-StatCard.displayName = 'StatCard';
 
-const LEGEND_ITEMS = [
-  { icon: FiInfo, tone: 'text-amber-500 border-amber-200 dark:border-amber-900/50', label: 'تفاصيل', desc: 'عرض كامل بيانات العرض الترويجي' },
-  { icon: FiCheck, tone: 'text-emerald-600 border-emerald-200 dark:border-emerald-900/50', label: 'تفعيل / إيقاف', desc: 'تبديل حالة ظهور العرض للعملاء' },
-  { icon: FiEdit3, tone: 'text-blue-500 border-blue-200 dark:border-blue-900/50', label: 'تعديل', desc: 'تحديث بيانات العرض وتواريخه' },
-  { icon: FiTrash2, tone: 'text-red-600 border-red-200 dark:border-red-900/50', label: 'حذف', desc: 'إزالة العرض نهائياً من المتجر' },
-];
+const TabBtn = memo(({ k, active, label, count, onSelect }) => {
+  const click = useCallback(() => onSelect(k), [onSelect, k]);
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={click}
+      className={`${BTN} flex-shrink-0 px-3 py-2 text-xs uppercase rtl:tracking-normal ${active ? 'nb-btn-on' : ''}`}
+    >
+      {label}
+      <span className="nb-chip !px-1.5" style={active ? undefined : { background: 'var(--nb-gray)' }}>{count}</span>
+    </button>
+  );
+});
 
-const IconLegendCard = memo(() => (
-  <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 p-5">
-    <div className="flex items-center gap-2 mb-4">
-      <div className="w-7 h-7 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 flex items-center justify-center text-gray-400">
-        <FiAlertCircle size={13} />
-      </div>
-      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">دليل الأيقونات</p>
-    </div>
-    <div className="flex flex-wrap gap-x-8 gap-y-4">
-      {LEGEND_ITEMS.map(({ icon: Icon, tone, label, desc }) => (
-        <div key={label} className="flex items-start gap-3 min-w-[200px] flex-1">
-          <div className={`w-8 h-8 rounded-lg border flex items-center justify-center flex-shrink-0 ${tone}`}>
-            <Icon size={13} />
-          </div>
+const OfferRow = memo(({ offer, busy, loc, onDetails, onCopy, onToggle, onEdit, onDelete }) => {
+  const { L, fm } = loc;
+  const t = L.offers;
+  const isActive = offer.status === 'ACTIVE';
+  const toggle = useCallback(() => onToggle(offer), [onToggle, offer]);
+  const edit = useCallback(() => onEdit(offer), [onEdit, offer]);
+  const details = useCallback(() => onDetails(offer), [onDetails, offer]);
+  const copy = useCallback(() => onCopy(offer.id), [onCopy, offer.id]);
+  const del = useCallback(() => onDelete(offer.id), [onDelete, offer.id]);
+  return (
+    <tr>
+      <td className="px-3 py-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <IconTile icon={FiTag} tone="am" className="h-9 w-9 flex-shrink-0" size={16} />
           <div className="min-w-0">
-            <p className="text-[11px] font-black text-gray-900 dark:text-white">{label}</p>
-            <p className="text-[10px] font-bold text-gray-400 leading-relaxed mt-0.5">{desc}</p>
-          </div>
-        </div>
-      ))}
-    </div>
-    <div className="mt-4 pt-4 border-t border-gray-50 dark:border-gray-700 flex items-start gap-1.5">
-      <FiAlertCircle className="text-blue-500 flex-shrink-0 mt-0.5" size={12} />
-      <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 leading-relaxed">
-        العروض "منتهية" تختفي تلقائياً من واجهة العملاء بمجرد تجاوز تاريخ الانتهاء.
-      </p>
-    </div>
-  </div>
-));
-IconLegendCard.displayName = 'IconLegendCard';
-
-const OfferRow = memo(({ offer, onDetails, onCopy, onToggle, onEdit, onDelete }) => {
-  const cs = getStatusStyle(offer.status);
-  return (
-    <tr className="hover:bg-emerald-50/10 dark:hover:bg-emerald-900/5 transition-colors group">
-      <td className="px-4 py-3 whitespace-nowrap">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400">
-            <FiTag size={18} />
-          </div>
-          <div>
-            <p className="text-xs font-black text-gray-900 dark:text-white">{offer.name}</p>
-            <p className="text-[10px] font-bold text-gray-400 truncate max-w-[160px] mt-0.5">{offer.description || 'بدون وصف'}</p>
+            <p className="max-w-[220px] truncate text-xs font-extrabold">{offer.name}</p>
+            <p className="nb-muted max-w-[220px] truncate text-[10px] font-semibold">{offer.description || t.noDescription}</p>
           </div>
         </div>
       </td>
-      <td className="px-4 py-3 whitespace-nowrap text-center font-mono font-black text-sm text-emerald-600">
-        {formatDiscount(offer)}
-      </td>
-      <td className="px-4 py-3 whitespace-nowrap text-center">
-        <p className="text-[10px] font-black text-gray-900 dark:text-white">{new Date(offer.startDate).toLocaleDateString('ar-EG')}</p>
-        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">إلى {new Date(offer.endDate).toLocaleDateString('ar-EG')}</p>
-      </td>
-      <td className="px-4 py-3 whitespace-nowrap text-center">
-        <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest ${cs.bg} ${cs.text}`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${cs.dot} animate-pulse`} />
-          {STATUS_TRANSLATIONS[offer.status] || offer.status}
+      <td className="whitespace-nowrap px-3 py-3">
+        <span className="nb-chip !text-[13px] !normal-case tabular-nums" style={{ background: 'var(--nb-gray)' }}>
+          {formatDiscount(offer, fm.number)}
         </span>
       </td>
-      <td className="px-4 py-3 whitespace-nowrap text-left">
-        <div className="flex items-center justify-center gap-1.5">
-          <button title="تفاصيل العرض" onClick={() => onDetails(offer)} className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-all active:scale-95">
-            <FiInfo size={14} />
+      <td className="whitespace-nowrap px-3 py-3">
+        <p className="text-xs font-extrabold">{fmt(fm.date, offer.startDate)}</p>
+        <p className="nb-muted text-[10px] font-semibold">{tpl(t.to, { d: fmt(fm.date, offer.endDate) })}</p>
+      </td>
+      <td className="whitespace-nowrap px-3 py-3"><StatusPill status={offer.status} labels={t.status} /></td>
+      <td className="whitespace-nowrap px-3 py-3">
+        <div className="flex items-center gap-1.5">
+          <button type="button" disabled={busy} onClick={toggle} className={ACTION_BTN}>
+            <FiPower size={12} aria-hidden="true" /> {isActive ? t.stop : t.activate}
           </button>
-          <button title="نسخ رقم العرض" onClick={() => onCopy(offer.id)} className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-lime-500 hover:border-lime-300 transition-all active:scale-95">
-            <FiCopy size={14} />
-          </button>
-        
-          <button title="تعديل العرض" onClick={() => onEdit(offer)} className="p-2 rounded-lg border text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all active:scale-95">
-            <FiEdit3 size={14} />
-          </button>
-          <button title="حذف العرض" onClick={() => onDelete(offer.id)} className="p-2 rounded-lg border  text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all active:scale-95">
-            <FiTrash2 size={14} />
-          </button>
+          <button type="button" disabled={busy} onClick={edit} className={ACTION_BTN}><FiEdit3 size={12} aria-hidden="true" /> {t.edit}</button>
+          <button type="button" title={t.detailsAria} aria-label={t.detailsAria} onClick={details} className={BTN_ICON}><FiInfo size={14} /></button>
+          <button type="button" title={t.copyAria} aria-label={t.copyAria} onClick={copy} className={BTN_ICON}><FiCopy size={13} /></button>
+          <button type="button" title={t.deleteAria} aria-label={t.deleteAria} disabled={busy} onClick={del} className={`${BTN_ICON} !text-red-600 dark:!text-red-300`}><FiTrash2 size={13} /></button>
         </div>
       </td>
     </tr>
   );
 });
-OfferRow.displayName = 'OfferRow';
 
-const OfferDetailsModal = memo(({ offer, onClose, onCopy, onToggle, onEdit, onDelete }) => {
-  const cs = getStatusStyle(offer.status);
+const OfferDetailsModal = memo(({ offer, busy, loc, onClose, onCopy, onToggle, onEdit }) => {
+  useEscape(onClose);
+  const { L, fm } = loc;
+  const t = L.offers;
+  const d = t.details;
+  const isActive = offer.status === 'ACTIVE';
+  const copy = useCallback(() => onCopy(offer.id), [onCopy, offer.id]);
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-md shadow-2xl overflow-hidden animate-in zoom-in duration-300">
-        <div className="px-5 py-3.5 border-b border-gray-50 dark:border-gray-700 flex items-center justify-between bg-gray-50/60 dark:bg-gray-900/40">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center flex-shrink-0">
-              <FiTag size={17} />
-            </div>
-            <div>
-              <h3 className="text-sm font-black text-gray-900 dark:text-white">تفاصيل العرض</h3>
-              <div className="flex items-center gap-1.5 text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                #{String(offer.id).slice(0, 8)}
-                <button onClick={() => onCopy(offer.id)} className="hover:text-emerald-500 transition-colors">
-                  <FiCopy size={10} />
-                </button>
-              </div>
+    <Overlay onClose={onClose}>
+      <div role="dialog" aria-modal="true" aria-label={d.title} className="nb-card relative flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden">
+        <div className="nb-gray nb-line flex flex-shrink-0 items-center justify-between border-b-2 px-5 py-4">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <IconTile icon={FiTag} tone="am" className="h-9 w-9 flex-shrink-0" size={16} />
+            <div className="min-w-0">
+              <h3 className="text-sm font-extrabold uppercase rtl:tracking-normal"><span className="nb-ul">{d.title}</span></h3>
+              <p dir="ltr" className="nb-muted mt-1 flex items-center gap-1.5 text-[10px] font-bold tabular-nums">
+                #{shortId(offer.id)}
+                <button type="button" aria-label={t.copyAria} onClick={copy} className="hover:text-[color:var(--nb-accent)]"><FiCopy size={10} /></button>
+              </p>
             </div>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-red-500 hover:border-red-300 transition-all flex-shrink-0">
-            <FiX size={15} />
-          </button>
+          <button type="button" onClick={onClose} aria-label={d.close} className={BTN_ICON}><FiX size={15} /></button>
         </div>
 
-        <div className="px-5 py-4 space-y-4 overflow-y-auto max-h-[75vh] custom-scrollbar-thin">
-          <div className={`rounded-xl p-3.5 bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 ${cs.bg}`}>
-            <p className={`text-sm font-black ${cs.text}`}>{offer.name}</p>
-            <p className="text-[11px] font-bold text-gray-600 dark:text-gray-300 mt-1.5 leading-relaxed">{offer.description || 'لا يوجد وصف لهذا العرض'}</p>
+        <div className="slim-scroll space-y-4 overflow-y-auto px-5 py-4">
+          <div className={`${PANEL} p-3.5`}>
+            <p className="text-sm font-extrabold">{offer.name}</p>
+            <p className="nb-muted mt-1.5 break-words text-[11px] font-semibold leading-relaxed">{offer.description || d.noDescription}</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5">
-            <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-500/10 border border-gray-500/10 text-center">
-              <p className="text-[8px] font-black text-emerald-600 uppercase tracking-widest mb-1">قيمة الخصم</p>
-              <p className="text-lg font-black text-emerald-600 tracking-tighter">{formatDiscount(offer)}</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className={`${PANEL} p-3 text-center`}>
+              <p className="nb-muted mb-1 text-[9px] font-bold uppercase rtl:tracking-normal">{d.value}</p>
+              <p className="text-lg font-extrabold tabular-nums">{formatDiscount(offer, fm.number)}</p>
             </div>
-            <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 text-center">
-              <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1.5">الحالة</p>
-              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest ${cs.bg} ${cs.text}`}>
-                {STATUS_TRANSLATIONS[offer.status] || offer.status}
-              </span>
+            <div className={`${PANEL} p-3 text-center`}>
+              <p className="nb-muted mb-1.5 text-[9px] font-bold uppercase rtl:tracking-normal">{d.status}</p>
+              <StatusPill status={offer.status} labels={t.status} />
             </div>
           </div>
 
-          <div className="rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
-            <div className="px-3.5 py-2.5 bg-gray-50 dark:bg-gray-900/50 flex items-center gap-2">
-              <FiCalendar className="text-gray-400" size={12} />
-              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">فترة سريان العرض</p>
+          <div className="nb-card overflow-hidden">
+            <div className="nb-gray nb-line flex items-center gap-2 border-b-2 px-3.5 py-2.5">
+              <FiCalendar className="nb-ic" size={12} aria-hidden="true" />
+              <p className="text-[10px] font-extrabold uppercase rtl:tracking-normal">{d.period}</p>
             </div>
-            <div className="divide-y divide-gray-100 dark:divide-gray-800">
-              <div className="flex items-center justify-between px-3.5 py-2.5">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">يبدأ من</span>
-                <span className="text-xs font-bold text-gray-900 dark:text-white">{new Date(offer.startDate).toLocaleString('ar-EG')}</span>
+            <div className="nb-rows">
+              <div className="flex items-center justify-between border-b-2 border-dotted px-3.5 py-2.5" style={{ borderColor: 'var(--nb-dot)' }}>
+                <span className="nb-muted text-[11px] font-bold">{d.from}</span>
+                <span className="text-xs font-extrabold">{fmt(fm.full, offer.startDate)}</span>
               </div>
               <div className="flex items-center justify-between px-3.5 py-2.5">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">ينتهي في</span>
-                <span className="text-xs font-bold text-red-500">{new Date(offer.endDate).toLocaleString('ar-EG')}</span>
+                <span className="nb-muted text-[11px] font-bold">{d.until}</span>
+                <span className="text-xs font-extrabold text-red-500">{fmt(fm.full, offer.endDate)}</span>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="px-5 py-3.5 bg-gray-50 dark:bg-gray-900/30 border-t border-gray-50 dark:border-gray-700 flex gap-2.5">
-          <button onClick={onToggle} className="flex-1 py-2.5 rounded-xl border border-emerald-200 dark:border-emerald-900/40 text-emerald-600 text-[9px] font-black uppercase tracking-widest hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all">
-            {offer.status === 'ACTIVE' ? 'إيقاف العرض' : 'تفعيل العرض'}
+        <div className="nb-gray nb-line flex flex-shrink-0 gap-2.5 border-t-2 px-5 py-4">
+          <button type="button" disabled={busy} onClick={onToggle} className={`${BTN_PRIMARY} flex-1 uppercase rtl:tracking-normal`}>
+            {isActive ? d.stopOffer : d.activateOffer}
           </button>
-          <button onClick={onEdit} className="flex-1 py-2.5 bg-emerald-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20">
-            تعديل العرض
-          </button>
-          <button onClick={onClose} className="px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl text-[9px] font-black text-gray-500 uppercase tracking-widest hover:text-red-500 transition-all">
-            إغلاق
-          </button>
+          <button type="button" disabled={busy} onClick={onEdit} className={`${BTN_MD} flex-1 uppercase rtl:tracking-normal`}>{d.editOffer}</button>
+          <button type="button" onClick={onClose} className={`${BTN_MD} uppercase rtl:tracking-normal`}>{d.close}</button>
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 });
-OfferDetailsModal.displayName = 'OfferDetailsModal';
 
-const FilterPanel = memo(({
-  statusFilter, onStatusChange, sortBy, onSortChange,
-  discountTypeFilter, onDiscountTypeChange, onClose,
-}) => (
-  <div className="fixed inset-0 z-[100] flex items-end lg:items-center justify-center p-0 lg:p-4">
-    <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={onClose} />
-    <div className="relative w-full lg:max-w-md bg-white dark:bg-gray-800 shadow-2xl overflow-hidden animate-in slide-in-from-bottom-20 duration-500 max-h-[90vh] flex flex-col">
-      <div className="p-6 border-b border-gray-50 dark:border-gray-700 flex items-center justify-between flex-shrink-0">
-        <div>
-          <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">تصفية العروض</h3>
-          <p className="text-xs font-bold text-gray-400 mt-1 uppercase tracking-widest">خصص طريقة عرض حملاتك</p>
-        </div>
-        <button onClick={onClose} className="w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-red-500 hover:border-red-300 transition-all">
-          <FiX size={16} />
-        </button>
-      </div>
-
-      <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar-thin">
-        <div>
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">حالة العرض</p>
-          <div className="grid grid-cols-2 gap-3">
-            {['all', ...STATUSES].map((s) => (
-              <button
-                key={s}
-                onClick={() => onStatusChange(s)}
-                className={`px-4 py-3.5 rounded-2xl border-2 text-[10px] font-black uppercase tracking-widest transition-all ${
-                  statusFilter === s
-                    ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                    : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-700 text-gray-500 hover:border-emerald-500 hover:text-emerald-600'
-                }`}
-              >
-                {STATUS_TRANSLATIONS[s]}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">الترتيب حسب</p>
-          <div className="grid grid-cols-2 gap-3">
-            {SORT_OPTIONS.map((o) => (
-              <button
-                key={o.value}
-                onClick={() => onSortChange(o.value)}
-                className={`px-4 py-3 rounded-2xl border-2 text-[10px] font-black uppercase tracking-widest transition-all ${
-                  sortBy === o.value
-                    ? 'bg-gray-900 dark:bg-emerald-500 border-gray-900 dark:border-emerald-500 text-white'
-                    : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-700 text-gray-500 hover:border-gray-400'
-                }`}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">نوع الخصم</p>
-          <div className="flex flex-wrap gap-2">
-            {DISCOUNT_TYPES.map((o) => (
-              <button
-                key={o.value}
-                onClick={() => onDiscountTypeChange(o.value)}
-                className={`px-4 py-2.5 rounded-full border-2 text-[10px] font-black uppercase tracking-widest transition-all ${
-                  discountTypeFilter === o.value
-                    ? 'bg-emerald-500 border-emerald-500 text-white'
-                    : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-700 text-gray-500 hover:border-emerald-500 hover:text-emerald-600'
-                }`}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="p-6 border-t border-gray-50 dark:border-gray-700 flex-shrink-0">
-        <button onClick={onClose} className="w-full py-3.5 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20">
-          تطبيق الفلاتر
-        </button>
-      </div>
-    </div>
+const Field = memo(({ label, htmlFor, error, className = '', children }) => (
+  <div className={className}>
+    <label htmlFor={htmlFor} className={LABEL}>{label}</label>
+    {children}
+    {error && <p role="alert" className="mt-1.5 text-[11px] font-bold text-red-500">{error}</p>}
   </div>
 ));
-FilterPanel.displayName = 'FilterPanel';
 
-const AddEditModal = memo(({ editingOffer, formData, onChange, onClose, onSubmit }) => (
-  <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-    <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={onClose} />
-    <div className="relative w-full max-w-2xl bg-white dark:bg-gray-800 rounded-md shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto custom-scrollbar-thin">
-      <div className="px-8 py-6 border-b border-gray-50 dark:border-gray-700 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-800 z-10">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-            <FiTag size={20} />
+const PICKER_FALLBACK = <div className={`${INPUT} h-[42px]`} aria-hidden="true" />;
+const POPPER_PROPS = { strategy: 'fixed' };
+
+const PickerSlot = (props) => (
+  <Suspense fallback={PICKER_FALLBACK}>
+    <DatePicker {...props} />
+  </Suspense>
+);
+
+const AddEditModal = memo(({ editingOffer, formData, errors, saving, loc, darkMode, onChange, onClose, onSubmit }) => {
+  useEscape(onClose);
+  const { L, fm, isAr } = loc;
+  const f = L.offers.form;
+  const nf = fm.number;
+  const dateLocale = isAr ? ar : enUS;
+  const valueLabel = f.valueLabel[FIXED] || f.valueLabel.none;
+
+  const setName = useCallback((e) => onChange((p) => ({ ...p, name: cleanText(e.target.value, NAME_MAX) })), [onChange]);
+  const setValue = useCallback((e) => onChange((p) => ({ ...p, discountValue: sanitizeNumber(e.target.value) })), [onChange]);
+  const setDesc = useCallback((e) => onChange((p) => ({ ...p, description: cleanText(e.target.value, DESC_MAX) })), [onChange]);
+  const setStart = useCallback((v) => onChange((p) => ({ ...p, startDate: v })), [onChange]);
+  const setEnd = useCallback((v) => onChange((p) => ({ ...p, endDate: v })), [onChange]);
+  const setType = useCallback(() => onChange((p) => (p.discountType === FIXED ? p : { ...p, discountType: FIXED })), [onChange]);
+
+  const typeOptions = useMemo(() => [{ value: FIXED, label: f.typeFixed }], [f.typeFixed]);
+  const descLabel = useMemo(
+    () => tpl(f.desc, { n: nf.format(formData.description.length), m: nf.format(DESC_MAX) }),
+    [f.desc, nf, formData.description.length],
+  );
+  const handleFormSubmit = useCallback((e) => { e.preventDefault(); onSubmit(); }, [onSubmit]);
+
+  return (
+    <Overlay onClose={onClose}>
+      <form
+        noValidate
+        onSubmit={handleFormSubmit}
+        role="dialog"
+        aria-modal="true"
+        aria-label={editingOffer ? f.ariaEdit : f.ariaAdd}
+        className="nb-card relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden"
+      >
+        <div className="nb-gray nb-line flex flex-shrink-0 items-center justify-between border-b-2 px-6 py-4">
+          <div className="flex items-center gap-3">
+            <IconTile icon={FiTag} tone="am" className="h-10 w-10" size={18} />
+            <h3 className="text-base font-extrabold uppercase rtl:tracking-normal"><span className="nb-ul">{editingOffer ? f.titleEdit : f.titleAdd}</span></h3>
           </div>
-          <h3 className="text-base font-black text-gray-900 dark:text-white">{editingOffer ? 'تعديل بيانات العرض' : 'إنشاء حملة ترويجية جديدة'}</h3>
+          <button type="button" onClick={onClose} aria-label={f.close} className={BTN_ICON}><FiX size={15} /></button>
         </div>
-        <button onClick={onClose} className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-400 hover:text-red-500 transition-all">
-          <FiX size={18} />
-        </button>
-      </div>
 
-      <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-2 md:col-span-2">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">اسم العرض</label>
-          <input type="text" value={formData.name} onChange={(e) => onChange({ ...formData, name: e.target.value })} className="w-full px-5 py-3.5 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-emerald-200 text-sm font-bold text-gray-900 dark:text-white focus:outline-none transition-all" />
+        <div className="slim-scroll grid grid-cols-1 gap-4 overflow-y-auto p-6 md:grid-cols-2">
+          <Field label={f.name} htmlFor="offer-name" error={errors.name} className="md:col-span-2">
+            <input id="offer-name" type="text" value={formData.name} maxLength={NAME_MAX} autoComplete="off" aria-invalid={!!errors.name} onChange={setName} className={`${INPUT} ${errors.name ? '!border-red-500' : ''}`} />
+          </Field>
+          <Field label={valueLabel} htmlFor="offer-value" error={errors.discountValue}>
+            <input id="offer-value" type="text" inputMode="decimal" value={formData.discountValue} autoComplete="off" aria-invalid={!!errors.discountValue} onChange={setValue} className={`${INPUT} ${errors.discountValue ? '!border-red-500' : ''}`} dir="ltr" />
+          </Field>
+          <Field label={f.type} error={errors.discountType}>
+            <Dropdown
+              value={FIXED}
+              onChange={setType}
+              options={typeOptions}
+              placeholder={f.typePlaceholder}
+              ariaLabel={f.type}
+              icon={FiDollarSign}
+              darkMode={darkMode}
+            />
+          </Field>
+          <Field label={f.start} htmlFor="offer-start" error={errors.startDate}>
+            <PickerSlot id="offer-start" selected={formData.startDate} onChange={setStart} showTimeSelect dateFormat="dd/MM/yyyy HH:mm" locale={dateLocale} autoComplete="off" popperProps={POPPER_PROPS} className={`${INPUT} ${errors.startDate ? '!border-red-500' : ''}`} />
+          </Field>
+          <Field label={f.end} htmlFor="offer-end" error={errors.endDate}>
+            <PickerSlot id="offer-end" selected={formData.endDate} onChange={setEnd} showTimeSelect minDate={formData.startDate || undefined} dateFormat="dd/MM/yyyy HH:mm" locale={dateLocale} autoComplete="off" popperProps={POPPER_PROPS} className={`${INPUT} ${errors.endDate ? '!border-red-500' : ''}`} />
+          </Field>
+          <Field label={descLabel} htmlFor="offer-desc" className="md:col-span-2">
+            <textarea id="offer-desc" value={formData.description} maxLength={DESC_MAX} rows="3" onChange={setDesc} className={`${INPUT} resize-none`} />
+          </Field>
         </div>
-        <div className="space-y-2">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">قيمة الخصم</label>
-          <input type="number" value={formData.discountValue} onChange={(e) => onChange({ ...formData, discountValue: e.target.value })} className="w-full px-5 py-3.5 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-emerald-200 text-sm font-bold text-gray-900 dark:text-white focus:outline-none transition-all" />
-        </div>
-        <div className="space-y-2">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">نوع الخصم</label>
-          <select value={formData.discountType} onChange={(e) => onChange({ ...formData, discountType: e.target.value })} className="w-full px-5 py-3.5 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-emerald-200 text-sm font-bold text-gray-900 dark:text-white focus:outline-none transition-all cursor-pointer">
-            <option value="PERCENTAGE">نسبة مئوية (%)</option>
-            <option value="FIXED_AMOUNT">مبلغ ثابت (ج.م)</option>
-          </select>
-        </div>
-        <div className="space-y-2">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">تاريخ البداية</label>
-          <DatePicker selected={formData.startDate} onChange={(date) => onChange({ ...formData, startDate: date })} showTimeSelect dateFormat="dd/MM/yyyy HH:mm" locale={ar} className="w-full px-5 py-3.5 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-emerald-200 text-sm font-bold text-gray-900 dark:text-white focus:outline-none transition-all" />
-        </div>
-        <div className="space-y-2">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">تاريخ النهاية</label>
-          <DatePicker selected={formData.endDate} onChange={(date) => onChange({ ...formData, endDate: date })} showTimeSelect dateFormat="dd/MM/yyyy HH:mm" locale={ar} className="w-full px-5 py-3.5 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-emerald-200 text-sm font-bold text-gray-900 dark:text-white focus:outline-none transition-all" />
-        </div>
-        <div className="space-y-2 md:col-span-2">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">وصف العرض</label>
-          <textarea value={formData.description} onChange={(e) => onChange({ ...formData, description: e.target.value })} rows="3" className="w-full px-5 py-3.5 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-transparent focus:border-emerald-200 text-sm font-bold text-gray-900 dark:text-white focus:outline-none transition-all resize-none" />
-        </div>
-      </div>
 
-      <div className="px-8 py-6 bg-gray-50 dark:bg-gray-900/30 border-t border-gray-50 dark:border-gray-700 flex gap-4">
-        <button onClick={onClose} className="flex-1 py-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl text-[10px] font-black text-gray-500 uppercase tracking-widest hover:text-red-500 transition-all">إلغاء</button>
-        <button onClick={onSubmit} className="flex-1 py-4 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20">{editingOffer ? 'حفظ التعديلات' : 'اضافة العرض'}</button>
-      </div>
-    </div>
-  </div>
-));
-AddEditModal.displayName = 'AddEditModal';
+        <div className="nb-gray nb-line flex flex-shrink-0 gap-3 border-t-2 px-6 py-4">
+          <button type="button" onClick={onClose} className={`${BTN_MD} flex-1 py-2.5 uppercase rtl:tracking-normal`}>{f.cancel}</button>
+          <button type="submit" disabled={saving} className={`${BTN_PRIMARY} flex-1 py-2.5 uppercase rtl:tracking-normal`}>
+            {saving ? <FiRefreshCw size={13} className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <FiCheck size={13} aria-hidden="true" />}
+            {editingOffer ? f.save : f.create}
+          </button>
+        </div>
+      </form>
+    </Overlay>
+  );
+});
+
+
 
 const ShopOffers = () => {
+  const darkMode = useDarkMode();
+  const loc = useShopLocale();
+  const { language, L, fm, dir, font } = loc;
+  const t = L.offers;
+  const tt = L.table;
+  const nf = fm.number;
+
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -501,281 +385,404 @@ const ShopOffers = () => {
   const [showAddEdit, setShowAddEdit] = useState(false);
   const [editingOffer, setEditingOffer] = useState(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
-  const [detailsOffer, setDetailsOffer] = useState(null);
+  const [formErrors, setFormErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [detailsId, setDetailsId] = useState(null);
+  const [busyIds, setBusyIds] = useState(() => new Set());
 
-  useEffect(() => { document.title = 'إدارة العروض'; }, []);
+  const offersRef = useRef(offers);
+  const inflight = useRef(new Set());
+  const savingRef = useRef(false);
+  const abortRef = useRef(null);
+  const locRef = useRef(loc);
+  offersRef.current = offers;
+  locRef.current = loc;
+  useEffect(() => { document.title = t.docTitle; }, [t.docTitle]);
 
-  const showToast = useCallback(async (text, icon) => {
-    const Swal = await loadSwal();
-    Swal.fire({
-      text, icon, toast: true, position: 'top-start',
-      showConfirmButton: false, timer: 3000,
-    });
+  const term = useDeferredValue(search).trim().toLowerCase();
+
+  const fetchOffers = useCallback(async ({ silent = false } = {}) => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    if (!silent) setLoading(true);
+    try {
+      const res = await api.get('/api/shop/offers', { signal: controller.signal });
+      const raw = Array.isArray(res.data) ? res.data : res.data?.content || [];
+      const data = [];
+      for (const o of raw) {
+        if (o && o.id != null) data.push({ ...o, discountType: normType(o.discountType) });
+      }
+      if (!controller.signal.aborted) { setOffers(data); setLastUpdated(new Date()); }
+    } catch (err) {
+      if (!controller.signal.aborted && !silent) toast({ icon: 'error', title: locRef.current.L.offers.toasts.loadFail, text: errText(err) });
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
+    }
   }, []);
 
-  const fetchOffers = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await api.get('/api/shop/offers');
-      setOffers(Array.isArray(res.data) ? res.data : res.data.content || []);
-    } catch {
-      showToast('فشل في تحميل العروض', 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, [showToast]);
+  useEffect(() => {
+    fetchOffers();
+    return () => abortRef.current?.abort();
+  }, [fetchOffers]);
 
-  useEffect(() => { fetchOffers(); }, [fetchOffers]);
-
-  const stats = useMemo(() => ({
-    total: offers.length,
-    active: offers.filter((o) => o.status === 'ACTIVE').length,
-    percentage: offers.filter((o) => o.discountType === 'PERCENTAGE').length,
-    fixed: offers.filter((o) => o.discountType === 'FIXED_AMOUNT').length,
-  }), [offers]);
-
-  const filteredOffers = useMemo(() => {
-    const term = searchTerm.toLowerCase().trim();
-    let list = offers;
-
-    if (term) {
-      list = list.filter((o) =>
-        o.name?.toLowerCase().includes(term) ||
-        o.description?.toLowerCase().includes(term));
-    }
-
-    if (statusFilter !== 'all') {
-      list = list.filter((o) => o.status === statusFilter);
-    }
-
-    if (discountTypeFilter !== 'all') {
-      list = list.filter((o) => o.discountType === discountTypeFilter);
-    }
-
-    const sorted = [...list];
-    if (sortBy === 'oldest') sorted.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
-    else if (sortBy === 'highest') sorted.sort((a, b) => (b.discountValue || 0) - (a.discountValue || 0));
-    else if (sortBy === 'lowest') sorted.sort((a, b) => (a.discountValue || 0) - (b.discountValue || 0));
-    else sorted.sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
-
-    return sorted;
-  }, [offers, searchTerm, statusFilter, discountTypeFilter, sortBy]);
-
-  const debouncedSetSearch = useMemo(() => debounce((v) => setSearchTerm(v), 250), []);
-
-  const paginated = useMemo(() => filteredOffers.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage), [filteredOffers, currentPage, rowsPerPage]);
-  const totalPages = Math.ceil(filteredOffers.length / rowsPerPage);
-
-  const handleSubmit = async () => {
-    if (!formData.name.trim() || !formData.discountValue || !formData.startDate || !formData.endDate) {
-      showToast('يرجى ملء جميع الحقول المطلوبة', 'warning');
-      return;
-    }
-    try {
-      if (editingOffer) {
-        await api.put(`/api/shop/offers/${editingOffer.id}`, formData);
-        showToast('تم تعديل العرض بنجاح', 'success');
-      } else {
-        await api.post('/api/shop/offers', formData);
-        showToast('تم إضافة العرض بنجاح', 'success');
-      }
-      setShowAddEdit(false);
-      fetchOffers();
-    } catch {
-      showToast('حدث خطأ أثناء الحفظ', 'error');
-    }
-  };
-
-  const deleteOffer = useCallback(async (offerId) => {
-    const Swal = await loadSwal();
-    const { isConfirmed } = await Swal.fire({
-      title: 'تأكيد الحذف', text: 'هل أنت متأكد من حذف هذا العرض نهائياً؟', icon: 'warning',
-      showCancelButton: true, confirmButtonText: 'نعم، احذف', cancelButtonText: 'إلغاء',
-      confirmButtonColor: '#ef4444',
-    });
-    if (!isConfirmed) return;
-    try {
-      await api.delete(`/api/shop/offers/${offerId}`);
-      showToast('تم حذف العرض بنجاح', 'success');
-      fetchOffers();
-    } catch {
-      showToast('فشل حذف العرض', 'error');
-    }
-  }, [fetchOffers, showToast]);
-
-  const toggleOfferStatus = useCallback(async (offer) => {
-    const nextStatus = offer.status === 'ACTIVE' ? 'EXPIRED' : 'ACTIVE';
-    try {
-      await api.put(`/api/shop/offers/${offer.id}`, { ...offer, status: nextStatus });
-      showToast(`تم ${nextStatus === 'ACTIVE' ? 'تفعيل' : 'إيقاف'} العرض`, 'success');
-      fetchOffers();
-    } catch {
-      showToast('فشل تغيير الحالة', 'error');
-    }
-  }, [fetchOffers, showToast]);
-
-  const statCards = useMemo(() => [
-    { label: 'إجمالي العروض', value: stats.total.toLocaleString('ar-EG'), description: 'جميع الحملات الترويجية' },
-    { label: 'العروض النشطة', value: stats.active.toLocaleString('ar-EG'), description: 'متاحة للعملاء الآن' },
-    { label: 'خصم مئوي', value: stats.percentage.toLocaleString('ar-EG'), description: 'عروض بنسبة مئوية' },
-    { label: 'خصم ثابت', value: stats.fixed.toLocaleString('ar-EG'), description: 'خصم مبالغ محددة' },
-  ], [stats]);
-
-  const handleDetails = useCallback((offer) => setDetailsOffer(offer), []);
-  const handleCopy = useCallback((id) => {
-    navigator.clipboard.writeText(id);
-    showToast('تم نسخ رقم العرض', 'success');
-  }, [showToast]);
   const handleEdit = useCallback((offer) => {
     setEditingOffer(offer);
-    setFormData({ ...offer, startDate: new Date(offer.startDate), endDate: new Date(offer.endDate) });
+    setFormData({
+      name: cleanText(offer.name, NAME_MAX),
+      description: cleanText(offer.description, DESC_MAX),
+      discountValue: String(offer.discountValue ?? ''),
+      discountType: FIXED,
+      status: STATUSES.includes(offer.status) ? offer.status : 'ACTIVE',
+      startDate: new Date(offer.startDate),
+      endDate: new Date(offer.endDate),
+    });
+    setFormErrors({});
     setShowAddEdit(true);
   }, []);
 
-  const activeFilterCount = (statusFilter !== 'all' ? 1 : 0) + (discountTypeFilter !== 'all' ? 1 : 0) + (sortBy !== 'newest' ? 1 : 0);
+  const runOnOffer = useCallback(async (id, optimistic, rollback, request, successToast, failTitle) => {
+    if (!isSafeId(id) || inflight.current.has(id)) return false;
+    inflight.current.add(id);
+    setBusyIds(new Set(inflight.current));
+    setOffers(optimistic);
+    try {
+      await request();
+      toast({ icon: 'success', ...successToast });
+      fetchOffers({ silent: true });
+      return true;
+    } catch (err) {
+      setOffers(rollback);
+      toast({ icon: 'error', title: failTitle, text: errText(err) });
+      return false;
+    } finally {
+      inflight.current.delete(id);
+      setBusyIds(new Set(inflight.current));
+    }
+  }, [fetchOffers]);
+
+  const deleteOffer = useCallback(async (offerId) => {
+    if (!isSafeId(offerId)) return;
+    const offer = offersRef.current.find((o) => o.id === offerId);
+    if (!offer) return;
+    const { L: LL } = locRef.current;
+    const x = LL.offers;
+    let isConfirmed = false;
+    try {
+      ({ isConfirmed } = await confirmDialog({
+        title: x.confirmDelete.title,
+        text: x.confirmDelete.text,
+        icon: 'warning',
+        confirmButtonText: x.confirmDelete.yes,
+        cancelButtonText: LL.table.cancel,
+        confirmButtonColor: '#ef4444',
+      }));
+    } catch {
+      toast({ icon: 'error', title: x.toasts.confirmFail, text: x.toasts.confirmFailText });
+      return;
+    }
+    if (!isConfirmed) return;
+    runOnOffer(
+      offerId,
+      (prev) => prev.filter((o) => o.id !== offerId),
+      (prev) => (prev.some((o) => o.id === offerId) ? prev : [offer, ...prev]),
+      () => api.delete(`/api/shop/offers/${encodeURIComponent(offerId)}`),
+      { title: x.toasts.deleted, text: x.toasts.deletedText },
+      x.toasts.deleteFail,
+    );
+  }, [runOnOffer]);
+
+  const toggleOfferStatus = useCallback((offer) => {
+    const x = locRef.current.L.offers.toasts;
+    const next = offer.status === 'ACTIVE' ? 'EXPIRED' : 'ACTIVE';
+    return runOnOffer(
+      offer.id,
+      (prev) => prev.map((o) => (o.id === offer.id ? { ...o, status: next } : o)),
+      (prev) => prev.map((o) => (o.id === offer.id ? { ...o, status: offer.status } : o)),
+      () => api.put(`/api/shop/offers/${encodeURIComponent(offer.id)}`, {
+        name: offer.name,
+        description: offer.description || '',
+        discountValue: num(offer.discountValue),
+        discountType: offer.discountType || FIXED,
+        startDate: offer.startDate,
+        endDate: offer.endDate,
+        status: next,
+      }),
+      next === 'ACTIVE'
+        ? { title: x.activated, text: x.activatedText }
+        : { title: x.stopped, text: x.stoppedText },
+      x.toggleFail,
+    );
+  }, [runOnOffer]);
+
+  const handleSubmit = useCallback(async () => {
+    if (savingRef.current) return;
+    const x = locRef.current.L.offers;
+    const errors = validateForm(formData, x.validation);
+    setFormErrors(errors);
+    if (Object.keys(errors).length) return;
+    if (editingOffer && !isSafeId(editingOffer.id)) return;
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      const payload = buildPayload(formData);
+      if (editingOffer) {
+        await api.put(`/api/shop/offers/${encodeURIComponent(editingOffer.id)}`, payload);
+        toast({ icon: 'success', title: x.toasts.edited, text: x.toasts.editedText });
+      } else {
+        await api.post('/api/shop/offers', payload);
+        toast({ icon: 'success', title: x.toasts.added, text: x.toasts.addedText });
+      }
+      setShowAddEdit(false);
+      fetchOffers({ silent: true });
+    } catch (err) {
+      toast({ icon: 'error', title: x.toasts.saveFail, text: errText(err) });
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  }, [formData, editingOffer, fetchOffers]);
+
+  const index = useMemo(() => offers.map((o) => ({
+    o,
+    ts: toTs(o.startDate),
+    value: num(o.discountValue),
+    text: `${o.name || ''} ${o.description || ''}`.toLowerCase(),
+  })), [offers]);
+
+  const counts = useMemo(() => {
+    const c = { all: offers.length, PERCENTAGE: 0, FIXED_AMOUNT: 0 };
+    for (const o of offers) {
+      c[o.status] = (c[o.status] || 0) + 1;
+      if (o.discountType === 'PERCENTAGE' || o.discountType === FIXED) c[o.discountType] += 1;
+    }
+    return c;
+  }, [offers]);
+
+  const filtered = useMemo(() => {
+    const list = [];
+    for (const e of index) {
+      const { o, text } = e;
+      if (
+        (statusFilter === 'all' || o.status === statusFilter)
+        && (discountTypeFilter === 'all' || o.discountType === discountTypeFilter)
+        && (!term || text.includes(term))
+      ) list.push(e);
+    }
+    list.sort(SORTERS[sortBy] || SORTERS.newest);
+    return list.map((e) => e.o);
+  }, [index, statusFilter, discountTypeFilter, term, sortBy]);
+
+  useEffect(() => { setCurrentPage(1); }, [statusFilter, discountTypeFilter, term, sortBy, rowsPerPage]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+  const page = Math.min(currentPage, totalPages);
+  const paginated = useMemo(() => filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage), [filtered, page, rowsPerPage]);
+
+  const statCards = useMemo(() => [
+    { label: t.stats.total.label, value: nf.format(counts.all), description: t.stats.total.desc, icon: FiTag, tone: 'am' },
+    { label: t.stats.active.label, value: nf.format(counts.ACTIVE || 0), description: t.stats.active.desc, icon: FiCheckCircle, tone: 'em' },
+    { label: t.stats.percent.label, value: nf.format(counts.PERCENTAGE), description: t.stats.percent.desc, icon: FiPercent, tone: 'sky' },
+    { label: t.stats.fixed.label, value: nf.format(counts.FIXED_AMOUNT), description: t.stats.fixed.desc, icon: FiDollarSign, tone: 'vi' },
+  ], [counts, t, nf]);
+
+  const filterGroups = useMemo(() => [
+    [t.groups.sort, SORT_KEYS.map((k) => ({ value: k, label: t.sort[k] })), sortBy, setSortBy],
+    [t.groups.type, TYPE_KEYS.map((k) => ({ value: k, label: t.discountTypes[k] })), discountTypeFilter, setDiscountTypeFilter],
+  ], [t, sortBy, discountTypeFilter]);
+
+  const detailsOffer = useMemo(() => (detailsId == null ? null : offers.find((o) => o.id === detailsId) || null), [offers, detailsId]);
+
+  const handleDetails = useCallback((o) => setDetailsId(o.id), []);
+  const closeDetails = useCallback(() => setDetailsId(null), []);
+  const closeFilter = useCallback(() => setShowFilterPanel(false), []);
+  const openFilter = useCallback(() => setShowFilterPanel(true), []);
+  const closeAddEdit = useCallback(() => { if (!savingRef.current) setShowAddEdit(false); }, []);
+  const refresh = useCallback(() => fetchOffers(), [fetchOffers]);
+  const handleCopy = useCallback(async (id) => {
+    const x = locRef.current.L.offers.toasts;
+    try {
+      await navigator.clipboard.writeText(String(id));
+      toast({ icon: 'success', title: x.copied, text: x.copiedText, timer: 2000 });
+    } catch {
+      toast({ icon: 'error', title: x.copyFail, text: x.copyFailText });
+    }
+  }, []);
+  const openAdd = useCallback(() => {
+    setEditingOffer(null); setFormData(EMPTY_FORM); setFormErrors({}); setShowAddEdit(true);
+  }, []);
+  const resetFilters = useCallback(() => { setDiscountTypeFilter('all'); setSortBy('newest'); }, []);
+
+  const toggleFromDetails = useCallback(() => {
+    const o = offersRef.current.find((x) => x.id === detailsId);
+    if (o) toggleOfferStatus(o);
+    closeDetails();
+  }, [detailsId, toggleOfferStatus, closeDetails]);
+  const editFromDetails = useCallback(() => {
+    const o = offersRef.current.find((x) => x.id === detailsId);
+    if (o) handleEdit(o);
+    closeDetails();
+  }, [detailsId, handleEdit, closeDetails]);
+
+  const toggleDateSort = useCallback(() => setSortBy((s) => (s === 'newest' ? 'oldest' : 'newest')), []);
+  const toggleValueSort = useCallback(() => setSortBy((s) => (s === 'highest' ? 'lowest' : 'highest')), []);
+  const onSearchChange = useCallback((e) => setSearch(sanitizeSearch(e.target.value)), []);
+
+  const activeFilterCount = (discountTypeFilter !== 'all') + (sortBy !== 'newest');
+  const from = filtered.length ? (page - 1) * rowsPerPage + 1 : 0;
+  const to = Math.min(page * rowsPerPage, filtered.length);
+  const skeletonRows = useMemo(() => Array.from({ length: Math.min(rowsPerPage, 8) }, (_, i) => i), [rowsPerPage]);
 
   return (
-    <div dir="rtl" className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pr-64 mt-16 transition-all duration-500 font-cairo text-right">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
-        <div className="flex flex-col md:flex-row md:items-end mt-3 justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-1.5 rounded-full bg-emerald-500" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">الحملات التسويقية</span>
-            </div>
-            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">إدارة <span className="text-emerald-500">العروض</span></h1>
-            <p className="text-sm font-bold text-gray-500 dark:text-gray-400">جذب المزيد من العملاء من خلال إنشاء خصومات وعروض حصرية لمتجرك</p>
-          </div>
+    <div
+      dir={dir}
+      lang={language}
+      style={font}
+      className="nb-page min-h-screen py-6 lg:ps-64 mt-16 text-start"
+    >
+      <style>{PAGE_CSS}</style>
+      <Defs3D />
+      <Toaster darkMode={darkMode} />
 
-          <div className="flex items-center gap-3">
-            <button
-              title="تصفية النتائج"
-              onClick={() => setShowFilterPanel(true)}
-              className="relative flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-xs font-black uppercase tracking-widest hover:border-emerald-300 hover:text-emerald-600 transition-all active:scale-95"
-            >
-              <FiFilter size={16} /> تصفية
-              {activeFilterCount > 0 && (
-                <span className="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-red-500 text-white text-[9px] font-black flex items-center justify-center">{activeFilterCount}</span>
-              )}
+      <div key={language} className="lang-fade mx-auto max-w-7xl space-y-6 px-4 sm:px-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <span className="nb-bar" aria-hidden="true" />
+            <h1 className="mt-2 text-2xl font-extrabold leading-[1.15] tracking-tight rtl:tracking-normal sm:text-3xl">
+              <span className="nb-ul">{t.title[0]}{t.title[1]}</span>
+            </h1>
+            <p className="nb-muted mt-2 text-xs font-semibold">{t.subtitle}</p>
+          </div>
+          <div className="flex items-center gap-2.5">
+            {lastUpdated && (
+              <p className="nb-chip hidden !normal-case sm:inline-flex" role="status" aria-live="polite">
+                {tpl(tt.lastUpdated, { t: fmt(fm.time, lastUpdated) })}
+              </p>
+            )}
+            <button type="button" onClick={refresh} aria-label={tt.refresh} title={tt.refresh} className={`${BTN_MD} h-10 uppercase rtl:tracking-normal`}>
+              <FiRefreshCw size={14} className={loading ? 'animate-spin motion-reduce:animate-none' : ''} aria-hidden="true" /> {tt.refresh}
             </button>
-            <button
-              onClick={() => { setEditingOffer(null); setFormData(EMPTY_FORM); setShowAddEdit(true); }}
-              className="flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-gray-900 dark:bg-emerald-500 text-white dark:text-white text-xs font-black uppercase tracking-widest hover:bg-emerald-500 dark:hover:bg-emerald-500 hover:text-white transition-all shadow-xl shadow-gray-900/10 active:scale-95"
-            >
-              <FiPlus size={16} /> اضافة عرض جديد
+            <button type="button" onClick={openAdd} className={`${BTN_PRIMARY} h-10 uppercase rtl:tracking-normal`}>
+              <FiPlus size={15} aria-hidden="true" /> {t.add}
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {statCards.map((s) => <StatCard key={s.label} {...s} />)}
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none p-6">
-          <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
-            <div className="relative flex-1 group">
-              <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={18} />
+        <section className={`${CARD} min-w-0 overflow-hidden`}>
+          <div className="nb-gray nb-line flex flex-wrap items-center gap-2.5 border-b-2 p-3 sm:p-4">
+            <div className="relative min-w-[220px] flex-1">
+              <FiSearch className="nb-muted pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2" size={16} aria-hidden="true" />
               <input
-                type="text"
-                placeholder="ابحث باسم العرض أو الوصف..."
-                defaultValue={searchTerm}
-                onChange={(e) => debouncedSetSearch(e.target.value)}
-                className="w-full pr-12 pl-4 py-3.5 cursor-pointer rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-sm text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-200 transition-all"
+                type="search"
+                value={search}
+                maxLength={SEARCH_MAX}
+                autoComplete="off"
+                spellCheck={false}
+                enterKeyHint="search"
+                aria-label={t.searchAria}
+                placeholder={t.searchPlaceholder}
+                onChange={onSearchChange}
+                className="nb-input h-10 w-full ps-10 pe-3 text-sm font-semibold"
               />
             </div>
-            <RowsDropdown value={rowsPerPage} onChange={(n) => { setRowsPerPage(n); setCurrentPage(1); }} options={ROWS_OPTIONS} />
+            <RowsDropdown value={rowsPerPage} onChange={setRowsPerPage} label={tt.rows} formatNumber={nf.format} />
+            <button type="button" onClick={openFilter} className={`${BTN_MD} relative h-10 uppercase rtl:tracking-normal`}>
+              <FiFilter size={14} aria-hidden="true" /> {tt.filter}
+              {activeFilterCount > 0 && (
+                <span className="nb-chip absolute -end-2 -top-2.5 !px-1.5" style={{ background: 'var(--nb-accent)', color: INK }}>{nf.format(activeFilterCount)}</span>
+              )}
+            </button>
           </div>
-        </div>
 
-        <IconLegendCard />
+          <div role="tablist" aria-label={t.tabsAria} className="slim-scroll nb-line flex gap-2 overflow-x-auto border-b-2 p-3">
+            {TABS.map((s) => (
+              <TabBtn key={s} k={s} active={statusFilter === s} label={t.status[s]} count={nf.format(counts[s] || 0)} onSelect={setStatusFilter} />
+            ))}
+          </div>
 
-        <div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden">
-            <div className="overflow-x-auto custom-scrollbar-thin">
-              <table className="w-full text-right border-collapse">
-                <thead>
-                  <tr className="bg-gray-100 dark:bg-gray-900 dark:border-gray-700">
-                    <th className="px-4 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 text-center">العرض</th>
-                    <th className="px-4 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 text-center">الخصم</th>
-                    <th className="px-4 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 text-center">الصلاحية</th>
-                    <th className="px-4 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 text-center">الحالة</th>
-                    <th className="px-4 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 text-center">إجراءات</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                  {loading ? (
-                    [...Array(rowsPerPage)].map((_, i) => (
-                      <tr key={i} className="animate-pulse">
-                        {[...Array(5)].map((_, j) => (
-                          <td key={j} className="px-8 py-6"><div className="h-4 bg-gray-100 dark:bg-gray-700 rounded-lg w-full" /></td>
-                        ))}
-                      </tr>
-                    ))
-                  ) : paginated.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-8 py-24 text-center">
-                        <div className="mb-6">
-                          <EmptyOffersIllustration />
-                        </div>
-                        <p className="text-lg font-black text-gray-900 dark:text-white tracking-tight">لا توجد عروض حالياً</p>
-                        <p className="text-sm font-bold text-gray-400 mt-1 uppercase tracking-widest">ابدأ بإطلاق أولى حملاتك الترويجية الآن</p>
-                      </td>
+          <div className="slim-scroll max-h-[68vh] overflow-auto" aria-busy={loading}>
+            <table className="w-full min-w-[900px] border-collapse text-start">
+              <thead className={HEAD_CLS}>
+                <tr>
+                  <th scope="col" className={TH}>{t.columns.offer}</th>
+                  <SortTh label={t.columns.discount} active={sortBy === 'highest' || sortBy === 'lowest'} dir={sortBy === 'lowest' ? 'asc' : 'desc'} onClick={toggleValueSort} />
+                  <SortTh label={t.columns.validity} active={sortBy === 'newest' || sortBy === 'oldest'} dir={sortBy === 'oldest' ? 'asc' : 'desc'} onClick={toggleDateSort} />
+                  <th scope="col" className={TH}>{t.columns.status}</th>
+                  <th scope="col" className={TH}>{t.columns.actions}</th>
+                </tr>
+              </thead>
+              <tbody className="nb-rows">
+                {loading && offers.length === 0 ? (
+                  skeletonRows.map((i) => (
+                    <tr key={i} className="animate-pulse motion-reduce:animate-none">
+                      {SKELETON_COLS.map((j) => (
+                        <td key={j} className="px-3 py-4"><div className="nb-gray nb-line h-3.5 w-full border-2" /></td>
+                      ))}
                     </tr>
-                  ) : (
-                    paginated.map((o) => (
-                      <OfferRow
-                        key={o.id}
-                        offer={o}
-                        onDetails={handleDetails}
-                        onCopy={handleCopy}
-                        onToggle={toggleOfferStatus}
-                        onEdit={handleEdit}
-                        onDelete={deleteOffer}
-                      />
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {totalPages > 1 && (
-              <div className="p-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest order-2 sm:order-1">
-                  عرض <span className="text-gray-900 dark:text-white">{(currentPage - 1) * rowsPerPage + 1}</span> إلى <span className="text-gray-900 dark:text-white">{Math.min(currentPage * rowsPerPage, filteredOffers.length)}</span> من <span className="text-gray-900 dark:text-white">{filteredOffers.length}</span> عرض
-                </p>
-                <div className="flex items-center gap-2 order-1 sm:order-2">
-                  <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-emerald-500 hover:border-emerald-300 disabled:opacity-30 transition-all">
-                    <FiChevronRight size={20} />
-                  </button>
-                  <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-emerald-500 hover:border-emerald-300 disabled:opacity-30 transition-all">
-                    <FiChevronLeft size={20} />
-                  </button>
-                </div>
-              </div>
-            )}
+                  ))
+                ) : paginated.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-14">
+                      <EmptyState3D kind="box" title={t.empty.title} subtitle={t.empty.sub} darkMode={darkMode} />
+                    </td>
+                  </tr>
+                ) : (
+                  paginated.map((o) => (
+                    <OfferRow
+                      key={o.id}
+                      offer={o}
+                      busy={busyIds.has(o.id)}
+                      loc={loc}
+                      onDetails={handleDetails}
+                      onCopy={handleCopy}
+                      onToggle={toggleOfferStatus}
+                      onEdit={handleEdit}
+                      onDelete={deleteOffer}
+                    />
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-        </div>
+
+          {filtered.length > 0 && (
+            <div className="nb-gray nb-line flex flex-col items-center justify-between gap-3 border-t-2 px-4 py-3 sm:flex-row">
+              <p className="nb-muted text-xs font-semibold">
+                {renderTpl(t.showing, {
+                  range: <b className="tabular-nums" style={{ color: 'var(--nb-ink)' }}>{nf.format(from)}–{nf.format(to)}</b>,
+                  total: <b className="tabular-nums" style={{ color: 'var(--nb-ink)' }}>{nf.format(filtered.length)}</b>,
+                })}
+              </p>
+              {totalPages > 1 && <Pagination page={page} total={totalPages} onChange={setCurrentPage} labels={tt} formatNumber={nf.format} />}
+            </div>
+          )}
+        </section>
       </div>
 
       {detailsOffer && (
         <OfferDetailsModal
           offer={detailsOffer}
-          onClose={() => setDetailsOffer(null)}
+          busy={busyIds.has(detailsOffer.id)}
+          loc={loc}
+          onClose={closeDetails}
           onCopy={handleCopy}
-          onToggle={() => { toggleOfferStatus(detailsOffer); setDetailsOffer(null); }}
-          onEdit={() => { handleEdit(detailsOffer); setDetailsOffer(null); }}
+          onToggle={toggleFromDetails}
+          onEdit={editFromDetails}
         />
       )}
 
       {showFilterPanel && (
         <FilterPanel
-          statusFilter={statusFilter}
-          onStatusChange={(s) => { setStatusFilter(s); setCurrentPage(1); }}
-          sortBy={sortBy}
-          onSortChange={setSortBy}
-          discountTypeFilter={discountTypeFilter}
-          onDiscountTypeChange={setDiscountTypeFilter}
-          onClose={() => setShowFilterPanel(false)}
+          title={t.filterTitle}
+          note={t.filterNote}
+          groups={filterGroups}
+          labels={tt}
+          onReset={resetFilters}
+          onClose={closeFilter}
         />
       )}
 
@@ -783,23 +790,15 @@ const ShopOffers = () => {
         <AddEditModal
           editingOffer={editingOffer}
           formData={formData}
+          errors={formErrors}
+          saving={saving}
+          loc={loc}
+          darkMode={darkMode}
           onChange={setFormData}
-          onClose={() => setShowAddEdit(false)}
+          onClose={closeAddEdit}
           onSubmit={handleSubmit}
         />
       )}
-
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        .custom-scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
-        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
-        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #1f2937; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
-        .react-datepicker-wrapper { width: 100%; }
-      `,
-      }}
-      />
     </div>
   );
 };

@@ -1,90 +1,329 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
+import React, {
+  useState, useEffect, useMemo, useCallback, useRef, useDeferredValue, memo,
+} from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  FiBox, FiEdit3, FiTrash2, FiSearch, FiX, FiCopy,
-  FiPackage, FiCheckCircle, FiXCircle, FiChevronDown,
-  FiChevronLeft, FiChevronRight, FiChevronUp, FiCheck, FiInfo,
-  FiActivity, FiDollarSign, FiAlignLeft, FiRefreshCw
+  FiSearch, FiX, FiCopy, FiTrash2, FiEdit3, FiInfo, FiChevronLeft, FiChevronRight,
+  FiChevronUp, FiChevronDown, FiDownload, FiRefreshCw, FiPackage, FiCheckCircle,
+  FiXCircle, FiAlertCircle, FiDollarSign, FiAlignLeft, FiTag, FiUpload, FiRotateCcw,
 } from 'react-icons/fi';
-import { AnimatePresence, motion } from 'framer-motion';
-import Swal from 'sweetalert2';
-import DOMPurify from 'dompurify';
-import api from '../api';
+import api from '../common/api/api';
+import { UI3D_CSS, Defs3D } from '../components/user/Ui3D';
+import { EXTRAS_CSS, Toaster, toast, EmptyState3D } from '../components/user/UiExtras';
 
 const ROWS_OPTIONS = [5, 10, 20, 50];
+const SEARCH_MAX = 60;
 const CONDITIONS = ['NEW', 'USED', 'REFURBISHED'];
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const IMAGE_ACCEPT = IMAGE_TYPES.join(',');
+const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const UPLOAD_CONFIG = { timeout: 120_000 };
+const TABS = [
+  { key: 'all', label: 'All' },
+  { key: 'inStock', label: 'In stock' },
+  { key: 'outOfStock', label: 'Out of stock' },
+];
+const REDUCED = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-const COND_META = {
-  NEW: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600', dot: 'bg-emerald-500' },
-  USED: { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-600', dot: 'bg-amber-500' },
-  REFURBISHED: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600', dot: 'bg-blue-500' },
+const NB_FONT = "'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
+const NB_FONT_STYLE = { fontFamily: NB_FONT };
+const ensureNbFont = () => {
+  if (typeof document === 'undefined' || document.getElementById('nb-font')) return;
+  [['https://fonts.googleapis.com', false], ['https://fonts.gstatic.com', true]].forEach(([href, cors]) => {
+    const l = document.createElement('link');
+    l.rel = 'preconnect'; l.href = href; if (cors) l.crossOrigin = '';
+    document.head.appendChild(l);
+  });
+  const link = document.createElement('link');
+  link.id = 'nb-font';
+  link.rel = 'stylesheet';
+  link.href = 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap';
+  document.head.appendChild(link);
 };
-const getCondMeta = (c) => COND_META[c] || COND_META.USED;
 
-const showToast = (text, icon) =>
-  Swal.fire({ text, icon, toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
+const NB_CSS = `
+.nb{--nb-bg:#f9fafb;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e8ebe9;--nb-dot:#04261a;--nb-accent:#10b981;--nb-btn:#059669;--nb-on:#ffffff;background:var(--nb-bg);color:var(--nb-ink)}
+.nb-dark{--nb-bg:#141414;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#1e1e1e;--nb-dot:#3f3f3f;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-on:#022c22}
+.nb-gray{background:var(--nb-gray)}
+.nb-muted{color:var(--nb-muted)}
+.nb-ic{color:var(--nb-accent)}
+.nb-line{border-color:var(--nb-line)}
+.nb-card{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow);transition:transform .15s ease,box-shadow .15s ease}
+.nb-lift:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--nb-shadow)}
+.nb-bar{display:inline-block;width:40px;height:12px;background:var(--nb-accent);border:2px solid var(--nb-line)}
+.nb-ul{text-decoration:underline;text-decoration-color:var(--nb-accent);text-decoration-thickness:3px;text-underline-offset:4px;text-decoration-skip-ink:none}
+.nb-squig path{stroke:var(--nb-accent)}
+.nb-chip{display:inline-flex;align-items:center;gap:4px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);padding:1px 6px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;line-height:1.5;white-space:nowrap}
+.nb-chip-n{background:var(--nb-gray);color:var(--nb-muted);border-style:dashed}
+.nb-tile{display:inline-flex;align-items:center;justify-content:center;flex:none;border:2px solid var(--nb-line);color:#04261a}
+.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);font-weight:700;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,background-color .12s ease}
+.nb-btn:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--nb-shadow)}
+.nb-btn:active:not(:disabled){transform:translate(1px,1px);box-shadow:0 0 0 var(--nb-shadow)}
+.nb-btn:disabled{opacity:.45;cursor:not-allowed}
+.nb-btn-a,.nb-btn-on{background:var(--nb-btn);color:var(--nb-on)}
+.nb-btn-danger{background:#ef4444;color:#fff}
+.nb-btn:focus-visible,.nb-field:focus-within{outline:3px solid var(--nb-accent);outline-offset:2px}
+.nb-field{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow)}
+.nb-input{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);outline:none}
+.nb-input:focus{outline:3px solid var(--nb-accent);outline-offset:2px}
+.nb-input::placeholder{opacity:.6}
+.nb select option{background:var(--nb-card);color:var(--nb-ink)}
+.nb-menu{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow)}
+.nb-opt{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;font-size:12px;font-weight:700;text-transform:uppercase;text-align:start;cursor:pointer}
+.nb-opt:hover{background:var(--nb-gray)}
+.nb-opt[aria-selected=true]{background:var(--nb-btn);color:var(--nb-on)}
+.nb-rows>tr+tr{border-top:2px dotted var(--nb-dot)}
+.nb-rows>tr:hover{background:var(--nb-gray)}
+@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn{transition:none}}
+`;
 
-const sanitize = (s) => DOMPurify.sanitize(String(s ?? ''));
+const SCROLL_CSS = `
+  .slim-scroll { scrollbar-width: thin; scrollbar-color: rgba(52,211,153,.6) transparent; }
+  .slim-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+  .slim-scroll::-webkit-scrollbar-track { background: transparent; }
+  .slim-scroll::-webkit-scrollbar-thumb { background: rgba(52,211,153,.55); }
+  .slim-scroll::-webkit-scrollbar-thumb:hover { background: #34d399; }
+`;
 
-const StatCard = memo(({ icon: Icon, label, value, color }) => (
-  <div className="bg-white/10  dark:bg-slate-900/40 backdrop-blur-md text-white  border  rounded-2xl p-5 dark:border-gray-700 shadow-xl  hover:shadow-xl hover:shadow-emerald-400/5 transition-all duration-500 group relative overflow-hidden">
-    <div className={`absolute top-0 right-0 w-24 h-24 bg-gray-500/5 rounded-bl-full translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-700`} />
-    <div className="relative flex items-center justify-between">
-      <div className="space-y-1">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">{label}</p>
-        <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">{value}</p>
-      </div>
-      <div className={`w-14 h-14 rounded-2xl bg-gray-50 dark:bg-gray-900/20 flex items-center justify-center text-gray-500 group-hover:rotate-12 group-hover:scale-110 transition-all duration-500`}>
-        <Icon size={24} />
-      </div>
+const PAGE_CSS = UI3D_CSS + EXTRAS_CSS + NB_CSS + SCROLL_CSS;
+
+const BTN_MD = 'nb-btn px-3 py-2 text-xs';
+const BTN_ICON = 'nb-btn w-8 h-8';
+const BTN_DANGER = 'nb-btn nb-btn-danger px-3 py-2 text-xs';
+const BTN_PRIMARY = 'nb-btn nb-btn-a px-3 py-2 text-xs';
+const PANEL = 'nb-gray nb-line border-2 border-dotted';
+const FIELD = 'nb-input w-full h-10 px-3 text-sm font-semibold';
+const LABEL = 'nb-muted block text-[10px] font-bold uppercase mb-1.5';
+
+const TONE_BG = { em: '#34d399', teal: '#2dd4bf', lime: '#a3e635', cyan: '#22d3ee', amber: '#fbbf24', red: '#fb7185' };
+
+const COND_BG = { NEW: '#34d399', USED: '#fbbf24', REFURBISHED: '#22d3ee' };
+
+const TIME_FMT = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit' });
+const NF = new Intl.NumberFormat('en-US');
+const fmt = (n) => NF.format(n);
+
+const CTRL = /[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g;
+const clean = (v) => String(v ?? '').replace(CTRL, '');
+const sanitizeSearch = (v) => clean(v).replace(/[<>]/g, '').replace(/\s{2,}/g, ' ').slice(0, SEARCH_MAX);
+const isSafeId = (id) => /^[A-Za-z0-9_-]{1,64}$/.test(String(id));
+const errText = (err) => String(err?.response?.data?.message || '').slice(0, 120) || undefined;
+const isCanceled = (err) => err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError' || err?.name === 'AbortError';
+const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+const money = (v) => (v || v === 0 ? `${fmt(num(v))} EGP` : '—');
+const stockOf = (p) => num(p.stock);
+const unitsText = (n) => `${fmt(n)} ${n === 1 ? 'unit' : 'units'}`;
+const pct = (n, total) => (total ? Math.round((n / total) * 100) : 0);
+const nextSort = (s, field) => (s.field === field ? { field, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { field, dir: 'asc' });
+
+const apiOrigin = () => {
+  const base = String(api?.defaults?.baseURL || '').trim();
+  if (/^https?:\/\//i.test(base)) return base.replace(/\/+$/, '').replace(/\/api$/i, '');
+  return typeof window !== 'undefined' ? window.location.origin : '';
+};
+
+const imageSrc = (raw) => {
+  if (!raw || typeof raw !== 'string') return '';
+  const value = raw.trim();
+  if (!value) return '';
+  if (/^(https?:|blob:)/i.test(value)) return value;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(value)) return '';
+  return `${apiOrigin()}${value.startsWith('/') ? value : `/${value}`}`;
+};
+
+const uploadErrText = (err) => {
+  const status = err?.response?.status;
+  if (status === 413) return 'Image is too large (max 5MB).';
+  if (status === 415) return 'Unsupported image type. Use JPEG, PNG or WebP.';
+  if (err?.code === 'ECONNABORTED') return 'Upload timed out. Try again.';
+  return errText(err);
+};
+
+const csvCell = (v) => {
+  let s = String(v ?? '');
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  return `"${s.replace(/"/g, '""')}"`;
+};
+const downloadCSV = (name, head, rows) => {
+  const text = [head, ...rows].map((r) => r.map(csvCell).join(',')).join('\n');
+  const url = URL.createObjectURL(new Blob([`\ufeff${text}`], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+const pageList = (cur, total) => {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages = [...new Set([1, total, cur - 1, cur, cur + 1])].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);
+  const out = [];
+  pages.forEach((p, i) => { if (i && p - pages[i - 1] > 1) out.push(`gap${p}`); out.push(p); });
+  return out;
+};
+
+const useDarkMode = () => {
+  const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'));
+  useEffect(() => {
+    const el = document.documentElement;
+    const mo = new MutationObserver(() => setDark(el.classList.contains('dark')));
+    mo.observe(el, { attributes: true, attributeFilter: ['class'] });
+    return () => mo.disconnect();
+  }, []);
+  return dark;
+};
+
+const useEscape = (fn) => {
+  useEffect(() => {
+    const h = (e) => { if (e.key === 'Escape') fn(); };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [fn]);
+};
+
+const UnderlinedTitle = memo(({ text }) => {
+  const s = String(text || '');
+  const i = s.lastIndexOf(' ');
+  const head = i > 0 ? s.slice(0, i + 1) : '';
+  const tail = i > 0 ? s.slice(i + 1) : s;
+  return (
+    <>
+      {head}
+      <span className="relative inline-block">
+        {tail}
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 100 10" preserveAspectRatio="none" className="nb-squig pointer-events-none absolute inset-x-0 -bottom-2 h-2.5 w-full">
+          <path d="M1 6 C 20 2, 40 9, 60 5 S 90 3, 99 6" fill="none" strokeWidth="5" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        </svg>
+      </span>
+    </>
+  );
+});
+
+const IconTile = memo(({ icon: Icon, tone = 'em', className = 'w-11 h-11', size = 18 }) => (
+  <span className={`nb-tile ${className}`} style={{ background: TONE_BG[tone] }}>
+    <Icon size={size} aria-hidden="true" />
+  </span>
+));
+
+const Ring = memo(({ percent, color }) => {
+  const r = 26;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className="relative w-16 h-16 flex-shrink-0" role="img" aria-label={`${percent}%`}>
+      <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
+        <circle cx="32" cy="32" r={r} fill="none" strokeWidth="8" style={{ stroke: 'var(--nb-gray)' }} />
+        <circle
+          cx="32" cy="32" r={r} fill="none" strokeWidth="8"
+          stroke={color}
+          strokeDasharray={`${(c * percent) / 100} ${c}`}
+          style={{ transition: REDUCED ? 'none' : 'stroke-dasharray .6s ease' }}
+        />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-[11px] font-extrabold tabular-nums">
+        {percent}%
+      </span>
     </div>
+  );
+});
+
+const StatCard = memo(({ label, value, description, icon, tone, percent, color }) => (
+  <div className="nb-card nb-lift p-4 sm:p-5 flex items-center justify-between gap-3 min-w-0">
+    <div className="min-w-0 flex-1 text-left">
+      <div className="flex items-center gap-3">
+        <IconTile icon={icon} tone={tone} />
+        <div className="min-w-0">
+          <p className="nb-muted text-[11px] font-bold uppercase tracking-wide truncate">{label}</p>
+          <p className="text-2xl font-extrabold tracking-tight leading-tight tabular-nums truncate">{value}</p>
+        </div>
+      </div>
+      <p className="nb-muted mt-3 text-xs font-semibold truncate">{description}</p>
+    </div>
+    <Ring percent={percent} color={color} />
   </div>
 ));
 
-const SortIcon = memo(({ field, sortField, sortDir }) => {
-  if (sortField !== field) return <FiChevronDown size={11} className="text-gray-400 dark:text-gray-500" />;
-  return sortDir === 'asc'
-    ? <FiChevronUp size={11} className="text-emerald-600" />
-    : <FiChevronDown size={11} className="text-emerald-600" />;
+const ProductImage = memo(({ src, name, size = 'sm' }) => {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => { setFailed(false); }, [src]);
+  if (!src || failed) {
+    if (size === 'lg') return null;
+    return <span className="nb-tile w-9 h-9 text-sm font-extrabold uppercase" style={{ background: TONE_BG.em }}>{name.charAt(0)}</span>;
+  }
+  return size === 'lg' ? (
+    <div className={`${PANEL} w-full h-40 overflow-hidden flex items-center justify-center`}>
+      <img src={src} alt={name} loading="lazy" decoding="async" onError={() => setFailed(true)} className="max-h-full max-w-full object-contain" />
+    </div>
+  ) : (
+    <img src={src} alt="" width="36" height="36" loading="lazy" decoding="async" onError={() => setFailed(true)} className="nb-line nb-gray w-9 h-9 border-2 object-cover flex-shrink-0" />
+  );
 });
 
-const Th = memo(({ field, label, center = true, onSort, sortField, sortDir }) => (
-  <th
-    onClick={() => onSort(field)}
-    scope='col'
-    className={`text-slate-500 font-medium text-xs tracking-wider uppercase border-b border-slate-200 dark:border-slate-800  p-4   cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${center ? 'text-center' : 'text-right'}`}
-  >
-    <span className={`flex items-center gap-1.5 ${center ? 'justify-center' : ''}`}>
-      {label} <SortIcon field={field} sortField={sortField} sortDir={sortDir} />
-    </span>
-  </th>
+const Tabs = memo(({ tabs, value, onChange, counts }) => (
+  <div role="tablist" aria-label="Stock status" className="nb-line flex gap-2 overflow-x-auto p-3 sm:px-4 border-b-2 [scrollbar-width:none]">
+    {tabs.map(({ key, label }) => {
+      const active = value === key;
+      return (
+        <button
+          key={key}
+          type="button"
+          role="tab"
+          aria-selected={active}
+          onClick={() => onChange(key)}
+          className={`nb-btn flex-shrink-0 px-3 py-1.5 text-xs uppercase ${active ? 'nb-btn-on' : ''}`}
+        >
+          {label}
+          <span className="nb-chip tabular-nums">{fmt(counts[key] ?? 0)}</span>
+        </button>
+      );
+    })}
+  </div>
 ));
 
-const RowsDropdown = memo(({ value, options, onChange }) => {
+const CondPill = memo(({ condition }) => {
+  const bg = COND_BG[condition];
+  return (
+    <span className={`nb-chip ${bg ? '' : 'nb-chip-n'}`} style={bg ? { background: bg, color: '#04261a' } : undefined}>
+      <span className="w-1.5 h-1.5 bg-current" aria-hidden="true" />
+      {clean(condition) || 'Unset'}
+    </span>
+  );
+});
+
+const RowsDropdown = memo(({ value, onChange }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
+    if (!open) return undefined;
     const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, []);
+    const k = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('pointerdown', h);
+    document.addEventListener('keydown', k);
+    return () => {
+      document.removeEventListener('pointerdown', h);
+      document.removeEventListener('keydown', k);
+    };
+  }, [open]);
+
   return (
-    <div className="relative inline-block" ref={ref}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-transparent hover:border-emerald-500/20 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
-        <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">{value} Rows</span>
-        <FiChevronDown size={12} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+    <div className="relative" ref={ref}>
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open} className={`${BTN_MD} h-10 min-w-[120px] justify-between uppercase`}>
+        <span>{value} rows</span>
+        <FiChevronDown size={14} className={`transition-transform duration-200 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="absolute right-0 z-20 mt-1 w-32 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
-          {options.map(n => (
+        <div role="listbox" className="nb-menu absolute right-0 z-20 mt-2 w-full overflow-hidden">
+          {ROWS_OPTIONS.map((n) => (
             <button
               key={n}
+              type="button"
+              role="option"
+              aria-selected={value === n}
               onClick={() => { onChange(n); setOpen(false); }}
-              className={`w-full flex items-center justify-between px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition ${value === n ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
-              {n} Rows
-              {value === n && <FiCheck size={12} className="text-emerald-500" />}
+              className="nb-opt"
+            >
+              {n} rows
             </button>
           ))}
         </div>
@@ -93,96 +332,291 @@ const RowsDropdown = memo(({ value, options, onChange }) => {
   );
 });
 
-const Dropdown = memo(({ label, value, options, onSelect, renderOption, renderSelected }) => {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-  useEffect(() => {
-    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, []);
+const SortTh = memo(({ label, field, sort, onSort }) => {
+  const active = sort.field === field;
   return (
-    <div className="relative" ref={ref}>
-      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{label}</label>
-      <button type="button" onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white focus:outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all">
-        <span className="uppercase tracking-wider">{renderSelected ? renderSelected(value) : value || `Select ${label}`}</span>
-        <FiChevronDown size={14} className={`text-gray-400 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
+    <th scope="col" className="px-3 py-3 text-left text-[11px] font-extrabold uppercase" aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <button type="button" onClick={() => onSort(field)} className="inline-flex items-center gap-1 uppercase hover:underline underline-offset-4">
+        {label}
+        <span className={`flex flex-col -space-y-1 ${active ? 'nb-ic' : 'nb-muted'}`}>
+          <FiChevronUp size={10} className={active && sort.dir === 'asc' ? '' : 'opacity-50'} />
+          <FiChevronDown size={10} className={active && sort.dir === 'desc' ? '' : 'opacity-50'} />
+        </span>
       </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-            className="absolute z-[110] mt-2 w-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden py-2">
-            {options.map(opt => (
-              <button key={opt.value ?? opt} type="button" onClick={() => { onSelect(opt); setOpen(false); }}
-                className={`w-full flex items-center justify-between px-5 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${(opt.value ?? opt) === value ? 'bg-emerald-500 text-white' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-900/50'}`}>
-                {renderOption ? renderOption(opt) : opt}
-                {(opt.value ?? opt) === value && <FiCheck size={12} />}
-              </button>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+    </th>
   );
 });
 
-const DetailsModal = memo(({ product: p, onClose }) => {
-  if (!p) return null;
-  const cond = getCondMeta(p.condition);
-  const fields = [
-    { icon: FiDollarSign, label: 'Price', value: p.price ? `${Number(p.price).toLocaleString()} EGP` : '—', color: 'lime' },
-    { icon: FiAlignLeft, label: 'Brief description', value: sanitize(p.description) },
+const PlainTh = ({ children }) => (
+  <th scope="col" className="px-3 py-3 text-left text-[11px] font-extrabold uppercase">{children}</th>
+);
+
+const Pagination = memo(({ page, total, onChange }) => (
+  <nav className="flex items-center gap-1.5" aria-label="Pagination">
+    <button type="button" className={BTN_ICON} onClick={() => onChange(page - 1)} disabled={page <= 1} aria-label="Previous page"><FiChevronLeft size={16} /></button>
+    {pageList(page, total).map((p) => (typeof p === 'string'
+      ? <span key={p} className="w-6 text-center text-xs font-bold">…</span>
+      : (
+        <button
+          key={p}
+          type="button"
+          onClick={() => onChange(p)}
+          aria-current={p === page ? 'page' : undefined}
+          className={`nb-btn w-8 h-8 text-xs tabular-nums ${p === page ? 'nb-btn-on' : ''}`}
+        >
+          {p}
+        </button>
+      )))}
+    <button type="button" className={BTN_ICON} onClick={() => onChange(page + 1)} disabled={page >= total} aria-label="Next page"><FiChevronRight size={16} /></button>
+  </nav>
+));
+
+const ProductRow = memo(({ product: p, busy, onView, onEdit, onDelete, onCopy }) => {
+  const name = clean(p.name) || 'Unnamed product';
+  const stock = stockOf(p);
+  return (
+    <tr className="transition-colors motion-reduce:transition-none">
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <div className="flex items-center gap-2.5">
+          <ProductImage src={imageSrc(p.imageUrl)} name={name} />
+          <div className="min-w-0">
+            <p className="text-xs font-extrabold uppercase truncate max-w-[220px]">{name}</p>
+            <p className="nb-muted text-[10px] font-semibold truncate max-w-[220px]">{clean(p.category?.name) || '—'}</p>
+          </div>
+        </div>
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <span className="inline-flex items-center gap-1.5">
+          <code className="nb-muted text-[11px] font-mono font-bold max-w-[90px] truncate block">{clean(p.id)}</code>
+          <button type="button" title="Copy product ID" aria-label="Copy product ID" onClick={() => onCopy(p.id)} className="nb-muted hover:text-emerald-500 transition-colors"><FiCopy size={12} /></button>
+        </span>
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap text-xs font-extrabold tabular-nums">{money(p.price)}</td>
+      <td className="px-3 py-2.5 whitespace-nowrap"><CondPill condition={p.condition} /></td>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <span className="nb-chip tabular-nums" style={{ background: stock > 0 ? '#34d399' : '#fb7185', color: '#04261a' }}>{unitsText(stock)}</span>
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <div className="flex items-center gap-1.5">
+          <button type="button" title="View details" aria-label="View details" onClick={() => onView(p)} className={BTN_ICON}><FiInfo size={14} /></button>
+          <button type="button" disabled={busy} title="Edit product" aria-label="Edit product" onClick={() => onEdit(p)} className={`${BTN_ICON} !text-amber-600 dark:!text-amber-300`}><FiEdit3 size={14} /></button>
+          <button type="button" disabled={busy} title="Delete product" aria-label="Delete product" onClick={() => onDelete(p)} className={`${BTN_ICON} !text-red-600 dark:!text-red-300`}><FiTrash2 size={14} /></button>
+        </div>
+      </td>
+    </tr>
+  );
+});
+
+const ModalShell = ({ title, subtitle, icon, tone = 'cyan', onClose, children, footer }) => (
+  <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
+    <div role="dialog" aria-modal="true" aria-label={title} className="nb-card relative w-full max-w-md max-h-[92vh] flex flex-col overflow-hidden">
+      <div className="nb-gray nb-line px-5 py-3.5 border-b-2 flex items-center justify-between flex-shrink-0">
+        <div className="flex items-center gap-2.5">
+          <IconTile icon={icon} tone={tone} className="w-9 h-9" size={16} />
+          <div>
+            <h3 className="text-sm font-extrabold uppercase"><span className="nb-ul">{title}</span></h3>
+            {subtitle}
+          </div>
+        </div>
+        <button type="button" onClick={onClose} aria-label="Close" className={BTN_ICON}><FiX size={15} /></button>
+      </div>
+      <div className="px-5 py-4 overflow-y-auto slim-scroll">{children}</div>
+      <div className="nb-gray nb-line px-5 py-3.5 border-t-2 flex justify-end gap-2 flex-shrink-0">{footer}</div>
+    </div>
+  </div>
+);
+
+const DetailsModal = memo(({ product: p, onClose, onCopy }) => {
+  useEscape(onClose);
+  const name = clean(p.name) || 'Unnamed product';
+  const stock = stockOf(p);
+  const rows = [
+    { icon: FiTag, label: 'Category', value: clean(p.category?.name) || '—' },
+    { icon: FiDollarSign, label: 'Price', value: money(p.price) },
   ];
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-md p-4">
-      <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-none shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
-        <div className="flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/80 px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-          <div className="flex items-center gap-3">
-            <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Product Details</h3>
-            <code className="text-[10px] font-black bg-emerald-500 text-white px-2 py-0.5 rounded-lg">{String(p.id).slice(0, 8)}</code>
-          </div>
-          <button onClick={onClose} className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-red-500 transition-all">
-            <FiX size={18} title="Close" />
-          </button>
+    <ModalShell
+      title="Product details"
+      icon={FiPackage}
+      onClose={onClose}
+      subtitle={(
+        <p className="nb-muted mt-1 flex items-center gap-1.5 text-[10px] font-bold font-mono">
+          {clean(p.id).slice(0, 12)}
+          <button type="button" aria-label="Copy product ID" onClick={() => onCopy(p.id)} className="hover:text-emerald-500 transition-colors"><FiCopy size={10} /></button>
+        </p>
+      )}
+      footer={<button type="button" onClick={onClose} className={`${BTN_MD} uppercase`}>Close</button>}
+    >
+      <div className="space-y-2.5">
+        <ProductImage src={imageSrc(p.imageUrl)} name={name} size="lg" />
+        <div className="flex flex-wrap gap-2">
+          <CondPill condition={p.condition} />
+          <span className="nb-chip tabular-nums" style={{ background: stock > 0 ? '#34d399' : '#fb7185', color: '#04261a' }}>{unitsText(stock)}</span>
         </div>
-        <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-          {p.imageUrl && (
-            <div className="w-full h-40 bg-gray-50 dark:bg-gray-900/40 rounded-none border border-gray-100 dark:border-gray-700 overflow-hidden flex items-center justify-center mb-2 group">
-              <img src={p.imageUrl} alt={p.name} className="max-h-full max-w-full object-contain group-hover:scale-110 transition-transform duration-700" />
-            </div>
-          )}
-          <div className="flex gap-2">
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${cond.bg} ${cond.text}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${cond.dot}`} />
-              {p.condition || 'UNSET'}
-            </span>
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${(p.stock ?? 0) > 0 ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 'bg-red-50 dark:bg-red-900/20 text-red-600'}`}>
-              {p.stock ?? 0} UNITS
-            </span>
-          </div>
-          <div className="p-4 bg-gray-50 dark:bg-gray-900/40 border border-transparent">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">Product Name</p>
-            <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{sanitize(p.name)}</p>
-          </div>
-          {fields.map(({ icon: Icon, label, value, color = 'gray' }) => (
-            <div key={label} className="group p-4 bg-gray-50 dark:bg-gray-900/40 border border-transparent hover:border-lime-500/20 transition-all duration-300">
-              <div className="flex items-center gap-4">
-                <div className={`w-10 h-10 rounded-xl bg-white dark:bg-gray-800 flex items-center justify-center text-${color === 'emerald' ? 'emerald-500' : 'gray-400'} shadow-sm group-hover:rotate-6 transition-transform`}>
-                  <Icon size={18} />
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{label}</p>
-                  <p className={`text-sm font-bold ${color === 'emerald' ? 'text-emerald-600' : 'text-gray-800 dark:text-gray-100'}`}>{String(value)}</p>
-                </div>
+        <div className={`${PANEL} p-3`}>
+          <p className="nb-muted text-[9px] font-bold uppercase">Product name</p>
+          <p className="text-xs font-extrabold break-words">{clean(p.name) || '—'}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2.5">
+          {rows.map(({ icon: Icon, label, value }) => (
+            <div key={label} className={`${PANEL} p-3 flex items-center gap-2.5`}>
+              <Icon size={15} className="nb-ic flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="nb-muted text-[9px] font-bold uppercase">{label}</p>
+                <p className="text-xs font-extrabold truncate">{value}</p>
               </div>
             </div>
           ))}
         </div>
-        <div className="px-6 pb-6 pt-2">
-          <button onClick={onClose}
-            className="w-full py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-[0.2em] hover:bg-emerald-500 dark:hover:bg-emerald-500 dark:hover:text-white transition-all active:scale-[0.98]">
-            Close
+        <div className={`${PANEL} p-3 flex items-start gap-2.5`}>
+          <FiAlignLeft size={15} className="nb-ic flex-shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <p className="nb-muted text-[9px] font-bold uppercase">Description</p>
+            <p className="text-xs font-semibold whitespace-pre-line break-words">{clean(p.description) || '—'}</p>
+          </div>
+        </div>
+      </div>
+    </ModalShell>
+  );
+});
+
+const EditModal = memo(({ form, categories, saving, onChange, onClose, onSubmit }) => {
+  useEscape(onClose);
+  const fileRef = useRef(null);
+  const catNames = useMemo(() => [...new Set([form.categoryName, ...categories.map((c) => c.name)].filter(Boolean))], [form.categoryName, categories]);
+  const name = clean(form.name) || 'Product';
+
+  const [preview, setPreview] = useState('');
+  useEffect(() => {
+    if (!form.imageFile) { setPreview(''); return undefined; }
+    const url = URL.createObjectURL(form.imageFile);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [form.imageFile]);
+
+  const shownSrc = preview || imageSrc(form.imageUrl);
+
+  const pickImage = useCallback((e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!IMAGE_TYPES.includes(file.type)) {
+      toast({ icon: 'error', title: 'Unsupported image', text: 'Use a JPEG, PNG or WebP file.' });
+      return;
+    }
+    if (file.size > IMAGE_MAX_BYTES) {
+      toast({ icon: 'error', title: 'Image too large', text: 'Maximum size is 5MB.' });
+      return;
+    }
+    onChange('imageFile', file);
+  }, [onChange]);
+
+  const openPicker = useCallback(() => fileRef.current?.click(), []);
+  const undoImage = useCallback(() => onChange('imageFile', null), [onChange]);
+  const bind = useCallback((field) => (e) => onChange(field, e.target.value), [onChange]);
+
+  return (
+    <ModalShell
+      title="Edit product"
+      icon={FiEdit3}
+      tone="amber"
+      onClose={onClose}
+      footer={(
+        <>
+          <button type="button" onClick={onClose} disabled={saving} className={`${BTN_MD} uppercase`}>Cancel</button>
+          <button type="button" onClick={onSubmit} disabled={saving} className={`${BTN_PRIMARY} uppercase`}>
+            {saving && <FiRefreshCw size={13} className="animate-spin motion-reduce:animate-none" />}
+            {saving ? 'Saving…' : 'Save changes'}
+          </button>
+        </>
+      )}
+    >
+      <div className="mb-3 space-y-2">
+        <ProductImage src={shownSrc} name={name} size="lg" />
+        <input ref={fileRef} type="file" accept={IMAGE_ACCEPT} onChange={pickImage} className="hidden" aria-label="Product image" />
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" disabled={saving} onClick={openPicker} className={`${BTN_MD} uppercase`}>
+            <FiUpload size={13} /> {shownSrc ? 'Change image' : 'Upload image'}
+          </button>
+          {form.imageFile && (
+            <button type="button" disabled={saving} onClick={undoImage} className={`${BTN_MD} uppercase`}>
+              <FiRotateCcw size={13} /> Undo
+            </button>
+          )}
+          <span className="nb-muted text-[10px] font-semibold truncate max-w-[180px]">
+            {form.imageFile ? form.imageFile.name : 'JPEG, PNG or WebP · max 5MB'}
+          </span>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="sm:col-span-2">
+          <label htmlFor="pf-name" className={LABEL}>Product name</label>
+          <input id="pf-name" type="text" maxLength={150} value={form.name} onChange={bind('name')} className={FIELD} />
+        </div>
+        <div>
+          <label htmlFor="pf-price" className={LABEL}>Price (EGP)</label>
+          <input id="pf-price" type="number" inputMode="decimal" min="0" step="0.01" value={form.price} onChange={bind('price')} className={FIELD} />
+        </div>
+        <div>
+          <label htmlFor="pf-stock" className={LABEL}>Stock</label>
+          <input id="pf-stock" type="number" inputMode="numeric" min="0" step="1" value={form.stockQuantity} onChange={bind('stockQuantity')} className={FIELD} />
+        </div>
+        <div>
+          <label htmlFor="pf-cat" className={LABEL}>Category</label>
+          <select id="pf-cat" value={form.categoryName} onChange={bind('categoryName')} className={FIELD}>
+            <option value="">Select category</option>
+            {catNames.map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="pf-cond" className={LABEL}>Condition</label>
+          <select id="pf-cond" value={form.condition} onChange={bind('condition')} className={FIELD}>
+            <option value="">Select condition</option>
+            {CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="mt-3">
+        <label htmlFor="pf-desc" className={LABEL}>Description</label>
+        <textarea id="pf-desc" rows={4} maxLength={2000} value={form.description} onChange={bind('description')} className={`${FIELD} h-auto py-2 resize-none`} />
+      </div>
+    </ModalShell>
+  );
+});
+
+const ConfirmDeleteModal = memo(({ product, busy, onClose, onConfirm }) => {
+  const guard = useCallback(() => { if (!busy) onClose(); }, [busy, onClose]);
+  useEscape(guard);
+  const name = clean(product.name) || 'Unnamed product';
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60" onClick={guard} aria-hidden="true" />
+      <div role="alertdialog" aria-modal="true" aria-label="Delete product" className="nb-card relative w-full max-w-sm overflow-hidden">
+        <div className="nb-gray nb-line px-5 py-4 flex items-center gap-3 border-b-2">
+          <IconTile icon={FiTrash2} tone="red" className="w-10 h-10" size={16} />
+          <div className="min-w-0">
+            <h3 className="text-sm font-extrabold uppercase">Delete product?</h3>
+            <p className="nb-muted text-[11px] font-semibold">This will remove it from all catalogues.</p>
+          </div>
+        </div>
+
+        <div className="px-5 py-4">
+          <div className={`${PANEL} p-3 flex items-center gap-2.5`}>
+            <FiPackage size={15} className="nb-ic flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs font-extrabold uppercase truncate">{name}</p>
+              <p className="nb-muted text-[10px] font-semibold truncate">{clean(product.category?.name) || clean(product.id)}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-5 pb-5 flex gap-2.5">
+          <button type="button" onClick={guard} disabled={busy} className={`${BTN_MD} flex-1 uppercase`}>Cancel</button>
+          <button type="button" onClick={onConfirm} disabled={busy} className={`${BTN_DANGER} flex-1 uppercase`}>
+            {busy ? <FiRefreshCw size={13} className="animate-spin motion-reduce:animate-none" /> : <FiTrash2 size={13} />}
+            {busy ? 'Deleting…' : 'Delete'}
           </button>
         </div>
       </div>
@@ -190,386 +624,395 @@ const DetailsModal = memo(({ product: p, onClose }) => {
   );
 });
 
-const EditModal = memo(({ form, setForm, categories, onClose, onSubmit }) => (
-  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-md p-4">
-    <div className="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-none shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden flex flex-col max-h-[90vh]">
-      <div className="flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/80 px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-        <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Edit Product </h3>
-        <button onClick={onClose} className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-red-500 transition-all">
-          <FiX size={18} title="Close" />
-        </button>
-      </div>
-      <div className="flex-1 overflow-y-auto p-8 space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {[
-            { label: 'Product Name', field: 'name', type: 'text' },
-            { label: 'Price (EGP)', field: 'price', type: 'number' },
-            { label: 'Stock', field: 'stockQuantity', type: 'number' },
-            { label: 'Image URL', field: 'imageUrl', type: 'url' },
-          ].map(({ label, field, ...props }) => (
-            <div key={field}>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{label}</label>
-              <input {...props} value={form[field] || ''} onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))}
-                className="w-full px-4 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white focus:outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all" />
-            </div>
-          ))}
-          <Dropdown label="Category" value={form.categoryName} options={categories.map(c => c.name)}
-            onSelect={v => setForm(f => ({ ...f, categoryName: v }))} renderSelected={v => v || 'Select Category'} />
-          <Dropdown label="Condition" value={form.condition} options={CONDITIONS}
-            onSelect={v => setForm(f => ({ ...f, condition: v }))} renderSelected={v => v || 'Select Condition'} />
-        </div>
-        <div>
-          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Description</label>
-          <textarea value={form.description || ''} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={4}
-            className="w-full px-4 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white focus:outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all resize-none" />
-        </div>
-      </div>
-      <div className="p-8 pt-0 flex gap-4">
-        <button onClick={onClose} className="flex-1 py-4 bg-gray-100 dark:bg-gray-700 text-gray-500 text-xs font-black uppercase tracking-widest hover:bg-gray-200 dark:hover:bg-gray-600 transition-all">Cancel </button>
-        <button onClick={onSubmit} className="flex-1 py-4 bg-emerald-500 text-white text-xs font-black uppercase tracking-widest hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 transition-all">Update </button>
-      </div>
-    </div>
-  </div>
-));
+const SKELETON_ROWS = Array.from({ length: 8 }, (_, i) => i);
+const SKELETON_CELLS = Array.from({ length: 6 }, (_, i) => i);
 
-const AdminProducts = ({ darkMode }) => {
+const AdminProducts = () => {
   const navigate = useNavigate();
+  const darkMode = useDarkMode();
   const tokenRef = useRef(localStorage.getItem('authToken'));
+  const authHeaders = useCallback(() => ({ Authorization: `Bearer ${tokenRef.current}` }), []);
 
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [stockFilter, setStockFilter] = useState('all');
+  const [tab, setTab] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [sortField, setSortField] = useState('name');
-  const [sortDir, setSortDir] = useState('asc');
-  const [editModal, setEditModal] = useState(false);
-  const [editForm, setEditForm] = useState({});
-  const [detailProduct, setDetailProduct] = useState(null);
+  const [sort, setSort] = useState({ field: 'name', dir: 'asc' });
+  const [detail, setDetail] = useState(null);
+  const [editForm, setEditForm] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [busyIds, setBusyIds] = useState(() => new Set());
+
+  const inflight = useRef(new Set());
+  const abortRef = useRef(null);
+  const detailAbort = useRef(null);
+  const catAbort = useRef(null);
+
+  const term = useDeferredValue(search).trim().toLowerCase();
 
   useEffect(() => { document.title = 'Admin - Products'; }, []);
+  useEffect(() => { ensureNbFont(); }, []);
 
-  useEffect(() => {
-    const id = setTimeout(() => { setDebouncedSearch(search); setCurrentPage(1); }, 300);
-    return () => clearTimeout(id);
-  }, [search]);
-
-  const fetchProducts = useCallback(async () => {
-    const token = tokenRef.current;
-    if (!token) { navigate('/login'); return; }
-    setLoading(true);
+  const fetchProducts = useCallback(async ({ silent = false } = {}) => {
+    if (!tokenRef.current) { navigate('/login', { replace: true }); return; }
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    if (!silent) setLoading(true);
+    setError(false);
     try {
-      const { data } = await api.get('/api/admin/products', { headers: { Authorization: `Bearer ${token}` } });
+      const { data } = await api.get('/api/admin/products', {
+        headers: authHeaders(),
+        params: { page: 0, size: 500 },
+        signal: ctrl.signal,
+      });
+      if (ctrl.signal.aborted) return;
       setProducts(Array.isArray(data) ? data : data?.content || []);
+      setLastUpdated(new Date());
     } catch (err) {
-      if (err?.response?.status === 401) navigate('/login');
-      else showToast('Sync failed', 'error');
-      setProducts([]);
-    } finally { setLoading(false); }
-  }, [navigate]);
+      if (ctrl.signal.aborted || isCanceled(err)) return;
+      const status = err?.response?.status;
+      if (status === 401) navigate('/login', { replace: true });
+      else if (status === 403) toast({ icon: 'error', title: 'Access denied', text: 'Admin accounts only.' });
+      else { setError(true); toast({ icon: 'error', title: 'Sync failed', text: errText(err) }); }
+    } finally {
+      if (abortRef.current === ctrl) setLoading(false);
+    }
+  }, [navigate, authHeaders]);
 
   const fetchCategories = useCallback(async () => {
-    const token = tokenRef.current;
-    if (!token) return;
+    if (!tokenRef.current) return;
+    catAbort.current?.abort();
+    const ctrl = new AbortController();
+    catAbort.current = ctrl;
     try {
-      const { data } = await api.get('/api/admin/categories', { headers: { Authorization: `Bearer ${token}` } });
-      setCategories(Array.isArray(data) ? data : data?.content || []);
-    } catch { }
+      const { data } = await api.get('/api/admin/categories', { headers: authHeaders(), signal: ctrl.signal });
+      if (!ctrl.signal.aborted) setCategories(Array.isArray(data) ? data : data?.content || []);
+    } catch {}
+  }, [authHeaders]);
+
+  useEffect(() => {
+    fetchProducts();
+    fetchCategories();
+    return () => { abortRef.current?.abort(); detailAbort.current?.abort(); catAbort.current?.abort(); };
+  }, [fetchProducts, fetchCategories]);
+
+  const withBusy = useCallback(async (id, task) => {
+    if (!isSafeId(id) || inflight.current.has(String(id))) return;
+    inflight.current.add(String(id));
+    setBusyIds(new Set(inflight.current));
+    try { await task(encodeURIComponent(id)); } finally {
+      inflight.current.delete(String(id));
+      setBusyIds(new Set(inflight.current));
+    }
   }, []);
 
-  const fetchById = useCallback(async (id) => {
-    const token = tokenRef.current;
+  const requestDelete = useCallback((p) => setDeleteTarget(p), []);
+  const closeDelete = useCallback(() => setDeleteTarget(null), []);
+
+  const confirmDelete = useCallback(async () => {
+    const p = deleteTarget;
+    if (!p) return;
+    await withBusy(p.id, async (eid) => {
+      try {
+        await api.delete(`/api/admin/products/${eid}`, { headers: authHeaders() });
+        setProducts((prev) => prev.filter((x) => x.id !== p.id));
+        toast({ icon: 'success', title: 'Product deleted' });
+      } catch (err) {
+        toast({ icon: 'error', title: 'Delete failed', text: errText(err) });
+      }
+    });
+    setDeleteTarget(null);
+  }, [deleteTarget, withBusy, authHeaders]);
+
+  const viewProduct = useCallback(async (p) => {
+    setDetail(p);
+    if (!isSafeId(p.id)) return;
+    detailAbort.current?.abort();
+    const ctrl = new AbortController();
+    detailAbort.current = ctrl;
     try {
-      const { data } = await api.get(`/api/admin/products/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      setDetailProduct(data);
-    } catch {
-      const found = products.find(p => p.id === id);
-      if (found) setDetailProduct(found);
-      else showToast('Sync failed', 'error');
+      const { data } = await api.get(`/api/admin/products/${encodeURIComponent(p.id)}`, { headers: authHeaders(), signal: ctrl.signal });
+      if (!ctrl.signal.aborted) setDetail((prev) => (prev && prev.id === p.id ? { ...prev, ...data } : prev));
+    } catch {}
+  }, [authHeaders]);
+
+  const closeDetail = useCallback(() => { detailAbort.current?.abort(); setDetail(null); }, []);
+
+  const hasCategories = categories.length > 0;
+  const openEdit = useCallback((p) => {
+    if (!hasCategories) fetchCategories();
+    setEditForm({
+      id: p.id,
+      name: p.name || '',
+      description: p.description || '',
+      price: p.price ?? '',
+      imageUrl: p.imageUrl || '',
+      imageFile: null,
+      categoryName: p.category?.name || '',
+      stockQuantity: p.stock ?? '',
+      condition: p.condition || '',
+    });
+  }, [hasCategories, fetchCategories]);
+
+  const changeField = useCallback((field, value) => setEditForm((f) => (f ? { ...f, [field]: value } : f)), []);
+  const closeEdit = useCallback(() => { if (!saving) setEditForm(null); }, [saving]);
+
+  const submitEdit = useCallback(async () => {
+    if (!editForm || saving) return;
+    const price = Number(editForm.price);
+    const stock = Number(editForm.stockQuantity);
+    const name = clean(editForm.name).trim();
+    let problem = '';
+    if (!name) problem = 'Enter a product name.';
+    else if (editForm.price === '' || !Number.isFinite(price) || price <= 0) problem = 'Enter a price greater than 0.';
+    else if (!editForm.categoryName) problem = 'Choose a category.';
+    else if (editForm.stockQuantity === '' || !Number.isInteger(stock) || stock < 0) problem = 'Stock must be a whole number, 0 or more.';
+    if (problem) { toast({ icon: 'error', title: 'Check the form', text: problem }); return; }
+    if (!isSafeId(editForm.id)) return;
+
+    const imageUrl = editForm.imageUrl || null;
+    const description = clean(editForm.description);
+    const { imageFile } = editForm;
+
+    const fd = new FormData();
+    fd.append('data', new Blob([JSON.stringify({
+      name,
+      description,
+      price,
+      imageUrl,
+      categoryName: editForm.categoryName,
+      stockQuantity: stock,
+      condition: editForm.condition,
+    })], { type: 'application/json' }));
+    if (imageFile) fd.append('image', imageFile);
+
+    setSaving(true);
+    try {
+      await api.put(`/api/admin/products/${encodeURIComponent(editForm.id)}`, fd, { headers: authHeaders(), ...UPLOAD_CONFIG });
+      setProducts((prev) => prev.map((p) => (p.id === editForm.id ? {
+        ...p,
+        name,
+        description,
+        price,
+        ...(imageFile ? {} : { imageUrl }),
+        stock,
+        condition: editForm.condition,
+        category: { ...(p.category || {}), name: editForm.categoryName },
+      } : p)));
+      toast({ icon: 'success', title: 'Product updated' });
+      setEditForm(null);
+      fetchProducts({ silent: true });
+    } catch (err) {
+      toast({ icon: 'error', title: 'Update failed', text: uploadErrText(err) });
+    } finally {
+      setSaving(false);
     }
+  }, [editForm, saving, authHeaders, fetchProducts]);
+
+  const { index, counts } = useMemo(() => {
+    let inStock = 0;
+    const rows = products.map((p) => {
+      const name = clean(p.name).toLowerCase();
+      const stock = stockOf(p);
+      if (stock > 0) inStock += 1;
+      return {
+        p, name, stock,
+        price: num(p.price),
+        cond: clean(p.condition).toLowerCase(),
+        text: `${name} ${clean(p.description).toLowerCase()} ${String(p.id ?? '').toLowerCase()}`,
+      };
+    });
+    return { index: rows, counts: { all: rows.length, inStock, outOfStock: rows.length - inStock } };
   }, [products]);
 
-  useEffect(() => { fetchProducts(); fetchCategories(); }, [fetchProducts, fetchCategories]);
+  const filtered = useMemo(() => {
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    const key = sort.field;
+    const list = index.filter((e) => (
+      (tab === 'all' || (tab === 'inStock' ? e.stock > 0 : e.stock <= 0))
+      && (!term || e.text.includes(term))
+    ));
+    list.sort((a, b) => (a[key] < b[key] ? -dir : a[key] > b[key] ? dir : 0));
+    return list;
+  }, [index, tab, term, sort]);
 
-  const stats = useMemo(() => ({
-    total: products.length,
-    inStock: products.filter(p => (p.stock ?? 0) > 0).length,
-    outOfStock: products.filter(p => (p.stock ?? 0) === 0).length,
-  }), [products]);
-
-  const handleSort = useCallback((field) => {
-    setSortField(prev => {
-      if (prev === field) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return prev; }
-      setSortDir('asc'); return field;
-    });
-    setCurrentPage(1);
-  }, []);
-
-  const processed = useMemo(() => {
-    const t = debouncedSearch.toLowerCase();
-    const list = products.filter(p => {
-      const matchSearch = !t || (p.name || '').toLowerCase().includes(t) || (p.description || '').toLowerCase().includes(t);
-      const matchStock = stockFilter === 'all' || (stockFilter === 'inStock' ? (p.stock ?? 0) > 0 : (p.stock ?? 0) === 0);
-      return matchSearch && matchStock;
-    });
-    return [...list].sort((a, b) => {
-      let av = a[sortField], bv = b[sortField];
-      if (sortField === 'price' || sortField === 'stock') { av = Number(av || 0); bv = Number(bv || 0); }
-      else { av = String(av || '').toLowerCase(); bv = String(bv || '').toLowerCase(); }
-      if (av < bv) return sortDir === 'asc' ? -1 : 1;
-      if (av > bv) return sortDir === 'asc' ? 1 : -1;
-      return 0;
-    });
-  }, [products, debouncedSearch, stockFilter, sortField, sortDir]);
-
-  const totalPages = Math.ceil(processed.length / rowsPerPage);
-  const paginated = useMemo(
-    () => processed.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage),
-    [processed, currentPage, rowsPerPage]
-  );
-
-  const openEdit = useCallback(async (p) => {
-    await fetchCategories();
-    setEditForm({
-      id: p.id, name: p.name || '', description: p.description || '',
-      price: p.price || '', imageUrl: p.imageUrl || '',
-      categoryName: p.category?.name || '', stockQuantity: p.stock || '', condition: p.condition || '',
-    });
-    setEditModal(true);
-  }, [fetchCategories]);
-
-  const handleUpdate = useCallback(async () => {
-    const token = tokenRef.current;
-    if (!editForm.name || !editForm.price || !editForm.categoryName || !editForm.stockQuantity) {
-      showToast('Validation failed', 'error'); return;
-    }
-    try {
-      await api.put(`/api/admin/products/${editForm.id}`, {
-        name: editForm.name, description: editForm.description,
-        price: parseFloat(editForm.price), imageUrl: editForm.imageUrl || null,
-        categoryName: editForm.categoryName, stockQuantity: Number(editForm.stockQuantity),
-        condition: editForm.condition,
-      }, { headers: { Authorization: `Bearer ${token}` } });
-      showToast('Registry Updated', 'success');
-      setEditModal(false); fetchProducts();
-    } catch { showToast('Action failed', 'error'); }
-  }, [editForm, fetchProducts]);
-
-  const deleteProduct = useCallback(async (id) => {
-    const token = tokenRef.current;
-    const { isConfirmed } = await Swal.fire({
-      title: 'Delete Product ?',
-      text: 'This will remove the product from all catalogues.',
-      icon: 'warning', showCancelButton: true,
-      confirmButtonText: 'Confirm Deletion', confirmButtonColor: '#ef4444',
-      background: darkMode ? '#111827' : '#fff', color: darkMode ? '#fff' : '#000',
-    });
-    if (!isConfirmed) return;
-    try {
-      await api.delete(`/api/admin/products/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      showToast('Product Deleted', 'success'); fetchProducts();
-    } catch { showToast('Action failed', 'error'); }
-  }, [fetchProducts, darkMode]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+  const page = Math.min(currentPage, totalPages);
+  const paginated = useMemo(() => filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage), [filtered, page, rowsPerPage]);
+  const from = filtered.length ? (page - 1) * rowsPerPage + 1 : 0;
+  const to = Math.min(page * rowsPerPage, filtered.length);
 
   const statCards = useMemo(() => [
-    { icon: FiPackage,     label: 'Total Products', value: stats.total,      color: 'lime'    },
-    { icon: FiCheckCircle, label: 'In Stock',     value: stats.inStock,    color: 'emerald' },
-    { icon: FiXCircle,     label: 'Out of Stock',   value: stats.outOfStock, color: 'rose'    },
-  ], [stats]);
+    { label: 'Total products', value: fmt(counts.all), description: 'All catalogue listings', icon: FiPackage, tone: 'em', percent: counts.all ? 100 : 0, color: '#34d399' },
+    { label: 'In stock', value: fmt(counts.inStock), description: 'Available to order', icon: FiCheckCircle, tone: 'teal', percent: pct(counts.inStock, counts.all), color: '#2dd4bf' },
+    { label: 'Out of stock', value: fmt(counts.outOfStock), description: 'Needs restocking', icon: FiXCircle, tone: 'red', percent: pct(counts.outOfStock, counts.all), color: '#fb7185' },
+  ], [counts]);
+
+  const handleSearch = useCallback((e) => { setSearch(sanitizeSearch(e.target.value)); setCurrentPage(1); }, []);
+  const handleTab = useCallback((key) => { setTab(key); setCurrentPage(1); }, []);
+  const handleRows = useCallback((n) => { setRowsPerPage(n); setCurrentPage(1); }, []);
+  const handleSort = useCallback((field) => { setSort((s) => nextSort(s, field)); setCurrentPage(1); }, []);
+  const handleCopy = useCallback(async (id) => {
+    try {
+      await navigator.clipboard.writeText(String(id));
+      toast({ icon: 'success', title: 'Copied', text: 'Product ID copied to clipboard.', timer: 2000 });
+    } catch {
+      toast({ icon: 'error', title: 'Could not copy', text: 'Allow clipboard access in your browser.' });
+    }
+  }, []);
+  const refresh = useCallback(() => fetchProducts(), [fetchProducts]);
+
+  const exportCSV = useCallback(() => {
+    downloadCSV(
+      'products.csv',
+      ['ID', 'Name', 'Category', 'Price (EGP)', 'Condition', 'Stock', 'Description'],
+      filtered.map(({ p }) => [p.id, clean(p.name), clean(p.category?.name), p.price, clean(p.condition), stockOf(p), clean(p.description)]),
+    );
+  }, [filtered]);
+
+  const hasData = products.length > 0;
+  const skeletonRows = SKELETON_ROWS.slice(0, Math.min(rowsPerPage, 8));
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
+    <div
+      style={NB_FONT_STYLE}
+      className={`nb ${darkMode ? 'nb-dark' : ''} min-h-screen py-6 lg:pl-64 mt-16 text-left overflow-x-hidden`}
+    >
+      <style>{PAGE_CSS}</style>
+      <Defs3D />
+      <Toaster darkMode={darkMode} />
 
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-1.5 rounded-full bg-emerald-500" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">Product Lifecycle</span>
-            </div>
-            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">Products</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Manage and audit global product listings and inventory levels</p>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
+        <div className="flex flex-wrap items-end justify-between gap-3 px-0.5">
+          <div>
+            <p className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wide"><span className="nb-bar" aria-hidden="true" />Catalogue</p>
+            <h1 className="mt-2.5 text-3xl sm:text-4xl font-extrabold tracking-tight leading-[1.15]">
+              <UnderlinedTitle text="Products Console" />
+            </h1>
+            <p className="nb-muted mt-2 text-sm font-medium">Manage product listings and inventory levels</p>
           </div>
-          <div className="flex items-center gap-3">
-            <button onClick={fetchProducts} disabled={loading} title="Refresh"
-              className="w-10 h-10 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-emerald-500 hover:border-emerald-500/30 transition-all disabled:opacity-40">
-              <FiRefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          <div className="flex items-center gap-2.5">
+            {lastUpdated && <p className="nb-muted hidden sm:block text-[11px] font-bold">Last updated: {TIME_FMT.format(lastUpdated)}</p>}
+            <button type="button" onClick={refresh} aria-label="Refresh" title="Refresh" className={`${BTN_MD} h-10 uppercase`}>
+              <FiRefreshCw size={14} className={loading ? 'animate-spin motion-reduce:animate-none' : ''} /> Refresh
             </button>
-            <div className="p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-sm flex items-center gap-4">
-              <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center text-gray-400">
-                <FiActivity size={18} />
-              </div>
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Inventory State</p>
-
-              </div>
-            </div>
+            <button type="button" onClick={exportCSV} disabled={!filtered.length} className={`${BTN_MD} h-10 uppercase`}>
+              <FiDownload size={14} /> Export CSV
+            </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          {statCards.map(s => <StatCard key={s.label} {...s} />)}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
+          {statCards.map((s) => <StatCard key={s.label} {...s} />)}
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
-          <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
-            <div className="relative flex-1 group">
-              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors" size={16} />
-              <input type="text" placeholder="Search by name or technical description..." value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="w-full pl-12 pr-10 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all" />
-              {search && (
-                <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors">
-                  <FiX size={16} title="Clear" />
-                </button>
-              )}
+        <section className="nb-card overflow-hidden">
+          <div className="nb-line p-3 sm:p-4 flex flex-wrap items-center gap-2.5 border-b-2">
+            <div className="nb-field relative flex h-10 min-w-[220px] flex-1 items-center gap-2 px-3">
+              <FiSearch aria-hidden="true" className="h-4 w-4 flex-shrink-0" />
+              <input
+                type="search"
+                value={search}
+                maxLength={SEARCH_MAX}
+                autoComplete="off"
+                spellCheck={false}
+                enterKeyHint="search"
+                aria-label="Search products"
+                placeholder="Search by name, description or ID"
+                onChange={handleSearch}
+                className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60"
+              />
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              {[{ v: 'all', l: 'All' }, { v: 'inStock', l: 'In Stock' }, { v: 'outOfStock', l: 'Out of Stock' }].map(({ v, l }) => (
-                <button key={v} onClick={() => { setStockFilter(v); setCurrentPage(1); }}
-                  className={`px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${stockFilter === v ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'border-transparent bg-gray-50 dark:bg-gray-900/50 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
-                  {l}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-3 px-4 border-l border-gray-100 dark:border-gray-800">
-              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Rows</span>
-              <RowsDropdown value={rowsPerPage} options={ROWS_OPTIONS} onChange={n => { setRowsPerPage(n); setCurrentPage(1); }} />
-            </div>
+            <RowsDropdown value={rowsPerPage} onChange={handleRows} />
           </div>
-        </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-sm border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
-          {loading ? (
-            <div className="py-32 text-center space-y-4">
-              <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto shadow-lg" />
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 animate-pulse">Scanning product network...</p>
-            </div>
-          ) : (
-            <>
-              <div className="overflow-x-auto w-full rounded-sm border border-gray-200 dark:border-gray-800 shadow-sm custom-scrollbar-thin">
-                <table className="w-full table-auto border-collapse text-center text-sm text-gray-500  min-w-[900px]">
-                  <thead className="bg-gray-50 dark:bg-gray-900">
-                    <tr>
-                      <th className={`text-slate-500 font-medium text-xs tracking-wider uppercase border-b border-slate-200 dark:border-slate-800  p-4   cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors`}>ID</th>
-                      <Th field="name"      label="Name" center={true} onSort={handleSort} sortField={sortField} sortDir={sortDir} />
-                      <Th field="price"     label="Price"                       onSort={handleSort} sortField={sortField} sortDir={sortDir} />
-                      <Th field="condition" label="Condition"                   onSort={handleSort} sortField={sortField} sortDir={sortDir} />
-                      <Th field="stock"     label="Stock"                       onSort={handleSort} sortField={sortField} sortDir={sortDir} />
-                      <th className={`text-slate-500 font-medium text-xs tracking-wider uppercase border-b border-slate-200 dark:border-slate-800  p-4   cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors`}>Actions</th>
+          <Tabs tabs={TABS} value={tab} onChange={handleTab} counts={counts} />
+
+          <div className="overflow-auto max-h-[68vh] slim-scroll">
+            <table className="w-full min-w-[820px] text-left border-collapse">
+              <thead className="nb-gray sticky top-0 z-10 shadow-[0_2px_0_0_var(--nb-line)]">
+                <tr>
+                  <SortTh label="Product" field="name" sort={sort} onSort={handleSort} />
+                  <PlainTh>ID</PlainTh>
+                  <SortTh label="Price" field="price" sort={sort} onSort={handleSort} />
+                  <SortTh label="Condition" field="cond" sort={sort} onSort={handleSort} />
+                  <SortTh label="Stock" field="stock" sort={sort} onSort={handleSort} />
+                  <PlainTh>Actions</PlainTh>
+                </tr>
+              </thead>
+              <tbody className="nb-rows">
+                {loading && !hasData ? (
+                  skeletonRows.map((i) => (
+                    <tr key={i} className="animate-pulse motion-reduce:animate-none">
+                      {SKELETON_CELLS.map((j) => (
+                        <td key={j} className="px-3 py-4"><div className="nb-gray h-3.5 w-full" /></td>
+                      ))}
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                    {paginated.length === 0 ? (
-                      <tr><td colSpan={6} className="py-32 text-center">
-                        <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
-                          <FiBox size={32} className="text-gray-200" />
-                        </div>
-                        <p className="text-gray-400 font-bold">No Product Records Identified</p>
-                      </td></tr>
-                    ) : paginated.map(p => {
-                      const cm = getCondMeta(p.condition);
-                      return (
-                        <tr key={p.id} className="hover:bg-emerald-50/10 dark:hover:bg-emerald-900/5 transition-colors group">
-                          <td className="p-3">
-                            <div className="flex items-center justify-center gap-3">
-                              <code className="text-[10px] font-black bg-gray-50 dark:bg-gray-900 px-3 py-1.5 rounded-lg text-gray-500 max-w-[80px] truncate block border border-transparent group-hover:border-lime-500/20 transition-all">{p.id}</code>
-                              <button onClick={() => navigator.clipboard.writeText(p.id).then(() => showToast('ID Copied', 'success'))}
-                                className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-lime-500 transition-all">
-                                <FiCopy size={14} title="Copy Product ID" />
-                              </button>
-                            </div>
-                          </td>
-                          <td className="p-3">
-                            <div className="space-y-0.5">
-                              <p className="text-xs font-bold text-gray-900 dark:text-white tracking-tight max-w-[180px] truncate">{sanitize(p.name)}</p>
-                            </div>
-                          </td>
-                          <td className="p-3 text-center font-mono font-bold text-xs text-emerald-600">{p.price ? `${p.price} EGP` : '—'}</td>
-                          <td className="p-3 text-center">
-                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${cm.bg} ${cm.text}`}>
-                             
-                              {p.condition || 'UNSET'}
-                            </span>
-                          </td>
-                          <td className="p-3 text-center">
-                            <span className={`font-mono font-bold text-xs px-3 py-1 rounded-full ${(p.stock ?? 0) > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                              {p.stock ?? 0} Units
-                            </span>
-                          </td>
-                          <td className="p-1">
-                            <div className="flex items-center justify-center gap-2 flex-wrap">
-                              <button onClick={() => fetchById(p.id)}
-                                className="p-1.5 text-gray- border border-gray-200 hover:border-none dark:text-white dark:border-gray-900 dark:hover:text-white dark:bg-gray-900 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors">
-                                <FiInfo size={16} title="View Details" />
-                              </button>
-                              <button onClick={() => openEdit(p)}
-                                className="p-1.5 text-gray- border border-gray-200 hover:border-none dark:text-white dark:border-gray-900 dark:hover:text-white dark:bg-gray-900 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors">
-                                <FiEdit3 size={16} title="Edit Product" />
-                              </button>
-                              <button onClick={() => deleteProduct(p.id)}
-                                className="p-1.5 text-gray- border border-gray-200 hover:border-none dark:text-white dark:border-gray-900 dark:hover:text-white dark:bg-gray-900 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors">
-                                <FiTrash2 size={16} title="Delete Product" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                  ))
+                ) : error && !hasData ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-14 text-center">
+                      <FiAlertCircle size={28} className="mx-auto text-red-500" />
+                      <p className="mt-2 text-sm font-extrabold uppercase">Couldn't load products</p>
+                      <p className="nb-muted text-xs mb-4">Check your connection and try again.</p>
+                      <button type="button" onClick={refresh} className={`${BTN_MD} nb-btn-a uppercase`}><FiRefreshCw size={13} /> Try again</button>
+                    </td>
+                  </tr>
+                ) : paginated.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-14">
+                      <EmptyState3D kind="box" title="No products found" subtitle="The list is empty or nothing matches your search" darkMode={darkMode} />
+                    </td>
+                  </tr>
+                ) : (
+                  paginated.map(({ p }) => (
+                    <ProductRow
+                      key={p.id}
+                      product={p}
+                      busy={busyIds.has(String(p.id))}
+                      onView={viewProduct}
+                      onEdit={openEdit}
+                      onDelete={requestDelete}
+                      onCopy={handleCopy}
+                    />
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
-              {totalPages > 1 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between border-t border-gray-50 dark:border-gray-800 bg-gray-50/30 dark:bg-gray-800/20 px-8 py-6 gap-6">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                    Showing {paginated.length} products of {processed.length}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
-                      className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all">
-                      <FiChevronLeft size={16} />
-                    </button>
-                    <div className="flex gap-1">
-                      {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                        const p = i + 1;
-                        return (
-                          <button key={p} onClick={() => setCurrentPage(p)}
-                            className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all border ${currentPage === p ? 'bg-lime-500 border-lime-500 text-white shadow-lg shadow-lime-500/20' : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-500 hover:border-lime-500/50'}`}>
-                            {p}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
-                      className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 text-gray-400 hover:text-lime-500 disabled:opacity-30 transition-all">
-                      <FiChevronRight size={16} />
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
+          {filtered.length > 0 && (
+            <div className="nb-gray nb-line px-4 py-3 border-t-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <p className="text-xs font-semibold">
+                Showing <b className="tabular-nums">{fmt(from)}–{fmt(to)}</b> of <b className="tabular-nums">{fmt(filtered.length)}</b> products
+              </p>
+              {totalPages > 1 && <Pagination page={page} total={totalPages} onChange={setCurrentPage} />}
+            </div>
           )}
-        </div>
+        </section>
       </div>
 
-      <AnimatePresence>
-        {detailProduct && <DetailsModal product={detailProduct} onClose={() => setDetailProduct(null)} />}
-        {editModal && <EditModal form={editForm} setForm={setEditForm} categories={categories} onClose={() => setEditModal(false)} onSubmit={handleUpdate} />}
-      </AnimatePresence>
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        .custom-scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
-        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
-        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
-      `}} />
+      {detail && <DetailsModal product={detail} onClose={closeDetail} onCopy={handleCopy} />}
+      {editForm && (
+        <EditModal form={editForm} categories={categories} saving={saving} onChange={changeField} onClose={closeEdit} onSubmit={submitEdit} />
+      )}
+      {deleteTarget && (
+        <ConfirmDeleteModal
+          product={deleteTarget}
+          busy={busyIds.has(String(deleteTarget.id))}
+          onClose={closeDelete}
+          onConfirm={confirmDelete}
+        />
+      )}
     </div>
   );
 };
 
-export default AdminProducts;
+export default memo(AdminProducts);

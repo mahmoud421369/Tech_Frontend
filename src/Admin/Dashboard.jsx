@@ -1,385 +1,571 @@
-import React, { useState, useEffect, useCallback, useMemo, memo, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo, memo, useRef, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
-import Swal from "sweetalert2";
-import { jwtDecode } from "jwt-decode";
-import api from "../api";
+import api from "../common/api/api";
+import { isAdminToken, isTokenExpired } from "../common/utils/adminAuth";
 import {
-  FiBell, FiCheckCircle, FiTruck, FiActivity, FiUsers,
-  FiBox, FiTool, FiClipboard, FiRefreshCw, FiTrash2, FiTrendingUp,
-  FiChevronRight, FiClock, FiArrowRight, FiInfo, FiZap, FiPackage, FiShoppingBag, FiLayers, FiCreditCard
+  FiTrendingUp, FiChevronLeft, FiChevronRight, FiUsers, FiShoppingBag,
+  FiCreditCard, FiBox, FiTruck, FiClipboard, FiTool, FiPackage, FiPieChart,
 } from "react-icons/fi";
-import {
-  Chart, CategoryScale, LinearScale, BarElement,
-  Title, Tooltip, Legend, ArcElement,
-} from 'chart.js';
-import { Pie } from 'react-chartjs-2';
 
-Chart.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
+const Chart = lazy(async () => {
+  const [cjs, rc] = await Promise.all([import("chart.js"), import("react-chartjs-2")]);
+  cjs.Chart.register(cjs.CategoryScale, cjs.LinearScale, cjs.BarElement, cjs.Tooltip, cjs.Legend, cjs.ArcElement);
+  const { Doughnut, Bar } = rc;
+  return {
+    default: ({ type, data, options }) =>
+      type === "bar" ? <Bar data={data} options={options} /> : <Doughnut data={data} options={options} />,
+  };
+});
 
-const REFRESH_INTERVAL = 30_000;
-
-const isTokenExpired = (token) => {
-  if (!token) return true;
-  try { const d = jwtDecode(token); return !d.exp || d.exp < Date.now() / 1000; }
-  catch { return true; }
-};
-
-const formatTime = (date) => {
-  if (!date) return "Just now";
-  const d = new Date(date), now = new Date(), diff = now - d;
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1)  return "Just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24)  return `${hrs}h ago`;
-  return d.toLocaleDateString();
-};
-
-const showToast = (text, icon) => {
+let swalPromise = null;
+const loadSwal = () => (swalPromise ||= import("sweetalert2").then((m) => m.default));
+const showToast = async (text, icon) => {
+  const Swal = await loadSwal();
   Swal.fire({ text, icon, toast: true, position: "top-end", timer: 3000, showConfirmButton: false });
 };
 
-const COLOR_HEX = { emerald: '#10b981', blue: '#3b82f6', orange: '#f97316', teal: '#14b8a6', purple: '#a855f7', rose: '#f43f5e' };
+const REFRESH_INTERVAL = 60_000;
+const MIN_GAP = 15_000;
+const MAX_INTERVAL = 300_000;
+const CACHE_KEY = "admin_stats_v2";
+const REDUCED = typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-const CardIllustration = memo(({ kind, color }) => {
-  const c = color || '#10b981';
-  const paths = {
-    users: (
-      <>
-        <circle cx="15" cy="13" r="6" fill="none" stroke={c} strokeWidth="2.2" />
-        <path d="M5 33c0-7 4.5-11 10-11s10 4 10 11" fill="none" stroke={c} strokeWidth="2.2" strokeLinecap="round" />
-        <circle cx="29" cy="15" r="4.2" fill="none" stroke={c} strokeWidth="2" opacity="0.55" />
-        <path d="M27 33c0-4.3 2-7.2 5.5-8.2" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" opacity="0.55" />
-      </>
-    ),
-    shop: (
-      <>
-        <path d="M6 14 L20 8 L34 14 L34 18 L6 18 Z" fill="none" stroke={c} strokeWidth="2.2" strokeLinejoin="round" />
-        <rect x="8" y="18" width="24" height="15" rx="2" fill="none" stroke={c} strokeWidth="2.2" />
-        <rect x="16" y="23" width="8" height="10" fill="none" stroke={c} strokeWidth="2" />
-      </>
-    ),
-    wrench: (
-      <>
-        <rect x="9" y="18" width="22" height="6" rx="3" fill="none" stroke={c} strokeWidth="2.2" transform="rotate(-30 20 21)" />
-        <circle cx="10" cy="10" r="6" fill="none" stroke={c} strokeWidth="2.2" strokeDasharray="18 100" strokeLinecap="round" transform="rotate(140 10 10)" />
-      </>
-    ),
-    package: (
-      <>
-        <path d="M8,14 L20,8 L32,14 L32,28 L20,34 L8,28 Z" fill="none" stroke={c} strokeWidth="2.2" strokeLinejoin="round" />
-        <path d="M8,14 L20,20 L32,14" fill="none" stroke={c} strokeWidth="2" strokeLinejoin="round" />
-        <line x1="20" y1="20" x2="20" y2="34" stroke={c} strokeWidth="2" />
-      </>
-    ),
-    card: (
-      <>
-        <rect x="5" y="11" width="30" height="19" rx="3" fill="none" stroke={c} strokeWidth="2.2" />
-        <line x1="5" y1="17" x2="35" y2="17" stroke={c} strokeWidth="2.2" />
-        <line x1="9" y1="24" x2="18" y2="24" stroke={c} strokeWidth="2" strokeLinecap="round" />
-      </>
-    ),
-    truck: (
-      <>
-        <rect x="4" y="14" width="18" height="12" rx="2" fill="none" stroke={c} strokeWidth="2.2" />
-        <path d="M22 18 H30 L34 23 V26 H22 Z" fill="none" stroke={c} strokeWidth="2.2" strokeLinejoin="round" />
-        <circle cx="12" cy="29" r="3" fill={c} />
-        <circle cx="29" cy="29" r="3" fill={c} />
-      </>
-    ),
-    clipboard: (
-      <>
-        <rect x="9" y="8" width="21" height="26" rx="3" fill="none" stroke={c} strokeWidth="2.2" />
-        <rect x="14" y="5" width="11" height="5" rx="1.5" fill="none" stroke={c} strokeWidth="2" />
-        <path d="M13 18 H26 M13 24 H26 M13 30 H20" stroke={c} strokeWidth="2" strokeLinecap="round" />
-      </>
-    ),
-  };
-  return <svg viewBox="0 0 40 40" className="w-7 h-7">{paths[kind]}</svg>;
+const NEON = ["#34d399", "#2dd4bf", "#a3e635", "#22d3ee"];
+const KEYS = ["users", "shops", "repairs", "orders"];
+const LABELS = ["Users", "Shops", "Repairs", "Orders"];
+
+/* ---------- Neo-brutalist style (same language as the Shops page, with small shadows) ---------- */
+
+const NB_FONT = "'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
+const NB_FONT_STYLE = { fontFamily: NB_FONT };
+const ensureNbFont = () => {
+  if (typeof document === "undefined" || document.getElementById("nb-font")) return;
+  [["https://fonts.googleapis.com", false], ["https://fonts.gstatic.com", true]].forEach(([href, cors]) => {
+    const l = document.createElement("link");
+    l.rel = "preconnect"; l.href = href; if (cors) l.crossOrigin = "";
+    document.head.appendChild(l);
+  });
+  const link = document.createElement("link");
+  link.id = "nb-font";
+  link.rel = "stylesheet";
+  link.href = "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap";
+  document.head.appendChild(link);
+};
+
+const NB_CSS = `
+.nb{--nb-bg:#f9fafb;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e8ebe9;--nb-accent:#10b981;--nb-btn:#059669;--nb-on:#ffffff;background:var(--nb-bg);color:var(--nb-ink)}
+.nb-dark{--nb-bg:#141414;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#1e1e1e;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-on:#022c22}
+.nb-dark .nb-dot{border-color:#3f3f3f}
+.nb-bg{background:var(--nb-bg)}
+.nb-gray{background:var(--nb-gray)}
+.nb-muted{color:var(--nb-muted)}
+.nb-ic{color:var(--nb-accent)}
+.nb-line{border-color:var(--nb-line)}
+.nb-card{background:var(--nb-card);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow);transition:transform .15s ease,box-shadow .15s ease}
+.nb-lift:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--nb-shadow)}
+.nb-bar{display:inline-block;width:40px;height:12px;background:var(--nb-accent);border:2px solid var(--nb-line)}
+.nb-ul{text-decoration:underline;text-decoration-color:var(--nb-accent);text-decoration-thickness:3px;text-underline-offset:4px;text-decoration-skip-ink:none}
+.nb-squig path{stroke:var(--nb-accent)}
+.nb-chip{display:inline-flex;align-items:center;gap:4px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);padding:1px 6px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;line-height:1.5}
+.nb-tile{display:inline-flex;align-items:center;justify-content:center;flex:none;border:2px solid var(--nb-line);color:#04261a}
+.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);font-weight:700;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,background-color .12s ease}
+.nb-btn:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--nb-shadow)}
+.nb-btn:active:not(:disabled){transform:translate(1px,1px);box-shadow:0 0 0 var(--nb-shadow)}
+.nb-btn:focus-visible,.nb-row:focus-visible{outline:3px solid var(--nb-accent);outline-offset:2px}
+.nb-row{display:flex;width:100%;align-items:center;gap:12px;text-align:start;padding:10px;background:var(--nb-card);color:var(--nb-ink);border:2px dotted var(--nb-line);cursor:pointer;transition:transform .15s ease,background-color .15s ease,border-color .15s ease}
+.nb-dark .nb-row{border-color:#3f3f3f}
+.nb-row:hover{background:var(--nb-btn);color:var(--nb-on);transform:translateY(-2px);border-style:solid;border-color:var(--nb-line)}
+.nb-row:hover .nb-muted{color:inherit;opacity:.85}
+.nb-arrow{display:inline-flex;align-items:center;justify-content:center;flex:none;width:28px;height:28px;background:var(--nb-btn);color:var(--nb-on);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);transition:transform .15s ease}
+.nb-row:hover .nb-arrow{transform:translateX(3px);background:var(--nb-card);color:var(--nb-ink)}
+.nb-track{height:12px;background:var(--nb-gray);border:2px solid var(--nb-line);overflow:hidden}
+.nb-today{background:var(--nb-btn);color:var(--nb-on);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);font-weight:800}
+@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn,.nb-arrow,.nb-row{transition:none}}
+`;
+const STYLE_EL = <style>{NB_CSS}</style>;
+
+const readCache = () => {
+  try {
+    const c = JSON.parse(sessionStorage.getItem(CACHE_KEY));
+    return c && c.data ? c : null;
+  } catch { return null; }
+};
+const num = (n) => Number(n) || 0;
+const fmt = (n) => num(n).toLocaleString();
+const ratio = (a, b) => (b ? (a / b).toFixed(1) : "0.0");
+
+const STAT_META = [
+  { label: "Total Users", caption: "Registered accounts", icon: FiUsers },
+  { label: "Total Shops", caption: "Merchant stores", icon: FiShoppingBag },
+  { label: "Repair Requests", caption: "Across all shops", icon: FiTool },
+  { label: "Total Orders", caption: "Placed on the platform", icon: FiPackage },
+];
+
+const UnderlinedTitle = memo(({ text }) => {
+  const s = String(text || "");
+  const i = s.lastIndexOf(" ");
+  const head = i > 0 ? s.slice(0, i + 1) : "";
+  const tail = i > 0 ? s.slice(i + 1) : s;
+  return (
+    <>
+      {head}
+      <span className="relative inline-block">
+        {tail}
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 100 10" preserveAspectRatio="none" className="nb-squig pointer-events-none absolute inset-x-0 -bottom-2 h-2.5 w-full">
+          <path d="M1 6 C 20 2, 40 9, 60 5 S 90 3, 99 6" fill="none" strokeWidth="5" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        </svg>
+      </span>
+    </>
+  );
 });
 
+const Ring = memo(({ percent, color }) => {
+  const r = 26;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className="relative w-16 h-16 flex-shrink-0" role="img" aria-label={`${percent}% of platform records`}>
+      <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
+        <circle cx="32" cy="32" r={r} fill="none" strokeWidth="8" style={{ stroke: "var(--nb-gray)" }} />
+        <circle
+          cx="32" cy="32" r={r} fill="none" strokeWidth="8"
+          stroke={color}
+          strokeDasharray={`${(c * percent) / 100} ${c}`}
+          style={{ transition: REDUCED ? "none" : "stroke-dasharray .6s ease" }}
+        />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-[11px] font-extrabold tabular-nums">
+        {percent}%
+      </span>
+    </div>
+  );
+});
 
-
-
-const StatCard = memo(({ kind, label, value, color }) => (
-  <div className="bg-white/10  dark:bg-slate-900/40 backdrop-blur-md text-white  border  rounded-2xl p-6 dark:border-gray-700 shadow-xl  hover:shadow-xl hover:shadow-emerald-400/5 transition-all duration-500 group relative overflow-hidden">
-    <div className={`absolute top-0 right-0 w-24 h-24 bg-gray-500/5 rounded-bl-full translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-700`} />
-    <div className="relative flex items-center justify-between">
-      <div className="space-y-1">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">{label}</p>
-        <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">{value}</p>
+const DashStat = memo(({ meta, value, percent, color }) => {
+  const Icon = meta.icon;
+  return (
+    <div className="nb-card nb-lift p-4 sm:p-5 flex items-center justify-between gap-3 min-w-0">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-3">
+          <span className="nb-tile w-11 h-11" style={{ background: color }}>
+            <Icon size={20} aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <p className="nb-muted text-[11px] font-bold uppercase tracking-wide truncate">{meta.label}</p>
+            <p className="text-2xl font-extrabold tracking-tight leading-tight tabular-nums truncate">{value}</p>
+          </div>
+        </div>
+        <p className="nb-muted mt-3 text-xs font-semibold truncate">{meta.caption}</p>
       </div>
-      <div className={`w-14 h-14 rounded-2xl bg-gray-50 dark:bg-gray-900/20 flex items-center justify-center group-hover:rotate-12 group-hover:scale-110 transition-all duration-500`}>
-        <CardIllustration kind={kind}  color={COLOR_HEX[color]} />
+      <Ring percent={percent} color={color} />
+    </div>
+  );
+});
+
+const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+const MiniCalendar = memo(() => {
+  const [cursor, setCursor] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
+  const today = new Date();
+
+  const { title, cells } = useMemo(() => {
+    const y = cursor.getFullYear(), m = cursor.getMonth();
+    const first = new Date(y, m, 1).getDay();
+    const days = new Date(y, m + 1, 0).getDate();
+    const arr = Array.from({ length: first }, () => null);
+    for (let d = 1; d <= days; d++) arr.push(d);
+    return { title: cursor.toLocaleDateString(undefined, { month: "long", year: "numeric" }), cells: arr };
+  }, [cursor]);
+
+  const shift = (n) => setCursor((c) => new Date(c.getFullYear(), c.getMonth() + n, 1));
+  const isToday = (d) => d && d === today.getDate() && cursor.getMonth() === today.getMonth() && cursor.getFullYear() === today.getFullYear();
+  const todayLabel = today.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+
+  return (
+    <div className="nb-card p-4 sm:p-5 h-full flex flex-col">
+      <div className="flex items-center justify-between mb-4">
+        <button type="button" onClick={() => shift(-1)} aria-label="Previous month" className="nb-btn w-8 h-8">
+          <FiChevronLeft size={15} />
+        </button>
+        <h2 className="text-sm font-extrabold uppercase"><span className="nb-ul">{title}</span></h2>
+        <button type="button" onClick={() => shift(1)} aria-label="Next month" className="nb-btn w-8 h-8">
+          <FiChevronRight size={15} />
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-y-1 text-center">
+        {WEEKDAYS.map((w) => <span key={w} className="nb-muted text-[11px] font-bold uppercase py-1">{w}</span>)}
+        {cells.map((d, i) => (
+          <span key={i} className={`mx-auto w-8 h-8 flex items-center justify-center text-sm font-semibold ${isToday(d) ? "nb-today" : ""}`}>
+            {d}
+          </span>
+        ))}
+      </div>
+      <div className="mt-auto pt-4">
+        <div className="nb-gray nb-line border-2 border-dotted px-4 py-3">
+          <p className="nb-muted text-[11px] font-bold uppercase">Today</p>
+          <p className="text-sm font-extrabold">{todayLabel}</p>
+        </div>
       </div>
     </div>
-  </div>
+  );
+});
+
+const QUICK_LINKS = [
+  { title: "User Management", desc: "Accounts and permissions", path: "/admin/users", icon: FiUsers },
+  { title: "Merchant Stores", desc: "Registrations and status", path: "/admin/shops", icon: FiShoppingBag },
+  { title: "Subscriptions", desc: "Shop plans and billing", path: "/admin/subscriptions", icon: FiCreditCard },
+  { title: "Global Products", desc: "Catalog oversight", path: "/admin/products", icon: FiBox },
+  { title: "Logistics Hub", desc: "Delivery and assigners", path: "/admin/deliveries", icon: FiTruck },
+  { title: "Platform Logs", desc: "Audit and activity", path: "/admin/assignment-logs", icon: FiClipboard },
+].map((q, i) => ({ ...q, color: NEON[i % NEON.length] }));
+
+const QuickLink = memo(({ item, onOpen }) => {
+  const Icon = item.icon;
+  return (
+    <li>
+      <button type="button" onClick={() => onOpen(item.path)} className="nb-row group">
+        <span className="nb-tile w-10 h-10" style={{ background: item.color }}>
+          <Icon size={18} aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-extrabold uppercase truncate">{item.title}</span>
+          <span className="nb-muted block text-xs font-semibold truncate">{item.desc}</span>
+        </span>
+        <span className="nb-arrow" aria-hidden="true"><FiChevronRight size={15} /></span>
+      </button>
+    </li>
+  );
+});
+
+const SectionHead = memo(({ eyebrow, title, subtitle, large = false }) => (
+  <header className="mb-4 px-0.5">
+    {eyebrow && (
+      <p className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wide">
+        <span className="nb-bar" aria-hidden="true" />{eyebrow}
+      </p>
+    )}
+    <h2 className={`${eyebrow ? "mt-2.5" : ""} font-extrabold tracking-tight leading-[1.15] ${large ? "text-3xl sm:text-4xl" : "text-xl sm:text-2xl"}`}>
+      <UnderlinedTitle text={title} />
+    </h2>
+    {subtitle && <p className="nb-muted mt-2 text-sm font-medium">{subtitle}</p>}
+  </header>
 ));
 
-const FeatureCard = memo(({ title, kind, desc, path, navigate, color }) => (
-  <div onClick={() => navigate(path)}
-    className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-md p-6 shadow-sm hover:shadow-2xl hover:shadow-emerald-400/10 transition-all duration-500 cursor-pointer group flex flex-col h-full">
-    <div className="flex items-center justify-between mb-6">
-      <div className={`w-14 h-14 rounded-2xl bg-${color}-50 dark:bg-${color}-900/20 flex items-center justify-center group-hover:scale-110 group-hover:-rotate-3 transition-all duration-500`}>
-        <CardIllustration kind={kind} color={COLOR_HEX[color]} />
+const BreakdownRow = memo(({ row }) => {
+  const Icon = row.icon;
+  return (
+    <div className="nb-line grid grid-cols-[1.6fr_1fr] sm:grid-cols-[1.6fr_1fr_1.6fr_0.8fr] items-center gap-3 px-4 sm:px-5 py-3.5 border-t-2 border-dotted">
+      <div className="flex items-center gap-3 min-w-0">
+        <span className="nb-tile w-10 h-10" style={{ background: row.color }}>
+          <Icon size={17} aria-hidden="true" />
+        </span>
+        <span className="text-sm font-extrabold uppercase truncate">{row.label}</span>
       </div>
-      <div className="w-8 h-8 rounded-full bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-300 group-hover:bg-emerald-400 group-hover:text-white transition-all duration-500">
-        <FiArrowRight size={14} />
+      <span className="text-sm font-bold tabular-nums">{fmt(row.value)}</span>
+      <div className="hidden sm:flex items-center gap-2">
+        <span className="nb-track flex-1">
+          <span className="block h-full" style={{ width: `${row.percent}%`, background: row.color }} />
+        </span>
+        <span className="w-9 text-right text-xs font-bold tabular-nums">{row.percent}%</span>
       </div>
+      <span className="nb-muted hidden sm:block text-sm font-bold tabular-nums">{row.perShop}</span>
     </div>
-    <div className="space-y-2 mt-auto">
-      <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{title}</h3>
-      <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-medium">{desc}</p>
+  );
+});
+
+const useInView = (margin = "240px") => {
+  const ref = useRef(null);
+  const [seen, setSeen] = useState(() => typeof IntersectionObserver === "undefined");
+  useEffect(() => {
+    if (seen || !ref.current) return undefined;
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setSeen(true); io.disconnect(); } }, { rootMargin: margin });
+    io.observe(ref.current);
+    return () => io.disconnect();
+  }, [seen, margin]);
+  return [ref, seen];
+};
+
+const ChartFallback = () => <div className="nb-gray nb-line h-full w-full border-2 animate-pulse motion-reduce:animate-none" />;
+
+const AnalyticsCard = memo(({ title, subtitle, icon: Icon, children, footer }) => {
+  const [ref, seen] = useInView();
+  return (
+    <div className="nb-card p-4 sm:p-5 flex flex-col">
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="min-w-0">
+          <h2 className="text-base font-extrabold uppercase"><span className="nb-ul">{title}</span></h2>
+          <p className="nb-muted mt-1.5 text-xs font-semibold">{subtitle}</p>
+        </div>
+        <span className="nb-tile w-9 h-9 flex-shrink-0" style={{ background: "var(--nb-accent)" }}>
+          <Icon size={17} aria-hidden="true" />
+        </span>
+      </div>
+      <div ref={ref} className="relative h-56">{seen ? children : <ChartFallback />}</div>
+      {footer}
     </div>
-  </div>
+  );
+});
+
+const Legend = memo(({ rows }) => (
+  <ul className="mt-4 space-y-2">
+    {rows.map((r) => (
+      <li key={r.label} className="flex items-center gap-2.5 text-sm">
+        <span className="w-3 h-3 flex-shrink-0 border-2 nb-line" style={{ background: r.color }} />
+        <span className="flex-1 font-semibold">{r.label}</span>
+        <span className="font-extrabold tabular-nums">{fmt(r.value)}</span>
+        <span className="nb-muted w-10 text-right text-xs font-bold tabular-nums">{r.percent}%</span>
+      </li>
+    ))}
+  </ul>
 ));
 
-const NotifItem = memo(({ notif, onDelete }) => (
-  <div className={`flex items-start gap-4 p-5 border-b border-gray-50 dark:border-gray-700 last:border-0 hover:bg-emerald-50/10 dark:hover:bg-emerald-900/5 transition-all group
-    ${!notif.read ? "bg-emerald-50/20 dark:bg-emerald-900/10" : ""}`}>
-    <div className="flex-shrink-0 mt-1">
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${notif.read ? "bg-gray-100 dark:bg-gray-700 text-gray-400" : "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-500"}`}>
-        {notif.read ? <FiCheckCircle size={18} /> : <FiZap size={18} />}
-      </div>
-    </div>
-    <div className="flex-1 min-w-0">
-      <p className="text-sm text-gray-800 dark:text-gray-100 font-bold leading-snug tracking-tight">{notif.message || notif.title || "New Platform Activity"}</p>
-      <div className="flex items-center gap-2 mt-1.5">
-        <FiClock size={10} className="text-gray-400" />
-        <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{formatTime(notif.createdAt || notif.timestamp)}</p>
-      </div>
-    </div>
-    <button
-      onClick={e => { e.stopPropagation(); onDelete(notif.id); }}
-      className="opacity-0 group-hover:opacity-100 transition-all p-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 text-red-400 hover:text-red-600 flex-shrink-0"
-      aria-label="Delete notification">
-      <FiTrash2 size={16} />
-    </button>
+const Insight = memo(({ label, value }) => (
+  <div className="nb-gray nb-line border-2 border-dotted px-3.5 py-3 min-w-0">
+    <p className="nb-muted text-[11px] font-bold uppercase truncate">{label}</p>
+    <p className="mt-0.5 text-lg font-extrabold tabular-nums truncate">{value}</p>
   </div>
 ));
-
-
-
 
 const Dashboard = ({ darkMode }) => {
   const navigate = useNavigate();
-  const tokenRef = useRef(localStorage.getItem('authToken'));
+  const tokenRef = useRef(localStorage.getItem("authToken"));
+  const authorized = useMemo(() => isAdminToken(tokenRef.current), []);
 
-  const [stats, setStats] = useState(null);
-  const [notifications, setNotifs] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState(() => readCache()?.data ?? null);
+  const [loading, setLoading] = useState(false);
+  const abortRef = useRef(null);
 
-  const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
-
-  useEffect(() => {
-    document.title = "Platform Admin Dashboard";
-  }, []);
+  useEffect(() => { document.title = "Platform Admin Dashboard"; }, []);
+  useEffect(() => { ensureNbFont(); }, []);
 
   useEffect(() => {
     const token = tokenRef.current;
-    if (!token || isTokenExpired(token)) { localStorage.clear(); navigate("/login"); }
-  }, [navigate]);
+    if (!token || isTokenExpired(token)) { localStorage.clear(); navigate("/login", { replace: true }); return; }
+    if (!authorized) {
+      showToast("You don't have permission to access the admin area", "error");
+      navigate("/", { replace: true });
+    }
+  }, [navigate, authorized]);
+
+  const lastRef = useRef(readCache()?.ts || 0);
+  const failRef = useRef(0);
 
   const fetchData = useCallback(async () => {
     const token = tokenRef.current;
-    if (!token) return;
+    if (!token || !authorized) return;
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
     setLoading(true);
     try {
-      const statsRes = await api.get('/api/admin/stats', { headers: { Authorization: `Bearer ${token}` } });
-      setStats(statsRes.data);
-    } catch {
-      showToast("Sync issue detected", "warning");
-    } finally { setLoading(false); }
-  }, []);
+      const { data } = await api.get("/api/admin/stats", {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: ctrl.signal,
+      });
+      lastRef.current = Date.now();
+      failRef.current = 0;
+      setStats(data);
+      try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data, ts: lastRef.current })); } catch {}
+    } catch (err) {
+      if (err?.code === "ERR_CANCELED" || err?.name === "CanceledError") return;
+      const status = err?.response?.status;
+      if (status === 401 || status === 403) {
+        sessionStorage.removeItem(CACHE_KEY);
+        showToast("You don't have permission to access the admin area", "error");
+        navigate(status === 401 ? "/login" : "/", { replace: true });
+      } else if (failRef.current++ === 0) {
+        showToast("Sync issue detected", "warning");
+      }
+    } finally {
+      if (abortRef.current === ctrl) setLoading(false);
+    }
+  }, [authorized, navigate]);
 
   useEffect(() => {
-    fetchData();
-    const id = setInterval(fetchData, REFRESH_INTERVAL);
-    return () => clearInterval(id);
-  }, [fetchData]);
+    if (!authorized) return undefined;
+    let timer;
+    let stopped = false;
+    const stale = (ms) => Date.now() - lastRef.current > ms;
+    const run = async () => {
+      if (stopped) return;
+      if (!document.hidden && stale(MIN_GAP)) await fetchData();
+      if (stopped) return;
+      const wait = Math.min(REFRESH_INTERVAL * 2 ** failRef.current, MAX_INTERVAL) + Math.random() * 3000;
+      timer = setTimeout(run, wait);
+    };
+    const onVisible = () => { if (!document.hidden && stale(REFRESH_INTERVAL)) fetchData(); };
+    run();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      abortRef.current?.abort();
+    };
+  }, [fetchData, authorized]);
 
-  const deleteNotification = useCallback(async (id) => {
-    const token = tokenRef.current;
-    try {
-      await api.delete(`/api/admin/notification/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      setNotifs(prev => prev.filter(n => n.id !== id));
-      showToast("Notification cleared", "success");
-    } catch {
-      showToast("Could not clear notification", "error");
-    }
-  }, []);
+  const open = useCallback((path) => navigate(path), [navigate]);
 
-  const statCardsData = useMemo(() => [
-    { kind: 'users',   label: 'Total Users',     value: stats?.users || 0,   color: 'emerald' },
-    { kind: 'shop',    label: 'Total Shops',     value: stats?.shops || 0,   color: 'blue' },
-    { kind: 'wrench',  label: 'Repair Requests', value: stats?.repairs || 0, color: 'orange' },
-    { kind: 'package', label: 'Total Orders',    value: stats?.orders || 0,  color: 'teal' },
-  ], [stats]);
+  const initialLoading = loading && !stats;
 
-  const featureCards = useMemo(() => [
-    { title: "User Management", kind: 'users',     desc: "Control accounts and permissions",       path: "/admin/users",           color: "emerald" },
-    { title: "Merchant Stores", kind: 'shop',      desc: "Oversee shop registrations and status",  path: "/admin/shops",           color: "blue" },
-    { title: "Subscriptions",   kind: 'card',      desc: "Manage shop plans and billing",          path: "/admin/subscriptions",   color: "purple" },
-    { title: "Global Products", kind: 'package',   desc: "Inventory and catalog oversight",        path: "/admin/products",        color: "teal" },
-    { title: "Logistics Hub",   kind: 'truck',     desc: "Manage delivery and assigner network",   path: "/admin/deliveries",      color: "orange" },
-    { title: "Platform Logs",   kind: 'clipboard', desc: "Historical audit and activity feed",     path: "/admin/assignment-logs", color: "rose" },
-  ], []);
+  const values = useMemo(() => KEYS.map((k) => num(stats?.[k])), [stats]);
+  const total = useMemo(() => values.reduce((a, b) => a + b, 0), [values]);
 
-  const pieData = useMemo(() => ({
-    labels: ['Users', 'Shops', 'Repairs', 'Orders'],
-    datasets: [{
-      data: [stats?.users || 0, stats?.shops || 0, stats?.repairs || 0, stats?.orders || 0],
-      backgroundColor: ['#34d399', '#3b82f6', '#f59e0b', '#ef4444'],
-      borderColor: darkMode ? '#1f2937' : '#fff',
-      borderWidth: 3,
-      hoverOffset: 16,
-    }],
-  }), [stats, darkMode]);
+  const rows = useMemo(() => {
+    const shops = values[1];
+    return KEYS.map((k, i) => ({
+      key: k,
+      label: LABELS[i],
+      value: values[i],
+      color: NEON[i],
+      percent: total ? Math.round((values[i] / total) * 100) : 0,
+      perShop: i === 1 ? "-" : ratio(values[i], shops),
+      icon: STAT_META[i].icon,
+    }));
+  }, [values, total]);
 
-  const pieOptions = useMemo(() => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { position: 'right', labels: { font: { size: 12 }, padding: 14, color: darkMode ? '#d1d5db' : '#374151' } },
-      tooltip: { backgroundColor: darkMode ? '#374151' : '#1f2937', titleColor: '#fff', bodyColor: '#e5e7eb' },
+  const statCards = useMemo(
+    () => rows.map((r, i) => ({
+      key: r.key,
+      meta: STAT_META[i],
+      value: initialLoading ? "…" : fmt(r.value),
+      percent: r.percent,
+      color: r.color,
+    })),
+    [rows, initialLoading]
+  );
+
+  const insights = useMemo(() => {
+    const top = rows.reduce((a, b) => (b.value > a.value ? b : a), rows[0]);
+    return [
+      { label: "Total records", value: fmt(total) },
+      { label: "Largest segment", value: total ? top.label : "-" },
+      { label: "Orders per shop", value: ratio(values[3], values[1]) },
+      { label: "Repairs per shop", value: ratio(values[2], values[1]) },
+    ];
+  }, [rows, total, values]);
+
+  const ink = darkMode ? "#ffffff" : "#04261a";
+  const edge = darkMode ? "#000000" : "#04261a";
+  const grid = darkMode ? "rgba(255,255,255,0.12)" : "rgba(4,38,26,0.12)";
+
+  const doughnutData = useMemo(() => ({
+    labels: LABELS,
+    datasets: [{ data: values, backgroundColor: NEON, borderColor: edge, borderWidth: 2, hoverOffset: 6 }],
+  }), [values, edge]);
+
+  const barData = useMemo(() => ({
+    labels: LABELS,
+    datasets: [{ data: values, backgroundColor: NEON, borderColor: edge, borderWidth: 2, borderRadius: 0, maxBarThickness: 44 }],
+  }), [values, edge]);
+
+  const tooltip = useMemo(() => ({
+    backgroundColor: darkMode ? "#2a2a2a" : "#ffffff",
+    titleColor: ink,
+    bodyColor: ink,
+    borderColor: edge,
+    borderWidth: 2,
+    cornerRadius: 0,
+    displayColors: false,
+    callbacks: {
+      label: (ctx) => {
+        const v = num(ctx.parsed?.y ?? ctx.parsed);
+        const p = total ? Math.round((v / total) * 100) : 0;
+        return ` ${v.toLocaleString()} (${p}%)`;
+      },
     },
-  }), [darkMode]);
+  }), [total, darkMode, ink, edge]);
 
-  if (loading && !stats) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 animate-pulse">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-            <div className="space-y-2">
-              <div className="h-4 w-32 bg-gray-250 dark:bg-gray-700 rounded-full" />
-              <div className="h-10 w-48 bg-gray-300 dark:bg-gray-700 rounded-2xl" />
-              <div className="h-4 w-64 bg-gray-200 dark:bg-gray-800 rounded-full" />
-            </div>
-            <div className="h-14 w-48 bg-gray-200 dark:bg-gray-800 rounded-3xl" />
-          </div>
+  const doughnutOptions = useMemo(() => ({
+    responsive: true, maintainAspectRatio: false, cutout: "68%",
+    animation: REDUCED ? false : { duration: 400 },
+    plugins: { legend: { display: false }, tooltip },
+  }), [tooltip]);
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-sm flex items-center justify-between h-28">
-                <div className="space-y-2">
-                  <div className="h-3 w-20 bg-gray-200 dark:bg-gray-700 rounded-full" />
-                  <div className="h-8 w-16 bg-gray-300 dark:bg-gray-600 rounded-xl" />
-                </div>
-                <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-gray-750" />
-              </div>
-            ))}
-          </div>
+  const barOptions = useMemo(() => ({
+    responsive: true, maintainAspectRatio: false,
+    animation: REDUCED ? false : { duration: 400 },
+    plugins: { legend: { display: false }, tooltip },
+    scales: {
+      x: { grid: { display: false }, border: { color: edge, width: 2 }, ticks: { color: ink, font: { weight: "600" } } },
+      y: { beginAtZero: true, grid: { color: grid }, border: { color: edge, width: 2 }, ticks: { color: ink, precision: 0 } },
+    },
+  }), [ink, edge, grid, tooltip]);
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {[1, 2, 3, 4, 5, 6].map(i => (
-                  <div key={i} className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-sm h-40 flex flex-col justify-between">
-                    <div className="flex items-center justify-between">
-                      <div className="w-14 h-14 rounded-2xl bg-gray-150 dark:bg-gray-700" />
-                      <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-750" />
-                    </div>
-                    <div className="space-y-2 mt-auto">
-                      <div className="h-5 w-32 bg-gray-300 dark:bg-gray-600 rounded-md" />
-                      <div className="h-3 w-48 bg-gray-250 dark:bg-gray-700 rounded-md" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-8">
-              <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl p-8 h-[24rem] flex flex-col justify-between">
-                <div className="flex items-center justify-between">
-                  <div className="h-5 w-28 bg-gray-350 dark:bg-gray-600 rounded-md" />
-                  <div className="w-5 h-5 rounded bg-gray-200 dark:bg-gray-750" />
-                </div>
-                <div className="w-48 h-48 rounded-full bg-gray-150 dark:bg-gray-700 mx-auto flex items-center justify-center">
-                  <div className="w-24 h-24 rounded-full bg-white dark:bg-gray-800" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (!authorized) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
+    <div
+      style={NB_FONT_STYLE}
+      className={`nb ${darkMode ? "nb-dark" : ""} min-h-screen py-6 lg:pl-64 mt-16 overflow-x-hidden`}
+    >
+      {STYLE_EL}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
 
-         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-1.5 rounded-full bg-emerald-400" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500">Console Overview</span>
-            </div>
-            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">Admin Control</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Holistic management of the TechBazaar ecosystem</p>
-          </div>
+        <SectionHead
+          large
+          eyebrow="Overview"
+          title="Admin Control"
+          subtitle="Manage users, stores, orders and deliveries across the Tech & Restore platform."
+        />
 
-          <div className="flex items-center gap-3">
-            <button onClick={fetchData} disabled={loading} title="Refresh Dashboard"
-              className="w-10 h-10 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-emerald-400 hover:border-emerald-400/30 transition-all disabled:opacity-40">
-              <FiRefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-            </button>
-            <div className="p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-sm flex items-center gap-4">
-              <div className="relative">
-                <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center text-gray-400">
-                  <FiBell size={18} />
-                </div>
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-400 text-white text-[10px] font-black flex items-center justify-center rounded-lg shadow-lg border-2 border-white dark:border-gray-800 animate-bounce">
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </span>
-                )}
-              </div>
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">System Feed</p>
-                <p className="text-sm font-bold text-gray-700 dark:text-gray-200">{unreadCount} Pending Alerts</p>
-              </div>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
+          {statCards.map(({ key, ...c }) => <DashStat key={key} {...c} />)}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {statCardsData.map(card => (
-            <StatCard key={card.label} {...card} />
-          ))}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <section aria-label="Quick access">
+            <SectionHead eyebrow="Shortcuts" title="Quick Access" subtitle="Jump straight to a management area" />
+            <ul className="nb-card p-3 space-y-2.5">
+              {QUICK_LINKS.map((q) => <QuickLink key={q.path} item={q} onOpen={open} />)}
+            </ul>
+          </section>
+
+          <section aria-label="Platform breakdown" className="lg:col-span-2 min-w-0">
+            <SectionHead eyebrow="Numbers" title="Platform Breakdown" subtitle="Totals, share of all records and ratio per shop" />
+            <div className="nb-card overflow-hidden">
+              <div className="nb-gray grid grid-cols-[1.6fr_1fr] sm:grid-cols-[1.6fr_1fr_1.6fr_0.8fr] gap-3 px-4 sm:px-5 py-3 text-[11px] font-extrabold uppercase">
+                <span>Record</span>
+                <span>Total</span>
+                <span className="hidden sm:block">Share</span>
+                <span className="hidden sm:block">Per shop</span>
+              </div>
+              {rows.map((r) => <BreakdownRow key={r.key} row={r} />)}
+            </div>
+          </section>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-8">
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-               {featureCards.map(card => (
-                 <FeatureCard key={card.title} {...card} navigate={navigate} />
-               ))}
-             </div>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          <AnalyticsCard
+            title="Platform Distribution"
+            subtitle="Share of each record type"
+            icon={FiPieChart}
+            footer={<Legend rows={rows} />}
+          >
+            <Suspense fallback={<ChartFallback />}><Chart type="doughnut" data={doughnutData} options={doughnutOptions} /></Suspense>
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <span className="text-2xl font-extrabold tabular-nums">{fmt(total)}</span>
+              <span className="nb-muted text-xs font-bold uppercase">Total records</span>
+            </div>
+          </AnalyticsCard>
 
-          <div className="space-y-8">
-             <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 shadow-xl p-8">
-                <div className="flex items-center justify-between mb-8">
-                  <h2 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">Analytics</h2>
-                  <FiTrendingUp size={20} className="text-emerald-400" />
-                </div><hr className="border border-gray-200 m-1 dark:border-gray-900 " />
-                <div className="h-64">
-                   <Pie data={pieData} options={pieOptions} />
-                </div>
-             </div>
-          </div>
+          <AnalyticsCard
+            title="Platform Overview"
+            subtitle="Totals side by side"
+            icon={FiTrendingUp}
+            footer={
+              <div className="mt-4 grid grid-cols-2 gap-2.5">
+                {insights.map((i) => <Insight key={i.label} {...i} />)}
+              </div>
+            }
+          >
+            <Suspense fallback={<ChartFallback />}><Chart type="bar" data={barData} options={barOptions} /></Suspense>
+          </AnalyticsCard>
 
+          <div className="md:col-span-2 xl:col-span-1">
+            <MiniCalendar />
+          </div>
         </div>
       </div>
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        .custom-scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
-        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
-        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #34d399; }
-      `}} />
     </div>
   );
 };

@@ -1,97 +1,343 @@
-import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
+import React, {
+  useState, useEffect, useMemo, useCallback, useRef, useDeferredValue, memo,
+} from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  FiFileText, FiSearch, FiX, FiCopy, FiRefreshCw,
-  FiCheckCircle, FiXCircle, FiClock, FiDollarSign,
-  FiChevronLeft, FiChevronRight, FiChevronUp, FiChevronDown, FiInfo,
-  FiActivity, FiCalendar, FiCreditCard, FiCheck
+  FiSearch, FiX, FiCopy, FiInfo, FiCheck, FiChevronLeft, FiChevronRight, FiChevronUp,
+  FiChevronDown, FiDownload, FiRefreshCw, FiFileText, FiCheckCircle, FiClock, FiDollarSign,
+  FiActivity, FiCalendar, FiCreditCard, FiAlertCircle, FiXCircle,
 } from 'react-icons/fi';
-import Swal from 'sweetalert2';
-import api from '../api';
+import api from '../common/api/api';
+import { UI3D_CSS, Defs3D } from '../components/user/Ui3D';
+import { EXTRAS_CSS, Toaster, toast, EmptyState3D } from '../components/user/UiExtras';
 
 const ROWS_OPTIONS = [5, 10, 20, 50];
+const SEARCH_MAX = 60;
+const PAGE_SIZE = 100;
+const MAX_SERVER_PAGES = 50;
+const PRICE_PER_MONTH = 1000;
+const TABS = [
+  { key: 'all', label: 'All plans' },
+  { key: 'cash', label: 'Cash queue' },
+];
+const REDUCED = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-const PAYMENT_STATUS_META = {
-  PAID:    { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600', dot: 'bg-emerald-500' },
-  ACTIVE:  { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600', dot: 'bg-emerald-500' },
-  PENDING: { bg: 'bg-amber-50 dark:bg-amber-900/20',   text: 'text-amber-600',   dot: 'bg-amber-500'   },
-  FAILED:  { bg: 'bg-red-50 dark:bg-red-900/20',         text: 'text-red-600',     dot: 'bg-red-500'     },
+const STATUS_META = {
+  PAID: { label: 'Settled', bg: '#34d399' },
+  PENDING: { label: 'Pending', bg: '#fbbf24' },
+  FAILED: { label: 'Failed', bg: '#fb7185' },
+  REJECTED: { label: 'Rejected', bg: '#fb7185' },
+  CANCELLED: { label: 'Cancelled', bg: '#fb7185' },
 };
-const getPayStatusMeta = (s) => PAYMENT_STATUS_META[s] || PAYMENT_STATUS_META.PENDING;
+const STATUS_OTHER_BG = '#22d3ee';
+const METHOD_BG = { CASH: '#fbbf24', CARD: '#22d3ee' };
 
-const METHOD_META = {
-  CASH: { bg: 'bg-orange-50 dark:bg-orange-900/20', text: 'text-orange-600', dot: 'bg-orange-500' },
-  CARD: { bg: 'bg-blue-50 dark:bg-blue-900/20',     text: 'text-blue-600',   dot: 'bg-blue-500'   },
+const CASH_ACTIONS = {
+  confirm: {
+    endpoint: 'confirm',
+    title: 'Authorize cash payment?',
+    text: 'This will instantly activate the shop subscription.',
+    confirmLabel: 'Confirm payment',
+    icon: FiCheck,
+    tone: 'em',
+    danger: false,
+    ok: 'Payment confirmed',
+    fail: 'Confirmation failed',
+  },
+  reject: {
+    endpoint: 'reject',
+    title: 'Reject cash entry?',
+    text: 'This will cancel the subscription request.',
+    confirmLabel: 'Reject payment',
+    icon: FiXCircle,
+    tone: 'red',
+    danger: true,
+    ok: 'Payment rejected',
+    fail: 'Rejection failed',
+  },
 };
-const getMethodMeta = (m) => METHOD_META[m] || METHOD_META.CARD;
 
-const showToast = (text, icon) =>
-  Swal.fire({ text, icon, toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
+const NB_FONT = "'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
+const NB_FONT_STYLE = { fontFamily: NB_FONT };
+const ensureNbFont = () => {
+  if (typeof document === 'undefined' || document.getElementById('nb-font')) return;
+  [['https://fonts.googleapis.com', false], ['https://fonts.gstatic.com', true]].forEach(([href, cors]) => {
+    const l = document.createElement('link');
+    l.rel = 'preconnect'; l.href = href; if (cors) l.crossOrigin = '';
+    document.head.appendChild(l);
+  });
+  const link = document.createElement('link');
+  link.id = 'nb-font';
+  link.rel = 'stylesheet';
+  link.href = 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap';
+  document.head.appendChild(link);
+};
 
-const formatDate = (d) => {
+const NB_CSS = `
+.nb{--nb-bg:#f9fafb;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e8ebe9;--nb-dot:#04261a;--nb-accent:#10b981;--nb-btn:#059669;--nb-on:#ffffff;background:var(--nb-bg);color:var(--nb-ink)}
+.nb-dark{--nb-bg:#141414;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#1e1e1e;--nb-dot:#3f3f3f;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-on:#022c22}
+.nb-gray{background:var(--nb-gray)}
+.nb-muted{color:var(--nb-muted)}
+.nb-ic{color:var(--nb-accent)}
+.nb-line{border-color:var(--nb-line)}
+.nb-card{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow);transition:transform .15s ease,box-shadow .15s ease}
+.nb-lift:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--nb-shadow)}
+.nb-bar{display:inline-block;width:40px;height:12px;background:var(--nb-accent);border:2px solid var(--nb-line)}
+.nb-ul{text-decoration:underline;text-decoration-color:var(--nb-accent);text-decoration-thickness:3px;text-underline-offset:4px;text-decoration-skip-ink:none}
+.nb-squig path{stroke:var(--nb-accent)}
+.nb-chip{display:inline-flex;align-items:center;gap:4px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);padding:1px 6px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;line-height:1.5;white-space:nowrap}
+.nb-chip-n{background:var(--nb-gray);color:var(--nb-muted);border-style:dashed}
+.nb-tile{display:inline-flex;align-items:center;justify-content:center;flex:none;border:2px solid var(--nb-line);color:#04261a}
+.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);font-weight:700;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,background-color .12s ease}
+.nb-btn:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--nb-shadow)}
+.nb-btn:active:not(:disabled){transform:translate(1px,1px);box-shadow:0 0 0 var(--nb-shadow)}
+.nb-btn:disabled{opacity:.45;cursor:not-allowed}
+.nb-btn-a,.nb-btn-on{background:var(--nb-btn);color:var(--nb-on)}
+.nb-btn-danger{background:#ef4444;color:#fff}
+.nb-btn:focus-visible,.nb-field:focus-within{outline:3px solid var(--nb-accent);outline-offset:2px}
+.nb-field{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow)}
+.nb-menu{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow)}
+.nb-opt{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;font-size:12px;font-weight:700;text-transform:uppercase;text-align:start;cursor:pointer}
+.nb-opt:hover{background:var(--nb-gray)}
+.nb-opt[aria-selected=true]{background:var(--nb-btn);color:var(--nb-on)}
+.nb select option{background:var(--nb-card);color:var(--nb-ink)}
+.nb-track{height:12px;background:var(--nb-gray);border:2px solid var(--nb-line);overflow:hidden}
+.nb-rows>tr+tr{border-top:2px dotted var(--nb-dot)}
+.nb-rows>tr:hover{background:var(--nb-gray)}
+@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn{transition:none}}
+`;
+
+const SCROLL_CSS = `
+  .slim-scroll { scrollbar-width: thin; scrollbar-color: rgba(52,211,153,.6) transparent; }
+  .slim-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+  .slim-scroll::-webkit-scrollbar-track { background: transparent; }
+  .slim-scroll::-webkit-scrollbar-thumb { background: rgba(52,211,153,.55); }
+  .slim-scroll::-webkit-scrollbar-thumb:hover { background: #34d399; }
+`;
+
+const PAGE_CSS = UI3D_CSS + EXTRAS_CSS + NB_CSS + SCROLL_CSS;
+
+const BTN_MD = 'nb-btn px-3 py-2 text-xs';
+const BTN_ICON = 'nb-btn w-8 h-8';
+const BTN_DANGER = 'nb-btn nb-btn-danger px-3 py-2 text-xs';
+const BTN_PRIMARY = 'nb-btn nb-btn-a px-3 py-2 text-xs';
+const PANEL = 'nb-gray nb-line border-2 border-dotted';
+
+const TONE_BG = { em: '#34d399', teal: '#2dd4bf', lime: '#a3e635', cyan: '#22d3ee', amber: '#fbbf24', red: '#fb7185' };
+
+const DATE_FMT = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+const TIME_FMT = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit' });
+const NF = new Intl.NumberFormat('en-US');
+const fmt = (n) => NF.format(n);
+
+const fmtDate = (d) => {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  const t = new Date(d);
+  return Number.isNaN(t.getTime()) ? '—' : DATE_FMT.format(t);
+};
+const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+const pct = (n, total) => (total ? Math.min(100, Math.round((n / total) * 100)) : 0);
+
+const CTRL = /[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g;
+const clean = (v) => String(v ?? '').replace(CTRL, '');
+const sanitizeSearch = (v) => clean(v).replace(/[<>]/g, '').replace(/\s{2,}/g, ' ').slice(0, SEARCH_MAX);
+const isSafeId = (id) => /^[A-Za-z0-9_-]{1,64}$/.test(String(id));
+const errText = (err) => String(err?.response?.data?.message || '').slice(0, 120) || undefined;
+const isCanceled = (err) => err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError' || err?.name === 'AbortError';
+const monthsText = (m) => (m ? `${m} ${m === 1 ? 'month' : 'months'}` : '—');
+const nextSort = (s, field) => (s.field === field ? { field, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { field, dir: 'asc' });
+
+const isNotAdmin = (token) => {
+  try {
+    const raw = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const p = JSON.parse(atob(raw));
+    const found = [p.role, p.roles, p.authorities, p.scope, localStorage.getItem('role')]
+      .flat().filter(Boolean).join(' ').toUpperCase();
+    return found !== '' && !found.includes('ADMIN');
+  } catch { return false; }
 };
 
+const csvCell = (v) => {
+  let s = String(v ?? '');
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  return `"${s.replace(/"/g, '""')}"`;
+};
+const downloadCSV = (name, head, rows) => {
+  const text = [head, ...rows].map((r) => r.map(csvCell).join(',')).join('\n');
+  const url = URL.createObjectURL(new Blob([`\ufeff${text}`], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
 
+const pageList = (cur, total) => {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages = [...new Set([1, total, cur - 1, cur, cur + 1])].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);
+  const out = [];
+  pages.forEach((p, i) => { if (i && p - pages[i - 1] > 1) out.push(`gap${p}`); out.push(p); });
+  return out;
+};
 
+const statusKey = (s) => (s.paymentStatus === 'PAID' || s.status === 'ACTIVE' ? 'PAID' : String(s.paymentStatus || s.status || 'PENDING').toUpperCase());
 
-const StatCard = memo(({ icon: Icon, label, value, color }) => (
-  <div className="bg-white/10  dark:bg-slate-900/40 backdrop-blur-md text-white  border  rounded-2xl p-6 dark:border-gray-700 shadow-xl  hover:shadow-xl hover:shadow-emerald-400/5 transition-all duration-500 group relative overflow-hidden">
-    <div className={`absolute top-0 right-0 w-24 h-24 bg-gray-500/5 rounded-bl-full translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-700`} />
-    <div className="relative flex items-center justify-between">
-      <div className="space-y-1">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">{label}</p>
-        <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">{value}</p>
-      </div>
-      <div className={`w-14 h-14 rounded-2xl bg-gray-50 dark:bg-gray-900/20 flex items-center justify-center text-gray-500 group-hover:rotate-12 group-hover:scale-110 transition-all duration-500`}>
-        <Icon size={24} />
-      </div>
+const useDarkMode = () => {
+  const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'));
+  useEffect(() => {
+    const el = document.documentElement;
+    const mo = new MutationObserver(() => setDark(el.classList.contains('dark')));
+    mo.observe(el, { attributes: true, attributeFilter: ['class'] });
+    return () => mo.disconnect();
+  }, []);
+  return dark;
+};
+
+const useEscape = (fn) => {
+  useEffect(() => {
+    const h = (e) => { if (e.key === 'Escape') fn(); };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [fn]);
+};
+
+const normalizeSub = (item) => ({
+  id: item.id || item.subscriptionId,
+  subscriptionId: item.subscriptionId || item.id,
+  shopId: item.shop?.id || item.shopId,
+  shopName: item.shop?.name || item.shopName || 'Unknown shop',
+  shopEmail: item.shop?.email || item.shopEmail,
+  startDate: item.startDate,
+  endDate: item.endDate,
+  months: num(item.months),
+  status: item.status || 'PENDING',
+  paymentMethod: String(item.payment?.method || item.paymentMethod || 'CARD').toUpperCase(),
+  paymentStatus: item.payment?.paymentStatus || item.paymentStatus || 'PENDING',
+  amount: num(item.amount || item.payment?.amount),
+  paymentId: item.payment?.id || item.paymentId,
+});
+
+const normalizeCash = (item) => ({
+  id: item.id,
+  paymentId: item.id,
+  shopId: item.shop?.id || item.shopId,
+  shopName: item.shop?.name || item.shopName || 'Unknown shop',
+  shopEmail: item.shop?.email || item.shopEmail,
+  paymentMethod: 'CASH',
+  paymentStatus: item.paymentStatus || 'PENDING',
+  status: item.status || 'PENDING',
+  createdAt: item.createdAt,
+  details: item.details,
+  amount: num(item.amount),
+});
+
+const UnderlinedTitle = memo(({ text }) => {
+  const s = String(text || '');
+  const i = s.lastIndexOf(' ');
+  const head = i > 0 ? s.slice(0, i + 1) : '';
+  const tail = i > 0 ? s.slice(i + 1) : s;
+  return (
+    <>
+      {head}
+      <span className="relative inline-block">
+        {tail}
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 100 10" preserveAspectRatio="none" className="nb-squig pointer-events-none absolute inset-x-0 -bottom-2 h-2.5 w-full">
+          <path d="M1 6 C 20 2, 40 9, 60 5 S 90 3, 99 6" fill="none" strokeWidth="5" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        </svg>
+      </span>
+    </>
+  );
+});
+
+const IconTile = memo(({ icon: Icon, tone = 'em', className = 'w-11 h-11', size = 18 }) => (
+  <span className={`nb-tile ${className}`} style={{ background: TONE_BG[tone] }}>
+    <Icon size={size} aria-hidden="true" />
+  </span>
+));
+
+const Ring = memo(({ percent, color }) => {
+  const r = 26;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className="relative w-16 h-16 flex-shrink-0" role="img" aria-label={`${percent}%`}>
+      <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
+        <circle cx="32" cy="32" r={r} fill="none" strokeWidth="8" style={{ stroke: 'var(--nb-gray)' }} />
+        <circle
+          cx="32" cy="32" r={r} fill="none" strokeWidth="8"
+          stroke={color}
+          strokeDasharray={`${(c * percent) / 100} ${c}`}
+          style={{ transition: REDUCED ? 'none' : 'stroke-dasharray .6s ease' }}
+        />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-[11px] font-extrabold tabular-nums">
+        {percent}%
+      </span>
     </div>
+  );
+});
+
+const StatCard = memo(({ label, value, description, icon, tone, percent, color }) => (
+  <div className="nb-card nb-lift p-4 sm:p-5 flex items-center justify-between gap-3 min-w-0">
+    <div className="min-w-0 flex-1 text-left">
+      <div className="flex items-center gap-3">
+        <IconTile icon={icon} tone={tone} />
+        <div className="min-w-0">
+          <p className="nb-muted text-[11px] font-bold uppercase tracking-wide truncate">{label}</p>
+          <p className="text-2xl font-extrabold tracking-tight leading-tight tabular-nums truncate">{value}</p>
+        </div>
+      </div>
+      <p className="nb-muted mt-3 text-xs font-semibold truncate">{description}</p>
+    </div>
+    <Ring percent={percent} color={color} />
   </div>
 ));
 
-const SortIcon = memo(({ field, sortField, sortDir }) => {
-  if (sortField !== field) return <FiChevronDown size={11} className="text-gray-400 dark:text-gray-500" />;
-  return sortDir === 'asc'
-    ? <FiChevronUp size={11} className="text-emerald-600" />
-    : <FiChevronDown size={11} className="text-emerald-600" />;
+const StatusPill = memo(({ k }) => {
+  const m = STATUS_META[k];
+  return (
+    <span className="nb-chip" style={{ background: m ? m.bg : STATUS_OTHER_BG, color: '#04261a' }}>
+      <span className="w-1.5 h-1.5 bg-[#04261a]" aria-hidden="true" />
+      {m ? m.label : clean(k).charAt(0) + clean(k).slice(1).toLowerCase()}
+    </span>
+  );
 });
 
-const Th = memo(({ field, label, center = true, onSort, sortField, sortDir }) => (
-  <th
-    onClick={() => onSort(field)}
-    scope='col'
-    className={`text-slate-500 font-medium text-xs tracking-wider uppercase border-b border-slate-200 dark:border-slate-800  p-4   cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${center ? 'text-center' : 'text-right'}`}
-  >
-    <span className={`flex items-center gap-1.5 ${center ? 'justify-center' : ''}`}>
-      {label} <SortIcon field={field} sortField={sortField} sortDir={sortDir} />
-    </span>
-  </th>
+const MethodPill = memo(({ method }) => (
+  <span className="nb-chip" style={{ background: METHOD_BG[method] || METHOD_BG.CARD, color: '#04261a' }}>
+    <FiCreditCard size={11} aria-hidden="true" /> {clean(method) || 'CARD'}
+  </span>
 ));
 
-const RowsDropdown = memo(({ value, options, onChange }) => {
+const RowsDropdown = memo(({ value, onChange }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
+    if (!open) return undefined;
     const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, []);
+    document.addEventListener('pointerdown', h);
+    return () => document.removeEventListener('pointerdown', h);
+  }, [open]);
+
   return (
-    <div className="relative inline-block" ref={ref}>
-      <button onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-transparent hover:border-emerald-500/20 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
-        <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">{value} Rows</span>
-        <FiChevronDown size={12} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+    <div className="relative" ref={ref}>
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open} className={`${BTN_MD} h-10 min-w-[120px] justify-between uppercase`}>
+        <span>{value} rows</span>
+        <FiChevronDown size={14} className={`transition-transform duration-200 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="absolute right-0 z-20 mt-1 w-32 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
-          {options.map(n => (
-            <button key={n} onClick={() => { onChange(n); setOpen(false); }}
-              className={`w-full flex items-center justify-between px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition ${value === n ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
-              {n} Rows
-              {value === n && <FiCheck size={12} className="text-emerald-500" />}
+        <div role="listbox" className="nb-menu absolute right-0 z-20 mt-2 w-full overflow-hidden">
+          {ROWS_OPTIONS.map((n) => (
+            <button
+              key={n}
+              type="button"
+              role="option"
+              aria-selected={value === n}
+              onClick={() => { onChange(n); setOpen(false); }}
+              className="nb-opt"
+            >
+              {n} rows
             </button>
           ))}
         </div>
@@ -100,50 +346,208 @@ const RowsDropdown = memo(({ value, options, onChange }) => {
   );
 });
 
-const SubscriptionModal = memo(({ sub, onClose }) => {
-  if (!sub) return null;
-  const fmt = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+const SortTh = memo(({ label, field, sort, onSort }) => {
+  const active = sort.field === field;
+  return (
+    <th scope="col" className="px-3 py-3 text-left text-[11px] font-extrabold uppercase" aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <button type="button" onClick={() => onSort(field)} className="inline-flex items-center gap-1 uppercase hover:underline underline-offset-4">
+        {label}
+        <span className={`flex flex-col -space-y-1 ${active ? 'nb-ic' : 'nb-muted'}`}>
+          <FiChevronUp size={10} className={active && sort.dir === 'asc' ? '' : 'opacity-50'} />
+          <FiChevronDown size={10} className={active && sort.dir === 'desc' ? '' : 'opacity-50'} />
+        </span>
+      </button>
+    </th>
+  );
+});
+
+const PlainTh = memo(({ children }) => (
+  <th scope="col" className="px-3 py-3 text-left text-[11px] font-extrabold uppercase">{children}</th>
+));
+
+const Pagination = memo(({ page, total, onChange }) => (
+  <nav className="flex items-center gap-1.5" aria-label="Pagination">
+    <button type="button" className={BTN_ICON} onClick={() => onChange(page - 1)} disabled={page <= 1} aria-label="Previous page"><FiChevronLeft size={16} /></button>
+    {pageList(page, total).map((p) => (typeof p === 'string'
+      ? <span key={p} className="w-6 text-center text-xs font-bold">…</span>
+      : (
+        <button
+          key={p}
+          type="button"
+          onClick={() => onChange(p)}
+          aria-current={p === page ? 'page' : undefined}
+          className={`nb-btn w-8 h-8 text-xs tabular-nums ${p === page ? 'nb-btn-on' : ''}`}
+        >
+          {p}
+        </button>
+      )))}
+    <button type="button" className={BTN_ICON} onClick={() => onChange(page + 1)} disabled={page >= total} aria-label="Next page"><FiChevronRight size={16} /></button>
+  </nav>
+));
+
+const Tabs = memo(({ tabs, value, onChange, counts }) => (
+  <div role="tablist" aria-label="Subscription view" className="nb-line flex gap-2 overflow-x-auto p-3 sm:px-4 border-b-2 [scrollbar-width:none]">
+    {tabs.map(({ key, label }) => {
+      const active = value === key;
+      return (
+        <button
+          key={key}
+          type="button"
+          role="tab"
+          aria-selected={active}
+          onClick={() => onChange(key)}
+          className={`nb-btn flex-shrink-0 px-3 py-1.5 text-xs uppercase ${active ? 'nb-btn-on' : ''}`}
+        >
+          {label}
+          <span className="nb-chip tabular-nums">{fmt(counts[key] ?? 0)}</span>
+        </button>
+      );
+    })}
+  </div>
+));
+
+const ShopCell = memo(({ name, email }) => (
+  <div className="flex items-center gap-2.5">
+    <span className="nb-tile w-9 h-9 text-sm font-extrabold uppercase" style={{ background: TONE_BG.em }}>
+      {name.charAt(0)}
+    </span>
+    <div className="min-w-0">
+      <p className="text-xs font-extrabold uppercase truncate max-w-[220px]">{name}</p>
+      <p className="nb-muted text-[10px] font-semibold truncate max-w-[220px]">{email || '—'}</p>
+    </div>
+  </div>
+));
+
+const SubRow = memo(({ sub, onView, onCopy }) => (
+  <tr className="transition-colors motion-reduce:transition-none">
+    <td className="px-3 py-2.5 whitespace-nowrap">
+      <ShopCell name={clean(sub.shopName) || 'Unnamed shop'} email={clean(sub.shopEmail)} />
+    </td>
+    <td className="px-3 py-2.5 whitespace-nowrap">
+      <span className="inline-flex items-center gap-1.5">
+        <code className="text-[11px] font-mono font-bold max-w-[110px] truncate block">{clean(sub.shopId) || '—'}</code>
+        {sub.shopId && (
+          <button type="button" title="Copy shop ID" aria-label="Copy shop ID" onClick={() => onCopy(sub.shopId)} className="nb-muted hover:text-[var(--nb-accent)] transition-colors"><FiCopy size={12} /></button>
+        )}
+      </span>
+    </td>
+    <td className="px-3 py-2.5 whitespace-nowrap text-xs font-bold tabular-nums">{monthsText(sub.months)}</td>
+    <td className="px-3 py-2.5 whitespace-nowrap"><MethodPill method={sub.paymentMethod} /></td>
+    <td className="px-3 py-2.5 whitespace-nowrap"><StatusPill k={statusKey(sub)} /></td>
+    <td className="px-3 py-2.5 whitespace-nowrap">
+      <button type="button" title="View details" aria-label="View details" onClick={() => onView(sub)} className={BTN_ICON}><FiInfo size={14} /></button>
+    </td>
+  </tr>
+));
+
+const CashRow = memo(({ item, busy, onAct }) => (
+  <tr className="transition-colors motion-reduce:transition-none">
+    <td className="px-3 py-2.5 whitespace-nowrap">
+      <ShopCell name={clean(item.shopName) || 'Unnamed shop'} email={clean(item.shopEmail)} />
+    </td>
+    <td className="px-3 py-2.5 whitespace-nowrap"><MethodPill method="CASH" /></td>
+    <td className="px-3 py-2.5 whitespace-nowrap text-xs font-bold tabular-nums">{fmtDate(item.createdAt)}</td>
+    <td className="nb-muted px-3 py-2.5 text-xs font-medium max-w-[220px] truncate" title={clean(item.details)}>{clean(item.details) || '—'}</td>
+    <td className="px-3 py-2.5 whitespace-nowrap text-xs font-extrabold tabular-nums">
+      <span className="nb-chip" style={{ background: TONE_BG.em, color: '#04261a' }}>EGP {fmt(item.amount)}</span>
+    </td>
+    <td className="px-3 py-2.5 whitespace-nowrap">
+      <div className="flex items-center gap-1.5">
+        <button type="button" disabled={busy} title="Accept payment" aria-label="Accept payment" onClick={() => onAct(item, 'confirm')} className={`${BTN_ICON} !text-emerald-700 dark:!text-emerald-300`}><FiCheck size={14} /></button>
+        <button type="button" disabled={busy} title="Reject payment" aria-label="Reject payment" onClick={() => onAct(item, 'reject')} className={`${BTN_ICON} !text-red-600 dark:!text-red-300`}><FiXCircle size={14} /></button>
+      </div>
+    </td>
+  </tr>
+));
+
+const SubscriptionModal = memo(({ sub, onClose, onCopy }) => {
+  useEscape(onClose);
+  const amount = sub.amount || (sub.months ? sub.months * PRICE_PER_MONTH : 0);
   const rows = [
-    { icon: FiFileText,   label: 'Shop Entity', value: sub.shopName || '—' },
-    { icon: FiActivity,   label: 'Shop ID',     value: sub.shopId || '—', mono: true },
-    { icon: FiCalendar,   label: 'Start Date',  value: fmt(sub.startDate) },
-    { icon: FiCalendar,   label: 'End Date',    value: fmt(sub.endDate) },
-    { icon: FiClock,      label: 'Duration',    value: sub.months ? `${sub.months} Month(s)` : '—' },
-    { icon: FiDollarSign, label: 'Amount',      value: sub.months ? `${sub.months * 1000} EGP` : '—', color: 'lime' },
-    { icon: FiCreditCard, label: 'Method',      value: (sub.paymentMethod || 'CARD').toUpperCase(), color: 'blue' },
+    { icon: FiFileText, label: 'Shop', value: clean(sub.shopName) || '—' },
+    { icon: FiActivity, label: 'Shop ID', value: clean(sub.shopId) || '—', mono: true },
+    { icon: FiCalendar, label: 'Start date', value: fmtDate(sub.startDate) },
+    { icon: FiCalendar, label: 'End date', value: fmtDate(sub.endDate) },
+    { icon: FiClock, label: 'Duration', value: monthsText(sub.months) },
+    { icon: FiDollarSign, label: 'Amount', value: amount ? `${fmt(amount)} EGP` : '—', accent: true },
+    { icon: FiCreditCard, label: 'Method', value: clean(sub.paymentMethod || 'CARD').toUpperCase() },
   ];
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-md p-4">
-      <div className="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-md shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
-        <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-800/80 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">Subscription Details</h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-red-500 transition-all">
-            <FiX size={16} title="Close" />
-          </button>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
+      <div role="dialog" aria-modal="true" aria-label="Subscription details" className="nb-card relative w-full max-w-md max-h-[92vh] flex flex-col overflow-hidden">
+        <div className="nb-gray nb-line px-5 py-3.5 border-b-2 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-2.5">
+            <IconTile icon={FiFileText} tone="cyan" className="w-9 h-9" size={16} />
+            <div>
+              <h3 className="text-sm font-extrabold uppercase"><span className="nb-ul">Subscription details</span></h3>
+              {sub.shopId && (
+                <p className="nb-muted mt-1 flex items-center gap-1.5 text-[10px] font-bold font-mono">
+                  {clean(sub.shopId).slice(0, 12)}
+                  <button type="button" aria-label="Copy shop ID" onClick={() => onCopy(sub.shopId)} className="hover:text-[var(--nb-accent)] transition-colors"><FiCopy size={10} /></button>
+                </p>
+              )}
+            </div>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" className={BTN_ICON}><FiX size={15} /></button>
         </div>
-        <div className="p-4 space-y-2">
-          <div className="grid grid-cols-3 gap-4">
-          {rows.map(({ icon: Icon, label, value, mono, color }) => (
-            <div key={label} className="group p-5 bg-gray-50 dark:bg-gray-900/40 border border-transparent hover:border-emerald-500/20 rounded-xl transition-all duration-300">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center text-emerald-500 shadow-sm group-hover:rotate-6 transition-transform">
-                  <Icon size={12} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-black text-gray-400 uppercase tracking-[0.2em]">{label}</p>
-                  <p className={`text-[10px] font-bold truncate ${mono ? 'font-mono text-emerald-600' : color === 'lime' ? 'text-emerald-600' : color === 'blue' ? 'text-blue-500' : 'text-gray-700 dark:text-gray-200'}`}>
-                    {value}
-                  </p>
+
+        <div className="px-5 py-4 overflow-y-auto slim-scroll">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {rows.map(({ icon: Icon, label, value, mono, accent }) => (
+              <div key={label} className={`${PANEL} p-3 flex items-center gap-2.5`}>
+                <Icon size={15} className="nb-ic flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="nb-muted text-[9px] font-bold uppercase">{label}</p>
+                  <p className={`text-xs font-extrabold truncate ${mono ? 'font-mono' : ''} ${accent ? 'nb-ic' : ''}`}>{value}</p>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
           </div>
         </div>
-        <div className="px-4 pb-4 pt-2">
-          <button onClick={onClose}
-            className="w-full py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-500 dark:hover:bg-emerald-500 dark:hover:text-white transition-all active:scale-[0.98]">
-            Close
+
+        <div className="nb-gray nb-line px-5 py-3.5 border-t-2 flex justify-end flex-shrink-0">
+          <button type="button" onClick={onClose} className={`${BTN_MD} uppercase`}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const CashConfirmModal = memo(({ pending, busy, onClose, onConfirm }) => {
+  const guard = useCallback(() => { if (!busy) onClose(); }, [busy, onClose]);
+  useEscape(guard);
+  const { item, kind } = pending;
+  const a = CASH_ACTIONS[kind];
+  const name = clean(item.shopName) || 'Unnamed shop';
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60" onClick={guard} aria-hidden="true" />
+      <div role="alertdialog" aria-modal="true" aria-label={a.title} className="nb-card relative w-full max-w-sm overflow-hidden">
+        <div className="nb-gray nb-line px-5 py-4 flex items-center gap-3 border-b-2">
+          <IconTile icon={a.icon} tone={a.tone} className="w-10 h-10" size={16} />
+          <div className="min-w-0">
+            <h3 className="text-sm font-extrabold uppercase">{a.title}</h3>
+            <p className="nb-muted text-[11px] font-semibold">{a.text}</p>
+          </div>
+        </div>
+
+        <div className="px-5 py-4">
+          <div className={`${PANEL} p-3 flex items-center justify-between gap-2.5`}>
+            <div className="min-w-0">
+              <p className="text-xs font-extrabold uppercase truncate">{name}</p>
+              <p className="nb-muted text-[10px] font-semibold truncate">{clean(item.shopEmail) || '—'}</p>
+            </div>
+            <span className="nb-chip tabular-nums" style={{ background: TONE_BG.em, color: '#04261a' }}>EGP {fmt(item.amount)}</span>
+          </div>
+        </div>
+
+        <div className="px-5 pb-5 flex gap-2.5">
+          <button type="button" onClick={guard} disabled={busy} className={`${BTN_MD} flex-1 uppercase`}>Cancel</button>
+          <button type="button" onClick={onConfirm} disabled={busy} className={`${a.danger ? BTN_DANGER : BTN_PRIMARY} flex-1 uppercase`}>
+            {busy ? <FiRefreshCw size={13} className="animate-spin motion-reduce:animate-none" /> : <a.icon size={13} />}
+            {busy ? 'Working…' : a.confirmLabel}
           </button>
         </div>
       </div>
@@ -151,416 +555,365 @@ const SubscriptionModal = memo(({ sub, onClose }) => {
   );
 });
 
-
-
-const AdminSubscriptions = ({ darkMode }) => {
+const AdminSubscriptions = () => {
   const navigate = useNavigate();
+  const darkMode = useDarkMode();
   const tokenRef = useRef(localStorage.getItem('authToken'));
+  const denied = useMemo(() => !tokenRef.current || isNotAdmin(tokenRef.current), []);
+  const authHeaders = useCallback(() => ({ Authorization: `Bearer ${tokenRef.current}` }), []);
 
-  const [subscriptions, setSubscriptions] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [subs, setSubs] = useState([]);
+  const [cash, setCash] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [viewMode, setViewMode] = useState('all');
+  const [tab, setTab] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [sortField, setSortField] = useState('shopName');
-  const [sortDir, setSortDir] = useState('asc');
-  const [serverPage, setServerPage] = useState(0);
-  const [totalServerPages, setTotalServerPages] = useState(1);
-  const [selectedSub, setSelectedSub] = useState(null);
+  const [sort, setSort] = useState({ field: 'name', dir: 'asc' });
+  const [selected, setSelected] = useState(null);
+  const [pending, setPending] = useState(null);
+  const [busyIds, setBusyIds] = useState(() => new Set());
+
+  const inflight = useRef(new Set());
+  const abortRef = useRef(null);
+  const detailAbort = useRef(null);
+
+  const term = useDeferredValue(search).trim().toLowerCase();
 
   useEffect(() => { document.title = 'Admin - Subscriptions'; }, []);
+  useEffect(() => { ensureNbFont(); }, []);
 
   useEffect(() => {
-    const id = setTimeout(() => { setDebouncedSearch(search); setCurrentPage(1); }, 300);
-    return () => clearTimeout(id);
-  }, [search]);
+    if (!tokenRef.current) { navigate('/login', { replace: true }); return; }
+    if (denied) { toast({ icon: 'error', title: 'Access denied', text: 'Admin accounts only.' }); navigate('/login', { replace: true }); }
+  }, [navigate, denied]);
 
-  const fetchAll = useCallback(async (pageNum = 0) => {
-    const token = tokenRef.current;
-    if (!token) { navigate('/login'); return; }
-    setLoading(true);
-    try {
-      const res = await api.get('/api/admin/subscriptions/subscriptions-with-payment', {
-        params: { page: pageNum, size: 100 },
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const d = res.data;
-      const normalized = (d.content || []).map(item => ({
-        id:             item.id || item.subscriptionId,
-        subscriptionId: item.subscriptionId || item.id,
-        shopId:         item.shop?.id || item.shopId,
-        shopName:       item.shop?.name || item.shopName || 'Unknown Shop',
-        shopEmail:      item.shop?.email || item.shopEmail,
-        startDate:      item.startDate,
-        endDate:        item.endDate,
-        months:         item.months || 0,
-        status:         item.status || 'PENDING',
-        paymentMethod:  item.payment?.method || item.paymentMethod || 'CARD',
-        paymentStatus:  item.payment?.paymentStatus || item.paymentStatus || 'PENDING',
-        amount:         item.amount || item.payment?.amount || 0,
-        paymentId:      item.payment?.id || item.paymentId,
-      }));
-      setSubscriptions(normalized);
-      setTotalServerPages(d.totalPages || 1);
-      setServerPage(d.number || 0);
-    } catch (err) {
-      if (err?.response?.status === 401) navigate('/login');
-      else showToast('Sync failed', 'error');
-    } finally { setLoading(false); }
-  }, [navigate]);
-
-  const fetchCashPending = useCallback(async () => {
-    const token = tokenRef.current;
-    if (!token) { navigate('/login'); return; }
-    setLoading(true);
-    try {
-      const res = await api.get('/api/admin/subscriptions/cash/pending', { headers: { Authorization: `Bearer ${token}` } });
-      const list = Array.isArray(res.data) ? res.data : res.data?.content || [];
-      setSubscriptions(list.map(item => ({
-        ...item,
-        paymentId:     item.id,
-        paymentMethod: 'CASH',
-        paymentStatus: item.paymentStatus || 'PENDING',
-        shopName:      item.shop?.name || item.shopName || 'Unknown Shop',
-        shopEmail:     item.shop?.email || item.shopEmail,
-      })));
-    } catch (err) {
-      if (err?.response?.status === 401) navigate('/login');
-      else showToast('Sync failed', 'error');
-    } finally { setLoading(false); }
-  }, [navigate]);
-
-  const loadData = useCallback(() => {
-    setCurrentPage(1);
-    viewMode === 'cash_pending' ? fetchCashPending() : fetchAll(serverPage);
-  }, [viewMode, fetchAll, fetchCashPending, serverPage]);
-
-  useEffect(() => { loadData(); }, [viewMode]);
-
-  const stats = useMemo(() => ({
-    total:       subscriptions.length,
-    active:      subscriptions.filter(s => s.status === 'ACTIVE').length,
-    pending:     subscriptions.filter(s => s.paymentStatus === 'PENDING' || s.status === 'PENDING').length,
-    cashPending: subscriptions.filter(s => s.paymentMethod === 'CASH' && s.paymentStatus === 'PENDING').length,
-  }), [subscriptions]);
-
-  const handleSort = useCallback((field) => {
-    setSortField(prev => {
-      if (prev === field) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return prev; }
-      setSortDir('asc'); return field;
-    });
-    setCurrentPage(1);
-  }, []);
-
-  const processed = useMemo(() => {
-    const t = debouncedSearch.toLowerCase();
-    const list = subscriptions.filter(s =>
-      !t ||
-      (s.shopName || '').toLowerCase().includes(t) ||
-      (s.shopEmail || '').toLowerCase().includes(t) ||
-      String(s.shopId || '').includes(t)
+  const loadSubs = useCallback(async (signal) => {
+    const url = '/api/admin/subscriptions/subscriptions-with-payment';
+    const first = await api.get(url, { params: { page: 0, size: PAGE_SIZE }, headers: authHeaders(), signal });
+    if (signal.aborted) return;
+    const head = (first.data?.content || []).map(normalizeSub);
+    setSubs(head);
+    const pages = Math.min(first.data?.totalPages || 1, MAX_SERVER_PAGES);
+    if (pages <= 1) return;
+    const rest = await Promise.allSettled(
+      Array.from({ length: pages - 1 }, (_, i) => api.get(url, { params: { page: i + 1, size: PAGE_SIZE }, headers: authHeaders(), signal })),
     );
-    return [...list].sort((a, b) => {
-      let av = String(a[sortField] || '').toLowerCase(), bv = String(b[sortField] || '').toLowerCase();
-      if (sortField === 'amount' || sortField === 'months') { av = Number(a[sortField] || 0); bv = Number(b[sortField] || 0); }
-      if (av < bv) return sortDir === 'asc' ? -1 : 1;
-      if (av > bv) return sortDir === 'asc' ?  1 : -1;
-      return 0;
-    });
-  }, [subscriptions, debouncedSearch, sortField, sortDir]);
+    if (signal.aborted) return;
+    let list = head;
+    let failed = false;
+    for (const r of rest) {
+      if (r.status === 'fulfilled') list = list.concat((r.value.data?.content || []).map(normalizeSub));
+      else if (!isCanceled(r.reason)) failed = true;
+    }
+    if (failed) toast({ icon: 'warning', title: 'Partial data', text: 'Some pages could not be loaded.' });
+    if (list.length > head.length) setSubs(list);
+  }, [authHeaders]);
 
-  const totalPages = Math.ceil(processed.length / rowsPerPage);
-  const paginated = useMemo(
-    () => processed.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage),
-    [processed, currentPage, rowsPerPage]
-  );
+  const loadCash = useCallback(async (signal) => {
+    const { data } = await api.get('/api/admin/subscriptions/cash/pending', { headers: authHeaders(), signal });
+    if (signal.aborted) return;
+    setCash((Array.isArray(data) ? data : data?.content || []).map(normalizeCash));
+  }, [authHeaders]);
 
-  const confirmCash = useCallback(async (paymentId) => {
-    const token = tokenRef.current;
-    const { isConfirmed } = await Swal.fire({
-      title: 'Authorize Cash Payment?', text: 'This will instantly activate the shop subscription.',
-      icon: 'question', showCancelButton: true, confirmButtonText: 'Confirm Payment',
-      background: darkMode ? '#111827' : '#fff', color: darkMode ? '#fff' : '#000',
-    });
-    if (!isConfirmed) return;
-    try {
-      await api.post(`/api/admin/subscriptions/cash/confirm/${paymentId}`, {}, { headers: { Authorization: `Bearer ${token}` } });
-      showToast('Payment Confirmed', 'success'); loadData();
-    } catch (err) { showToast(err?.response?.data?.message || 'Confirmation failed', 'error'); }
-  }, [loadData, darkMode]);
+  const load = useCallback(async ({ silent = false } = {}) => {
+    if (!tokenRef.current || denied) return;
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    if (!silent) setLoading(true);
+    setError(false);
 
-  const rejectCash = useCallback(async (paymentId) => {
-    const token = tokenRef.current;
-    const { isConfirmed } = await Swal.fire({
-      title: 'Reject Cash Entry?', text: 'This will cancel the subscription request.',
-      icon: 'warning', showCancelButton: true, confirmButtonText: 'Confirm Rejection',
-      confirmButtonColor: '#ef4444', background: darkMode ? '#111827' : '#fff', color: darkMode ? '#fff' : '#000',
-    });
-    if (!isConfirmed) return;
-    try {
-      await api.post(`/api/admin/subscriptions/cash/reject/${paymentId}`, {}, { headers: { Authorization: `Bearer ${token}` } });
-      showToast('Payment Rejected', 'success'); loadData();
-    } catch (err) { showToast(err?.response?.data?.message || 'Rejection failed', 'error'); }
-  }, [loadData, darkMode]);
+    const results = await Promise.allSettled([loadSubs(ctrl.signal), loadCash(ctrl.signal)]);
+    if (ctrl.signal.aborted) return;
 
-  const viewDetails = useCallback(async (subscriptionId) => {
-    const token = tokenRef.current;
-    try {
-      const { data: s } = await api.get(`/api/admin/subscriptions/${subscriptionId}`, { headers: { Authorization: `Bearer ${token}` } });
-      setSelectedSub(s);
-    } catch (err) { showToast(err?.response?.data?.message || 'Sync failed', 'error'); }
+    const failed = results.filter((r) => r.status === 'rejected' && !isCanceled(r.reason));
+    if (failed.length) {
+      const status = failed[0].reason?.response?.status;
+      if (status === 401) navigate('/login', { replace: true });
+      else if (status === 403) toast({ icon: 'error', title: 'Access denied', text: 'Admin accounts only.' });
+      else { setError(true); toast({ icon: 'error', title: 'Sync failed', text: errText(failed[0].reason) }); }
+    } else {
+      setLastUpdated(new Date());
+    }
+    if (abortRef.current === ctrl) setLoading(false);
+  }, [navigate, denied, loadSubs, loadCash]);
+
+  useEffect(() => {
+    load();
+    return () => { abortRef.current?.abort(); detailAbort.current?.abort(); };
+  }, [load]);
+
+  const withBusy = useCallback(async (id, task) => {
+    if (!isSafeId(id) || inflight.current.has(String(id))) return;
+    inflight.current.add(String(id));
+    setBusyIds(new Set(inflight.current));
+    try { await task(encodeURIComponent(id)); } finally {
+      inflight.current.delete(String(id));
+      setBusyIds(new Set(inflight.current));
+    }
   }, []);
+
+  const requestCash = useCallback((item, kind) => setPending({ item, kind }), []);
+  const closeCash = useCallback(() => setPending(null), []);
+
+  const runCash = useCallback(async () => {
+    if (!pending) return;
+    const { item, kind } = pending;
+    const a = CASH_ACTIONS[kind];
+    await withBusy(item.paymentId, async (eid) => {
+      try {
+        await api.post(`/api/admin/subscriptions/cash/${a.endpoint}/${eid}`, {}, { headers: authHeaders() });
+        setCash((prev) => prev.filter((c) => c.paymentId !== item.paymentId));
+        toast({ icon: 'success', title: a.ok });
+        load({ silent: true });
+      } catch (err) {
+        toast({ icon: 'error', title: a.fail, text: errText(err) });
+      }
+    });
+    setPending(null);
+  }, [pending, withBusy, authHeaders, load]);
+
+  const viewSub = useCallback(async (sub) => {
+    setSelected(sub);
+    const sid = sub.subscriptionId || sub.id;
+    if (!isSafeId(sid)) return;
+    detailAbort.current?.abort();
+    const ctrl = new AbortController();
+    detailAbort.current = ctrl;
+    try {
+      const { data } = await api.get(`/api/admin/subscriptions/${encodeURIComponent(sid)}`, { headers: authHeaders(), signal: ctrl.signal });
+      if (!ctrl.signal.aborted) setSelected((prev) => (prev && prev.id === sub.id ? { ...prev, ...data } : prev));
+    } catch {}
+  }, [authHeaders]);
+
+  const rows = tab === 'cash' ? cash : subs;
+
+  const index = useMemo(() => rows.map((s) => {
+    const name = clean(s.shopName).toLowerCase();
+    const email = clean(s.shopEmail).toLowerCase();
+    const id = String(s.shopId ?? '').toLowerCase();
+    return {
+      s, name, id,
+      months: s.months || 0,
+      method: String(s.paymentMethod || '').toLowerCase(),
+      status: statusKey(s).toLowerCase(),
+      date: s.createdAt ? new Date(s.createdAt).getTime() || 0 : 0,
+      amount: s.amount || 0,
+      text: `${name} ${email} ${id}`,
+    };
+  }), [rows]);
+
+  const stats = useMemo(() => {
+    let active = 0; let pendingCount = 0;
+    for (const s of subs) {
+      if (s.status === 'ACTIVE') active += 1;
+      if (s.paymentStatus === 'PENDING' || s.status === 'PENDING') pendingCount += 1;
+    }
+    return { total: subs.length, active, pending: pendingCount, cash: cash.length };
+  }, [subs, cash]);
+
+  const filtered = useMemo(() => {
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    const key = sort.field;
+    const list = term ? index.filter((e) => e.text.includes(term)) : index.slice();
+    list.sort((a, b) => (a[key] < b[key] ? -dir : a[key] > b[key] ? dir : 0));
+    return list.map((e) => e.s);
+  }, [index, term, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+  const page = Math.min(currentPage, totalPages);
+  const paginated = useMemo(() => filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage), [filtered, page, rowsPerPage]);
+  const from = filtered.length ? (page - 1) * rowsPerPage + 1 : 0;
+  const to = Math.min(page * rowsPerPage, filtered.length);
 
   const statCards = useMemo(() => [
-    { icon: FiFileText,    label: 'Total Subscriptions',  value: stats.total,       color: 'lime'    },
-    { icon: FiCheckCircle, label: 'Active Plans',         value: stats.active,      color: 'emerald' },
-    { icon: FiClock,       label: 'Pending Subscriptions',  value: stats.pending,     color: 'amber'   },
-    { icon: FiDollarSign,  label: 'Pending Cash',         value: stats.cashPending, color: 'rose'    },
+    { label: 'Total subscriptions', value: fmt(stats.total), description: 'All merchant plans', icon: FiFileText, tone: 'em', percent: stats.total ? 100 : 0, color: '#34d399' },
+    { label: 'Active plans', value: fmt(stats.active), description: 'Currently running', icon: FiCheckCircle, tone: 'teal', percent: pct(stats.active, stats.total), color: '#2dd4bf' },
+    { label: 'Pending', value: fmt(stats.pending), description: 'Awaiting payment', icon: FiClock, tone: 'amber', percent: pct(stats.pending, stats.total), color: '#fbbf24' },
+    { label: 'Pending cash', value: fmt(stats.cash), description: 'Needs admin review', icon: FiDollarSign, tone: 'lime', percent: pct(stats.cash, stats.total), color: '#a3e635' },
   ], [stats]);
 
+  const counts = useMemo(() => ({ all: subs.length, cash: cash.length }), [subs, cash]);
+
+  const handleSearch = useCallback((e) => { setSearch(sanitizeSearch(e.target.value)); setCurrentPage(1); }, []);
+  const handleTab = useCallback((key) => { setTab(key); setSort({ field: 'name', dir: 'asc' }); setCurrentPage(1); }, []);
+  const handleRows = useCallback((n) => { setRowsPerPage(n); setCurrentPage(1); }, []);
+  const handleSort = useCallback((field) => { setSort((s) => nextSort(s, field)); setCurrentPage(1); }, []);
+  const handleCopy = useCallback(async (id) => {
+    try {
+      await navigator.clipboard.writeText(String(id));
+      toast({ icon: 'success', title: 'Copied', text: 'Shop ID copied to clipboard.', timer: 2000 });
+    } catch {
+      toast({ icon: 'error', title: 'Could not copy', text: 'Allow clipboard access in your browser.' });
+    }
+  }, []);
+  const closeModal = useCallback(() => { detailAbort.current?.abort(); setSelected(null); }, []);
+  const refresh = useCallback(() => load(), [load]);
+
+  const exportCSV = useCallback(() => {
+    if (tab === 'cash') {
+      downloadCSV(
+        'cash_queue.csv',
+        ['Payment ID', 'Shop', 'Email', 'Method', 'Status', 'Date', 'Notes', 'Amount'],
+        filtered.map((s) => [s.paymentId, clean(s.shopName), clean(s.shopEmail), 'CASH', statusKey(s), fmtDate(s.createdAt), clean(s.details), s.amount]),
+      );
+    } else {
+      downloadCSV(
+        'subscriptions.csv',
+        ['Subscription ID', 'Shop ID', 'Shop', 'Email', 'Months', 'Method', 'Status', 'Amount'],
+        filtered.map((s) => [s.subscriptionId || s.id, s.shopId, clean(s.shopName), clean(s.shopEmail), s.months, s.paymentMethod, statusKey(s), s.amount]),
+      );
+    }
+  }, [filtered, tab]);
+
+  if (denied) return null;
+
+  const hasData = rows.length > 0;
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
+    <div
+      style={NB_FONT_STYLE}
+      className={`nb ${darkMode ? 'nb-dark' : ''} min-h-screen py-6 lg:pl-64 mt-16 text-left overflow-x-hidden`}
+    >
+      <style>{PAGE_CSS}</style>
+      <Defs3D />
+      <Toaster darkMode={darkMode} />
 
-       
-       
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-1.5 rounded-full bg-emerald-500" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">Enterprise Plans</span>
-            </div>
-            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">Subscriptions</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Coordinate merchant access cycles and financial settlements</p>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
+        <div className="flex flex-wrap items-end justify-between gap-3 px-0.5">
+          <div>
+            <p className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wide"><span className="nb-bar" aria-hidden="true" />Billing</p>
+            <h1 className="mt-2.5 text-3xl sm:text-4xl font-extrabold tracking-tight leading-[1.15]">
+              <UnderlinedTitle text="Subscriptions Console" />
+            </h1>
+            <p className="nb-muted mt-2 text-sm font-medium">Coordinate merchant access cycles and cash settlements</p>
           </div>
-
-          <div className="p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-sm flex items-center gap-4">
-             <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center text-gray-400">
-               <FiActivity size={18} />
-             </div>
-             <div>
-              
-               <p className="text-sm font-bold text-gray-700 dark:text-gray-200">System Synced</p>
-             </div>
-          </div>
-        </div>
-
-       
-       
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {statCards.map(s => <StatCard key={s.label} {...s} />)}
-        </div>
-
-       
-       
-        <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
-          <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
-            
-            <div className="relative flex-1 group">
-              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors" size={16} />
-              <input type="text" placeholder="Search by shop ..." value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="w-full pl-12 pr-10 py-3.5 rounded-2xl border border-transparent bg-gray-50 dark:bg-gray-900/50 text-sm font-bold text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all" />
-              {search && (
-                <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors">
-                  <FiX size={16} title="Clear" />
-                </button>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              {[{ v: 'all', l: 'All Plans' }, { v: 'cash_pending', l: 'Cash Queue' }].map(({ v, l }) => (
-                <button key={v} onClick={() => setViewMode(v)}
-                  className={`px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${viewMode === v ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'border-transparent bg-gray-50 dark:bg-gray-900/50 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
-                  {l}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex items-center gap-2">
-               <button onClick={loadData} className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 hover:text-emerald-500 border border-transparent hover:border-emerald-500/20 transition-all">
-                 <FiRefreshCw size={16} className={loading ? 'animate-spin' : ''} title="Refresh Registry" />
-               </button>
-               <div className="flex items-center gap-3 px-4 border-l border-gray-100 dark:border-gray-800">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">View</span>
-                  <RowsDropdown
-                    value={rowsPerPage}
-                    options={ROWS_OPTIONS}
-                    onChange={n => { setRowsPerPage(n); setCurrentPage(1); }}
-                  />
-               </div>
-            </div>
+          <div className="flex items-center gap-2.5">
+            {lastUpdated && <p className="nb-muted hidden sm:block text-[11px] font-bold">Last updated: {TIME_FMT.format(lastUpdated)}</p>}
+            <button type="button" onClick={refresh} aria-label="Refresh" title="Refresh" className={`${BTN_MD} h-10 uppercase`}>
+              <FiRefreshCw size={14} className={loading ? 'animate-spin motion-reduce:animate-none' : ''} /> Refresh
+            </button>
+            <button type="button" onClick={exportCSV} disabled={!filtered.length} className={`${BTN_MD} h-10 uppercase`}>
+              <FiDownload size={14} /> Export CSV
+            </button>
           </div>
         </div>
 
-        
-        
-        <div className="bg-white dark:bg-gray-800 rounded-sm border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden">
-          {loading ? (
-            <div className="py-32 text-center space-y-4">
-              <div className="w-12 h-12 border-4 border-lime-500 border-t-transparent rounded-full animate-spin mx-auto shadow-lg" />
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 animate-pulse">Mapping subscription network...</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
+          {statCards.map((s) => <StatCard key={s.label} {...s} />)}
+        </div>
+
+        <section className="nb-card overflow-hidden">
+          <div className="nb-line p-3 sm:p-4 flex flex-wrap items-center gap-2.5 border-b-2">
+            <div className="nb-field relative flex h-10 min-w-[220px] flex-1 items-center gap-2 px-3">
+              <FiSearch aria-hidden="true" className="h-4 w-4 flex-shrink-0" />
+              <input
+                type="search"
+                value={search}
+                maxLength={SEARCH_MAX}
+                autoComplete="off"
+                spellCheck={false}
+                enterKeyHint="search"
+                aria-label="Search subscriptions"
+                placeholder="Search by shop name, email or ID"
+                onChange={handleSearch}
+                className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60"
+              />
             </div>
-          ) : (
-            <>
-              <div className="overflow-x-auto w-full rounded-sm border border-gray-200 dark:border-gray-800 shadow-sm custom-scrollbar-thin">
-                <table className="w-full table-auto border-collapse text-center text-sm text-gray-500  min-w-[900px]">
-                  <thead className="bg-gray-50 dark:bg-gray-900">
-                    <tr>
-                      {viewMode === 'cash_pending' ? (
-                        <>
-                          <th className={` text-slate-500 font-medium text-xs tracking-wider uppercase border-b border-slate-200 dark:border-slate-800  p-4   cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors`}>Method</th>
-                          <th className={` text-slate-500 font-medium text-xs tracking-wider uppercase border-b border-slate-200 dark:border-slate-800  p-4   cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors`}>Status</th>
-                          <th className={` text-slate-500 font-medium text-xs tracking-wider uppercase border-b border-slate-200 dark:border-slate-800  p-4   cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors`}>Date</th>
-                          <th className={` text-slate-500 font-medium text-xs tracking-wider uppercase border-b border-slate-200 dark:border-slate-800  p-4   cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors`}>Notes</th>
-                          <Th field="amount" label="Value" onSort={handleSort} sortField={sortField} sortDir={sortDir} />
-                        </>
-                      ) : (
-                        <>
-                          <Th field="shopId"        label=" ID"      center={true}  onSort={handleSort} sortField={sortField} sortDir={sortDir} />
-                          <Th field="shopName"      label="Shop "    center={true} onSort={handleSort} sortField={sortField} sortDir={sortDir} />
-                          <th className={` text-slate-500 font-medium text-xs tracking-wider uppercase border-b border-slate-200 dark:border-slate-800  p-4   cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors`}>Duration</th>
-                          <Th field="paymentMethod" label="Method"     center={true}             onSort={handleSort} sortField={sortField} sortDir={sortDir} />
-                          <Th field="paymentStatus" label="Status"                  onSort={handleSort} sortField={sortField} sortDir={sortDir} />
-                        </>
-                      )}
-                      <th className={` text-slate-500 font-medium text-xs tracking-wider uppercase border-b border-slate-200 dark:border-slate-800  p-4   cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors`}>Actions</th>
+            <RowsDropdown value={rowsPerPage} onChange={handleRows} />
+          </div>
+
+          <Tabs tabs={TABS} value={tab} onChange={handleTab} counts={counts} />
+
+          <div className="overflow-auto max-h-[68vh] slim-scroll">
+            <table className="w-full min-w-[820px] text-left border-collapse">
+              <thead className="nb-gray sticky top-0 z-10 shadow-[0_2px_0_0_var(--nb-line)]">
+                {tab === 'cash' ? (
+                  <tr>
+                    <SortTh label="Shop" field="name" sort={sort} onSort={handleSort} />
+                    <SortTh label="Method" field="method" sort={sort} onSort={handleSort} />
+                    <SortTh label="Date" field="date" sort={sort} onSort={handleSort} />
+                    <PlainTh>Notes</PlainTh>
+                    <SortTh label="Amount" field="amount" sort={sort} onSort={handleSort} />
+                    <PlainTh>Actions</PlainTh>
+                  </tr>
+                ) : (
+                  <tr>
+                    <SortTh label="Shop" field="name" sort={sort} onSort={handleSort} />
+                    <SortTh label="Shop ID" field="id" sort={sort} onSort={handleSort} />
+                    <SortTh label="Duration" field="months" sort={sort} onSort={handleSort} />
+                    <SortTh label="Method" field="method" sort={sort} onSort={handleSort} />
+                    <SortTh label="Status" field="status" sort={sort} onSort={handleSort} />
+                    <PlainTh>Actions</PlainTh>
+                  </tr>
+                )}
+              </thead>
+              <tbody className="nb-rows">
+                {loading && !hasData ? (
+                  Array.from({ length: Math.min(rowsPerPage, 8) }, (_, i) => (
+                    <tr key={i} className="animate-pulse motion-reduce:animate-none">
+                      {Array.from({ length: 6 }, (__, j) => (
+                        <td key={j} className="px-3 py-4"><div className="nb-gray h-3.5 w-full" /></td>
+                      ))}
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                    {paginated.length === 0 ? (
-                      <tr><td colSpan={7} className="py-32 text-center">
-                        <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
-                          <FiFileText size={32} className="text-gray-200" />
-                        </div>
-                        <p className="text-gray-400 font-bold">No Plan Records Identified</p>
-                      </td></tr>
-                    ) : paginated.map(sub => {
-                      const payMeta = getPayStatusMeta(sub.paymentStatus === 'PAID' || sub.status === 'ACTIVE' ? 'PAID' : sub.paymentStatus || sub.status);
-                      const methodMeta = getMethodMeta(sub.paymentMethod);
+                  ))
+                ) : error && !hasData ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-14 text-center">
+                      <FiAlertCircle size={28} className="mx-auto text-red-500" />
+                      <p className="mt-2 text-sm font-extrabold uppercase">Couldn't load subscriptions</p>
+                      <p className="nb-muted text-xs mb-4">Check your connection and try again.</p>
+                      <button type="button" onClick={refresh} className={`${BTN_MD} nb-btn-a uppercase`}><FiRefreshCw size={13} /> Try again</button>
+                    </td>
+                  </tr>
+                ) : paginated.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-14">
+                      <EmptyState3D
+                        kind="box"
+                        title={tab === 'cash' ? 'No cash payments waiting' : 'No subscriptions found'}
+                        subtitle="The list is empty or nothing matches your search"
+                        darkMode={darkMode}
+                      />
+                    </td>
+                  </tr>
+                ) : tab === 'cash' ? (
+                  paginated.map((c) => (
+                    <CashRow key={c.paymentId ?? c.id} item={c} busy={busyIds.has(String(c.paymentId))} onAct={requestCash} />
+                  ))
+                ) : (
+                  paginated.map((s) => <SubRow key={s.id} sub={s} onView={viewSub} onCopy={handleCopy} />)
+                )}
+              </tbody>
+            </table>
+          </div>
 
-                      return (
-                        <tr key={sub.id} className="hover:bg-lime-50/10 dark:hover:bg-lime-900/5 transition-colors group">
-                          {viewMode === 'cash_pending' ? (
-                            <>
-                              <td className="p-3">
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-orange-50 dark:bg-orange-900/20 text-orange-600 border border-orange-500/10">
-                                  <FiCreditCard size={12} /> {sub.paymentMethod || 'CASH'}
-                                </span>
-                              </td>
-                              <td className="p-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-widest">{sub.paymentStatus || 'PENDING'}</td>
-                              <td className="p-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-widest">{formatDate(sub.createdAt)}</td>
-                              <td className="p-3 text-xs text-gray-600 dark:text-gray-400 max-w-[200px] truncate">{sub.details || '—'}</td>
-                              <td className="p-3 text-center font-mono font-bold text-sm text-lime-600">EGP {sub.amount || 0}</td>
-                            </>
-                          ) : (
-                            <>
-                              <td className="p-3">
-                                <div className="flex items-center justify-center gap-3">
-                                  <code className="text-[10px] font-black bg-gray-50 dark:bg-gray-900 px-3 py-1.5 rounded-lg text-gray-500 max-w-[100px] truncate block border border-transparent group-hover:border-lime-500/20 transition-all">{sub.shopId}</code>
-                                  <button onClick={() => navigator.clipboard.writeText(sub.shopId).then(() => showToast('ID Copied', 'success'))}
-                                    className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-lime-500 transition-all">
-                                    <FiCopy size={14} title="Copy Shop ID" />
-                                  </button>
-                                </div>
-                              </td>
-                              <td className="p-3">
-                                 <div className="space-y-0.5 text-center">
-                                   <p className="text-sm font-bold text-gray-900 dark:text-white tracking-tight">{sub.shopName || 'Unnamed Merchant'}</p>
-                                   <p className="text-[10px] text-gray-400 font-medium">{sub.shopEmail}</p>
-                                 </div>
-                              </td>
-                             
-                              <td className="p-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-widest">{sub.months} MONTHS</td>
-                              <td className="p-3 text-center">
-                                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest  ${methodMeta.bg} ${methodMeta.text}`}>
-                                  {sub.paymentMethod}
-                                </span>
-                              </td>
-                              <td className="p-3 text-center">
-                                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest  ${payMeta.bg} ${payMeta.text}`}>
-                                  <span className={`w-1.5 h-1.5 rounded-full ${payMeta.dot}`} />
-                                  {sub.paymentStatus === 'PAID' || sub.status === 'ACTIVE' ? 'SETTLED' : sub.paymentStatus || sub.status || 'PENDING'}
-                                </span>
-                              </td>
-                            </>
-                          )}
-
-                          <td className="p-3">
-                            <div className="flex items-center justify-center gap-2 flex-wrap">
-                              {viewMode !== 'cash_pending' && (
-                                <button onClick={() => viewDetails(sub.subscriptionId || sub.id)}
-                                  className="p-1.5 text-gray- border border-gray-200 dark:text-white dark:border-gray-900 dark:hover:text-white dark:bg-gray-900 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors">
-                                  <FiInfo size={16} title="View Plan Details" />
-                                </button>
-                              )}
-                              {viewMode === 'cash_pending' && (
-                                <>
-                                  <button onClick={() => confirmCash(sub.paymentId || sub.id)}
-                                    className="p-1.5 text-gray-500 border border-gray-200 dark:text-white dark:border-gray-800 dark:hover:text-white dark:bg-gray-900 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors">
-                                    <FiCheck size={16} title="Accept Subscription" />
-                                  </button>
-                                  <button onClick={() => rejectCash(sub.paymentId || sub.id)}
-                                    className="p-1.5 text-gray-500 border border-gray-200 dark:text-white dark:border-gray-800 dark:hover:text-white dark:bg-gray-900 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors">
-                                    <FiXCircle size={16} title="Reject Subscription" />
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {totalPages > 1 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between border-t border-gray-50 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 p-3 gap-6">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                    Showing {paginated.length} records of {processed.length}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
-                      className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 text-gray-400 hover:text-emerald-500 disabled:opacity-30 transition-all">
-                      <FiChevronLeft size={16} />
-                    </button>
-                    <div className="flex gap-1">
-                      {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                        const p = i + 1;
-                        return (
-                          <button key={p} onClick={() => setCurrentPage(p)}
-                            className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all border ${currentPage === p ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-500 hover:border-emerald-500/50'}`}>
-                            {p}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
-                      className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 text-gray-400 hover:text-emerald-500 disabled:opacity-30 transition-all">
-                      <FiChevronRight size={16} />
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
+          {filtered.length > 0 && (
+            <div className="nb-gray nb-line px-4 py-3 border-t-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <p className="text-xs font-semibold">
+                Showing <b className="tabular-nums">{fmt(from)}–{fmt(to)}</b> of <b className="tabular-nums">{fmt(filtered.length)}</b> {tab === 'cash' ? 'payments' : 'subscriptions'}
+              </p>
+              {totalPages > 1 && <Pagination page={page} total={totalPages} onChange={setCurrentPage} />}
+            </div>
           )}
-        </div>
+        </section>
       </div>
 
-      {selectedSub && <SubscriptionModal sub={selectedSub} onClose={() => setSelectedSub(null)} />}
+      {selected && <SubscriptionModal sub={selected} onClose={closeModal} onCopy={handleCopy} />}
 
-      <style dangerouslySetInnerHTML={{ __html: `
-        .custom-scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
-        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
-        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
-      `}} />
+      {pending && (
+        <CashConfirmModal
+          pending={pending}
+          busy={busyIds.has(String(pending.item.paymentId))}
+          onClose={closeCash}
+          onConfirm={runCash}
+        />
+      )}
     </div>
   );
 };
 
-export default AdminSubscriptions;
+export default memo(AdminSubscriptions);

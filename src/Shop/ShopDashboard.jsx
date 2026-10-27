@@ -1,798 +1,998 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FiActivity, FiZap, FiShoppingBag, FiTool, FiRefreshCw, FiCalendar, FiArrowRight, FiTrendingUp, FiTrendingDown } from 'react-icons/fi';
-import Swal from 'sweetalert2';
-import api from '../api';
-import useAuthStore from '../store/Auth';
+import React, {
+  useState, useEffect, useCallback, useMemo, useRef, memo, lazy, Suspense, createContext, useContext,
+} from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  FiActivity, FiZap, FiShoppingBag, FiTool, FiRefreshCw, FiCalendar,
+  FiAlertCircle, FiChevronLeft, FiChevronRight, FiPackage,
+  FiBox, FiTag, FiCreditCard, FiPieChart, FiBarChart2,
+} from "react-icons/fi";
+import api from "../common/api/api";
+import useAuthStore from "../common/store/Auth";
+import { UI3D_CSS, Defs3D } from "../components/user/Ui3D";
+import { EXTRAS_CSS, Toaster, toast, EmptyState3D } from "../components/user/UiExtras";
+import {
+  BTN_ICON, BTN_MD, BTN_PRIMARY, CARD, PANEL, FIELD, LABEL, SCROLL_CSS,
+  useDarkMode, useShopLocale, IconTile,
+} from "../components/shop/TableKit";
+import { ensureShopAssets } from "../common/utils/shopFonts";
 
-const isValidDate = (v) => !v || !Number.isNaN(new Date(v).getTime());
-const formatPrice = (p) => `EGP ${Number(p || 0).toLocaleString('en-US')}`;
-const formatDate = (d) => {
-  if (!d) return '-';
-  const parsed = new Date(d);
-  return Number.isNaN(parsed.getTime()) ? '-' : parsed.toLocaleDateString('ar-EG', { day: '2-digit', month: 'short' });
-};
+ensureShopAssets();
 
-// Precomputed, literal Tailwind class strings per accent color. Using string
-// interpolation like `bg-${color}-50` is invisible to Tailwind's JIT scanner,
-// so every color actually used is spelled out here instead.
-const COLOR_STYLES = {
-  lime:    { icon: 'bg-lime-50 dark:bg-lime-900/20 text-lime-600 dark:text-lime-400',       ring: 'text-lime-500',    chip: 'bg-lime-50 dark:bg-lime-900/30 text-lime-600 dark:text-lime-400' },
-  emerald: { icon: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400', ring: 'text-emerald-500', chip: 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' },
-  blue:    { icon: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400',       ring: 'text-blue-500',    chip: 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' },
-  orange:  { icon: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400', ring: 'text-orange-500',  chip: 'bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400' },
-  purple:  { icon: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400', ring: 'text-purple-500',  chip: 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' },
-};
-const getColorStyle = (color) => COLOR_STYLES[color] || COLOR_STYLES.emerald;
+const PAGE_CSS = UI3D_CSS + EXTRAS_CSS + SCROLL_CSS;
+const INK = "#04261a";
 
-// Compact dot + label instead of heavy pill badges — matches the reference
-// design and keeps rows short.
-const ORDER_STATUS_STYLE = {
-  PENDING:    { dot: 'bg-amber-500',   text: 'text-amber-600 dark:text-amber-400' },
-  PROCESSING: { dot: 'bg-blue-500',    text: 'text-blue-600 dark:text-blue-400' },
-  SHIPPED:    { dot: 'bg-indigo-500',  text: 'text-indigo-600 dark:text-indigo-400' },
-  DELIVERED:  { dot: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' },
-  COMPLETED:  { dot: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' },
-  CANCELLED:  { dot: 'bg-red-500',     text: 'text-red-600 dark:text-red-400' },
-};
-const REPAIR_STATUS_STYLE = {
-  SUBMITTED:   { dot: 'bg-amber-500',   text: 'text-amber-600 dark:text-amber-400' },
-  PENDING:     { dot: 'bg-amber-500',   text: 'text-amber-600 dark:text-amber-400' },
-  IN_PROGRESS: { dot: 'bg-blue-500',    text: 'text-blue-600 dark:text-blue-400' },
-  COMPLETED:   { dot: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' },
-  REJECTED:    { dot: 'bg-red-500',     text: 'text-red-600 dark:text-red-400' },
-  CANCELLED:   { dot: 'bg-red-500',     text: 'text-red-600 dark:text-red-400' },
-};
-const getStatusStyle = (map, s) => map[s] || { dot: 'bg-gray-400', text: 'text-gray-500 dark:text-gray-400' };
-
-const ScrollbarStyles = memo(() => (
-  <style>{`
-    .styled-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
-    .styled-scrollbar::-webkit-scrollbar-track { background: transparent; }
-    .styled-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.5); border-radius: 9999px; }
-    .styled-scrollbar::-webkit-scrollbar-thumb:hover { background-color: rgba(156, 163, 175, 0.8); }
-    .styled-scrollbar { scrollbar-width: thin; scrollbar-color: rgba(156, 163, 175, 0.5) transparent; }
-  `}</style>
-));
-
-const SkeletonBlock = ({ className }) => (
-  <div className={`bg-white dark:bg-gray-800 rounded-xl animate-pulse border border-gray-100 dark:border-gray-700 ${className}`} />
-);
-
-// Single lightweight spinner (CSS transform + animate-spin only) used for any
-// async section instead of layout-heavy pulsing skeleton rows.
-const Spinner = memo(({ size = 20, className = '' }) => (
-  <svg className={`animate-spin ${className}`} width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" className="opacity-20" />
-    <path d="M21 12a9 9 0 00-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-  </svg>
-));
-
-// Small ring/donut progress used inside stat cards. Pure SVG, no dependency,
-// transitions only strokeDashoffset so it stays cheap even with several on screen.
-const RingProgress = memo(({ percent = 0, size = 38, stroke = 3, colorClass = 'text-emerald-500' }) => {
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const clamped = Math.min(100, Math.max(0, percent));
-  const offset = c - (clamped / 100) * c;
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90 flex-shrink-0">
-      <circle cx={size / 2} cy={size / 2} r={r} strokeWidth={stroke} stroke="currentColor" fill="none" className="text-gray-100 dark:text-gray-700" />
-      <circle
-        cx={size / 2} cy={size / 2} r={r} strokeWidth={stroke} stroke="currentColor" fill="none" strokeLinecap="round"
-        strokeDasharray={c} strokeDashoffset={offset} className={colorClass}
-        style={{ transition: 'stroke-dashoffset 0.6s ease' }}
-      />
-    </svg>
-  );
+const BarChart = lazy(async () => {
+  const [cjs, rc] = await Promise.all([import("chart.js"), import("react-chartjs-2")]);
+  cjs.Chart.register(cjs.CategoryScale, cjs.LinearScale, cjs.BarElement, cjs.Tooltip);
+  return { default: rc.Bar };
 });
 
-const EmptyIllustration = memo(() => (
-  <svg viewBox="0 0 100 80" className="w-14 h-12 mx-auto">
-    <path d="M14 34 L28 12 H72 L86 34" fill="none" stroke="#d1d5db" strokeWidth="2.4" strokeLinejoin="round" className="dark:stroke-gray-600" />
-    <path d="M14 34 H36 C37 40 43 44 50 44 C57 44 63 40 64 34 H86 V64 C86 67 84 69 81 69 H19 C16 69 14 67 14 64 Z" fill="none" stroke="#d1d5db" strokeWidth="2.4" strokeLinejoin="round" className="dark:stroke-gray-600" />
-    <circle cx="50" cy="52" r="2" fill="#d1d5db" className="dark:fill-gray-600" />
-  </svg>
-));
+const LocaleCtx = createContext(null);
+const useL = () => useContext(LocaleCtx);
 
-const EmptyRow = ({ colSpan, text }) => (
-  <tr>
-    <td colSpan={colSpan} className="px-6 py-8 text-center">
-      <EmptyIllustration />
-      <p className="mt-2 text-[10px] font-bold text-gray-400">{text}</p>
-    </td>
-  </tr>
-);
+const FMT_CACHE = {};
+const getFmt = (locale) =>
+  (FMT_CACHE[locale] ||= {
+    num: new Intl.NumberFormat(locale),
+    day: new Intl.DateTimeFormat(locale, { day: "2-digit", month: "short" }),
+    monthYear: new Intl.DateTimeFormat(locale, { month: "short", year: "2-digit" }),
+    time: new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }),
+    longMonth: new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }),
+    todayLong: new Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "long" }),
+  });
 
-const LoadingRow = ({ colSpan }) => (
-  <tr>
-    <td colSpan={colSpan} className="px-6 py-8">
-      <div className="flex items-center justify-center text-emerald-500">
-        <Spinner size={22} />
-      </div>
-    </td>
-  </tr>
-);
+const toNum = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+const normStatus = (s) => (s ? String(s).toUpperCase() : "");
 
-const StoreIllustration = memo(() => (
-  <svg viewBox="0 0 120 90" className="w-16 h-13 sm:w-20 sm:h-16">
-    <circle cx="98" cy="18" r="20" fill="rgba(16,185,129,0.10)" />
-    <circle cx="14" cy="72" r="14" fill="rgba(16,185,129,0.08)" />
-    <path d="M18 32 L60 18 L102 32 L102 40 L18 40 Z" fill="#f3f4f6" stroke="#e5e7eb" strokeWidth="2" className="dark:fill-gray-800 dark:stroke-gray-700" />
-    <rect x="22" y="40" width="76" height="36" rx="3" fill="#ffffff" stroke="#e5e7eb" strokeWidth="2" className="dark:fill-gray-900 dark:stroke-gray-700" />
-    <rect x="46" y="52" width="28" height="24" rx="2" fill="rgba(16,185,129,0.14)" stroke="#10b981" strokeWidth="2" />
-    <circle cx="60" cy="64" r="2" fill="#10b981" />
-    <path d="M30 14 L34 6 L38 14 L34 14 Z" fill="#fbbf24" />
-    <circle cx="108" cy="52" r="2.4" fill="#34d399" />
-  </svg>
-));
+const DT_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+const MIN_YEAR = 2000;
+const MAX_YEAR = 2100;
+const MIN_DT = `${MIN_YEAR}-01-01T00:00`;
+const MAX_DT = `${MAX_YEAR}-12-31T23:59`;
 
-const StatCard = memo(({ label, value, icon: Icon, color, to, description, percent }) => {
-  const navigate = useNavigate();
-  const c = getColorStyle(color);
-  return (
-    <div
-      onClick={() => navigate(to)}
-      className="group cursor-pointer bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 sm:p-3.5 hover:shadow-lg hover:shadow-gray-200/40 dark:hover:shadow-none hover:-translate-y-0.5 transition-all duration-300"
-    >
-      <div className="flex items-center justify-between">
-        <div className="relative flex items-center justify-center flex-shrink-0" style={{ width: 38, height: 38 }}>
-          {percent !== undefined && <RingProgress percent={percent} size={38} stroke={3} colorClass={c.ring} />}
-          <div className={`absolute inset-0 m-auto flex items-center justify-center w-6 h-6 rounded-lg ${c.icon}`}>
-            <Icon size={13} />
-          </div>
-        </div>
-        <div className={`w-6 h-6 rounded-full ${c.chip} flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300`}>
-          <FiArrowRight size={11} className="rotate-180" />
-        </div>
-      </div>
-      <div className="mt-2.5 space-y-0.5">
-        <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500">{label}</p>
-        <p className="text-[15px] sm:text-base font-black text-gray-900 dark:text-white truncate">{value}</p>
-        <p className="text-[9px] font-semibold text-gray-400">{description}</p>
-      </div>
-    </div>
-  );
-});
-
-// Converts a Date to the local "YYYY-MM-DDTHH:mm" string a datetime-local
-// input expects (Date#toISOString is UTC, which would shift the displayed time).
 const toLocalInputValue = (date) => {
   const tzOffset = date.getTimezoneOffset() * 60000;
   return new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
 };
 
-const DATE_PRESETS = [
-  { key: 'today', label: 'اليوم' },
-  { key: 'week', label: 'آخر ٧ أيام' },
-  { key: 'month', label: 'هذا الشهر' },
-  { key: 'all', label: 'كل الوقت' },
+const parseLocalInput = (v) => {
+  if (typeof v !== "string" || v.length !== 16 || !DT_RE.test(v)) return null;
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return null;
+  const y = d.getFullYear();
+  if (y < MIN_YEAR || y > MAX_YEAR) return null;
+  if (toLocalInputValue(d) !== v) return null;
+  return d;
+};
+
+
+const STATUS_STYLE = {
+  PENDING:     { hex: "#f59e0b", ink: INK },
+  SUBMITTED:   { hex: "#f59e0b", ink: INK },
+  PROCESSING:  { hex: "#3b82f6", ink: "#ffffff" },
+  IN_PROGRESS: { hex: "#3b82f6", ink: "#ffffff" },
+  SHIPPED:     { hex: "#6366f1", ink: "#ffffff" },
+  DELIVERED:   { hex: "#10b981", ink: INK },
+  COMPLETED:   { hex: "#34d399", ink: INK },
+  REJECTED:    { hex: "#ef4444", ink: "#ffffff" },
+  CANCELLED:   { hex: "#ef4444", ink: "#ffffff" },
+};
+const FALLBACK_STATUS = { hex: "#9ca3af", ink: INK };
+const getStatusStyle = (s) => STATUS_STYLE[normStatus(s)] || FALLBACK_STATUS;
+
+const REDUCED = typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+const FOCUS = "focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400";
+
+
+
+const Spinner = memo(({ size = 20, className = "" }) => (
+  <svg className={`animate-spin motion-reduce:animate-none ${className}`} width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" className="opacity-20" />
+    <path d="M21 12a9 9 0 00-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+  </svg>
+));
+
+const SectionTitle = ({ icon: Icon, children }) => (
+  <h3 className="flex items-center gap-2 text-sm font-extrabold uppercase">
+    {Icon && <Icon size={14} className="nb-ic flex-shrink-0" aria-hidden="true" />}
+    <span className="nb-ul">{children}</span>
+  </h3>
+);
+
+const Meter = memo(({ pct, color, className = "h-2.5" }) => (
+  <span className={`nb-gray nb-line block overflow-hidden border-2 ${className}`} aria-hidden="true">
+    <span
+      className="block h-full"
+      style={{ width: `${Math.max(0, Math.min(100, pct))}%`, background: color || "var(--nb-accent)", transition: REDUCED ? "none" : "width .5s ease" }}
+    />
+  </span>
+));
+
+const SkeletonBlock = ({ className }) => (
+  <div className={`${CARD} nb-gray animate-pulse motion-reduce:animate-none ${className}`} />
+);
+
+const EmptyBlock = ({ text }) => {
+  const { darkMode } = useL();
+  return (
+    <div className="flex h-full items-center justify-center py-4">
+      <EmptyState3D kind="box" title={text} darkMode={darkMode} />
+    </div>
+  );
+};
+
+const LoadingBlock = () => {
+  const { t } = useL();
+  return (
+    <div role="status" aria-label={t.loadingAria} className="nb-ic flex h-full items-center justify-center py-10">
+      <Spinner size={24} />
+    </div>
+  );
+};
+
+const RetryBlock = ({ onRetry }) => {
+  const { t } = useL();
+  return (
+    <div className="text-center">
+      <p role="alert" className="text-xs font-bold text-red-500">{t.errors.load}</p>
+      <button type="button" onClick={onRetry} className={`${BTN_MD} mt-2 h-8 uppercase`}>{t.retry}</button>
+    </div>
+  );
+};
+
+const ChartFallback = () => <div className="nb-gray nb-line h-full w-full animate-pulse border-2 motion-reduce:animate-none" />;
+
+const useInView = (margin = "240px") => {
+  const ref = useRef(null);
+  const [seen, setSeen] = useState(() => typeof IntersectionObserver === "undefined");
+  useEffect(() => {
+    if (seen || !ref.current) return undefined;
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setSeen(true); io.disconnect(); } }, { rootMargin: margin });
+    io.observe(ref.current);
+    return () => io.disconnect();
+  }, [seen, margin]);
+  return [ref, seen];
+};
+
+const Panel = memo(({ title, subtitle, icon, action, children }) => (
+  <section className={`${CARD} flex min-w-0 flex-col p-5`}>
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+      <div className="min-w-0">
+        <SectionTitle icon={icon}>{title}</SectionTitle>
+        {subtitle && <p className="nb-muted mt-1.5 text-[11px] font-semibold">{subtitle}</p>}
+      </div>
+      {action}
+    </div>
+    {children}
+  </section>
+));
+
+const StatusChip = ({ status, labels }) => {
+  const st = getStatusStyle(status);
+  return (
+    <span className="nb-chip !normal-case" style={{ background: st.hex, color: st.ink }}>
+      {labels[normStatus(status)] || status || "—"}
+    </span>
+  );
+};
+
+
+
+const STAT_META = {
+  totalSales:   { icon: FiActivity,    tone: "em",  color: "#34d399", to: "/shop/transactions" },
+  todaySales:   { icon: FiZap,         tone: "te",  color: "#2dd4bf", to: "/shop/transactions" },
+  totalOrders:  { icon: FiShoppingBag, tone: "sky", color: "#38bdf8", to: "/shop/orders" },
+  todayRepairs: { icon: FiTool,        tone: "am",  color: "#fbbf24", to: "/shop/repair-requests" },
+  totalRepairs: { icon: FiTool,        tone: "vi",  color: "#a78bfa", to: "/shop/repair-requests" },
+};
+
+const StatTile = memo(({ meta, label, caption, value, percent, onNavigate, wide }) => (
+  <button
+    type="button"
+    onClick={() => onNavigate(meta.to)}
+    className={`${CARD} min-w-0 p-4 text-start transition-transform hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:transform-none ${FOCUS} ${wide ? "sm:col-span-2" : ""}`}
+  >
+    <div className="flex items-center gap-3">
+      <IconTile icon={meta.icon} tone={meta.tone} className="h-11 w-11 flex-shrink-0" size={19} />
+      <div className="min-w-0">
+        <p className="nb-muted truncate text-[10px] font-bold uppercase">{label}</p>
+        <p className="truncate text-xl font-extrabold leading-tight tabular-nums">{value}</p>
+      </div>
+    </div>
+    {percent !== undefined && (
+      <div className="mt-3 flex items-center gap-2">
+        <Meter pct={percent} color={meta.color} className="h-2.5 flex-1" />
+        <span className="w-9 text-end text-[10px] font-extrabold tabular-nums">{percent}%</span>
+      </div>
+    )}
+    <p className={`nb-muted truncate text-[11px] font-semibold ${percent !== undefined ? "mt-2" : "mt-3"}`}>{caption}</p>
+  </button>
+));
+
+
+
+const QUICK_LINKS = [
+  { key: "orders",       path: "/shop/orders",          icon: FiShoppingBag, tone: "sky" },
+  { key: "repairs",      path: "/shop/repair-requests", icon: FiTool,        tone: "am" },
+  { key: "products",     path: "/shop/devices",         icon: FiPackage,     tone: "em" },
+  { key: "inventory",    path: "/shop/inventory",       icon: FiBox,         tone: "vi" },
+  { key: "offers",       path: "/shop/offers",          icon: FiTag,         tone: "ro" },
+  { key: "transactions", path: "/shop/transactions",    icon: FiCreditCard,  tone: "te" },
 ];
 
+const QuickLink = memo(({ item, title, desc, onOpen }) => (
+  <li>
+    <button
+      type="button"
+      onClick={() => onOpen(item.path)}
+      className={`${PANEL} group flex w-full items-center gap-3 p-2.5 text-start transition-transform hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:transform-none ${FOCUS}`}
+    >
+      <IconTile icon={item.icon} tone={item.tone} className="h-10 w-10 flex-shrink-0" size={16} />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-xs font-extrabold uppercase">{title}</span>
+        <span className="nb-muted block truncate text-[11px] font-semibold">{desc}</span>
+      </span>
+      <FiChevronRight size={15} className="nb-ic flex-shrink-0 rtl:rotate-180" aria-hidden="true" />
+    </button>
+  </li>
+));
+
+
+
+const MiniCalendar = memo(() => {
+  const { t, f } = useL();
+  const [cursor, setCursor] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
+  const today = new Date();
+
+  const { title, cells } = useMemo(() => {
+    const y = cursor.getFullYear(), m = cursor.getMonth();
+    const first = new Date(y, m, 1).getDay();
+    const days = new Date(y, m + 1, 0).getDate();
+    const arr = Array.from({ length: first }, () => null);
+    for (let d = 1; d <= days; d++) arr.push(d);
+    return { title: f.longMonth.format(cursor), cells: arr };
+  }, [cursor, f]);
+
+  const shift = (n) => setCursor((c) => new Date(c.getFullYear(), c.getMonth() + n, 1));
+  const isToday = (d) => d && d === today.getDate() && cursor.getMonth() === today.getMonth() && cursor.getFullYear() === today.getFullYear();
+
+  return (
+    <section className={`${CARD} flex h-full flex-col p-5`}>
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <button type="button" onClick={() => shift(-1)} aria-label={t.calendar.prev} className={BTN_ICON}>
+          <FiChevronLeft size={15} className="rtl:rotate-180" />
+        </button>
+        <h3 className="text-sm font-extrabold uppercase"><span className="nb-ul">{title}</span></h3>
+        <button type="button" onClick={() => shift(1)} aria-label={t.calendar.next} className={BTN_ICON}>
+          <FiChevronRight size={15} className="rtl:rotate-180" />
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-y-1 text-center">
+        {t.weekdays.map((w) => <span key={w} className="nb-muted py-1 text-[10px] font-extrabold uppercase rtl:tracking-normal">{w}</span>)}
+        {cells.map((d, i) => (
+          <span
+            key={i}
+            className={`mx-auto flex h-8 w-8 items-center justify-center text-xs font-bold tabular-nums ${d ? "" : "invisible"}`}
+            style={isToday(d)
+              ? { background: "var(--nb-accent)", color: INK, border: `2px solid ${INK}`, boxShadow: "2px 2px 0 var(--nb-shadow)" }
+              : undefined}
+          >
+            {d ? f.num.format(d) : ""}
+          </span>
+        ))}
+      </div>
+      <div className="mt-auto pt-4">
+        <div className={`${PANEL} px-4 py-3`}>
+          <p className="nb-muted text-[10px] font-bold uppercase">{t.calendar.today}</p>
+          <p className="mt-0.5 text-sm font-extrabold">{f.todayLong.format(today)}</p>
+        </div>
+      </div>
+    </section>
+  );
+});
+
+
+
+const DATE_PRESET_KEYS = ["today", "week", "month", "all"];
+
 const DateFilter = memo(({ startDate, endDate, onStartChange, onEndChange, onReset, error, loading }) => {
+  const { t } = useL();
+  const d = t.filter;
+
   const applyPreset = useCallback((key) => {
     const now = new Date();
-    if (key === 'all') { onReset(); return; }
+    if (key === "all") { onReset(); return; }
     let start;
-    if (key === 'today') start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    else if (key === 'week') start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    if (key === "today") start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    else if (key === "week") start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     else start = new Date(now.getFullYear(), now.getMonth(), 1);
     onStartChange(toLocalInputValue(start));
     onEndChange(toLocalInputValue(now));
   }, [onStartChange, onEndChange, onReset]);
 
+  const fields = [
+    { id: "df-from", label: d.from, value: startDate, onChange: onStartChange, min: MIN_DT, max: endDate || MAX_DT },
+    { id: "df-to", label: d.to, value: endDate, onChange: onEndChange, min: startDate || MIN_DT, max: MAX_DT },
+  ];
+
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-3 sm:p-3.5">
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-        <div className="flex items-center gap-2 text-gray-400">
-          <FiCalendar size={15} className="text-emerald-500" />
-          <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">تصفية حسب التاريخ</span>
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {DATE_PRESETS.map((p) => (
-            <button
-              key={p.key}
-              onClick={() => applyPreset(p.key)}
-              className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400 transition-colors"
-            >
-              {p.label}
+    <section className={`${CARD} space-y-4 p-4 sm:p-5`}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <SectionTitle icon={FiCalendar}>{d.title}</SectionTitle>
+        <div className="flex flex-wrap gap-2">
+          {DATE_PRESET_KEYS.map((k) => (
+            <button key={k} type="button" onClick={() => applyPreset(k)} className={`${BTN_MD} h-8 uppercase`}>
+              {d.presets[k]}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row md:items-center gap-2.5">
-        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          <div className="relative">
-            <span className="absolute -top-2 right-3 px-1.5 text-[9px] font-bold bg-white dark:bg-gray-800 text-gray-400 rounded">من</span>
-            <FiCalendar className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 dark:text-gray-600 pointer-events-none" size={13} />
-            <input
-              type="datetime-local"
-              value={startDate}
-              max={endDate || undefined}
-              onChange={(e) => onStartChange(e.target.value)}
-              className="w-full pr-9 pl-3 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 focus:border-emerald-400 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 text-xs font-bold text-gray-900 dark:text-white focus:outline-none transition-colors"
-            />
-          </div>
-          <div className="relative">
-            <span className="absolute -top-2 right-3 px-1.5 text-[9px] font-bold bg-white dark:bg-gray-800 text-gray-400 rounded">إلى</span>
-            <FiCalendar className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 dark:text-gray-600 pointer-events-none" size={13} />
-            <input
-              type="datetime-local"
-              value={endDate}
-              min={startDate || undefined}
-              onChange={(e) => onEndChange(e.target.value)}
-              className="w-full pr-9 pl-3 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 focus:border-emerald-400 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 text-xs font-bold text-gray-900 dark:text-white focus:outline-none transition-colors"
-            />
-          </div>
+      <div className="flex flex-col gap-3 md:flex-row md:items-end">
+        <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
+          {fields.map((fld) => (
+            <div key={fld.id}>
+              <label htmlFor={fld.id} className={LABEL}>{fld.label}</label>
+              <input
+                id={fld.id}
+                type="datetime-local"
+                value={fld.value}
+                min={fld.min}
+                max={fld.max}
+                autoComplete="off"
+                aria-invalid={!!error}
+                onChange={(e) => fld.onChange(e.target.value)}
+                className={`${FIELD} w-full`}
+              />
+            </div>
+          ))}
         </div>
 
-        <button
-          onClick={onReset}
-          className="h-10 md:h-[42px] shrink-0 flex items-center justify-center gap-1.5 px-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg text-[11px] font-bold hover:bg-emerald-500 dark:hover:bg-emerald-500 dark:hover:text-white transition-colors"
-        >
-          {loading ? <Spinner size={13} /> : <FiRefreshCw size={13} />} إعادة تعيين
+        <button type="button" onClick={onReset} className={`${BTN_PRIMARY} h-10 shrink-0 uppercase`}>
+          {loading ? <Spinner size={13} /> : <FiRefreshCw size={13} aria-hidden="true" />} {d.reset}
         </button>
       </div>
 
-      {error && <p className="mt-2 text-[10px] font-bold text-red-500 px-1">{error}</p>}
-    </div>
+      {error && (
+        <p role="alert" className="nb-card flex items-center gap-1.5 px-3 py-2 text-[11px] font-bold !border-red-500 text-red-600 dark:text-red-300">
+          <FiAlertCircle size={13} aria-hidden="true" /> {error}
+        </p>
+      )}
+    </section>
   );
 });
 
-const CHART_PERIODS = [
-  { key: 'DAILY', label: 'يوم' },
-  { key: 'MONTHLY', label: 'شهر' },
-  { key: 'YEARLY', label: 'سنة' },
-];
 
-// Local (not UTC) bucket key so day/month boundaries match the shop's
-// own clock instead of shifting with toISOString().
+
+const useOrders = () => {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const abortRef = useRef(null);
+
+  const refresh = useCallback(async () => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    try {
+      const res = await api.get("/api/shops/orders/control", {
+        params: { page: 0, size: 500, sort: "createdAt,desc" },
+        signal: controller.signal,
+      });
+      const data = Array.isArray(res.data) ? res.data : res.data?.content || [];
+      if (!controller.signal.aborted) { setOrders(data); setError(false); }
+    } catch {
+      if (!controller.signal.aborted) setError(true);
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    return () => abortRef.current?.abort();
+  }, [refresh]);
+
+  return { orders, loading, error, refresh };
+};
+
+
+
+const Insight = memo(({ label, value, tone }) => (
+  <div className={`${PANEL} min-w-0 px-3.5 py-3`}>
+    <p className="nb-muted truncate text-[10px] font-bold uppercase">{label}</p>
+    <p className={`mt-0.5 truncate text-lg font-extrabold tabular-nums ${tone || ""}`}>{value}</p>
+  </div>
+));
+
 const bucketKey = (d, period) => {
-  if (period === 'DAILY') return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  if (period === 'MONTHLY') return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  if (period === "DAILY") return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  if (period === "MONTHLY") return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   return String(d.getFullYear());
 };
 
-// Builds a fixed, continuous set of empty buckets (last 14 days / 12 months /
-// 6 years) so the chart still shows the full trailing window — including
-// zero-activity periods — instead of only the dates that happen to have data.
-const buildEmptyBuckets = (period) => {
+const buildEmptyBuckets = (period, f) => {
   const now = new Date();
-  const buckets = [];
-  if (period === 'DAILY') {
+  const out = [];
+  if (period === "DAILY") {
     for (let i = 13; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-      buckets.push({ key: bucketKey(d, period), label: d.toLocaleDateString('ar-EG', { day: '2-digit', month: 'short' }), value: 0 });
+      out.push({ key: bucketKey(d, period), label: f.day.format(d), value: 0 });
     }
-  } else if (period === 'MONTHLY') {
+  } else if (period === "MONTHLY") {
     for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      buckets.push({ key: bucketKey(d, period), label: d.toLocaleDateString('ar-EG', { month: 'short', year: '2-digit' }), value: 0 });
+      out.push({ key: bucketKey(d, period), label: f.monthYear.format(d), value: 0 });
     }
   } else {
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear() - i, 0, 1);
-      buckets.push({ key: bucketKey(d, period), label: String(d.getFullYear()), value: 0 });
+      out.push({ key: bucketKey(d, period), label: f.num.format(d.getFullYear()).replace(/[,٬]/g, ""), value: 0 });
     }
+  }
+  return out;
+};
+
+const aggregateByPeriod = (records, period, f) => {
+  const buckets = buildEmptyBuckets(period, f);
+  const map = new Map(buckets.map((b) => [b.key, b]));
+  for (const r of records) {
+    if (!r.createdAt) continue;
+    const d = new Date(r.createdAt);
+    if (Number.isNaN(d.getTime())) continue;
+    const bucket = map.get(bucketKey(d, period));
+    if (bucket) bucket.value += 1;
   }
   return buckets;
 };
 
-// Counts how many records (orders or repairs) fall into each bucket, purely
-// client-side — no dedicated chart endpoint needed.
-const aggregateByPeriod = (records, period, dateField) => {
-  const buckets = buildEmptyBuckets(period);
-  const map = new Map(buckets.map((b) => [b.key, b]));
-  records.forEach((r) => {
-    const raw = r[dateField];
-    if (!raw) return;
-    const d = new Date(raw);
-    if (Number.isNaN(d.getTime())) return;
-    const bucket = map.get(bucketKey(d, period));
-    if (bucket) bucket.value += 1;
-  });
-  return buckets;
-};
+const PERIOD_KEYS = ["DAILY", "MONTHLY", "YEARLY"];
 
-// Orders/repairs bar chart with a day • month • year toggle, built entirely
-// from the shop's existing orders/repairs records (fetched once, then
-// re-bucketed client-side on every toggle — no network round trip when
-// switching granularity). Highlights the single best-performing bucket so
-// the shop can see at a glance which day, month, or year is doing best.
-const BarChartCard = memo(({ title, icon: Icon, color, endpoint, unitLabel, dateField = 'createdAt' }) => {
-  const [period, setPeriod] = useState('DAILY');
-  const [records, setRecords] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const c = getColorStyle(color);
+const OrdersChartCard = memo(({ orders, loading, doneRate }) => {
+  const { t, f, fontFamily, darkMode } = useL();
+  const c = t.ordersChart;
+  const [period, setPeriod] = useState("DAILY");
+  const [ref, seen] = useInView();
 
-  useEffect(() => {
-    const controller = new AbortController();
-    (async () => {
-      try {
-        // One generously-sized page keeps this a single request. If a shop
-        // can have more than this many orders/repairs in total, switch to a
-        // pagination loop (or a real aggregation endpoint) instead.
-        const res = await api.get(endpoint, {
-          params: { page: 0, size: 500, sort: `${dateField},desc` },
-          signal: controller.signal,
-        });
-        const data = Array.isArray(res.data) ? res.data : res.data?.content || [];
-        setRecords(data);
-      } catch {
-        if (!controller.signal.aborted) setRecords([]);
-      } finally {
-        if (!controller.signal.aborted) setLoading(false);
-      }
-    })();
-    return () => controller.abort();
-  }, [endpoint, dateField]);
-
-  const buckets = useMemo(() => aggregateByPeriod(records, period, dateField), [records, period, dateField]);
-  const maxValue = useMemo(() => Math.max(1, ...buckets.map((d) => d.value)), [buckets]);
-  const total = useMemo(() => buckets.reduce((s, d) => s + d.value, 0), [buckets]);
-  const best = useMemo(() => (buckets.length ? buckets.reduce((a, b) => (b.value > a.value ? b : a), buckets[0]) : null), [buckets]);
-  const trend = useMemo(() => {
-    if (buckets.length < 2) return null;
-    const mid = Math.floor(buckets.length / 2);
-    const firstSum = buckets.slice(0, mid).reduce((s, d) => s + d.value, 0);
-    const secondSum = buckets.slice(mid).reduce((s, d) => s + d.value, 0);
-    if (firstSum === 0 && secondSum === 0) return null;
-    if (firstSum === 0) return { pct: 100, up: true };
-    return { pct: Math.round(((secondSum - firstSum) / firstSum) * 100), up: secondSum >= firstSum };
+  const buckets = useMemo(() => aggregateByPeriod(orders, period, f), [orders, period, f]);
+  const { total, best, max } = useMemo(() => {
+    let sum = 0, top = null, mx = 0;
+    for (const b of buckets) {
+      sum += b.value;
+      if (b.value > mx) { mx = b.value; top = b; }
+    }
+    return { total: sum, best: top, max: mx };
   }, [buckets]);
 
-  return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-3.5 sm:p-4">
-      <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
-        <div className="flex items-center gap-2.5">
-          <div className={`w-8 h-8 rounded-lg ${c.icon} flex items-center justify-center flex-shrink-0`}>
-            <Icon size={14} />
-          </div>
-          <h3 className="text-sm font-black text-gray-900 dark:text-white">{title}</h3>
-        </div>
-        <div className="flex items-center gap-1 bg-gray-50 dark:bg-gray-900 rounded-lg p-1">
-          {CHART_PERIODS.map((opt) => (
-            <button
-              key={opt.key}
-              onClick={() => setPeriod(opt.key)}
-              className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-colors ${
-                period === opt.key ? `${c.chip}` : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
+  const trend = useMemo(() => {
+    const mid = Math.floor(buckets.length / 2);
+    const a = buckets.slice(0, mid).reduce((s, d) => s + d.value, 0);
+    const b = buckets.slice(mid).reduce((s, d) => s + d.value, 0);
+    if (a === 0 && b === 0) return null;
+    if (a === 0) return { pct: 100, up: true };
+    return { pct: Math.round(((b - a) / a) * 100), up: b >= a };
+  }, [buckets]);
 
-      {!loading && records.length > 0 && (
-        <div className="flex items-center gap-2 mb-3">
-          <p className="text-[10px] font-semibold text-gray-400">
-            الإجمالي: <span className="font-black text-gray-700 dark:text-gray-200">{total.toLocaleString('ar-EG')}</span>{unitLabel ? ` ${unitLabel}` : ''}
-          </p>
-          {trend && (
-            <span className={`inline-flex items-center gap-1 text-[10px] font-bold ${trend.up ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
-              {trend.up ? <FiTrendingUp size={11} /> : <FiTrendingDown size={11} />} {Math.abs(trend.pct)}%
-            </span>
-          )}
-        </div>
-      )}
+  const edge = darkMode ? "rgba(236,253,245,0.9)" : INK;
 
-      {loading ? (
-        <div className="flex items-center justify-center py-14 text-emerald-500">
-          <Spinner size={24} />
-        </div>
-      ) : records.length === 0 ? (
-        <div className="py-6 text-center">
-          <EmptyIllustration />
-          <p className="mt-2 text-[10px] font-bold text-gray-400">لا توجد بيانات كافية بعد</p>
-        </div>
-      ) : (
-        <>
-          <div className="h-32 sm:h-36 overflow-x-auto styled-scrollbar">
-            <div
-              className="flex items-end gap-1.5 sm:gap-2 h-full px-0.5"
-              style={{ minWidth: buckets.length > 8 ? `${buckets.length * 34}px` : '100%' }}
-            >
-              {buckets.map((d, i) => {
-                const pct = Math.max(4, Math.round((d.value / maxValue) * 100));
-                const isBest = best && d.value === best.value && d.value > 0;
-                return (
-                  <div
-                    key={d.key}
-                    title={`${d.label}: ${d.value.toLocaleString('ar-EG')}`}
-                    className="flex-1 flex flex-col items-center justify-end h-full gap-1 min-w-[22px]"
-                  >
-                    <span className={`text-[8px] font-bold ${isBest ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'}`}>
-                      {d.value > 0 ? d.value.toLocaleString('ar-EG') : ''}
-                    </span>
-                    <div
-                      className={`w-full rounded-t-md transition-all duration-500 ${
-                        isBest ? 'bg-gradient-to-t from-emerald-600 to-emerald-400' : 'bg-gray-200 dark:bg-gray-700'
-                      }`}
-                      style={{ height: `${pct}%` }}
-                    />
-                    <span className="text-[8px] font-semibold text-gray-400 truncate max-w-[30px]">{d.label}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+  const data = useMemo(() => ({
+    labels: buckets.map((b) => b.label),
+    datasets: [{
+      data: buckets.map((b) => b.value),
+      backgroundColor: buckets.map((b) => (max > 0 && b.value === max ? "#34d399" : darkMode ? "rgba(52,211,153,0.35)" : "#a7f3d0")),
+      borderColor: edge,
+      borderWidth: 2,
+      borderRadius: 0,
+      borderSkipped: false,
+      maxBarThickness: 36,
+    }],
+  }), [buckets, max, darkMode, edge]);
 
-          {best && best.value > 0 && (
-            <div className={`mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-[11px] font-bold ${c.chip}`}>
-              <FiTrendingUp size={13} className="flex-shrink-0" />
-              أفضل أداء: <span className="font-black">{best.label}</span> بـ {best.value.toLocaleString('ar-EG')}{unitLabel ? ` ${unitLabel}` : ''}
-            </div>
-          )}
-        </>
-      )}
+  const options = useMemo(() => {
+    const text = darkMode ? "#d1d5db" : "#1f2937";
+    const grid = darkMode ? "rgba(255,255,255,0.08)" : "rgba(4,38,26,0.1)";
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: REDUCED ? false : { duration: 300 },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: INK,
+          titleColor: "#ecfdf5",
+          bodyColor: "#ecfdf5",
+          borderColor: "#34d399",
+          borderWidth: 2,
+          cornerRadius: 0,
+          padding: 10,
+          titleFont: { family: fontFamily, weight: "bold" },
+          bodyFont: { family: fontFamily },
+          callbacks: { label: (ctx) => ` ${f.num.format(toNum(ctx.parsed?.y))} ${c.unit}` },
+        },
+      },
+      scales: {
+        x: { grid: { display: false }, border: { color: edge, width: 2 }, ticks: { color: text, maxRotation: 0, autoSkip: true, font: { family: fontFamily, weight: "bold" } } },
+        y: { beginAtZero: true, grid: { color: grid }, border: { color: edge, width: 2 }, ticks: { color: text, precision: 0, font: { family: fontFamily, weight: "bold" } } },
+      },
+    };
+  }, [darkMode, f, c.unit, fontFamily, edge]);
+
+  const periodToggle = (
+    <div className="flex items-center gap-1.5" role="group" aria-label={c.periodAria}>
+      {PERIOD_KEYS.map((k) => (
+        <button
+          key={k}
+          type="button"
+          aria-pressed={period === k}
+          onClick={() => setPeriod(k)}
+          className={`${period === k ? BTN_PRIMARY : BTN_MD} h-8 uppercase`}
+        >
+          {c.periods[k]}
+        </button>
+      ))}
     </div>
+  );
+
+  return (
+    <Panel title={c.title} subtitle={c.subtitle} icon={FiBarChart2} action={periodToggle}>
+      <div ref={ref} className="relative h-56">
+        {loading ? <LoadingBlock />
+          : orders.length === 0 ? <EmptyBlock text={c.noData} />
+          : seen ? <Suspense fallback={<ChartFallback />}><BarChart data={data} options={options} /></Suspense>
+          : <ChartFallback />}
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-2.5">
+        <Insight label={c.total} value={f.num.format(total)} />
+        <Insight label={c.best} value={best ? best.label : "-"} />
+        <Insight
+          label={c.trend}
+          value={trend ? `${trend.up ? "+" : "-"}${f.num.format(Math.abs(trend.pct))}%` : "-"}
+          tone={trend ? (trend.up ? "text-emerald-600 dark:text-emerald-300" : "text-red-500") : undefined}
+        />
+        <Insight label={c.completion} value={`${f.num.format(doneRate)}%`} />
+      </div>
+    </Panel>
   );
 });
 
-const LatestOrdersTable = memo(() => {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    (async () => {
-      try {
-        const res = await api.get('/api/shops/orders/control', {
-          params: { page: 0, size: 5, sort: 'createdAt,desc' },
-          signal: controller.signal,
-        });
-        const data = Array.isArray(res.data) ? res.data : res.data?.content || [];
-        setOrders(data.slice(0, 5));
-      } catch {
-        if (!controller.signal.aborted) setOrders([]);
-      } finally {
-        if (!controller.signal.aborted) setLoading(false);
-      }
-    })();
-    return () => controller.abort();
-  }, []);
 
+const BreakdownRow = memo(({ row }) => {
+  const { f } = useL();
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-      <div className="flex items-center gap-2.5 px-4 sm:px-5 py-3 border-b border-gray-50 dark:border-gray-700">
-        <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 flex-shrink-0">
-          <FiShoppingBag size={14} />
-        </div>
-        <h3 className="text-sm font-black text-gray-900 dark:text-white">أحدث 5 طلبات</h3>
+    <li className={`${PANEL} p-3`}>
+      <div className="flex items-center gap-2.5">
+        <span className="nb-line h-3 w-3 flex-shrink-0 border-2" style={{ background: row.color }} aria-hidden="true" />
+        <span className="flex-1 truncate text-xs font-extrabold uppercase">{row.label}</span>
+        <span className="text-sm font-extrabold tabular-nums">{f.num.format(row.count)}</span>
+        <span className="nb-muted w-10 text-end text-[11px] font-bold tabular-nums">{f.num.format(row.pct)}%</span>
       </div>
-
-      <div className="overflow-x-auto styled-scrollbar">
-        <table className="w-full text-right">
-          <thead>
-            <tr className="bg-gray-50 dark:bg-gray-900/50">
-              <th className="px-4 sm:px-5 py-2.5 text-[9px] font-bold text-gray-400">العميل</th>
-              <th className="px-3 py-2.5 text-[9px] font-bold text-gray-400">المنتجات</th>
-              <th className="px-3 py-2.5 text-[9px] font-bold text-gray-400 text-center">الحالة</th>
-              <th className="px-3 py-2.5 text-[9px] font-bold text-gray-400 text-center">الدفع</th>
-              <th className="px-3 py-2.5 text-[9px] font-bold text-gray-400 text-center">الإجمالي</th>
-              <th className="px-4 sm:px-5 py-2.5 text-[9px] font-bold text-gray-400 text-left">التاريخ</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-            {loading ? (
-              <LoadingRow colSpan={6} />
-            ) : orders.length === 0 ? (
-              <EmptyRow colSpan={6} text="لا توجد طلبات حديثة" />
-            ) : (
-              orders.map((o) => {
-                const st = getStatusStyle(ORDER_STATUS_STYLE, o.status);
-                const items = o.orderItems || [];
-                const firstItem = items[0];
-                const extraCount = items.length - 1;
-                const fullName = [o.firstName, o.lastName].filter(Boolean).join(' ');
-                return (
-                  <tr key={o.id} className="hover:bg-blue-50/10 dark:hover:bg-blue-900/5 transition-colors">
-                    <td className="px-4 sm:px-5 py-2.5">
-                      <p className="text-xs font-bold text-gray-900 dark:text-white">{fullName || 'عميل غير محدد'}</p>
-                      <p className="text-[9px] font-semibold text-gray-400 mt-0.5">{o.phoneNumber || '-'}</p>
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      <p className="text-[10px] font-semibold text-gray-700 dark:text-gray-200">{firstItem?.productName || '-'}</p>
-                      {extraCount > 0 && <p className="text-[9px] font-bold text-gray-400 mt-0.5">+{extraCount} منتج آخر</p>}
-                    </td>
-                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                      <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold ${st.text}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
-                        {o.status || '—'}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 text-center text-[9px] font-semibold text-gray-400 whitespace-nowrap">
-                      {o.paymentMethod || '-'}
-                    </td>
-                    <td className="px-3 py-2.5 text-center font-mono font-black text-[11px] text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                      {formatPrice(o.totalPrice)}
-                    </td>
-                    <td className="px-4 sm:px-5 py-2.5 text-left text-[9px] font-semibold text-gray-400 whitespace-nowrap">
-                      {formatDate(o.createdAt)}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+      <div className="mt-2"><Meter pct={row.pct} color={row.color} className="h-2" /></div>
+    </li>
   );
 });
 
-const LatestRepairsTable = memo(() => {
+
+
+const TH = "px-3 py-2.5 text-[10px] font-extrabold uppercase rtl:tracking-normal";
+const ROW_CLS = "nb-line border-b-2 last:border-b-0";
+const PRICE_CLS = "whitespace-nowrap px-5 py-3 text-end text-xs font-extrabold tabular-nums";
+
+const TableShell = ({ icon, tone, title, children }) => (
+  <section className={`${CARD} min-w-0 overflow-hidden`}>
+    <div className="nb-gray nb-line flex items-center gap-2.5 border-b-2 px-5 py-3.5">
+      <IconTile icon={icon} tone={tone} className="h-9 w-9 flex-shrink-0" size={16} />
+      <h3 className="text-sm font-extrabold uppercase"><span className="nb-ul">{title}</span></h3>
+    </div>
+    <div className="slim-scroll min-h-[260px] overflow-x-auto">{children}</div>
+  </section>
+);
+
+const TableHead = ({ cols }) => (
+  <thead>
+    <tr className="nb-line border-b-2">
+      {cols.map(([label, align], i) => (
+        <th key={label} scope="col" className={`${TH} ${i === 0 || i === cols.length - 1 ? "px-5" : ""} ${align}`}>{label}</th>
+      ))}
+    </tr>
+  </thead>
+);
+
+const StateRow = ({ children }) => (
+  <tr>
+    <td colSpan={3} className="px-6 py-8">{children}</td>
+  </tr>
+);
+
+const OrderRow = memo(({ o }) => {
+  const { t, f } = useL();
+  const d = t.latestOrders;
+  const fullName = [o.firstName, o.lastName].filter(Boolean).join(" ");
+  return (
+    <tr className={ROW_CLS}>
+      <td className="px-5 py-3">
+        <p className="text-xs font-extrabold">{fullName || d.unknownCustomer}</p>
+        <p className="nb-muted mt-0.5 text-[11px] font-semibold" dir="ltr">{o.phoneNumber || "-"}</p>
+      </td>
+      <td className="whitespace-nowrap px-3 py-3 text-center"><StatusChip status={o.status} labels={t.orderStatus} /></td>
+      <td className={PRICE_CLS}>{f.num.format(toNum(o.totalPrice))} {t.currency}</td>
+    </tr>
+  );
+});
+
+const LatestOrdersTable = memo(({ orders: all, loading, error, onRetry }) => {
+  const { t } = useL();
+  const d = t.latestOrders;
+  const orders = useMemo(() => all.slice(0, 5), [all]);
+  return (
+    <TableShell icon={FiShoppingBag} tone="sky" title={d.title}>
+      <table className="w-full text-start">
+        <TableHead cols={[[d.customer, "text-start"], [d.status, "text-center"], [d.total, "text-end"]]} />
+        <tbody>
+          {loading ? <StateRow><LoadingBlock /></StateRow>
+            : error && orders.length === 0 ? <StateRow><RetryBlock onRetry={onRetry} /></StateRow>
+            : orders.length === 0 ? <StateRow><EmptyBlock text={d.empty} /></StateRow>
+            : orders.map((o) => <OrderRow key={o.id} o={o} />)}
+        </tbody>
+      </table>
+    </TableShell>
+  );
+});
+
+const RepairRow = memo(({ r }) => {
+  const { t, f } = useL();
+  const d = t.latestRepairs;
+  return (
+    <tr className={ROW_CLS}>
+      <td className="px-5 py-3">
+        <p className="max-w-[200px] truncate text-xs font-extrabold">{r.description || d.noDescription}</p>
+        <p className="nb-muted mt-0.5 text-[11px] font-semibold">{r.shopName || "-"}</p>
+      </td>
+      <td className="whitespace-nowrap px-3 py-3 text-center"><StatusChip status={r.status} labels={t.repairStatus} /></td>
+      <td className={PRICE_CLS}>{f.num.format(toNum(r.price))} {t.currency}</td>
+    </tr>
+  );
+});
+
+const LatestRepairsTable = memo(({ reloadKey }) => {
+  const { t } = useL();
+  const d = t.latestRepairs;
   const [repairs, setRepairs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [localKey, setLocalKey] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
+    setError(false);
     (async () => {
       try {
-        const res = await api.get('/api/shops/repair-request', {
-          params: { page: 0, size: 5, sort: 'createdAt,desc' },
+        const res = await api.get("/api/shops/repair-request", {
+          params: { page: 0, size: 5, sort: "createdAt,desc" },
           signal: controller.signal,
         });
         const data = Array.isArray(res.data) ? res.data : res.data?.content || [];
-        setRepairs(data.slice(0, 5));
+        if (!controller.signal.aborted) setRepairs(data.slice(0, 5));
       } catch {
-        if (!controller.signal.aborted) setRepairs([]);
+        if (!controller.signal.aborted) setError(true);
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
     })();
     return () => controller.abort();
-  }, []);
+  }, [reloadKey, localKey]);
+
+  const retry = useCallback(() => { setLoading(true); setLocalKey((k) => k + 1); }, []);
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-      <div className="flex items-center gap-2.5 px-4 sm:px-5 py-3 border-b border-gray-50 dark:border-gray-700">
-        <div className="w-8 h-8 rounded-lg bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center text-orange-600 flex-shrink-0">
-          <FiTool size={14} />
-        </div>
-        <h3 className="text-sm font-black text-gray-900 dark:text-white">أحدث 5 طلبات تصليح</h3>
-      </div>
-
-      <div className="overflow-x-auto styled-scrollbar">
-        <table className="w-full text-right">
-          <thead>
-            <tr className="bg-gray-50 dark:bg-gray-900/50">
-              <th className="px-4 sm:px-5 py-2.5 text-[9px] font-bold text-gray-400">الطلب</th>
-              <th className="px-3 py-2.5 text-[9px] font-bold text-gray-400">المتجر</th>
-              <th className="px-3 py-2.5 text-[9px] font-bold text-gray-400 text-center">الحالة</th>
-              <th className="px-3 py-2.5 text-[9px] font-bold text-gray-400 text-center">التسليم</th>
-              <th className="px-3 py-2.5 text-[9px] font-bold text-gray-400 text-center">السعر</th>
-              <th className="px-4 sm:px-5 py-2.5 text-[9px] font-bold text-gray-400 text-left">التأكيد</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-            {loading ? (
-              <LoadingRow colSpan={6} />
-            ) : repairs.length === 0 ? (
-              <EmptyRow colSpan={6} text="لا توجد طلبات تصليح حديثة" />
-            ) : (
-              repairs.map((r) => {
-                const st = getStatusStyle(REPAIR_STATUS_STYLE, r.status);
-                return (
-                  <tr key={r.id} className="hover:bg-orange-50/10 dark:hover:bg-orange-900/5 transition-colors">
-                    <td className="px-4 sm:px-5 py-2.5">
-                      <p className="text-xs font-bold text-gray-900 dark:text-white truncate max-w-[160px]">{r.description || 'بدون وصف'}</p>
-                      <p className="text-[9px] font-semibold text-gray-400 mt-0.5">{r.paymentMethod || '-'}</p>
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-[10px] font-semibold text-gray-700 dark:text-gray-200">
-                      {r.shopName || '-'}
-                    </td>
-                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                      <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold ${st.text}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
-                        {r.status || '—'}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 text-center text-[9px] font-semibold text-gray-400 whitespace-nowrap">
-                      {r.deliveryMethod || '-'}
-                    </td>
-                    <td className="px-3 py-2.5 text-center font-mono font-black text-[11px] text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                      {formatPrice(r.price)}
-                    </td>
-                    <td className="px-4 sm:px-5 py-2.5 text-left whitespace-nowrap">
-                      <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold ${
-                        r.confirmed ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${r.confirmed ? 'bg-emerald-500' : 'bg-gray-400'}`} />
-                        {r.confirmed ? 'مؤكد' : 'قيد الانتظار'}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <TableShell icon={FiTool} tone="am" title={d.title}>
+      <table className="w-full text-start">
+        <TableHead cols={[[d.request, "text-start"], [d.status, "text-center"], [d.price, "text-end"]]} />
+        <tbody>
+          {loading ? <StateRow><LoadingBlock /></StateRow>
+            : error && repairs.length === 0 ? <StateRow><RetryBlock onRetry={retry} /></StateRow>
+            : repairs.length === 0 ? <StateRow><EmptyBlock text={d.empty} /></StateRow>
+            : repairs.map((r) => <RepairRow key={r.id} r={r} />)}
+        </tbody>
+      </table>
+    </TableShell>
   );
 });
 
-const ShopDashboard = () => {
-  const navigate = useNavigate();
-  const { accessToken } = useAuthStore();
 
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [dateError, setDateError] = useState('');
-  const [stats, setStats] = useState({
-    totalSales: 0,
-    todaySales: 0,
-    totalOrders: 0,
-    todayRepairs: 0,
-    totalRepairs: 0,
-  });
+
+const POLL_MS = 60000;
+const INITIAL_STATS = { totalSales: 0, todaySales: 0, totalOrders: 0, todayRepairs: 0, totalRepairs: 0 };
+
+const mergeStats = (prev, patch) => {
+  for (const k in patch) if (prev[k] !== patch[k]) return { ...prev, ...patch };
+  return prev;
+};
+
+const ShopDashboard = ({ darkMode: darkModeProp }) => {
+  const navigate = useNavigate();
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const hookDark = useDarkMode();
+  const darkMode = darkModeProp ?? hookDark;
+  const loc = useShopLocale();
+  const { language, L, dir, font } = loc;
+  const isAr = loc.isAr ?? language === "ar";
+  const t = L.dashboard;
+  const f = getFmt(L.locale || (isAr ? "ar-EG" : "en-US"));
+  const fontFamily = font?.fontFamily;
+  const ctx = useMemo(() => ({ t, f, fontFamily, darkMode }), [t, f, fontFamily, darkMode]);
+
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [fieldError, setFieldError] = useState(false);
+  const [applied, setApplied] = useState({ startDate: "", endDate: "" });
+
+  const [stats, setStats] = useState(INITIAL_STATS);
   const [isLoading, setIsLoading] = useState(true);
+  const [statsError, setStatsError] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  const abortRef = useRef(null);
+  const appliedRef = useRef(applied);
+  const rangeAbort = useRef(null);
+  const liveAbort = useRef(null);
+  const firstRun = useRef(true);
+  const tRef = useRef(t);
+  tRef.current = t;
 
-  useEffect(() => { document.title = ' لوحة التحكم'; }, []);
+  const { orders, loading: ordersLoading, error: ordersError, refresh: refreshOrders } = useOrders();
 
-  useEffect(() => {
-    if (!accessToken) navigate('/login');
-  }, [accessToken, navigate]);
+  useEffect(() => { document.title = t.docTitle; }, [t.docTitle]);
 
-  const showToast = useCallback((text, icon) => {
-    Swal.fire({
-      text, icon, toast: true, position: 'top-end', timer: 3000, showConfirmButton: false,
-      customClass: { popup: 'rounded-2xl font-cairo text-xs font-bold shadow-lg' },
-    });
+  useEffect(() => { if (!accessToken) navigate("/login"); }, [accessToken, navigate]);
+
+  const handleStartChange = useCallback((v) => {
+    if (v === "" || parseLocalInput(v)) { setStartDate(v); setFieldError(false); }
+    else setFieldError(true);
+  }, []);
+  const handleEndChange = useCallback((v) => {
+    if (v === "" || parseLocalInput(v)) { setEndDate(v); setFieldError(false); }
+    else setFieldError(true);
   }, []);
 
-  const fetchStats = useCallback(async () => {
-    if (!isValidDate(startDate) || !isValidDate(endDate)) {
-      setDateError('صيغة التاريخ غير صالحة');
-      return;
-    }
-    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
-      setDateError('تاريخ البداية يجب أن يسبق تاريخ النهاية');
-      return;
-    }
-    setDateError('');
-
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    setIsLoading(true);
-    try {
-      const payload = { startDate: startDate || null, endDate: endDate || null };
-      const opts = { signal: controller.signal };
-
-      const [sales, salesStats, orders, repairsStats, repairsTotal] = await Promise.all([
-        api.post('/api/shops/dashboard/sales/total', payload, opts).catch(() => ({ data: 0 })),
-        api.get('/api/shops/dashboard/sales/stats', opts).catch(() => ({ data: {} })),
-        api.post('/api/shops/dashboard/orders/total', payload, opts).catch(() => ({ data: 0 })),
-        api.get('/api/shops/dashboard/repairs/stats', opts).catch(() => ({ data: {} })),
-        api.get('/api/shops/dashboard/repairs/total', opts).catch(() => ({ data: 0 })),
-      ]);
-
-      if (controller.signal.aborted) return;
-
-      setStats({
-        totalSales: Number(sales.data) || 0,
-        todaySales: Number(salesStats.data?.todaySales) || 0,
-        totalOrders: Number(orders.data) || 0,
-        todayRepairs: Number(repairsStats.data?.todayRepairs) || 0,
-        totalRepairs: Number(repairsTotal.data) || 0,
-      });
-      setLastUpdated(new Date());
-    } catch {
-      if (!controller.signal.aborted) showToast('فشل تحديث البيانات', 'error');
-    } finally {
-      if (!controller.signal.aborted) setIsLoading(false);
-    }
-  }, [startDate, endDate, showToast]);
+  const rangeInvalid = useMemo(() => {
+    const s = parseLocalInput(startDate);
+    const e = parseLocalInput(endDate);
+    return !!(s && e && s > e);
+  }, [startDate, endDate]);
+  const dateError = fieldError ? t.filter.invalidDate : rangeInvalid ? t.filter.rangeError : "";
 
   useEffect(() => {
-    fetchStats();
-    const interval = setInterval(() => fetchStats(), 60000);
+    if (rangeInvalid) return undefined;
+    const id = setTimeout(() => {
+      setApplied((p) => (p.startDate === startDate && p.endDate === endDate ? p : { startDate, endDate }));
+    }, 400);
+    return () => clearTimeout(id);
+  }, [startDate, endDate, rangeInvalid]);
+
+  const fetchRange = useCallback(async () => {
+    rangeAbort.current?.abort();
+    const controller = new AbortController();
+    rangeAbort.current = controller;
+    const { startDate: s, endDate: e } = appliedRef.current;
+    const payload = { startDate: s || null, endDate: e || null };
+    const opts = { signal: controller.signal };
+
+    const [sales, ordersTotal] = await Promise.allSettled([
+      api.post("/api/shops/dashboard/sales/total", payload, opts),
+      api.post("/api/shops/dashboard/orders/total", payload, opts),
+    ]);
+    if (controller.signal.aborted) return undefined;
+
+    const patch = {};
+    if (sales.status === "fulfilled") patch.totalSales = toNum(sales.value.data);
+    if (ordersTotal.status === "fulfilled") patch.totalOrders = toNum(ordersTotal.value.data);
+    setStats((prev) => mergeStats(prev, patch));
+    return sales.status === "fulfilled" && ordersTotal.status === "fulfilled";
+  }, []);
+
+  const fetchLive = useCallback(async () => {
+    liveAbort.current?.abort();
+    const controller = new AbortController();
+    liveAbort.current = controller;
+    const opts = { signal: controller.signal };
+
+    const [salesStats, repairsStats, repairsTotal] = await Promise.allSettled([
+      api.get("/api/shops/dashboard/sales/stats", opts),
+      api.get("/api/shops/dashboard/repairs/stats", opts),
+      api.get("/api/shops/dashboard/repairs/total", opts),
+    ]);
+    if (controller.signal.aborted) return undefined;
+
+    const patch = {};
+    if (salesStats.status === "fulfilled") patch.todaySales = toNum(salesStats.value.data?.todaySales);
+    if (repairsStats.status === "fulfilled") patch.todayRepairs = toNum(repairsStats.value.data?.todayRepairs);
+    if (repairsTotal.status === "fulfilled") patch.totalRepairs = toNum(repairsTotal.value.data);
+    setStats((prev) => mergeStats(prev, patch));
+    return [salesStats, repairsStats, repairsTotal].every((r) => r.status === "fulfilled");
+  }, []);
+
+  const loadStats = useCallback(async ({ range = true, live = true, silent = false } = {}) => {
+    if (!silent) setIsLoading(true);
+    const [rangeOk, liveOk] = await Promise.all([
+      range ? fetchRange() : true,
+      live ? fetchLive() : true,
+    ]);
+    if (rangeOk === undefined || liveOk === undefined) return;
+    setStatsError(!(rangeOk && liveOk));
+    setLastUpdated(new Date());
+    setIsLoading(false);
+  }, [fetchRange, fetchLive]);
+
+  useEffect(() => {
+    appliedRef.current = applied;
+    if (firstRun.current) { firstRun.current = false; return; }
+    loadStats({ live: false });
+  }, [applied, loadStats]);
+
+  useEffect(() => {
+    loadStats();
+    const interval = setInterval(() => { if (!document.hidden) loadStats({ silent: true }); }, POLL_MS);
     return () => {
       clearInterval(interval);
-      abortRef.current?.abort();
+      rangeAbort.current?.abort();
+      liveAbort.current?.abort();
     };
-  }, [fetchStats]);
+  }, [loadStats]);
 
   const resetDates = useCallback(() => {
-    setStartDate('');
-    setEndDate('');
-    setDateError('');
-    showToast('تمت إعادة تعيين الفلتر', 'success');
-  }, [showToast]);
+    setStartDate("");
+    setEndDate("");
+    setFieldError(false);
+    toast({ icon: "success", title: tRef.current.filter.resetToast });
+  }, []);
 
-  const dashboardMetrics = useMemo(() => [
-    { label: 'إجمالي المبيعات', value: formatPrice(stats.totalSales), icon: FiActivity, color: 'lime', to: '/shop/transactions', description: 'إجمالي الأرباح' },
-    {
-      label: 'مبيعات اليوم', value: formatPrice(stats.todaySales), icon: FiZap, color: 'emerald', to: '/shop/transactions', description: 'النشاط الحالي',
-      percent: stats.totalSales > 0 ? (stats.todaySales / stats.totalSales) * 100 : 0,
-    },
-    { label: 'إجمالي الطلبات', value: stats.totalOrders.toLocaleString('ar-EG'), icon: FiShoppingBag, color: 'blue', to: '/shop/orders', description: 'طلبات المنتجات' },
-    {
-      label: 'تصليحات اليوم', value: stats.todayRepairs.toLocaleString('ar-EG'), icon: FiTool, color: 'orange', to: '/shop/repair-requests', description: 'الصيانة الجارية',
-      percent: stats.totalRepairs > 0 ? (stats.todayRepairs / stats.totalRepairs) * 100 : 0,
-    },
-    { label: 'إجمالي التصليحات', value: stats.totalRepairs.toLocaleString('ar-EG'), icon: FiTool, color: 'purple', to: '/shop/repair-requests', description: 'كل طلبات الصيانة' },
-  ], [stats]);
+  const [repairsKey, setRepairsKey] = useState(0);
+  const refreshAll = useCallback(() => {
+    loadStats();
+    refreshOrders();
+    setRepairsKey((k) => k + 1);
+  }, [loadStats, refreshOrders]);
+
+  const goTo = useCallback((to) => navigate(to), [navigate]);
+
+  const { statusRows, doneRate } = useMemo(() => {
+    const counts = new Map();
+    for (const o of orders) {
+      const k = o.status ? normStatus(o.status).slice(0, 24) : "UNKNOWN";
+      counts.set(k, (counts.get(k) || 0) + 1);
+    }
+    const sum = orders.length;
+    const rows = [...counts]
+      .map(([key, count]) => ({
+        key,
+        count,
+        pct: sum ? Math.round((count / sum) * 100) : 0,
+        color: getStatusStyle(key).hex,
+        label: t.orderStatus[key] || (key === "UNKNOWN" ? t.unknown : key),
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6);
+    const done = (counts.get("DELIVERED") || 0) + (counts.get("COMPLETED") || 0);
+    return { statusRows: rows, doneRate: sum ? Math.round((done / sum) * 100) : 0 };
+  }, [orders, t]);
+
+  const statCards = useMemo(() => {
+    const price = (v) => `${f.num.format(v)} ${t.currency}`;
+    const pct = (a, b) => (b > 0 ? Math.min(100, Math.round((a / b) * 100)) : 0);
+    return [
+      { key: "totalSales",   value: price(stats.totalSales) },
+      { key: "todaySales",   value: price(stats.todaySales), percent: pct(stats.todaySales, stats.totalSales) },
+      { key: "totalOrders",  value: f.num.format(stats.totalOrders) },
+      { key: "todayRepairs", value: f.num.format(stats.todayRepairs), percent: pct(stats.todayRepairs, stats.totalRepairs) },
+      { key: "totalRepairs", value: f.num.format(stats.totalRepairs), wide: true },
+    ].map((c) => ({
+      ...c,
+      meta: STAT_META[c.key],
+      label: t.stats[c.key].label,
+      caption: t.stats[c.key].caption,
+    }));
+  }, [stats, t, f]);
 
   const showSkeleton = isLoading && !lastUpdated;
+  const hasError = statsError || ordersError;
+
+  const wrapperProps = {
+    dir,
+    lang: language,
+    style: font,
+    className: "nb-page min-h-screen py-6 lg:ps-64 mt-16 text-start",
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-5 lg:pr-64 mt-16 transition-colors duration-300 font-cairo antialiased" dir="rtl">
-      <ScrollbarStyles />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-5">
+    <LocaleCtx.Provider value={ctx}>
+      <div {...wrapperProps}>
+        <style>{PAGE_CSS}</style>
+        <Defs3D />
+        <Toaster darkMode={darkMode} />
 
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div className="flex items-end gap-3">
-            <div className="flex-shrink-0 hidden sm:block">
-              <StoreIllustration />
-            </div>
-            <div className="space-y-1 text-right">
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white">
-                لوحة <span className="text-emerald-500">المتجر</span>
-              </h1>
-              <p className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400">
-                تابع أداء متجرك ومبيعاتك في الوقت الفعلي
+        <div key={language} className="lang-fade mx-auto max-w-7xl space-y-6 px-4 sm:px-6">
+
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wide rtl:tracking-normal">
+                <span className="nb-bar" aria-hidden="true" />
+                <FiCalendar size={12} aria-hidden="true" /> {f.todayLong.format(new Date())}
               </p>
+              <h1 className="mt-2 text-2xl font-extrabold leading-[1.15] tracking-tight rtl:tracking-normal sm:text-3xl">
+                <span className="nb-ul">{t.title}</span>
+              </h1>
+              <p className="nb-muted mt-2 text-xs font-semibold">{t.subtitle}</p>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <div className="nb-chip !normal-case" role="status" aria-live="polite">
+                {t.lastUpdated}: <span className="tabular-nums">{lastUpdated ? f.time.format(lastUpdated) : "..."}</span>
+              </div>
+              <button type="button" onClick={refreshAll} aria-label={t.refresh} title={t.refresh} className={`${BTN_MD} h-10 uppercase`}>
+                <FiRefreshCw size={14} className={isLoading ? "animate-spin motion-reduce:animate-none" : ""} /> {t.refresh}
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 bg-white dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
-            <div className="px-3.5 py-1.5">
-              <p className="text-[9px] font-bold text-gray-400 mb-0.5">آخر تحديث</p>
-              <span className="text-[11px] font-black text-gray-900 dark:text-white">
-                {lastUpdated ? lastUpdated.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '...'}
-              </span>
+          {hasError && (
+            <div role="alert" className="nb-card flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 !border-red-500">
+              <p className="flex items-center gap-2 text-[11px] font-bold text-red-600 dark:text-red-300">
+                <FiAlertCircle size={14} className="flex-shrink-0" aria-hidden="true" />
+                {t.errors.partial}
+              </p>
+              <button type="button" onClick={refreshAll} className={`${BTN_MD} h-8 uppercase`}>{t.retry}</button>
             </div>
-            <button
-              onClick={() => fetchStats()}
-              className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 hover:text-emerald-500 hover:rotate-180 transition-all duration-700"
-            >
-              <FiRefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
-            </button>
+          )}
+
+          <DateFilter
+            startDate={startDate}
+            endDate={endDate}
+            onStartChange={handleStartChange}
+            onEndChange={handleEndChange}
+            onReset={resetDates}
+            error={dateError}
+            loading={isLoading && !!lastUpdated}
+          />
+
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+            <div className="grid grid-cols-1 content-start gap-4 sm:grid-cols-2 lg:col-span-2" aria-busy={showSkeleton}>
+              {showSkeleton
+                ? [...Array(5)].map((_, i) => <SkeletonBlock key={i} className={`h-[124px] ${i === 4 ? "sm:col-span-2" : ""}`} />)
+                : statCards.map(({ key, ...c }) => <StatTile key={key} {...c} onNavigate={goTo} />)}
+            </div>
+            <MiniCalendar />
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+            <Panel title={t.quick.title} subtitle={t.quick.subtitle} icon={FiZap}>
+              <ul className="space-y-2.5">
+                {QUICK_LINKS.map((q) => (
+                  <QuickLink key={q.path} item={q} title={t.quick.items[q.key].title} desc={t.quick.items[q.key].desc} onOpen={goTo} />
+                ))}
+              </ul>
+            </Panel>
+
+            <OrdersChartCard orders={orders} loading={ordersLoading} doneRate={doneRate} />
+
+            <Panel title={t.breakdown.title} subtitle={t.breakdown.subtitle} icon={FiPieChart}>
+              {ordersLoading ? <LoadingBlock />
+                : statusRows.length === 0 ? <EmptyBlock text={t.breakdown.empty} />
+                : (
+                  <ul className="space-y-2.5">
+                    {statusRows.map((r) => <BreakdownRow key={r.key} row={r} />)}
+                  </ul>
+                )}
+            </Panel>
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <LatestOrdersTable orders={orders} loading={ordersLoading} error={ordersError} onRetry={refreshOrders} />
+            <LatestRepairsTable reloadKey={repairsKey} />
           </div>
         </div>
-
-        <DateFilter
-          startDate={startDate}
-          endDate={endDate}
-          onStartChange={setStartDate}
-          onEndChange={setEndDate}
-          onReset={resetDates}
-          error={dateError}
-          loading={isLoading && !!lastUpdated}
-        />
-
-        {showSkeleton ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-            {[...Array(5)].map((_, i) => <SkeletonBlock key={i} className="h-24" />)}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-            {dashboardMetrics.map((c) => <StatCard key={c.label} {...c} />)}
-          </div>
-        )}
-
-        <div className="grid lg:grid-cols-2 gap-4">
-          <BarChartCard title="الطلبات" icon={FiShoppingBag} color="blue" endpoint="/api/shops/orders/control" unitLabel="طلب" />
-          <BarChartCard title="التصليحات" icon={FiTool} color="orange" endpoint="/api/shops/repair-request" unitLabel="تصليح" />
-        </div>
-
-        <div className="grid lg:grid-cols-2 gap-4">
-          <LatestOrdersTable />
-          <LatestRepairsTable />
-        </div>
-
       </div>
-    </div>
+    </LocaleCtx.Provider>
   );
 };
 

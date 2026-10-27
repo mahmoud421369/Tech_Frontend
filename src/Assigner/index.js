@@ -1,4 +1,4 @@
-export { default as AssignerHeader } from '../components/AssignerHeader';
+export { default as AssignerHeader } from '../components/assigner/AssignerHeader';
 export { default as AssignerDashboard } from './AssignerDashboard';
 export { default as AssignerProfile } from './AssignerProfile';
 export { default as AssignmentLogs } from './AssignmentLogs';

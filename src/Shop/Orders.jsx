@@ -1,30 +1,206 @@
 import React, {
-  useState, useEffect, useCallback, useMemo, useRef, memo,
+  useState, useEffect, useCallback, useMemo, useRef, useDeferredValue, memo,
 } from 'react';
 import {
-  FiChevronDown, FiSearch, FiInfo, FiChevronLeft, FiChevronRight, FiX,
-  FiClock, FiTruck, FiCheckCircle, FiHash, FiCheck, FiFilter, FiCopy,
-  FiUser, FiPhone, FiPackage, FiDollarSign, FiCreditCard, FiAlertCircle,
+  FiSearch, FiInfo, FiChevronRight, FiChevronLeft, FiChevronUp, FiChevronDown, FiX,
+  FiClock, FiTruck, FiCheckCircle, FiCheck, FiFilter, FiCopy, FiUser, FiPhone,
+  FiPackage, FiDollarSign, FiCreditCard, FiAlertCircle, FiRefreshCw, FiShoppingBag,
+  FiXCircle, FiEdit2, FiBox,
 } from 'react-icons/fi';
-import { RiShoppingCartLine } from 'react-icons/ri';
-import api from '../api';
-import debounce from 'lodash/debounce';
+import api from '../common/api/api';
+import { EXTRAS_CSS, Toaster, toast } from '../components/user/UiExtras';
+import {
+  POLL_MS, SEARCH_MAX, SPAN_MS, DEFAULT_LABELS,
+  getFormats, tpl, renderTpl, toTs, fmt, num, formatPrice, timeAgo, sanitizeSearch, isSafeId, safePhone,
+  shortId, errText, confirmDialog, useDarkMode, useEscape, useShopLocale,
+} from '../components/shop/TableKit';
+import { ensureShopAssets } from '../common/utils/shopFonts';
 
-const ROWS_OPTIONS = [5, 10, 25, 50];
+ensureShopAssets();
 
-const STATUS_TRANSLATIONS = {
-  PENDING: 'معلق',
-  CONFIRMED: 'مؤكد',
-  PROCESSING: 'قيد المعالجة',
-  FINISHPROCESSING: 'تمت المعالجة',
-  SHIPPED: 'تم الشحن',
-  DELIVERED: 'تم التسليم',
-  CANCELLED: 'ملغى',
-  all: 'جميع الحالات',
+const PG_CSS = `
+.pg{--pg-bg:#f9fafb;--pg-card:#ffffff;--pg-ink:#04261a;--pg-muted:#4b6b5c;--pg-line:#04261a;--pg-shadow:#04261a;--pg-gray:#e8ebe9;--pg-dot:#04261a;--pg-accent:#10b981;--pg-btn:#059669;--pg-on:#ffffff;background:var(--pg-bg);color:var(--pg-ink)}
+.dark .pg{--pg-bg:#141414;--pg-card:#2a2a2a;--pg-ink:#ffffff;--pg-muted:#a3a3a3;--pg-line:#000000;--pg-shadow:#000000;--pg-gray:#1e1e1e;--pg-dot:#3f3f3f;--pg-accent:#39ff88;--pg-btn:#39ff88;--pg-on:#022c22}
+.pg[dir="rtl"] *{letter-spacing:0!important}
+.pg-gray{background:var(--pg-gray)}
+.pg-muted{color:var(--pg-muted)}
+.pg-line{border-color:var(--pg-line)}
+.pg-dot{border:2px dotted var(--pg-dot)}
+.pg-card{background:var(--pg-card);border:2px solid var(--pg-line);box-shadow:3px 3px 0 var(--pg-shadow)}
+.pg-lift{transition:transform .15s ease,box-shadow .15s ease}
+.pg-lift:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--pg-shadow)}
+.pg-ul{text-decoration:underline;text-decoration-color:var(--pg-accent);text-decoration-thickness:3px;text-underline-offset:4px;text-decoration-skip-ink:none}
+.pg-chip{display:inline-flex;align-items:center;gap:6px;background:var(--pg-card);color:var(--pg-ink);border:2px solid var(--pg-line);padding:1px 8px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;line-height:1.6;white-space:nowrap}
+.pg-tile{display:inline-flex;align-items:center;justify-content:center;flex:none;border:2px solid var(--pg-line);background:var(--pg-accent);color:#04261a}
+.pg-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--pg-card);color:var(--pg-ink);border:2px solid var(--pg-line);box-shadow:2px 2px 0 var(--pg-shadow);font-weight:700;cursor:pointer;white-space:nowrap;transition:transform .12s ease,box-shadow .12s ease}
+.pg-btn:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--pg-shadow)}
+.pg-btn:active:not(:disabled){transform:translate(1px,1px);box-shadow:0 0 0 var(--pg-shadow)}
+.pg-btn:disabled{opacity:.45;cursor:not-allowed}
+.pg-btn-a,.pg-btn[aria-pressed="true"],.pg-btn[aria-selected="true"],.pg-btn[aria-current="page"]{background:var(--pg-btn);color:var(--pg-on)}
+.pg-btn-danger:hover:not(:disabled){background:#ef4444;color:#fff}
+.pg-btn:focus-visible,.pg-sort:focus-visible,.pg-link:focus-visible{outline:3px solid var(--pg-accent);outline-offset:2px}
+.pg-field{background:var(--pg-card);color:var(--pg-ink);border:2px solid var(--pg-line);box-shadow:2px 2px 0 var(--pg-shadow)}
+.pg-field:focus,.pg-field:focus-within{outline:3px solid var(--pg-accent);outline-offset:2px}
+.pg-field::placeholder{color:var(--pg-muted);opacity:.8}
+.pg-th{background:var(--pg-gray);border-bottom:2px solid var(--pg-line);padding:12px;text-align:start;font-size:11px;font-weight:800;text-transform:uppercase;white-space:nowrap}
+.pg-td{border-top:2px dotted var(--pg-dot)}
+tbody tr:first-child .pg-td{border-top:0}
+.pg-tr{transition:background-color .12s ease}
+.pg-tr:hover{background:var(--pg-gray)}
+.pg-scroll{scrollbar-width:thin;scrollbar-color:var(--pg-accent) transparent}
+.pg-scroll::-webkit-scrollbar{width:6px;height:6px}
+.pg-scroll::-webkit-scrollbar-track{background:transparent}
+.pg-scroll::-webkit-scrollbar-thumb{background:var(--pg-accent);border:1px solid var(--pg-line)}
+@keyframes pgFade{from{opacity:0}to{opacity:1}}
+@keyframes pgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.pg-fade{animation:pgFade .2s ease-out both}
+.pg-in{animation:pgIn .15s ease-out both}
+@media (prefers-reduced-motion:reduce){.pg-btn,.pg-lift,.pg-tr{transition:none}.pg-fade,.pg-in{animation:none}}
+`;
+const STYLE_EL = <style>{PG_CSS + EXTRAS_CSS}</style>;
+
+const TONES = { sky: '#22d3ee', am: '#facc15', ro: '#fb7185', vi: '#a3e635', te: '#2dd4bf', em: '#34d399' };
+const ROW_OPTIONS = [5, 10, 25, 50];
+
+const pageList = (page, total) => {
+  const keep = new Set([1, total, page - 1, page, page + 1]);
+  const nums = [...keep].filter((n) => n >= 1 && n <= total).sort((a, b) => a - b);
+  const out = [];
+  nums.forEach((n, i) => {
+    if (i && n - nums[i - 1] > 1) out.push(`gap-${n}`);
+    out.push(n);
+  });
+  return out;
 };
 
+const useLockScroll = () => {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+};
+
+const Tile = memo(({ icon: Icon, tone = 'em', className = 'h-9 w-9', size = 16 }) => (
+  <span className={`pg-tile ${className}`} style={{ background: TONES[tone] || TONES.em }}>
+    <Icon size={size} aria-hidden="true" />
+  </span>
+));
+
+const Empty = memo(({ title, subtitle }) => (
+  <div className="flex flex-col items-center text-center gap-3">
+    <span className="pg-tile h-16 w-16"><FiBox size={28} aria-hidden="true" /></span>
+    <p className="text-base font-extrabold uppercase"><span className="pg-ul">{title}</span></p>
+    <p className="pg-muted text-xs font-semibold max-w-xs">{subtitle}</p>
+  </div>
+));
+
+const StatCard = memo(({ label, value, description, icon, tone }) => (
+  <div className="pg-card pg-lift p-4 sm:p-5 flex items-center gap-3 min-w-0">
+    <Tile icon={icon} tone={tone} className="h-11 w-11" size={20} />
+    <div className="min-w-0">
+      <p className="pg-muted text-[11px] font-bold uppercase truncate">{label}</p>
+      <p className="text-2xl font-extrabold tracking-tight leading-tight tabular-nums truncate">{value}</p>
+      <p className="pg-muted text-xs font-semibold truncate">{description}</p>
+    </div>
+  </div>
+));
+
+const RowsSelect = memo(({ value, onChange, label, formatNumber }) => {
+  const options = ROW_OPTIONS.includes(value) ? ROW_OPTIONS : [...ROW_OPTIONS, value].sort((a, b) => a - b);
+  const text = label || DEFAULT_LABELS.rows;
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(Number(e.target.value))}
+      aria-label={tpl(text, { n: '' }).trim() || undefined}
+      className="pg-field h-10 px-3 text-sm font-bold cursor-pointer"
+    >
+      {options.map((n) => <option key={n} value={n}>{tpl(text, { n: formatNumber(n) })}</option>)}
+    </select>
+  );
+});
+
+const SortTh = memo(({ label, active, dir, onClick }) => (
+  <th scope="col" className="pg-th" aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+    <button type="button" onClick={onClick} className="pg-sort inline-flex items-center gap-1 font-extrabold uppercase">
+      {label}
+      {active && dir === 'asc' ? <FiChevronUp size={13} aria-hidden="true" /> : <FiChevronDown size={13} aria-hidden="true" className={active ? '' : 'opacity-30'} />}
+    </button>
+  </th>
+));
+
+const Pagination = memo(({ page, total, onChange, labels = {}, formatNumber }) => {
+  const pages = useMemo(() => pageList(page, total), [page, total]);
+  return (
+    <nav aria-label={labels.paginationAria || DEFAULT_LABELS.paginationAria} className="flex items-center gap-1.5 flex-wrap justify-center">
+      <button type="button" disabled={page <= 1} onClick={() => onChange(page - 1)} aria-label={labels.prev || DEFAULT_LABELS.prev} className="pg-btn h-8 w-8">
+        <FiChevronLeft size={14} className="rtl:rotate-180" aria-hidden="true" />
+      </button>
+      {pages.map((p) => (typeof p === 'string'
+        ? <span key={p} className="pg-muted px-1 text-xs font-bold" aria-hidden="true">…</span>
+        : (
+          <button key={p} type="button" onClick={() => onChange(p)} aria-current={p === page ? 'page' : undefined} className="pg-btn h-8 min-w-[32px] px-2 text-xs tabular-nums">
+            {formatNumber(p)}
+          </button>
+        )))}
+      <button type="button" disabled={page >= total} onClick={() => onChange(page + 1)} aria-label={labels.next || DEFAULT_LABELS.next} className="pg-btn h-8 w-8">
+        <FiChevronRight size={14} className="rtl:rotate-180" aria-hidden="true" />
+      </button>
+    </nav>
+  );
+});
+
+const Overlay = memo(({ onClose, children }) => {
+  useLockScroll();
+  return (
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+      <div className="pg-fade absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
+      {children}
+    </div>
+  );
+});
+
+const FilterPanel = memo(({ title, note, groups, onReset, onClose, labels = {} }) => {
+  useEscape(onClose);
+  useLockScroll();
+  return (
+    <div className="fixed inset-0 z-[1000] flex justify-end">
+      <div className="pg-fade absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
+      <aside role="dialog" aria-modal="true" aria-label={title} className="pg-card pg-in relative w-full max-w-xs h-full flex flex-col !shadow-none border-y-0 border-e-0">
+        <div className="pg-gray pg-line px-5 py-4 border-b-2 flex items-center justify-between gap-3">
+          <h3 className="text-sm font-extrabold uppercase"><span className="pg-ul">{title}</span></h3>
+          <button type="button" onClick={onClose} aria-label={labels.close || DEFAULT_LABELS.close} className="pg-btn h-8 w-8"><FiX size={15} aria-hidden="true" /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto pg-scroll p-5 space-y-5">
+          {note && <p className="pg-muted text-xs font-semibold">{note}</p>}
+          {groups.map(([groupTitle, options, value, setter]) => (
+            <fieldset key={groupTitle} className="space-y-2">
+              <legend className="mb-2 text-[11px] font-extrabold uppercase">{groupTitle}</legend>
+              {options.map((o) => (
+                <button key={o.value} type="button" aria-pressed={value === o.value} onClick={() => setter(o.value)} className="pg-btn w-full justify-between px-3 h-10 text-xs uppercase">
+                  {o.label}
+                  {value === o.value && <FiCheck size={14} aria-hidden="true" />}
+                </button>
+              ))}
+            </fieldset>
+          ))}
+        </div>
+        <div className="pg-line p-4 border-t-2 grid grid-cols-2 gap-2.5">
+          <button type="button" onClick={onReset} className="pg-btn h-10 text-xs uppercase">{labels.reset || DEFAULT_LABELS.reset}</button>
+          <button type="button" onClick={onClose} className="pg-btn pg-btn-a h-10 text-xs uppercase">{labels.apply || DEFAULT_LABELS.apply}</button>
+        </div>
+      </aside>
+    </div>
+  );
+});
+
 const STATUSES = ['PENDING', 'CONFIRMED', 'PROCESSING', 'FINISHPROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
-const LIFECYCLE_STATUSES = ['PENDING', 'CONFIRMED', 'PROCESSING', 'FINISHPROCESSING', 'SHIPPED', 'DELIVERED'];
+const LIFECYCLE_STATUSES = STATUSES.slice(0, 6);
+const TABS = ['all', ...STATUSES];
+const PAYMENT_VALUES = ['all', 'CASH', 'CARD'];
+const SORT_VALUES = ['newest', 'oldest', 'highest', 'lowest'];
+const DATE_VALUES = ['all', 'today', 'week', 'month'];
 
 const NEXT_STATUSES = {
   PENDING: ['CONFIRMED', 'CANCELLED'],
@@ -36,180 +212,34 @@ const NEXT_STATUSES = {
   CANCELLED: [],
 };
 
-const PAYMENT_METHODS = [
-  { value: 'all', label: 'جميع طرق الدفع' },
-  { value: 'CASH', label: 'نقدي عند الاستلام' },
-  { value: 'CARD', label: 'بطاقة إلكترونية' },
-];
+const STATUS_META = {
+  PENDING:          { dot: 'bg-blue-500',    icon: FiClock,       tone: 'am' },
+  CONFIRMED:        { dot: 'bg-lime-500',    icon: FiCheckCircle, tone: 'em' },
+  PROCESSING:       { dot: 'bg-yellow-400',  icon: FiRefreshCw,   tone: 'te' },
+  FINISHPROCESSING: { dot: 'bg-amber-500',   icon: FiCheck,       tone: 'vi' },
+  SHIPPED:          { dot: 'bg-purple-500',  icon: FiTruck,       tone: 'sky' },
+  DELIVERED:        { dot: 'bg-emerald-500', icon: FiPackage,     tone: 'em' },
+  CANCELLED:        { dot: 'bg-red-500',     icon: FiXCircle,     tone: 'ro' },
+};
+const FALLBACK_META = { dot: 'bg-gray-400', icon: FiInfo, tone: 'sky' };
+const getMeta = (s) => STATUS_META[s] || FALLBACK_META;
 
-const SORT_OPTIONS = [
-  { value: 'newest', label: 'الأحدث أولاً' },
-  { value: 'oldest', label: 'الأقدم أولاً' },
-  { value: 'highest', label: 'الأعلى سعراً' },
-  { value: 'lowest', label: 'الأقل سعراً' },
-];
+const fullName = (o) => [o.firstName, o.lastName].filter(Boolean).join(' ') || '—';
 
-const DATE_RANGES = [
-  { value: 'all', label: 'كل الأوقات' },
-  { value: 'today', label: 'اليوم' },
-  { value: 'week', label: 'آخر ٧ أيام' },
-  { value: 'month', label: 'آخر ٣٠ يوم' },
-];
-
-const STATUS_STYLE = {
-  PENDING: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600', dot: 'bg-blue-500' },
-  CONFIRMED: { bg: 'bg-lime-50 dark:bg-lime-900/20', text: 'text-lime-600', dot: 'bg-lime-500' },
-  PROCESSING: { bg: 'bg-yellow-50 dark:bg-yellow-900/20', text: 'text-yellow-600', dot: 'bg-yellow-500' },
-  FINISHPROCESSING: { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-600', dot: 'bg-amber-500' },
-  SHIPPED: { bg: 'bg-purple-50 dark:bg-purple-900/20', text: 'text-purple-600', dot: 'bg-purple-500' },
-  DELIVERED: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600', dot: 'bg-emerald-500' },
-  CANCELLED: { bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-600', dot: 'bg-red-500' },
+const successToast = (t, status) => {
+  if (status === 'CONFIRMED') return t.toasts.accepted;
+  if (status === 'CANCELLED') return t.toasts.rejected;
+  return { title: t.toasts.statusUpdated.title, text: tpl(t.toasts.statusUpdated.text, { status: t.status[status] }) };
 };
 
-const getStatusStyle = (s) => STATUS_STYLE[s] || { bg: 'bg-gray-50', text: 'text-gray-600', dot: 'bg-gray-400' };
-const formatPrice = (p) => `EGP ${Number(p || 0).toLocaleString('en-US')}`;
-
-const timeAgo = (dateStr) => {
-  if (!dateStr) return '';
-  const diffMs = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return 'الآن';
-  if (mins < 60) return `منذ ${mins} دقيقة`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `منذ ${hrs} ساعة`;
-  const days = Math.floor(hrs / 24);
-  return `منذ ${days} يوم`;
-};
-
-let swalPromise = null;
-const loadSwal = () => {
-  if (!swalPromise) swalPromise = import('sweetalert2').then((m) => m.default);
-  return swalPromise;
-};
-
-const EmptyOrdersIllustration = memo(() => (
-  <svg viewBox="0 0 140 110" className="w-28 h-24 mx-auto">
-    <ellipse cx="70" cy="96" rx="42" ry="6" fill="rgba(0,0,0,0.05)" className="dark:fill-white/5" />
-    <path d="M24 42 L70 24 L116 42 L116 78 L70 92 L24 78 Z" fill="#f3f4f6" stroke="#e5e7eb" strokeWidth="2" className="dark:fill-gray-800 dark:stroke-gray-700" />
-    <path d="M24 42 L70 58 L116 42" fill="none" stroke="#e5e7eb" strokeWidth="2" className="dark:stroke-gray-700" />
-    <path d="M70 58 L70 92" fill="none" stroke="#e5e7eb" strokeWidth="2" className="dark:stroke-gray-700" />
-    <path d="M46 34 L94 50" fill="none" stroke="#d1d5db" strokeWidth="2" className="dark:stroke-gray-600" />
-    <circle cx="70" cy="16" r="8" fill="none" stroke="#10b981" strokeWidth="2.4" />
-    <path d="M67 16 L69.5 18.5 L74 13.5" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
+const StatusPill = memo(({ status, label }) => (
+  <span className="pg-chip">
+    <span className={`pg-line w-2 h-2 border ${getMeta(status).dot}`} />
+    {label || status || '—'}
+  </span>
 ));
-EmptyOrdersIllustration.displayName = 'EmptyOrdersIllustration';
 
-const NoNextStepIllustration = memo(() => (
-  <svg viewBox="0 0 100 80" className="w-20 h-16 mx-auto">
-    <circle cx="50" cy="38" r="30" fill="rgba(16,185,129,0.08)" className="dark:fill-emerald-900/20" />
-    <path d="M32 40 L44 52 L70 26" fill="none" stroke="#10b981" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
-    <circle cx="80" cy="16" r="2.4" fill="#fbbf24" />
-  </svg>
-));
-NoNextStepIllustration.displayName = 'NoNextStepIllustration';
-
-const CartIllustration = memo(() => (
-  <svg viewBox="0 0 64 64" className="w-full h-full">
-    <defs>
-      <linearGradient id="orders-grad-cart" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#a3e635" />
-        <stop offset="100%" stopColor="#10b981" />
-      </linearGradient>
-    </defs>
-    <circle cx="32" cy="32" r="27" fill="url(#orders-grad-cart)" opacity="0.12" />
-    <circle cx="32" cy="32" r="19" fill="none" stroke="url(#orders-grad-cart)" strokeWidth="1.5" strokeDasharray="2 4" opacity="0.5" />
-    <path d="M16 18 H22 L27 40 H46 L50 24 H24" fill="none" stroke="#10b981" strokeWidth="2.6" strokeLinejoin="round" strokeLinecap="round" className="dark:stroke-emerald-400" />
-    <circle cx="29" cy="47" r="3.2" fill="#10b981" className="dark:fill-emerald-400" />
-    <circle cx="44" cy="47" r="3.2" fill="#10b981" className="dark:fill-emerald-400" />
-  </svg>
-));
-CartIllustration.displayName = 'CartIllustration';
-
-const PendingClockIllustration = memo(() => (
-  <svg viewBox="0 0 64 64" className="w-full h-full">
-    <circle cx="32" cy="32" r="27" fill="#3b82f6" opacity="0.12" />
-    <circle cx="32" cy="32" r="19" fill="none" stroke="#3b82f6" strokeWidth="1.5" strokeDasharray="2 4" opacity="0.5" />
-    <circle cx="32" cy="32" r="14" fill="none" stroke="#3b82f6" strokeWidth="2.6" />
-    <path d="M32 24 V32 L38 36" fill="none" stroke="#3b82f6" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-));
-PendingClockIllustration.displayName = 'PendingClockIllustration';
-
-const ConfirmedCheckIllustration = memo(() => (
-  <svg viewBox="0 0 64 64" className="w-full h-full">
-    <circle cx="32" cy="32" r="27" fill="#10b981" opacity="0.12" />
-    <circle cx="32" cy="32" r="19" fill="none" stroke="#10b981" strokeWidth="1.5" strokeDasharray="2 4" opacity="0.5" />
-    <circle cx="32" cy="32" r="14" fill="none" stroke="#10b981" strokeWidth="2.6" className="dark:stroke-emerald-400" />
-    <path d="M26 32 L30.5 37 L39 26" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="dark:stroke-emerald-400" />
-  </svg>
-));
-ConfirmedCheckIllustration.displayName = 'ConfirmedCheckIllustration';
-
-const DeliveredTruckIllustration = memo(() => (
-  <svg viewBox="0 0 64 64" className="w-full h-full">
-    <circle cx="32" cy="32" r="27" fill="#6366f1" opacity="0.12" />
-    <circle cx="32" cy="32" r="19" fill="none" stroke="#6366f1" strokeWidth="1.5" strokeDasharray="2 4" opacity="0.5" />
-    <rect x="11" y="25" width="26" height="15" rx="2.5" fill="none" stroke="#6366f1" strokeWidth="2.4" />
-    <path d="M37 29 H46 L51 35 V40 H37 Z" fill="none" stroke="#6366f1" strokeWidth="2.4" strokeLinejoin="round" />
-    <circle cx="21" cy="43" r="3.2" fill="#6366f1" />
-    <circle cx="43" cy="43" r="3.2" fill="#6366f1" />
-  </svg>
-));
-DeliveredTruckIllustration.displayName = 'DeliveredTruckIllustration';
-
-const ProcessingGearIllustration = memo(() => (
-  <svg viewBox="0 0 64 64" className="w-full h-full">
-    <circle cx="32" cy="32" r="27" fill="#eab308" opacity="0.12" />
-    <circle cx="32" cy="32" r="19" fill="none" stroke="#eab308" strokeWidth="1.5" strokeDasharray="2 4" opacity="0.5" />
-    <circle cx="32" cy="32" r="10" fill="none" stroke="#eab308" strokeWidth="2.6" />
-    <path d="M32 13 v6 M32 45 v6 M13 32 h6 M45 32 h6 M19.5 19.5 l4.2 4.2 M40.3 40.3 l4.2 4.2 M44.5 19.5 l-4.2 4.2 M23.7 40.3 l-4.2 4.2" stroke="#eab308" strokeWidth="2.4" strokeLinecap="round" />
-  </svg>
-));
-ProcessingGearIllustration.displayName = 'ProcessingGearIllustration';
-
-const FinishProcessingIllustration = memo(() => (
-  <svg viewBox="0 0 64 64" className="w-full h-full">
-    <circle cx="32" cy="32" r="27" fill="#f59e0b" opacity="0.12" />
-    <circle cx="32" cy="32" r="19" fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="2 4" opacity="0.5" />
-    <rect x="17" y="17" width="30" height="30" rx="5" fill="none" stroke="#f59e0b" strokeWidth="2.6" />
-    <path d="M23 32 L29.5 38.5 L41 24" fill="none" stroke="#f59e0b" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-));
-FinishProcessingIllustration.displayName = 'FinishProcessingIllustration';
-
-const DeliveredBoxIllustration = memo(() => (
-  <svg viewBox="0 0 64 64" className="w-full h-full">
-    <circle cx="32" cy="32" r="27" fill="#10b981" opacity="0.12" />
-    <circle cx="32" cy="32" r="19" fill="none" stroke="#10b981" strokeWidth="1.5" strokeDasharray="2 4" opacity="0.5" />
-    <path d="M19 23 L32 17 L45 23 L45 41 L32 47 L19 41 Z" fill="none" stroke="#10b981" strokeWidth="2.3" strokeLinejoin="round" />
-    <path d="M19 23 L32 29 L45 23" fill="none" stroke="#10b981" strokeWidth="2.3" strokeLinejoin="round" />
-    <path d="M27 33 L31 37 L38.5 27" fill="none" stroke="#10b981" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-));
-DeliveredBoxIllustration.displayName = 'DeliveredBoxIllustration';
-
-const CancelledIllustration = memo(() => (
-  <svg viewBox="0 0 64 64" className="w-full h-full">
-    <circle cx="32" cy="32" r="27" fill="#ef4444" opacity="0.12" />
-    <circle cx="32" cy="32" r="19" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeDasharray="2 4" opacity="0.5" />
-    <circle cx="32" cy="32" r="14" fill="none" stroke="#ef4444" strokeWidth="2.6" />
-    <path d="M25.5 25.5 L38.5 38.5 M38.5 25.5 L25.5 38.5" stroke="#ef4444" strokeWidth="2.8" strokeLinecap="round" />
-  </svg>
-));
-CancelledIllustration.displayName = 'CancelledIllustration';
-
-const STATUS_ILLUSTRATION_MAP = {
-  PENDING: PendingClockIllustration,
-  CONFIRMED: ConfirmedCheckIllustration,
-  PROCESSING: ProcessingGearIllustration,
-  FINISHPROCESSING: FinishProcessingIllustration,
-  SHIPPED: DeliveredTruckIllustration,
-  DELIVERED: DeliveredBoxIllustration,
-  CANCELLED: CancelledIllustration,
-};
-
-const StatusTimeline = memo(({ status }) => {
+const StatusTimeline = memo(({ status, labels }) => {
   if (status === 'CANCELLED') return null;
   const idx = LIFECYCLE_STATUSES.indexOf(status);
   return (
@@ -217,495 +247,234 @@ const StatusTimeline = memo(({ status }) => {
       {LIFECYCLE_STATUSES.map((s, i) => (
         <React.Fragment key={s}>
           <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
-            <div className={`w-3 h-3 rounded-full transition-colors ${i <= idx ? 'bg-emerald-500' : 'bg-gray-200 dark:bg-gray-700'}`} />
-            <span className={`text-[8px] font-black uppercase tracking-tight text-center leading-tight w-12 ${i <= idx ? 'text-emerald-600' : 'text-gray-400'}`}>
-              {STATUS_TRANSLATIONS[s]}
-            </span>
+            <span className={`pg-line w-3.5 h-3.5 border-2 ${i <= idx ? 'bg-[var(--pg-accent)]' : 'pg-gray'}`} />
+            <span className={`text-[8px] font-extrabold uppercase text-center leading-tight w-12 ${i <= idx ? '' : 'pg-muted'}`}>{labels[s]}</span>
           </div>
           {i < LIFECYCLE_STATUSES.length - 1 && (
-            <div className={`flex-1 h-0.5 mx-1 mb-4 transition-colors ${i < idx ? 'bg-emerald-500' : 'bg-gray-200 dark:bg-gray-700'}`} />
+            <span className={`pg-line flex-1 h-1.5 mx-1 mb-4 border-y-2 ${i < idx ? 'bg-[var(--pg-accent)]' : 'pg-gray'}`} />
           )}
         </React.Fragment>
       ))}
     </div>
   );
 });
-StatusTimeline.displayName = 'StatusTimeline';
 
-const RowsDropdown = memo(({ value, onChange, options }) => {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center justify-between gap-3 min-w-[168px] px-5 py-3.5 rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-xs font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 cursor-pointer transition-all"
-      >
-        {value} طلبات لكل صفحة
-        <FiChevronDown className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`} size={14} />
-      </button>
-      {open && (
-        <div className="absolute z-20 mt-2 w-full rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl overflow-hidden">
-          {options.map((n) => (
-            <button
-              key={n}
-              onClick={() => { onChange(n); setOpen(false); }}
-              className={`w-full text-right px-5 py-2.5 text-xs font-bold transition ${
-                value === n ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/60'
-              }`}
-            >
-              {n} طلبات لكل صفحة
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-});
-RowsDropdown.displayName = 'RowsDropdown';
-
-const STAT_ILLUSTRATIONS = {
-  'إجمالي الطلبات': CartIllustration,
-  'طلبات معلقة': PendingClockIllustration,
-  'طلبات مؤكدة': ConfirmedCheckIllustration,
-  'تم التسليم': DeliveredTruckIllustration,
-};
-
-const StatCard = memo(({ label, value, description }) => {
-  const Illustration = STAT_ILLUSTRATIONS[label];
-  return (
-    <div className="group bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 p-4 flex items-center gap-3 transition-all duration-300 hover:shadow-lg hover:shadow-gray-200/50 dark:hover:shadow-none">
-      <div className="w-11 h-11 flex-shrink-0 group-hover:scale-105 transition-transform">
-        {Illustration && <Illustration />}
-      </div>
-      <div className="min-w-0 text-right">
-        <p className="text-[9px] font-black uppercase tracking-[0.15em] text-gray-400 truncate">{label}</p>
-        <p className="text-xl font-black text-gray-900 dark:text-white leading-tight">{value}</p>
-        <p className="text-[9px] font-bold text-gray-400 truncate">{description}</p>
-      </div>
-    </div>
-  );
-});
-StatCard.displayName = 'StatCard';
-
-const LEGEND_ITEMS = [
-  { icon: FiInfo, tone: 'text-amber-500 border-amber-200 dark:border-amber-900/50', label: 'تفاصيل', desc: 'عرض كامل بيانات الطلب والمنتجات' },
-  { icon: FiCopy, tone: 'text-gray-400 border-gray-200 dark:border-gray-700', label: 'نسخ', desc: 'نسخ رقم الطلب إلى الحافظة' },
-  { icon: FiCheck, tone: 'text-emerald-600 border-emerald-200 dark:border-emerald-900/50', label: 'قبول', desc: 'قبول طلب معلق وخصم الكمية من المخزون' },
-  { icon: FiX, tone: 'text-red-600 border-red-200 dark:border-red-900/50', label: 'رفض', desc: 'رفض طلب معلق وإلغاؤه نهائياً' },
-];
-
-const IconLegendCard = memo(() => (
-  <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 p-5">
-    <div className="flex items-center gap-2 mb-4">
-      <div className="w-7 h-7 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 flex items-center justify-center text-gray-400">
-        <FiAlertCircle size={13} />
-      </div>
-      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">دليل الأيقونات</p>
-    </div>
-    <div className="flex flex-wrap gap-x-8 gap-y-4">
-      {LEGEND_ITEMS.map(({ icon: Icon, tone, label, desc }) => (
-        <div key={label} className="flex items-start gap-3 min-w-[200px] flex-1">
-          <div className={`w-8 h-8 rounded-lg border flex items-center justify-center flex-shrink-0 ${tone}`}>
-            <Icon size={13} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-black text-gray-900 dark:text-white">{label}</p>
-            <p className="text-[10px] font-bold text-gray-400 leading-relaxed mt-0.5">{desc}</p>
-          </div>
-        </div>
-      ))}
-    </div>
-    <div className="mt-4 pt-4 border-t border-gray-50 dark:border-gray-700 flex items-start gap-1.5">
-      <FiAlertCircle className="text-blue-500 flex-shrink-0 mt-0.5" size={12} />
-      <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 leading-relaxed">
-        طلب "تم التسليم" مغلق نهائياً ولا يمكن تعديل حالته بعد ذلك.
-      </p>
+const InfoTile = memo(({ icon: Icon, label, children }) => (
+  <div className="pg-gray pg-dot p-3 flex items-center gap-2.5 min-w-0">
+    <Icon size={15} className="text-[var(--pg-accent)] flex-shrink-0" aria-hidden="true" />
+    <div className="min-w-0">
+      <p className="pg-muted text-[9px] font-bold uppercase">{label}</p>
+      <div className="text-xs font-extrabold truncate">{children}</div>
     </div>
   </div>
 ));
-IconLegendCard.displayName = 'IconLegendCard';
 
-const OrderRow = memo(({ order, onDetails, onCopy, onAccept, onReject, onOpenStatusModal }) => {
-  const cs = getStatusStyle(order.status);
-  const totalQty = (order.orderItems || []).reduce((sum, i) => sum + i.quantity, 0);
+const OrderRow = memo(({ order, busy, L, onDetails, onCopy, onAccept, onReject, onOpenStatusModal }) => {
+  const t = L.orders;
+  const fm = getFormats(L.locale);
+  const items = order.orderItems || [];
+  const totalQty = items.reduce((s, i) => s + num(i.quantity), 0);
+  const first = items[0];
+  const extra = items.length - 1;
   const isPending = order.status === 'PENDING';
-  const isDelivered = order.status === 'DELIVERED';
-  const canChangeStatus = !isPending && !isDelivered;
+  const canAdvance = (NEXT_STATUSES[order.status] || []).length > 0 && !isPending;
 
   return (
-    <tr className="hover:bg-emerald-50/10 dark:hover:bg-emerald-900/5 transition-colors group">
-      <td className="px-4 py-3 whitespace-nowrap">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400">
-            <FiHash size={18} />
-          </div>
+    <tr className="pg-tr">
+      <td className="pg-td px-3 py-2.5 whitespace-nowrap">
+        <div className="flex items-center gap-2.5">
+          <span className="pg-tile w-9 h-9"><FiBox size={16} aria-hidden="true" /></span>
           <div>
-            <p className="text-xs font-mono text-gray-900 dark:text-white">#{String(order.id).slice(0, 8)}</p>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{totalQty} منتجات</p>
+            <p className="text-xs font-mono font-extrabold">#{shortId(order.id)}</p>
+            <p className="pg-muted text-[10px] font-semibold">{tpl(t.row.pieces, { n: fm.number.format(totalQty) })}</p>
           </div>
         </div>
       </td>
-      <td className="px-4 py-3 whitespace-nowrap text-center">
-        <p className="text-xs font-black text-gray-900 dark:text-white">{order.firstName} {order.lastName}</p>
-        <p dir="ltr" className="text-[10px] font-bold text-gray-400 tracking-tight">{order.phoneNumber || 'بدون هاتف'}</p>
+      <td className="pg-td px-3 py-2.5 whitespace-nowrap">
+        <p className="text-xs font-extrabold uppercase">{fullName(order)}</p>
+        <p dir="ltr" className="pg-muted text-[10px] font-semibold text-start rtl:text-end">{order.phoneNumber || t.row.noPhone}</p>
       </td>
-      <td className="px-4 py-3 whitespace-nowrap text-center font-mono font-black text-sm text-emerald-600">
-        {formatPrice(order.totalPrice)}
+      <td className="pg-td px-3 py-2.5 max-w-[190px]">
+        <p className="text-xs font-semibold truncate">{first?.productName || '—'}</p>
+        {extra > 0 && <p className="pg-muted text-[10px] font-bold">{tpl(t.row.more, { n: fm.number.format(extra) })}</p>}
       </td>
-      <td className="px-4 py-3 whitespace-nowrap text-center">
-        <p className="text-[10px] font-black text-gray-900 dark:text-white">{new Date(order.createdAt).toLocaleDateString('ar-EG')}</p>
-        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{new Date(order.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</p>
-      </td>
-      <td className="px-4 py-3 whitespace-nowrap text-center">
-        <span
-          onClick={() => { if (canChangeStatus) onOpenStatusModal(order); }}
-          title={isPending ? 'يرجى قبول أو رفض الطلب أولاً' : isDelivered ? 'تم تسليم الطلب — لا يمكن تعديل الحالة' : ''}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest ${cs.bg} ${cs.text} ${canChangeStatus ? 'cursor-pointer' : 'cursor-not-allowed opacity-90'}`}
-        >
-          {STATUS_TRANSLATIONS[order.status] || order.status}
+      <td className="pg-td px-3 py-2.5 whitespace-nowrap">
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold">
+          {order.paymentMethod === 'CASH' ? <FiDollarSign size={12} aria-hidden="true" /> : <FiCreditCard size={12} aria-hidden="true" />}
+          {t.payment[order.paymentMethod] || order.paymentMethod || '—'}
         </span>
       </td>
-      <td className="px-4 py-3 whitespace-nowrap text-left">
-        <div className="flex items-center justify-start gap-1.5">
-          <button title="تفاصيل الطلب" onClick={() => onDetails(order)} className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-all active:scale-95">
-            <FiInfo size={14} />
-          </button>
-          <button title="نسخ رقم الطلب" onClick={() => onCopy(order.id)} className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-lime-500 hover:border-lime-300 transition-all active:scale-95">
-            <FiCopy size={14} />
-          </button>
+      <td className="pg-td px-3 py-2.5 whitespace-nowrap">
+        <p className="text-xs font-bold">{fmt(fm.date, order.createdAt)}</p>
+        <p className="pg-muted text-[10px] font-semibold">{fmt(fm.time, order.createdAt)}</p>
+      </td>
+      <td className="pg-td px-3 py-2.5 whitespace-nowrap font-extrabold text-[13px] tabular-nums">
+        {formatPrice(order.totalPrice, L.table.price, fm.number)}
+      </td>
+      <td className="pg-td px-3 py-2.5 whitespace-nowrap"><StatusPill status={order.status} label={t.status[order.status]} /></td>
+      <td className="pg-td px-3 py-2.5 whitespace-nowrap">
+        <div className="flex items-center gap-1.5">
           {isPending && (
             <>
-              <button title="قبول الطلب" onClick={() => onAccept(order)} className="p-2 rounded-lg border border-emerald-200 dark:border-emerald-900/50 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all active:scale-95">
-                <FiCheck size={14} />
-              </button>
-              <button title="رفض الطلب" onClick={() => onReject(order)} className="p-2 rounded-lg border border-red-200 dark:border-red-900/50 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all active:scale-95">
-                <FiX size={14} />
-              </button>
+              <button type="button" disabled={busy} onClick={() => onAccept(order)} className="pg-btn pg-btn-a px-2.5 h-8 text-[11px] uppercase"><FiCheck size={13} aria-hidden="true" /> {t.row.accept}</button>
+              <button type="button" disabled={busy} onClick={() => onReject(order)} className="pg-btn pg-btn-danger px-2.5 h-8 text-[11px] uppercase"><FiX size={13} aria-hidden="true" /> {t.row.reject}</button>
             </>
           )}
+          {canAdvance && (
+            <button type="button" disabled={busy} onClick={() => onOpenStatusModal(order)} className="pg-btn px-2.5 h-8 text-[11px] uppercase"><FiEdit2 size={12} aria-hidden="true" /> {t.row.updateStatus}</button>
+          )}
+          <button type="button" title={t.row.details} aria-label={t.row.details} onClick={() => onDetails(order)} className="pg-btn h-8 w-8"><FiInfo size={14} aria-hidden="true" /></button>
+          <button type="button" title={t.row.copyId} aria-label={t.row.copyId} onClick={() => onCopy(order.id)} className="pg-btn h-8 w-8"><FiCopy size={13} aria-hidden="true" /></button>
         </div>
       </td>
     </tr>
   );
 });
-OrderRow.displayName = 'OrderRow';
 
-const OrderDetailsModal = memo(({ order, onClose, onCopy, onAccept, onReject, onOpenStatusModal }) => {
-  const cs = getStatusStyle(order.status);
-  const StatusIllustration = STATUS_ILLUSTRATION_MAP[order.status] || CartIllustration;
+const OrderDetailsModal = memo(({ order, busy, L, onClose, onCopy, onAccept, onReject, onOpenStatusModal }) => {
+  useEscape(onClose);
+  const t = L.orders;
+  const fm = getFormats(L.locale);
+  const meta = getMeta(order.status);
   const isPending = order.status === 'PENDING';
   const isDelivered = order.status === 'DELIVERED';
   const hasNext = (NEXT_STATUSES[order.status] || []).length > 0;
-  const totalQty = (order.orderItems || []).reduce((s, i) => s + i.quantity, 0);
+  const items = order.orderItems || [];
+  const totalQty = items.reduce((s, i) => s + num(i.quantity), 0);
+  const phone = safePhone(order.phoneNumber);
+  const price = (v) => formatPrice(v, L.table.price, fm.number);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-md shadow-2xl overflow-hidden animate-in zoom-in duration-300">
-        <div className="px-5 py-3.5 border-b border-gray-50 dark:border-gray-700 flex items-center justify-between bg-gray-50/60 dark:bg-gray-900/40">
+    <Overlay onClose={onClose}>
+      <div role="dialog" aria-modal="true" aria-label={t.details.title} className="pg-card pg-in relative w-full max-w-md overflow-hidden">
+        <div className="pg-gray pg-line px-5 py-3.5 border-b-2 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center flex-shrink-0">
-              <RiShoppingCartLine size={18} />
-            </div>
+            <Tile icon={FiShoppingBag} tone="sky" />
             <div>
-              <h3 className="text-sm font-black text-gray-900 dark:text-white">تفاصيل الطلب</h3>
-              <div className="flex items-center gap-1.5 text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                #{String(order.id).slice(0, 8)}
-                <button onClick={() => onCopy(order.id)} className="hover:text-emerald-500 transition-colors">
-                  <FiCopy size={10} />
-                </button>
-              </div>
+              <h3 className="text-sm font-extrabold uppercase"><span className="pg-ul">{t.details.title}</span></h3>
+              <p className="pg-muted mt-1 flex items-center gap-1.5 text-[10px] font-bold font-mono">
+                #{shortId(order.id)}
+                <button type="button" aria-label={t.row.copyId} onClick={() => onCopy(order.id)} className="pg-link"><FiCopy size={10} aria-hidden="true" /></button>
+              </p>
             </div>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-red-500 hover:border-red-300 transition-all flex-shrink-0">
-            <FiX size={15} />
-          </button>
+          <button type="button" onClick={onClose} aria-label={L.table.close || DEFAULT_LABELS.close} className="pg-btn h-8 w-8"><FiX size={15} aria-hidden="true" /></button>
         </div>
 
-        <div className="px-5 py-4 space-y-4 overflow-y-auto max-h-[75vh] custom-scrollbar-thin">
-          <div className={`rounded-xl p-3.5 bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 ${cs.bg}`}>
+        <div className="px-5 py-4 space-y-4 overflow-y-auto max-h-[72vh] pg-scroll">
+          <div className="pg-gray pg-dot p-3.5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 flex-shrink-0">
-                <StatusIllustration />
-              </div>
+              <Tile icon={meta.icon} tone={meta.tone} className="h-11 w-11" size={20} />
               <div className="min-w-0">
-                <p className={`text-sm font-black ${cs.text}`}>{STATUS_TRANSLATIONS[order.status]}</p>
-                <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 mt-0.5">
-                  {timeAgo(order.createdAt)} · {new Date(order.createdAt).toLocaleString('ar-EG')}
-                </p>
+                <p className="text-sm font-extrabold uppercase">{t.status[order.status] || order.status}</p>
+                <p className="pg-muted text-[10px] font-semibold mt-0.5">{timeAgo(order.createdAt, L.header.time, fm.number)} · {fmt(fm.full, order.createdAt)}</p>
               </div>
             </div>
-            {order.status !== 'CANCELLED' && (
-              <div className="mt-3.5">
-                <StatusTimeline status={order.status} />
-              </div>
-            )}
-            {isPending && (
-              <div className="mt-3 flex items-start gap-1.5 px-2.5 py-2 rounded-lg bg-white/70 dark:bg-black/20">
-                <FiAlertCircle className="text-blue-500 flex-shrink-0 mt-0.5" size={12} />
-                <p className="text-[10px] font-bold text-gray-600 dark:text-gray-300">بانتظار قرارك — لا يمكن تحديث الحالة قبل القبول أو الرفض.</p>
-              </div>
-            )}
-            {isDelivered && (
-              <div className="mt-3 flex items-start gap-1.5 px-2.5 py-2 rounded-lg bg-white/70 dark:bg-black/20">
-                <FiAlertCircle className="text-emerald-500 flex-shrink-0 mt-0.5" size={12} />
-                <p className="text-[10px] font-bold text-gray-600 dark:text-gray-300">تم تسليم الطلب بنجاح — لا يمكن تعديل الحالة بعد الآن.</p>
+            {order.status !== 'CANCELLED' && <div className="mt-3.5"><StatusTimeline status={order.status} labels={t.status} /></div>}
+            {(isPending || isDelivered) && (
+              <div className="pg-card !shadow-none mt-3 flex items-start gap-1.5 px-2.5 py-2">
+                <FiAlertCircle className="text-[var(--pg-accent)] flex-shrink-0 mt-0.5" size={12} aria-hidden="true" />
+                <p className="text-[10px] font-bold">{isPending ? t.details.pendingNote : t.details.deliveredNote}</p>
               </div>
             )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center text-emerald-500 border border-gray-100 dark:border-gray-700 flex-shrink-0">
-                <FiUser size={14} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">العميل</p>
-                <p className="text-xs font-black text-gray-900 dark:text-white truncate">{order.firstName} {order.lastName}</p>
-              </div>
-            </div>
-            <a href={order.phoneNumber ? `tel:${order.phoneNumber}` : undefined} className="p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 flex items-center gap-2.5 hover:border-emerald-300 dark:hover:border-emerald-700 transition-all">
-              <div className="w-8 h-8 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center text-emerald-500 border border-gray-100 dark:border-gray-700 flex-shrink-0">
-                <FiPhone size={14} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">هاتف · اتصال</p>
-                <p dir="ltr" className="text-xs font-black text-gray-900 dark:text-white truncate">{order.phoneNumber || '—'}</p>
-              </div>
+            <InfoTile icon={FiUser} label={t.details.customer}>{fullName(order)}</InfoTile>
+            <a href={phone ? `tel:${phone}` : undefined} className="pg-link min-w-0">
+              <InfoTile icon={FiPhone} label={t.details.phone}><span dir="ltr" className="block text-start rtl:text-end">{order.phoneNumber || '—'}</span></InfoTile>
             </a>
           </div>
 
-          <div className="rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
-            <div className="px-3.5 py-2.5 bg-gray-50 dark:bg-gray-900/50 flex items-center justify-between">
-              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">المنتجات المطلوبة</p>
-              <span className="text-[9px] font-black text-emerald-600">{totalQty} قطعة</span>
+          <div className="pg-card !shadow-none overflow-hidden">
+            <div className="pg-gray pg-line px-3.5 py-2.5 flex items-center justify-between border-b-2">
+              <p className="text-[10px] font-extrabold uppercase">{t.details.items}</p>
+              <span className="text-[10px] font-extrabold">{tpl(t.row.pieces, { n: fm.number.format(totalQty) })}</span>
             </div>
-            <div className="divide-y divide-gray-100 dark:divide-gray-800">
-              {(order.orderItems || []).map((item, idx) => (
-                <div key={idx} className="flex items-center justify-between px-3.5 py-2.5">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-7 h-7 rounded-lg bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 border border-gray-100 dark:border-gray-700 flex-shrink-0">
-                      <FiPackage size={13} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[11px] font-black text-gray-900 dark:text-white truncate">{item.productName}</p>
-                      <p className="text-[9px] font-bold text-gray-400">
-                        {item.quantity} × {formatPrice(item.priceAtCheckout)}
-                        {item.shopName ? ` · ${item.shopName}` : ''}
-                      </p>
-                    </div>
+            <div>
+              {items.map((item, idx) => (
+                <div key={item.id ?? `${item.productName}-${idx}`} className="pg-td flex items-center justify-between gap-3 px-3.5 py-2.5">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-extrabold truncate">{item.productName}</p>
+                    <p className="pg-muted text-[10px] font-semibold truncate">{fm.number.format(num(item.quantity))} × {price(item.priceAtCheckout)}{item.shopName ? ` · ${item.shopName}` : ''}</p>
                   </div>
-                  <p className="text-[11px] font-black text-emerald-600 font-mono flex-shrink-0">{formatPrice(item.subtotal)}</p>
+                  <p className="text-[11px] font-extrabold font-mono flex-shrink-0">{price(item.subtotal)}</p>
                 </div>
               ))}
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2.5">
-            <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700">
-              <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">طريقة الدفع</p>
-              <p className="text-xs font-black text-gray-900 dark:text-white flex items-center gap-1.5">
-                {order.paymentMethod === 'CASH'
-                  ? <FiDollarSign className="text-emerald-500" size={12} />
-                  : <FiCreditCard className="text-blue-500" size={12} />}
-                {order.paymentMethod === 'CASH' ? 'نقدي عند الاستلام' : (order.paymentMethod || '—')}
-              </p>
+            <div className="pg-gray pg-dot p-3">
+              <p className="pg-muted text-[9px] font-bold uppercase mb-1">{t.details.payment}</p>
+              <p className="text-xs font-extrabold">{order.paymentMethod === 'CASH' ? t.cashFull : (t.payment[order.paymentMethod] || order.paymentMethod || '—')}</p>
             </div>
-            <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-500/10 border border-gray-500/10">
-              <p className="text-[8px] font-black text-emerald-600 uppercase tracking-widest mb-1">الإجمالي النهائي</p>
-              <p className="text-base font-black text-emerald-600 tracking-tighter">{formatPrice(order.totalPrice)}</p>
+            <div className="pg-gray pg-dot p-3">
+              <p className="pg-muted text-[9px] font-bold uppercase mb-1">{t.details.finalTotal}</p>
+              <p className="text-base font-extrabold tabular-nums">{price(order.totalPrice)}</p>
             </div>
           </div>
         </div>
 
-        <div className="px-5 py-3.5 bg-gray-50 dark:bg-gray-900/30 border-t border-gray-50 dark:border-gray-700 flex gap-2.5">
+        <div className="pg-line px-5 py-3.5 border-t-2 flex gap-2.5">
           {isPending ? (
             <>
-              <button onClick={onReject} className="flex-1 py-2.5 rounded-xl border border-red-200 dark:border-red-900/40 text-red-600 text-[9px] font-black uppercase tracking-widest hover:bg-red-50 dark:hover:bg-red-900/20 transition-all">
-                رفض الطلب
-              </button>
-              <button onClick={onAccept} className="flex-1 py-2.5 bg-emerald-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20">
-                قبول الطلب
-              </button>
+              <button type="button" disabled={busy} onClick={onReject} className="pg-btn pg-btn-danger flex-1 h-10 text-xs uppercase"><FiX size={13} aria-hidden="true" /> {t.details.reject}</button>
+              <button type="button" disabled={busy} onClick={onAccept} className="pg-btn pg-btn-a flex-1 h-10 text-xs uppercase"><FiCheck size={13} aria-hidden="true" /> {t.details.accept}</button>
             </>
           ) : hasNext ? (
-            <button onClick={onOpenStatusModal} className="flex-1 py-2.5 bg-emerald-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20">
-              تحديث الحالة
-            </button>
+            <button type="button" disabled={busy} onClick={onOpenStatusModal} className="pg-btn pg-btn-a flex-1 h-10 text-xs uppercase">{t.row.updateStatus}</button>
           ) : (
-            <div className="flex-1 py-2.5 text-center text-[9px] font-black text-gray-400 uppercase tracking-widest">لا توجد إجراءات إضافية</div>
+            <p className="pg-muted flex-1 py-2 text-center text-[11px] font-bold">{t.details.noActions}</p>
           )}
-          <button onClick={onClose} className="px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl text-[9px] font-black text-gray-500 uppercase tracking-widest hover:text-red-500 transition-all">
-            إغلاق
-          </button>
+          <button type="button" onClick={onClose} className="pg-btn h-10 px-3 text-xs uppercase">{L.table.close || DEFAULT_LABELS.close}</button>
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 });
-OrderDetailsModal.displayName = 'OrderDetailsModal';
 
-const FilterPanel = memo(({
-  statusFilter, onStatusChange, sortBy, onSortChange,
-  paymentFilter, onPaymentChange, dateRange, onDateRangeChange, onClose,
-}) => (
-  <div className="fixed inset-0 z-[100] flex items-end lg:items-center justify-center p-0 lg:p-4">
-    <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={onClose} />
-    <div className="relative w-full lg:max-w-md bg-white dark:bg-gray-800 shadow-2xl overflow-hidden animate-in slide-in-from-bottom-20 duration-500 max-h-[90vh] flex flex-col">
-      <div className="p-6 border-b border-gray-50 dark:border-gray-700 flex items-center justify-between flex-shrink-0">
-        <div>
-          <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">تصفية الطلبات</h3>
-          <p className="text-xs font-bold text-gray-400 mt-1 uppercase tracking-widest">خصص طريقة عرض طلباتك</p>
-        </div>
-        <button onClick={onClose} className="w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-red-500 hover:border-red-300 transition-all">
-          <FiX size={16} />
-        </button>
-      </div>
-
-      <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar-thin">
-        <div>
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">حالة الطلب</p>
-          <div className="grid grid-cols-2 gap-3">
-            {['all', ...STATUSES].map((s) => (
-              <button
-                key={s}
-                onClick={() => onStatusChange(s)}
-                className={`px-4 py-3.5 rounded-2xl border-2 text-[10px] font-black uppercase tracking-widest transition-all ${
-                  statusFilter === s
-                    ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                    : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-700 text-gray-500 hover:border-emerald-500 hover:text-emerald-600'
-                }`}
-              >
-                {STATUS_TRANSLATIONS[s]}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">الترتيب حسب</p>
-          <div className="grid grid-cols-2 gap-3">
-            {SORT_OPTIONS.map((o) => (
-              <button
-                key={o.value}
-                onClick={() => onSortChange(o.value)}
-                className={`px-4 py-3 rounded-2xl border-2 text-[10px] font-black uppercase tracking-widest transition-all ${
-                  sortBy === o.value
-                    ? 'bg-gray-900 dark:bg-emerald-500 border-gray-900 dark:border-emerald-500 text-white'
-                    : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-700 text-gray-500 hover:border-gray-400'
-                }`}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">طريقة الدفع</p>
-          <div className="flex flex-wrap gap-2">
-            {PAYMENT_METHODS.map((o) => (
-              <button
-                key={o.value}
-                onClick={() => onPaymentChange(o.value)}
-                className={`px-4 py-2.5 rounded-full border-2 text-[10px] font-black uppercase tracking-widest transition-all ${
-                  paymentFilter === o.value
-                    ? 'bg-emerald-500 border-emerald-500 text-white'
-                    : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-700 text-gray-500 hover:border-emerald-500 hover:text-emerald-600'
-                }`}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">النطاق الزمني</p>
-          <div className="flex flex-wrap gap-2">
-            {DATE_RANGES.map((o) => (
-              <button
-                key={o.value}
-                onClick={() => onDateRangeChange(o.value)}
-                className={`px-4 py-2.5 rounded-full border-2 text-[10px] font-black uppercase tracking-widest transition-all ${
-                  dateRange === o.value
-                    ? 'bg-gray-900 dark:bg-emerald-500 border-gray-900 dark:border-emerald-500 text-white'
-                    : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-700 text-gray-500 hover:border-gray-400'
-                }`}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="p-6 border-t border-gray-50 dark:border-gray-700 flex-shrink-0">
-        <button onClick={onClose} className="w-full py-3.5 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20">
-          تطبيق الفلاتر
-        </button>
-      </div>
-    </div>
-  </div>
-));
-FilterPanel.displayName = 'FilterPanel';
-
-const StatusUpdateModal = memo(({ order, onClose, onSelectStatus }) => {
-  const nextOptions = NEXT_STATUSES[order.status] || [];
+const StatusUpdateModal = memo(({ order, busy, L, onClose, onSelectStatus }) => {
+  useEscape(onClose);
+  const t = L.orders;
+  const options = NEXT_STATUSES[order.status] || [];
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={onClose} />
-      <div className="relative w-full max-w-sm bg-white dark:bg-gray-800 shadow-2xl overflow-hidden animate-in zoom-in duration-300">
-        <div className="p-8 border-b border-gray-50 dark:border-gray-700">
-          <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">تحديث حالة الطلب</h3>
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">#{order.id}</p>
+    <Overlay onClose={onClose}>
+      <div role="dialog" aria-modal="true" aria-label={t.statusModal.title} className="pg-card pg-in relative w-full max-w-sm overflow-hidden">
+        <div className="pg-gray pg-line px-5 py-4 border-b-2">
+          <h3 className="text-sm font-extrabold uppercase"><span className="pg-ul">{t.statusModal.title}</span></h3>
+          <p className="pg-muted text-[11px] font-bold font-mono mt-1">#{shortId(order.id)} · {t.status[order.status]}</p>
         </div>
-        <div className="p-8 space-y-4">
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">اختر المرحلة التالية</p>
-          <div className="space-y-2">
-            {nextOptions.length > 0 ? (
-              nextOptions.map((status) => (
-                <button
-                  key={status}
-                  onClick={() => onSelectStatus(status)}
-                  className="w-full px-6 py-4 rounded-2xl bg-gray-50 dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-700 text-xs font-black text-gray-700 dark:text-gray-200 hover:border-emerald-500 hover:text-emerald-600 transition-all flex items-center justify-between group"
-                >
-                  {STATUS_TRANSLATIONS[status]}
-                  <FiChevronLeft className="group-hover:-translate-x-1 transition-transform" />
-                </button>
-              ))
-            ) : (
-              <div className="py-8 text-center space-y-3">
-                <NoNextStepIllustration />
-                <p className="text-xs font-bold text-gray-400">لا توجد مراحل تالية متاحة لهذا الطلب</p>
-              </div>
-            )}
-          </div>
+        <div className="p-5 space-y-2">
+          <p className="text-[11px] font-extrabold uppercase mb-1">{t.statusModal.choose}</p>
+          {options.length ? options.map((s) => (
+            <button key={s} type="button" disabled={busy} onClick={() => onSelectStatus(s)} className="pg-btn w-full justify-between px-4 h-11 text-xs uppercase">
+              {t.status[s]}
+              <FiChevronRight size={14} className="rtl:rotate-180" aria-hidden="true" />
+            </button>
+          )) : <p className="pg-muted py-6 text-center text-xs font-bold">{t.statusModal.none}</p>}
         </div>
-        <div className="px-8 pb-8">
-          <button onClick={onClose} className="w-full py-4 border border-gray-200 dark:border-gray-700 rounded-2xl text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-red-500 hover:border-red-300 transition-all">
-            إلغاء
-          </button>
+        <div className="px-5 pb-5">
+          <button type="button" onClick={onClose} className="pg-btn w-full h-10 text-xs uppercase">{L.table.cancel}</button>
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 });
-StatusUpdateModal.displayName = 'StatusUpdateModal';
 
 const Orders = () => {
+  const darkMode = useDarkMode();
+  const { language, dir, font, L, fm } = useShopLocale();
+  const t = L.orders;
+  const nf = fm.number;
+
+  const tRef = useRef(L);
+  tRef.current = L;
+
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -713,314 +482,316 @@ const Orders = () => {
   const [dateRange, setDateRange] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
   const [showFilterPanel, setShowFilterPanel] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [showStatusModal, setShowStatusModal] = useState(false);
-  const [statusModalOrder, setStatusModalOrder] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
+  const [statusModalId, setStatusModalId] = useState(null);
+  const [busyIds, setBusyIds] = useState(() => new Set());
 
   const ordersRef = useRef(orders);
+  const inflight = useRef(new Set());
+  const abortRef = useRef(null);
   useEffect(() => { ordersRef.current = orders; }, [orders]);
+  useEffect(() => { document.title = t.docTitle; }, [t.docTitle]);
 
-  useEffect(() => { document.title = 'إدارة الطلبات'; }, []);
+  const term = useDeferredValue(search).trim().toLowerCase();
 
-  const showToast = useCallback(async (text, icon) => {
-    const Swal = await loadSwal();
-    Swal.fire({
-      text, icon, toast: true, position: 'top-start',
-      showConfirmButton: false, timer: 3000,
-    });
+  const fetchOrders = useCallback(async ({ silent = false } = {}) => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    if (!silent) setLoading(true);
+    try {
+      const res = await api.get('/api/shops/orders/control', {
+        params: { page: 0, size: 500, sort: 'createdAt,desc' },
+        signal: controller.signal,
+      });
+      const data = Array.isArray(res.data) ? res.data : res.data?.content || [];
+      if (!controller.signal.aborted) { setOrders(data); setLastUpdated(new Date()); }
+    } catch (err) {
+      if (!controller.signal.aborted && !silent) toast({ icon: 'error', title: tRef.current.orders.toasts.loadFail, text: errText(err) });
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
+    }
   }, []);
 
-  const fetchOrders = useCallback(async (status, search = '') => {
-    setLoading(true);
-    try {
-      const endpoint = status === 'all'
-        ? '/api/shops/orders/control'
-        : `/api/shops/orders/control/status/${status}`;
-      const res = await api.get(endpoint, { params: { query: search } });
-      setOrders(Array.isArray(res.data) ? res.data : res.data.content || []);
-    } catch {
-      showToast('فشل تحميل الطلبات', 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, [showToast]);
-
-  const debouncedFetch = useMemo(() => debounce(fetchOrders, 300), [fetchOrders]);
-
   useEffect(() => {
-    debouncedFetch(statusFilter, searchTerm);
-    return () => debouncedFetch.cancel();
-  }, [statusFilter, searchTerm, debouncedFetch]);
-
-  useEffect(() => {
-    setSelectedOrder((prev) => {
-      if (!prev) return prev;
-      return orders.find((o) => o.id === prev.id) || prev;
-    });
-  }, [orders]);
+    fetchOrders();
+    const iv = setInterval(() => { if (!document.hidden) fetchOrders({ silent: true }); }, POLL_MS);
+    return () => { clearInterval(iv); abortRef.current?.abort(); };
+  }, [fetchOrders]);
 
   const updateOrderStatus = useCallback(async (orderId, newStatus) => {
-    const applyOptimistic = (id, status) => {
-      setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
-    };
-    const previousOrders = ordersRef.current;
-    const Swal = await loadSwal();
+    const tt = tRef.current.orders;
+    const current = ordersRef.current.find((o) => o.id === orderId);
+    if (!current || !isSafeId(orderId) || !(NEXT_STATUSES[current.status] || []).includes(newStatus)) {
+      toast({ icon: 'error', ...tt.toasts.notAllowed });
+      return;
+    }
+    if (inflight.current.has(orderId)) return;
 
-    try {
-      if (newStatus === 'CONFIRMED') {
-        const { isConfirmed } = await Swal.fire({
-          title: 'قبول الطلب؟', text: 'سيتم خصم الكميات من المخزون', icon: 'question',
-          showCancelButton: true, confirmButtonText: 'قبول', cancelButtonText: 'إلغاء',
-          confirmButtonColor: '#84cc16',
-        });
-        if (!isConfirmed) return;
-        applyOptimistic(orderId, 'CONFIRMED');
-        await api.post(`/api/shops/orders/control/${orderId}/accept`);
-      } else if (newStatus === 'CANCELLED') {
-        const { isConfirmed } = await Swal.fire({
-          title: 'رفض الطلب؟', icon: 'warning',
-          showCancelButton: true, confirmButtonText: 'رفض', cancelButtonText: 'إلغاء',
-          confirmButtonColor: '#ef4444',
-        });
-        if (!isConfirmed) return;
-        applyOptimistic(orderId, 'CANCELLED');
-        await api.post(`/api/shops/orders/control/${orderId}/reject`);
-      } else {
-        applyOptimistic(orderId, newStatus);
-        await api.put(`/api/shops/orders/control/${orderId}/status`, { status: newStatus });
+    if (newStatus === 'CONFIRMED' || newStatus === 'CANCELLED') {
+      const accept = newStatus === 'CONFIRMED';
+      const c = accept ? tt.confirm.accept : tt.confirm.reject;
+      let isConfirmed = false;
+      try {
+        ({ isConfirmed } = await confirmDialog({
+          title: c.title,
+          text: c.text,
+          icon: accept ? 'question' : 'warning',
+          confirmButtonText: c.button,
+          cancelButtonText: tRef.current.table.cancel,
+          confirmButtonColor: accept ? '#059669' : '#ef4444',
+        }));
+      } catch {
+        toast({ icon: 'error', ...tt.toasts.confirmFail });
+        return;
       }
-      showToast('تم تحديث الحالة بنجاح', 'success');
-      fetchOrders(statusFilter, searchTerm);
-    } catch {
-      setOrders(previousOrders);
-      showToast('فشل تحديث الحالة', 'error');
-    }
-  }, [statusFilter, searchTerm, fetchOrders, showToast]);
-
-  const filteredOrders = useMemo(() => {
-    const term = searchTerm.toLowerCase().trim();
-    let list = orders;
-
-    if (term) {
-      list = list.filter((o) =>
-        String(o.id).toLowerCase().includes(term) ||
-        `${o.firstName} ${o.lastName}`.toLowerCase().includes(term) ||
-        String(o.phoneNumber).toLowerCase().includes(term) ||
-        (o.orderItems || []).some((item) => item.productName?.toLowerCase().includes(term)));
+      if (!isConfirmed) return;
     }
 
-    if (paymentFilter !== 'all') {
-      list = list.filter((o) => o.paymentMethod === paymentFilter);
+    const id = encodeURIComponent(orderId);
+    const fromStatus = current.status;
+    inflight.current.add(orderId);
+    setBusyIds(new Set(inflight.current));
+    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o)));
+    try {
+      if (newStatus === 'CONFIRMED') await api.post(`/api/shops/orders/control/${id}/accept`);
+      else if (newStatus === 'CANCELLED') await api.post(`/api/shops/orders/control/${id}/reject`);
+      else await api.put(`/api/shops/orders/control/${id}/status`, { status: newStatus });
+      toast({ icon: 'success', ...successToast(tRef.current.orders, newStatus) });
+      fetchOrders({ silent: true });
+    } catch (err) {
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: fromStatus } : o)));
+      toast({ icon: 'error', title: tRef.current.orders.toasts.statusFail, text: errText(err) });
+    } finally {
+      inflight.current.delete(orderId);
+      setBusyIds(new Set(inflight.current));
     }
+  }, [fetchOrders]);
 
-    if (dateRange !== 'all') {
-      const now = Date.now();
-      const spanMs = dateRange === 'today' ? 864e5 : dateRange === 'week' ? 6048e5 : 2592e6;
-      list = list.filter((o) => now - new Date(o.createdAt).getTime() <= spanMs);
-    }
+  const index = useMemo(() => orders.map((o) => ({
+    o,
+    ts: toTs(o.createdAt),
+    price: num(o.totalPrice),
+    text: [o.id, o.firstName, o.lastName, o.phoneNumber, ...(o.orderItems || []).map((i) => i.productName)]
+      .filter(Boolean).join(' ').toLowerCase(),
+  })), [orders]);
 
-    const sorted = [...list];
-    if (sortBy === 'oldest') sorted.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-    else if (sortBy === 'highest') sorted.sort((a, b) => (b.totalPrice || 0) - (a.totalPrice || 0));
-    else if (sortBy === 'lowest') sorted.sort((a, b) => (a.totalPrice || 0) - (b.totalPrice || 0));
-    else sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const counts = useMemo(() => {
+    const c = { all: orders.length };
+    for (const o of orders) c[o.status] = (c[o.status] || 0) + 1;
+    return c;
+  }, [orders]);
 
-    return sorted;
-  }, [orders, searchTerm, paymentFilter, dateRange, sortBy]);
+  const filtered = useMemo(() => {
+    const now = Date.now();
+    const span = SPAN_MS[dateRange];
+    const list = index.filter(({ o, ts, text }) => (
+      (statusFilter === 'all' || o.status === statusFilter)
+      && (paymentFilter === 'all' || o.paymentMethod === paymentFilter)
+      && (!span || now - ts <= span)
+      && (!term || text.includes(term))
+    ));
+    list.sort((a, b) => {
+      if (sortBy === 'oldest') return a.ts - b.ts;
+      if (sortBy === 'highest') return b.price - a.price;
+      if (sortBy === 'lowest') return a.price - b.price;
+      return b.ts - a.ts;
+    });
+    return list.map((e) => e.o);
+  }, [index, statusFilter, paymentFilter, dateRange, term, sortBy]);
 
-  const paginated = useMemo(
-    () => filteredOrders.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage),
-    [filteredOrders, currentPage, rowsPerPage],
-  );
-  const totalPages = Math.ceil(filteredOrders.length / rowsPerPage);
+  useEffect(() => { setCurrentPage(1); }, [statusFilter, paymentFilter, dateRange, term, sortBy, rowsPerPage]);
 
-  const stats = useMemo(() => ({
-    total: orders.length,
-    pending: orders.filter((o) => o.status === 'PENDING').length,
-    confirmed: orders.filter((o) => o.status === 'CONFIRMED').length,
-    delivered: orders.filter((o) => o.status === 'DELIVERED').length,
-  }), [orders]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+  const page = Math.min(currentPage, totalPages);
+  const paginated = useMemo(() => filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage), [filtered, page, rowsPerPage]);
+  const skeletonRows = useMemo(() => Array.from({ length: Math.min(rowsPerPage, 8) }, (_, i) => i), [rowsPerPage]);
 
   const statCards = useMemo(() => [
-    { label: 'إجمالي الطلبات', value: stats.total.toLocaleString('ar-EG'), description: 'طلبات قيد المعالجة' },
-    { label: 'طلبات معلقة', value: stats.pending.toLocaleString('ar-EG'), description: 'بانتظار المراجعة' },
-    { label: 'طلبات مؤكدة', value: stats.confirmed.toLocaleString('ar-EG'), description: 'في مرحلة التنفيذ' },
-    { label: 'تم التسليم', value: stats.delivered.toLocaleString('ar-EG'), description: 'عمليات مكتملة' },
-  ], [stats]);
+    { label: t.stats.total.label, value: nf.format(counts.all), description: t.stats.total.desc, icon: FiShoppingBag, tone: 'sky' },
+    { label: t.stats.pending.label, value: nf.format(counts.PENDING || 0), description: t.stats.pending.desc, icon: FiClock, tone: 'am' },
+    { label: t.stats.confirmed.label, value: nf.format(counts.CONFIRMED || 0), description: t.stats.confirmed.desc, icon: FiCheckCircle, tone: 'em' },
+    { label: t.stats.delivered.label, value: nf.format(counts.DELIVERED || 0), description: t.stats.delivered.desc, icon: FiTruck, tone: 'vi' },
+  ], [counts, t, nf]);
 
-  const handleDetails = useCallback((order) => { setSelectedOrder(order); setShowDetailsModal(true); }, []);
-  const handleCopy = useCallback((id) => {
-    navigator.clipboard.writeText(id);
-    showToast('تم نسخ رقم الطلب', 'success');
-  }, [showToast]);
-  const handleAccept = useCallback((order) => updateOrderStatus(order.id, 'CONFIRMED'), [updateOrderStatus]);
-  const handleReject = useCallback((order) => updateOrderStatus(order.id, 'CANCELLED'), [updateOrderStatus]);
-  const handleOpenStatusModal = useCallback((order) => { setStatusModalOrder(order); setShowStatusModal(true); }, []);
+  const filterGroups = useMemo(() => [
+    [t.filter.sortBy, SORT_VALUES.map((v) => ({ value: v, label: t.sort[v] })), sortBy, setSortBy],
+    [t.filter.payment, PAYMENT_VALUES.map((v) => ({ value: v, label: t.paymentFilter[v] })), paymentFilter, setPaymentFilter],
+    [t.filter.dateRange, DATE_VALUES.map((v) => ({ value: v, label: t.dateRanges[v] })), dateRange, setDateRange],
+  ], [t, sortBy, paymentFilter, dateRange]);
 
-  const activeFilterCount = (statusFilter !== 'all' ? 1 : 0) + (paymentFilter !== 'all' ? 1 : 0) + (dateRange !== 'all' ? 1 : 0) + (sortBy !== 'newest' ? 1 : 0);
+  const selectedOrder = useMemo(() => orders.find((o) => o.id === selectedId) || null, [orders, selectedId]);
+  const statusOrder = useMemo(() => orders.find((o) => o.id === statusModalId) || null, [orders, statusModalId]);
+
+  const handleDetails = useCallback((o) => setSelectedId(o.id), []);
+  const handleOpenStatusModal = useCallback((o) => setStatusModalId(o.id), []);
+  const handleAccept = useCallback((o) => updateOrderStatus(o.id, 'CONFIRMED'), [updateOrderStatus]);
+  const handleReject = useCallback((o) => updateOrderStatus(o.id, 'CANCELLED'), [updateOrderStatus]);
+  const handleCopy = useCallback(async (id) => {
+    const tt = tRef.current.orders.toasts;
+    try {
+      await navigator.clipboard.writeText(String(id));
+      toast({ icon: 'success', ...tt.copied, timer: 2000 });
+    } catch {
+      toast({ icon: 'error', ...tt.copyFail });
+    }
+  }, []);
+  const resetFilters = useCallback(() => { setPaymentFilter('all'); setDateRange('all'); setSortBy('newest'); }, []);
+  const closeDetails = useCallback(() => setSelectedId(null), []);
+  const closeStatus = useCallback(() => setStatusModalId(null), []);
+  const closeFilter = useCallback(() => setShowFilterPanel(false), []);
+  const openFilter = useCallback(() => setShowFilterPanel(true), []);
+  const refresh = useCallback(() => fetchOrders(), [fetchOrders]);
+  const handleSearch = useCallback((e) => setSearch(sanitizeSearch(e.target.value)), []);
+
+  const acceptSelected = useCallback(() => { updateOrderStatus(selectedId, 'CONFIRMED'); closeDetails(); }, [updateOrderStatus, selectedId, closeDetails]);
+  const rejectSelected = useCallback(() => { updateOrderStatus(selectedId, 'CANCELLED'); closeDetails(); }, [updateOrderStatus, selectedId, closeDetails]);
+  const openStatusFromDetails = useCallback(() => setStatusModalId(selectedId), [selectedId]);
+  const selectNextStatus = useCallback((s) => { updateOrderStatus(statusModalId, s); closeStatus(); }, [updateOrderStatus, statusModalId, closeStatus]);
+
+  const toggleDateSort = useCallback(() => setSortBy((s) => (s === 'newest' ? 'oldest' : 'newest')), []);
+  const togglePriceSort = useCallback(() => setSortBy((s) => (s === 'highest' ? 'lowest' : 'highest')), []);
+
+  const activeFilterCount = (paymentFilter !== 'all') + (dateRange !== 'all') + (sortBy !== 'newest');
+  const from = filtered.length ? (page - 1) * rowsPerPage + 1 : 0;
+  const to = Math.min(page * rowsPerPage, filtered.length);
+  const bold = 'tabular-nums';
 
   return (
-    <div dir="rtl" className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pr-64 mt-16 transition-all duration-500 font-cairo text-right">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
-        <div className="flex flex-col md:flex-row md:items-end mt-3 justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-1.5 rounded-full bg-emerald-500" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">سجل المعاملات</span>
-            </div>
-            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">إدارة <span className="text-emerald-500">الطلبات</span></h1>
-            <p className="text-sm font-bold text-gray-500 dark:text-gray-400">تابع وحسن تجربة عملائك من خلال إدارة الطلبات الفعالة</p>
-          </div>
+    <div dir={dir} lang={language} style={font} className="pg min-h-screen py-6 lg:ps-64 mt-16 text-start overflow-x-hidden">
+      {STYLE_EL}
+      <Toaster darkMode={darkMode} />
 
-          <button
-            title="تصفية النتائج"
-            onClick={() => setShowFilterPanel(true)}
-            className="relative flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-gray-900 dark:bg-emerald-500 text-white dark:text-white text-xs font-black uppercase tracking-widest hover:bg-emerald-500 dark:hover:bg-emerald-500 hover:text-white transition-all shadow-xl shadow-gray-900/10 active:scale-95"
-          >
-            <FiFilter size={16} /> تصفية النتائج
-            {activeFilterCount > 0 && (
-              <span className="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-red-500 text-white text-[9px] font-black flex items-center justify-center">{activeFilterCount}</span>
-            )}
-          </button>
+      <div key={language} className="pg-fade max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <header className="px-0.5">
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-[1.15]">{t.title[0]}<span className="pg-ul">{t.title[1]}</span></h1>
+            <p className="pg-muted mt-2 text-sm font-medium">{t.subtitle}</p>
+          </header>
+          <div className="flex items-center gap-2.5">
+            {lastUpdated && <p className="pg-muted hidden sm:block text-[11px] font-bold">{tpl(L.table.lastUpdated, { time: fmt(fm.time, lastUpdated) })}</p>}
+            <button type="button" onClick={refresh} aria-label={L.table.refresh} title={L.table.refresh} className="pg-btn h-10 px-3 text-xs uppercase">
+              <FiRefreshCw size={14} className={loading ? 'animate-spin motion-reduce:animate-none' : ''} aria-hidden="true" /> {L.table.refresh}
+            </button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
           {statCards.map((s) => <StatCard key={s.label} {...s} />)}
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none p-6">
-          <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
-            <div className="relative flex-1 group">
-              <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-lime-500 transition-colors" size={18} />
+        <section className="pg-card overflow-hidden">
+          <div className="pg-line p-3 sm:p-4 flex flex-wrap items-center gap-2.5 border-b-2">
+            <div className="pg-field flex h-10 min-w-[220px] flex-1 items-center gap-2 px-3">
+              <FiSearch size={16} className="flex-shrink-0" aria-hidden="true" />
               <input
-                type="text"
-                placeholder="ابحث برقم الطلب، اسم العميل، أو المنتج..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pr-12 pl-4 py-3.5 cursor-pointer rounded-2xl border border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-sm text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-200 transition-all"
+                type="search"
+                value={search}
+                maxLength={SEARCH_MAX}
+                autoComplete="off"
+                spellCheck={false}
+                enterKeyHint="search"
+                aria-label={t.searchAria}
+                placeholder={t.searchPlaceholder}
+                onChange={handleSearch}
+                className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60"
               />
             </div>
-            <RowsDropdown value={rowsPerPage} onChange={(n) => { setRowsPerPage(n); setCurrentPage(1); }} options={ROWS_OPTIONS} />
+            <RowsSelect value={rowsPerPage} onChange={setRowsPerPage} label={L.table.rows} formatNumber={nf.format} />
+            <button type="button" onClick={openFilter} className="pg-btn relative h-10 px-3 text-xs uppercase">
+              <FiFilter size={14} aria-hidden="true" /> {L.table.filter}
+              {activeFilterCount > 0 && (
+                <span className="pg-line absolute -top-2 -end-2 w-5 h-5 border-2 bg-[var(--pg-btn)] text-[var(--pg-on)] text-[10px] font-extrabold grid place-items-center">{nf.format(activeFilterCount)}</span>
+              )}
+            </button>
           </div>
-        </div>
 
-        <IconLegendCard />
+          <div role="tablist" aria-label={t.tabsAria} className="pg-line pg-scroll flex gap-2 overflow-x-auto px-3 sm:px-4 py-3 border-b-2">
+            {TABS.map((s) => (
+              <button key={s} type="button" role="tab" aria-selected={statusFilter === s} onClick={() => setStatusFilter(s)} className="pg-btn flex-shrink-0 h-9 px-3 text-xs uppercase">
+                {t.status[s]}
+                <span className="tabular-nums opacity-80">{nf.format(counts[s] || 0)}</span>
+              </button>
+            ))}
+          </div>
 
-        <div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden">
-            <div className="overflow-x-auto custom-scrollbar-thin">
-              <table className="w-full text-right border-collapse">
-                <thead>
-                  <tr className="bg-gray-100 dark:bg-gray-900 dark:border-gray-700">
-                    <th className="px-4 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 text-center">الطلب</th>
-                    <th className="px-4 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 text-center">العميل</th>
-                    <th className="px-4 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 text-center">المجموع</th>
-                    <th className="px-4 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 text-center">التاريخ</th>
-                    <th className="px-4 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 text-center">الحالة</th>
-                    <th className="px-4 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 text-center">إجراءات</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                  {loading ? (
-                    [...Array(rowsPerPage)].map((_, i) => (
-                      <tr key={i} className="animate-pulse">
-                        {[...Array(6)].map((_, j) => (
-                          <td key={j} className="px-8 py-6"><div className="h-4 bg-gray-100 dark:bg-gray-700 rounded-lg w-full" /></td>
-                        ))}
-                      </tr>
-                    ))
-                  ) : paginated.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="px-8 py-24 text-center">
-                        <div className="mb-6">
-                          <EmptyOrdersIllustration />
-                        </div>
-                        <p className="text-lg font-black text-gray-900 dark:text-white tracking-tight">لا توجد طلبات</p>
-                        <p className="text-sm font-bold text-gray-400 mt-1 uppercase tracking-widest">السجل فارغ أو لا يطابق شروط البحث</p>
-                      </td>
+          <div className="overflow-auto max-h-[68vh] pg-scroll" aria-busy={loading}>
+            <table className="w-full min-w-[1000px] text-start border-separate border-spacing-0">
+              <thead className="sticky top-0 z-10">
+                <tr>
+                  <th scope="col" className="pg-th">{t.columns.order}</th>
+                  <th scope="col" className="pg-th">{t.columns.customer}</th>
+                  <th scope="col" className="pg-th">{t.columns.products}</th>
+                  <th scope="col" className="pg-th">{t.columns.payment}</th>
+                  <SortTh label={t.columns.date} active={sortBy === 'newest' || sortBy === 'oldest'} dir={sortBy === 'oldest' ? 'asc' : 'desc'} onClick={toggleDateSort} />
+                  <SortTh label={t.columns.total} active={sortBy === 'highest' || sortBy === 'lowest'} dir={sortBy === 'lowest' ? 'asc' : 'desc'} onClick={togglePriceSort} />
+                  <th scope="col" className="pg-th">{t.columns.status}</th>
+                  <th scope="col" className="pg-th">{t.columns.actions}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading && orders.length === 0 ? (
+                  skeletonRows.map((i) => (
+                    <tr key={i} className="animate-pulse motion-reduce:animate-none">
+                      {[0, 1, 2, 3, 4, 5, 6, 7].map((j) => <td key={j} className="pg-td px-3 py-4"><div className="pg-gray h-3.5 w-full" /></td>)}
                     </tr>
-                  ) : (
-                    paginated.map((o) => (
-                      <OrderRow
-                        key={o.id}
-                        order={o}
-                        onDetails={handleDetails}
-                        onCopy={handleCopy}
-                        onAccept={handleAccept}
-                        onReject={handleReject}
-                        onOpenStatusModal={handleOpenStatusModal}
-                      />
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {totalPages > 1 && (
-              <div className="p-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest order-2 sm:order-1">
-                  عرض <span className="text-gray-900 dark:text-white">{(currentPage - 1) * rowsPerPage + 1}</span> إلى <span className="text-gray-900 dark:text-white">{Math.min(currentPage * rowsPerPage, filteredOrders.length)}</span> من <span className="text-gray-900 dark:text-white">{filteredOrders.length}</span> طلب
-                </p>
-                <div className="flex items-center gap-2 order-1 sm:order-2">
-                  <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-emerald-500 hover:border-emerald-300 disabled:opacity-30 transition-all">
-                    <FiChevronRight size={20} />
-                  </button>
-                  <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-emerald-500 hover:border-emerald-300 disabled:opacity-30 transition-all">
-                    <FiChevronLeft size={20} />
-                  </button>
-                </div>
-              </div>
-            )}
+                  ))
+                ) : paginated.length === 0 ? (
+                  <tr><td colSpan={8} className="px-6 py-14"><Empty title={t.empty.title} subtitle={t.empty.subtitle} /></td></tr>
+                ) : (
+                  paginated.map((o) => (
+                    <OrderRow
+                      key={o.id}
+                      order={o}
+                      busy={busyIds.has(o.id)}
+                      L={L}
+                      onDetails={handleDetails}
+                      onCopy={handleCopy}
+                      onAccept={handleAccept}
+                      onReject={handleReject}
+                      onOpenStatusModal={handleOpenStatusModal}
+                    />
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
 
-      
-        </div>
+          {filtered.length > 0 && (
+            <div className="pg-gray pg-line px-4 py-3 border-t-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <p className="pg-muted text-xs font-bold">
+                {renderTpl(L.table.showing || DEFAULT_LABELS.showing, {
+                  range: <b className={bold}>{nf.format(from)}–{nf.format(to)}</b>,
+                  total: <b className={bold}>{nf.format(filtered.length)}</b>,
+                  unit: t.unit ?? '',
+                })}
+              </p>
+              {totalPages > 1 && <Pagination page={page} total={totalPages} onChange={setCurrentPage} labels={L.table} formatNumber={nf.format} />}
+            </div>
+          )}
+        </section>
       </div>
 
-      {showDetailsModal && selectedOrder && (
+      {selectedOrder && (
         <OrderDetailsModal
           order={selectedOrder}
-          onClose={() => setShowDetailsModal(false)}
+          busy={busyIds.has(selectedOrder.id)}
+          L={L}
+          onClose={closeDetails}
           onCopy={handleCopy}
-          onAccept={() => { updateOrderStatus(selectedOrder.id, 'CONFIRMED'); setShowDetailsModal(false); }}
-          onReject={() => { updateOrderStatus(selectedOrder.id, 'CANCELLED'); setShowDetailsModal(false); }}
-          onOpenStatusModal={() => { setStatusModalOrder(selectedOrder); setShowStatusModal(true); }}
+          onAccept={acceptSelected}
+          onReject={rejectSelected}
+          onOpenStatusModal={openStatusFromDetails}
         />
       )}
 
       {showFilterPanel && (
-        <FilterPanel
-          statusFilter={statusFilter}
-          onStatusChange={(s) => { setStatusFilter(s); setCurrentPage(1); }}
-          sortBy={sortBy}
-          onSortChange={setSortBy}
-          paymentFilter={paymentFilter}
-          onPaymentChange={setPaymentFilter}
-          dateRange={dateRange}
-          onDateRangeChange={setDateRange}
-          onClose={() => setShowFilterPanel(false)}
-        />
+        <FilterPanel title={t.filter.title} note={t.filter.note} groups={filterGroups} onReset={resetFilters} onClose={closeFilter} labels={L.table} />
       )}
 
-      {showStatusModal && statusModalOrder && (
-        <StatusUpdateModal
-          order={statusModalOrder}
-          onClose={() => setShowStatusModal(false)}
-          onSelectStatus={(status) => { updateOrderStatus(statusModalOrder.id, status); setShowStatusModal(false); }}
-        />
+      {statusOrder && (
+        <StatusUpdateModal order={statusOrder} busy={busyIds.has(statusOrder.id)} L={L} onClose={closeStatus} onSelectStatus={selectNextStatus} />
       )}
-
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        .custom-scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
-        .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
-        .dark .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: #1f2937; }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #84cc16; }
-      `,
-      }}
-      />
     </div>
   );
 };

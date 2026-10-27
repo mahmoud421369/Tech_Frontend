@@ -1,254 +1,392 @@
-import React, { useEffect, useState, useCallback, memo } from "react";
-import { 
-  FiUser, FiMail, FiPhone, FiMapPin, FiClock, FiEdit3,
-  FiCheckCircle, FiX, FiShield, FiTrendingUp, FiAward,
-  FiTool, FiSettings, FiCamera, FiAlertCircle, FiArrowRight
+import React, { useEffect, useState, useCallback, useMemo, useRef, memo } from "react";
+import {
+  FiUser, FiMail, FiPhone, FiMapPin, FiClock, FiEdit3, FiCheck, FiShield,
+  FiTrendingUp, FiAward, FiTool, FiSettings, FiAlertTriangle, FiX,
 } from "react-icons/fi";
-import Swal from "sweetalert2";
-import { getDeliveryProfile, updateDeliveryProfile } from "../api/deliveryApi";
-import api from "../api";
-import { ProfileSkeleton } from "../components";
+import { getDeliveryProfile, updateDeliveryProfile } from "../common/api/deliveryApi";
+import { UI3D_CSS, Defs3D } from "../components/user/Ui3D";
+import { EXTRAS_CSS, Toaster, toast } from "../components/user/UiExtras";
+import {
+  CARD, PANEL, FIELD, LABEL, BTN_MD, BTN_PRIMARY, SCROLL_CSS, useDarkMode, IconTile,
+} from "../components/shop/TableKit";
+import { useAppLanguage } from "../common/utils/useAppLanguage";
+import { getFontStyle, ensureShopAssets } from "../common/utils/shopFonts";
 
+ensureShopAssets();
 
+const PAGE_CSS = UI3D_CSS + EXTRAS_CSS + SCROLL_CSS;
+const INK = "#04261a";
+const EMPTY_FORM = { name: "", address: "", phone: "" };
 
+const EN = {
+  locale: "en-US",
+  docTitle: "Delivery Agent Profile | Tech Restore",
+  metaDesc: "Manage your Tech Restore delivery dispatcher profile, secure credentials, phone number, operating area and career analytics.",
+  title: "My",
+  titleAccent: "Profile",
+  subtitle: "Manage your agent details and see your delivery totals",
+  agent: "Delivery Agent",
+  summaryAria: "Agent summary",
+  active: "Active agent",
+  verified: "Verified",
+  edit: "Edit profile",
+  editAria: "Edit profile details",
+  statsAria: "Statistics",
+  stats: {
+    orders: { label: "Active orders", desc: "On the road now" },
+    repairs: { label: "Active repairs", desc: "Device runs in progress" },
+    total: { label: "Total deliveries", desc: "Completed so far" },
+    status: { label: "Account status", desc: "Set by dispatch" },
+  },
+  statusNames: { ACTIVE: "Active", INACTIVE: "Inactive", SUSPENDED: "Suspended", PENDING: "Pending" },
+  account: "Account details",
+  accountHint: "Your contact info and operating address",
+  email: "Email",
+  joined: "Joined on",
+  name: "Display name",
+  phone: "Phone",
+  address: "Address",
+  cancel: "Cancel",
+  save: "Save changes",
+  saveAria: "Save profile changes",
+  saving: "Saving...",
+  loadingAria: "Loading profile",
+  loadFailTitle: "Couldn't load your profile",
+  loadFailHint: "Check your connection and try again.",
+  unavailable: "Your profile is not available right now.",
+  retry: "Try again",
+  errors: {
+    name: "Name is required",
+    address: "Address is required",
+    phone: "Phone is required",
+    phoneFormat: "Invalid phone format",
+  },
+  toasts: { loadFail: "Failed to load profile", saved: "Profile updated successfully", saveFail: "Update failed" },
+};
 
+const AR = {
+  locale: "ar-EG",
+  docTitle: "ملف مندوب التوصيل | Tech Restore",
+  metaDesc: "أدِر ملف مندوب التوصيل في Tech Restore، ورقم هاتفك ومنطقة عملك وإحصاءات أدائك.",
+  title: "ملفي",
+  titleAccent: "الشخصي",
+  subtitle: "أدِر بيانات المندوب وتابع إجمالي توصيلاتك",
+  agent: "مندوب توصيل",
+  summaryAria: "ملخص المندوب",
+  active: "مندوب نشط",
+  verified: "موثّق",
+  edit: "تعديل الملف",
+  editAria: "تعديل بيانات الملف الشخصي",
+  statsAria: "الإحصاءات",
+  stats: {
+    orders: { label: "الطلبات الجارية", desc: "في الطريق الآن" },
+    repairs: { label: "الصيانة الجارية", desc: "نقل أجهزة قيد التنفيذ" },
+    total: { label: "إجمالي التوصيلات", desc: "المكتملة حتى الآن" },
+    status: { label: "حالة الحساب", desc: "يحددها فريق الإدارة" },
+  },
+  statusNames: { ACTIVE: "نشط", INACTIVE: "غير نشط", SUSPENDED: "موقوف", PENDING: "قيد المراجعة" },
+  account: "بيانات الحساب",
+  accountHint: "بيانات التواصل وعنوان العمل",
+  email: "البريد الإلكتروني",
+  joined: "تاريخ الانضمام",
+  name: "الاسم المعروض",
+  phone: "رقم الهاتف",
+  address: "العنوان",
+  cancel: "إلغاء",
+  save: "حفظ التغييرات",
+  saveAria: "حفظ تغييرات الملف الشخصي",
+  saving: "جارٍ الحفظ...",
+  loadingAria: "جارٍ تحميل الملف الشخصي",
+  loadFailTitle: "تعذر تحميل ملفك الشخصي",
+  loadFailHint: "تحقق من اتصالك وحاول مرة أخرى.",
+  unavailable: "ملفك الشخصي غير متاح حاليًا.",
+  retry: "حاول مرة أخرى",
+  errors: {
+    name: "الاسم مطلوب",
+    address: "العنوان مطلوب",
+    phone: "رقم الهاتف مطلوب",
+    phoneFormat: "صيغة رقم الهاتف غير صحيحة",
+  },
+  toasts: { loadFail: "تعذر تحميل الملف الشخصي", saved: "تم تحديث الملف الشخصي بنجاح", saveFail: "فشل التحديث" },
+};
 
-const StatCard = memo(({ label, value, icon: Icon, color }) => (
-  <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-md p-6 shadow-xl shadow-gray-200/20 dark:shadow-none hover:shadow-2xl transition-all duration-500 group">
-    <div className="flex items-center justify-between mb-4">
-      <div className={`w-12 h-12 rounded-2xl bg-${color}-50 dark:bg-${color}-900/20 flex items-center justify-center text-${color}-600 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-500`}>
-        <Icon size={24} />
+const FMT_CACHE = {};
+const getFmt = (locale) =>
+  (FMT_CACHE[locale] ||= {
+    num: new Intl.NumberFormat(locale),
+    date: new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric" }),
+  });
+
+const CTRL = /[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g;
+const txt = (v) => (typeof v === "string" || typeof v === "number" ? String(v).replace(CTRL, "") : "");
+const toForm = (p) => ({ name: txt(p?.name), address: txt(p?.address), phone: txt(p?.phone) });
+const formatLongDate = (d, fmt) => {
+  const date = d ? new Date(d) : null;
+  return date && !Number.isNaN(date.getTime()) ? fmt.date.format(date) : "—";
+};
+
+const StatCard = memo(({ label, value, description, icon, tone }) => (
+  <div className={`${CARD} min-w-0 p-4`}>
+    <div className="flex items-center gap-3">
+      <IconTile icon={icon} tone={tone} className="h-11 w-11 flex-shrink-0" size={19} />
+      <div className="min-w-0">
+        <p className="nb-muted truncate text-[10px] font-bold uppercase">{label}</p>
+        <p className="truncate text-xl font-extrabold leading-tight tabular-nums">{value}</p>
       </div>
-      {typeof value === "string" && (
-        <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest bg-${color}-50 dark:bg-${color}-900/30 text-${color}-600 border border-${color}-100 dark:border-${color}-800`}>
-          {value}
-        </span>
-      )}
     </div>
-    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 mb-1">{label}</p>
-    {typeof value !== "string" && (
-      <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">{value}</p>
-    )}
+    <p className="nb-muted mt-3 truncate text-[11px] font-semibold">{description}</p>
   </div>
 ));
 
-const Field = memo(({ icon: Icon, label, field, value, editing, onChange, error }) => (
-  <div className="space-y-2">
-    <label className="flex items-center gap-2 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">
-      <Icon size={14} className="text-emerald-500" /> {label}
+const InfoRow = memo(({ icon: Icon, label, value }) => (
+  <div className={`${PANEL} flex items-center gap-3 p-3`}>
+    <span className="nb-tile h-9 w-9"><Icon size={16} aria-hidden="true" /></span>
+    <div className="min-w-0">
+      <p className="nb-muted text-[10px] font-extrabold uppercase">{label}</p>
+      <p className="truncate text-sm font-extrabold">{value || "—"}</p>
+    </div>
+  </div>
+));
+
+const Field = memo(({ id, icon: Icon, label, field, value, editing, onChange, error, type = "text", inputMode, autoComplete, maxLength, dir }) => (
+  <div>
+    <label htmlFor={id} className={`${LABEL} flex items-center gap-2`}>
+      <Icon size={14} className="nb-ic flex-shrink-0" aria-hidden="true" /> {label}
     </label>
-    <div className="relative group">
-      <input
-        type="text"
-        value={value}
-        disabled={!editing}
-        onChange={(e) => onChange(field, e.target.value)}
-        className={`w-full px-5 py-4 rounded-2xl border text-sm font-bold transition-all duration-300
-          ${editing
-            ? `bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-4 focus:ring-lime-500/10 focus:border-lime-200 text-gray-900 dark:text-white ${error ? "border-red-500 focus:ring-red-500" : ""}`
-            : "bg-gray-50/50 dark:bg-gray-900/30 border-transparent text-gray-500 dark:text-gray-400 cursor-not-allowed"
-          }`}
-      />
-      {editing && <div className="absolute right-4 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-lime-500 animate-pulse" />}
-    </div>
-    {error && <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest pl-2">{error}</p>}
+    <input
+      id={id}
+      type={type}
+      dir={dir}
+      inputMode={inputMode}
+      autoComplete={autoComplete}
+      maxLength={maxLength}
+      value={value}
+      disabled={!editing}
+      onChange={(e) => onChange(field, e.target.value)}
+      aria-invalid={error ? "true" : undefined}
+      aria-describedby={error ? `${id}-error` : undefined}
+      className={`${FIELD} h-11 w-full text-base font-semibold sm:text-sm disabled:cursor-not-allowed disabled:opacity-70 ${error ? "!border-red-500" : ""}`}
+    />
+    {error && <p id={`${id}-error`} role="alert" className="mt-1.5 text-xs font-bold text-red-600 dark:text-red-300">{error}</p>}
   </div>
 ));
 
-const DeliveryProfile = () => {
-  const [profile, setProfile]     = useState(null);
-  const [form, setForm]           = useState({ name: "", address: "", phone: "" });
-  const [isEditing, setIsEditing] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors]       = useState({});
+const Skeleton = memo(({ label }) => (
+  <div className="mx-auto max-w-5xl animate-pulse space-y-5 px-4 motion-reduce:animate-none sm:px-6" aria-busy="true" aria-label={label}>
+    <div className="nb-gray nb-line h-9 w-56 border-2" />
+    <div className={`${CARD} nb-gray h-36`} />
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {[0, 1, 2, 3].map((i) => <div key={i} className={`${CARD} nb-gray h-28`} />)}
+    </div>
+    <div className={`${CARD} nb-gray h-72`} />
+  </div>
+));
 
-  const showToast = useCallback((text, icon) => {
-    Swal.fire({ text, icon, toast: true, position: "top-end", timer: 3000, showConfirmButton: false });
-  }, []);
+const DeliveryProfile = ({ darkMode: darkModeProp }) => {
+  const hookDark = useDarkMode();
+  const darkMode = darkModeProp ?? hookDark;
+  const language = useAppLanguage();
+  const isAr = language === "ar";
+  const t = isAr ? AR : EN;
+  const dir = isAr ? "rtl" : "ltr";
+  const font = useMemo(() => getFontStyle(language), [language]);
+  const f = getFmt(t.locale);
+
+  const [profile, setProfile] = useState(null);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [errors, setErrors] = useState({});
+  const mountedRef = useRef(true);
+  const formCardRef = useRef(null);
+  const tRef = useRef(t);
+  tRef.current = t;
+
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
 
   useEffect(() => {
-    document.title = 'Delivery Agent Profile | Tech Restore';
-    let metaDesc = document.querySelector('meta[name="description"]');
-    if (!metaDesc) {
-      metaDesc = document.createElement('meta');
-      metaDesc.name = 'description';
-      document.head.appendChild(metaDesc);
-    }
-    metaDesc.content = 'Manage your Tech Restore delivery dispatcher profile, secure credentials, phone number, operating area and career analytics.';
-  }, []);
-  
+    document.title = t.docTitle;
+    let meta = document.querySelector('meta[name="description"]');
+    if (!meta) { meta = document.createElement("meta"); meta.name = "description"; document.head.appendChild(meta); }
+    meta.content = t.metaDesc;
+  }, [t.docTitle, t.metaDesc]);
 
   const loadProfile = useCallback(async () => {
     setIsLoading(true);
+    setLoadError(false);
     try {
       const data = await getDeliveryProfile();
+      if (!mountedRef.current) return;
       setProfile(data);
-      setForm({ name: data.name || "", address: data.address || "", phone: data.phone || "" });
-    } catch { showToast("Failed to load profile", "error"); }
-    finally { setIsLoading(false); }
+      setForm(toForm(data));
+    } catch {
+      if (!mountedRef.current) return;
+      setLoadError(true);
+      toast({ icon: "error", title: tRef.current.toasts.loadFail });
+    } finally {
+      if (mountedRef.current) setIsLoading(false);
+    }
   }, []);
 
   useEffect(() => { loadProfile(); }, [loadProfile]);
 
+  const handleChange = useCallback((field, value) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => (prev[field] ? { ...prev, [field]: undefined } : prev));
+  }, []);
+
   const validate = useCallback(() => {
     const e = {};
-    if (!form.name.trim()) e.name = "Name is required";
-    if (!form.address.trim()) e.address = "Address is required";
-    if (!form.phone.trim()) e.phone = "Phone is required";
-    else if (!/^\+?\d{10,15}$/.test(form.phone.trim())) e.phone = "Invalid phone format";
+    const m = tRef.current.errors;
+    const name = form.name.trim();
+    const address = form.address.trim();
+    const phone = form.phone.replace(/[\s-]/g, "");
+    if (!name) e.name = m.name;
+    if (!address) e.address = m.address;
+    if (!phone) e.phone = m.phone;
+    else if (!/^\+?\d{10,15}$/.test(phone)) e.phone = m.phoneFormat;
     setErrors(e);
-    return Object.keys(e).length === 0;
+    return Object.keys(e).length === 0 ? { name, address, phone } : null;
   }, [form]);
 
   const handleUpdate = useCallback(async () => {
-    if (!validate()) return;
-    setIsLoading(true);
+    if (isSaving) return;
+    const payload = validate();
+    if (!payload) return;
+    setIsSaving(true);
     try {
-      await updateDeliveryProfile(form);
+      await updateDeliveryProfile(payload);
       const updated = await getDeliveryProfile();
+      if (!mountedRef.current) return;
       setProfile(updated);
+      setForm(toForm(updated));
       setIsEditing(false);
-      showToast("Profile synchronized successfully", "success");
-    } catch (err) { showToast(err.response?.data?.message || "Update failed", "error"); }
-    finally { setIsLoading(false); }
-  }, [form, validate, showToast]);
+      toast({ icon: "success", title: tRef.current.toasts.saved });
+    } catch (err) {
+      toast({ icon: "error", title: String(err?.response?.data?.message || "").slice(0, 120) || tRef.current.toasts.saveFail });
+    } finally {
+      if (mountedRef.current) setIsSaving(false);
+    }
+  }, [isSaving, validate]);
+
+  const startEditing = useCallback(() => {
+    setIsEditing(true);
+    requestAnimationFrame(() => {
+      formCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById("profile-name")?.focus({ preventScroll: true });
+    });
+  }, []);
 
   const cancelEdit = useCallback(() => {
-    setForm({ name: profile?.name || "", address: profile?.address || "", phone: profile?.phone || "" });
+    setForm(toForm(profile));
     setErrors({});
     setIsEditing(false);
   }, [profile]);
 
+  const onSubmit = useCallback((e) => { e.preventDefault(); handleUpdate(); }, [handleUpdate]);
+
+  const displayName = txt(profile?.name) || t.agent;
+  const statusKey = txt(profile?.status).toUpperCase() || "ACTIVE";
+  const statusLabel = t.statusNames[statusKey] || statusKey;
+
+  let content;
   if (isLoading && !profile) {
-    return <ProfileSkeleton />;
-  }
-  if (!profile) return null;
+    content = <Skeleton label={t.loadingAria} />;
+  } else if (!profile) {
+    content = (
+      <main className="mx-auto max-w-md px-4">
+        <div role="alert" className={`${CARD} flex flex-col items-center px-6 py-12 text-center`}>
+          <span className="nb-tile nb-tile-danger h-14 w-14"><FiAlertTriangle size={26} aria-hidden="true" /></span>
+          <h1 className="mt-4 text-lg font-extrabold uppercase"><span className="nb-ul">{t.loadFailTitle}</span></h1>
+          <p className="nb-muted mt-2 text-xs font-semibold">{loadError ? t.loadFailHint : t.unavailable}</p>
+          <button type="button" onClick={loadProfile} className={`${BTN_PRIMARY} mt-5 h-11 px-6 text-sm uppercase`}>{t.retry}</button>
+        </div>
+      </main>
+    );
+  } else {
+    content = (
+      <div key={language} className="lang-fade mx-auto max-w-5xl space-y-5 px-4 sm:px-6">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-extrabold leading-[1.15] tracking-tight rtl:tracking-normal sm:text-3xl">
+            {t.title} <span className="nb-ul">{t.titleAccent}</span>
+          </h1>
+          <p className="nb-muted mt-2 text-xs font-semibold">{t.subtitle}</p>
+        </div>
 
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:pl-64 mt-16 transition-colors duration-300">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-8">
-
-       
-       
-        <div className="relative bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none overflow-hidden p-8 group">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-lime-500/5 rounded-bl-full translate-x-16 -translate-y-16 group-hover:translate-x-8 group-hover:-translate-y-8 transition-transform duration-700" />
-          
-          <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
-            <div className="relative">
-              <div className="w-32 h-32 rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-4xl font-black shadow-2xl shadow-lime-500/20 group-hover:scale-105 transition-transform duration-500">
-                {profile.name?.charAt(0) || "A"}
-              </div>
-              <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-2xl bg-white dark:bg-gray-900 border-4 border-gray-50 dark:border-gray-900 flex items-center justify-center text-lime-500">
-                <FiShield size={18} />
-              </div>
-            </div>
-            
-            <div className="text-center md:text-left flex-1">
-              <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
-                <span className="px-3 py-1 rounded-full bg-lime-50 dark:bg-lime-900/20 text-lime-600 text-[10px] font-black uppercase tracking-widest border border-lime-100 dark:border-lime-800">
-                  Active Agent
-                </span>
-                {profile.verified && (
-                  <span className="px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 text-[10px] font-black uppercase tracking-widest border border-blue-100 dark:border-blue-800">
-                    Verified
-                  </span>
-                )}
-              </div>
-              <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter mb-3">{profile.name}</h1>
-      
-              
-              {!isEditing ? (
-                <button 
-                  onClick={() => setIsEditing(true)}
-                  aria-label="Edit Profile Details"
-                  className="flex items-center gap-2 px-6 py-3 bg-gray-900 dark:bg-gray-950 text-white dark:text-white rounded-lg text-xs font-black uppercase tracking-widest hover:bg-emerald-500 dark:hover:bg-emerald-500 hover:text-white transition-all active:scale-95 shadow-xl shadow-gray-900/10"
-                >
-                  <FiEdit3 size={16} /> Edit Profile
-                </button>
-              ) : (
-                <div className="flex items-center justify-center md:justify-start gap-3">
-                  <button 
-                    onClick={handleUpdate}
-                    aria-label="Save Profile Changes"
-                    className="flex items-center gap-2 px-6 py-3 bg-emerald-500 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-emerald-600 transition-all active:scale-95 shadow-xl shadow-emerald-500/20"
-                  >
-                    <FiCheckCircle size={16} /> {isLoading ? "Saving..." : "Apply Changes"}
-                  </button>
-                  <button 
-                    onClick={cancelEdit}
-                    aria-label="Cancel Profile Editing"
-                    className="px-6 py-3 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-gray-200 dark:hover:bg-gray-600 transition-all"
-                  >
-                    Cancel
-                  </button>
-                </div>
+        <section aria-label={t.summaryAria} className={`${CARD} flex flex-col items-center gap-5 p-5 text-center sm:flex-row sm:p-6 sm:text-start`}>
+          <div className="relative flex-shrink-0">
+            <span className="nb-tile h-20 w-20 text-3xl font-extrabold uppercase">{displayName.charAt(0)}</span>
+            <span className="nb-tile absolute -bottom-2 -end-2 h-8 w-8"><FiShield size={14} aria-hidden="true" /></span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="break-words text-xl font-extrabold">{displayName}</h2>
+            <p className="nb-muted truncate text-sm font-semibold" dir="ltr">{txt(profile.email)}</p>
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+              <span className="nb-chip !normal-case" style={{ background: "#34d399", color: INK }}>{t.active}</span>
+              {profile.verified && (
+                <span className="nb-chip !normal-case"><FiCheck size={11} aria-hidden="true" /> {t.verified}</span>
               )}
             </div>
           </div>
-        </div>
+          {!isEditing && (
+            <button type="button" onClick={startEditing} aria-label={t.editAria} className={`${BTN_PRIMARY} h-11 w-full px-5 text-sm uppercase sm:w-auto`}>
+              <FiEdit3 size={15} aria-hidden="true" /> {t.edit}
+            </button>
+          )}
+        </section>
 
-       
-       
+        <section aria-label={t.statsAria} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard label={t.stats.orders.label} value={f.num.format(Number(profile.activeOrderDeliveries) || 0)} description={t.stats.orders.desc} icon={FiTrendingUp} tone="em" />
+          <StatCard label={t.stats.repairs.label} value={f.num.format(Number(profile.activeRepairDeliveries) || 0)} description={t.stats.repairs.desc} icon={FiTool} tone="te" />
+          <StatCard label={t.stats.total.label} value={f.num.format(Number(profile.totalCompletedDeliveries) || 0)} description={t.stats.total.desc} icon={FiAward} tone="sky" />
+          <StatCard label={t.stats.status.label} value={statusLabel} description={t.stats.status.desc} icon={FiShield} tone="vi" />
+        </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard label="Active Orders"    value={profile.activeOrderDeliveries || 0}   icon={FiTrendingUp} color="blue" />
-          <StatCard label="Active Repairs"   value={profile.activeRepairDeliveries || 0}  icon={FiTool}       color="indigo"  />
-          <StatCard label="Total Deliveries" value={profile.totalCompletedDeliveries || 0} icon={FiAward}     color="amber"   />
-          <StatCard label="Account Status"   value={profile.status || "ACTIVE"}           icon={FiShield}    color="lime"    />
-        </div>
-
-     
-     
-
-        <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/20 dark:shadow-none p-8">
-          <div className="flex items-center gap-3 mb-10">
-            <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400">
-              <FiSettings size={20} />
-            </div>
-            <div>
-              <h2 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">Account Configuration</h2>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Personal & professional data</p>
+        <section ref={formCardRef} aria-labelledby="account-title" className={`${CARD} scroll-mt-24 p-5 sm:p-6`}>
+          <div className="mb-5 flex items-center gap-3">
+            <IconTile icon={FiSettings} tone="em" className="h-10 w-10 flex-shrink-0" size={18} />
+            <div className="min-w-0">
+              <h2 id="account-title" className="text-sm font-extrabold uppercase"><span className="nb-ul">{t.account}</span></h2>
+              <p className="nb-muted mt-1.5 text-[11px] font-semibold">{t.accountHint}</p>
             </div>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-x-12 gap-y-8">
-            <div className="space-y-8">
-              <div className="flex items-start gap-4 p-6 bg-gray-50/50 dark:bg-gray-900/30 rounded-3xl border border-transparent hover:border-gray-100 dark:hover:border-gray-700 transition-all group">
-                <div className="w-10 h-10 rounded-2xl bg-white dark:bg-gray-800 flex items-center justify-center text-emerald-500 shadow-sm group-hover:scale-110 transition-transform">
-                  <FiMail size={18} />
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Email </p>
-                  <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{profile.email}</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-4 p-6 bg-gray-50/50 dark:bg-gray-900/30 rounded-3xl border border-transparent hover:border-gray-100 dark:hover:border-gray-700 transition-all group">
-                <div className="w-10 h-10 rounded-2xl bg-white dark:bg-gray-800 flex items-center justify-center text-emerald-500 shadow-sm group-hover:scale-110 transition-transform">
-                  <FiClock size={18} />
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Onboarding Date</p>
-                  <p className="text-sm font-bold text-gray-900 dark:text-white">
-                    {new Date(profile.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-8">
-              <Field icon={FiUser}   label="Display Name" field="name"    value={form.name}    editing={isEditing} onChange={(f,v) => setForm(prev => ({...prev, [f]: v}))} error={errors.name} />
-              <Field icon={FiPhone}  label="Phone"      field="phone"   value={form.phone}   editing={isEditing} onChange={(f,v) => setForm(prev => ({...prev, [f]: v}))} error={errors.phone} />
-              <Field icon={FiMapPin} label="Address"    field="address" value={form.address} editing={isEditing} onChange={(f,v) => setForm(prev => ({...prev, [f]: v}))} error={errors.address} />
-            </div>
+          <div className="mb-6 grid gap-3 sm:grid-cols-2">
+            <InfoRow icon={FiMail} label={t.email} value={txt(profile.email)} />
+            <InfoRow icon={FiClock} label={t.joined} value={formatLongDate(profile.createdAt, f)} />
           </div>
-        </div>
 
-        
-        
-       
+          <form onSubmit={onSubmit} noValidate className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field id="profile-name" icon={FiUser} label={t.name} field="name" value={form.name} editing={isEditing} onChange={handleChange} error={errors.name} autoComplete="name" maxLength={80} />
+              <Field id="profile-phone" icon={FiPhone} label={t.phone} field="phone" type="tel" inputMode="tel" dir="ltr" value={form.phone} editing={isEditing} onChange={handleChange} error={errors.phone} autoComplete="tel" maxLength={20} />
+            </div>
+            <Field id="profile-address" icon={FiMapPin} label={t.address} field="address" value={form.address} editing={isEditing} onChange={handleChange} error={errors.address} autoComplete="street-address" maxLength={200} />
 
+            {isEditing && (
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={cancelEdit} disabled={isSaving} className={`${BTN_MD} h-11 flex-1 text-sm uppercase`}>
+                  <FiX size={15} aria-hidden="true" /> {t.cancel}
+                </button>
+                <button type="submit" disabled={isSaving} aria-label={t.saveAria} className={`${BTN_PRIMARY} h-11 flex-[1.6] text-sm uppercase`}>
+                  <FiCheck size={16} aria-hidden="true" /> {isSaving ? t.saving : t.save}
+                </button>
+              </div>
+            )}
+          </form>
+        </section>
       </div>
+    );
+  }
+
+  return (
+    <div dir={dir} lang={language} style={font} className="nb-page mt-16 min-h-screen py-6 text-start lg:ps-64">
+      <style>{PAGE_CSS}</style>
+      <Defs3D />
+      <Toaster darkMode={darkMode} />
+      {content}
     </div>
   );
 };
