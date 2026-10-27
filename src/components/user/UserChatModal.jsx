@@ -1,6 +1,10 @@
 import React, { useEffect, useState, useCallback, useRef, memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FiX, FiSend, FiCheckCircle, FiArrowLeft, FiAlertCircle, FiRefreshCw, FiArchive } from 'react-icons/fi';
+import {
+  FiX, FiSend, FiCheckCircle, FiArrowLeft, FiAlertCircle, FiRefreshCw, FiArchive,
+  FiPaperclip, FiCamera, FiMic, FiMapPin, FiUser, FiStar, FiCornerUpLeft,
+  FiTrash2, FiMoreVertical, FiDownload, FiFile, FiImage, FiPhone, FiSearch, FiFolder,
+} from 'react-icons/fi';
 import { RiVerifiedBadgeLine } from 'react-icons/ri';
 import api from '../../common/api/api';
 import { chatApi, parseCount } from '../../common/services/chatApi';
@@ -14,7 +18,25 @@ import { useLangFont } from './ListingKit';
 const MAX_MSG_LEN = 2000;
 const OPTIMISTIC_TIMEOUT = 6000;
 const POLL_MS = 5000;
+const MAX_BACKOFF_STEPS = 4;
+const MAX_RENDERED_MSGS = 150;
+const MAX_SEEN_IDS = 2000;
+const MAX_RECENT_SENT = 50;
+const MAX_FILE_BYTES = 25 * 1024 * 1024;
+const MAX_VOICE_SECONDS = 300;
 const enc = encodeURIComponent;
+
+const K = {
+  btn: 'nc-btn',
+  btnA: 'nc-btn nc-btn-a',
+  btnRed: 'nc-btn nc-btn-r',
+  field: 'nc-field',
+  card: 'nc-row',
+  line: 'nc-line',
+  gray: 'nc-gray',
+  surface: 'nc-surface',
+  scroll: 'nc-scroll',
+};
 
 const ERR = {
   login: 'chat.errors.login',
@@ -24,8 +46,62 @@ const ERR = {
   close: 'chat.errors.close',
 };
 
-const cleanText = (v, max = MAX_MSG_LEN) => (typeof v === 'string' ? v.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').slice(0, max) : '');
+const NEW_EN = {
+  reply: 'Reply', replyingTo: 'Replying to', sideShop: 'Shop', sideUser: 'You', cancel: 'Cancel', you: 'You',
+  delMe: 'Delete for me',
+  deleted: 'This message was deleted', attach: 'Attach', file: 'Document',
+  gallery: 'Photo / video', camera: 'Camera', location: 'Location', contact: 'Contact', name: 'Name',
+  phone: 'Phone', send: 'Send', record: 'Recording voice note', stopSend: 'Send voice note', discard: 'Discard',
+  mic: 'Record voice note', locating: 'Getting location…', openMap: 'Open in map', download: 'Download', call: 'Call',
+  more: 'Message options', star: 'Add to favourites', unstar: 'Remove from favourites', favOnly: 'Favourites',
+  media: 'Media, links and docs', close: 'Close', search: 'Search…', empty: 'Nothing shared yet.',
+  loadMore: 'Load more', mediaFail: 'Could not load this file.', showOlder: 'Show older messages',
+  tabs: { MEDIA: 'Media', DOCS: 'Docs', AUDIO: 'Audio', LINKS: 'Links', LOCATION: 'Places', CONTACT: 'Contacts' },
+  types: {
+    IMAGE: 'Photo', VIDEO: 'Video', AUDIO: 'Audio', VOICE: 'Voice message',
+    DOCUMENT: 'Document', LOCATION: 'Location', CONTACT: 'Contact',
+  },
+  errors: {
+    fileTooBig: 'File is too large (max 25 MB).', fileBad: 'This file type is not allowed.',
+    micDenied: 'Microphone access was denied.', micUnsupported: 'Voice notes are not supported in this browser.',
+    locFail: 'Could not get your location.', action: 'Action failed. Please try again.',
+  },
+};
+
+const NEW_AR = {
+  reply: 'رد', replyingTo: 'الرد على', sideShop: 'المتجر', sideUser: 'أنت', cancel: 'إلغاء', you: 'أنت',
+  delMe: 'حذف عندي',
+  deleted: 'تم حذف هذه الرسالة', attach: 'إرفاق', file: 'مستند',
+  gallery: 'صورة / فيديو', camera: 'الكاميرا', location: 'الموقع', contact: 'جهة اتصال', name: 'الاسم',
+  phone: 'الهاتف', send: 'إرسال', record: 'جارٍ تسجيل رسالة صوتية', stopSend: 'إرسال الرسالة الصوتية', discard: 'تجاهل',
+  mic: 'تسجيل رسالة صوتية', locating: 'جارٍ تحديد الموقع…', openMap: 'فتح في الخريطة', download: 'تنزيل', call: 'اتصال',
+  more: 'خيارات الرسالة', star: 'إضافة إلى المفضلة', unstar: 'إزالة من المفضلة', favOnly: 'المفضلة',
+  media: 'الوسائط والروابط والمستندات', close: 'إغلاق', search: 'بحث…', empty: 'لا يوجد شيء مشارك بعد.',
+  loadMore: 'عرض المزيد', mediaFail: 'تعذر تحميل هذا الملف.', showOlder: 'عرض الرسائل الأقدم',
+  tabs: { MEDIA: 'وسائط', DOCS: 'مستندات', AUDIO: 'صوت', LINKS: 'روابط', LOCATION: 'أماكن', CONTACT: 'جهات' },
+  types: {
+    IMAGE: 'صورة', VIDEO: 'فيديو', AUDIO: 'صوت', VOICE: 'رسالة صوتية',
+    DOCUMENT: 'مستند', LOCATION: 'موقع', CONTACT: 'جهة اتصال',
+  },
+  errors: {
+    fileTooBig: 'الملف كبير جدًا (الحد الأقصى 25 ميجابايت).', fileBad: 'نوع الملف غير مسموح به.',
+    micDenied: 'تم رفض الوصول إلى الميكروفون.', micUnsupported: 'الرسائل الصوتية غير مدعومة في هذا المتصفح.',
+    locFail: 'تعذر الحصول على موقعك.', action: 'فشلت العملية. حاول مرة أخرى.',
+  },
+};
+
+const CTRL_RE = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g;
+const cleanText = (v, max = MAX_MSG_LEN) => (typeof v === 'string' ? v.replace(CTRL_RE, '').slice(0, max) : '');
 const initial = (name, fallback = 'S') => (typeof name === 'string' ? name.trim()[0]?.toUpperCase() : null) || fallback;
+const trimSet = (set, max) => {
+  while (set.size > max) set.delete(set.values().next().value);
+};
+
+const toIso = (v) => {
+  if (v == null) return '';
+  const d = v instanceof Date ? v : new Date(v);
+  return Number.isNaN(d.getTime()) ? '' : d.toISOString();
+};
 
 const timeFmts = new Map();
 const getTimeFmt = (lang) => {
@@ -54,6 +130,823 @@ const makeClientMsgId = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `c-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 const scrollBehavior = () =>
   (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth');
+
+const API = '/api/chats';
+const pair = (u, s) => `${API}/${enc(u)}/shop/${enc(s)}`;
+const rest = {
+  send: (u, s, body) => api.post(`${pair(u, s)}/messages`, body),
+  upload: (u, s, fd, onProgress) => api.post(`${pair(u, s)}/attachments`, fd, { timeout: 120000, onUploadProgress: onProgress }),
+  remove: (u, s, id) => api.delete(`${pair(u, s)}/messages/${enc(id)}`, { params: { scope: 'ME' } }),
+  favourite: (u, s, value) => api.put(`${pair(u, s)}/favourite`, null, { params: { value } }),
+  summary: (u, s, signal) => api.get(`${pair(u, s)}/media/summary`, { signal }),
+  media: (u, s, params, signal) => api.get(`${pair(u, s)}/media`, { params, signal }),
+  blob: (id, download, signal) =>
+    api.get(`${API}/attachments/${enc(id)}`, { params: download ? { download: true } : undefined, responseType: 'blob', signal }),
+};
+
+const BLOCKED_EXT = /\.(exe|bat|cmd|com|scr|msi|msp|dll|jar|apk|js|jse|vbs|vbe|ps1|sh|hta|html?|xhtml|svg|lnk|php|py|pl|reg)$/i;
+const BLOCKED_MIME = /^(text\/html|application\/xhtml|image\/svg|application\/(x-msdownload|x-sh|x-bat|javascript|x-javascript|java-archive|vnd\.android\.package-archive))/i;
+const MEDIA_TYPES = new Set(['IMAGE', 'VIDEO', 'AUDIO', 'VOICE']);
+const FILE_TYPES = new Set(['IMAGE', 'VIDEO', 'AUDIO', 'VOICE', 'DOCUMENT']);
+const KNOWN_TYPES = new Set(['TEXT', 'IMAGE', 'VIDEO', 'AUDIO', 'VOICE', 'DOCUMENT', 'LOCATION', 'CONTACT']);
+const BLOB_PREFIX = { IMAGE: 'image/', VIDEO: 'video/', AUDIO: 'audio/', VOICE: 'audio/' };
+const URL_RE = /(https?:\/\/[^\s<>"']+)/gi;
+const COUNT_KEY = { MEDIA: 'media', DOCS: 'documents', AUDIO: 'audio', LINKS: 'links', LOCATION: 'locations', CONTACT: 'contacts' };
+const TAB_KEYS = Object.keys(COUNT_KEY);
+
+const kindOf = (f) =>
+  f.type.startsWith('image/') ? 'IMAGE' : f.type.startsWith('video/') ? 'VIDEO' : f.type.startsWith('audio/') ? 'AUDIO' : 'DOCUMENT';
+
+const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+
+const safeHttp = (u) => {
+  try {
+    const x = new URL(u);
+    return x.protocol === 'http:' || x.protocol === 'https:' ? x.href : null;
+  } catch {
+    return null;
+  }
+};
+
+const mapsHref = (loc) => {
+  const la = num(loc?.latitude);
+  const lo = num(loc?.longitude);
+  return la != null && lo != null && Math.abs(la) <= 90 && Math.abs(lo) <= 180
+    ? `https://www.google.com/maps?q=${la},${lo}`
+    : null;
+};
+
+const cleanPhone = (v) => (typeof v === 'string' ? v.replace(/[^\d+\-()\s]/g, '').slice(0, 24) : '');
+const fmtBytes = (n) => (!n ? '' : n < 1024 ? `${n} B` : n < 1048576 ? `${Math.round(n / 1024)} KB` : `${(n / 1048576).toFixed(1)} MB`);
+const fmtDur = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+const attInfo = (a) => ({
+  name: cleanText(a?.fileName ?? a?.name ?? '', 120) || 'file',
+  mime: a?.contentType ?? a?.mimeType ?? a?.mime ?? '',
+  size: Number(a?.size ?? a?.sizeBytes ?? a?.fileSize) || 0,
+  duration: Number(a?.durationSeconds ?? a?.duration) || 0,
+});
+
+const extraFields = (msg) => ({
+  type: KNOWN_TYPES.has(msg.messageType) ? msg.messageType : 'TEXT',
+  deleted: !!msg.deleted,
+  attachment: msg.attachment ? attInfo(msg.attachment) : null,
+  location: msg.location
+    ? {
+        latitude: num(msg.location.latitude),
+        longitude: num(msg.location.longitude),
+        address: cleanText(msg.location.address || '', 160),
+        label: cleanText(msg.location.label || '', 80),
+      }
+    : null,
+  contact: msg.contact ? { name: cleanText(msg.contact.name || '', 80), phone: cleanPhone(msg.contact.phone) } : null,
+  replyTo: msg.replyTo
+    ? {
+        id: msg.replyTo.id,
+        sentBy: msg.replyTo.sentBy,
+        type: msg.replyTo.messageType,
+        snippet: msg.replyTo.deleted ? null : cleanText(msg.replyTo.snippet || '', 80),
+      }
+    : null,
+  links: Array.isArray(msg.links) ? msg.links.map(safeHttp).filter(Boolean).slice(0, 20) : [],
+});
+
+const snippetOf = (m) =>
+  m.deleted ? null : cleanText(m.content || m.attachment?.name || m.location?.label || m.location?.address || m.contact?.name || '', 80);
+
+const previewOf = (m) => ({ id: m.id, sentBy: m.senderType, type: m.type, snippet: snippetOf(m) });
+
+const previewText = (lm, N, fallback) => {
+  if (!lm) return fallback;
+  const base = lm.deleted ? N.deleted : cleanText(lm.message || '', 80) || N.types[lm.messageType] || fallback;
+  return lm.sentBy === 'USER' ? `${N.you}: ${base}` : base;
+};
+
+const sameSessions = (a, b) =>
+  a.length === b.length &&
+  a.every((s, i) => {
+    const x = b[i];
+    return (
+      s.id === x.id &&
+      s.shopId === x.shopId &&
+      s.shopName === x.shopName &&
+      s.unreadCount === x.unreadCount &&
+      !!s.favourite === !!x.favourite &&
+      s.lastMessage?.id === x.lastMessage?.id &&
+      s.lastMessage?.message === x.lastMessage?.message &&
+      s.lastMessage?.messageType === x.lastMessage?.messageType &&
+      s.lastMessage?.sentBy === x.lastMessage?.sentBy &&
+      s.lastMessage?.deleted === x.lastMessage?.deleted &&
+      s.lastMessage?.createdAt === x.lastMessage?.createdAt
+    );
+  });
+
+const DELETED_PATCH = { deleted: true, content: '', attachment: null, location: null, contact: null, links: [] };
+
+const safeFileName = (name) =>
+  String(name || 'file').replace(/[\\/:*?"<>|\u0000-\u001F]/g, '_').replace(/^\.+/, '').slice(0, 120) || 'file';
+
+const saveBlob = async (id, name) => {
+  const { data } = await rest.blob(id, true);
+  const url = URL.createObjectURL(data);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = safeFileName(name);
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+};
+
+let sharedIO = null;
+const ioCallbacks = new Map();
+const watchVisible = (el, cb) => {
+  if (typeof IntersectionObserver === 'undefined') {
+    cb();
+    return () => {};
+  }
+  if (!sharedIO) {
+    sharedIO = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (!e.isIntersecting) return;
+          const fn = ioCallbacks.get(e.target);
+          ioCallbacks.delete(e.target);
+          sharedIO.unobserve(e.target);
+          fn?.();
+        });
+      },
+      { rootMargin: '200px' }
+    );
+  }
+  ioCallbacks.set(el, cb);
+  sharedIO.observe(el);
+  return () => {
+    ioCallbacks.delete(el);
+    sharedIO?.unobserve(el);
+  };
+};
+
+const useInView = (ref, enabled) => {
+  const [seen, setSeen] = useState(false);
+  useEffect(() => {
+    if (!enabled || seen) return undefined;
+    const el = ref.current;
+    if (!el) {
+      setSeen(true);
+      return undefined;
+    }
+    return watchVisible(el, () => setSeen(true));
+  }, [ref, enabled, seen]);
+  return seen;
+};
+
+const useBlobUrl = (id, enabled, kind) => {
+  const [state, setState] = useState({ url: null, error: false });
+  useEffect(() => {
+    if (!enabled || id == null) return undefined;
+    const ctrl = new AbortController();
+    let objectUrl = null;
+    setState({ url: null, error: false });
+    rest
+      .blob(id, false, ctrl.signal)
+      .then(({ data }) => {
+        if (ctrl.signal.aborted) return;
+        const prefix = BLOB_PREFIX[kind];
+        const type = String(data?.type || '').toLowerCase();
+        if (!prefix || (type && !type.startsWith(prefix)) || type.includes('svg')) {
+          setState({ url: null, error: true });
+          return;
+        }
+        objectUrl = URL.createObjectURL(data);
+        setState({ url: objectUrl, error: false });
+      })
+      .catch(() => {
+        if (!ctrl.signal.aborted) setState({ url: null, error: true });
+      });
+    return () => {
+      ctrl.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [id, enabled, kind]);
+  return state;
+};
+
+const useRecorder = ({ onFinish, onError }) => {
+  const [recording, setRecording] = useState(false);
+  const [secs, setSecs] = useState(0);
+  const recRef = useRef(null);
+  const chunksRef = useRef([]);
+  const timerRef = useRef(null);
+  const streamRef = useRef(null);
+  const secsRef = useRef(0);
+  const stopRef = useRef(null);
+  const onFinishRef = useRef(onFinish);
+  const onErrorRef = useRef(onError);
+  onFinishRef.current = onFinish;
+  onErrorRef.current = onError;
+
+  const cleanup = useCallback(() => {
+    clearInterval(timerRef.current);
+    streamRef.current?.getTracks().forEach((tr) => tr.stop());
+    streamRef.current = null;
+    recRef.current = null;
+    setRecording(false);
+  }, []);
+
+  const stop = useCallback(
+    (keep = true) => {
+      const r = recRef.current;
+      if (!r) return;
+      const seconds = secsRef.current;
+      r.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: r.mimeType || 'audio/webm' });
+        chunksRef.current = [];
+        cleanup();
+        if (keep && blob.size) onFinishRef.current?.(blob, seconds);
+      };
+      try {
+        r.stop();
+      } catch {
+        cleanup();
+      }
+    },
+    [cleanup]
+  );
+  stopRef.current = stop;
+
+  const start = useCallback(async () => {
+    if (recRef.current) return;
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      onErrorRef.current?.('unsupported');
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const mime =
+        ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'].find((mt) => MediaRecorder.isTypeSupported?.(mt)) || '';
+      const r = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      chunksRef.current = [];
+      r.ondataavailable = (e) => {
+        if (e.data?.size) chunksRef.current.push(e.data);
+      };
+      r.start();
+      recRef.current = r;
+      secsRef.current = 0;
+      setSecs(0);
+      setRecording(true);
+      const t0 = Date.now();
+      timerRef.current = setInterval(() => {
+        const s = Math.floor((Date.now() - t0) / 1000);
+        if (s === secsRef.current) return;
+        secsRef.current = s;
+        setSecs(s);
+        if (s >= MAX_VOICE_SECONDS) stopRef.current?.(true);
+      }, 500);
+    } catch {
+      cleanup();
+      onErrorRef.current?.('denied');
+    }
+  }, [cleanup]);
+
+  useEffect(
+    () => () => {
+      clearInterval(timerRef.current);
+      const r = recRef.current;
+      if (r) {
+        r.onstop = null;
+        try {
+          r.stop();
+        } catch {}
+      }
+      streamRef.current?.getTracks().forEach((tr) => tr.stop());
+    },
+    []
+  );
+
+  return { recording, secs, start, stop };
+};
+
+const Linkified = memo(({ text }) =>
+  String(text)
+    .split(URL_RE)
+    .map((p, i) => {
+      if (i % 2 === 0) return p;
+      const href = safeHttp(p);
+      return href ? (
+        <a key={i} href={href} target="_blank" rel="noopener noreferrer nofollow" className="underline underline-offset-2 break-all">
+          {p}
+        </a>
+      ) : (
+        p
+      );
+    })
+);
+
+const Skeleton = () => <div className="h-40 w-56 max-w-full animate-pulse bg-black/10 dark:bg-white/10 motion-reduce:animate-none" />;
+
+const Attachment = memo(({ msg, N }) => {
+  const a = msg.attachment;
+  const boxRef = useRef(null);
+  const pending = !!msg._optimistic || String(msg.id).startsWith('opt-');
+  const isMedia = MEDIA_TYPES.has(msg.type);
+  const seen = useInView(boxRef, isMedia && !pending);
+  const { url, error } = useBlobUrl(msg.id, isMedia && seen && !pending, msg.type);
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await saveBlob(msg.id, a.name);
+    } catch {
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  let body;
+  if (pending) {
+    body = (
+      <div className="flex items-center gap-2 text-xs font-bold">
+        <FiFile size={16} aria-hidden="true" />
+        <span className="truncate" dir="auto">{a.name}</span>
+        <span className="tabular-nums" dir="ltr">{msg._progress ?? 0}%</span>
+      </div>
+    );
+  } else if (msg.type === 'DOCUMENT') {
+    body = (
+      <div className="flex items-center gap-3">
+        <FiFile size={20} className="shrink-0" aria-hidden="true" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold" dir="auto">{a.name}</p>
+          <p className="text-[11px] opacity-80" dir="ltr">{fmtBytes(a.size)}</p>
+        </div>
+        <button type="button" onClick={save} disabled={busy} aria-label={N.download} className={`${K.btn} h-8 w-8 shrink-0`}>
+          <FiDownload size={14} aria-hidden="true" />
+        </button>
+      </div>
+    );
+  } else if (error) {
+    body = <p className="text-xs font-bold">{N.mediaFail}</p>;
+  } else if (!url) {
+    body = <Skeleton />;
+  } else if (msg.type === 'IMAGE') {
+    body = (
+      <a href={url} target="_blank" rel="noopener noreferrer">
+        <img src={url} alt={a.name} decoding="async" loading="lazy" className="max-h-64 max-w-full object-cover" />
+      </a>
+    );
+  } else if (msg.type === 'VIDEO') {
+    body = <video src={url} controls preload="metadata" playsInline className="max-h-64 max-w-full" />;
+  } else {
+    body = (
+      <div className="flex flex-col gap-1">
+        <audio src={url} controls preload="metadata" className="w-56 max-w-full" />
+        {a.duration > 0 && <span className="text-[10px] font-bold opacity-80" dir="ltr">{fmtDur(a.duration)}</span>}
+      </div>
+    );
+  }
+
+  return <div ref={boxRef} className="mb-2 max-w-full">{body}</div>;
+});
+
+const LocationCard = memo(({ loc, N }) => {
+  const href = mapsHref(loc);
+  const coords = href ? `${loc.latitude.toFixed(5)}, ${loc.longitude.toFixed(5)}` : '';
+  return (
+    <div className="mb-1 flex items-start gap-2 text-sm font-bold">
+      <FiMapPin className="mt-0.5 shrink-0" size={16} aria-hidden="true" />
+      <div className="min-w-0">
+        <p className="break-words" dir="auto">{loc.label || loc.address || coords}</p>
+        {href && (
+          <a href={href} target="_blank" rel="noopener noreferrer" className="text-xs underline underline-offset-2">
+            {N.openMap}
+          </a>
+        )}
+      </div>
+    </div>
+  );
+});
+
+const ContactCard = memo(({ contact, N }) => {
+  const tel = contact.phone.replace(/[^\d+]/g, '');
+  return (
+    <div className="mb-1 flex items-center gap-3 text-sm font-bold">
+      <FiUser className="shrink-0" size={18} aria-hidden="true" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate" dir="auto">{contact.name}</p>
+        <p className="text-xs opacity-80" dir="ltr">{contact.phone}</p>
+      </div>
+      {tel && (
+        <a href={`tel:${tel}`} aria-label={N.call} className={`${K.btn} h-8 w-8 shrink-0`}>
+          <FiPhone size={14} aria-hidden="true" />
+        </a>
+      )}
+    </div>
+  );
+});
+
+const MessageContent = memo(({ msg, N, showLinks = false }) => {
+  if (msg.deleted) return <p className="text-sm font-semibold italic opacity-70">{N.deleted}</p>;
+  return (
+    <>
+      {FILE_TYPES.has(msg.type) && msg.attachment && <Attachment msg={msg} N={N} />}
+      {msg.type === 'LOCATION' && msg.location && <LocationCard loc={msg.location} N={N} />}
+      {msg.type === 'CONTACT' && msg.contact && <ContactCard contact={msg.contact} N={N} />}
+      {msg.content && (
+        <div dir="auto" className="whitespace-pre-wrap break-words text-sm font-semibold leading-relaxed">
+          <Linkified text={msg.content} />
+        </div>
+      )}
+      {showLinks &&
+        msg.links.map((l) => (
+          <a key={l} href={l} target="_blank" rel="noopener noreferrer nofollow" className="mt-1 block truncate text-xs font-bold underline underline-offset-2">
+            {l}
+          </a>
+        ))}
+    </>
+  );
+});
+
+const ReplyQuote = memo(({ reply, N, onJump }) => (
+  <button
+    type="button"
+    onClick={() => reply.id && onJump?.(reply.id)}
+    className="mb-2 block w-full border-s-4 border-current bg-black/10 px-2 py-1 text-start text-xs"
+  >
+    <span className="block text-[10px] font-extrabold uppercase">{reply.sentBy === 'SHOP' ? N.sideShop : N.sideUser}</span>
+    <span className="block truncate opacity-90" dir="auto">
+      {reply.snippet === null ? N.deleted : reply.snippet || N.types[reply.type] || ''}
+    </span>
+  </button>
+));
+
+const MenuItem = ({ icon: Icon, label, onClick }) => (
+  <button
+    type="button"
+    role="menuitem"
+    onClick={onClick}
+    className="flex w-full items-center gap-2 px-3 py-2 text-start text-xs font-bold uppercase hover:bg-black/10 dark:hover:bg-white/10"
+  >
+    <Icon size={14} aria-hidden="true" /> {label}
+  </button>
+);
+
+const MessageMenu = memo(({ msg, N, onReply, onDelete }) => {
+  const [open, setOpen] = useState(false);
+  const close = () => setOpen(false);
+  return (
+    <div className="relative shrink-0 self-center">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-label={N.more}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className={`${K.btn} h-7 w-7 opacity-60 hover:opacity-100 focus:opacity-100`}
+      >
+        <FiMoreVertical size={14} aria-hidden="true" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={close} aria-hidden="true" />
+          <div role="menu" className="nc-panel absolute end-0 top-full z-20 mt-1 flex min-w-[180px] flex-col p-1">
+            {!msg.deleted && <MenuItem icon={FiCornerUpLeft} label={N.reply} onClick={() => { close(); onReply(msg); }} />}
+            <MenuItem icon={FiTrash2} label={N.delMe} onClick={() => { close(); onDelete(msg); }} />
+          </div>
+        </>
+      )}
+    </div>
+  );
+});
+
+const AttachMenu = memo(({ N, onFile, onLocation, onContact, disabled }) => {
+  const [open, setOpen] = useState(false);
+  const docRef = useRef(null);
+  const galRef = useRef(null);
+  const camRef = useRef(null);
+
+  const pick = (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    setOpen(false);
+    if (f) onFile(f);
+  };
+
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        disabled={disabled}
+        aria-label={N.attach}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className={`${K.btn} h-12 w-12`}
+      >
+        <FiPaperclip size={18} aria-hidden="true" />
+      </button>
+      <input ref={docRef} type="file" hidden onChange={pick} />
+      <input ref={galRef} type="file" accept="image/*,video/*" hidden onChange={pick} />
+      <input ref={camRef} type="file" accept="image/*" capture="environment" hidden onChange={pick} />
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div role="menu" className="nc-panel absolute bottom-full start-0 z-20 mb-2 min-w-[200px] p-1">
+            <MenuItem icon={FiFile} label={N.file} onClick={() => docRef.current?.click()} />
+            <MenuItem icon={FiImage} label={N.gallery} onClick={() => galRef.current?.click()} />
+            <MenuItem icon={FiCamera} label={N.camera} onClick={() => camRef.current?.click()} />
+            <MenuItem icon={FiMapPin} label={N.location} onClick={() => { setOpen(false); onLocation(); }} />
+            <MenuItem icon={FiUser} label={N.contact} onClick={() => { setOpen(false); onContact(); }} />
+          </div>
+        </>
+      )}
+    </div>
+  );
+});
+
+const ContactForm = memo(({ N, onSubmit, onCancel }) => {
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const ok = name.trim().length > 0 && /^\+?[\d\s\-()]{5,20}$/.test(phone.trim());
+  return (
+    <div className="nc-panel mb-3 flex flex-wrap items-end gap-2 p-3">
+      <input
+        value={name}
+        maxLength={80}
+        dir="auto"
+        onChange={(e) => setName(cleanText(e.target.value, 80))}
+        placeholder={N.name}
+        aria-label={N.name}
+        className={`${K.field} min-w-0 flex-1 basis-32 px-3 py-2 text-sm font-semibold`}
+      />
+      <input
+        value={phone}
+        maxLength={20}
+        inputMode="tel"
+        dir="ltr"
+        onChange={(e) => setPhone(cleanPhone(e.target.value))}
+        placeholder={N.phone}
+        aria-label={N.phone}
+        className={`${K.field} min-w-0 flex-1 basis-32 px-3 py-2 text-sm font-semibold`}
+      />
+      <button type="button" disabled={!ok} onClick={() => onSubmit({ name: name.trim(), phone: phone.trim() })} className={`${K.btnA} h-10 px-3 text-xs uppercase`}>
+        {N.send}
+      </button>
+      <button type="button" onClick={onCancel} className={`${K.btn} h-10 px-3 text-xs uppercase`}>{N.cancel}</button>
+    </div>
+  );
+});
+
+const ComposeBanner = memo(({ N, reply, onCancel }) => {
+  if (!reply) return null;
+  return (
+    <div className={`${K.gray} ${K.line} mb-3 flex items-center gap-3 border-2 border-dotted px-3 py-2`}>
+      <FiCornerUpLeft size={14} className="shrink-0" aria-hidden="true" />
+      <div className="min-w-0 flex-1 text-xs">
+        <p className="font-extrabold uppercase">
+          {`${N.replyingTo} ${reply.senderType === 'SHOP' ? N.sideShop : N.sideUser}`}
+        </p>
+        <p dir="auto" className="truncate opacity-80">{snippetOf(reply) || N.types[reply.type] || ''}</p>
+      </div>
+      <button type="button" onClick={onCancel} aria-label={N.cancel} className={`${K.btn} h-7 w-7 shrink-0`}>
+        <FiX size={14} aria-hidden="true" />
+      </button>
+    </div>
+  );
+});
+
+const RecorderBar = memo(({ N, secs, onCancel, onSend }) => (
+  <div className="flex items-center gap-3" role="status">
+    <button type="button" onClick={onCancel} aria-label={N.discard} className={`${K.btn} h-12 w-12 shrink-0`}>
+      <FiTrash2 size={18} aria-hidden="true" />
+    </button>
+    <div className={`${K.field} flex h-12 min-w-0 flex-1 items-center gap-3 px-4`}>
+      <span className="h-3 w-3 shrink-0 animate-pulse bg-red-500 motion-reduce:animate-none" aria-hidden="true" />
+      <span className="text-sm font-extrabold tabular-nums" dir="ltr">{fmtDur(secs)}</span>
+      <span className="truncate text-xs font-bold opacity-70">{N.record}</span>
+    </div>
+    <button type="button" onClick={onSend} aria-label={N.stopSend} className={`${K.btnA} h-12 w-12 shrink-0`}>
+      <FiSend size={18} className="rtl:-scale-x-100" aria-hidden="true" />
+    </button>
+  </div>
+));
+
+const Composer = memo(
+  ({
+    N, inputRef, placeholder, ariaLabel, sendLabel, liveNote, attachDisabled, authFatal, locating, recording, secs,
+    hasReply, isConnected, onSendText, onSendFile, onLocation, onContact, onCancelReply, onStartRec, onCancelRec, onSendRec,
+  }) => {
+    const [input, setInput] = useState('');
+    const valRef = useRef('');
+    valRef.current = input;
+
+    const canSend = !!input.trim();
+    const nearLimit = input.length > MAX_MSG_LEN * 0.9;
+
+    const send = useCallback(() => {
+      const text = valRef.current;
+      if (!text.trim()) return;
+      if (onSendText(text)) {
+        setInput('');
+        inputRef.current?.focus();
+      }
+    }, [onSendText, inputRef]);
+
+    const pickFile = useCallback(
+      (file) => {
+        onSendFile(file, valRef.current);
+        setInput('');
+      },
+      [onSendFile]
+    );
+
+    const handleKeyDown = useCallback(
+      (e) => {
+        if (e.key === 'Escape' && hasReply) {
+          e.stopPropagation();
+          onCancelReply();
+          return;
+        }
+        if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
+        e.preventDefault();
+        e.stopPropagation();
+        send();
+      },
+      [hasReply, onCancelReply, send]
+    );
+
+    const handleChange = useCallback((e) => setInput(e.target.value.slice(0, MAX_MSG_LEN)), []);
+
+    useEffect(() => {
+      const el = inputRef.current;
+      if (!el) return undefined;
+      const id = requestAnimationFrame(() => {
+        el.style.height = 'auto';
+        el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+      });
+      return () => cancelAnimationFrame(id);
+    }, [input, recording, inputRef]);
+
+    return (
+      <>
+        {recording ? (
+          <RecorderBar N={N} secs={secs} onCancel={onCancelRec} onSend={onSendRec} />
+        ) : (
+          <div className="flex items-end gap-3">
+            <AttachMenu N={N} onFile={pickFile} onLocation={onLocation} onContact={onContact} disabled={attachDisabled} />
+            <div className="nc-field min-w-0 flex-1">
+              <textarea
+                ref={inputRef}
+                dir="auto"
+                value={input}
+                onChange={handleChange}
+                onKeyDown={handleKeyDown}
+                placeholder={locating ? N.locating : placeholder}
+                aria-label={ariaLabel}
+                maxLength={MAX_MSG_LEN}
+                className="nc-scroll block max-h-40 w-full resize-none bg-transparent px-4 py-3.5 text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60"
+                rows={1}
+              />
+            </div>
+            {canSend ? (
+              <button type="button" onClick={send} aria-label={sendLabel} className="nc-btn nc-btn-a h-12 w-12 shrink-0">
+                <FiSend size={17} className="rtl:-scale-x-100" aria-hidden="true" />
+              </button>
+            ) : (
+              <button type="button" onClick={onStartRec} disabled={authFatal} aria-label={N.mic} className="nc-btn nc-btn-a h-12 w-12 shrink-0">
+                <FiMic size={17} aria-hidden="true" />
+              </button>
+            )}
+          </div>
+        )}
+
+        {!isConnected && !authFatal && (
+          <p className="mt-2 text-[11px] font-bold text-amber-600 dark:text-amber-400">{liveNote}</p>
+        )}
+        {nearLimit && (
+          <p className="nc-muted mt-1.5 text-end text-[11px] font-bold tabular-nums" dir="ltr">{input.length} / {MAX_MSG_LEN}</p>
+        )}
+      </>
+    );
+  }
+);
+
+const MediaPanel = memo(({ userId, shopId, onClose, N, fmt, mapItem }) => {
+  const [tab, setTab] = useState('MEDIA');
+  const [q, setQ] = useState('');
+  const [dq, setDq] = useState('');
+  const [items, setItems] = useState([]);
+  const [page, setPage] = useState(0);
+  const [last, setLast] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [counts, setCounts] = useState({});
+  const ctrlRef = useRef(null);
+
+  useEffect(() => {
+    const id = setTimeout(() => setDq(q.trim().slice(0, 100)), 300);
+    return () => clearTimeout(id);
+  }, [q]);
+
+  useEffect(() => {
+    const c = new AbortController();
+    rest.summary(userId, shopId, c.signal).then(({ data }) => setCounts(data || {})).catch(() => {});
+    return () => c.abort();
+  }, [userId, shopId]);
+
+  const load = useCallback(
+    (p) => {
+      ctrlRef.current?.abort();
+      const c = new AbortController();
+      ctrlRef.current = c;
+      setLoading(true);
+      rest
+        .media(userId, shopId, { category: tab, q: dq || undefined, page: p, size: 30 }, c.signal)
+        .then(({ data }) => {
+          if (c.signal.aborted) return;
+          const rows = (Array.isArray(data?.content) ? data.content : []).map(mapItem);
+          setItems((prev) => (p === 0 ? rows : [...prev, ...rows]));
+          setPage(p);
+          setLast(data?.last ?? rows.length < 30);
+        })
+        .catch(() => {
+          if (!c.signal.aborted && p === 0) setItems([]);
+        })
+        .finally(() => {
+          if (!c.signal.aborted) setLoading(false);
+        });
+    },
+    [userId, shopId, tab, dq, mapItem]
+  );
+
+  useEffect(() => {
+    load(0);
+    return () => ctrlRef.current?.abort();
+  }, [load]);
+
+  return (
+    <div role="dialog" aria-label={N.media} className={`${K.surface} absolute inset-0 z-30 flex flex-col`}>
+      <div className={`${K.line} flex items-center justify-between gap-3 border-b-[3px] px-4 py-4 sm:px-6`}>
+        <h3 className="text-base font-extrabold uppercase">{N.media}</h3>
+        <button type="button" onClick={onClose} aria-label={N.close} className={`${K.btn} h-10 w-10`}>
+          <FiX size={18} aria-hidden="true" />
+        </button>
+      </div>
+
+      <div className="px-4 pt-4 sm:px-6">
+        <div className={`${K.field} flex items-center gap-2 px-3`}>
+          <FiSearch size={16} aria-hidden="true" />
+          <input
+            value={q}
+            onChange={(e) => setQ(cleanText(e.target.value, 100))}
+            placeholder={N.search}
+            aria-label={N.search}
+            dir="auto"
+            className="h-11 min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none"
+          />
+        </div>
+        <div role="tablist" className={`${K.scroll} mt-4 flex gap-3 overflow-x-auto pb-3 pe-1`}>
+          {TAB_KEYS.map((k) => (
+            <button
+              key={k}
+              type="button"
+              role="tab"
+              aria-selected={tab === k}
+              onClick={() => setTab(k)}
+              className={`${tab === k ? K.btnA : K.btn} h-9 shrink-0 px-3 text-[11px] uppercase`}
+            >
+              {N.tabs[k]}
+              <span className="tabular-nums" dir="ltr">{counts[COUNT_KEY[k]] ?? 0}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className={`${K.scroll} flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6`}>
+        {items.length === 0 && !loading && <p className="py-10 text-center text-xs font-bold opacity-70">{N.empty}</p>}
+        {items.map((m) => (
+          <div key={m.id} className="nc-bubble nc-own p-3">
+            <MessageContent msg={m} N={N} showLinks />
+            <p className="mt-2 text-[10px] font-bold opacity-70">{fmt(m.createdAt)}</p>
+          </div>
+        ))}
+        {loading && (
+          <div role="status" className="flex justify-center py-6">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-[color:var(--nc-accent)] border-t-transparent motion-reduce:animate-none" />
+          </div>
+        )}
+        {!loading && !last && (
+          <div className="flex justify-center">
+            <button type="button" onClick={() => load(page + 1)} className={`${K.btn} h-9 px-4 text-[11px] uppercase`}>{N.loadMore}</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
 
 const NC_CSS = `
 .nc{--nc-dx:1;--nc-bg:#f9fafb;--nc-card:#ffffff;--nc-ink:#022c22;--nc-muted:#4b5563;--nc-line:#022c22;--nc-shadow:#022c22;--nc-gray:#f3f4f6;--nc-accent:#34d399;--nc-btn:#34d399;--nc-on:#022c22;--nc-dot:rgba(2,44,34,.18);--nc-thumb:#022c22;color:var(--nc-ink)}
@@ -107,6 +1000,11 @@ const PANEL_MOTION = {
   animate: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.26, ease: EASE } },
 };
 const PANEL_WILL_CHANGE = { willChange: 'transform, opacity' };
+const BUBBLE_ANIMATE = { opacity: 1, y: 0 };
+const BUBBLE_FRESH = { opacity: 0, y: 10 };
+const BUBBLE_TRANSITION = { duration: 0.15 };
+const ERROR_INITIAL = { y: -20, opacity: 0 };
+const ERROR_ANIMATE = { y: 0, opacity: 1 };
 
 const SHADOW = 'fill-black/5 dark:fill-white/5';
 const BODY = 'fill-gray-100 stroke-gray-300 dark:fill-[#1e1e1e] dark:stroke-neutral-600';
@@ -185,74 +1083,91 @@ const EmptyHero = memo(({ variant, title, sub }) => {
   );
 });
 
-const SessionItem = memo(({ session, isActive, onSelect, name, lang, readyLabel }) => (
-  <div
-    onClick={() => onSelect(session)}
-    role="button"
-    tabIndex={0}
-    aria-current={isActive ? 'true' : undefined}
-    onKeyDown={(e) => {
-      if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
-        e.preventDefault();
-        onSelect(session);
-      }
-    }}
-    className={clsx('nc-row mb-4 cursor-pointer select-none p-3 text-start', isActive && 'nc-row-on')}
-  >
-    <div className="flex items-center gap-3">
-      <div className={clsx('nc-chip h-11 w-11 shrink-0 text-sm', isActive && '!bg-[color:var(--nc-card)] !text-[color:var(--nc-ink)]')}>
-        {initial(name)}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-2">
-          <h4 className="truncate text-xs font-extrabold uppercase">{name}</h4>
-          {session.unreadCount > 0 && (
-            <span className={clsx('nc-chip h-5 min-w-[20px] shrink-0 px-1.5 text-[10px]', isActive && '!bg-[color:var(--nc-card)] !text-[color:var(--nc-ink)]')}>
-              {session.unreadCount}
-            </span>
-          )}
-        </div>
-        <div className="mt-1 flex items-center justify-between gap-2">
-          <p className={clsx('max-w-[130px] truncate text-[11px] font-semibold', isActive ? 'opacity-90' : 'nc-muted')} dir="auto">
-            {session.lastMessage?.message ? cleanText(session.lastMessage.message, 80) : readyLabel}
-          </p>
-          {session.lastMessage?.createdAt && (
-            <span className={clsx('shrink-0 text-[10px] font-bold', isActive ? 'opacity-90' : 'nc-muted')}>{formatTime(session.lastMessage.createdAt, lang)}</span>
-          )}
-        </div>
-      </div>
-    </div>
+const Spinner = memo(({ label }) => (
+  <div className="flex justify-center py-20">
+    <div className="h-9 w-9 animate-spin rounded-full border-4 border-[color:var(--nc-accent)] border-t-transparent motion-reduce:animate-none" role="status" aria-label={label} />
   </div>
 ));
 
-const MessageBubble = memo(({ msg, isOwn, onRetry, lang, retryLabel, fbInitial }) => {
+const SessionItem = memo(({ session, isActive, onSelect, name, lang, readyLabel, N }) => {
+  const handleKey = (e) => {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
+      e.preventDefault();
+      onSelect(session);
+    }
+  };
+  return (
+    <div
+      onClick={() => onSelect(session)}
+      role="button"
+      tabIndex={0}
+      aria-current={isActive ? 'true' : undefined}
+      onKeyDown={handleKey}
+      className={clsx('nc-row mb-4 cursor-pointer select-none p-3 text-start [content-visibility:auto] [contain-intrinsic-size:auto_80px]', isActive && 'nc-row-on')}
+    >
+      <div className="flex items-center gap-3">
+        <div className={clsx('nc-chip h-11 w-11 shrink-0 text-sm', isActive && '!bg-[color:var(--nc-card)] !text-[color:var(--nc-ink)]')}>
+          {initial(name)}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="truncate text-xs font-extrabold uppercase" dir="auto">
+              {session.favourite && <FiStar size={11} className="me-1 -mt-0.5 inline" fill="currentColor" aria-hidden="true" />}
+              {name}
+            </h4>
+            {session.unreadCount > 0 && (
+              <span className={clsx('nc-chip h-5 min-w-[20px] shrink-0 px-1.5 text-[10px]', isActive && '!bg-[color:var(--nc-card)] !text-[color:var(--nc-ink)]')}>
+                {session.unreadCount}
+              </span>
+            )}
+          </div>
+          <div className="mt-1 flex items-center justify-between gap-2">
+            <p className={clsx('min-w-0 flex-1 truncate text-[11px] font-semibold', isActive ? 'opacity-90' : 'nc-muted')} dir="auto">
+              {previewText(session.lastMessage, N, readyLabel)}
+            </p>
+            {session.lastMessage?.createdAt && (
+              <span className={clsx('shrink-0 text-[10px] font-bold', isActive ? 'opacity-90' : 'nc-muted')}>{formatTime(session.lastMessage.createdAt, lang)}</span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const MessageBubble = memo(({ msg, isOwn, onRetry, onReply, onDelete, onJump, N, fmt, retryLabel, fbInitial }) => {
   const failed = !!msg._failed;
+  const canMenu = !msg._optimistic && !failed;
   return (
     <m.div
-      initial={msg._fresh ? { opacity: 0, y: 10 } : false}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.15 }}
+      data-mid={msg.id}
+      initial={msg._fresh ? BUBBLE_FRESH : false}
+      animate={BUBBLE_ANIMATE}
+      transition={BUBBLE_TRANSITION}
       className={clsx('mb-5 flex w-full items-end gap-3', isOwn ? 'flex-row-reverse' : 'flex-row')}
     >
       <div aria-hidden="true" className={clsx('nc-chip h-8 w-8 shrink-0 text-[11px]', isOwn && '!bg-[color:var(--nc-ink)] !text-[color:var(--nc-card)]')}>
         {initial(msg.senderName, fbInitial)}
       </div>
 
-      <div className={clsx('flex max-w-[80%] flex-col', isOwn ? 'items-end' : 'items-start')}>
-        <div className={clsx('nc-bubble relative px-4 py-3 text-start', failed ? 'nc-fail' : isOwn ? 'nc-own' : 'nc-shop', msg._optimistic && !failed && 'opacity-70')}>
-          <div dir="auto" className="whitespace-pre-wrap break-words text-sm font-semibold leading-relaxed">{msg.content}</div>
+      <div className={clsx('flex min-w-0 max-w-[80%] flex-col', isOwn ? 'items-end' : 'items-start')}>
+        <div className={clsx('nc-bubble relative max-w-full px-4 py-3 text-start', failed ? 'nc-fail' : isOwn ? 'nc-own' : 'nc-shop', msg._optimistic && !failed && 'opacity-70')}>
+          {msg.replyTo && !msg.deleted && <ReplyQuote reply={msg.replyTo} N={N} onJump={onJump} />}
+          <MessageContent msg={msg} N={N} />
           <div className={clsx('mt-2 flex items-center gap-1.5 text-[10px] font-bold', isOwn ? 'justify-end' : 'justify-start', !failed && (isOwn ? 'nc-muted' : 'opacity-90'))}>
-            {isOwn && !failed && <FiCheckCircle size={11} className={msg.read ? 'text-emerald-500 dark:text-[#39ff88]' : 'opacity-50'} />}
-            {failed && <FiAlertCircle size={11} />}
-            <span>{formatTime(msg.createdAt, lang)}</span>
+            {isOwn && !failed && !msg.deleted && <FiCheckCircle size={11} className={msg.read ? 'text-emerald-500 dark:text-[#39ff88]' : 'opacity-50'} aria-hidden="true" />}
+            {failed && <FiAlertCircle size={11} aria-hidden="true" />}
+            <span>{fmt(msg.createdAt)}</span>
           </div>
         </div>
         {failed && (
           <button type="button" onClick={() => onRetry?.(msg)} className="mt-2 flex items-center gap-1 text-[11px] font-extrabold uppercase text-red-600 underline underline-offset-4 dark:text-red-400">
-            <FiRefreshCw size={11} /> {retryLabel}
+            <FiRefreshCw size={11} aria-hidden="true" /> {retryLabel}
           </button>
         )}
       </div>
+
+      {canMenu && <MessageMenu msg={msg} N={N} onReply={onReply} onDelete={onDelete} />}
     </m.div>
   );
 });
@@ -263,6 +1178,8 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
   const dir = i18n.dir(lang);
   const font = useLangFont(lang);
   const isAr = lang.startsWith('ar');
+  const N = isAr ? NEW_AR : NEW_EN;
+  const fmt = useCallback((iso) => formatTime(iso, lang), [lang]);
 
   const accessToken = useAuthStore((s) => s.accessToken);
   const storeUserId = useAuthStore((s) => s.userId);
@@ -292,15 +1209,22 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
   const [sessions, setSessions] = useState([]);
   const [activeSession, setActiveSession] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
+  const [msgLimit, setMsgLimit] = useState(MAX_RENDERED_MSGS);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isLoadingSessions, setIsLoadingSessions] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [totalUnread, setTotalUnread] = useState(0);
   const [confirmClose, setConfirmClose] = useState(false);
   const [error, setError] = useState(null);
+  const [replyTo, setReplyTo] = useState(null);
+  const [contactOpen, setContactOpen] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [mediaOpen, setMediaOpen] = useState(false);
+  const [favOnly, setFavOnly] = useState(false);
 
   const messagesEndRef = useRef(null);
+  const scrollerRef = useRef(null);
+  const stickRef = useRef(true);
   const prevLenRef = useRef(0);
   const inputRef = useRef(null);
   const recentSentRef = useRef(new Set());
@@ -309,15 +1233,33 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
   const hasConnectedRef = useRef(false);
   const autoSelectedRef = useRef(null);
   const unreadTimerRef = useRef(null);
-  const pollBusyRef = useRef(false);
+  const mountedRef = useRef(true);
+  const closingRef = useRef(false);
+  const sessionsSeq = useRef(0);
+  const sessionsFlight = useRef(false);
+  const sessionsQueued = useRef(false);
+  const msgsSeq = useRef(0);
+  const msgsFlight = useRef(null);
+  const msgsQueued = useRef(false);
+  const fetchSessionsRef = useRef(null);
+  const fetchMessagesRef = useRef(null);
   const activeSessionRef = useRef(null);
   const sessionsRef = useRef([]);
+  const replyRef = useRef(null);
+  const nRef = useRef(N);
   const initialShopRef = useRef({ id: null, name: '' });
   const onUnreadChangeRef = useRef(onUnreadChange);
   activeSessionRef.current = activeSession;
   sessionsRef.current = sessions;
+  replyRef.current = replyTo;
+  nRef.current = N;
   onUnreadChangeRef.current = onUnreadChange;
   initialShopRef.current = { id: initialShopId ? String(initialShopId) : null, name: cleanText(initialShopName || '', 80) };
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   useEffect(() => {
     if (!error) return undefined;
@@ -360,10 +1302,10 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
       try {
         const { data } = await chatApi.unreadCount(userProfile.id);
         const n = parseCount(data);
+        if (!mountedRef.current) return;
         setTotalUnread(n);
         onUnreadChangeRef.current?.(n);
-      } catch {
-      }
+      } catch {}
     }, 300);
   }, [userProfile.id]);
 
@@ -372,81 +1314,148 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
       id: msg.id,
       content: cleanText(msg.message ?? msg.content, MAX_MSG_LEN * 2),
       senderType: msg.sentBy === 'SHOP' ? 'SHOP' : 'USER',
-      senderName: msg.sentBy === 'SHOP' ? msg.shopName || session.shopName || '' : msg.userName || userProfile.email,
-      createdAt: msg.createdAt || new Date().toISOString(),
+      senderName: msg.sentBy === 'SHOP' ? cleanText(msg.shopName || session?.shopName || '', 80) : cleanText(msg.userName || userProfile.email, 80),
+      createdAt: toIso(msg.createdAt) || new Date().toISOString(),
       read: !!msg.read,
+      ...extraFields(msg),
     }),
     [userProfile.email]
   );
 
+  const markDeleted = useCallback((id) => {
+    setMessages((prev) => prev.map((x) => (String(x.id) === String(id) ? { ...x, ...DELETED_PATCH } : x)));
+    setSessions((prev) =>
+      prev.map((s) =>
+        s.lastMessage?.id != null && String(s.lastMessage.id) === String(id)
+          ? { ...s, lastMessage: { ...s.lastMessage, deleted: true } }
+          : s
+      )
+    );
+  }, []);
+
   const fetchSessions = useCallback(async (silent = false) => {
-    if (!userProfile.id) return;
+    if (!userProfile.id) return true;
+    if (silent && sessionsFlight.current) {
+      sessionsQueued.current = true;
+      return true;
+    }
+    const seq = ++sessionsSeq.current;
+    sessionsFlight.current = true;
     if (!silent) setIsLoadingSessions(true);
+    let ok = true;
+
     const build = (raw) => {
       const list = raw.map((s) => ({
         id: s.id,
         shopId: String(s.shopId),
         shopName: cleanText(s.shopName || s.shopEmail || '', 80),
         userId: s.userId,
-        createdAt: s.createdAt,
-        lastMessage: s.lastMessage || null,
-        unreadCount: s.unreadCount || 0,
+        createdAt: toIso(s.createdAt),
+        lastMessage: s.lastMessage ? { ...s.lastMessage, createdAt: toIso(s.lastMessage.createdAt) } : null,
+        unreadCount: Number(s.unreadCount) || 0,
+        favourite: !!s.favourite,
       }));
       const want = initialShopRef.current;
       if (want.id && !list.some((s) => s.shopId === want.id)) {
-        list.unshift({ id: null, shopId: want.id, shopName: want.name, userId: userProfile.id, createdAt: new Date().toISOString(), lastMessage: null, unreadCount: 0 });
+        list.unshift({ id: null, shopId: want.id, shopName: want.name, userId: userProfile.id, createdAt: new Date().toISOString(), lastMessage: null, unreadCount: 0, favourite: false });
       }
       return list;
     };
+
     try {
       const res = await chatApi.mySessions();
-      setSessions(build(Array.isArray(res.data) ? res.data : res.data?.content || []));
+      if (!mountedRef.current || seq !== sessionsSeq.current) return true;
+      const next = build(Array.isArray(res.data) ? res.data : res.data?.content || []);
+      setSessions((prev) => (sameSessions(prev, next) ? prev : next));
       refreshUnread();
     } catch (err) {
+      if (!mountedRef.current || seq !== sessionsSeq.current) return true;
       if (err?.response?.status === 404) {
-        setSessions(build([]));
+        const next = build([]);
+        setSessions((prev) => (sameSessions(prev, next) ? prev : next));
       } else {
+        ok = false;
         setSessions((prev) => (prev.length ? prev : build([])));
         if (!silent) setError(ERR.loadChats);
       }
     } finally {
-      if (!silent) setIsLoadingSessions(false);
+      if (!silent && mountedRef.current) setIsLoadingSessions(false);
+      if (seq === sessionsSeq.current) {
+        sessionsFlight.current = false;
+        if (sessionsQueued.current && mountedRef.current) {
+          sessionsQueued.current = false;
+          fetchSessionsRef.current?.(true);
+        }
+      }
     }
+    return ok;
   }, [userProfile.id, refreshUnread]);
+  fetchSessionsRef.current = fetchSessions;
 
   const fetchMessages = useCallback(async (session, silent = false) => {
-    if (!session || !userProfile.id) return;
+    if (!session || !userProfile.id) return true;
+    const key = String(session.shopId);
+    if (silent && msgsFlight.current === key) {
+      msgsQueued.current = true;
+      return true;
+    }
+    const seq = ++msgsSeq.current;
+    msgsFlight.current = key;
     if (!silent) setIsLoadingMessages(true);
-    const stale = () => activeSessionRef.current?.shopId !== session.shopId;
+    const stale = () =>
+      !mountedRef.current || seq !== msgsSeq.current || String(activeSessionRef.current?.shopId) !== key;
+    let ok = true;
+
     try {
       const { data } = await chatApi.messages(userProfile.id, session.shopId);
-      if (stale()) return;
+      if (stale()) return true;
       const raw = Array.isArray(data) ? data : data?.content || [];
-      const msgs = raw.map((x) => toUiMessage(x, session)).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      const msgs = raw.map((x) => toUiMessage(x, session)).sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
 
       seenMsgIdsRef.current = new Set(msgs.map((x) => x.id));
       setMessages((prev) => {
         const next = [...msgs, ...prev.filter((x) => x._optimistic || x._failed)];
-        if (silent && prev.length === next.length && prev.every((x, i) => x.id === next[i].id && x.read === next[i].read)) return prev;
-        return next;
+        if (
+          silent &&
+          prev.length === next.length &&
+          prev.every((x, i) => x.id === next[i].id && x.read === next[i].read && x.deleted === next[i].deleted && x.content === next[i].content)
+        ) {
+          return prev;
+        }
+        const keys = new Map(prev.map((x) => [String(x.id), x._key]));
+        return next.map((x) => (keys.get(String(x.id)) ? { ...x, _key: keys.get(String(x.id)) } : x));
       });
       if (!silent) setError(null);
       if (msgs.some((x) => x.senderType === 'SHOP' && !x.read)) {
         chatApi.markRead(userProfile.id, session.shopId).then(refreshUnread).catch(() => {});
-        setSessions((prev) => prev.map((s) => (s.shopId === session.shopId ? { ...s, unreadCount: 0 } : s)));
+        setSessions((prev) =>
+          prev.some((s) => s.shopId === key && s.unreadCount)
+            ? prev.map((s) => (s.shopId === key ? { ...s, unreadCount: 0 } : s))
+            : prev
+        );
       }
     } catch (err) {
-      if (stale()) return;
+      if (stale()) return true;
       if (err?.response?.status === 404 || session.id == null) {
         setMessages((prev) => prev.filter((x) => x._optimistic || x._failed));
         if (!silent) setError(null);
-      } else if (!silent) {
-        setError(ERR.loadMessages);
+      } else {
+        ok = false;
+        if (!silent) setError(ERR.loadMessages);
       }
     } finally {
-      if (!silent && !stale()) setIsLoadingMessages(false);
+      if (seq === msgsSeq.current) {
+        msgsFlight.current = null;
+        if (!silent && mountedRef.current) setIsLoadingMessages(false);
+        if (msgsQueued.current && mountedRef.current && activeSessionRef.current) {
+          msgsQueued.current = false;
+          fetchMessagesRef.current?.(activeSessionRef.current, true);
+        }
+      }
     }
+    return ok;
   }, [userProfile.id, toUiMessage, refreshUnread]);
+  fetchMessagesRef.current = fetchMessages;
 
   const handleConnect = useCallback(() => {
     setError(null);
@@ -462,6 +1471,8 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
     onConnect: handleConnect,
   });
 
+  const isAuthFatal = status === 'auth-error' || status === 'account-changed';
+
   useEffect(() => {
     if (!open) {
       hasConnectedRef.current = false;
@@ -471,6 +1482,8 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
       setActiveSession(null);
       setMessages([]);
       setIsSidebarOpen(true);
+      setReplyTo(null);
+      setMediaOpen(false);
       return;
     }
     if (!userProfile.id) {
@@ -494,6 +1507,7 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
         createdAt: new Date().toISOString(),
         lastMessage: null,
         unreadCount: 0,
+        favourite: false,
       };
     setSessions((prev) => (prev.some((x) => x.shopId === wanted) ? prev : [target, ...prev]));
     setActiveSession(target);
@@ -503,7 +1517,13 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
   useEffect(() => {
     if (!activeSession) return;
     setMessages([]);
+    setMsgLimit(MAX_RENDERED_MSGS);
     setConfirmClose(false);
+    setReplyTo(null);
+    setContactOpen(false);
+    setMediaOpen(false);
+    stickRef.current = true;
+    prevLenRef.current = 0;
     fetchMessages(activeSession);
   }, [activeSession?.shopId, fetchMessages]);
 
@@ -511,30 +1531,35 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
     if (!open) return undefined;
     const resync = () => {
       if (document.visibilityState !== 'visible') return;
-      fetchSessions(true);
-      if (activeSessionRef.current) fetchMessages(activeSessionRef.current, true);
+      fetchSessionsRef.current?.(true);
+      if (activeSessionRef.current) fetchMessagesRef.current?.(activeSessionRef.current, true);
     };
     document.addEventListener('visibilitychange', resync);
     return () => document.removeEventListener('visibilitychange', resync);
-  }, [open, fetchSessions, fetchMessages]);
+  }, [open]);
 
-  const pollingNeeded = open && !!userProfile.id && !isConnected && status !== 'auth-error' && status !== 'account-changed';
+  const pollingNeeded = open && !!userProfile.id && !isConnected && !isAuthFatal;
   useEffect(() => {
     if (!pollingNeeded) return undefined;
-    const timer = setInterval(async () => {
-      if (document.visibilityState !== 'visible' || pollBusyRef.current) return;
-      pollBusyRef.current = true;
-      try {
-        await Promise.all([
-          fetchSessions(true),
-          activeSessionRef.current ? fetchMessages(activeSessionRef.current, true) : null,
+    let timer;
+    let stopped = false;
+    let fails = 0;
+    const run = async () => {
+      if (document.visibilityState === 'visible') {
+        const results = await Promise.all([
+          fetchSessionsRef.current?.(true),
+          activeSessionRef.current ? fetchMessagesRef.current?.(activeSessionRef.current, true) : true,
         ]);
-      } finally {
-        pollBusyRef.current = false;
+        fails = results.every((r) => r !== false) ? 0 : Math.min(fails + 1, MAX_BACKOFF_STEPS);
       }
-    }, POLL_MS);
-    return () => clearInterval(timer);
-  }, [pollingNeeded, fetchSessions, fetchMessages]);
+      if (!stopped) timer = setTimeout(run, POLL_MS * 2 ** fails);
+    };
+    timer = setTimeout(run, POLL_MS);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [pollingNeeded]);
 
   const makeHandler = useCallback((fallbackShopId) => (frame) => {
     let body;
@@ -543,11 +1568,19 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
     } catch {
       return;
     }
-    if (body?.type !== 'CHAT' || body?.action !== 'SEND' || body?.status !== 'SUCCESS') return;
+    if (body?.type !== 'CHAT' || body?.status !== 'SUCCESS') return;
     const p = body.payload || {};
     if (p.userId != null && String(p.userId) !== String(userProfile.id)) return;
 
+    const action = body.action;
+    if (action === 'DELETE') {
+      if (p.id != null) markDeleted(p.id);
+      return;
+    }
+    if (action !== 'SEND') return;
+
     const serverId = p.id;
+    if (serverId != null && typeof serverId !== 'string' && typeof serverId !== 'number') return;
     if (serverId != null && seenMsgIdsRef.current.has(serverId)) return;
 
     const content = cleanText(p.message ?? p.content, MAX_MSG_LEN * 2);
@@ -567,26 +1600,28 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
       fetchSessions(true);
       return;
     }
-    if (serverId != null) seenMsgIdsRef.current.add(serverId);
+    if (serverId != null) {
+      seenMsgIdsRef.current.add(serverId);
+      trimSet(seenMsgIdsRef.current, MAX_SEEN_IDS);
+    }
 
     const session = activeSessionRef.current;
-    const isActive = session?.shopId === shopId;
-    const createdAt = p.createdAt || new Date().toISOString();
+    const isActive = String(session?.shopId) === shopId;
+    const createdAt = toIso(p.createdAt) || new Date().toISOString();
+    const msgType = KNOWN_TYPES.has(p.messageType) ? p.messageType : 'TEXT';
 
     if (isActive) {
       const newMsg = {
+        ...toUiMessage({ ...p, sentBy: senderIsUser ? 'USER' : 'SHOP', createdAt }, session),
         id: serverId ?? `ws-${makeClientMsgId()}`,
-        content,
-        senderType: senderIsUser ? 'USER' : 'SHOP',
-        senderName: senderIsUser ? userProfile.email : p.shopName || session.shopName || '',
-        createdAt,
-        read: senderIsUser,
         _fresh: true,
       };
       const pending = p.clientMsgId ? pendingSendsRef.current.get(p.clientMsgId) : null;
       setMessages((prev) => {
         let idx = pending ? prev.findIndex((x) => x.id === pending.optimisticId) : -1;
-        if (idx === -1 && senderIsUser) idx = prev.findIndex((x) => (x._optimistic || x._failed) && x.content === content);
+        if (idx === -1 && senderIsUser && msgType === 'TEXT') {
+          idx = prev.findIndex((x) => (x._optimistic || x._failed) && x.type === 'TEXT' && x.content === content);
+        }
         if (idx !== -1) {
           const next = prev.slice();
           next[idx] = { ...newMsg, _fresh: false, _key: prev[idx]._key ?? prev[idx].id };
@@ -611,19 +1646,19 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
           s.shopId === shopId
             ? {
                 ...s,
-                lastMessage: { message: content, sentBy: senderIsUser ? 'USER' : 'SHOP', createdAt },
+                lastMessage: { id: serverId, message: content, messageType: msgType, sentBy: senderIsUser ? 'USER' : 'SHOP', createdAt },
                 unreadCount: senderIsUser || isActive ? 0 : (s.unreadCount || 0) + 1,
               }
             : s
         )
       );
     }
-  }, [userProfile.id, userProfile.email, fetchSessions, refreshUnread]);
+  }, [userProfile.id, fetchSessions, refreshUnread, toUiMessage, markDeleted]);
 
   useEffect(() => {
     if (!client || !isConnected || !userProfile.id) return undefined;
     const sub = client.subscribe(`/topic/user/${enc(userProfile.id)}/chats`, makeHandler(null));
-    return () => { try { sub.unsubscribe(); } catch { } };
+    return () => { try { sub.unsubscribe(); } catch {} };
   }, [client, isConnected, userProfile.id, makeHandler]);
 
   const activeShopId = activeSession?.shopId;
@@ -631,32 +1666,71 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
   useEffect(() => {
     if (!client || !isConnected || !activeShopId || !activeUserId) return undefined;
     const sub = client.subscribe(`/topic/chat/${enc(activeUserId)}/${enc(activeShopId)}`, makeHandler(activeShopId));
-    return () => { try { sub.unsubscribe(); } catch { } };
+    return () => { try { sub.unsubscribe(); } catch {} };
   }, [client, isConnected, activeShopId, activeUserId, makeHandler]);
 
-  const dispatchMessage = useCallback((raw) => {
-    const text = cleanText(String(raw || '').trim());
-    const session = activeSessionRef.current;
-    if (!text || !session) return false;
+  const reconcile = useCallback((optimisticId, saved) => {
+    if (saved) {
+      seenMsgIdsRef.current.add(saved.id);
+      trimSet(seenMsgIdsRef.current, MAX_SEEN_IDS);
+    }
+    setMessages((prev) => {
+      if (!saved) return prev.map((x) => (x.id === optimisticId ? { ...x, _optimistic: false, _fresh: false } : x));
+      if (prev.some((x) => x.id === saved.id)) return prev.filter((x) => x.id !== optimisticId);
+      return prev.map((x) => (x.id === optimisticId ? { ...saved, read: false, _key: x._key ?? optimisticId } : x));
+    });
+  }, []);
 
-    if (status === 'auth-error' || status === 'account-changed') {
+  const dispatchMessage = useCallback((draft) => {
+    const session = activeSessionRef.current;
+    const type = draft.type || 'TEXT';
+    const text = cleanText(String(draft.message || '').trim());
+    if (!session || (type === 'TEXT' && !text)) return false;
+
+    if (isAuthFatal) {
       setError(`chat.sendBlocked.${status}`);
       return false;
     }
 
+    const isRetry = 'replyTo' in draft;
+    const replyPrev = isRetry ? draft.replyTo : replyRef.current ? previewOf(replyRef.current) : null;
+    if (!isRetry) setReplyTo(null);
+
     const clientMsgId = makeClientMsgId();
     const optimisticId = `opt-${clientMsgId}`;
     const createdAt = new Date().toISOString();
-    const markFailed = () =>
-      setMessages((prev) => prev.map((x) => (x.id === optimisticId ? { ...x, _optimistic: false, _failed: true, _fresh: false } : x)));
+    const saved = { message: text, type, location: draft.location, contact: draft.contact, replyTo: replyPrev };
 
-    setMessages((prev) => [...prev, { id: optimisticId, content: text, senderType: 'USER', senderName: userProfile.email, createdAt, read: false, _optimistic: true, _fresh: true }]);
+    const markFailed = () =>
+      setMessages((prev) => prev.map((x) => (x.id === optimisticId ? { ...x, _optimistic: false, _failed: true, _fresh: false, _draft: saved } : x)));
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: optimisticId, _key: optimisticId, content: text, senderType: 'USER', senderName: userProfile.email, createdAt,
+        read: false, _optimistic: true, _fresh: true, type, deleted: false, attachment: null,
+        location: draft.location ? { address: '', label: '', ...draft.location } : null,
+        contact: draft.contact || null, replyTo: replyPrev, links: [],
+      },
+    ]);
     setSessions((prev) =>
-      prev.map((s) => (s.shopId === session.shopId ? { ...s, lastMessage: { message: text, sentBy: 'USER', createdAt }, unreadCount: 0 } : s))
+      prev.map((s) => (s.shopId === String(session.shopId) ? { ...s, lastMessage: { message: text, messageType: type, sentBy: 'USER', createdAt }, unreadCount: 0 } : s))
     );
 
+    const payload = {
+      message: text,
+      clientMsgId,
+      type,
+      ...(draft.location ? { location: draft.location } : {}),
+      ...(draft.contact ? { contact: draft.contact } : {}),
+      ...(replyPrev?.id ? { replyToMessageId: replyPrev.id } : {}),
+    };
+
     if (isConnected && client) {
-      recentSentRef.current.add(text);
+      if (type === 'TEXT') {
+        recentSentRef.current.add(text);
+        trimSet(recentSentRef.current, MAX_RECENT_SENT);
+      }
       const timeoutId = setTimeout(() => {
         pendingSendsRef.current.delete(clientMsgId);
         recentSentRef.current.delete(text);
@@ -669,7 +1743,7 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
           destination: `/app/chat/user/${enc(userProfile.id)}/shop/${enc(session.shopId)}`,
           headers: { Authorization: authHeader() },
           body: JSON.stringify({
-            payload: text, senderId: userProfile.id, senderType: 'USER', sentBy: 'USER',
+            payload, senderId: userProfile.id, senderType: 'USER', sentBy: 'USER',
             recipientId: session.shopId, clientMsgId,
           }),
         });
@@ -683,43 +1757,180 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
       return true;
     }
 
-    chatApi
-      .sendMessage(userProfile.id, session.shopId, { message: text, sentBy: 'USER', clientMsgId })
-      .then(({ data }) => {
-        const saved = data && typeof data === 'object' && data.id != null ? toUiMessage({ sentBy: 'USER', ...data }, session) : null;
-        if (saved) seenMsgIdsRef.current.add(saved.id);
-        setMessages((prev) =>
-          prev.map((x) => (x.id === optimisticId ? (saved ? { ...saved, read: false, _key: optimisticId } : { ...x, _optimistic: false, _fresh: false }) : x))
-        );
-      })
+    rest
+      .send(userProfile.id, session.shopId, payload)
+      .then(({ data }) =>
+        reconcile(optimisticId, data && typeof data === 'object' && data.id != null ? toUiMessage({ sentBy: 'USER', ...data }, session) : null)
+      )
       .catch(() => {
         markFailed();
         setError(ERR.send);
       });
     return true;
-  }, [client, isConnected, status, authHeader, toUiMessage, userProfile.id, userProfile.email]);
+  }, [client, isConnected, status, isAuthFatal, authHeader, toUiMessage, reconcile, userProfile.id, userProfile.email]);
 
-  const sendMessage = useCallback(() => {
-    if (!input.trim()) return;
-    if (dispatchMessage(input)) {
-      setInput('');
-      inputRef.current?.focus();
+  const sendFile = useCallback((file, opts = {}) => {
+    const session = activeSessionRef.current;
+    if (!file || !session) return;
+
+    if (isAuthFatal) {
+      setError(`chat.sendBlocked.${status}`);
+      return;
     }
-  }, [input, dispatchMessage]);
+    if (file.size > MAX_FILE_BYTES) {
+      setError(nRef.current.errors.fileTooBig);
+      return;
+    }
+    if (BLOCKED_EXT.test(file.name) || BLOCKED_MIME.test(file.type || '')) {
+      setError(nRef.current.errors.fileBad);
+      return;
+    }
 
-  const handleRetry = useCallback((failedMsg) => {
-    setMessages((prev) => prev.filter((x) => x.id !== failedMsg.id));
-    dispatchMessage(failedMsg.content);
+    const isRetry = 'replyTo' in opts;
+    const replyPrev = isRetry ? opts.replyTo : replyRef.current ? previewOf(replyRef.current) : null;
+    if (!isRetry) setReplyTo(null);
+
+    const clientMsgId = makeClientMsgId();
+    const optimisticId = `opt-${clientMsgId}`;
+    const caption = cleanText(opts.caption || '').trim();
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: optimisticId, _key: optimisticId, content: caption, senderType: 'USER', senderName: userProfile.email,
+        createdAt: new Date().toISOString(), read: false, _optimistic: true, _fresh: true, _progress: 0,
+        type: opts.voice ? 'VOICE' : kindOf(file), deleted: false,
+        attachment: { name: cleanText(file.name, 120), mime: file.type, size: file.size, duration: opts.seconds || 0 },
+        location: null, contact: null, replyTo: replyPrev, links: [],
+      },
+    ]);
+    stickRef.current = true;
+
+    const fd = new FormData();
+    fd.append('file', file, safeFileName(file.name));
+    if (caption) fd.append('caption', caption);
+    if (replyPrev?.id) fd.append('replyToMessageId', String(replyPrev.id));
+    if (opts.voice) {
+      fd.append('voice', 'true');
+      fd.append('durationSeconds', String(Math.max(1, Math.round(opts.seconds || 0))));
+    }
+    fd.append('clientMsgId', clientMsgId);
+
+    rest
+      .upload(userProfile.id, session.shopId, fd, (e) => {
+        if (!e.total) return;
+        const pct = Math.min(99, Math.round((e.loaded * 100) / e.total));
+        setMessages((prev) => prev.map((x) => (x.id === optimisticId && pct - (x._progress || 0) >= 5 ? { ...x, _progress: pct } : x)));
+      })
+      .then(({ data }) =>
+        reconcile(optimisticId, data && typeof data === 'object' && data.id != null ? toUiMessage({ sentBy: 'USER', ...data }, session) : null)
+      )
+      .catch(() => {
+        setMessages((prev) =>
+          prev.map((x) =>
+            x.id === optimisticId
+              ? { ...x, _optimistic: false, _failed: true, _fresh: false, _file: file, _opts: { ...opts, replyTo: replyPrev } }
+              : x
+          )
+        );
+        setError(ERR.send);
+      });
+  }, [isAuthFatal, status, reconcile, toUiMessage, userProfile.id, userProfile.email]);
+
+  const { recording, secs, start: startRecording, stop: stopRecording } = useRecorder({
+    onFinish: (blob, seconds) => {
+      const type = (blob.type || 'audio/webm').split(';')[0];
+      const ext = type.includes('mp4') ? 'm4a' : type.includes('ogg') ? 'ogg' : 'webm';
+      sendFile(new File([blob], `voice-${Date.now()}.${ext}`, { type }), { voice: true, seconds: seconds || 1 });
+    },
+    onError: (kind) => setError(kind === 'denied' ? nRef.current.errors.micDenied : nRef.current.errors.micUnsupported),
+  });
+
+  const cancelRecording = useCallback(() => stopRecording(false), [stopRecording]);
+  const sendRecording = useCallback(() => stopRecording(true), [stopRecording]);
+
+  const handleSendText = useCallback(
+    (text) => {
+      const ok = dispatchMessage({ message: text });
+      if (ok) stickRef.current = true;
+      return ok;
+    },
+    [dispatchMessage]
+  );
+
+  const handleSendFile = useCallback((file, caption) => sendFile(file, { caption }), [sendFile]);
+
+  const shareLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setError(nRef.current.errors.locFail);
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        if (!mountedRef.current) return;
+        setLocating(false);
+        dispatchMessage({
+          type: 'LOCATION',
+          location: { latitude: Number(pos.coords.latitude.toFixed(6)), longitude: Number(pos.coords.longitude.toFixed(6)) },
+        });
+        stickRef.current = true;
+      },
+      () => {
+        if (!mountedRef.current) return;
+        setLocating(false);
+        setError(nRef.current.errors.locFail);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
   }, [dispatchMessage]);
 
-  const handleInputKeyDown = useCallback((e) => {
-    if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
-    e.preventDefault();
-    e.stopPropagation();
-    sendMessage();
-  }, [sendMessage]);
+  const submitContact = useCallback((contact) => {
+    setContactOpen(false);
+    dispatchMessage({ type: 'CONTACT', contact });
+    stickRef.current = true;
+  }, [dispatchMessage]);
 
-  const handleInputChange = useCallback((e) => setInput(e.target.value.slice(0, MAX_MSG_LEN)), []);
+  const cancelReply = useCallback(() => setReplyTo(null), []);
+
+  const handleReply = useCallback((msg) => {
+    setReplyTo(msg);
+    inputRef.current?.focus();
+  }, []);
+
+  const handleDelete = useCallback(async (msg) => {
+    const s = activeSessionRef.current;
+    if (!s) return;
+    try {
+      await rest.remove(userProfile.id, s.shopId, msg.id);
+      setMessages((prev) => prev.filter((x) => x.id !== msg.id));
+    } catch {
+      setError(nRef.current.errors.action);
+    }
+  }, [userProfile.id]);
+
+  const toggleFavourite = useCallback(() => {
+    const s = activeSessionRef.current;
+    if (!s || s.id == null) return;
+    const cur = sessionsRef.current.find((x) => x.shopId === String(s.shopId));
+    const next = !cur?.favourite;
+    const apply = (v) => setSessions((prev) => prev.map((x) => (x.shopId === String(s.shopId) ? { ...x, favourite: v } : x)));
+    apply(next);
+    rest.favourite(userProfile.id, s.shopId, next).catch(() => {
+      apply(!next);
+      setError(nRef.current.errors.action);
+    });
+  }, [userProfile.id]);
+
+  const handleRetry = useCallback((failedMsg) => {
+    if (isAuthFatal) {
+      setError(`chat.sendBlocked.${status}`);
+      return;
+    }
+    setMessages((prev) => prev.filter((x) => x.id !== failedMsg.id));
+    if (failedMsg._file) sendFile(failedMsg._file, failedMsg._opts);
+    else dispatchMessage(failedMsg._draft || { message: failedMsg.content });
+  }, [dispatchMessage, sendFile, isAuthFatal, status]);
 
   const handleSelectSession = useCallback((s) => {
     setActiveSession(s);
@@ -736,38 +1947,79 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
       setConfirmClose(true);
       return;
     }
+    if (closingRef.current) return;
     setConfirmClose(false);
     const session = activeSessionRef.current;
     if (!session) return;
+    closingRef.current = true;
     try {
       if (session.id != null) await chatApi.close(userProfile.id, session.shopId);
-      setSessions((prev) => prev.filter((x) => x.shopId !== session.shopId));
+      if (!mountedRef.current) return;
+      setSessions((prev) => prev.filter((x) => x.shopId !== String(session.shopId)));
       setActiveSession(null);
       setMessages([]);
       setIsSidebarOpen(true);
       refreshUnread();
     } catch {
-      setError(ERR.close);
+      if (mountedRef.current) setError(ERR.close);
+    } finally {
+      closingRef.current = false;
     }
   }, [confirmClose, userProfile.id, refreshUnread]);
 
   const openSidebar = useCallback(() => setIsSidebarOpen(true), []);
+  const toggleFavOnly = useCallback(() => setFavOnly((v) => !v), []);
+  const openMedia = useCallback(() => setMediaOpen(true), []);
+  const closeMedia = useCallback(() => setMediaOpen(false), []);
+  const openContact = useCallback(() => setContactOpen(true), []);
+  const closeContact = useCallback(() => setContactOpen(false), []);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  }, []);
+
+  const jumpTo = useCallback((id) => {
+    const el = scrollerRef.current?.querySelector(`[data-mid="${CSS.escape(String(id))}"]`);
+    el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, []);
 
   useEffect(() => {
-    const grew = messages.length - prevLenRef.current;
+    const last = messages[messages.length - 1];
+    const ownPending = !!last && last.senderType === 'USER' && !!last._optimistic;
+    if (stickRef.current || ownPending) {
+      const grew = messages.length - prevLenRef.current;
+      messagesEndRef.current?.scrollIntoView({ behavior: grew >= 1 && grew <= 3 && prevLenRef.current > 0 ? scrollBehavior() : 'auto', block: 'end' });
+    }
     prevLenRef.current = messages.length;
-    messagesEndRef.current?.scrollIntoView({ behavior: grew === 1 ? scrollBehavior() : 'auto', block: 'end' });
   }, [messages]);
+
+  const hiddenCount = Math.max(0, messages.length - msgLimit);
+  const visibleMessages = useMemo(
+    () => (hiddenCount > 0 ? messages.slice(hiddenCount) : messages),
+    [messages, hiddenCount]
+  );
+  const showOlder = useCallback(() => setMsgLimit((n) => n + MAX_RENDERED_MSGS), []);
+
+  const visibleSessions = useMemo(() => {
+    const list = favOnly ? sessions.filter((s) => s.favourite) : sessions;
+    return [...list].sort((a, b) => (b.favourite ? 1 : 0) - (a.favourite ? 1 : 0));
+  }, [sessions, favOnly]);
+
+  const mapMediaItem = useCallback((x) => toUiMessage(x, activeSessionRef.current), [toUiMessage]);
 
   if (!open || !userProfile.id) return null;
 
   const isConnecting = status === 'connecting' || status === 'idle';
-  const isAuthFatal = status === 'auth-error' || status === 'account-changed';
   const activeName = activeSession ? shopLabel(activeSession) : '';
   const readyLabel = t('chat.readyToHelp');
   const retryLabel = t('chat.retry');
   const fbInitial = initial(t('chat.shopFallback'));
   const dotCls = isConnected ? 'bg-[color:var(--nc-accent)]' : isConnecting ? 'bg-amber-400' : 'bg-red-500';
+  const hasSessionRow = activeSession?.id != null;
+  const isFav = !!sessions.find((s) => s.shopId === String(activeSession?.shopId))?.favourite;
+  const errText = error ? (error.startsWith('chat.') ? t(error) : error) : '';
 
   return (
     <LazyMotion features={domAnimation}>
@@ -784,35 +2036,46 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
             className="nc-panel relative flex h-full w-full max-w-6xl transform-gpu overflow-hidden sm:h-[85vh]"
           >
             <aside className={clsx(
-              'nc-surface nc-line flex w-full shrink-0 flex-col border-e-[3px] sm:w-96',
+              'nc-surface nc-line flex min-h-0 w-full shrink-0 flex-col border-e-[3px] sm:w-96',
               !isSidebarOpen && 'hidden sm:flex'
             )}>
               <div className="nc-line space-y-3 border-b-[3px] p-5 sm:p-6">
                 <div className="flex items-center justify-between">
                   <p className="flex items-center gap-3 text-xs font-extrabold uppercase tracking-wide rtl:tracking-normal"><span className="nc-bar" aria-hidden="true" />{t('chat.supportHub')}</p>
-                  <button type="button" onClick={onClose} aria-label={t('chat.closeMessages')} className="nc-btn h-9 w-9 sm:hidden"><FiX size={16} /></button>
+                  <button type="button" onClick={onClose} aria-label={t('chat.closeMessages')} className="nc-btn h-9 w-9 sm:hidden"><FiX size={16} aria-hidden="true" /></button>
                 </div>
                 <div className="flex items-center gap-3">
                   <h2 className="text-3xl font-extrabold uppercase leading-tight tracking-tight rtl:tracking-normal"><span className="nc-ul">{t('chat.title')}</span></h2>
                   {totalUnread > 0 && <span className="nc-chip h-6 min-w-[24px] px-1.5 text-[11px]">{totalUnread}</span>}
                 </div>
-                <p className="nc-muted text-xs font-bold">{t('chat.subtitle')}</p>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="nc-muted text-xs font-bold">{t('chat.subtitle')}</p>
+                  <button
+                    type="button"
+                    onClick={toggleFavOnly}
+                    aria-pressed={favOnly}
+                    className={clsx('nc-btn h-8 shrink-0 px-2.5 text-[11px] uppercase', favOnly && 'nc-btn-a')}
+                  >
+                    <FiStar size={12} fill={favOnly ? 'currentColor' : 'none'} aria-hidden="true" /> {N.favOnly}
+                  </button>
+                </div>
               </div>
 
-              <div className="nc-scroll flex-1 overflow-y-auto overscroll-contain p-4 pe-5 sm:p-5 sm:pe-6">
+              <div className="nc-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 pe-5 sm:p-5 sm:pe-6">
                 {isLoadingSessions && sessions.length === 0 ? (
-                  <div className="flex justify-center py-20"><div className="h-9 w-9 animate-spin rounded-full border-4 border-[color:var(--nc-accent)] border-t-transparent motion-reduce:animate-none" role="status" aria-label={t('chat.loadingChats')} /></div>
-                ) : sessions.length === 0 ? (
+                  <Spinner label={t('chat.loadingChats')} />
+                ) : visibleSessions.length === 0 ? (
                   <EmptyHero variant="no-chats" title={t('chat.noChatsTitle')} sub={t('chat.noChatsSub')} />
                 ) : (
-                  sessions.map((s) => (
+                  visibleSessions.map((s) => (
                     <SessionItem
                       key={s.shopId}
                       session={s}
                       name={shopLabel(s)}
                       lang={lang}
                       readyLabel={readyLabel}
-                      isActive={activeSession?.shopId === s.shopId}
+                      N={N}
+                      isActive={String(activeSession?.shopId) === s.shopId}
                       onSelect={handleSelectSession}
                     />
                   ))
@@ -829,22 +2092,22 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
                     </div>
                   </div>
                   {isConnected ? (
-                    <RiVerifiedBadgeLine className="shrink-0 text-emerald-500 dark:text-[#39ff88]" size={20} />
+                    <RiVerifiedBadgeLine className="shrink-0 text-emerald-500 dark:text-[#39ff88]" size={20} aria-hidden="true" />
                   ) : !isConnecting ? (
                     <button type="button" onClick={handleStatusAction} className="nc-btn nc-btn-a h-8 shrink-0 px-2.5 text-[11px] uppercase">
-                      <FiRefreshCw size={12} /> {isAuthFatal ? t('chat.reload') : t('chat.reconnect')}
+                      <FiRefreshCw size={12} aria-hidden="true" /> {isAuthFatal ? t('chat.reload') : t('chat.reconnect')}
                     </button>
                   ) : null}
                 </div>
               </div>
             </aside>
 
-            <main className={clsx('relative flex min-w-0 flex-1 flex-col', isSidebarOpen && 'hidden sm:flex')}>
+            <main className={clsx('relative flex min-h-0 min-w-0 flex-1 flex-col', isSidebarOpen && 'hidden sm:flex')}>
               <AnimatePresence>
                 {error && (
-                  <m.div role="alert" initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -20, opacity: 0 }}
+                  <m.div role="alert" initial={ERROR_INITIAL} animate={ERROR_ANIMATE} exit={ERROR_INITIAL}
                     className="nc-line absolute inset-x-0 top-0 z-50 border-b-[3px] bg-red-600 p-3 text-center text-xs font-extrabold uppercase text-white">
-                    {t(error)}
+                    {errText}
                   </m.div>
                 )}
               </AnimatePresence>
@@ -853,10 +2116,10 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
                 <>
                   <div className="nc-surface nc-line sticky top-0 z-40 flex items-center justify-between gap-2 border-b-[3px] px-3 py-4 sm:gap-3 sm:px-6">
                     <div className="flex min-w-0 items-center gap-2 sm:gap-4">
-                      <button type="button" onClick={openSidebar} aria-label={t('chat.backToChats')} className="nc-btn h-10 w-10 shrink-0 sm:hidden"><FiArrowLeft size={18} className="rtl:rotate-180" /></button>
+                      <button type="button" onClick={openSidebar} aria-label={t('chat.backToChats')} className="nc-btn h-10 w-10 shrink-0 sm:hidden"><FiArrowLeft size={18} className="rtl:rotate-180" aria-hidden="true" /></button>
                       <div className="nc-chip h-10 w-10 shrink-0 text-sm sm:h-12 sm:w-12 sm:text-base">{initial(activeName)}</div>
                       <div className="min-w-0">
-                        <h3 className="truncate text-sm font-extrabold uppercase sm:text-base"><span className="nc-ul">{activeName}</span></h3>
+                        <h3 className="truncate text-sm font-extrabold uppercase sm:text-base" dir="auto"><span className="nc-ul">{activeName}</span></h3>
                         <div className="mt-1.5 flex items-center gap-2">
                           <span className={clsx('h-2.5 w-2.5 border-2 nc-line', isConnected ? 'bg-[color:var(--nc-accent)]' : 'bg-gray-400')} />
                           <span className="nc-muted text-[10px] font-extrabold uppercase">{isConnected ? t('chat.connected') : t('chat.offline')}</span>
@@ -864,25 +2127,53 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-2 pe-1">
-                      {activeSession.id != null && (
-                        <button
-                          type="button"
-                          onClick={handleCloseClick}
-                          title={t('chat.closeChatTitle')}
-                          aria-label={confirmClose ? t('chat.confirmClose') : t('chat.closeChat')}
-                          className={clsx('nc-btn h-10 px-3 text-[11px] uppercase', confirmClose && 'nc-btn-r')}
-                        >
-                          <FiArchive size={14} />
-                          <span className={clsx(!confirmClose && 'hidden sm:inline')}>{confirmClose ? t('chat.confirmClose') : t('chat.closeChat')}</span>
-                        </button>
+                      {hasSessionRow && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={toggleFavourite}
+                            aria-pressed={isFav}
+                            aria-label={isFav ? N.unstar : N.star}
+                            title={isFav ? N.unstar : N.star}
+                            className="nc-btn h-10 w-10"
+                          >
+                            <FiStar size={16} fill={isFav ? 'currentColor' : 'none'} aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={openMedia}
+                            aria-label={N.media}
+                            title={N.media}
+                            className="nc-btn h-10 w-10"
+                          >
+                            <FiFolder size={16} aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleCloseClick}
+                            title={t('chat.closeChatTitle')}
+                            aria-label={confirmClose ? t('chat.confirmClose') : t('chat.closeChat')}
+                            className={clsx('nc-btn h-10 px-3 text-[11px] uppercase', confirmClose && 'nc-btn-r')}
+                          >
+                            <FiArchive size={14} aria-hidden="true" />
+                            <span className={clsx(!confirmClose && 'hidden sm:inline')}>{confirmClose ? t('chat.confirmClose') : t('chat.closeChat')}</span>
+                          </button>
+                        </>
                       )}
-                      <button type="button" onClick={onClose} aria-label={t('chat.closeMessages')} className="nc-btn h-10 w-10 shrink-0"><FiX size={18} /></button>
+                      <button type="button" onClick={onClose} aria-label={t('chat.closeMessages')} className="nc-btn h-10 w-10 shrink-0"><FiX size={18} aria-hidden="true" /></button>
                     </div>
                   </div>
 
-                  <div role="log" aria-live="polite" aria-label={t('chat.conversation')} className="nc-dots nc-scroll flex-1 space-y-2 overflow-y-auto overscroll-contain px-4 py-6 sm:px-8 sm:py-8">
+                  <div
+                    ref={scrollerRef}
+                    onScroll={handleScroll}
+                    role="log"
+                    aria-live="polite"
+                    aria-label={t('chat.conversation')}
+                    className="nc-dots nc-scroll min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-4 py-6 sm:px-8 sm:py-8"
+                  >
                     {isLoadingMessages && messages.length === 0 ? (
-                      <div className="flex justify-center py-20"><div className="h-9 w-9 animate-spin rounded-full border-4 border-[color:var(--nc-accent)] border-t-transparent motion-reduce:animate-none" role="status" aria-label={t('chat.loadingMessages')} /></div>
+                      <Spinner label={t('chat.loadingMessages')} />
                     ) : messages.length === 0 ? (
                       <EmptyHero
                         variant="fresh-start"
@@ -890,52 +2181,72 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
                         sub={t('chat.freshStartSub', { name: activeName, interpolation: { escapeValue: false } })}
                       />
                     ) : (
-                      messages.map((x) => (
-                        <MessageBubble
-                          key={x._key ?? x.id}
-                          msg={x}
-                          isOwn={x.senderType === 'USER'}
-                          onRetry={handleRetry}
-                          lang={lang}
-                          retryLabel={retryLabel}
-                          fbInitial={fbInitial}
-                        />
-                      ))
+                      <>
+                        {hiddenCount > 0 && (
+                          <div className="flex justify-center pb-4">
+                            <button type="button" onClick={showOlder} className="nc-btn h-8 px-3 text-[11px] uppercase">{N.showOlder}</button>
+                          </div>
+                        )}
+                        {visibleMessages.map((x) => (
+                          <MessageBubble
+                            key={x._key ?? x.id}
+                            msg={x}
+                            isOwn={x.senderType === 'USER'}
+                            onRetry={handleRetry}
+                            onReply={handleReply}
+                            onDelete={handleDelete}
+                            onJump={jumpTo}
+                            N={N}
+                            fmt={fmt}
+                            retryLabel={retryLabel}
+                            fbInitial={fbInitial}
+                          />
+                        ))}
+                      </>
                     )}
                     <div ref={messagesEndRef} />
                   </div>
 
-                  <div className="nc-surface nc-line border-t-[3px] p-4 pe-5 sm:p-5 sm:pe-6">
-                    <div className="nc-field relative">
-                      <textarea
-                        ref={inputRef}
-                        dir="auto"
-                        value={input}
-                        onChange={handleInputChange}
-                        onKeyDown={handleInputKeyDown}
-                        placeholder={t('chat.typeMessage')}
-                        aria-label={t('chat.typeMessageAria')}
-                        maxLength={MAX_MSG_LEN}
-                        className="block max-h-40 w-full resize-none bg-transparent py-4 ps-4 pe-16 text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60"
-                        rows={1}
-                      />
-                      <button
-                        type="button"
-                        onClick={sendMessage}
-                        disabled={!input.trim()}
-                        aria-label={t('chat.sendMessage')}
-                        className="nc-btn nc-btn-a absolute end-2 top-1/2 h-10 w-10 -translate-y-1/2"
-                      >
-                        <FiSend size={17} className="rtl:-scale-x-100" />
-                      </button>
-                    </div>
-                    {!isConnected && !isAuthFatal && (
-                      <p className="mt-2 text-[11px] font-bold text-amber-600 dark:text-amber-400">{t('chat.liveUnavailable')}</p>
-                    )}
-                    {input.length > MAX_MSG_LEN * 0.9 && (
-                      <p className="nc-muted mt-1.5 text-end text-[11px] font-bold" dir="ltr">{input.length} / {MAX_MSG_LEN}</p>
-                    )}
+                  <div className="nc-surface nc-line shrink-0 border-t-[3px] p-4 pe-5 sm:p-5 sm:pe-6">
+                    <ComposeBanner N={N} reply={replyTo} onCancel={cancelReply} />
+                    {contactOpen && <ContactForm N={N} onSubmit={submitContact} onCancel={closeContact} />}
+
+                    <Composer
+                      key={String(activeSession.shopId)}
+                      N={N}
+                      inputRef={inputRef}
+                      placeholder={t('chat.typeMessage')}
+                      ariaLabel={t('chat.typeMessageAria')}
+                      sendLabel={t('chat.sendMessage')}
+                      liveNote={t('chat.liveUnavailable')}
+                      attachDisabled={locating || isAuthFatal}
+                      authFatal={isAuthFatal}
+                      locating={locating}
+                      recording={recording}
+                      secs={secs}
+                      hasReply={!!replyTo}
+                      isConnected={isConnected}
+                      onSendText={handleSendText}
+                      onSendFile={handleSendFile}
+                      onLocation={shareLocation}
+                      onContact={openContact}
+                      onCancelReply={cancelReply}
+                      onStartRec={startRecording}
+                      onCancelRec={cancelRecording}
+                      onSendRec={sendRecording}
+                    />
                   </div>
+
+                  {mediaOpen && hasSessionRow && (
+                    <MediaPanel
+                      userId={userProfile.id}
+                      shopId={activeSession.shopId}
+                      onClose={closeMedia}
+                      N={N}
+                      fmt={fmt}
+                      mapItem={mapMediaItem}
+                    />
+                  )}
                 </>
               ) : (
                 <EmptyHero variant="select-chat" title={t('chat.selectChatTitle')} sub={t('chat.selectChatSub')} />

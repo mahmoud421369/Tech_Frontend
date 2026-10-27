@@ -10,6 +10,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import { ToastContainer, toast } from "react-toastify";
 import api from "../../common/api/api";
+import { chatApi, parseCount } from "../../common/services/chatApi";
 import logo from "../../common/images/tech-restore-logo.webp";
 import { useAppLanguage } from "../../common/utils/useAppLanguage";
 import { getFontStyle, ensureShopAssets } from "../../common/utils/shopFonts";
@@ -24,13 +25,15 @@ const MAX_BACKOFF_STEPS = 4;
 const MAX_RENDERED_NOTIFS = 50;
 const SEARCH_MAX = 40;
 const YEAR = new Date().getFullYear();
+const UNREAD_EVENT = "shopChatUnread";
+const CHATS_PATH = "/shop/chats";
 
 const MENU_GROUPS = [
   {
     key: "main",
     items: [
       { key: "dashboard", path: "/shop/dashboard", icon: FiGrid },
-      { key: "chats", path: "/shop/chats", icon: FiMessageSquare },
+      { key: "chats", path: CHATS_PATH, icon: FiMessageSquare },
     ],
   },
   {
@@ -121,6 +124,7 @@ const readProfileName = (token) => {
 
 const countUnread = (list) => list.reduce((c, n) => c + (n.read ? 0 : 1), 0);
 const notifSignature = (list) => list.map((n) => `${n.id}:${n.read ? 1 : 0}`).join("|");
+const badgeText = (n) => (n > 99 ? "99+" : String(n));
 
 const confirmDialog = async (opts, darkMode) => {
   const { default: Swal } = await import("sweetalert2");
@@ -169,7 +173,6 @@ html,body{overflow-x:hidden;max-width:100vw}
 .nb-line{border-color:var(--nb-line)}
 .nb-accent-bg{background:var(--nb-accent)}
 .nb-ul{text-decoration:underline;text-decoration-color:var(--nb-accent);text-decoration-thickness:3px;text-underline-offset:4px;text-decoration-skip-ink:none}
-.nb-sep{border-top:2px dotted var(--nb-dot)}
 .nb-row{border-bottom:2px dotted var(--nb-dot)}
 .nb-row:last-child{border-bottom:0}
 :where(.nb-tile){display:inline-flex}
@@ -195,6 +198,7 @@ html,body{overflow-x:hidden;max-width:100vw}
 .nb-link{align-items:center;gap:12px;padding:9px 12px;border:2px solid transparent;font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:var(--nb-ink);transition:transform .12s ease,background-color .12s ease}
 .nb-link:hover{background:var(--nb-gray);border:2px dotted var(--nb-dot)}
 .nb-link-on,.nb-link-on:hover{background:var(--nb-btn);color:var(--nb-on);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow)}
+.nb-badge{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 4px;font-size:9px;font-weight:800;line-height:1;color:#fff;background:#ef4444;border:2px solid var(--nb-line);font-variant-numeric:tabular-nums}
 .custom-scrollbar-thin{scrollbar-width:thin;scrollbar-color:rgba(52,211,153,.6) transparent}
 .custom-scrollbar-thin::-webkit-scrollbar{width:5px}
 .custom-scrollbar-thin::-webkit-scrollbar-track{background:transparent}
@@ -231,7 +235,7 @@ const AllCaughtUp = memo(() => (
   </svg>
 ));
 
-const SidebarLink = memo(({ item, label, active, onClick }) => {
+const SidebarLink = memo(({ item, label, active, badge, onClick }) => {
   const Icon = item.icon;
   return (
     <Link
@@ -241,21 +245,55 @@ const SidebarLink = memo(({ item, label, active, onClick }) => {
       className={`nb-link ${active ? "nb-link-on" : ""}`}
     >
       <Icon size={ICON} aria-hidden="true" className="flex-shrink-0" />
-      <span className="truncate">{label}</span>
+      <span className="flex-1 truncate">{label}</span>
+      {badge > 0 && <span className="nb-badge flex-shrink-0">{badgeText(badge)}</span>}
     </Link>
   );
 });
 
-const SidebarNav = memo(({ t, pathname, onClick }) => (
-  <nav aria-label={t.navAria} className="lang-fade flex-1 overflow-y-auto overscroll-contain px-3 py-4 space-y-5 custom-scrollbar-thin">
-    {MENU_GROUPS.map((g, i) => (
-      <div key={g.key} className={`space-y-1.5 ${i === 0 ? "" : "nb-sep pt-5"}`}>
-        {g.items.map((item) => (
-          <SidebarLink key={item.path} item={item} label={t.pages[item.key]} active={pathname === item.path} onClick={onClick} />
-        ))}
-      </div>
+const SidebarNav = memo(({ t, pathname, chatUnread, onClick }) => (
+  <nav
+    aria-label={t.navAria}
+    className="lang-fade flex-1 overflow-y-auto overscroll-contain px-3 py-4 flex flex-col gap-1.5 custom-scrollbar-thin"
+  >
+    {ALL_ITEMS.map((item) => (
+      <SidebarLink
+        key={item.path}
+        item={item}
+        label={t.pages[item.key]}
+        active={pathname === item.path}
+        badge={item.path === CHATS_PATH ? chatUnread : 0}
+        onClick={onClick}
+      />
     ))}
   </nav>
+));
+
+const SidebarFooter = memo(({ t, darkMode, onLight, onDark, onLogout }) => (
+  <div className="nb-line p-3 flex flex-col gap-2.5 flex-shrink-0 border-t-2">
+    <div role="group" aria-label={t.theme.label} className="flex flex-col gap-2">
+      <button
+        type="button"
+        onClick={onLight}
+        aria-pressed={!darkMode}
+        className={`nb-btn w-full py-2 text-xs uppercase ${!darkMode ? "nb-btn-on" : ""}`}
+      >
+        <FiSun size={14} aria-hidden="true" /> {t.theme.light}
+      </button>
+      <button
+        type="button"
+        onClick={onDark}
+        aria-pressed={darkMode}
+        className={`nb-btn w-full py-2 text-xs uppercase ${darkMode ? "nb-btn-on" : ""}`}
+      >
+        <FiMoon size={14} aria-hidden="true" /> {t.theme.dark}
+      </button>
+    </div>
+    <button type="button" onClick={onLogout} className="nb-btn nb-btn-a w-full py-2 text-xs uppercase">
+      <FiLogOut size={14} aria-hidden="true" className="rtl:rotate-180" /> {t.logout}
+    </button>
+    <p className="nb-muted pt-0.5 text-center text-[10px] font-semibold">© {YEAR} Tech &amp; Restore</p>
+  </div>
 ));
 
 const SearchBox = memo(({ t, onNavigate }) => {
@@ -735,14 +773,17 @@ const ShopHeader = () => {
 
   const [darkMode, setDarkMode] = useState(() => readStorage("darkMode") === "true");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [chatUnread, setChatUnread] = useState(0);
   const token = useMemo(() => {
     const stored = readStorage("authToken");
     return isTokenExpired(stored) ? null : stored;
   }, []);
+  const shopId = useMemo(() => readStorage("id"), []);
   const profileName = useMemo(() => readProfileName(token), [token]);
   const busyRef = useRef(false);
   const tRef = useRef(t);
   tRef.current = t;
+  const onChatsPage = pathname === CHATS_PATH;
 
   useEffect(() => {
     if (!token) navigate("/login", { replace: true });
@@ -768,6 +809,50 @@ const ShopHeader = () => {
       document.removeEventListener("keydown", onKey);
     };
   }, [sidebarOpen]);
+
+  useEffect(() => {
+    const onUnread = (e) => {
+      const n = Number(e.detail);
+      if (Number.isFinite(n)) setChatUnread(Math.max(0, Math.floor(n)));
+    };
+    window.addEventListener(UNREAD_EVENT, onUnread);
+    return () => window.removeEventListener(UNREAD_EVENT, onUnread);
+  }, []);
+
+  useEffect(() => {
+    if (!token || !shopId || onChatsPage) return undefined;
+
+    let timer;
+    let stopped = false;
+    let fails = 0;
+
+    const run = async () => {
+      if (!document.hidden) {
+        try {
+          const { data } = await chatApi.unreadCount(shopId);
+          if (!stopped) setChatUnread(parseCount(data));
+          fails = 0;
+        } catch {
+          fails = Math.min(fails + 1, MAX_BACKOFF_STEPS);
+        }
+      }
+      if (!stopped) timer = setTimeout(run, POLL_MS * 2 ** fails);
+    };
+
+    const onVisible = () => {
+      if (document.hidden) return;
+      clearTimeout(timer);
+      run();
+    };
+
+    run();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [token, shopId, onChatsPage]);
 
   const handleLogout = useCallback(async () => {
     if (busyRef.current) return;
@@ -872,32 +957,9 @@ const ShopHeader = () => {
           )}
         </div>
 
-        <SidebarNav key={language} t={t} pathname={pathname} onClick={closeSidebar} />
+        <SidebarNav key={language} t={t} pathname={pathname} chatUnread={chatUnread} onClick={closeSidebar} />
 
-        <div className="nb-line p-3 space-y-2.5 flex-shrink-0 border-t-2">
-          <div role="group" aria-label={t.theme.label} className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={setLight}
-              aria-pressed={!darkMode}
-              className={`nb-btn py-1.5 text-xs uppercase ${!darkMode ? "nb-btn-on" : ""}`}
-            >
-              <FiSun size={14} aria-hidden="true" /> {t.theme.light}
-            </button>
-            <button
-              type="button"
-              onClick={setDark}
-              aria-pressed={darkMode}
-              className={`nb-btn py-1.5 text-xs uppercase ${darkMode ? "nb-btn-on" : ""}`}
-            >
-              <FiMoon size={14} aria-hidden="true" /> {t.theme.dark}
-            </button>
-          </div>
-          <button type="button" onClick={handleLogout} className="nb-btn nb-btn-a w-full py-2 text-xs uppercase">
-            <FiLogOut size={14} aria-hidden="true" className="rtl:rotate-180" /> {t.logout}
-          </button>
-          <p className="nb-muted pt-0.5 text-center text-[10px] font-semibold">© {YEAR} Tech &amp; Restore</p>
-        </div>
+        <SidebarFooter t={t} darkMode={darkMode} onLight={setLight} onDark={setDark} onLogout={handleLogout} />
       </aside>
 
       <header
@@ -910,9 +972,12 @@ const ShopHeader = () => {
             onClick={openSidebar}
             aria-label={t.openMenu}
             aria-expanded={sidebarOpen}
-            className="nb-btn lg:hidden w-10 h-10 flex-shrink-0"
+            className="nb-btn relative lg:hidden w-10 h-10 flex-shrink-0"
           >
             <FiMenu size={20} aria-hidden="true" />
+            {chatUnread > 0 && (
+              <span aria-hidden="true" className="nb-badge absolute -top-2 -end-2">{badgeText(chatUnread)}</span>
+            )}
           </button>
           <h1
             key={`${language}-${pathname}`}

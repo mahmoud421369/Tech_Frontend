@@ -81,7 +81,7 @@ const MAX_PASSWORD_BYTES = 72;
 const encoder = new TextEncoder();
 const byteLength = (s) => encoder.encode(s || '').length;
 const PRICE_PER_MONTH = 1000;
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+const API_BASE = process.env.REACT_APP_API_URL || 'https://api.tech-restore.tech';
 const GOOGLE_AUTH_URL = `${API_BASE}/oauth2/authorization/google`;
 const SUCCESS_DELAY_MS = 1500;
 
