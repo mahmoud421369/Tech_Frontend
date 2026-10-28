@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo, memo, useRef } from "react";
 import {
-  FiMoon, FiSun, FiLogOut, FiMenu, FiX, FiBox, FiTool, FiSearch, FiBell,
+  FiLogOut, FiMenu, FiX, FiBox, FiTool, FiSearch, FiBell,
   FiGrid, FiTag, FiMessageSquare, FiShoppingBag, FiCreditCard, FiPackage,
   FiCalendar, FiInfo, FiAlertTriangle, FiAlertCircle, FiChevronRight, FiUser,
+  FiBarChart2,
 } from "react-icons/fi";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
@@ -24,14 +25,72 @@ const MAX_RENDERED_NOTIFS = 50;
 const SEARCH_MAX = 40;
 const YEAR = new Date().getFullYear();
 const UNREAD_EVENT = "shopChatUnread";
+const BADGE_EVENT = "shopBadgeCounts"; // detail: { orders?, repairs?, stock? } dispatched by Orders / RepairRequests / Inventory
+const BADGE_KEYS = ["orders", "repairs", "stock"];
+const INITIAL_BADGES = Object.freeze({ orders: 0, repairs: 0, stock: 0 });
+const BADGES_POLL_MS = 60_000;
+const DEFAULT_THRESHOLD = 5;
+const ORDERS_PATH = "/api/shops/orders/control";
+const REPAIRS_PATH = "/api/shops/repair-request";
+const INVENTORY_PATH = "/api/shop/inventory/search";
+// Module-level params keep the request config stable between polls.
+const LIST_PARAMS = Object.freeze({ page: 0, size: 500, sort: "createdAt,desc" });
+const INVENTORY_PARAMS = Object.freeze({ query: "", page: 0, size: 500 });
+
+const listOf = (d) => (Array.isArray(d) ? d : Array.isArray(d?.content) ? d.content : []);
+const upperStatus = (s) => String(s ?? "").toUpperCase();
+
+const countOrders = (d) => {
+  let n = 0;
+  for (const o of listOf(d)) if (upperStatus(o?.status) === "PENDING") n += 1;
+  return n;
+};
+const countRepairs = (d) => {
+  let n = 0;
+  for (const r of listOf(d)) if (upperStatus(r?.status) === "SUBMITTED") n += 1;
+  return n;
+};
+const countLowStock = (d) => {
+  let n = 0;
+  for (const i of listOf(d)) {
+    const stock = Math.max(0, Number(i?.stock ?? i?.stockQuantity) || 0);
+    const threshold = Number(i?.threshold) > 0 ? Number(i.threshold) : DEFAULT_THRESHOLD;
+    if (stock < threshold) n += 1;
+  }
+  return n;
+};
+
+/** Merge a partial { orders?, repairs?, stock? } into the badge state; ignores unknown keys / non-finite numbers. */
+const applyBadges = (prev, patch) => {
+  if (!patch || typeof patch !== "object") return prev;
+  let next = prev;
+  for (const k of BADGE_KEYS) {
+    if (!(k in patch)) continue;
+    const n = Number(patch[k]);
+    if (!Number.isFinite(n)) continue;
+    const v = Math.max(0, Math.floor(n));
+    if (v !== next[k]) next = { ...next, [k]: v };
+  }
+  return next;
+};
 const CHATS_PATH = "/shop/chats";
 const MOBILE_QUERY = "(max-width: 1023px)";
+const THEME_EVENT = "appDarkModeChanged";
+const REPORTS_LABEL = { ar: "التقارير", en: "Reports" };
+
+// path -> { key in badge state, css class for its colour }
+const BADGE_BY_PATH = {
+  "/shop/orders": { key: "orders", cls: "nb-badge-orders" },
+  "/shop/repair-requests": { key: "repairs", cls: "nb-badge-repairs" },
+  "/shop/inventory": { key: "stock", cls: "nb-badge-stock" },
+};
 
 const MENU_GROUPS = [
   {
     key: "main",
     items: [
       { key: "dashboard", path: "/shop/dashboard", icon: FiGrid },
+      { key: "reports", path: "/shop/reports", icon: FiBarChart2 },
       { key: "chats", path: CHATS_PATH, icon: FiMessageSquare },
     ],
   },
@@ -59,11 +118,6 @@ const MENU_GROUPS = [
 const ALL_ITEMS = MENU_GROUPS.flatMap((g) => g.items.map((i) => ({ ...i, group: g.key })));
 const PATH_KEY = Object.fromEntries(ALL_ITEMS.map((i) => [i.path, i.key]));
 PATH_KEY["/shop/profile"] = "profile";
-
-const LANGS = [
-  { code: "ar", label: "ع" },
-  { code: "en", label: "EN" },
-];
 
 const sanitizeSearch = (v) =>
   String(v ?? "")
@@ -94,11 +148,6 @@ const formatTime = (ts, t, locale) => {
 
 const readStorage = (key) => { try { return localStorage.getItem(key); } catch { return null; } };
 const writeStorage = (key, value) => { try { localStorage.setItem(key, value); } catch {} };
-
-const setAppLanguage = (code) => {
-  writeStorage("appLanguage", code);
-  window.dispatchEvent(new Event("appLanguageChanged"));
-};
 
 const isTokenExpired = (token) => {
   if (!token) return true;
@@ -218,7 +267,10 @@ html,body{overflow-x:hidden;max-width:100vw}
 .nb-link{align-items:center;gap:12px;padding:9px 12px;border:2px solid transparent;font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:var(--nb-ink);transition:transform .12s ease,background-color .12s ease}
 .nb-link:hover{background:var(--nb-gray);border:2px dotted var(--nb-dot)}
 .nb-link-on,.nb-link-on:hover{background:var(--nb-btn);color:var(--nb-on);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow)}
-.nb-badge{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 4px;font-size:9px;font-weight:800;line-height:1;color:#fff;background:#ef4444;border:2px solid var(--nb-line);font-variant-numeric:tabular-nums}
+.nb-badge{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:9999px;font-size:9px;font-weight:800;line-height:1;color:#fff;background:#ef4444;border:2px solid var(--nb-line);font-variant-numeric:tabular-nums}
+.nb-badge-orders{background:#3b82f6;color:#fff}
+.nb-badge-repairs{background:#f59e0b;color:#1f1300}
+.nb-badge-stock{background:#8b5cf6;color:#fff}
 .custom-scrollbar-thin{scrollbar-width:thin;scrollbar-color:rgba(52,211,153,.6) transparent}
 .custom-scrollbar-thin::-webkit-scrollbar{width:5px}
 .custom-scrollbar-thin::-webkit-scrollbar-track{background:transparent}
@@ -255,7 +307,7 @@ const AllCaughtUp = memo(() => (
   </svg>
 ));
 
-const SidebarLink = memo(({ item, label, active, badge, onClick }) => {
+const SidebarLink = memo(({ item, label, active, badge, badgeCls, onClick }) => {
   const Icon = item.icon;
   return (
     <Link
@@ -266,88 +318,36 @@ const SidebarLink = memo(({ item, label, active, badge, onClick }) => {
     >
       <Icon size={ICON} aria-hidden="true" className="flex-shrink-0" />
       <span className="flex-1 truncate">{label}</span>
-      {badge > 0 && <span className="nb-badge flex-shrink-0">{badgeText(badge)}</span>}
+      {badge > 0 && <span className={`nb-badge flex-shrink-0 ${badgeCls}`}>{badgeText(badge)}</span>}
     </Link>
   );
 });
 
-const SidebarNav = memo(({ t, pathname, chatUnread, onClick }) => (
+const SidebarNav = memo(({ t, pathname, chatUnread, badges, onClick }) => (
   <nav
     aria-label={t.navAria}
     className="lang-fade flex-1 overflow-y-auto overscroll-contain px-3 py-4 flex flex-col gap-1.5 custom-scrollbar-thin"
   >
-    {ALL_ITEMS.map((item) => (
-      <SidebarLink
-        key={item.path}
-        item={item}
-        label={t.pages[item.key]}
-        active={pathname === item.path}
-        badge={item.path === CHATS_PATH ? chatUnread : 0}
-        onClick={onClick}
-      />
-    ))}
+    {ALL_ITEMS.map((item) => {
+      const b = BADGE_BY_PATH[item.path];
+      const isChats = item.path === CHATS_PATH;
+      return (
+        <SidebarLink
+          key={item.path}
+          item={item}
+          label={t.pages[item.key]}
+          active={pathname === item.path}
+          badge={isChats ? chatUnread : b ? badges[b.key] : 0}
+          badgeCls={b ? b.cls : ""}
+          onClick={onClick}
+        />
+      );
+    })}
   </nav>
 ));
 
-const ThemeSwitch = memo(({ label, lightLabel, darkLabel, darkMode, onLight, onDark }) => (
-  <div role="group" aria-label={label} className="nb-pill">
-    <button
-      type="button"
-      onClick={onLight}
-      aria-pressed={!darkMode}
-      aria-label={lightLabel}
-      title={lightLabel}
-      className={`nb-orb w-9 h-9 ${!darkMode ? "nb-orb-sun" : ""}`}
-    >
-      <FiSun size={16} aria-hidden="true" />
-    </button>
-    <button
-      type="button"
-      onClick={onDark}
-      aria-pressed={darkMode}
-      aria-label={darkLabel}
-      title={darkLabel}
-      className={`nb-orb w-9 h-9 ${darkMode ? "nb-orb-moon" : ""}`}
-    >
-      <FiMoon size={16} aria-hidden="true" />
-    </button>
-  </div>
-));
-
-const LanguageSwitch = memo(({ language, label, onChange }) => {
-  const styles = useMemo(() => LANGS.map((l) => getFontStyle(l.code)), []);
-  return (
-    <div role="group" aria-label={label} className="nb-pill">
-      {LANGS.map((l, i) => (
-        <button
-          key={l.code}
-          type="button"
-          onClick={() => onChange(l.code)}
-          aria-pressed={language === l.code}
-          lang={l.code}
-          style={styles[i]}
-          className={`nb-orb w-9 h-9 text-[11px] ${language === l.code ? "nb-orb-lang" : ""}`}
-        >
-          {l.label}
-        </button>
-      ))}
-    </div>
-  );
-});
-
-const SidebarFooter = memo(({ t, language, darkMode, onLight, onDark, onLanguage, onLogout }) => (
+const SidebarFooter = memo(({ t, onLogout }) => (
   <div className="nb-line p-3 flex flex-col gap-2.5 flex-shrink-0 border-t-2">
-    <div className="flex items-center justify-center gap-2">
-      <ThemeSwitch
-        label={t.theme.label}
-        lightLabel={t.theme.light}
-        darkLabel={t.theme.dark}
-        darkMode={darkMode}
-        onLight={onLight}
-        onDark={onDark}
-      />
-      <LanguageSwitch language={language} label={t.language} onChange={onLanguage} />
-    </div>
     <button type="button" onClick={onLogout} className="nb-btn nb-btn-a w-full py-2 text-xs uppercase">
       <FiLogOut size={14} aria-hidden="true" className="rtl:rotate-180" /> {t.logout}
     </button>
@@ -361,7 +361,7 @@ const SearchBox = memo(({ t, onNavigate }) => {
   const ref = useRef(null);
 
   const items = useMemo(
-    () => ALL_ITEMS.map((i) => ({ ...i, name: t.pages[i.key], lower: t.pages[i.key].toLowerCase() })),
+    () => ALL_ITEMS.map((i) => ({ ...i, name: t.pages[i.key], lower: String(t.pages[i.key] ?? "").toLowerCase() })),
     [t]
   );
   const results = useMemo(() => {
@@ -672,7 +672,7 @@ const NotificationCenter = memo(({ t, locale, token }) => {
           <span
             key={badgeKey}
             aria-hidden="true"
-            className="badge-pop nb-line absolute -top-2 -end-2 min-w-[18px] h-[18px] px-1 grid place-items-center text-[9px] font-extrabold leading-none text-white bg-red-500 border-2"
+            className="badge-pop nb-line absolute -top-2 -end-2 min-w-[20px] h-[20px] px-1.5 rounded-full grid place-items-center text-[9px] font-extrabold leading-none text-white bg-red-500 border-2"
           >
             {unreadCount > 9 ? "+9" : unreadCount}
           </span>
@@ -699,7 +699,14 @@ const ShopHeader = () => {
   const language = useAppLanguage();
   const isAr = language === "ar";
   const L = isAr ? shopAr : shopEn;
-  const t = L.header;
+  const base = L.header;
+  const t = useMemo(
+    () => ({
+      ...base,
+      pages: { reports: REPORTS_LABEL[language] || REPORTS_LABEL.en, ...base.pages },
+    }),
+    [base, language]
+  );
   const locale = L.locale;
   const dir = isAr ? "rtl" : "ltr";
   const fontStyle = useMemo(() => getFontStyle(language), [language]);
@@ -708,6 +715,7 @@ const ShopHeader = () => {
   const [darkMode, setDarkMode] = useState(() => readStorage("darkMode") === "true");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chatUnread, setChatUnread] = useState(0);
+  const [badges, setBadges] = useState(INITIAL_BADGES);
   const token = useMemo(() => {
     const stored = readStorage("authToken");
     return isTokenExpired(stored) ? null : stored;
@@ -719,6 +727,7 @@ const ShopHeader = () => {
   tRef.current = t;
   const onChatsPage = pathname === CHATS_PATH;
   const drawerOpen = sidebarOpen && isMobile;
+  const menuBadgeTotal = chatUnread + badges.orders + badges.repairs + badges.stock;
 
   useEffect(() => {
     if (!token) navigate("/login", { replace: true });
@@ -728,8 +737,12 @@ const ShopHeader = () => {
     document.documentElement.classList.toggle("dark", darkMode);
     writeStorage("darkMode", String(darkMode));
   }, [darkMode]);
-  const setLight = useCallback(() => setDarkMode(false), []);
-  const setDark = useCallback(() => setDarkMode(true), []);
+
+  useEffect(() => {
+    const onTheme = (e) => setDarkMode(!!e.detail);
+    window.addEventListener(THEME_EVENT, onTheme);
+    return () => window.removeEventListener(THEME_EVENT, onTheme);
+  }, []);
 
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
   useEffect(() => { if (!isMobile) setSidebarOpen(false); }, [isMobile]);
@@ -754,6 +767,65 @@ const ShopHeader = () => {
     window.addEventListener(UNREAD_EVENT, onUnread);
     return () => window.removeEventListener(UNREAD_EVENT, onUnread);
   }, []);
+
+  // Instant updates pushed by the Orders / RepairRequests / Inventory pages (after accepting, pricing, restocking...).
+  useEffect(() => {
+    const onBadges = (e) => setBadges((prev) => applyBadges(prev, e.detail));
+    window.addEventListener(BADGE_EVENT, onBadges);
+    return () => window.removeEventListener(BADGE_EVENT, onBadges);
+  }, []);
+
+  // The header loads the counts itself, so badges show on every page without visiting Orders / Repairs / Inventory first.
+  useEffect(() => {
+    if (!token) return undefined;
+    let timer;
+    let stopped = false;
+    let fails = 0;
+    let controller = null;
+
+    const load = async () => {
+      controller?.abort();
+      const c = new AbortController();
+      controller = c;
+      const get = (path, params) => api.get(path, { params, signal: c.signal });
+      const [o, r, s] = await Promise.allSettled([
+        get(ORDERS_PATH, LIST_PARAMS),
+        get(REPAIRS_PATH, LIST_PARAMS),
+        get(INVENTORY_PATH, INVENTORY_PARAMS),
+      ]);
+      if (c.signal.aborted || stopped) return true;
+      const patch = {};
+      if (o.status === "fulfilled") patch.orders = countOrders(o.value.data);
+      if (r.status === "fulfilled") patch.repairs = countRepairs(r.value.data);
+      if (s.status === "fulfilled") patch.stock = countLowStock(s.value.data);
+      const got = Object.keys(patch).length > 0;
+      if (got) setBadges((prev) => applyBadges(prev, patch));
+      return got;
+    };
+
+    const run = async () => {
+      if (!document.hidden) {
+        const ok = await load();
+        fails = ok ? 0 : Math.min(fails + 1, MAX_BACKOFF_STEPS);
+      }
+      if (!stopped) timer = setTimeout(run, BADGES_POLL_MS * 2 ** fails);
+    };
+
+    const onVisible = () => {
+      if (document.hidden) return;
+      clearTimeout(timer);
+      run();
+    };
+
+    run();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      controller?.abort();
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [token]);
 
   useEffect(() => {
     if (!token || !shopId || onChatsPage) return undefined;
@@ -893,17 +965,9 @@ const ShopHeader = () => {
           )}
         </div>
 
-        <SidebarNav key={language} t={t} pathname={pathname} chatUnread={chatUnread} onClick={closeSidebar} />
+        <SidebarNav key={language} t={t} pathname={pathname} chatUnread={chatUnread} badges={badges} onClick={closeSidebar} />
 
-        <SidebarFooter
-          t={t}
-          language={language}
-          darkMode={darkMode}
-          onLight={setLight}
-          onDark={setDark}
-          onLanguage={setAppLanguage}
-          onLogout={handleLogout}
-        />
+        <SidebarFooter t={t} onLogout={handleLogout} />
       </aside>
 
       <header
@@ -920,8 +984,8 @@ const ShopHeader = () => {
               className="nb-btn relative w-10 h-10 flex-shrink-0"
             >
               <FiMenu size={20} aria-hidden="true" />
-              {chatUnread > 0 && (
-                <span aria-hidden="true" className="nb-badge absolute -top-2 -end-2">{badgeText(chatUnread)}</span>
+              {menuBadgeTotal > 0 && (
+                <span aria-hidden="true" className="nb-badge absolute -top-2 -end-2">{badgeText(menuBadgeTotal)}</span>
               )}
             </button>
           )}

@@ -20,6 +20,7 @@ import { ensureShopAssets } from '../common/utils/shopFonts';
 
 ensureShopAssets();
 
+const BADGE_EVENT = 'shopBadgeCounts';
 const INK = '#04261a';
 const STATUSES = ['SUBMITTED', 'QUOTE_SENT', 'QUOTE_APPROVED', 'QUOTE_REJECTED', 'DEVICE_COLLECTED', 'REPAIRING', 'REPAIR_COMPLETED', 'DEVICE_DELIVERED', 'CANCELLED', 'FAILED'];
 const TABS = ['all', ...STATUSES];
@@ -653,6 +654,14 @@ const RepairRequests = () => {
     for (const r of repairs) c[r.status] = (c[r.status] || 0) + 1;
     return c;
   }, [repairs]);
+
+  // Share the "repair requests waiting" (SUBMITTED, need a quote) count with the shop header badge.
+  const waitingCount = counts.SUBMITTED || 0;
+  const loaded = lastUpdated !== null;
+  useEffect(() => {
+    if (!loaded) return;
+    window.dispatchEvent(new CustomEvent(BADGE_EVENT, { detail: { repairs: waitingCount } }));
+  }, [waitingCount, loaded]);
 
   const filtered = useMemo(() => {
     const now = Date.now();

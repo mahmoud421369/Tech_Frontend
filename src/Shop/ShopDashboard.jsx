@@ -1,26 +1,119 @@
 import React, {
-  useState, useEffect, useCallback, useMemo, useRef, memo, lazy, Suspense, createContext, useContext,
+  useState, useEffect, useCallback, useMemo, useRef, memo, lazy, Suspense,
 } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FiActivity, FiZap, FiShoppingBag, FiTool, FiRefreshCw, FiCalendar,
-  FiAlertCircle, FiChevronLeft, FiChevronRight, FiPackage,
-  FiBox, FiTag, FiCreditCard, FiPieChart, FiBarChart2,
+  FiAlertCircle, FiChevronLeft, FiChevronRight, FiPackage, FiBox, FiTag,
+  FiCreditCard, FiBarChart2, FiTarget, FiFilter, FiDollarSign, FiAlertTriangle,
+  FiMessageSquare, FiStar, FiCheckCircle,
 } from "react-icons/fi";
 import api from "../common/api/api";
+import { chatApi, parseCount } from "../common/services/chatApi";
+import { fetchOverview, fetchToday } from "../common/api/shopReports";
 import useAuthStore from "../common/store/Auth";
 import { UI3D_CSS, Defs3D } from "../components/user/Ui3D";
-import { EXTRAS_CSS, Toaster, toast, EmptyState3D } from "../components/user/UiExtras";
+import { EXTRAS_CSS, Toaster } from "../components/user/UiExtras";
 import {
-  BTN_ICON, BTN_MD, BTN_PRIMARY, CARD, PANEL, FIELD, LABEL, SCROLL_CSS,
+  BTN_ICON, BTN_MD, BTN_PRIMARY, CARD, PANEL, SCROLL_CSS,
   useDarkMode, useShopLocale, IconTile,
 } from "../components/shop/TableKit";
+import {
+  INK, FOCUS, REDUCED, LocaleCtx, useL, getFmt, toNum, normStatus,
+  useDateRange, useRangeResource, useInView,
+  Panel, Metric, StatTile, StatusChip, SkeletonBlock, EmptyBlock, LoadingBlock, RetryBlock,
+  DateFilter, ScoreCard, InsightList, SectionTitle, Meter,
+} from "../components/shop/DashboardKit";
+import { pickReportText } from "../components/shop/reportsText";
 import { ensureShopAssets } from "../common/utils/shopFonts";
 
 ensureShopAssets();
 
 const PAGE_CSS = UI3D_CSS + EXTRAS_CSS + SCROLL_CSS;
-const INK = "#04261a";
+const POLL_MS = 60000;
+const RATING_POLL_MS = 300000;
+const REPORTS_PATH = "/shop/reports";
+const UNREAD_EVENT = "shopChatUnread";
+const DEFAULT_THRESHOLD = 5;
+
+/* Endpoints (same ones used by the Orders / RepairRequests / Inventory pages) */
+const ORDERS_PATH = "/api/shops/orders/control";
+const REPAIRS_PATH = "/api/shops/repair-request";
+const INVENTORY_PATH = "/api/shop/inventory/search";
+const RATING_PATH = "/api/shops/reviews/summary"; // adjust if your backend uses another path
+
+/* Module-level constants keep hook dependencies stable (no refetch loops) */
+const LIST_PARAMS = Object.freeze({ page: 0, size: 500, sort: "createdAt,desc" });
+const INVENTORY_PARAMS = Object.freeze({ query: "", page: 0, size: 500 });
+const EMPTY_RANGE = Object.freeze({ startDate: "", endDate: "" });
+
+/* Local copy for the new sections (no locale-file change needed) */
+const ACTION_TEXT = {
+  en: {
+    title: "Action center",
+    subtitle: "Things that need your attention right now",
+    needsAction: "Needs action",
+    allClear: "All clear",
+    open: "Open",
+    pendingTotal: "{n} to handle",
+    items: {
+      orders: { label: "New orders", desc: "Waiting for your approval" },
+      repairs: { label: "Repairs waiting", desc: "New requests that need a price quote" },
+      quotes: { label: "Quotes", desc: "Sent or rejected quotes to follow up" },
+      stock: { label: "Low stock", desc: "Products running low or out of stock" },
+      messages: { label: "Unread messages", desc: "Customer chats waiting for a reply" },
+    },
+    rating: {
+      title: "Shop rating",
+      caption: "Average customer rating",
+      reviews: "{n} reviews",
+      outOf: "/ 5",
+      noData: "No ratings yet",
+    },
+    statsTitle: "Performance",
+    statsSubtitle: "Sales, orders and repairs at a glance",
+  },
+  ar: {
+    title: "مركز الإجراءات",
+    subtitle: "أمور تحتاج انتباهك الآن",
+    needsAction: "يحتاج إجراء",
+    allClear: "كل شيء جاهز",
+    open: "فتح",
+    pendingTotal: "{n} للمعالجة",
+    items: {
+      orders: { label: "طلبات جديدة", desc: "بانتظار موافقتك" },
+      repairs: { label: "تصليحات بالانتظار", desc: "طلبات جديدة تحتاج عرض سعر" },
+      quotes: { label: "عروض الأسعار", desc: "عروض مُرسلة أو مرفوضة للمتابعة" },
+      stock: { label: "مخزون منخفض", desc: "منتجات على وشك النفاد أو نفدت" },
+      messages: { label: "رسائل غير مقروءة", desc: "محادثات العملاء بانتظار الرد" },
+    },
+    rating: {
+      title: "تقييم المتجر",
+      caption: "متوسط تقييم العملاء",
+      reviews: "{n} تقييم",
+      outOf: "/ 5",
+      noData: "لا توجد تقييمات بعد",
+    },
+    statsTitle: "الأداء",
+    statsSubtitle: "المبيعات والطلبات والتصليحات في لمحة",
+  },
+};
+
+const ACTIONS = [
+  { key: "orders",   path: "/shop/orders",          icon: FiShoppingBag,  tone: "sky", hex: "#38bdf8" },
+  { key: "repairs",  path: "/shop/repair-requests", icon: FiTool,         tone: "am",  hex: "#fbbf24" },
+  { key: "quotes",   path: "/shop/repair-requests", icon: FiDollarSign,   tone: "te",  hex: "#2dd4bf" },
+  { key: "stock",    path: "/shop/inventory",       icon: FiAlertTriangle, tone: "ro", hex: "#fb7185" },
+  { key: "messages", path: "/shop/chats",           icon: FiMessageSquare, tone: "vi", hex: "#a78bfa" },
+];
+
+const tpl = (str, vars) => String(str).replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
+const readStorage = (key) => { try { return localStorage.getItem(key); } catch { return null; } };
+const listOf = (d) => (Array.isArray(d) ? d : Array.isArray(d?.content) ? d.content : []);
+const mapInventory = (d) => listOf(d).map((i) => ({
+  stock: Math.max(0, toNum(i?.stock ?? i?.stockQuantity)),
+  threshold: toNum(i?.threshold) > 0 ? toNum(i.threshold) : DEFAULT_THRESHOLD,
+}));
 
 const BarChart = lazy(async () => {
   const [cjs, rc] = await Promise.all([import("chart.js"), import("react-chartjs-2")]);
@@ -28,157 +121,7 @@ const BarChart = lazy(async () => {
   return { default: rc.Bar };
 });
 
-const LocaleCtx = createContext(null);
-const useL = () => useContext(LocaleCtx);
-
-const FMT_CACHE = {};
-const getFmt = (locale) =>
-  (FMT_CACHE[locale] ||= {
-    num: new Intl.NumberFormat(locale),
-    day: new Intl.DateTimeFormat(locale, { day: "2-digit", month: "short" }),
-    monthYear: new Intl.DateTimeFormat(locale, { month: "short", year: "2-digit" }),
-    time: new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }),
-    longMonth: new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }),
-    todayLong: new Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "long" }),
-  });
-
-const toNum = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
-const normStatus = (s) => (s ? String(s).toUpperCase() : "");
-
-const DT_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
-const MIN_YEAR = 2000;
-const MAX_YEAR = 2100;
-const MIN_DT = `${MIN_YEAR}-01-01T00:00`;
-const MAX_DT = `${MAX_YEAR}-12-31T23:59`;
-
-const toLocalInputValue = (date) => {
-  const tzOffset = date.getTimezoneOffset() * 60000;
-  return new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
-};
-
-const parseLocalInput = (v) => {
-  if (typeof v !== "string" || v.length !== 16 || !DT_RE.test(v)) return null;
-  const d = new Date(v);
-  if (Number.isNaN(d.getTime())) return null;
-  const y = d.getFullYear();
-  if (y < MIN_YEAR || y > MAX_YEAR) return null;
-  if (toLocalInputValue(d) !== v) return null;
-  return d;
-};
-
-
-const STATUS_STYLE = {
-  PENDING:     { hex: "#f59e0b", ink: INK },
-  SUBMITTED:   { hex: "#f59e0b", ink: INK },
-  PROCESSING:  { hex: "#3b82f6", ink: "#ffffff" },
-  IN_PROGRESS: { hex: "#3b82f6", ink: "#ffffff" },
-  SHIPPED:     { hex: "#6366f1", ink: "#ffffff" },
-  DELIVERED:   { hex: "#10b981", ink: INK },
-  COMPLETED:   { hex: "#34d399", ink: INK },
-  REJECTED:    { hex: "#ef4444", ink: "#ffffff" },
-  CANCELLED:   { hex: "#ef4444", ink: "#ffffff" },
-};
-const FALLBACK_STATUS = { hex: "#9ca3af", ink: INK };
-const getStatusStyle = (s) => STATUS_STYLE[normStatus(s)] || FALLBACK_STATUS;
-
-const REDUCED = typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-
-const FOCUS = "focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400";
-
-
-
-const Spinner = memo(({ size = 20, className = "" }) => (
-  <svg className={`animate-spin motion-reduce:animate-none ${className}`} width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" className="opacity-20" />
-    <path d="M21 12a9 9 0 00-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-  </svg>
-));
-
-const SectionTitle = ({ icon: Icon, children }) => (
-  <h3 className="flex items-center gap-2 text-sm font-extrabold uppercase">
-    {Icon && <Icon size={14} className="nb-ic flex-shrink-0" aria-hidden="true" />}
-    <span className="nb-ul">{children}</span>
-  </h3>
-);
-
-const Meter = memo(({ pct, color, className = "h-2.5" }) => (
-  <span className={`nb-gray nb-line block overflow-hidden border-2 ${className}`} aria-hidden="true">
-    <span
-      className="block h-full"
-      style={{ width: `${Math.max(0, Math.min(100, pct))}%`, background: color || "var(--nb-accent)", transition: REDUCED ? "none" : "width .5s ease" }}
-    />
-  </span>
-));
-
-const SkeletonBlock = ({ className }) => (
-  <div className={`${CARD} nb-gray animate-pulse motion-reduce:animate-none ${className}`} />
-);
-
-const EmptyBlock = ({ text }) => {
-  const { darkMode } = useL();
-  return (
-    <div className="flex h-full items-center justify-center py-4">
-      <EmptyState3D kind="box" title={text} darkMode={darkMode} />
-    </div>
-  );
-};
-
-const LoadingBlock = () => {
-  const { t } = useL();
-  return (
-    <div role="status" aria-label={t.loadingAria} className="nb-ic flex h-full items-center justify-center py-10">
-      <Spinner size={24} />
-    </div>
-  );
-};
-
-const RetryBlock = ({ onRetry }) => {
-  const { t } = useL();
-  return (
-    <div className="text-center">
-      <p role="alert" className="text-xs font-bold text-red-500">{t.errors.load}</p>
-      <button type="button" onClick={onRetry} className={`${BTN_MD} mt-2 h-8 uppercase`}>{t.retry}</button>
-    </div>
-  );
-};
-
 const ChartFallback = () => <div className="nb-gray nb-line h-full w-full animate-pulse border-2 motion-reduce:animate-none" />;
-
-const useInView = (margin = "240px") => {
-  const ref = useRef(null);
-  const [seen, setSeen] = useState(() => typeof IntersectionObserver === "undefined");
-  useEffect(() => {
-    if (seen || !ref.current) return undefined;
-    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setSeen(true); io.disconnect(); } }, { rootMargin: margin });
-    io.observe(ref.current);
-    return () => io.disconnect();
-  }, [seen, margin]);
-  return [ref, seen];
-};
-
-const Panel = memo(({ title, subtitle, icon, action, children }) => (
-  <section className={`${CARD} flex min-w-0 flex-col p-5`}>
-    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-      <div className="min-w-0">
-        <SectionTitle icon={icon}>{title}</SectionTitle>
-        {subtitle && <p className="nb-muted mt-1.5 text-[11px] font-semibold">{subtitle}</p>}
-      </div>
-      {action}
-    </div>
-    {children}
-  </section>
-));
-
-const StatusChip = ({ status, labels }) => {
-  const st = getStatusStyle(status);
-  return (
-    <span className="nb-chip !normal-case" style={{ background: st.hex, color: st.ink }}>
-      {labels[normStatus(status)] || status || "—"}
-    </span>
-  );
-};
-
-
 
 const STAT_META = {
   totalSales:   { icon: FiActivity,    tone: "em",  color: "#34d399", to: "/shop/transactions" },
@@ -188,31 +131,6 @@ const STAT_META = {
   totalRepairs: { icon: FiTool,        tone: "vi",  color: "#a78bfa", to: "/shop/repair-requests" },
 };
 
-const StatTile = memo(({ meta, label, caption, value, percent, onNavigate, wide }) => (
-  <button
-    type="button"
-    onClick={() => onNavigate(meta.to)}
-    className={`${CARD} min-w-0 p-4 text-start transition-transform hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:transform-none ${FOCUS} ${wide ? "sm:col-span-2" : ""}`}
-  >
-    <div className="flex items-center gap-3">
-      <IconTile icon={meta.icon} tone={meta.tone} className="h-11 w-11 flex-shrink-0" size={19} />
-      <div className="min-w-0">
-        <p className="nb-muted truncate text-[10px] font-bold uppercase">{label}</p>
-        <p className="truncate text-xl font-extrabold leading-tight tabular-nums">{value}</p>
-      </div>
-    </div>
-    {percent !== undefined && (
-      <div className="mt-3 flex items-center gap-2">
-        <Meter pct={percent} color={meta.color} className="h-2.5 flex-1" />
-        <span className="w-9 text-end text-[10px] font-extrabold tabular-nums">{percent}%</span>
-      </div>
-    )}
-    <p className={`nb-muted truncate text-[11px] font-semibold ${percent !== undefined ? "mt-2" : "mt-3"}`}>{caption}</p>
-  </button>
-));
-
-
-
 const QUICK_LINKS = [
   { key: "orders",       path: "/shop/orders",          icon: FiShoppingBag, tone: "sky" },
   { key: "repairs",      path: "/shop/repair-requests", icon: FiTool,        tone: "am" },
@@ -221,6 +139,215 @@ const QUICK_LINKS = [
   { key: "offers",       path: "/shop/offers",          icon: FiTag,         tone: "ro" },
   { key: "transactions", path: "/shop/transactions",    icon: FiCreditCard,  tone: "te" },
 ];
+
+/* ------------------------------------------------------------------ data hooks */
+
+/** Polled list loader: aborts stale requests, pauses while the tab is hidden. */
+const useList = (path, params, mapList, pollMs = POLL_MS) => {
+  const [state, setState] = useState({ items: [], loading: true, error: false });
+  const abortRef = useRef(null);
+
+  const load = useCallback(async () => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    try {
+      const res = await api.get(path, { params, signal: controller.signal });
+      if (!controller.signal.aborted) setState({ items: mapList(res.data), loading: false, error: false });
+    } catch {
+      if (!controller.signal.aborted) setState((s) => ({ ...s, loading: false, error: true }));
+    }
+  }, [path, params, mapList]);
+
+  useEffect(() => {
+    load();
+    const id = setInterval(() => { if (!document.hidden) load(); }, pollMs);
+    return () => { clearInterval(id); abortRef.current?.abort(); };
+  }, [load, pollMs]);
+
+  return { ...state, refresh: load };
+};
+
+const useUnread = () => {
+  const shopId = useMemo(() => readStorage("id"), []);
+  const [state, setState] = useState({ count: 0, loading: !!shopId, error: false });
+  const alive = useRef(true);
+
+  const load = useCallback(async () => {
+    if (!shopId) { setState({ count: 0, loading: false, error: false }); return; }
+    try {
+      const { data } = await chatApi.unreadCount(shopId);
+      if (alive.current) setState({ count: Math.max(0, Math.floor(toNum(parseCount(data)))), loading: false, error: false });
+    } catch {
+      if (alive.current) setState((s) => ({ ...s, loading: false, error: true }));
+    }
+  }, [shopId]);
+
+  useEffect(() => {
+    alive.current = true;
+    load();
+    const id = setInterval(() => { if (!document.hidden) load(); }, POLL_MS);
+    const onUnread = (e) => {
+      const n = Number(e.detail);
+      if (Number.isFinite(n)) setState((s) => ({ ...s, count: Math.max(0, Math.floor(n)) }));
+    };
+    window.addEventListener(UNREAD_EVENT, onUnread);
+    return () => {
+      alive.current = false;
+      clearInterval(id);
+      window.removeEventListener(UNREAD_EVENT, onUnread);
+    };
+  }, [load]);
+
+  return { ...state, refresh: load };
+};
+
+/** Accepts several backend shapes for the rating summary. */
+const pickRating = (d) => {
+  if (typeof d === "number") return Number.isFinite(d) && d > 0 ? { avg: d, count: 0 } : null;
+  if (!d || typeof d !== "object") return null;
+  const avg = Number(d.averageRating ?? d.average ?? d.avgRating ?? d.rating);
+  const count = toNum(d.totalReviews ?? d.reviewsCount ?? d.reviewCount ?? d.totalRatings ?? d.count);
+  if (!Number.isFinite(avg) || (avg <= 0 && count === 0)) return null;
+  return { avg: Math.max(0, Math.min(5, avg)), count: Math.max(0, Math.floor(count)) };
+};
+
+const fetchRating = async (_range, signal) => {
+  const res = await api.get(RATING_PATH, { signal });
+  return pickRating(res.data);
+};
+
+/* ------------------------------------------------------------------ action center */
+
+const ActionCard = memo(({ item, x, count, loading, failed, onOpen }) => {
+  const { f } = useL();
+  const text = x.items[item.key];
+  const urgent = !loading && !failed && count > 0;
+  const click = useCallback(() => onOpen(item.path), [onOpen, item.path]);
+  const shown = loading ? "…" : failed ? "—" : count > 999 ? `${f.num.format(999)}+` : f.num.format(count);
+
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={click}
+        aria-label={`${text.label}: ${shown}`}
+        className={`${CARD} flex h-full w-full min-w-0 flex-col gap-3 p-4 text-start transition-transform hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:transform-none ${FOCUS}`}
+        style={urgent ? { boxShadow: `4px 4px 0 ${item.hex}` } : undefined}
+      >
+        <div className="flex items-center gap-3">
+          <IconTile icon={item.icon} tone={item.tone} className="h-11 w-11 flex-shrink-0" size={19} />
+          <div className="min-w-0 flex-1">
+            <p className="nb-muted truncate text-[10px] font-bold uppercase rtl:tracking-normal">{text.label}</p>
+            <p className="truncate text-2xl font-extrabold leading-tight tabular-nums">{shown}</p>
+          </div>
+        </div>
+        <p className="nb-muted line-clamp-2 min-h-[2rem] text-[11px] font-semibold">{text.desc}</p>
+        <div className="mt-auto flex items-center justify-between gap-2">
+          {loading || failed ? <span /> : urgent ? (
+            <span className="nb-chip !normal-case" style={{ background: item.hex, color: INK }}>
+              <FiAlertCircle size={11} aria-hidden="true" /> {x.needsAction}
+            </span>
+          ) : (
+            <span className="nb-chip !normal-case">
+              <FiCheckCircle size={11} aria-hidden="true" /> {x.allClear}
+            </span>
+          )}
+          <span className="nb-muted inline-flex items-center gap-1 text-[10px] font-extrabold uppercase rtl:tracking-normal">
+            {x.open} <FiChevronRight size={12} className="rtl:rotate-180" aria-hidden="true" />
+          </span>
+        </div>
+      </button>
+    </li>
+  );
+});
+
+const ActionCenter = memo(({ x, counts, loading, failed, onOpen }) => {
+  const { f } = useL();
+  const total = counts.orders + counts.repairs + counts.quotes + counts.stock + counts.messages;
+  return (
+    <section aria-labelledby="action-center-title" className="space-y-3">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div className="min-w-0">
+          <div id="action-center-title"><SectionTitle icon={FiZap}>{x.title}</SectionTitle></div>
+          <p className="nb-muted mt-1.5 text-[11px] font-semibold">{x.subtitle}</p>
+        </div>
+        {total > 0 && !loading && (
+          <span className="nb-chip !normal-case" role="status">{tpl(x.pendingTotal, { n: f.num.format(total) })}</span>
+        )}
+      </div>
+      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5" aria-busy={loading}>
+        {ACTIONS.map((a) => (
+          <ActionCard
+            key={a.key}
+            item={a}
+            x={x}
+            count={counts[a.key]}
+            loading={loading[a.key]}
+            failed={failed[a.key]}
+            onOpen={onOpen}
+          />
+        ))}
+      </ul>
+    </section>
+  );
+});
+
+/* ------------------------------------------------------------------ rating */
+
+const Stars = memo(({ value }) => {
+  const filled = Math.round(value);
+  return (
+    <span className="inline-flex items-center gap-0.5" aria-hidden="true">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <FiStar
+          key={i}
+          size={16}
+          className={i <= filled ? "text-amber-400" : "nb-muted opacity-40"}
+          style={i <= filled ? { fill: "currentColor" } : undefined}
+        />
+      ))}
+    </span>
+  );
+});
+
+const RatingCard = memo(({ x, rating, loading }) => {
+  const { f } = useL();
+  const r = x.rating;
+  if (loading) return <SkeletonBlock className="h-[124px] sm:col-span-2" />;
+  return (
+    <section className={`${CARD} min-w-0 p-4 sm:col-span-2`} aria-label={r.title}>
+      <div className="flex items-center gap-3">
+        <IconTile icon={FiStar} tone="am" className="h-11 w-11 flex-shrink-0" size={19} />
+        <div className="min-w-0 flex-1">
+          <p className="nb-muted truncate text-[10px] font-bold uppercase rtl:tracking-normal">{r.title}</p>
+          {rating ? (
+            <p className="flex items-baseline gap-1.5 text-xl font-extrabold leading-tight tabular-nums">
+              {f.dec.format(rating.avg)}
+              <span className="nb-muted text-xs font-bold">{r.outOf}</span>
+            </p>
+          ) : (
+            <p className="nb-muted text-sm font-extrabold">{r.noData}</p>
+          )}
+        </div>
+        {rating && <Stars value={rating.avg} />}
+      </div>
+      {rating && (
+        <>
+          <div className="mt-3 flex items-center gap-2">
+            <Meter pct={(rating.avg / 5) * 100} color="#fbbf24" className="h-2.5 flex-1" />
+            <span className="w-9 text-end text-[10px] font-extrabold tabular-nums">{f.num.format(Math.round((rating.avg / 5) * 100))}%</span>
+          </div>
+          <p className="nb-muted mt-2 truncate text-[11px] font-semibold">
+            {r.caption}{rating.count > 0 ? ` · ${tpl(r.reviews, { n: f.num.format(rating.count) })}` : ""}
+          </p>
+        </>
+      )}
+    </section>
+  );
+});
+
+/* ------------------------------------------------------------------ calendar / quick links */
 
 const QuickLink = memo(({ item, title, desc, onOpen }) => (
   <li>
@@ -239,12 +366,10 @@ const QuickLink = memo(({ item, title, desc, onOpen }) => (
   </li>
 ));
 
-
-
 const MiniCalendar = memo(() => {
   const { t, f } = useL();
   const [cursor, setCursor] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
-  const today = new Date();
+  const today = useMemo(() => new Date(), []);
 
   const { title, cells } = useMemo(() => {
     const y = cursor.getFullYear(), m = cursor.getMonth();
@@ -293,123 +418,12 @@ const MiniCalendar = memo(() => {
   );
 });
 
-
-
-const DATE_PRESET_KEYS = ["today", "week", "month", "all"];
-
-const DateFilter = memo(({ startDate, endDate, onStartChange, onEndChange, onReset, error, loading }) => {
-  const { t } = useL();
-  const d = t.filter;
-
-  const applyPreset = useCallback((key) => {
-    const now = new Date();
-    if (key === "all") { onReset(); return; }
-    let start;
-    if (key === "today") start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    else if (key === "week") start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    else start = new Date(now.getFullYear(), now.getMonth(), 1);
-    onStartChange(toLocalInputValue(start));
-    onEndChange(toLocalInputValue(now));
-  }, [onStartChange, onEndChange, onReset]);
-
-  const fields = [
-    { id: "df-from", label: d.from, value: startDate, onChange: onStartChange, min: MIN_DT, max: endDate || MAX_DT },
-    { id: "df-to", label: d.to, value: endDate, onChange: onEndChange, min: startDate || MIN_DT, max: MAX_DT },
-  ];
-
-  return (
-    <section className={`${CARD} space-y-4 p-4 sm:p-5`}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <SectionTitle icon={FiCalendar}>{d.title}</SectionTitle>
-        <div className="flex flex-wrap gap-2">
-          {DATE_PRESET_KEYS.map((k) => (
-            <button key={k} type="button" onClick={() => applyPreset(k)} className={`${BTN_MD} h-8 uppercase`}>
-              {d.presets[k]}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-3 md:flex-row md:items-end">
-        <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
-          {fields.map((fld) => (
-            <div key={fld.id}>
-              <label htmlFor={fld.id} className={LABEL}>{fld.label}</label>
-              <input
-                id={fld.id}
-                type="datetime-local"
-                value={fld.value}
-                min={fld.min}
-                max={fld.max}
-                autoComplete="off"
-                aria-invalid={!!error}
-                onChange={(e) => fld.onChange(e.target.value)}
-                className={`${FIELD} w-full`}
-              />
-            </div>
-          ))}
-        </div>
-
-        <button type="button" onClick={onReset} className={`${BTN_PRIMARY} h-10 shrink-0 uppercase`}>
-          {loading ? <Spinner size={13} /> : <FiRefreshCw size={13} aria-hidden="true" />} {d.reset}
-        </button>
-      </div>
-
-      {error && (
-        <p role="alert" className="nb-card flex items-center gap-1.5 px-3 py-2 text-[11px] font-bold !border-red-500 text-red-600 dark:text-red-300">
-          <FiAlertCircle size={13} aria-hidden="true" /> {error}
-        </p>
-      )}
-    </section>
-  );
-});
-
-
-
-const useOrders = () => {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const abortRef = useRef(null);
-
-  const refresh = useCallback(async () => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    try {
-      const res = await api.get("/api/shops/orders/control", {
-        params: { page: 0, size: 500, sort: "createdAt,desc" },
-        signal: controller.signal,
-      });
-      const data = Array.isArray(res.data) ? res.data : res.data?.content || [];
-      if (!controller.signal.aborted) { setOrders(data); setError(false); }
-    } catch {
-      if (!controller.signal.aborted) setError(true);
-    } finally {
-      if (!controller.signal.aborted) setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    refresh();
-    return () => abortRef.current?.abort();
-  }, [refresh]);
-
-  return { orders, loading, error, refresh };
-};
-
-
-
-const Insight = memo(({ label, value, tone }) => (
-  <div className={`${PANEL} min-w-0 px-3.5 py-3`}>
-    <p className="nb-muted truncate text-[10px] font-bold uppercase">{label}</p>
-    <p className={`mt-0.5 truncate text-lg font-extrabold tabular-nums ${tone || ""}`}>{value}</p>
-  </div>
-));
+/* ------------------------------------------------------------------ orders chart */
 
 const bucketKey = (d, period) => {
-  if (period === "DAILY") return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  if (period === "MONTHLY") return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const p = (n) => String(n).padStart(2, "0");
+  if (period === "DAILY") return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  if (period === "MONTHLY") return `${d.getFullYear()}-${p(d.getMonth() + 1)}`;
   return String(d.getFullYear());
 };
 
@@ -500,13 +514,8 @@ const OrdersChartCard = memo(({ orders, loading, doneRate }) => {
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: INK,
-          titleColor: "#ecfdf5",
-          bodyColor: "#ecfdf5",
-          borderColor: "#34d399",
-          borderWidth: 2,
-          cornerRadius: 0,
-          padding: 10,
+          backgroundColor: INK, titleColor: "#ecfdf5", bodyColor: "#ecfdf5",
+          borderColor: "#34d399", borderWidth: 2, cornerRadius: 0, padding: 10,
           titleFont: { family: fontFamily, weight: "bold" },
           bodyFont: { family: fontFamily },
           callbacks: { label: (ctx) => ` ${f.num.format(toNum(ctx.parsed?.y))} ${c.unit}` },
@@ -544,37 +553,20 @@ const OrdersChartCard = memo(({ orders, loading, doneRate }) => {
           : <ChartFallback />}
       </div>
       <div className="mt-4 grid grid-cols-2 gap-2.5">
-        <Insight label={c.total} value={f.num.format(total)} />
-        <Insight label={c.best} value={best ? best.label : "-"} />
-        <Insight
+        <Metric label={c.total} value={f.num.format(total)} />
+        <Metric label={c.best} value={best ? best.label : "-"} />
+        <Metric
           label={c.trend}
           value={trend ? `${trend.up ? "+" : "-"}${f.num.format(Math.abs(trend.pct))}%` : "-"}
           tone={trend ? (trend.up ? "text-emerald-600 dark:text-emerald-300" : "text-red-500") : undefined}
         />
-        <Insight label={c.completion} value={`${f.num.format(doneRate)}%`} />
+        <Metric label={c.completion} value={`${f.num.format(doneRate)}%`} />
       </div>
     </Panel>
   );
 });
 
-
-
-const BreakdownRow = memo(({ row }) => {
-  const { f } = useL();
-  return (
-    <li className={`${PANEL} p-3`}>
-      <div className="flex items-center gap-2.5">
-        <span className="nb-line h-3 w-3 flex-shrink-0 border-2" style={{ background: row.color }} aria-hidden="true" />
-        <span className="flex-1 truncate text-xs font-extrabold uppercase">{row.label}</span>
-        <span className="text-sm font-extrabold tabular-nums">{f.num.format(row.count)}</span>
-        <span className="nb-muted w-10 text-end text-[11px] font-bold tabular-nums">{f.num.format(row.pct)}%</span>
-      </div>
-      <div className="mt-2"><Meter pct={row.pct} color={row.color} className="h-2" /></div>
-    </li>
-  );
-});
-
-
+/* ------------------------------------------------------------------ latest tables */
 
 const TH = "px-3 py-2.5 text-[10px] font-extrabold uppercase rtl:tracking-normal";
 const ROW_CLS = "nb-line border-b-2 last:border-b-0";
@@ -601,9 +593,7 @@ const TableHead = ({ cols }) => (
 );
 
 const StateRow = ({ children }) => (
-  <tr>
-    <td colSpan={3} className="px-6 py-8">{children}</td>
-  </tr>
+  <tr><td colSpan={3} className="px-6 py-8">{children}</td></tr>
 );
 
 const OrderRow = memo(({ o }) => {
@@ -613,7 +603,7 @@ const OrderRow = memo(({ o }) => {
   return (
     <tr className={ROW_CLS}>
       <td className="px-5 py-3">
-        <p className="text-xs font-extrabold">{fullName || d.unknownCustomer}</p>
+        <p className="max-w-[200px] truncate text-xs font-extrabold">{fullName || d.unknownCustomer}</p>
         <p className="nb-muted mt-0.5 text-[11px] font-semibold" dir="ltr">{o.phoneNumber || "-"}</p>
       </td>
       <td className="whitespace-nowrap px-3 py-3 text-center"><StatusChip status={o.status} labels={t.orderStatus} /></td>
@@ -656,43 +646,17 @@ const RepairRow = memo(({ r }) => {
   );
 });
 
-const LatestRepairsTable = memo(({ reloadKey }) => {
+const LatestRepairsTable = memo(({ repairs: all, loading, error, onRetry }) => {
   const { t } = useL();
   const d = t.latestRepairs;
-  const [repairs, setRepairs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [localKey, setLocalKey] = useState(0);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setError(false);
-    (async () => {
-      try {
-        const res = await api.get("/api/shops/repair-request", {
-          params: { page: 0, size: 5, sort: "createdAt,desc" },
-          signal: controller.signal,
-        });
-        const data = Array.isArray(res.data) ? res.data : res.data?.content || [];
-        if (!controller.signal.aborted) setRepairs(data.slice(0, 5));
-      } catch {
-        if (!controller.signal.aborted) setError(true);
-      } finally {
-        if (!controller.signal.aborted) setLoading(false);
-      }
-    })();
-    return () => controller.abort();
-  }, [reloadKey, localKey]);
-
-  const retry = useCallback(() => { setLoading(true); setLocalKey((k) => k + 1); }, []);
-
+  const repairs = useMemo(() => all.slice(0, 5), [all]);
   return (
     <TableShell icon={FiTool} tone="am" title={d.title}>
       <table className="w-full text-start">
         <TableHead cols={[[d.request, "text-start"], [d.status, "text-center"], [d.price, "text-end"]]} />
         <tbody>
           {loading ? <StateRow><LoadingBlock /></StateRow>
-            : error && repairs.length === 0 ? <StateRow><RetryBlock onRetry={retry} /></StateRow>
+            : error && repairs.length === 0 ? <StateRow><RetryBlock onRetry={onRetry} /></StateRow>
             : repairs.length === 0 ? <StateRow><EmptyBlock text={d.empty} /></StateRow>
             : repairs.map((r) => <RepairRow key={r.id} r={r} />)}
         </tbody>
@@ -701,15 +665,7 @@ const LatestRepairsTable = memo(({ reloadKey }) => {
   );
 });
 
-
-
-const POLL_MS = 60000;
-const INITIAL_STATS = { totalSales: 0, todaySales: 0, totalOrders: 0, todayRepairs: 0, totalRepairs: 0 };
-
-const mergeStats = (prev, patch) => {
-  for (const k in patch) if (prev[k] !== patch[k]) return { ...prev, ...patch };
-  return prev;
-};
+/* ------------------------------------------------------------------ page */
 
 const ShopDashboard = ({ darkMode: darkModeProp }) => {
   const navigate = useNavigate();
@@ -720,200 +676,129 @@ const ShopDashboard = ({ darkMode: darkModeProp }) => {
   const { language, L, dir, font } = loc;
   const isAr = loc.isAr ?? language === "ar";
   const t = L.dashboard;
+  const r = pickReportText(loc);
+  const x = ACTION_TEXT[isAr ? "ar" : "en"];
   const f = getFmt(L.locale || (isAr ? "ar-EG" : "en-US"));
   const fontFamily = font?.fontFamily;
-  const ctx = useMemo(() => ({ t, f, fontFamily, darkMode }), [t, f, fontFamily, darkMode]);
-
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [fieldError, setFieldError] = useState(false);
-  const [applied, setApplied] = useState({ startDate: "", endDate: "" });
-
-  const [stats, setStats] = useState(INITIAL_STATS);
-  const [isLoading, setIsLoading] = useState(true);
-  const [statsError, setStatsError] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState(null);
-
-  const appliedRef = useRef(applied);
-  const rangeAbort = useRef(null);
-  const liveAbort = useRef(null);
-  const firstRun = useRef(true);
-  const tRef = useRef(t);
-  tRef.current = t;
-
-  const { orders, loading: ordersLoading, error: ordersError, refresh: refreshOrders } = useOrders();
+  const ctx = useMemo(() => ({ t, r, f, fontFamily, darkMode }), [t, r, f, fontFamily, darkMode]);
 
   useEffect(() => { document.title = t.docTitle; }, [t.docTitle]);
-
   useEffect(() => { if (!accessToken) navigate("/login"); }, [accessToken, navigate]);
 
-  const handleStartChange = useCallback((v) => {
-    if (v === "" || parseLocalInput(v)) { setStartDate(v); setFieldError(false); }
-    else setFieldError(true);
-  }, []);
-  const handleEndChange = useCallback((v) => {
-    if (v === "" || parseLocalInput(v)) { setEndDate(v); setFieldError(false); }
-    else setFieldError(true);
-  }, []);
+  const range = useDateRange(t);
+  const { onRange } = range;
+  const [showFilter, setShowFilter] = useState(false);
+  const toggleFilter = useCallback(() => {
+    if (showFilter) onRange("", "");
+    setShowFilter(!showFilter);
+  }, [showFilter, onRange]);
 
-  const rangeInvalid = useMemo(() => {
-    const s = parseLocalInput(startDate);
-    const e = parseLocalInput(endDate);
-    return !!(s && e && s > e);
-  }, [startDate, endDate]);
-  const dateError = fieldError ? t.filter.invalidDate : rangeInvalid ? t.filter.rangeError : "";
+  const overview = useRangeResource(fetchOverview, range.applied, { pollMs: POLL_MS });
+  const today = useRangeResource(fetchToday, EMPTY_RANGE, { pollMs: POLL_MS });
+  const ratingRes = useRangeResource(fetchRating, EMPTY_RANGE, { pollMs: RATING_POLL_MS });
 
-  useEffect(() => {
-    if (rangeInvalid) return undefined;
-    const id = setTimeout(() => {
-      setApplied((p) => (p.startDate === startDate && p.endDate === endDate ? p : { startDate, endDate }));
-    }, 400);
-    return () => clearTimeout(id);
-  }, [startDate, endDate, rangeInvalid]);
+  // One request per resource; shared by the Action Center, chart and latest tables.
+  const ordersQ = useList(ORDERS_PATH, LIST_PARAMS, listOf);
+  const repairsQ = useList(REPAIRS_PATH, LIST_PARAMS, listOf);
+  const stockQ = useList(INVENTORY_PATH, INVENTORY_PARAMS, mapInventory);
+  const unreadQ = useUnread();
 
-  const fetchRange = useCallback(async () => {
-    rangeAbort.current?.abort();
-    const controller = new AbortController();
-    rangeAbort.current = controller;
-    const { startDate: s, endDate: e } = appliedRef.current;
-    const payload = { startDate: s || null, endDate: e || null };
-    const opts = { signal: controller.signal };
+  const { reload: reloadOverview } = overview;
+  const { reload: reloadToday } = today;
+  const { reload: reloadRating } = ratingRes;
+  const { refresh: refreshOrders } = ordersQ;
+  const { refresh: refreshRepairs } = repairsQ;
+  const { refresh: refreshStock } = stockQ;
+  const { refresh: refreshUnread } = unreadQ;
 
-    const [sales, ordersTotal] = await Promise.allSettled([
-      api.post("/api/shops/dashboard/sales/total", payload, opts),
-      api.post("/api/shops/dashboard/orders/total", payload, opts),
-    ]);
-    if (controller.signal.aborted) return undefined;
-
-    const patch = {};
-    if (sales.status === "fulfilled") patch.totalSales = toNum(sales.value.data);
-    if (ordersTotal.status === "fulfilled") patch.totalOrders = toNum(ordersTotal.value.data);
-    setStats((prev) => mergeStats(prev, patch));
-    return sales.status === "fulfilled" && ordersTotal.status === "fulfilled";
-  }, []);
-
-  const fetchLive = useCallback(async () => {
-    liveAbort.current?.abort();
-    const controller = new AbortController();
-    liveAbort.current = controller;
-    const opts = { signal: controller.signal };
-
-    const [salesStats, repairsStats, repairsTotal] = await Promise.allSettled([
-      api.get("/api/shops/dashboard/sales/stats", opts),
-      api.get("/api/shops/dashboard/repairs/stats", opts),
-      api.get("/api/shops/dashboard/repairs/total", opts),
-    ]);
-    if (controller.signal.aborted) return undefined;
-
-    const patch = {};
-    if (salesStats.status === "fulfilled") patch.todaySales = toNum(salesStats.value.data?.todaySales);
-    if (repairsStats.status === "fulfilled") patch.todayRepairs = toNum(repairsStats.value.data?.todayRepairs);
-    if (repairsTotal.status === "fulfilled") patch.totalRepairs = toNum(repairsTotal.value.data);
-    setStats((prev) => mergeStats(prev, patch));
-    return [salesStats, repairsStats, repairsTotal].every((r) => r.status === "fulfilled");
-  }, []);
-
-  const loadStats = useCallback(async ({ range = true, live = true, silent = false } = {}) => {
-    if (!silent) setIsLoading(true);
-    const [rangeOk, liveOk] = await Promise.all([
-      range ? fetchRange() : true,
-      live ? fetchLive() : true,
-    ]);
-    if (rangeOk === undefined || liveOk === undefined) return;
-    setStatsError(!(rangeOk && liveOk));
-    setLastUpdated(new Date());
-    setIsLoading(false);
-  }, [fetchRange, fetchLive]);
-
-  useEffect(() => {
-    appliedRef.current = applied;
-    if (firstRun.current) { firstRun.current = false; return; }
-    loadStats({ live: false });
-  }, [applied, loadStats]);
-
-  useEffect(() => {
-    loadStats();
-    const interval = setInterval(() => { if (!document.hidden) loadStats({ silent: true }); }, POLL_MS);
-    return () => {
-      clearInterval(interval);
-      rangeAbort.current?.abort();
-      liveAbort.current?.abort();
-    };
-  }, [loadStats]);
-
-  const resetDates = useCallback(() => {
-    setStartDate("");
-    setEndDate("");
-    setFieldError(false);
-    toast({ icon: "success", title: tRef.current.filter.resetToast });
-  }, []);
-
-  const [repairsKey, setRepairsKey] = useState(0);
   const refreshAll = useCallback(() => {
-    loadStats();
+    reloadOverview();
+    reloadToday();
+    reloadRating();
     refreshOrders();
-    setRepairsKey((k) => k + 1);
-  }, [loadStats, refreshOrders]);
+    refreshRepairs();
+    refreshStock();
+    refreshUnread();
+  }, [reloadOverview, reloadToday, reloadRating, refreshOrders, refreshRepairs, refreshStock, refreshUnread]);
 
   const goTo = useCallback((to) => navigate(to), [navigate]);
 
-  const { statusRows, doneRate } = useMemo(() => {
-    const counts = new Map();
-    for (const o of orders) {
-      const k = o.status ? normStatus(o.status).slice(0, 24) : "UNKNOWN";
-      counts.set(k, (counts.get(k) || 0) + 1);
+  const ov = overview.data;
+  const td = today.data;
+
+  const counts = useMemo(() => {
+    let orders = 0, repairs = 0, quotes = 0, stock = 0;
+    for (const o of ordersQ.items) if (normStatus(o.status) === "PENDING") orders += 1;
+    for (const rp of repairsQ.items) {
+      const s = normStatus(rp.status);
+      if (s === "SUBMITTED") repairs += 1;
+      else if (s === "QUOTE_SENT" || s === "QUOTE_REJECTED") quotes += 1;
     }
-    const sum = orders.length;
-    const rows = [...counts]
-      .map(([key, count]) => ({
-        key,
-        count,
-        pct: sum ? Math.round((count / sum) * 100) : 0,
-        color: getStatusStyle(key).hex,
-        label: t.orderStatus[key] || (key === "UNKNOWN" ? t.unknown : key),
-      }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 6);
-    const done = (counts.get("DELIVERED") || 0) + (counts.get("COMPLETED") || 0);
-    return { statusRows: rows, doneRate: sum ? Math.round((done / sum) * 100) : 0 };
-  }, [orders, t]);
+    for (const i of stockQ.items) if (i.stock < i.threshold) stock += 1;
+    return { orders, repairs, quotes, stock, messages: unreadQ.count };
+  }, [ordersQ.items, repairsQ.items, stockQ.items, unreadQ.count]);
+
+  const actionLoading = useMemo(() => ({
+    orders: ordersQ.loading,
+    repairs: repairsQ.loading,
+    quotes: repairsQ.loading,
+    stock: stockQ.loading,
+    messages: unreadQ.loading,
+  }), [ordersQ.loading, repairsQ.loading, stockQ.loading, unreadQ.loading]);
+
+  const actionFailed = useMemo(() => ({
+    orders: ordersQ.error && ordersQ.items.length === 0,
+    repairs: repairsQ.error && repairsQ.items.length === 0,
+    quotes: repairsQ.error && repairsQ.items.length === 0,
+    stock: stockQ.error && stockQ.items.length === 0,
+    messages: unreadQ.error && unreadQ.count === 0,
+  }), [ordersQ.error, ordersQ.items.length, repairsQ.error, repairsQ.items.length, stockQ.error, stockQ.items.length, unreadQ.error, unreadQ.count]);
+
+  const doneRate = useMemo(() => {
+    if (ov?.orders) return Math.round(toNum(ov.orders.completionRate));
+    const done = ordersQ.items.filter((o) => ["DELIVERED", "COMPLETED"].includes(normStatus(o.status))).length;
+    return ordersQ.items.length ? Math.round((done / ordersQ.items.length) * 100) : 0;
+  }, [ov, ordersQ.items]);
+
+  const rating = useMemo(
+    () => ratingRes.data ?? pickRating(ov?.shopRating ?? ov?.rating),
+    [ratingRes.data, ov],
+  );
 
   const statCards = useMemo(() => {
-    const price = (v) => `${f.num.format(v)} ${t.currency}`;
+    const price = (v) => `${f.num.format(toNum(v))} ${t.currency}`;
     const pct = (a, b) => (b > 0 ? Math.min(100, Math.round((a / b) * 100)) : 0);
+    const totalSales = toNum(ov?.sales?.totalSales);
+    const totalRepairs = toNum(ov?.repairs?.totalRepairs);
+    const todaySales = toNum(td?.todaySales);
+    const todayRepairs = toNum(td?.todayRepairs);
     return [
-      { key: "totalSales",   value: price(stats.totalSales) },
-      { key: "todaySales",   value: price(stats.todaySales), percent: pct(stats.todaySales, stats.totalSales) },
-      { key: "totalOrders",  value: f.num.format(stats.totalOrders) },
-      { key: "todayRepairs", value: f.num.format(stats.todayRepairs), percent: pct(stats.todayRepairs, stats.totalRepairs) },
-      { key: "totalRepairs", value: f.num.format(stats.totalRepairs), wide: true },
+      { key: "totalSales",   value: price(totalSales), delta: ov?.sales?.percentChange },
+      { key: "todaySales",   value: price(todaySales), percent: pct(todaySales, totalSales) },
+      { key: "totalOrders",  value: f.num.format(toNum(ov?.orders?.totalOrders)), delta: ov?.orders?.ordersPercentChange },
+      { key: "todayRepairs", value: f.num.format(todayRepairs), percent: pct(todayRepairs, totalRepairs) },
+      { key: "totalRepairs", value: f.num.format(totalRepairs), delta: ov?.repairs?.repairsPercentChange, wide: true },
     ].map((c) => ({
       ...c,
       meta: STAT_META[c.key],
       label: t.stats[c.key].label,
       caption: t.stats[c.key].caption,
     }));
-  }, [stats, t, f]);
+  }, [ov, td, t, f]);
 
-  const showSkeleton = isLoading && !lastUpdated;
-  const hasError = statsError || ordersError;
-
-  const wrapperProps = {
-    dir,
-    lang: language,
-    style: font,
-    className: "nb-page min-h-screen py-6 lg:ps-64 mt-16 text-start",
-  };
+  const showSkeleton = overview.loading && !ov;
+  const hasError = overview.error || today.error || ordersQ.error || repairsQ.error || stockQ.error || unreadQ.error || (td && td.ok === false);
+  const lastUpdated = overview.updatedAt;
+  const refreshing = overview.loading || today.loading;
 
   return (
     <LocaleCtx.Provider value={ctx}>
-      <div {...wrapperProps}>
+      <div dir={dir} lang={language} style={font} className="nb-page min-h-screen py-6 lg:ps-64 mt-16 text-start">
         <style>{PAGE_CSS}</style>
         <Defs3D />
         <Toaster darkMode={darkMode} />
 
         <div key={language} className="lang-fade mx-auto max-w-7xl space-y-6 px-4 sm:px-6">
-
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="min-w-0">
               <p className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wide rtl:tracking-normal">
@@ -925,12 +810,24 @@ const ShopDashboard = ({ darkMode: darkModeProp }) => {
               </h1>
               <p className="nb-muted mt-2 text-xs font-semibold">{t.subtitle}</p>
             </div>
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2.5">
               <div className="nb-chip !normal-case" role="status" aria-live="polite">
                 {t.lastUpdated}: <span className="tabular-nums">{lastUpdated ? f.time.format(lastUpdated) : "..."}</span>
               </div>
+              <button
+                type="button"
+                onClick={toggleFilter}
+                aria-expanded={showFilter}
+                aria-controls="date-filter-panel"
+                className={`${showFilter ? BTN_PRIMARY : BTN_MD} h-10 uppercase`}
+              >
+                <FiFilter size={14} aria-hidden="true" /> {t.filter.title}
+              </button>
+              <button type="button" onClick={() => goTo(REPORTS_PATH)} className={`${BTN_MD} h-10 uppercase`}>
+                <FiBarChart2 size={14} aria-hidden="true" /> {r.openReports}
+              </button>
               <button type="button" onClick={refreshAll} aria-label={t.refresh} title={t.refresh} className={`${BTN_MD} h-10 uppercase`}>
-                <FiRefreshCw size={14} className={isLoading ? "animate-spin motion-reduce:animate-none" : ""} /> {t.refresh}
+                <FiRefreshCw size={14} className={refreshing ? "animate-spin motion-reduce:animate-none" : ""} /> {t.refresh}
               </button>
             </div>
           </div>
@@ -945,26 +842,60 @@ const ShopDashboard = ({ darkMode: darkModeProp }) => {
             </div>
           )}
 
-          <DateFilter
-            startDate={startDate}
-            endDate={endDate}
-            onStartChange={handleStartChange}
-            onEndChange={handleEndChange}
-            onReset={resetDates}
-            error={dateError}
-            loading={isLoading && !!lastUpdated}
-          />
+          {/* 1) Action center */}
+          <ActionCenter x={x} counts={counts} loading={actionLoading} failed={actionFailed} onOpen={goTo} />
 
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-            <div className="grid grid-cols-1 content-start gap-4 sm:grid-cols-2 lg:col-span-2" aria-busy={showSkeleton}>
-              {showSkeleton
-                ? [...Array(5)].map((_, i) => <SkeletonBlock key={i} className={`h-[124px] ${i === 4 ? "sm:col-span-2" : ""}`} />)
-                : statCards.map(({ key, ...c }) => <StatTile key={key} {...c} onNavigate={goTo} />)}
+          {showFilter && (
+            <div id="date-filter-panel">
+              <DateFilter
+                startDate={range.startDate}
+                endDate={range.endDate}
+                onStartChange={range.onStartChange}
+                onEndChange={range.onEndChange}
+                onRange={range.onRange}
+                onReset={range.reset}
+                error={range.error}
+                loading={overview.loading && !!ov}
+              />
             </div>
-            <MiniCalendar />
-          </div>
+          )}
+
+          {/* 2) Stats + rating + calendar */}
+          <section aria-labelledby="stats-title" className="space-y-3">
+            <div>
+              <div id="stats-title"><SectionTitle icon={FiActivity}>{x.statsTitle}</SectionTitle></div>
+              <p className="nb-muted mt-1.5 text-[11px] font-semibold">{x.statsSubtitle}</p>
+            </div>
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+              <div className="grid grid-cols-1 content-start gap-4 sm:grid-cols-2 lg:col-span-2" aria-busy={showSkeleton}>
+                {showSkeleton
+                  ? [...Array(5)].map((_, i) => <SkeletonBlock key={i} className={`h-[124px] ${i === 4 ? "sm:col-span-2" : ""}`} />)
+                  : statCards.map(({ key, ...c }) => <StatTile key={key} {...c} onNavigate={goTo} />)}
+                <RatingCard x={x} rating={rating} loading={ratingRes.loading && !ratingRes.data} />
+              </div>
+              <MiniCalendar />
+            </div>
+          </section>
 
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+            <Panel
+              title={r.score.title}
+              subtitle={r.insights.subtitle}
+              icon={FiTarget}
+              action={<button type="button" onClick={() => goTo(REPORTS_PATH)} className={`${BTN_MD} h-8 uppercase`}>{r.insights.viewAll}</button>}
+            >
+              {showSkeleton ? <LoadingBlock />
+                : !ov ? <RetryBlock onRetry={reloadOverview} />
+                : (
+                  <div className="space-y-4">
+                    <ScoreCard score={ov.overallScore} />
+                    <InsightList insights={ov.insights} limit={3} />
+                  </div>
+                )}
+            </Panel>
+
+            <OrdersChartCard orders={ordersQ.items} loading={ordersQ.loading} doneRate={doneRate} />
+
             <Panel title={t.quick.title} subtitle={t.quick.subtitle} icon={FiZap}>
               <ul className="space-y-2.5">
                 {QUICK_LINKS.map((q) => (
@@ -972,23 +903,11 @@ const ShopDashboard = ({ darkMode: darkModeProp }) => {
                 ))}
               </ul>
             </Panel>
-
-            <OrdersChartCard orders={orders} loading={ordersLoading} doneRate={doneRate} />
-
-            <Panel title={t.breakdown.title} subtitle={t.breakdown.subtitle} icon={FiPieChart}>
-              {ordersLoading ? <LoadingBlock />
-                : statusRows.length === 0 ? <EmptyBlock text={t.breakdown.empty} />
-                : (
-                  <ul className="space-y-2.5">
-                    {statusRows.map((r) => <BreakdownRow key={r.key} row={r} />)}
-                  </ul>
-                )}
-            </Panel>
           </div>
 
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-            <LatestOrdersTable orders={orders} loading={ordersLoading} error={ordersError} onRetry={refreshOrders} />
-            <LatestRepairsTable reloadKey={repairsKey} />
+            <LatestOrdersTable orders={ordersQ.items} loading={ordersQ.loading} error={ordersQ.error} onRetry={refreshOrders} />
+            <LatestRepairsTable repairs={repairsQ.items} loading={repairsQ.loading} error={repairsQ.error} onRetry={refreshRepairs} />
           </div>
         </div>
       </div>

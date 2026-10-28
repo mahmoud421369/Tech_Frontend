@@ -17,6 +17,7 @@ import { ensureShopAssets } from '../common/utils/shopFonts';
 ensureShopAssets();
 
 const API_BASE = '/api/shop/inventory';
+const BADGE_EVENT = 'shopBadgeCounts';
 const DEFAULT_THRESHOLD = 5;
 const STOCK_MAX = 1_000_000;
 const IMPORT_MAX_BYTES = 5 * 1024 * 1024;
@@ -578,6 +579,14 @@ const Inventory = () => {
     for (const { status } of index) c[status] += 1;
     return c;
   }, [index, inventory.length]);
+
+  // Share the "low / out of stock" count with the shop header badge (only after the first successful load).
+  const lowStockCount = counts.low + counts.out;
+  const loaded = lastUpdated !== null;
+  useEffect(() => {
+    if (!loaded) return;
+    window.dispatchEvent(new CustomEvent(BADGE_EVENT, { detail: { stock: lowStockCount } }));
+  }, [lowStockCount, loaded]);
 
   const computedValue = useMemo(() => inventory.reduce((s, i) => s + i.price * i.stock, 0), [inventory]);
 

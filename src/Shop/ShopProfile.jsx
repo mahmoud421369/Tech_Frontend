@@ -4,7 +4,7 @@ import React, {
 import {
   FiEdit3, FiMapPin, FiTrash2, FiX, FiMail, FiPhone, FiStar, FiTag, FiCheckCircle, FiShield,
   FiLock, FiPlus, FiMinus, FiCamera, FiGlobe, FiRefreshCw, FiHash, FiHome, FiAlertCircle,
-  FiSearch, FiNavigation, FiExternalLink,
+  FiSearch, FiNavigation, FiExternalLink, FiSettings, FiSun, FiMoon,
 } from 'react-icons/fi';
 import { FaStore } from 'react-icons/fa';
 import api from '../common/api/api';
@@ -15,7 +15,7 @@ import {
   BTN, BTN_MD, BTN_ICON, BTN_PRIMARY, CARD, PANEL, FIELD, LABEL, SCROLL_CSS, fmt, tpl, shortId, errText, isSafeId,
   confirmDialog, useDarkMode, useEscape, useShopLocale, StatCard, Overlay, IconTile,
 } from '../components/shop/TableKit';
-import { ensureShopAssets } from '../common/utils/shopFonts';
+import { ensureShopAssets, getFontStyle } from '../common/utils/shopFonts';
 import { resolveImageSrc, validateImageFile } from '../common/utils/productutils';
 
 ensureShopAssets();
@@ -31,8 +31,34 @@ const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const TILE_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>';
 const GEO_CACHE_MAX = 40;
 const GEO_DEBOUNCE = 600;
+const THEME_EVENT = 'appDarkModeChanged';
+const LANG_EVENT = 'appLanguageChanged';
 
 const EMPTY_ADDR = { state: '', city: '', street: '', building: '', isDefault: false };
+
+const LANG_OPTIONS = [
+  { code: 'ar', label: 'العربية' },
+  { code: 'en', label: 'English' },
+];
+
+const SETTINGS_TXT = {
+  en: {
+    title: 'Settings',
+    subtitle: 'Appearance and language for your dashboard',
+    appearance: 'Appearance',
+    light: 'Light',
+    dark: 'Dark',
+    language: 'Language',
+  },
+  ar: {
+    title: 'الإعدادات',
+    subtitle: 'المظهر واللغة للوحة التحكم',
+    appearance: 'المظهر',
+    light: 'فاتح',
+    dark: 'داكن',
+    language: 'اللغة',
+  },
+};
 
 const MAP_TXT = {
   en: {
@@ -99,6 +125,9 @@ const MAP_CSS = `
 const BASE_CSS = UI3D_CSS + EXTRAS_CSS;
 const PAGE_CSS = BASE_CSS + SCROLL_CSS + MAP_CSS;
 const UPLOAD_CONFIG = { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120_000 };
+
+const readStorage = (key) => { try { return localStorage.getItem(key); } catch { return null; } };
+const writeStorage = (key, value) => { try { localStorage.setItem(key, value); } catch { } };
 
 const uploadErrText = (err, u) => {
   const status = err?.response?.status;
@@ -227,7 +256,6 @@ const PinMap = memo(({ start, apiRef, onPick, onDragging, onReady, onFail, loadi
         });
         map.on('click', (e) => map.panTo(e.latlng, { animate: true, duration: 0.45 }));
 
-      
         if (typeof ResizeObserver !== 'undefined') {
           let raf = 0;
           observer = new ResizeObserver(() => {
@@ -243,7 +271,6 @@ const PinMap = memo(({ start, apiRef, onPick, onDragging, onReady, onFail, loadi
           zoomOut: () => map.zoomOut(),
         };
 
-       
         const c0 = map.getCenter().wrap();
         last = { lat: c0.lat, lng: c0.lng };
         cbRef.current.onReady(c0.lat, c0.lng);
@@ -572,6 +599,74 @@ const AddressRow = memo(({ addr, busy, loc, onEdit, onDelete }) => {
   );
 });
 
+const SettingsCard = memo(({ language }) => {
+  const s = SETTINGS_TXT[language] || SETTINGS_TXT.en;
+  const [themeDark, setThemeDark] = useState(() => readStorage('darkMode') === 'true');
+  const langStyles = useMemo(() => LANG_OPTIONS.map((l) => getFontStyle(l.code)), []);
+
+  useEffect(() => {
+    const onTheme = (e) => setThemeDark(!!e.detail);
+    window.addEventListener(THEME_EVENT, onTheme);
+    return () => window.removeEventListener(THEME_EVENT, onTheme);
+  }, []);
+
+  const applyTheme = useCallback((dark) => {
+    setThemeDark(dark);
+    writeStorage('darkMode', String(dark));
+    document.documentElement.classList.toggle('dark', dark);
+    window.dispatchEvent(new CustomEvent(THEME_EVENT, { detail: dark }));
+  }, []);
+
+  const applyLanguage = useCallback((code) => {
+    writeStorage('appLanguage', code);
+    window.dispatchEvent(new Event(LANG_EVENT));
+  }, []);
+
+  return (
+    <section className={`${CARD} p-5 space-y-4`}>
+      <div>
+        <h3 className="flex items-center gap-2 text-sm font-extrabold uppercase">
+          <FiSettings size={14} className="nb-ic" aria-hidden="true" /> <span className="nb-ul">{s.title}</span>
+        </h3>
+        <p className="nb-muted mt-1.5 text-[11px] font-semibold">{s.subtitle}</p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className={`${PANEL} p-3.5`}>
+          <p className="nb-muted mb-2.5 text-[10px] font-bold uppercase">{s.appearance}</p>
+          <div role="group" aria-label={s.appearance} className="flex gap-2">
+            <button type="button" aria-pressed={!themeDark} onClick={() => applyTheme(false)} className={`${!themeDark ? BTN_PRIMARY : BTN_MD} h-9 flex-1 uppercase`}>
+              <FiSun size={14} aria-hidden="true" /> {s.light}
+            </button>
+            <button type="button" aria-pressed={themeDark} onClick={() => applyTheme(true)} className={`${themeDark ? BTN_PRIMARY : BTN_MD} h-9 flex-1 uppercase`}>
+              <FiMoon size={14} aria-hidden="true" /> {s.dark}
+            </button>
+          </div>
+        </div>
+
+        <div className={`${PANEL} p-3.5`}>
+          <p className="nb-muted mb-2.5 text-[10px] font-bold uppercase">{s.language}</p>
+          <div role="group" aria-label={s.language} className="flex gap-2">
+            {LANG_OPTIONS.map((l, i) => (
+              <button
+                key={l.code}
+                type="button"
+                lang={l.code}
+                style={langStyles[i]}
+                aria-pressed={language === l.code}
+                onClick={() => applyLanguage(l.code)}
+                className={`${language === l.code ? BTN_PRIMARY : BTN_MD} h-9 flex-1`}
+              >
+                <FiGlobe size={14} aria-hidden="true" /> {l.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+});
+
 const ShopProfile = () => {
   const darkMode = useDarkMode();
   const loc = useShopLocale();
@@ -866,6 +961,8 @@ const ShopProfile = () => {
           </section>
 
           <div className="lg:col-span-2 space-y-5">
+            <SettingsCard language={language} />
+
             <form onSubmit={saveProfile} noValidate className={`${CARD} p-5 space-y-4`}>
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-sm font-extrabold uppercase"><span className="nb-ul">{t.store.title}</span></h3>

@@ -11,6 +11,7 @@ import { AssignerDashboard, DeliveryPersons, AssignerProfile, AssignedOrders, As
 import useAuthStore from './common/store/Auth';
 import { redirectFor, canAccessArea, parseAccessToken } from './common/utils/authSession';
 import ShopChatModal from './components/shop/ShopChatModal';
+import ShopReports from './Shop/ShopReports';
 
 const DeliveryDashboard = React.lazy(() => import('./Delivery/DeliveryDashboard'));
 const DeliveryProfile = React.lazy(() => import('./Delivery/DeliveryProfile'));
@@ -215,6 +216,7 @@ function App() {
         <Route path="/shop" element={<RoleGuard area="shop" />}>
           <Route index element={<AreaFallback to="/shop/dashboard" />} />
           <Route path="dashboard" element={withShopLayout(ShopDashboard)} />
+          <Route path="reports" element={withShopLayout(ShopReports)} />
           <Route path="chats" element={withShopLayout(ShopChatModal)} />
           <Route path="transactions" element={withShopLayout(Transactions)} />
           <Route path="repair-requests" element={withShopLayout(RepairRequests)} />

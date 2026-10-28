@@ -18,6 +18,8 @@ import { ensureShopAssets } from '../common/utils/shopFonts';
 
 ensureShopAssets();
 
+const BADGE_EVENT = 'shopBadgeCounts';
+
 const PG_CSS = `
 .pg{--pg-bg:#f9fafb;--pg-card:#ffffff;--pg-ink:#04261a;--pg-muted:#4b6b5c;--pg-line:#04261a;--pg-shadow:#04261a;--pg-gray:#e8ebe9;--pg-dot:#04261a;--pg-accent:#10b981;--pg-btn:#059669;--pg-on:#ffffff;background:var(--pg-bg);color:var(--pg-ink)}
 .dark .pg{--pg-bg:#141414;--pg-card:#2a2a2a;--pg-ink:#ffffff;--pg-muted:#a3a3a3;--pg-line:#000000;--pg-shadow:#000000;--pg-gray:#1e1e1e;--pg-dot:#3f3f3f;--pg-accent:#39ff88;--pg-btn:#39ff88;--pg-on:#022c22}
@@ -601,6 +603,14 @@ const Orders = () => {
     for (const o of orders) c[o.status] = (c[o.status] || 0) + 1;
     return c;
   }, [orders]);
+
+  // Share the "new orders" count with the shop header badge (only after the first successful load).
+  const pendingCount = counts.PENDING || 0;
+  const loaded = lastUpdated !== null;
+  useEffect(() => {
+    if (!loaded) return;
+    window.dispatchEvent(new CustomEvent(BADGE_EVENT, { detail: { orders: pendingCount } }));
+  }, [pendingCount, loaded]);
 
   const filtered = useMemo(() => {
     const now = Date.now();
