@@ -2,7 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useR
 import { useParams, useNavigate, useNavigationType, Link } from 'react-router-dom';
 import {
   FiChevronLeft, FiChevronRight, FiShoppingCart, FiCheck, FiTag, FiBox, FiCalendar, FiPackage,
-  FiMinus, FiPlus, FiAlertCircle, FiDollarSign, FiAward, FiShield, FiFileText,
+  FiMinus, FiPlus, FiAlertCircle, FiDollarSign, FiAward, FiShield, FiFileText, FiHeart,
 } from 'react-icons/fi';
 import { RiStoreLine } from 'react-icons/ri';
 import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -25,6 +25,7 @@ const CARD_IMG_W = 600;
 const CARD_IMG_H = 400;
 const MAIN_IMG_W = 900;
 const MAIN_IMG_H = 600;
+const SAVED_KEY = 'nb_saved_devices';
 
 const NB_FONT = "'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
 const NB_FONT_STYLE = { fontFamily: NB_FONT };
@@ -42,16 +43,24 @@ const ensureNbFont = () => {
   document.head.appendChild(link);
 };
 
+const STAGGER = Array.from({ length: 8 }, (_, i) => ({ '--i': i }));
+
 const NB_CSS = `
-.nb{--nb-bg:#eef9f3;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e8ebe9;--nb-accent:#10b981;--nb-btn:#059669;--nb-on:#ffffff;--nb-media:#ffffff;background:var(--nb-bg);color:var(--nb-ink)}
-.nb-dark{--nb-bg:#141414;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#1e1e1e;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-on:#022c22;--nb-media:#1e1e1e}
+.nb{--nb-bg:#f3f4f6;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e2e5e9;--nb-accent:#10b981;--nb-btn:#059669;--nb-on:#ffffff;--nb-media:#ffffff;background:var(--nb-bg);color:var(--nb-ink)}
+.nb-dark{--nb-bg:#121212;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#212121;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-on:#022c22;--nb-media:#1e1e1e}
+.nb-bg{background:var(--nb-bg)}
 .nb-gray{background:var(--nb-gray)}
 .nb-muted{color:var(--nb-muted)}
 .nb-ic{color:var(--nb-accent)}
 .nb-line{border-color:var(--nb-line)}
 .nb-dark .nb-dotted{border-color:#3f3f3f}
-.nb-card{background:var(--nb-card);border:2px solid var(--nb-line);box-shadow:5px 5px 0 var(--nb-shadow);transition:transform .15s ease,box-shadow .15s ease}
-.nb-lift:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--nb-shadow)}
+.nb-card{background:var(--nb-card);border:2px solid var(--nb-line);box-shadow:5px 5px 0 var(--nb-shadow);transition:transform .18s cubic-bezier(.16,1,.3,1),box-shadow .18s cubic-bezier(.16,1,.3,1)}
+.nb-lift{contain:layout style;backface-visibility:hidden}
+.nb-lift:hover{transform:translate3d(-2px,-2px,0);box-shadow:7px 7px 0 var(--nb-shadow)}
+.nb-in{animation:nbIn .34s cubic-bezier(.16,1,.3,1) both;animation-delay:calc(var(--i,0)*32ms)}
+@keyframes nbIn{from{opacity:0;transform:translate3d(0,14px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+.nb-fade{animation:nbFade .26s ease both}
+@keyframes nbFade{from{opacity:0}to{opacity:1}}
 .nb-bar{display:inline-block;width:52px;height:16px;background:var(--nb-accent);border:2px solid var(--nb-line)}
 .nb-ul{text-decoration:underline;text-decoration-color:var(--nb-accent);text-decoration-thickness:4px;text-underline-offset:5px;text-decoration-skip-ink:none}
 .nb-chip{display:inline-flex;align-items:center;gap:4px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);padding:1px 6px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;line-height:1.5}
@@ -71,7 +80,7 @@ const NB_CSS = `
 .nb-media-w{background:var(--nb-media);contain:layout paint}
 .nb-media-b{border-radius:1rem}
 .nb[dir=rtl] .nb-flip{transform:scaleX(-1)}
-@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn,.nb-arrow{transition:none}}
+@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn,.nb-arrow{transition:none}.nb-in,.nb-fade{animation:none}}
 `;
 const STYLE_EL = <style>{`${UI3D_CSS}${EXTRAS_CSS}${LISTING_CSS}${NB_CSS}`}</style>;
 
@@ -97,6 +106,33 @@ const useInView = (margin = '500px') => {
   return [setEl, seen];
 };
 
+const readSaved = () => {
+  try {
+    const v = JSON.parse(localStorage.getItem(SAVED_KEY) || '[]');
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+};
+
+const useSavedProducts = () => {
+  const [ids, setIds] = useState(readSaved);
+  const toggle = useCallback((id) => {
+    setIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      try { localStorage.setItem(SAVED_KEY, JSON.stringify(next)); } catch { }
+      return next;
+    });
+  }, []);
+  const set = useMemo(() => new Set(ids), [ids]);
+  return [set, toggle];
+};
+
+const DEFAULT_TEXT = {
+  en: { save: 'Save', saved: 'Saved' },
+  ar: { save: 'حفظ', saved: 'تم الحفظ' },
+  fr: { save: 'Enregistrer', saved: 'Enregistré' },
+};
 const DETAIL_SECTIONS = {
   en: enTranslations.deviceDetail,
   ar: arTranslations.deviceDetail,
@@ -105,7 +141,7 @@ const DETAIL_SECTIONS = {
 const translators = {};
 const getT = (lang) => {
   if (!translators[lang]) {
-    const dict = { ...DETAIL_SECTIONS.en, ...DETAIL_SECTIONS[lang] };
+    const dict = { ...DEFAULT_TEXT.en, ...DETAIL_SECTIONS.en, ...DEFAULT_TEXT[lang], ...DETAIL_SECTIONS[lang] };
     translators[lang] = (key, values) => {
       let text = dict[key] ?? key;
       if (values) for (const k of Object.keys(values)) text = text.split(`{{${k}}}`).join(String(values[k]));
@@ -150,6 +186,7 @@ const normalizeProduct = (p) => {
   const images = galleryOf(p);
   return {
     id: String(p.id),
+    rawId: p.id,
     name: clean(String(p.name ?? ''), 160),
     description: clean(String(p.description ?? ''), 3000),
     categoryId: p.categoryId ?? null,
@@ -234,7 +271,7 @@ const DeviceImage = memo(({ src, alt, category, className, label, darkMode, big 
   );
 });
 
-const ProductCard = memo(({ product, darkMode, onAddToCart, onOpen, t }) => {
+const ProductCard = memo(({ product, darkMode, onAddToCart, onOpen, onSave, isSaved = false, index = 0, t }) => {
   const [added, setAdded] = useState(false);
   const timer = useRef();
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -243,6 +280,7 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, onOpen, t }) => {
   const out = product.stock <= 0;
   const snippet = useMemo(() => snippetOf(product.description) || t('noDescription'), [product.description, t]);
   const open = useCallback(() => onOpen(product.id), [onOpen, product.id]);
+  const save = useCallback((e) => { e.stopPropagation(); onSave(product.rawId); }, [onSave, product.rawId]);
   const handleKey = useCallback((e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open(); }, [open]);
   const handleCart = async (e) => {
     e.stopPropagation();
@@ -257,11 +295,18 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, onOpen, t }) => {
       onKeyDown={handleKey}
       tabIndex={0}
       aria-label={product.name}
-      className="nb-card nb-lift group relative flex h-full cursor-pointer flex-col focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--nb-accent)]"
+      style={STAGGER[index % 8]}
+      className="nb-in nb-card nb-lift group relative flex h-full cursor-pointer flex-col focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--nb-accent)]"
     >
       <div className="p-2.5 pb-0">
         <div className="nb-media-w nb-media-b relative aspect-[3/2] overflow-hidden">
           <span className={`nb-chip ${cond.chip} absolute start-2 top-2 z-10 !rounded-full`}>{condLabel(t, product.condition)}</span>
+          <button
+            type="button" onClick={save} aria-pressed={isSaved} aria-label={isSaved ? t('saved') : t('save')} title={isSaved ? t('saved') : t('save')}
+            className={`nb-btn absolute end-2 top-2 z-10 h-8 w-8 ${isSaved ? 'nb-btn-on' : ''}`}
+          >
+            <FiHeart className="h-4 w-4" fill={isSaved ? 'currentColor' : 'none'} />
+          </button>
           <DeviceImage src={product.imageUrl} alt={product.name} category={product.categoryName} label={t('imageUnavailable')} darkMode={darkMode}
             width={CARD_IMG_W} height={CARD_IMG_H}
             className="block h-full w-full object-cover transition-transform duration-300 motion-reduce:transition-none group-hover:scale-105" />
@@ -286,7 +331,7 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, onOpen, t }) => {
   );
 });
 
-const ProductSlider = memo(({ title, products, darkMode, isRTL, onAddToCart, onOpen, t }) => {
+const ProductSlider = memo(({ title, products, darkMode, isRTL, saved, onSave, onAddToCart, onOpen, t }) => {
   const { ref, edge, scroll } = useHScroll(products.length, isRTL);
   if (!products.length) return null;
   const BackIcon = isRTL ? FiChevronRight : FiChevronLeft;
@@ -305,9 +350,9 @@ const ProductSlider = memo(({ title, products, darkMode, isRTL, onAddToCart, onO
         </div>
       </div>
       <div ref={ref} className="hide-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-3 pe-3 ps-1 pt-1 sm:gap-6 motion-reduce:scroll-auto">
-        {products.map((p) => (
+        {products.map((p, i) => (
           <div key={p.id} className="w-[200px] flex-shrink-0 snap-start sm:w-[260px]">
-            <ProductCard product={p} darkMode={darkMode} onAddToCart={onAddToCart} onOpen={onOpen} t={t} />
+            <ProductCard product={p} darkMode={darkMode} onAddToCart={onAddToCart} onOpen={onOpen} onSave={onSave} isSaved={saved.has(p.rawId)} index={i} t={t} />
           </div>
         ))}
       </div>
@@ -339,9 +384,9 @@ const Gallery = memo(({ product, cond, label, darkMode, t }) => {
 
         <div className="nb-media-w nb-media-b relative aspect-[3/2] min-w-0 flex-1 overflow-hidden lg:max-h-[560px]">
           <span className={`nb-chip ${cond.chip} absolute start-3 top-3 z-10 !rounded-full`}>{label}</span>
-          <DeviceImage src={src} alt={product.name} category={product.categoryName} label={t('imageUnavailable')} darkMode={darkMode} big eager={active === 0}
+          <DeviceImage key={src || 'none'} src={src} alt={product.name} category={product.categoryName} label={t('imageUnavailable')} darkMode={darkMode} big eager={active === 0}
             width={MAIN_IMG_W} height={MAIN_IMG_H}
-            className="block h-full w-full object-cover transition-transform duration-300 motion-reduce:transition-none hover:scale-105" />
+            className="nb-fade block h-full w-full object-cover transition-transform duration-300 motion-reduce:transition-none hover:scale-105" />
         </div>
       </div>
     </div>
@@ -366,6 +411,7 @@ const DeviceDetailContent = memo(({ id, addToCart, darkMode }) => {
 
   const [quantity, setQuantity] = useState(1);
   const [adding, setAdding] = useState(false);
+  const [saved, toggleSaved] = useSavedProducts();
 
   const [relatedRef, relatedNear] = useInView('600px');
 
@@ -476,6 +522,7 @@ const DeviceDetailContent = memo(({ id, addToCart, darkMode }) => {
   const currency = t('currency');
   const cond = condOf(product.condition);
   const listed = fmtDate(product.createdAt, language);
+  const isSaved = saved.has(product.rawId);
   const off = product.oldPrice > product.price ? Math.round((1 - product.price / product.oldPrice) * 100) : 0;
   const stockStatus = product.deleted || product.stock <= 0
     ? { label: t('outOfStock'), cls: 'nb-chip-r' }
@@ -501,85 +548,99 @@ const DeviceDetailContent = memo(({ id, addToCart, darkMode }) => {
     <Shell language={language} darkMode={darkMode}>
       <DetailBanner darkMode={darkMode} product={product} t={t} />
 
-      <div className="relative z-20 mx-auto -mt-20 max-w-7xl px-4 sm:-mt-28 sm:px-6 lg:-mt-36 lg:px-8">
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,7fr)_minmax(0,4fr)] lg:gap-6">
-          <Gallery key={product.id} product={product} cond={cond} label={condLabel(t, product.condition)} darkMode={darkMode} t={t} />
+      <div className="nb-bg">
+        <div className="relative z-20 mx-auto -mt-20 max-w-7xl px-4 pb-10 sm:-mt-28 sm:px-6 sm:pb-14 lg:-mt-36 lg:px-8">
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,7fr)_minmax(0,4fr)] lg:gap-6">
+            <Gallery key={product.id} product={product} cond={cond} label={condLabel(t, product.condition)} darkMode={darkMode} t={t} />
 
-          <aside className="nb-card flex min-w-0 flex-col gap-5 p-4 sm:p-6">
-            <div className="text-center lg:text-start">
-              {product.categoryName && <p className="nb-muted mb-1 text-[11px] font-extrabold uppercase tracking-wide">{product.categoryName}</p>}
-              <h1 className="break-words text-xl font-extrabold uppercase leading-snug sm:text-2xl"><span className="nb-ul">{product.name}</span></h1>
-              <div className="mt-4 flex flex-wrap justify-center gap-1.5 lg:justify-start">
-                <span className={`nb-chip ${stockStatus.cls}`}>{stockStatus.label}</span>
-                <span className={`nb-chip ${cond.chip}`}>{condLabel(t, product.condition)}</span>
+            <aside className="nb-card flex min-w-0 flex-col gap-5 p-4 sm:p-6">
+              <div className="text-center lg:text-start">
+                {product.categoryName && <p className="nb-muted mb-1 text-[11px] font-extrabold uppercase tracking-wide">{product.categoryName}</p>}
+                <h1 className="break-words text-xl font-extrabold uppercase leading-snug sm:text-2xl"><span className="nb-ul">{product.name}</span></h1>
+                <div className="mt-4 flex flex-wrap justify-center gap-1.5 lg:justify-start">
+                  <span className={`nb-chip ${stockStatus.cls}`}>{stockStatus.label}</span>
+                  <span className={`nb-chip ${cond.chip}`}>{condLabel(t, product.condition)}</span>
+                </div>
+                {product.shopName && product.shopId && (
+                  <Link to={`/shops/${encodeURIComponent(product.shopId)}`} className="mt-3 inline-flex max-w-full items-center gap-1.5 text-xs font-extrabold uppercase underline underline-offset-4 hover:no-underline">
+                    <RiStoreLine className="nb-ic h-3.5 w-3.5 flex-shrink-0" /><span className="truncate">{product.shopName}</span>
+                  </Link>
+                )}
               </div>
-              {product.shopName && product.shopId && (
-                <Link to={`/shops/${encodeURIComponent(product.shopId)}`} className="mt-3 inline-flex max-w-full items-center gap-1.5 text-xs font-extrabold uppercase underline underline-offset-4 hover:no-underline">
-                  <RiStoreLine className="nb-ic h-3.5 w-3.5 flex-shrink-0" /><span className="truncate">{product.shopName}</span>
-                </Link>
-              )}
-            </div>
 
-            <div className="text-center lg:text-start" dir="ltr">
-              <p className="break-words text-3xl font-extrabold tabular-nums sm:text-4xl">{fmtPrice(product.price, currency)}</p>
-              {off > 0 && (
-                <p className="mt-1 flex items-center justify-center gap-2 lg:justify-start">
-                  <s className="nb-muted text-sm tabular-nums">{fmtPrice(product.oldPrice, currency)}</s>
-                  <span className="nb-chip nb-chip-r">-{off}%</span>
+              <div className="text-center lg:text-start" dir="ltr">
+                <p className="break-words text-3xl font-extrabold tabular-nums sm:text-4xl">{fmtPrice(product.price, currency)}</p>
+                {off > 0 && (
+                  <p className="mt-1 flex items-center justify-center gap-2 lg:justify-start">
+                    <s className="nb-muted text-sm tabular-nums">{fmtPrice(product.oldPrice, currency)}</s>
+                    <span className="nb-chip nb-chip-r">-{off}%</span>
+                  </p>
+                )}
+              </div>
+
+              {product.deleted && (
+                <p className="nb-chip nb-chip-r !px-3 !py-2 text-xs normal-case">
+                  <FiAlertCircle className="h-4 w-4 flex-shrink-0" /> {t('unavailable')}
                 </p>
               )}
-            </div>
 
-            {product.deleted && (
-              <p className="nb-chip nb-chip-r !px-3 !py-2 text-xs normal-case">
-                <FiAlertCircle className="h-4 w-4 flex-shrink-0" /> {t('unavailable')}
-              </p>
-            )}
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <span className="nb-muted text-xs font-extrabold uppercase">{t('quantity')}</span>
-                <div className="nb-field inline-flex items-center">
-                  <button type="button" aria-label={t('decreaseQuantity')} onClick={() => setQuantity(Math.max(1, qty - 1))} disabled={qty <= 1 || unavailable} className="flex h-11 w-11 items-center justify-center transition-colors hover:bg-[color:var(--nb-gray)] disabled:opacity-40"><FiMinus className="h-4 w-4" /></button>
-                  <span className="min-w-[2.5rem] px-2 text-center text-sm font-extrabold tabular-nums" aria-live="polite" dir="ltr">{qty}</span>
-                  <button type="button" aria-label={t('increaseQuantity')} onClick={() => setQuantity(Math.min(maxQty, qty + 1))} disabled={qty >= maxQty || unavailable} className="flex h-11 w-11 items-center justify-center transition-colors hover:bg-[color:var(--nb-gray)] disabled:opacity-40"><FiPlus className="h-4 w-4" /></button>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="nb-muted text-xs font-extrabold uppercase">{t('quantity')}</span>
+                  <div className="nb-field inline-flex items-center">
+                    <button type="button" aria-label={t('decreaseQuantity')} onClick={() => setQuantity(Math.max(1, qty - 1))} disabled={qty <= 1 || unavailable} className="flex h-11 w-11 items-center justify-center transition-colors hover:bg-[color:var(--nb-gray)] disabled:opacity-40"><FiMinus className="h-4 w-4" /></button>
+                    <span className="min-w-[2.5rem] px-2 text-center text-sm font-extrabold tabular-nums" aria-live="polite" dir="ltr">{qty}</span>
+                    <button type="button" aria-label={t('increaseQuantity')} onClick={() => setQuantity(Math.min(maxQty, qty + 1))} disabled={qty >= maxQty || unavailable} className="flex h-11 w-11 items-center justify-center transition-colors hover:bg-[color:var(--nb-gray)] disabled:opacity-40"><FiPlus className="h-4 w-4" /></button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button type="button" onClick={handleAddToCart} disabled={unavailable || adding} aria-busy={adding} className="nb-btn nb-btn-a h-12 min-w-0 flex-1 text-sm uppercase">
+                    <FiShoppingCart className="h-4 w-4" /> {adding ? t('adding') : t('addToCart')}
+                  </button>
+                  <button
+                    type="button" onClick={() => toggleSaved(product.rawId)} aria-pressed={isSaved} aria-label={isSaved ? t('saved') : t('save')} title={isSaved ? t('saved') : t('save')}
+                    className={`nb-btn h-12 w-12 flex-shrink-0 ${isSaved ? 'nb-btn-on' : ''}`}
+                  >
+                    <FiHeart className="h-5 w-5" fill={isSaved ? 'currentColor' : 'none'} />
+                  </button>
                 </div>
               </div>
-              <button type="button" onClick={handleAddToCart} disabled={unavailable || adding} aria-busy={adding} className="nb-btn nb-btn-a h-12 w-full text-sm uppercase">
-                <FiShoppingCart className="h-4 w-4" /> {adding ? t('adding') : t('addToCart')}
-              </button>
-            </div>
 
-            <ul className="nb-line nb-dotted grid grid-cols-3 gap-2 border-t-2 border-dotted pt-4">
-              {trust.map(({ icon: Icon, label }) => (
-                <li key={label} className="flex flex-col items-center gap-2 text-center">
-                  <span className="nb-chip nb-chip-a !p-2.5"><Icon className="h-5 w-5" /></span>
-                  <span className="nb-muted text-[10px] font-extrabold uppercase leading-tight tracking-wide">{label}</span>
-                </li>
-              ))}
-            </ul>
-          </aside>
+              <ul className="nb-line nb-dotted grid grid-cols-3 gap-2 border-t-2 border-dotted pt-4">
+                {trust.map(({ icon: Icon, label }) => (
+                  <li key={label} className="flex flex-col items-center gap-2 text-center">
+                    <span className="nb-chip nb-chip-a !p-2.5"><Icon className="h-5 w-5" /></span>
+                    <span className="nb-muted text-[10px] font-extrabold uppercase leading-tight tracking-wide">{label}</span>
+                  </li>
+                ))}
+              </ul>
+            </aside>
+          </div>
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl space-y-10 px-4 py-10 sm:space-y-14 sm:px-6 sm:py-14 lg:px-8">
-        <section className="nb-card p-4 sm:p-6">
-          <h2 className="mb-4 flex items-center gap-3 text-lg font-extrabold uppercase sm:text-xl">
-            <span className="nb-chip nb-chip-a !p-2"><FiFileText className="h-4 w-4" /></span> <span className="nb-ul">{t('productDescription')}</span>
-          </h2>
-          <p className="whitespace-pre-line break-words text-sm leading-relaxed opacity-90">{product.description || t('noDescription')}</p>
-          <ul className="nb-gray nb-line nb-dotted mt-5 grid grid-cols-1 gap-3 border-2 border-dotted p-3.5 sm:grid-cols-2">
-            {specs.map(({ icon: Icon, text }) => (
-              <li key={text} className="flex min-w-0 items-center gap-2 text-xs font-bold">
-                <Icon aria-hidden="true" className="nb-ic h-4 w-4 flex-shrink-0" /> <span className="truncate">{text}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+      <section aria-label={t('productDescription')} className="nb-gray nb-line border-y-2 py-10 sm:py-14">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="nb-card p-4 sm:p-6">
+            <h2 className="mb-4 flex items-center gap-3 text-lg font-extrabold uppercase sm:text-xl">
+              <span className="nb-chip nb-chip-a !p-2"><FiFileText className="h-4 w-4" /></span> <span className="nb-ul">{t('productDescription')}</span>
+            </h2>
+            <p className="whitespace-pre-line break-words text-sm leading-relaxed opacity-90">{product.description || t('noDescription')}</p>
+            <ul className="nb-gray nb-line nb-dotted mt-5 grid grid-cols-1 gap-3 border-2 border-dotted p-3.5 sm:grid-cols-2">
+              {specs.map(({ icon: Icon, text }) => (
+                <li key={text} className="flex min-w-0 items-center gap-2 text-xs font-bold">
+                  <Icon aria-hidden="true" className="nb-ic h-4 w-4 flex-shrink-0" /> <span className="truncate">{text}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
 
-        <div ref={relatedRef} className="lk-cv space-y-10 sm:space-y-14">
-          <ProductSlider title={t('similarProducts')} products={sameCategory} darkMode={darkMode} isRTL={isRTL} onAddToCart={handleRelatedAdd} onOpen={openProduct} t={t} />
-          <ProductSlider title={moreGroup.title} products={moreGroup.products} darkMode={darkMode} isRTL={isRTL} onAddToCart={handleRelatedAdd} onOpen={openProduct} t={t} />
+      <div ref={relatedRef} className="lk-cv nb-bg">
+        <div className="mx-auto max-w-7xl space-y-10 px-4 py-10 sm:space-y-14 sm:px-6 sm:py-14 lg:px-8">
+          <ProductSlider title={t('similarProducts')} products={sameCategory} darkMode={darkMode} isRTL={isRTL} saved={saved} onSave={toggleSaved} onAddToCart={handleRelatedAdd} onOpen={openProduct} t={t} />
+          <ProductSlider title={moreGroup.title} products={moreGroup.products} darkMode={darkMode} isRTL={isRTL} saved={saved} onSave={toggleSaved} onAddToCart={handleRelatedAdd} onOpen={openProduct} t={t} />
         </div>
       </div>
     </Shell>

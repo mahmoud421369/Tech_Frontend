@@ -381,7 +381,7 @@ const ProductRow = memo(({ product: p, busy, onView, onEdit, onDelete, onCopy })
           <ProductImage src={imageSrc(p.imageUrl)} name={name} />
           <div className="min-w-0">
             <p className="text-xs font-extrabold uppercase truncate max-w-[220px]">{name}</p>
-            <p className="nb-muted text-[10px] font-semibold truncate max-w-[220px]">{clean(p.category?.name) || '—'}</p>
+            <p className="nb-muted text-[10px] font-semibold truncate max-w-[220px]">{clean(p.categoryName) || '—'}</p>
           </div>
         </div>
       </td>

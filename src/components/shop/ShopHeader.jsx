@@ -2,10 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo, memo, useRef } from "
 import {
   FiMoon, FiSun, FiLogOut, FiMenu, FiX, FiBox, FiTool, FiSearch, FiBell,
   FiGrid, FiTag, FiMessageSquare, FiShoppingBag, FiCreditCard, FiPackage,
-  FiCalendar, FiCheck, FiInfo, FiAlertTriangle, FiAlertCircle, FiChevronRight,
-  FiTrash2, FiGlobe, FiUser,
+  FiCalendar, FiInfo, FiAlertTriangle, FiAlertCircle, FiChevronRight, FiUser,
 } from "react-icons/fi";
-import { RiCheckDoubleLine } from "react-icons/ri";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import { ToastContainer, toast } from "react-toastify";
@@ -27,6 +25,7 @@ const SEARCH_MAX = 40;
 const YEAR = new Date().getFullYear();
 const UNREAD_EVENT = "shopChatUnread";
 const CHATS_PATH = "/shop/chats";
+const MOBILE_QUERY = "(max-width: 1023px)";
 
 const MENU_GROUPS = [
   {
@@ -62,7 +61,7 @@ const PATH_KEY = Object.fromEntries(ALL_ITEMS.map((i) => [i.path, i.key]));
 PATH_KEY["/shop/profile"] = "profile";
 
 const LANGS = [
-  { code: "ar", label: "عربي" },
+  { code: "ar", label: "ع" },
   { code: "en", label: "EN" },
 ];
 
@@ -126,6 +125,21 @@ const countUnread = (list) => list.reduce((c, n) => c + (n.read ? 0 : 1), 0);
 const notifSignature = (list) => list.map((n) => `${n.id}:${n.read ? 1 : 0}`).join("|");
 const badgeText = (n) => (n > 99 ? "99+" : String(n));
 
+const useMediaQuery = (query) => {
+  const [matches, setMatches] = useState(() =>
+    typeof window !== "undefined" && typeof window.matchMedia === "function" ? window.matchMedia(query).matches : false
+  );
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return undefined;
+    const mq = window.matchMedia(query);
+    const onChange = (e) => setMatches(e.matches);
+    setMatches(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, [query]);
+  return matches;
+};
+
 const confirmDialog = async (opts, darkMode) => {
   const { default: Swal } = await import("sweetalert2");
   const { isConfirmed } = await Swal.fire({
@@ -169,7 +183,6 @@ html,body{overflow-x:hidden;max-width:100vw}
 .nb-surface{background:var(--nb-card);color:var(--nb-ink)}
 .nb-gray{background:var(--nb-gray)}
 .nb-muted{color:var(--nb-muted)}
-.nb-ic{color:var(--nb-accent)}
 .nb-line{border-color:var(--nb-line)}
 .nb-accent-bg{background:var(--nb-accent)}
 .nb-ul{text-decoration:underline;text-decoration-color:var(--nb-accent);text-decoration-thickness:3px;text-underline-offset:4px;text-decoration-skip-ink:none}
@@ -186,10 +199,17 @@ html,body{overflow-x:hidden;max-width:100vw}
 .nb-btn:disabled{opacity:.45;cursor:not-allowed}
 .nb-btn-a,.nb-btn-on{background:var(--nb-btn);color:var(--nb-on)}
 .nb-btn-danger:hover:not(:disabled){background:#ef4444;color:#fff}
-.nb-btn:focus-visible,.nb-field:focus-within,.nb-field:focus-visible,.nb-link:focus-visible{outline:3px solid var(--nb-accent);outline-offset:2px}
+.nb-btn:focus-visible,.nb-field:focus-within,.nb-field:focus-visible,.nb-link:focus-visible,.nb-orb:focus-visible{outline:3px solid var(--nb-accent);outline-offset:2px}
 .nb-field{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow)}
 .nb-field-link{transition:transform .12s ease,box-shadow .12s ease}
 .nb-field-link:hover{transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--nb-shadow)}
+.nb-pill{display:flex;align-items:center;gap:4px;padding:3px;background:var(--nb-card);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);border-radius:9999px;flex:none}
+.nb-orb{display:inline-grid;place-items:center;flex:none;border-radius:9999px;border:2px solid transparent;background:transparent;color:var(--nb-ink);font-weight:800;line-height:1;cursor:pointer;transition:transform .12s ease,background-color .12s ease,color .12s ease}
+.nb-orb:hover{background:var(--nb-gray)}
+.nb-orb:active{transform:scale(.92)}
+.nb-orb-sun,.nb-orb-sun:hover{background:#f59e0b;color:#1f1300;border-color:var(--nb-line)}
+.nb-orb-moon,.nb-orb-moon:hover{background:#6366f1;color:#ffffff;border-color:var(--nb-line)}
+.nb-orb-lang,.nb-orb-lang:hover{background:#ec4899;color:#ffffff;border-color:var(--nb-line)}
 .nb-menu{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow)}
 :where(.nb-opt){display:flex}
 .nb-opt{width:100%;align-items:center;gap:10px;padding:9px 12px;font-size:12px;font-weight:700;text-transform:uppercase;text-align:start;cursor:pointer}
@@ -213,7 +233,7 @@ html,body{overflow-x:hidden;max-width:100vw}
 .bell-ring{animation:nbWiggle .5s ease-in-out 3;transform-origin:50% 0}
 .lang-fade{animation:nbFade .2s ease-out both}
 @media (prefers-reduced-motion:reduce){
-  .nb-btn,.nb-link,.nb-field-link{transition:none}
+  .nb-btn,.nb-link,.nb-field-link,.nb-orb{transition:none}
   .notif-panel,.badge-pop,.bell-ring,.lang-fade{animation:none}
 }
 `;
@@ -269,25 +289,64 @@ const SidebarNav = memo(({ t, pathname, chatUnread, onClick }) => (
   </nav>
 ));
 
-const SidebarFooter = memo(({ t, darkMode, onLight, onDark, onLogout }) => (
+const ThemeSwitch = memo(({ label, lightLabel, darkLabel, darkMode, onLight, onDark }) => (
+  <div role="group" aria-label={label} className="nb-pill">
+    <button
+      type="button"
+      onClick={onLight}
+      aria-pressed={!darkMode}
+      aria-label={lightLabel}
+      title={lightLabel}
+      className={`nb-orb w-9 h-9 ${!darkMode ? "nb-orb-sun" : ""}`}
+    >
+      <FiSun size={16} aria-hidden="true" />
+    </button>
+    <button
+      type="button"
+      onClick={onDark}
+      aria-pressed={darkMode}
+      aria-label={darkLabel}
+      title={darkLabel}
+      className={`nb-orb w-9 h-9 ${darkMode ? "nb-orb-moon" : ""}`}
+    >
+      <FiMoon size={16} aria-hidden="true" />
+    </button>
+  </div>
+));
+
+const LanguageSwitch = memo(({ language, label, onChange }) => {
+  const styles = useMemo(() => LANGS.map((l) => getFontStyle(l.code)), []);
+  return (
+    <div role="group" aria-label={label} className="nb-pill">
+      {LANGS.map((l, i) => (
+        <button
+          key={l.code}
+          type="button"
+          onClick={() => onChange(l.code)}
+          aria-pressed={language === l.code}
+          lang={l.code}
+          style={styles[i]}
+          className={`nb-orb w-9 h-9 text-[11px] ${language === l.code ? "nb-orb-lang" : ""}`}
+        >
+          {l.label}
+        </button>
+      ))}
+    </div>
+  );
+});
+
+const SidebarFooter = memo(({ t, language, darkMode, onLight, onDark, onLanguage, onLogout }) => (
   <div className="nb-line p-3 flex flex-col gap-2.5 flex-shrink-0 border-t-2">
-    <div role="group" aria-label={t.theme.label} className="flex flex-col gap-2">
-      <button
-        type="button"
-        onClick={onLight}
-        aria-pressed={!darkMode}
-        className={`nb-btn w-full py-2 text-xs uppercase ${!darkMode ? "nb-btn-on" : ""}`}
-      >
-        <FiSun size={14} aria-hidden="true" /> {t.theme.light}
-      </button>
-      <button
-        type="button"
-        onClick={onDark}
-        aria-pressed={darkMode}
-        className={`nb-btn w-full py-2 text-xs uppercase ${darkMode ? "nb-btn-on" : ""}`}
-      >
-        <FiMoon size={14} aria-hidden="true" /> {t.theme.dark}
-      </button>
+    <div className="flex items-center justify-center gap-2">
+      <ThemeSwitch
+        label={t.theme.label}
+        lightLabel={t.theme.light}
+        darkLabel={t.theme.dark}
+        darkMode={darkMode}
+        onLight={onLight}
+        onDark={onDark}
+      />
+      <LanguageSwitch language={language} label={t.language} onChange={onLanguage} />
     </div>
     <button type="button" onClick={onLogout} className="nb-btn nb-btn-a w-full py-2 text-xs uppercase">
       <FiLogOut size={14} aria-hidden="true" className="rtl:rotate-180" /> {t.logout}
@@ -376,29 +435,7 @@ const SearchBox = memo(({ t, onNavigate }) => {
   );
 });
 
-const LanguageSwitch = memo(({ language, label, onChange }) => {
-  const styles = useMemo(() => LANGS.map((l) => getFontStyle(l.code)), []);
-  return (
-    <div role="group" aria-label={label} className="nb-field flex items-center h-10 p-1 gap-1 flex-shrink-0">
-      <FiGlobe size={14} aria-hidden="true" className="nb-ic mx-1.5 hidden md:block" />
-      {LANGS.map((l, i) => (
-        <button
-          key={l.code}
-          type="button"
-          onClick={() => onChange(l.code)}
-          aria-pressed={language === l.code}
-          lang={l.code}
-          style={styles[i]}
-          className={`nb-btn h-7 px-2.5 text-xs ${language === l.code ? "nb-btn-on" : ""}`}
-        >
-          {l.label}
-        </button>
-      ))}
-    </div>
-  );
-});
-
-const NotifItem = memo(({ notif, t, locale, onDelete, onMarkRead }) => {
+const NotifItem = memo(({ notif, t, locale, onDelete }) => {
   const { Icon, tone } = useMemo(() => getNotifMeta(notif), [notif]);
   const [exit, setExit] = useState(false);
   const timer = useRef(null);
@@ -409,11 +446,6 @@ const NotifItem = memo(({ notif, t, locale, onDelete, onMarkRead }) => {
     if (exit) return;
     setExit(true);
     timer.current = setTimeout(() => onDelete(notif.id), 200);
-  };
-
-  const handleRead = (e) => {
-    e.stopPropagation();
-    onMarkRead(notif.id);
   };
 
   return (
@@ -438,36 +470,20 @@ const NotifItem = memo(({ notif, t, locale, onDelete, onMarkRead }) => {
         <p className="nb-muted mt-0.5 text-xs font-semibold leading-5 line-clamp-2">{notif.message}</p>
       </div>
 
-      <div className="shrink-0 flex flex-col gap-1 sm:opacity-0 sm:group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150 motion-reduce:transition-none">
-        {!notif.read && (
-          <button
-            type="button"
-            onClick={handleRead}
-            title={t.notifications.markRead || "Mark as read"}
-            aria-label={t.notifications.markRead || "Mark as read"}
-            className="nb-btn h-6 w-6"
-          >
-            <FiCheck size={12} aria-hidden="true" />
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={handleDelete}
-          title={t.notifications.delete}
-          aria-label={t.notifications.delete}
-          className="nb-btn nb-btn-danger h-6 w-6"
-        >
-          <FiX size={12} aria-hidden="true" />
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={handleDelete}
+        title={t.notifications.delete}
+        aria-label={t.notifications.delete}
+        className="nb-btn nb-btn-danger shrink-0 h-6 w-6 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
+      >
+        <FiX size={12} aria-hidden="true" />
+      </button>
     </div>
   );
 });
 
-const NotificationPanel = memo(({
-  t, locale, notifications, loading, unreadCount,
-  onDelete, onMarkRead, onMarkAllRead, onClearAll,
-}) => {
+const NotificationPanel = memo(({ t, locale, notifications, loading, unreadCount, onDelete }) => {
   const n = t.notifications;
   const visible = useMemo(
     () => (notifications.length > MAX_RENDERED_NOTIFS ? notifications.slice(0, MAX_RENDERED_NOTIFS) : notifications),
@@ -490,29 +506,6 @@ const NotificationPanel = memo(({
             <span className="nb-muted text-[11px] font-bold">{tpl(n.newCount, { n: unreadCount })}</span>
           )}
         </div>
-        {notifications.length > 0 && (
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <button
-              type="button"
-              onClick={onMarkAllRead}
-              disabled={unreadCount === 0}
-              title={n.markAllRead || "Mark all as read"}
-              aria-label={n.markAllRead || "Mark all as read"}
-              className="nb-btn h-7 w-7"
-            >
-              <RiCheckDoubleLine size={15} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              onClick={onClearAll}
-              title={n.clearAll || "Clear all"}
-              aria-label={n.clearAll || "Clear all"}
-              className="nb-btn nb-btn-danger h-7 w-7"
-            >
-              <FiTrash2 size={13} aria-hidden="true" />
-            </button>
-          </div>
-        )}
       </div>
 
       <div className="max-h-[min(400px,60vh)] overflow-y-auto custom-scrollbar-thin overscroll-contain">
@@ -537,7 +530,7 @@ const NotificationPanel = memo(({
         ) : (
           <>
             {visible.map((x) => (
-              <NotifItem key={x.id} notif={x} t={t} locale={locale} onDelete={onDelete} onMarkRead={onMarkRead} />
+              <NotifItem key={x.id} notif={x} t={t} locale={locale} onDelete={onDelete} />
             ))}
             {notifications.length > visible.length && (
               <p className="nb-muted px-3 py-2 text-center text-[10px] font-bold">
@@ -551,7 +544,7 @@ const NotificationPanel = memo(({
   );
 });
 
-const NotificationCenter = memo(({ t, locale, darkMode, token }) => {
+const NotificationCenter = memo(({ t, locale, token }) => {
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -662,63 +655,6 @@ const NotificationCenter = memo(({ t, locale, darkMode, token }) => {
     }
   }, []);
 
-  const handleMarkRead = useCallback(async (id) => {
-    const key = `read:${id}`;
-    if (busyRef.current.has(key)) return;
-    busyRef.current.add(key);
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-    try {
-      await api.put(`/api/notifications/shops/${id}/read`);
-    } catch {
-      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: false } : n)));
-      toast.error(tRef.current.toasts.markReadFail);
-    } finally {
-      busyRef.current.delete(key);
-    }
-  }, []);
-
-  const handleMarkAllRead = useCallback(async () => {
-    if (busyRef.current.has("read-all")) return;
-    busyRef.current.add("read-all");
-    const snapshot = notifsRef.current;
-    setNotifications((prev) => prev.map((n) => (n.read ? n : { ...n, read: true })));
-    try {
-      await api.put("/api/notifications/shops/read-all");
-      toast.success(tRef.current.toasts.markAllOk);
-    } catch {
-      setNotifications(snapshot);
-      toast.error(tRef.current.toasts.markAllFail);
-    } finally {
-      busyRef.current.delete("read-all");
-    }
-  }, []);
-
-  const handleClearAll = useCallback(async () => {
-    if (busyRef.current.has("clear-all")) return;
-    busyRef.current.add("clear-all");
-    try {
-      const d = tRef.current.dialogs;
-      const ok = await confirmDialog({
-        title: d.clearTitle,
-        text: d.clearText,
-        confirmButtonColor: "#ef4444",
-        cancelButtonColor: "#6b7280",
-        confirmButtonText: d.clearConfirm,
-        cancelButtonText: d.cancel,
-      }, darkMode);
-      if (!ok) return;
-      try {
-        await api.delete("/api/notifications/shops/clear-all");
-        setNotifications([]);
-        toast.success(tRef.current.toasts.clearOk);
-      } catch {
-        toast.error(tRef.current.toasts.clearFail);
-      }
-    } finally {
-      busyRef.current.delete("clear-all");
-    }
-  }, [darkMode]);
-
   const toggle = useCallback(() => setOpen((v) => !v), []);
 
   return (
@@ -751,9 +687,6 @@ const NotificationCenter = memo(({ t, locale, darkMode, token }) => {
           loading={loading}
           unreadCount={unreadCount}
           onDelete={handleDelete}
-          onMarkRead={handleMarkRead}
-          onMarkAllRead={handleMarkAllRead}
-          onClearAll={handleClearAll}
         />
       )}
     </div>
@@ -770,6 +703,7 @@ const ShopHeader = () => {
   const locale = L.locale;
   const dir = isAr ? "rtl" : "ltr";
   const fontStyle = useMemo(() => getFontStyle(language), [language]);
+  const isMobile = useMediaQuery(MOBILE_QUERY);
 
   const [darkMode, setDarkMode] = useState(() => readStorage("darkMode") === "true");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -784,6 +718,7 @@ const ShopHeader = () => {
   const tRef = useRef(t);
   tRef.current = t;
   const onChatsPage = pathname === CHATS_PATH;
+  const drawerOpen = sidebarOpen && isMobile;
 
   useEffect(() => {
     if (!token) navigate("/login", { replace: true });
@@ -797,9 +732,10 @@ const ShopHeader = () => {
   const setDark = useCallback(() => setDarkMode(true), []);
 
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
+  useEffect(() => { if (!isMobile) setSidebarOpen(false); }, [isMobile]);
 
   useEffect(() => {
-    if (!sidebarOpen) return undefined;
+    if (!drawerOpen) return undefined;
     const onKey = (e) => { if (e.key === "Escape") setSidebarOpen(false); };
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -808,7 +744,7 @@ const ShopHeader = () => {
       document.body.style.overflow = prev;
       document.removeEventListener("keydown", onKey);
     };
-  }, [sidebarOpen]);
+  }, [drawerOpen]);
 
   useEffect(() => {
     const onUnread = (e) => {
@@ -912,14 +848,14 @@ const ShopHeader = () => {
         toastStyle={toastStyle}
       />
 
-      {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/60 z-[60] lg:hidden" onClick={closeSidebar} aria-hidden="true" />
+      {drawerOpen && (
+        <div className="fixed inset-0 bg-black/60 z-[60]" onClick={closeSidebar} aria-hidden="true" />
       )}
 
       <aside
         aria-label={t.sidebarAria}
         className={`nb-surface nb-line fixed inset-y-0 start-0 z-[70] w-64 flex flex-col border-e-2 transition-[transform,visibility] duration-300 motion-reduce:transition-none
-          ${sidebarOpen ? "translate-x-0 visible" : "-translate-x-full rtl:translate-x-full invisible"}
+          ${drawerOpen ? "translate-x-0 visible" : "-translate-x-full rtl:translate-x-full invisible"}
           lg:translate-x-0 lg:rtl:translate-x-0 lg:visible`}
       >
         <div className="nb-line flex items-center justify-between gap-2 px-4 h-16 flex-shrink-0 border-b-2">
@@ -945,12 +881,12 @@ const ShopHeader = () => {
               <span className="nb-muted block text-[10px] font-semibold tracking-normal truncate">{t.brandSub}</span>
             </span>
           </Link>
-          {sidebarOpen && (
+          {drawerOpen && (
             <button
               type="button"
               onClick={closeSidebar}
               aria-label={t.closeMenu}
-              className="nb-btn lg:hidden h-9 w-9 flex-shrink-0"
+              className="nb-btn h-9 w-9 flex-shrink-0"
             >
               <FiX size={ICON} aria-hidden="true" />
             </button>
@@ -959,7 +895,15 @@ const ShopHeader = () => {
 
         <SidebarNav key={language} t={t} pathname={pathname} chatUnread={chatUnread} onClick={closeSidebar} />
 
-        <SidebarFooter t={t} darkMode={darkMode} onLight={setLight} onDark={setDark} onLogout={handleLogout} />
+        <SidebarFooter
+          t={t}
+          language={language}
+          darkMode={darkMode}
+          onLight={setLight}
+          onDark={setDark}
+          onLanguage={setAppLanguage}
+          onLogout={handleLogout}
+        />
       </aside>
 
       <header
@@ -967,18 +911,20 @@ const ShopHeader = () => {
         className="nb-surface nb-line fixed top-0 start-0 end-0 lg:start-64 h-16 z-40 border-b-2 flex items-center justify-between gap-4 px-4 sm:px-6"
       >
         <div className="flex items-center gap-3 min-w-0">
-          <button
-            type="button"
-            onClick={openSidebar}
-            aria-label={t.openMenu}
-            aria-expanded={sidebarOpen}
-            className="nb-btn relative lg:hidden w-10 h-10 flex-shrink-0"
-          >
-            <FiMenu size={20} aria-hidden="true" />
-            {chatUnread > 0 && (
-              <span aria-hidden="true" className="nb-badge absolute -top-2 -end-2">{badgeText(chatUnread)}</span>
-            )}
-          </button>
+          {isMobile && (
+            <button
+              type="button"
+              onClick={openSidebar}
+              aria-label={t.openMenu}
+              aria-expanded={sidebarOpen}
+              className="nb-btn relative w-10 h-10 flex-shrink-0"
+            >
+              <FiMenu size={20} aria-hidden="true" />
+              {chatUnread > 0 && (
+                <span aria-hidden="true" className="nb-badge absolute -top-2 -end-2">{badgeText(chatUnread)}</span>
+              )}
+            </button>
+          )}
           <h1
             key={`${language}-${pathname}`}
             className="lang-fade text-base sm:text-lg font-extrabold uppercase tracking-tight truncate"
@@ -992,9 +938,7 @@ const ShopHeader = () => {
             <SearchBox t={t} onNavigate={goTo} />
           </div>
 
-          <LanguageSwitch language={language} label={t.language} onChange={setAppLanguage} />
-
-          <NotificationCenter t={t} locale={locale} darkMode={darkMode} token={token} />
+          <NotificationCenter t={t} locale={locale} token={token} />
 
           <Link
             to="/shop/profile"

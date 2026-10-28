@@ -15,7 +15,7 @@ import {
 } from '../components/shop/TableKit';
 import { ensureShopAssets } from '../common/utils/shopFonts';
 import {
-  CONDITIONS, EMPTY_PRODUCT, STOCK_MAX, rawImageOf, validateProduct, buildFormData,
+  CONDITIONS, EMPTY_PRODUCT, STOCK_MAX, rawImageOf, resolveImageSrc, validateProduct, buildFormData,
 } from '../common/utils/productutils';
 
 ensureShopAssets();
@@ -51,6 +51,10 @@ const PG_CSS = `
 tbody tr:first-child .pg-td{border-top:0}
 .pg-tr{transition:background-color .12s ease}
 .pg-tr:hover{background:var(--pg-gray)}
+.pg-zoom{cursor:zoom-in;display:inline-flex;flex:none}
+.pg-zoom:disabled{cursor:default}
+.pg-zoom:hover:not(:disabled) img{transform:scale(1.06)}
+.pg-zoom img{transition:transform .15s ease}
 .pg-scroll{scrollbar-width:thin;scrollbar-color:var(--pg-accent) transparent}
 .pg-scroll::-webkit-scrollbar{width:6px;height:6px}
 .pg-scroll::-webkit-scrollbar-track{background:transparent}
@@ -61,7 +65,7 @@ tbody tr:first-child .pg-td{border-top:0}
 @keyframes pgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .pg-fade{animation:pgFade .2s ease-out both}
 .pg-in{animation:pgIn .15s ease-out both}
-@media (prefers-reduced-motion:reduce){.pg-btn,.pg-lift,.pg-tr{transition:none}.pg-fade,.pg-in,.pg-spin{animation:none}}
+@media (prefers-reduced-motion:reduce){.pg-btn,.pg-lift,.pg-tr,.pg-zoom img{transition:none}.pg-fade,.pg-in,.pg-spin{animation:none}}
 `;
 const STYLE_EL = <style>{PG_CSS + EXTRAS_CSS}</style>;
 
@@ -205,21 +209,6 @@ const LOW_STOCK = 5;
 const TABS = ['all', ...CONDITIONS];
 const UPLOAD_CONFIG = { timeout: 120_000 };
 
-const apiOrigin = () => {
-  const base = String(api?.defaults?.baseURL || '').trim();
-  if (/^https?:\/\//i.test(base)) return base.replace(/\/+$/, '').replace(/\/api$/i, '');
-  return typeof window !== 'undefined' ? window.location.origin : '';
-};
-
-const imageSrc = (raw) => {
-  if (!raw || typeof raw !== 'string') return '';
-  const value = raw.trim();
-  if (!value) return '';
-  if (/^(https?:|data:|blob:)/i.test(value)) return value;
-  const path = value.startsWith('/') ? value : `/${value}`;
-  return `${apiOrigin()}${path}`;
-};
-
 const uploadErrText = (err, u) => {
   const status = err?.response?.status;
   if (status === 413) return u.tooLarge;
@@ -247,7 +236,7 @@ const normalize = (p) => ({
 });
 
 const ProductThumb = memo(({ raw, alt = '', className = 'w-12 h-12', iconSize = 18 }) => {
-  const src = useMemo(() => imageSrc(raw), [raw]);
+  const src = useMemo(() => resolveImageSrc(raw), [raw]);
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
@@ -276,6 +265,41 @@ const ProductThumb = memo(({ raw, alt = '', className = 'w-12 h-12', iconSize = 
   );
 });
 
+const ImagePreview = memo(({ product, closeLabel, onClose }) => {
+  useEscape(onClose);
+  const src = useMemo(() => resolveImageSrc(product.image), [product.image]);
+  const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const title = product.name || '';
+
+  return (
+    <Overlay onClose={onClose}>
+      <div role="dialog" aria-modal="true" aria-label={title} className="pg-card pg-in relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden">
+        <div className="pg-gray pg-line flex flex-shrink-0 items-center justify-between gap-3 border-b-2 px-5 py-3">
+          <h3 className="min-w-0 truncate text-sm font-extrabold uppercase"><span className="pg-ul">{title || '—'}</span></h3>
+          <button type="button" onClick={onClose} aria-label={closeLabel} className="pg-btn h-8 w-8 flex-shrink-0"><FiX size={15} aria-hidden="true" /></button>
+        </div>
+        <div className="pg-gray relative flex min-h-[220px] flex-1 items-center justify-center overflow-auto p-3">
+          {src && !failed ? (
+            <img
+              src={src}
+              alt={title}
+              decoding="async"
+              draggable={false}
+              onLoad={() => setLoaded(true)}
+              onError={() => setFailed(true)}
+              className={`max-h-[72vh] max-w-full object-contain transition-opacity duration-200 motion-reduce:transition-none ${loaded ? 'opacity-100' : 'opacity-0'}`}
+            />
+          ) : (
+            <FiImage size={48} className="pg-muted" aria-hidden="true" />
+          )}
+          {src && !failed && !loaded && <div className="pg-spin absolute h-8 w-8" aria-hidden="true" />}
+        </div>
+      </div>
+    </Overlay>
+  );
+});
+
 const Pill = memo(({ dot, children }) => (
   <span className="pg-chip">
     <span className={`pg-line w-2 h-2 border ${dot}`} />
@@ -283,16 +307,27 @@ const Pill = memo(({ dot, children }) => (
   </span>
 ));
 
-const ProductRow = memo(({ product, busy, loc, onEdit, onDelete, onStock }) => {
+const ProductRow = memo(({ product, busy, loc, onEdit, onDelete, onStock, onPreview }) => {
   const { L, fm } = loc;
   const t = L.products;
   const nf = fm.number;
   const sm = stockMeta(product.stock, t.stock);
+  const hasImage = !!product.image;
+  const previewLabel = t.previewAria || t.imagePreview || 'Preview image';
   return (
     <tr className="pg-tr">
       <td className="pg-td px-3 py-2.5">
         <div className="flex items-center gap-3 min-w-[220px]">
-          <ProductThumb raw={product.image} alt={product.name || ''} className="w-14 h-14" iconSize={20} />
+          <button
+            type="button"
+            disabled={!hasImage}
+            onClick={() => onPreview(product)}
+            aria-label={hasImage ? previewLabel : undefined}
+            title={hasImage ? previewLabel : undefined}
+            className="pg-zoom pg-link"
+          >
+            <ProductThumb raw={product.image} alt="" className="w-14 h-14" iconSize={20} />
+          </button>
           <div className="min-w-0">
             <p className="text-xs font-extrabold uppercase truncate max-w-[240px]">{product.name || '—'}</p>
             <p className="pg-muted text-[10px] font-semibold truncate max-w-[240px]">{product.categoryName || t.uncategorized}</p>
@@ -405,6 +440,7 @@ const Products = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [stockId, setStockId] = useState(null);
+  const [previewId, setPreviewId] = useState(null);
   const [busyIds, setBusyIds] = useState(() => new Set());
 
   const productsRef = useRef(products);
@@ -618,7 +654,8 @@ const Products = () => {
     ...(categories.length ? [[t.groups.category, categoryOptions, categoryFilter, setCategoryFilter]] : []),
   ], [t, sortOptions, stockOptions, sortBy, stockFilter, categoryFilter, categories.length, categoryOptions]);
 
-  const stockProduct = useMemo(() => products.find((p) => p.id === stockId) || null, [products, stockId]);
+  const stockProduct = useMemo(() => (stockId == null ? null : products.find((p) => p.id === stockId) || null), [products, stockId]);
+  const previewProduct = useMemo(() => (previewId == null ? null : products.find((p) => p.id === previewId) || null), [products, previewId]);
 
   const handleEdit = useCallback((p) => {
     setEditingProduct({
@@ -633,12 +670,14 @@ const Products = () => {
     });
   }, []);
   const handleStock = useCallback((p) => setStockId(p.id), []);
+  const handlePreview = useCallback((p) => setPreviewId(p.id), []);
   const handleAddChange = useCallback((f, v) => setNewProduct((prev) => ({ ...prev, [f]: v })), []);
   const handleEditChange = useCallback((f, v) => setEditingProduct((prev) => (prev ? { ...prev, [f]: v } : prev)), []);
   const openAdd = useCallback(() => setShowAddModal(true), []);
   const closeAdd = useCallback(() => { if (!savingRef.current) { setShowAddModal(false); setNewProduct(EMPTY_PRODUCT); } }, []);
   const closeEdit = useCallback(() => { if (!savingRef.current) setEditingProduct(null); }, []);
   const closeStock = useCallback(() => setStockId(null), []);
+  const closePreview = useCallback(() => setPreviewId(null), []);
   const openFilter = useCallback(() => setShowFilterPanel(true), []);
   const closeFilter = useCallback(() => setShowFilterPanel(false), []);
   const resetFilters = useCallback(() => { setStockFilter('all'); setCategoryFilter('all'); setSortBy('name'); }, []);
@@ -743,7 +782,16 @@ const Products = () => {
                   </tr>
                 ) : (
                   paginated.map((p) => (
-                    <ProductRow key={p.id} product={p} busy={busyIds.has(p.id)} loc={loc} onEdit={handleEdit} onDelete={deleteProduct} onStock={handleStock} />
+                    <ProductRow
+                      key={p.id}
+                      product={p}
+                      busy={busyIds.has(p.id)}
+                      loc={loc}
+                      onEdit={handleEdit}
+                      onDelete={deleteProduct}
+                      onStock={handleStock}
+                      onPreview={handlePreview}
+                    />
                   ))
                 )}
               </tbody>
@@ -783,6 +831,10 @@ const Products = () => {
 
       {stockProduct && (
         <StockModal key={stockProduct.id} product={stockProduct} busy={busyIds.has(stockProduct.id)} loc={loc} onClose={closeStock} onSubmit={submitStock} />
+      )}
+
+      {previewProduct && (
+        <ImagePreview key={previewProduct.id} product={previewProduct} closeLabel={tt.close || 'Close'} onClose={closePreview} />
       )}
     </div>
   );

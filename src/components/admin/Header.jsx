@@ -13,79 +13,47 @@ let swalPromise = null;
 const loadSwal = () => (swalPromise ||= import("sweetalert2").then((m) => m.default));
 
 const ICON = 18;
-const MENU_GROUPS = [
-  {
-    label: "Menu",
-    items: [
-      { name: "Dashboard", path: "/admin/dashboard", icon: FiActivity },
-      { name: "Users", path: "/admin/users", icon: FiUsers },
-      { name: "Categories", path: "/admin/category", icon: FiLayers },
-      { name: "Transactions", path: "/admin/transactions", icon: FiCreditCard },
-    ],
-  },
-  {
-    label: "Shop Ecosystem",
-    items: [
-      { name: "Stores", path: "/admin/shops", icon: FiShoppingBag },
-      { name: "Subscriptions", path: "/admin/subscriptions", icon: FiSettings },
-      { name: "Products", path: "/admin/products", icon: FiBox },
-      { name: "Repair Requests", path: "/admin/repair-requests", icon: FiTool },
-      { name: "Offers", path: "/admin/offers", icon: FiTag },
-      { name: "Reviews", path: "/admin/reviews", icon: FiStar },
-    ],
-  },
-  {
-    label: "Logistics",
-    items: [
-      { name: "Delivery Network", path: "/admin/deliveries", icon: FiTruck },
-      { name: "Assigners", path: "/admin/assigners", icon: FiUsers },
-      { name: "Assignment Logs", path: "/admin/assignment-logs", icon: FiClipboard },
-    ],
-  },
+const YEAR = new Date().getFullYear();
+
+const NAV_ITEMS = [
+  { name: "Dashboard", path: "/admin/dashboard", icon: FiActivity },
+  { name: "Users", path: "/admin/users", icon: FiUsers },
+  { name: "Categories", path: "/admin/category", icon: FiLayers },
+  { name: "Transactions", path: "/admin/transactions", icon: FiCreditCard },
+  { name: "Stores", path: "/admin/shops", icon: FiShoppingBag },
+  { name: "Subscriptions", path: "/admin/subscriptions", icon: FiSettings },
+  { name: "Products", path: "/admin/products", icon: FiBox },
+  { name: "Repair Requests", path: "/admin/repair-requests", icon: FiTool },
+  { name: "Offers", path: "/admin/offers", icon: FiTag },
+  { name: "Reviews", path: "/admin/reviews", icon: FiStar },
+  { name: "Delivery Network", path: "/admin/deliveries", icon: FiTruck },
+  { name: "Assigners", path: "/admin/assigners", icon: FiUsers },
+  { name: "Assignment Logs", path: "/admin/assignment-logs", icon: FiClipboard },
 ];
-const ALL_ITEMS = MENU_GROUPS.flatMap((g) => g.items);
-const SEARCH_INDEX = ALL_ITEMS.map((item) => ({ item, key: item.name.toLowerCase() }));
-const PAGE_TITLES = Object.fromEntries(ALL_ITEMS.map((i) => [i.path, i.name]));
+const SEARCH_INDEX = NAV_ITEMS.map((item) => ({ item, key: item.name.toLowerCase() }));
+const PAGE_TITLES = Object.fromEntries(NAV_ITEMS.map((i) => [i.path, i.name]));
 PAGE_TITLES["/admin/dashboard"] = "Dashboard Overview";
 
 const NB_FONT = "'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
 const NB_FONT_STYLE = { fontFamily: NB_FONT };
-const ensureNbFont = () => {
-  if (typeof document === "undefined" || document.getElementById("nb-font")) return;
-  [["https://fonts.googleapis.com", false], ["https://fonts.gstatic.com", true]].forEach(([href, cors]) => {
-    const l = document.createElement("link");
-    l.rel = "preconnect";
-    l.href = href;
-    if (cors) l.crossOrigin = "";
-    document.head.appendChild(l);
-  });
-  const link = document.createElement("link");
-  link.id = "nb-font";
-  link.rel = "stylesheet";
-  link.href = "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap";
-  document.head.appendChild(link);
-};
-ensureNbFont();
 
 const NB_CSS = `
 html,body{overflow-x:hidden;max-width:100vw}
 .nb{--nb-bg:#f9fafb;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#e6eae8;--nb-shadow:#e6eae8;--nb-gray:#f1f3f2;--nb-dot:#e6eae8;--nb-accent:#10b981;--nb-btn:#059669;--nb-on:#ffffff;background:var(--nb-bg);color:var(--nb-ink)}
 .nb-dark{--nb-bg:#141414;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#1e1e1e;--nb-dot:#3f3f3f;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-on:#022c22}
 .nb-surface{background:var(--nb-card);color:var(--nb-ink)}
-.nb-gray{background:var(--nb-gray)}
 .nb-muted{color:var(--nb-muted)}
 .nb-line{border-color:var(--nb-line)}
-.nb-sep{border-top:2px dotted var(--nb-dot)}
 .nb-ul{text-decoration:underline;text-decoration-color:var(--nb-accent);text-decoration-thickness:3px;text-underline-offset:4px;text-decoration-skip-ink:none}
-:where(.nb-tile){display:inline-flex}
-.nb-tile{align-items:center;justify-content:center;flex:none;border:2px solid var(--nb-line);color:var(--nb-on);background:var(--nb-btn)}
 :where(.nb-btn){display:inline-flex}
 .nb-btn{align-items:center;justify-content:center;gap:6px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);font-weight:700;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,background-color .12s ease}
 .nb-btn:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--nb-shadow)}
 .nb-btn:active:not(:disabled){transform:translate(1px,1px);box-shadow:0 0 0 var(--nb-shadow)}
 .nb-btn:disabled{opacity:.45;cursor:not-allowed}
-.nb-btn-a,.nb-btn-on{background:var(--nb-btn);color:var(--nb-on)}
-.nb-btn-danger{background:#ef4444;color:#fff}
+.nb-btn-a{background:var(--nb-btn);color:var(--nb-on)}
+.nb-btn-sun{background:#f59e0b;color:#1f1300}
+.nb-btn-moon{background:#6366f1;color:#ffffff}
+.nb-btn-danger{background:#ef4444;color:#ffffff}
 .nb-btn:focus-visible,.nb-field:focus-within,.nb-link:focus-visible{outline:3px solid var(--nb-accent);outline-offset:2px}
 .nb-field{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow)}
 .nb-menu{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow)}
@@ -103,7 +71,31 @@ html,body{overflow-x:hidden;max-width:100vw}
 .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover{background:#34d399}
 @media (prefers-reduced-motion:reduce){.nb-btn,.nb-link{transition:none}}
 `;
-const STYLE_HTML = { __html: NB_CSS };
+
+const ensureAssets = () => {
+  if (typeof document === "undefined") return;
+  if (!document.getElementById("nb-font")) {
+    [["https://fonts.googleapis.com", false], ["https://fonts.gstatic.com", true]].forEach(([href, cors]) => {
+      const l = document.createElement("link");
+      l.rel = "preconnect";
+      l.href = href;
+      if (cors) l.crossOrigin = "";
+      document.head.appendChild(l);
+    });
+    const link = document.createElement("link");
+    link.id = "nb-font";
+    link.rel = "stylesheet";
+    link.href = "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap";
+    document.head.appendChild(link);
+  }
+  if (!document.getElementById("nb-css")) {
+    const style = document.createElement("style");
+    style.id = "nb-css";
+    style.textContent = NB_CSS;
+    document.head.appendChild(style);
+  }
+};
+ensureAssets();
 
 const isTokenExpired = (token) => {
   if (!token) return true;
@@ -169,15 +161,51 @@ const SidebarLink = memo(({ item, active, onClick }) => {
 });
 
 const SidebarNav = memo(({ pathname, onClick }) => (
-  <nav aria-label="Main navigation" className="flex-1 overflow-y-auto overscroll-contain px-3 py-4 space-y-5 custom-scrollbar-thin">
-    {MENU_GROUPS.map((g, i) => (
-      <div key={g.label} className={`space-y-1.5 ${i === 0 ? "" : "nb-sep pt-5"}`}>
-        {g.items.map((item) => (
-          <SidebarLink key={item.path} item={item} active={pathname === item.path} onClick={onClick} />
-        ))}
-      </div>
+  <nav aria-label="Main navigation" className="flex-1 overflow-y-auto overscroll-contain px-3 py-4 space-y-1.5 custom-scrollbar-thin">
+    {NAV_ITEMS.map((item) => (
+      <SidebarLink key={item.path} item={item} active={pathname === item.path} onClick={onClick} />
     ))}
   </nav>
+));
+
+const ThemeSwitch = memo(({ darkMode, onLight, onDark }) => (
+  <div role="group" aria-label="Theme" className="grid grid-cols-2 gap-2">
+    <button
+      type="button"
+      onClick={onLight}
+      aria-pressed={!darkMode}
+      className={`nb-btn py-1.5 text-xs uppercase ${!darkMode ? "nb-btn-sun" : ""}`}
+    >
+      <FiSun size={14} aria-hidden="true" /> Light
+    </button>
+    <button
+      type="button"
+      onClick={onDark}
+      aria-pressed={darkMode}
+      className={`nb-btn py-1.5 text-xs uppercase ${darkMode ? "nb-btn-moon" : ""}`}
+    >
+      <FiMoon size={14} aria-hidden="true" /> Dark
+    </button>
+  </div>
+));
+
+const ProfileBadge = memo(({ name, role }) => (
+  <div className="nb-field hidden md:block h-10 px-3 flex-shrink-0 leading-tight text-left">
+    <span className="block pt-1 text-xs font-extrabold uppercase truncate max-w-[140px]">{name}</span>
+    <span className="nb-muted block text-[10px] font-bold">{role}</span>
+  </div>
+));
+
+const DeleteButton = memo(({ onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-label="Delete account"
+    className="nb-btn nb-btn-danger h-10 px-3 flex-shrink-0 text-xs uppercase"
+  >
+    <FiTrash2 size={16} aria-hidden="true" />
+    <span className="hidden sm:inline">Delete</span>
+  </button>
 ));
 
 const SearchBox = memo(({ onNavigate }) => {
@@ -208,10 +236,13 @@ const SearchBox = memo(({ onNavigate }) => {
     setOpen(false);
   }, [onNavigate]);
 
-  const onKeyDown = (e) => {
+  const onKeyDown = useCallback((e) => {
     if (e.key === "Enter" && results[0]) goTo(results[0].path);
     if (e.key === "Escape") { setQuery(""); setOpen(false); }
-  };
+  }, [results, goTo]);
+
+  const onChange = useCallback((e) => { setQuery(e.target.value); setOpen(true); }, []);
+  const onFocus = useCallback(() => setOpen(true), []);
 
   return (
     <div ref={ref} role="search" className="relative w-full max-w-md">
@@ -227,8 +258,8 @@ const SearchBox = memo(({ onNavigate }) => {
           autoComplete="off"
           spellCheck={false}
           enterKeyHint="search"
-          onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)}
+          onChange={onChange}
+          onFocus={onFocus}
           onKeyDown={onKeyDown}
           className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60"
         />
@@ -476,33 +507,11 @@ const Header = ({ darkMode: darkModeProp, toggleDarkMode }) => {
         <SidebarNav pathname={pathname} onClick={closeSidebar} />
 
         <div className="nb-line p-3 space-y-2.5 flex-shrink-0 border-t-2">
-          <div role="group" aria-label="Theme" className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={setLight}
-              aria-pressed={!darkMode}
-              className={`nb-btn py-1.5 text-xs uppercase ${!darkMode ? "nb-btn-on" : ""}`}
-            >
-              <FiSun size={14} aria-hidden="true" /> Light
-            </button>
-            <button
-              type="button"
-              onClick={setDark}
-              aria-pressed={darkMode}
-              className={`nb-btn py-1.5 text-xs uppercase ${darkMode ? "nb-btn-on" : ""}`}
-            >
-              <FiMoon size={14} aria-hidden="true" /> Dark
-            </button>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={handleLogout} className="nb-btn nb-btn-a py-2 text-xs uppercase">
-              <FiLogOut size={14} aria-hidden="true" /> Logout
-            </button>
-            <button type="button" onClick={handleDeleteAccount} className="nb-btn nb-btn-danger py-2 text-xs uppercase">
-              <FiTrash2 size={14} aria-hidden="true" /> Delete
-            </button>
-          </div>
-          <p className="nb-muted pt-0.5 text-center text-[10px] font-semibold">© {new Date().getFullYear()} Tech &amp; Restore</p>
+          <ThemeSwitch darkMode={darkMode} onLight={setLight} onDark={setDark} />
+          <button type="button" onClick={handleLogout} className="nb-btn nb-btn-a w-full py-2 text-xs uppercase">
+            <FiLogOut size={14} aria-hidden="true" /> Logout
+          </button>
+          <p className="nb-muted pt-0.5 text-center text-[10px] font-semibold">© {YEAR} Tech &amp; Restore</p>
         </div>
       </aside>
 
@@ -529,20 +538,10 @@ const Header = ({ darkMode: darkModeProp, toggleDarkMode }) => {
           <div className="hidden sm:flex flex-1 justify-end min-w-0">
             <SearchBox onNavigate={goTo} />
           </div>
-
-          <div className="nb-field flex items-center gap-2.5 h-10 pl-1 pr-1 md:pr-3 flex-shrink-0">
-            <span className="nb-tile w-7 h-7 text-sm font-extrabold uppercase">
-              {profile.name.charAt(0)}
-            </span>
-            <span className="hidden md:block leading-tight text-left">
-              <span className="block text-xs font-extrabold uppercase truncate max-w-[110px]">{profile.name}</span>
-              <span className="nb-muted block text-[10px] font-bold">{profile.role}</span>
-            </span>
-          </div>
+          <ProfileBadge name={profile.name} role={profile.role} />
+          <DeleteButton onClick={handleDeleteAccount} />
         </div>
       </header>
-
-      <style dangerouslySetInnerHTML={STYLE_HTML} />
     </div>
   );
 };

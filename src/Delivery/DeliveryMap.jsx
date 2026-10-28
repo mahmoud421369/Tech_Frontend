@@ -18,7 +18,6 @@ const loadLeaflet = () => {
 
 const isDark = () => typeof document !== "undefined" && document.documentElement.classList.contains("dark");
 
-
 const routeColors = (dark) => (dark
   ? { casing: "#022c22", line: "#34d399", flow: "#022c22", straight: "#10b981" }
   : { casing: "#ffffff", line: "#10b981", flow: "#ffffff", straight: "#10b981" });
@@ -31,6 +30,8 @@ try {
 const persist = () => {
   try { localStorage.setItem(CACHE_KEY, JSON.stringify(Object.fromEntries([...mem].filter(([, v]) => v).slice(-500)))); } catch { }
 };
+
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 const num = (v) => (v == null || v === "" ? NaN : Number(v));
 const coordOf = (a) => {
@@ -95,7 +96,7 @@ const haversine = (a, b) => {
 };
 
 const pinHtml = (kind, label, small) =>
-  `<div class="dm-pin dm-${kind}${small ? " sm" : ""}">${label ? `<span class="dm-lbl">${label}</span>` : ""}`
+  `<div class="dm-pin dm-${kind}${small ? " sm" : ""}">${label ? `<span class="dm-lbl">${esc(label)}</span>` : ""}`
   + '<svg viewBox="-16 -42 32 44" width="32" height="44"><path class="dm-body" stroke-width="2" stroke-linejoin="round" d="M0 0C-6-10-15-17-15-27A15 15 0 0 1 15-27C15-17 6-10 0 0Z"/>'
   + `${kind === "a" ? '<rect class="dm-in" x="-5" y="-32" width="10" height="10" rx="2"/>' : '<circle class="dm-in" cy="-27" r="5.5"/>'}</svg></div>`;
 
@@ -110,7 +111,7 @@ const MAP_CSS = {
   .dm-a .dm-body{fill:#10b981;stroke:#047857}.dm-b .dm-body{fill:#111827;stroke:#fff}.dm-in{fill:#fff}
   .dark .dm-a .dm-body{fill:#34d399;stroke:#064e3b}.dark .dm-b .dm-body{fill:#fff;stroke:#111827}
   .dark .dm-a .dm-in{fill:#064e3b}.dark .dm-b .dm-in{fill:#111827}
-  .dm-lbl{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:2px;padding:3px 10px;border-radius:999px;background:#fff;color:#111827;font:700 11px/1.2 system-ui,sans-serif;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+  .dm-lbl{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:2px;padding:3px 10px;border-radius:999px;background:#fff;color:#111827;font:700 11px/1.2 system-ui,sans-serif;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis;box-shadow:0 1px 4px rgba(0,0,0,.25)}
   .dark .dm-lbl{background:#111827;color:#fff}
   .dm-a:not(.sm)::after{content:"";position:absolute;left:50%;bottom:-9px;width:44px;height:20px;margin-left:-22px;border-radius:50%;background:rgba(16,185,129,.35);animation:dm-pulse 1.8s ease-out infinite;z-index:-1}
   .dm-wrap .leaflet-container{font-family:inherit;background:#e8eee8;outline:none}
@@ -135,7 +136,7 @@ const Chip = ({ children, tone = "plain" }) => (
   </p>
 );
 
-const DeliveryMap = ({ items, selectedId = null, onSelect, aspect = 0.7, className = "" }) => {
+const DeliveryMap = ({ items, selectedId = null, onSelect, aspect = 0.7, className = "", startLabel = "Pickup", endLabel = "Drop-off" }) => {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const glRef = useRef(null);
@@ -201,7 +202,6 @@ const DeliveryMap = ({ items, selectedId = null, onSelect, aspect = 0.7, classNa
         keepBuffer: 2,
       }).addTo(map);
 
-      
       const c = routeColors(isDark());
       const base = { lineCap: "round", lineJoin: "round", interactive: false, smoothFactor: 1.5 };
       routeRef.current = {
@@ -321,11 +321,11 @@ const DeliveryMap = ({ items, selectedId = null, onSelect, aspect = 0.7, classNa
     const put = (key, ll, kind, label, small, title, id) => want.set(key, { ll: [ll[0], ll[1]], kind, label, small, title, id });
     pts.forEach((p) => {
       const b = points[p.kb];
-      if (b && p.id !== selectedId) put(`d:${p.id}`, b, "b", null, true, "Drop-off. Select to see the route.", p.id);
+      if (b && p.id !== selectedId) put(`d:${p.id}`, b, "b", null, true, endLabel, p.id);
     });
     if (sel) {
-      if (A) put("A", A, "a", "Pickup", false, "Pickup location", null);
-      if (B) put("B", B, "b", "Drop-off", false, "Drop-off location", null);
+      if (A) put("A", A, "a", startLabel, false, startLabel, null);
+      if (B) put("B", B, "b", endLabel, false, endLabel, null);
     }
     const reg = markersRef.current;
     reg.forEach((v, k) => {
@@ -354,7 +354,7 @@ const DeliveryMap = ({ items, selectedId = null, onSelect, aspect = 0.7, classNa
       }
       reg.set(k, { marker, sig: sigOf(w) });
     });
-  }, [ready, pts, points, sel, selectedId, A, B]);
+  }, [ready, pts, points, sel, selectedId, A, B, startLabel, endLabel]);
 
   const fit = useCallback(() => {
     const L = glRef.current;
@@ -384,7 +384,7 @@ const DeliveryMap = ({ items, selectedId = null, onSelect, aspect = 0.7, classNa
       className={`dm-wrap relative isolate w-full overflow-hidden rounded-2xl border border-gray-100 dark:border-gray-700 ${dark ? "dm-dark" : ""} ${className}`}
       style={{ aspectRatio: `1 / ${aspect}` }}
     >
-      <div ref={elRef} className="absolute inset-0 z-0 isolate" role="application" aria-label="Delivery map" />
+      <div ref={elRef} className="absolute inset-0 z-0 isolate" role="application" aria-label="Map" />
 
       {!ready && !failed && (
         <div className="absolute inset-0 z-[5] flex items-center justify-center bg-gray-50/90 dark:bg-gray-800/90">

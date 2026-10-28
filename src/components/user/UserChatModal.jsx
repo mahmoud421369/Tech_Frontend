@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback, useRef, memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  FiX, FiSend, FiCheckCircle, FiArrowLeft, FiAlertCircle, FiRefreshCw, FiArchive,
+  FiX, FiSend, FiArrowLeft, FiAlertCircle, FiRefreshCw, FiArchive,
   FiPaperclip, FiCamera, FiMic, FiMapPin, FiUser, FiStar, FiCornerUpLeft,
-  FiTrash2, FiMoreVertical, FiDownload, FiFile, FiImage, FiPhone, FiSearch, FiFolder,
+  FiTrash2, FiMoreVertical, FiDownload, FiFile, FiImage, FiPhone, FiSearch, FiFolder, FiClock, FiPlay, FiPause,
 } from 'react-icons/fi';
+import { IoCheckmarkDone } from 'react-icons/io5';
 import { RiVerifiedBadgeLine } from 'react-icons/ri';
 import api from '../../common/api/api';
 import { chatApi, parseCount } from '../../common/services/chatApi';
@@ -24,6 +25,14 @@ const MAX_SEEN_IDS = 2000;
 const MAX_RECENT_SENT = 50;
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_VOICE_SECONDS = 300;
+const MAX_TIME_CACHE = 600;
+const SWIPE_TRIGGER = 48;
+const SWIPE_MAX = 72;
+const SWIPE_IGNORE = 'audio,video,button,a,input,textarea,select,[data-noswipe]';
+const WAVE_BARS = 36;
+const SPEEDS = [1, 1.5, 2];
+const MOBILE_QUERY = '(max-width: 639px), (pointer: coarse)';
+const DISPLAY_TZ = 'Africa/Cairo';
 const enc = encodeURIComponent;
 
 const K = {
@@ -48,7 +57,7 @@ const ERR = {
 
 const NEW_EN = {
   reply: 'Reply', replyingTo: 'Replying to', sideShop: 'Shop', sideUser: 'You', cancel: 'Cancel', you: 'You',
-  delMe: 'Delete for me',
+  delMe: 'Delete for me', statusSending: 'Sending', statusSent: 'Delivered', statusRead: 'Read', play: 'Play', pause: 'Pause', seek: 'Seek',
   deleted: 'This message was deleted', attach: 'Attach', file: 'Document',
   gallery: 'Photo / video', camera: 'Camera', location: 'Location', contact: 'Contact', name: 'Name',
   phone: 'Phone', send: 'Send', record: 'Recording voice note', stopSend: 'Send voice note', discard: 'Discard',
@@ -70,7 +79,7 @@ const NEW_EN = {
 
 const NEW_AR = {
   reply: 'رد', replyingTo: 'الرد على', sideShop: 'المتجر', sideUser: 'أنت', cancel: 'إلغاء', you: 'أنت',
-  delMe: 'حذف عندي',
+  delMe: 'حذف عندي', statusSending: 'جارٍ الإرسال', statusSent: 'تم التسليم', statusRead: 'تمت القراءة', play: 'تشغيل', pause: 'إيقاف مؤقت', seek: 'تقديم',
   deleted: 'تم حذف هذه الرسالة', attach: 'إرفاق', file: 'مستند',
   gallery: 'صورة / فيديو', camera: 'الكاميرا', location: 'الموقع', contact: 'جهة اتصال', name: 'الاسم',
   phone: 'الهاتف', send: 'إرسال', record: 'جارٍ تسجيل رسالة صوتية', stopSend: 'إرسال الرسالة الصوتية', discard: 'تجاهل',
@@ -97,34 +106,64 @@ const trimSet = (set, max) => {
   while (set.size > max) set.delete(set.values().next().value);
 };
 
+const TZ_SUFFIX_RE = /(Z|[+-]\d{2}:?\d{2})$/i;
+const NAIVE_DATETIME_RE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/;
+
+const parseDate = (v) => {
+  if (v instanceof Date) return v;
+  if (Array.isArray(v) && v.length >= 3) {
+    const [y, mo, d, h = 0, mi = 0, s = 0, ns = 0] = v.map(Number);
+    return new Date(Date.UTC(y, mo - 1, d, h, mi, s, Math.floor(ns / 1e6)));
+  }
+  if (typeof v === 'string') {
+    const s = v.trim().replace(/(\.\d{3})\d+/, '$1');
+    if (NAIVE_DATETIME_RE.test(s) && !TZ_SUFFIX_RE.test(s)) return new Date(`${s.replace(' ', 'T')}Z`);
+    return new Date(s);
+  }
+  return new Date(v);
+};
+
 const toIso = (v) => {
   if (v == null) return '';
-  const d = v instanceof Date ? v : new Date(v);
+  const d = parseDate(v);
   return Number.isNaN(d.getTime()) ? '' : d.toISOString();
 };
 
 const timeFmts = new Map();
+const timeCache = new Map();
 const getTimeFmt = (lang) => {
   const key = lang || 'en';
   let fmt = timeFmts.get(key);
   if (!fmt) {
     const isEn = key.startsWith('en');
-    const opts = { hour: '2-digit', minute: '2-digit' };
+    const opts = { hour: '2-digit', minute: '2-digit', timeZone: DISPLAY_TZ };
     try {
       fmt = new Intl.DateTimeFormat(isEn ? 'en-US' : key, isEn ? { ...opts, hour12: true } : opts);
     } catch {
-      fmt = new Intl.DateTimeFormat('en-US', { ...opts, hour12: true });
+      try {
+        fmt = new Intl.DateTimeFormat('en-US', { ...opts, hour12: true });
+      } catch {
+        fmt = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+      }
     }
     timeFmts.set(key, fmt);
   }
   return fmt;
 };
 const formatTime = (iso, lang) => {
+  if (!iso) return '';
+  const cacheKey = `${lang}|${iso}`;
+  const hit = timeCache.get(cacheKey);
+  if (hit !== undefined) return hit;
+  let out = '';
   try {
-    return getTimeFmt(lang).format(new Date(iso));
+    out = getTimeFmt(lang).format(parseDate(iso));
   } catch {
-    return '';
+    out = '';
   }
+  if (timeCache.size >= MAX_TIME_CACHE) timeCache.delete(timeCache.keys().next().value);
+  timeCache.set(cacheKey, out);
+  return out;
 };
 const makeClientMsgId = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `c-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -241,6 +280,8 @@ const sameSessions = (a, b) =>
     );
   });
 
+const byCreatedAt = (a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0);
+
 const DELETED_PATCH = { deleted: true, content: '', attachment: null, location: null, contact: null, links: [] };
 
 const safeFileName = (name) =>
@@ -315,7 +356,8 @@ const useBlobUrl = (id, enabled, kind) => {
         if (ctrl.signal.aborted) return;
         const prefix = BLOB_PREFIX[kind];
         const type = String(data?.type || '').toLowerCase();
-        if (!prefix || (type && !type.startsWith(prefix)) || type.includes('svg')) {
+        const webmAudio = (kind === 'AUDIO' || kind === 'VOICE') && type === 'video/webm';
+        if (!prefix || !type || (!type.startsWith(prefix) && !webmAudio) || type.includes('svg')) {
           setState({ url: null, error: true });
           return;
         }
@@ -429,6 +471,108 @@ const useRecorder = ({ onFinish, onError }) => {
   return { recording, secs, start, stop };
 };
 
+const useIsMobile = () => {
+  const [mobile, setMobile] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.(MOBILE_QUERY).matches);
+  useEffect(() => {
+    const mq = window.matchMedia?.(MOBILE_QUERY);
+    if (!mq) return undefined;
+    const onChange = (e) => setMobile(e.matches);
+    setMobile(mq.matches);
+    if (mq.addEventListener) mq.addEventListener('change', onChange);
+    else mq.addListener(onChange);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener('change', onChange);
+      else mq.removeListener(onChange);
+    };
+  }, []);
+  return mobile;
+};
+
+const useSwipeReply = (enabled, onTrigger) => {
+  const rowRef = useRef(null);
+  const iconRef = useRef(null);
+  const st = useRef({ x: 0, y: 0, active: false, axis: null, fired: false });
+  const cbRef = useRef(onTrigger);
+  cbRef.current = onTrigger;
+
+  const reset = useCallback((animate) => {
+    const row = rowRef.current;
+    const icon = iconRef.current;
+    if (row) {
+      row.style.transition = animate ? 'transform .18s ease' : 'none';
+      row.style.transform = '';
+    }
+    if (icon) {
+      icon.style.opacity = '0';
+      icon.style.transform = 'scale(.6)';
+    }
+  }, []);
+
+  const onTouchStart = useCallback((e) => {
+    if (!enabled || e.touches.length !== 1 || e.target.closest?.(SWIPE_IGNORE)) {
+      st.current.active = false;
+      return;
+    }
+    const t = e.touches[0];
+    st.current = { x: t.clientX, y: t.clientY, active: true, axis: null, fired: false };
+    if (rowRef.current) rowRef.current.style.transition = 'none';
+  }, [enabled]);
+
+  const onTouchMove = useCallback((e) => {
+    const s = st.current;
+    if (!s.active) return;
+    const t = e.touches[0];
+    const dx = t.clientX - s.x;
+    const dy = t.clientY - s.y;
+    if (s.axis === null) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      s.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+    }
+    if (s.axis === 'y') {
+      s.active = false;
+      return;
+    }
+    const c = Math.max(-SWIPE_MAX, Math.min(SWIPE_MAX, dx));
+    const row = rowRef.current;
+    const icon = iconRef.current;
+    if (row) row.style.transform = `translate3d(${c}px,0,0)`;
+    if (icon) {
+      const p = Math.min(1, Math.abs(c) / SWIPE_TRIGGER);
+      icon.style.left = c > 0 ? '8px' : 'auto';
+      icon.style.right = c < 0 ? '8px' : 'auto';
+      icon.style.opacity = String(p);
+      icon.style.transform = `scale(${0.6 + 0.4 * p})`;
+    }
+    if (!s.fired && Math.abs(c) >= SWIPE_TRIGGER) {
+      s.fired = true;
+      try {
+        navigator.vibrate?.(10);
+      } catch {}
+    } else if (s.fired && Math.abs(c) < SWIPE_TRIGGER) {
+      s.fired = false;
+    }
+  }, []);
+
+  const onTouchEnd = useCallback(() => {
+    const s = st.current;
+    const fire = s.active && s.axis === 'x' && s.fired;
+    s.active = false;
+    reset(true);
+    if (fire) cbRef.current?.();
+  }, [reset]);
+
+  const onTouchCancel = useCallback(() => {
+    st.current.active = false;
+    reset(true);
+  }, [reset]);
+
+  return {
+    rowRef,
+    iconRef,
+    handlers: enabled ? { onTouchStart, onTouchMove, onTouchEnd, onTouchCancel } : undefined,
+  };
+};
+
 const Linkified = memo(({ text }) =>
   String(text)
     .split(URL_RE)
@@ -436,7 +580,7 @@ const Linkified = memo(({ text }) =>
       if (i % 2 === 0) return p;
       const href = safeHttp(p);
       return href ? (
-        <a key={i} href={href} target="_blank" rel="noopener noreferrer nofollow" className="underline underline-offset-2 break-all">
+        <a key={i} href={href} target="_blank" rel="noopener noreferrer nofollow ugc" referrerPolicy="no-referrer" className="underline underline-offset-2 break-all">
           {p}
         </a>
       ) : (
@@ -444,6 +588,152 @@ const Linkified = memo(({ text }) =>
       );
     })
 );
+
+let activeVoice = null;
+
+const waveHeights = (seed) => {
+  let h = 2166136261;
+  const str = String(seed);
+  for (let i = 0; i < str.length; i += 1) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  let x = (h >>> 0) || 1;
+  const out = [];
+  for (let i = 0; i < WAVE_BARS; i += 1) {
+    x ^= x << 13;
+    x >>>= 0;
+    x ^= x >>> 17;
+    x ^= x << 5;
+    x >>>= 0;
+    out.push(0.2 + (x % 1000) / 1250);
+  }
+  return out;
+};
+
+const VoicePlayer = memo(({ url, seed, duration, N }) => {
+  const audioRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [time, setTime] = useState(0);
+  const [total, setTotal] = useState(duration || 0);
+  const [speedIdx, setSpeedIdx] = useState(0);
+  const bars = useMemo(() => waveHeights(seed), [seed]);
+  const dur = total || duration || 0;
+  const ratio = dur > 0 ? Math.min(1, time / dur) : 0;
+
+  useEffect(() => {
+    const a = audioRef.current;
+    if (a) a.playbackRate = SPEEDS[speedIdx];
+  }, [speedIdx, url]);
+
+  useEffect(() => () => {
+    const a = audioRef.current;
+    if (!a) return;
+    a.pause();
+    if (activeVoice === a) activeVoice = null;
+  }, []);
+
+  const toggle = () => {
+    const a = audioRef.current;
+    if (!a) return;
+    if (a.paused) {
+      if (activeVoice && activeVoice !== a) activeVoice.pause();
+      activeVoice = a;
+      a.play().catch(() => setPlaying(false));
+    } else {
+      a.pause();
+    }
+  };
+
+  const seekTo = (value) => {
+    const a = audioRef.current;
+    if (!a || !dur) return;
+    const next = Math.max(0, Math.min(dur, value));
+    a.currentTime = next;
+    setTime(next);
+  };
+
+  const onSeekClick = (e) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    if (!r.width) return;
+    seekTo(((e.clientX - r.left) / r.width) * dur);
+  };
+
+  const onSeekKey = (e) => {
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      seekTo(time + 5);
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      seekTo(time - 5);
+    }
+  };
+
+  const onMeta = (e) => {
+    const d = e.currentTarget.duration;
+    if (!duration && Number.isFinite(d) && d > 0) setTotal(d);
+  };
+
+  const onEnded = (e) => {
+    const a = e.currentTarget;
+    if (!total && !duration && a.currentTime > 0) setTotal(a.currentTime);
+    a.currentTime = 0;
+    setPlaying(false);
+    setTime(0);
+    if (activeVoice === a) activeVoice = null;
+  };
+
+  const cycleSpeed = () => setSpeedIdx((i) => (i + 1) % SPEEDS.length);
+  const shown = playing || time > 0 ? time : dur;
+
+  return (
+    <div className="flex w-64 max-w-full items-center gap-3 sm:w-72" dir="ltr">
+      <audio
+        ref={audioRef}
+        src={url}
+        preload="metadata"
+        onLoadedMetadata={onMeta}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={onEnded}
+        onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
+      />
+      <button type="button" onClick={toggle} aria-label={playing ? N.pause : N.play} className={`${K.btnA} h-10 w-10 shrink-0 rounded-full`}>
+        {playing ? <FiPause size={16} aria-hidden="true" /> : <FiPlay size={16} className="translate-x-px" aria-hidden="true" />}
+      </button>
+      <div className="min-w-0 flex-1">
+        <div
+          data-noswipe
+          role="slider"
+          tabIndex={0}
+          aria-label={N.seek}
+          aria-valuemin={0}
+          aria-valuemax={Math.round(dur)}
+          aria-valuenow={Math.round(time)}
+          onClick={onSeekClick}
+          onKeyDown={onSeekKey}
+          className="flex h-8 cursor-pointer items-center gap-[2px]"
+        >
+          {bars.map((h, i) => (
+            <span
+              key={i}
+              style={{ height: `${Math.round(h * 100)}%` }}
+              className={clsx('min-w-[2px] flex-1 rounded-full', (i + 0.5) / WAVE_BARS <= ratio ? 'bg-[color:var(--nc-accent)]' : 'bg-current opacity-30')}
+            />
+          ))}
+        </div>
+        <span className="mt-0.5 block text-[10px] font-bold tabular-nums opacity-80">{fmtDur(shown)}</span>
+      </div>
+      {playing ? (
+        <button type="button" onClick={cycleSpeed} className={`${K.btn} h-7 min-w-[42px] shrink-0 rounded-full px-2 text-[10px]`}>
+          {SPEEDS[speedIdx]}x
+        </button>
+      ) : (
+        <FiMic size={16} className="shrink-0 opacity-60" aria-hidden="true" />
+      )}
+    </div>
+  );
+});
 
 const Skeleton = () => <div className="h-40 w-56 max-w-full animate-pulse bg-black/10 dark:bg-white/10 motion-reduce:animate-none" />;
 
@@ -471,7 +761,7 @@ const Attachment = memo(({ msg, N }) => {
   if (pending) {
     body = (
       <div className="flex items-center gap-2 text-xs font-bold">
-        <FiFile size={16} aria-hidden="true" />
+        {msg.type === 'VOICE' ? <FiMic size={16} aria-hidden="true" /> : <FiFile size={16} aria-hidden="true" />}
         <span className="truncate" dir="auto">{a.name}</span>
         <span className="tabular-nums" dir="ltr">{msg._progress ?? 0}%</span>
       </div>
@@ -492,15 +782,19 @@ const Attachment = memo(({ msg, N }) => {
   } else if (error) {
     body = <p className="text-xs font-bold">{N.mediaFail}</p>;
   } else if (!url) {
-    body = <Skeleton />;
+    body = msg.type === 'VOICE'
+      ? <div className="h-10 w-64 max-w-full animate-pulse rounded-full bg-black/10 dark:bg-white/10 motion-reduce:animate-none" />
+      : <Skeleton />;
   } else if (msg.type === 'IMAGE') {
     body = (
       <a href={url} target="_blank" rel="noopener noreferrer">
-        <img src={url} alt={a.name} decoding="async" loading="lazy" className="max-h-64 max-w-full object-cover" />
+        <img src={url} alt={a.name} decoding="async" loading="lazy" referrerPolicy="no-referrer" className="max-h-64 max-w-full object-cover" />
       </a>
     );
   } else if (msg.type === 'VIDEO') {
     body = <video src={url} controls preload="metadata" playsInline className="max-h-64 max-w-full" />;
+  } else if (msg.type === 'VOICE') {
+    body = <VoicePlayer url={url} seed={msg.id} duration={a.duration} N={N} />;
   } else {
     body = (
       <div className="flex flex-col gap-1">
@@ -510,7 +804,7 @@ const Attachment = memo(({ msg, N }) => {
     );
   }
 
-  return <div ref={boxRef} className="mb-2 max-w-full">{body}</div>;
+  return <div ref={boxRef} className={clsx('max-w-full', msg.type === 'VOICE' ? 'mb-1' : 'mb-2')}>{body}</div>;
 });
 
 const LocationCard = memo(({ loc, N }) => {
@@ -563,7 +857,7 @@ const MessageContent = memo(({ msg, N, showLinks = false }) => {
       )}
       {showLinks &&
         msg.links.map((l) => (
-          <a key={l} href={l} target="_blank" rel="noopener noreferrer nofollow" className="mt-1 block truncate text-xs font-bold underline underline-offset-2">
+          <a key={l} href={l} target="_blank" rel="noopener noreferrer nofollow ugc" referrerPolicy="no-referrer" className="mt-1 block truncate text-xs font-bold underline underline-offset-2">
             {l}
           </a>
         ))}
@@ -595,7 +889,7 @@ const MenuItem = ({ icon: Icon, label, onClick }) => (
   </button>
 );
 
-const MessageMenu = memo(({ msg, N, onReply, onDelete }) => {
+const MessageMenu = memo(({ msg, N, onReply }) => {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
   return (
@@ -613,9 +907,8 @@ const MessageMenu = memo(({ msg, N, onReply, onDelete }) => {
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={close} aria-hidden="true" />
-          <div role="menu" className="nc-panel absolute end-0 top-full z-20 mt-1 flex min-w-[180px] flex-col p-1">
-            {!msg.deleted && <MenuItem icon={FiCornerUpLeft} label={N.reply} onClick={() => { close(); onReply(msg); }} />}
-            <MenuItem icon={FiTrash2} label={N.delMe} onClick={() => { close(); onDelete(msg); }} />
+          <div role="menu" className="nc-panel absolute end-0 top-full z-20 mt-1 flex min-w-[160px] flex-col p-1">
+            <MenuItem icon={FiCornerUpLeft} label={N.reply} onClick={() => { close(); onReply(msg); }} />
           </div>
         </>
       )}
@@ -808,6 +1101,7 @@ const Composer = memo(
                 placeholder={locating ? N.locating : placeholder}
                 aria-label={ariaLabel}
                 maxLength={MAX_MSG_LEN}
+                autoComplete="off"
                 className="nc-scroll block max-h-40 w-full resize-none bg-transparent px-4 py-3.5 text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60"
                 rows={1}
               />
@@ -905,6 +1199,7 @@ const MediaPanel = memo(({ userId, shopId, onClose, N, fmt, mapItem }) => {
             placeholder={N.search}
             aria-label={N.search}
             dir="auto"
+            autoComplete="off"
             className="h-11 min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none"
           />
         </div>
@@ -1135,39 +1430,90 @@ const SessionItem = memo(({ session, isActive, onSelect, name, lang, readyLabel,
   );
 });
 
-const MessageBubble = memo(({ msg, isOwn, onRetry, onReply, onDelete, onJump, N, fmt, retryLabel, fbInitial }) => {
+const MessageBubble = memo(({ msg, isOwn, mobile, onRetry, onReply, onDelete, onJump, N, fmt, retryLabel, fbInitial }) => {
   const failed = !!msg._failed;
-  const canMenu = !msg._optimistic && !failed;
+  const pending = !!msg._optimistic && !failed;
+  const canReply = !msg.deleted && !msg._optimistic && !failed;
+  const canDelete = !msg._optimistic;
+  const swipeOn = mobile && canReply;
+  const swipe = useSwipeReply(swipeOn, () => onReply(msg));
+  const statusLabel = pending ? N.statusSending : msg.read ? N.statusRead : N.statusSent;
+  const showStatus = isOwn && !failed && !msg.deleted;
+  const bare = msg.type === 'VOICE' && !msg.deleted && !failed;
+
   return (
     <m.div
       data-mid={msg.id}
       initial={msg._fresh ? BUBBLE_FRESH : false}
       animate={BUBBLE_ANIMATE}
       transition={BUBBLE_TRANSITION}
-      className={clsx('mb-5 flex w-full items-end gap-3', isOwn ? 'flex-row-reverse' : 'flex-row')}
+      className="relative mb-5 w-full"
     >
-      <div aria-hidden="true" className={clsx('nc-chip h-8 w-8 shrink-0 text-[11px]', isOwn && '!bg-[color:var(--nc-ink)] !text-[color:var(--nc-card)]')}>
-        {initial(msg.senderName, fbInitial)}
-      </div>
+      {swipeOn && (
+        <span
+          ref={swipe.iconRef}
+          aria-hidden="true"
+          style={{ top: 'calc(50% - 16px)', opacity: 0, transform: 'scale(.6)' }}
+          className="nc-chip pointer-events-none absolute h-8 w-8 rounded-full"
+        >
+          <FiCornerUpLeft size={14} />
+        </span>
+      )}
 
-      <div className={clsx('flex min-w-0 max-w-[80%] flex-col', isOwn ? 'items-end' : 'items-start')}>
-        <div className={clsx('nc-bubble relative max-w-full px-4 py-3 text-start', failed ? 'nc-fail' : isOwn ? 'nc-own' : 'nc-shop', msg._optimistic && !failed && 'opacity-70')}>
-          {msg.replyTo && !msg.deleted && <ReplyQuote reply={msg.replyTo} N={N} onJump={onJump} />}
-          <MessageContent msg={msg} N={N} />
-          <div className={clsx('mt-2 flex items-center gap-1.5 text-[10px] font-bold', isOwn ? 'justify-end' : 'justify-start', !failed && (isOwn ? 'nc-muted' : 'opacity-90'))}>
-            {isOwn && !failed && !msg.deleted && <FiCheckCircle size={11} className={msg.read ? 'text-emerald-500 dark:text-[#39ff88]' : 'opacity-50'} aria-hidden="true" />}
-            {failed && <FiAlertCircle size={11} aria-hidden="true" />}
-            <span>{fmt(msg.createdAt)}</span>
+      <div
+        ref={swipe.rowRef}
+        {...swipe.handlers}
+        style={swipeOn ? { touchAction: 'pan-y' } : undefined}
+        className={clsx('flex w-full items-end gap-2 will-change-transform sm:gap-3', isOwn ? 'flex-row-reverse' : 'flex-row')}
+      >
+        <div className="hidden shrink-0 sm:block">
+          <div aria-hidden="true" className={clsx('nc-chip h-8 w-8 text-[11px]', isOwn && '!bg-[color:var(--nc-ink)] !text-[color:var(--nc-card)]')}>
+            {initial(msg.senderName, fbInitial)}
           </div>
         </div>
-        {failed && (
-          <button type="button" onClick={() => onRetry?.(msg)} className="mt-2 flex items-center gap-1 text-[11px] font-extrabold uppercase text-red-600 underline underline-offset-4 dark:text-red-400">
-            <FiRefreshCw size={11} aria-hidden="true" /> {retryLabel}
-          </button>
-        )}
-      </div>
 
-      {canMenu && <MessageMenu msg={msg} N={N} onReply={onReply} onDelete={onDelete} />}
+        <div className={clsx('flex min-w-0 max-w-[94%] flex-col sm:max-w-[88%]', isOwn ? 'items-end' : 'items-start')}>
+          <div className={clsx('relative max-w-full text-start', bare ? 'px-1 py-1' : clsx('nc-bubble px-4 py-3', failed ? 'nc-fail' : isOwn ? 'nc-own' : 'nc-shop'), pending && 'opacity-70')}>
+            {msg.replyTo && !msg.deleted && <ReplyQuote reply={msg.replyTo} N={N} onJump={onJump} />}
+            <MessageContent msg={msg} N={N} />
+            <div className={clsx('mt-2 flex items-center gap-2 text-[10px] font-bold', isOwn ? 'justify-end' : 'justify-start', !failed && (isOwn || bare ? 'nc-muted' : 'opacity-90'))}>
+              {canDelete && (
+                <button
+                  type="button"
+                  onClick={() => onDelete(msg)}
+                  aria-label={N.delMe}
+                  title={N.delMe}
+                  className="inline-flex h-6 w-6 items-center justify-center opacity-70 hover:opacity-100 focus-visible:opacity-100"
+                >
+                  <FiTrash2 size={13} aria-hidden="true" />
+                </button>
+              )}
+              {failed && <FiAlertCircle size={11} aria-hidden="true" />}
+              <span dir="ltr">{fmt(msg.createdAt)}</span>
+              {showStatus && (
+                <span role="img" aria-label={statusLabel} title={statusLabel} className="inline-flex">
+                  {pending ? (
+                    <FiClock size={12} className="opacity-60" aria-hidden="true" />
+                  ) : (
+                    <IoCheckmarkDone
+                      size={17}
+                      className={msg.read ? 'text-emerald-500 dark:text-[#39ff88]' : 'text-gray-400 dark:text-gray-400'}
+                      aria-hidden="true"
+                    />
+                  )}
+                </span>
+              )}
+            </div>
+          </div>
+          {failed && (
+            <button type="button" onClick={() => onRetry?.(msg)} className="mt-2 flex items-center gap-1 text-[11px] font-extrabold uppercase text-red-600 underline underline-offset-4 dark:text-red-400">
+              <FiRefreshCw size={11} aria-hidden="true" /> {retryLabel}
+            </button>
+          )}
+        </div>
+
+        {!mobile && canReply && <MessageMenu msg={msg} N={N} onReply={onReply} />}
+      </div>
     </m.div>
   );
 });
@@ -1180,6 +1526,7 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
   const isAr = lang.startsWith('ar');
   const N = isAr ? NEW_AR : NEW_EN;
   const fmt = useCallback((iso) => formatTime(iso, lang), [lang]);
+  const mobile = useIsMobile();
 
   const accessToken = useAuthStore((s) => s.accessToken);
   const storeUserId = useAuthStore((s) => s.userId);
@@ -1410,7 +1757,7 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
       const { data } = await chatApi.messages(userProfile.id, session.shopId);
       if (stale()) return true;
       const raw = Array.isArray(data) ? data : data?.content || [];
-      const msgs = raw.map((x) => toUiMessage(x, session)).sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+      const msgs = raw.map((x) => toUiMessage(x, session)).sort(byCreatedAt);
 
       seenMsgIdsRef.current = new Set(msgs.map((x) => x.id));
       setMessages((prev) => {
@@ -1901,6 +2248,10 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
   const handleDelete = useCallback(async (msg) => {
     const s = activeSessionRef.current;
     if (!s) return;
+    if (msg._failed || String(msg.id).startsWith('opt-')) {
+      setMessages((prev) => prev.filter((x) => x.id !== msg.id));
+      return;
+    }
     try {
       await rest.remove(userProfile.id, s.shopId, msg.id);
       setMessages((prev) => prev.filter((x) => x.id !== msg.id));
@@ -2170,7 +2521,7 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
                     role="log"
                     aria-live="polite"
                     aria-label={t('chat.conversation')}
-                    className="nc-dots nc-scroll min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-4 py-6 sm:px-8 sm:py-8"
+                    className="nc-dots nc-scroll min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden overscroll-contain px-2 py-6 sm:px-6 sm:py-8"
                   >
                     {isLoadingMessages && messages.length === 0 ? (
                       <Spinner label={t('chat.loadingMessages')} />
@@ -2192,6 +2543,7 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
                             key={x._key ?? x.id}
                             msg={x}
                             isOwn={x.senderType === 'USER'}
+                            mobile={mobile}
                             onRetry={handleRetry}
                             onReply={handleReply}
                             onDelete={handleDelete}
@@ -2260,4 +2612,7 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
 });
 
 UserChatModal.displayName = 'UserChatModal';
-export default memo(UserChatModal);
+
+export default function UserChatModalRoot(props) {
+  return <UserChatModal {...props} />;
+}

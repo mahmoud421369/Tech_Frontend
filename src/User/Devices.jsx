@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   FiShoppingCart, FiX, FiSliders, FiCheck, FiGrid, FiList, FiArrowUp, FiRefreshCw,
-  FiArrowRight, FiChevronDown, FiChevronLeft, FiChevronRight, FiSearch,
+  FiArrowRight, FiChevronDown, FiChevronLeft, FiChevronRight, FiSearch, FiHeart,
 } from 'react-icons/fi';
 import { LazyMotion, domAnimation, m, AnimatePresence } from 'framer-motion';
 import api from '../common/api/api';
@@ -32,6 +32,7 @@ const CARD_IMG_W = 600;
 const CARD_IMG_H = 400;
 const MOBILE_QUERY = '(max-width: 1023px)';
 const MOBILE_BATCH = 8;
+const SAVED_KEY = 'nb_saved_devices';
 
 const NB_FONT = "'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
 const NB_FONT_STYLE = { fontFamily: NB_FONT };
@@ -50,9 +51,18 @@ const ensureNbFont = () => {
 };
 
 const DEFAULT_TEXT = {
-  en: { eyebrowCategories: 'Categories', eyebrowProducts: 'Shop', prevPage: 'Previous page', nextPage: 'Next page', pageN: 'Page {{n}}', loadingMore: 'Loading more devices', endOfList: 'You have seen all devices' },
-  ar: { eyebrowCategories: 'التصنيفات', eyebrowProducts: 'المتجر', prevPage: 'الصفحة السابقة', nextPage: 'الصفحة التالية', pageN: 'صفحة {{n}}', loadingMore: 'جارٍ تحميل المزيد من الأجهزة', endOfList: 'لقد شاهدت جميع الأجهزة' },
-  fr: { eyebrowCategories: 'Catégories', eyebrowProducts: 'Boutique', prevPage: 'Page précédente', nextPage: 'Page suivante', pageN: 'Page {{n}}', loadingMore: "Chargement d'autres appareils", endOfList: 'Vous avez vu tous les appareils' },
+  en: {
+    eyebrowCategories: 'Categories', eyebrowProducts: 'Shop', prevPage: 'Previous page', nextPage: 'Next page', pageN: 'Page {{n}}', loadingMore: 'Loading more devices', endOfList: 'You have seen all devices',
+    save: 'Save', saved: 'Saved', savedOnly: 'Saved only', onSaleOnly: 'On sale only', moreFilters: 'More filters', sortDiscount: 'Biggest discount',
+  },
+  ar: {
+    eyebrowCategories: 'التصنيفات', eyebrowProducts: 'المتجر', prevPage: 'الصفحة السابقة', nextPage: 'الصفحة التالية', pageN: 'صفحة {{n}}', loadingMore: 'جارٍ تحميل المزيد من الأجهزة', endOfList: 'لقد شاهدت جميع الأجهزة',
+    save: 'حفظ', saved: 'تم الحفظ', savedOnly: 'المحفوظة فقط', onSaleOnly: 'العروض فقط', moreFilters: 'فلاتر إضافية', sortDiscount: 'أكبر خصم',
+  },
+  fr: {
+    eyebrowCategories: 'Catégories', eyebrowProducts: 'Boutique', prevPage: 'Page précédente', nextPage: 'Page suivante', pageN: 'Page {{n}}', loadingMore: "Chargement d'autres appareils", endOfList: 'Vous avez vu tous les appareils',
+    save: 'Enregistrer', saved: 'Enregistré', savedOnly: 'Enregistrés uniquement', onSaleOnly: 'En promotion uniquement', moreFilters: 'Plus de filtres', sortDiscount: 'Plus grande remise',
+  },
 };
 const DEVICE_SECTIONS = {
   en: enTranslations.devices,
@@ -121,6 +131,7 @@ const SORT_KEYS = [
   ['priceLowToHigh', 'sortPriceLow'],
   ['priceHighToLow', 'sortPriceHigh'],
   ['newest', 'sortNewest'],
+  ['discount', 'sortDiscount'],
 ];
 const PRICE_STEP = (max) => (max >= 20000 ? 500 : max >= 2000 ? 100 : 10);
 const HISTOGRAM_BINS = 16;
@@ -128,17 +139,45 @@ const EMPTY_LIST = [];
 
 const STAGGER = Array.from({ length: 8 }, (_, i) => ({ '--i': i }));
 
+const readSaved = () => {
+  try {
+    const v = JSON.parse(localStorage.getItem(SAVED_KEY) || '[]');
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+};
+
+const useSavedProducts = () => {
+  const [ids, setIds] = useState(readSaved);
+  const toggle = useCallback((id) => {
+    setIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      try { localStorage.setItem(SAVED_KEY, JSON.stringify(next)); } catch { }
+      return next;
+    });
+  }, []);
+  const set = useMemo(() => new Set(ids), [ids]);
+  return [set, toggle];
+};
+
 const NB_CSS = `
-.nb{--nb-bg:#eef9f3;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e8ebe9;--nb-soft:#e9ebed;--nb-accent:#10b981;--nb-on:#04261a;background:var(--nb-bg);color:var(--nb-ink)}
-.nb-dark{--nb-bg:#141414;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#1e1e1e;--nb-soft:#1e1e1e;--nb-accent:#39ff88;--nb-on:#022c22}
+.nb{--nb-bg:#f3f4f6;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e2e5e9;--nb-soft:#e2e5e9;--nb-accent:#10b981;--nb-on:#04261a;background:var(--nb-bg);color:var(--nb-ink)}
+.nb-dark{--nb-bg:#121212;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#212121;--nb-soft:#212121;--nb-accent:#39ff88;--nb-on:#022c22}
 .nb-dark .nb-drawer{border-color:#3a3a3a}
+.nb-seq>section:nth-of-type(odd){background:var(--nb-bg)}
+.nb-seq>section:nth-of-type(even){background:var(--nb-gray)}
+.nb-seq>section+section{border-top:2px solid var(--nb-line)}
 .nb-bg{background:var(--nb-bg)}
 .nb-gray{background:var(--nb-gray)}
 .nb-soft{background:var(--nb-soft)}
 .nb-muted{color:var(--nb-muted)}
 .nb-line{border-color:var(--nb-line)}
-.nb-card{background:var(--nb-card);border:2px solid var(--nb-line);box-shadow:5px 5px 0 var(--nb-shadow);transition:transform .15s ease,box-shadow .15s ease}
-.nb-lift:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--nb-shadow)}
+.nb-card{background:var(--nb-card);border:2px solid var(--nb-line);box-shadow:5px 5px 0 var(--nb-shadow);transition:transform .18s cubic-bezier(.16,1,.3,1),box-shadow .18s cubic-bezier(.16,1,.3,1)}
+.nb-lift{contain:layout style;backface-visibility:hidden}
+.nb-lift:hover{transform:translate3d(-2px,-2px,0);box-shadow:7px 7px 0 var(--nb-shadow)}
+.nb-in{animation:nbIn .34s cubic-bezier(.16,1,.3,1) both;animation-delay:calc(var(--i,0)*32ms)}
+@keyframes nbIn{from{opacity:0;transform:translate3d(0,14px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
 .nb-num{display:inline-flex;align-items:center;justify-content:center;flex:none;width:28px;height:28px;background:var(--nb-accent);color:var(--nb-on);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
 .nb-num-sm{width:24px;height:24px;font-size:10px;box-shadow:1px 1px 0 var(--nb-shadow)}
 .nb-bar{display:inline-block;width:52px;height:16px;background:var(--nb-accent);border:2px solid var(--nb-line)}
@@ -175,10 +214,9 @@ const NB_CSS = `
 .nb-dot:hover{transform:translateY(-3px)}
 .nb-dot:hover .nb-chip,.nb-dot-on .nb-chip{background:var(--nb-on);color:#ecfdf5;border-color:var(--nb-on)}
 .nb-dot:focus-visible{outline:3px solid var(--nb-accent);outline-offset:3px}
-.nb-aside{scrollbar-width:thin;scrollbar-color:var(--nb-line) transparent}
 @keyframes nbSpin{to{transform:rotate(360deg)}}
 .nb-spin{animation:nbSpin .7s linear infinite}
-@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn,.nb-arrow,.nb-dot{transition:none}.nb-spin{animation:none}}
+@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn,.nb-arrow,.nb-dot{transition:none}.nb-spin{animation:none}.nb-in{animation:none}}
 `;
 const STYLE_EL = <style>{`${UI3D_CSS}${EXTRAS_CSS}${LISTING_CSS}${NB_CSS}`}</style>;
 
@@ -335,7 +373,7 @@ const DeviceScene = memo(({ className = 'h-24 w-32' }) => (
   </div>
 ));
 
-const ProductCard = memo(({ product, darkMode, onAddToCart, onOpen, number, layout = 'grid', variant = 'grid', tone = 'emerald', t, className = '' }) => {
+const ProductCard = memo(({ product, darkMode, onAddToCart, onOpen, onSave, isSaved = false, number, layout = 'grid', variant = 'grid', tone = 'emerald', t, className = '' }) => {
   const src = useMemo(() => safeImageUrl(product.imageUrl), [product.imageUrl]);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(!src);
@@ -376,6 +414,7 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, onOpen, number, layo
   }, [onAddToCart, product, outOfStock, adding]);
 
   const go = useCallback(() => onOpen(product.id), [onOpen, product.id]);
+  const save = useCallback((e) => { e.stopPropagation(); onSave(product.id); }, [onSave, product.id]);
   const handleKey = useCallback((e) => { if (e.key === 'Enter' && e.target === e.currentTarget) go(); }, [go]);
   const handleLoad = useCallback(() => { loadedRef.current = true; setImgLoaded(true); }, []);
   const handleImgError = useCallback(() => setImgError(true), []);
@@ -395,6 +434,15 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, onOpen, number, layo
           />
         </>
       )}
+      {hasDiscount && (
+        <span dir="ltr" className="nb-chip nb-btn-a absolute start-2 top-2 z-10">-{Math.round(product.discount)}%</span>
+      )}
+      <button
+        type="button" onClick={save} aria-pressed={isSaved} aria-label={isSaved ? t('saved') : t('save')} title={isSaved ? t('saved') : t('save')}
+        className={`nb-btn absolute end-2 top-2 z-10 h-8 w-8 ${isSaved ? 'nb-btn-on' : ''}`}
+      >
+        <FiHeart className="h-4 w-4" fill={isSaved ? 'currentColor' : 'none'} />
+      </button>
     </div>
   );
 
@@ -444,7 +492,7 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, onOpen, number, layo
       tabIndex={0}
       aria-label={product.name}
       style={STAGGER[(number - 1) % 8]}
-      className={`anim-fade-up nb-card nb-lift group relative flex h-full cursor-pointer focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--nb-accent)] ${isList ? 'flex-row' : 'flex-col'} ${className}`}
+      className={`nb-in nb-card nb-lift group relative flex h-full cursor-pointer focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--nb-accent)] ${isList ? 'flex-row' : 'flex-col'} ${className}`}
     >
       {isList && <div className="flex w-28 flex-shrink-0 self-stretch p-2.5 pe-0 sm:w-44">{media}</div>}
       <div className="flex min-w-0 flex-1 flex-col gap-3 p-3 sm:p-4">
@@ -457,10 +505,10 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, onOpen, number, layo
   );
 });
 
-const ProductGrid = memo(({ products, offset, layout, darkMode, onAddToCart, onOpen, t }) => (
+const ProductGrid = memo(({ products, offset, layout, darkMode, saved, onSave, onAddToCart, onOpen, t }) => (
   <div className={`grid gap-4 sm:gap-6 ${layout === 'grid' ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-1'}`}>
     {products.map((p, i) => (
-      <ProductCard key={p.id} product={p} darkMode={darkMode} onAddToCart={onAddToCart} onOpen={onOpen} number={offset + i + 1} layout={layout} t={t} />
+      <ProductCard key={p.id} product={p} darkMode={darkMode} onAddToCart={onAddToCart} onOpen={onOpen} onSave={onSave} isSaved={saved.has(p.id)} number={offset + i + 1} layout={layout} t={t} />
     ))}
   </div>
 ));
@@ -489,13 +537,13 @@ const InfiniteSentinel = memo(({ hasMore, count, onMore, t }) => {
   );
 });
 
-const LatestSection = memo(({ products, darkMode, onAddToCart, onOpen, t }) => (
-  <section aria-label={t('latestArrivals')} className="lk-cv nb-soft nb-line border-y-2 py-12 sm:py-20">
+const LatestSection = memo(({ products, darkMode, saved, onSave, onAddToCart, onOpen, t }) => (
+  <section aria-label={t('latestArrivals')} className="lk-cv py-12 sm:py-20">
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
       <SectionHead eyebrow={t('justIn')} title={t('latestArrivals')} subtitle={t('latestArrivalsSub')} />
       <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
         {products.map((p, i) => (
-          <ProductCard key={p.id} product={p} darkMode={darkMode} onAddToCart={onAddToCart} onOpen={onOpen} number={i + 1} variant="latest" tone="emerald" t={t} />
+          <ProductCard key={p.id} product={p} darkMode={darkMode} onAddToCart={onAddToCart} onOpen={onOpen} onSave={onSave} isSaved={saved.has(p.id)} number={i + 1} variant="latest" tone="emerald" t={t} />
         ))}
       </div>
     </div>
@@ -510,7 +558,7 @@ const CategoryGrid = memo(({ categories, productsByCategory, selectedCategoryId,
   if (!top.length) return null;
 
   return (
-    <section aria-label={t('browseCategories')} className="lk-cv nb-bg nb-line border-t-2 py-12 sm:py-20">
+    <section aria-label={t('browseCategories')} className="lk-cv py-12 sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <SectionHead eyebrow={t('eyebrowCategories')} title={t('browseCategories')} subtitle={t('browseCategoriesSub')} />
 
@@ -648,11 +696,12 @@ const PriceRangeFilter = memo(({ bounds, value, onChange, histogram, t }) => {
 });
 
 const FilterPanel = memo((p) => {
-  const { t, categories, productsByCategory, selectedCategoryId, setSelectedCategoryId, selectedConditions, toggleCondition, conditionCounts,
-    priceBounds, priceValue, setPriceRange, histogram, inStockOnly, setInStockOnly, open, setOpen, clearFilters, activeFiltersCount, totalCount } = p;
+  const { t, flat, categories, productsByCategory, selectedCategoryId, setSelectedCategoryId, selectedConditions, toggleCondition, conditionCounts,
+    priceBounds, priceValue, setPriceRange, histogram, inStockOnly, setInStockOnly, onSaleOnly, setOnSaleOnly, savedOnly, setSavedOnly,
+    open, setOpen, clearFilters, activeFiltersCount, totalCount } = p;
   const toggle = (k) => setOpen((o) => ({ ...o, [k]: !o[k] }));
   return (
-    <div className="nb-card w-full min-w-0 max-w-full overflow-x-hidden p-3 sm:p-4">
+    <div className={flat ? 'w-full min-w-0 max-w-full overflow-x-hidden' : 'nb-card w-full min-w-0 max-w-full overflow-x-hidden p-3 sm:p-4'}>
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 pb-3">
         <h3 className="flex min-w-0 items-center gap-2 text-base font-extrabold uppercase">
           <FiSliders aria-hidden="true" className="h-4 w-4 flex-shrink-0" /> <span className="nb-ul truncate">{t('filters')}</span>
@@ -681,6 +730,13 @@ const FilterPanel = memo((p) => {
           {categories.map((c) => (
             <OptionRow key={c.id} type="radio" label={c.name} count={productsByCategory[c.id]?.length || 0} selected={selectedCategoryId === c.id} onClick={() => setSelectedCategoryId(c.id)} />
           ))}
+        </div>
+      </FilterBlock>
+
+      <FilterBlock num="04" title={t('moreFilters')} isOpen={open.more} onToggle={() => toggle('more')}>
+        <div className="min-w-0 break-words">
+          <OptionRow type="check" label={t('onSaleOnly')} selected={onSaleOnly} onClick={() => setOnSaleOnly((v) => !v)} />
+          <OptionRow type="check" label={t('savedOnly')} selected={savedOnly} onClick={() => setSavedOnly((v) => !v)} />
         </div>
       </FilterBlock>
     </div>
@@ -727,6 +783,7 @@ const ProductsContent = memo(({ darkMode }) => {
   const isMobile = useIsMobile();
   const [, startTransition] = useTransition();
 
+  const [saved, toggleSaved] = useSavedProducts();
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDeferredValue(searchTerm);
   const searchPending = searchTerm !== deferredSearch;
@@ -739,8 +796,10 @@ const ProductsContent = memo(({ darkMode }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedConditions, setSelectedConditions] = useState([]);
   const [inStockOnly, setInStockOnly] = useState(false);
+  const [onSaleOnly, setOnSaleOnly] = useState(false);
+  const [savedOnly, setSavedOnly] = useState(false);
   const [sortBy, setSortBy] = useState('relevance');
-  const [open, setOpen] = useState({ price: true, cond: true, cat: true });
+  const [open, setOpen] = useState({ price: true, cond: true, cat: true, more: true });
   const [token] = useState(() => readStorage('authToken'));
   const gridRef = useRef(null);
   const showTop = useBackToTop();
@@ -822,9 +881,11 @@ const ProductsContent = memo(({ darkMode }) => {
       if (selectedCategoryId !== 'all' && p.categoryId !== selectedCategoryId) return false;
       if (term && !p._text.includes(term)) return false;
       if (inStockOnly && p.stock === 0) return false;
+      if (onSaleOnly && !(p.discount > 0)) return false;
+      if (savedOnly && !saved.has(p.id)) return false;
       return true;
     });
-  }, [products, deferredSearch, selectedCategoryId, inStockOnly]);
+  }, [products, saved, deferredSearch, selectedCategoryId, inStockOnly, onSaleOnly, savedOnly]);
 
   const conditionCounts = useMemo(() => {
     const c = {};
@@ -849,6 +910,7 @@ const ProductsContent = memo(({ darkMode }) => {
     if (sortBy === 'priceLowToHigh') list.sort((a, b) => a.finalPrice - b.finalPrice);
     else if (sortBy === 'priceHighToLow') list.sort((a, b) => b.finalPrice - a.finalPrice);
     else if (sortBy === 'newest') list.sort((a, b) => b._ts - a._ts);
+    else if (sortBy === 'discount') list.sort((a, b) => b.discount - a.discount);
     return list;
   }, [baseFiltered, deferredPriceValue, selectedConditions, sortBy]);
 
@@ -857,7 +919,7 @@ const ProductsContent = memo(({ darkMode }) => {
   useEffect(() => {
     setPage(1);
     setVisibleCount(MOBILE_BATCH);
-  }, [selectedCategoryId, pageSize, deferredSearch, deferredPriceValue, selectedConditions, inStockOnly, sortBy]);
+  }, [selectedCategoryId, pageSize, deferredSearch, deferredPriceValue, selectedConditions, inStockOnly, onSaleOnly, savedOnly, sortBy]);
 
   const pageOffset = (currentPage - 1) * pageSize;
   const paginatedProducts = useMemo(() => filteredProducts.slice(pageOffset, pageOffset + pageSize), [filteredProducts, pageOffset, pageSize]);
@@ -900,24 +962,27 @@ const ProductsContent = memo(({ darkMode }) => {
   }, [navigate, t]);
 
   const clearFilters = useCallback(() => {
-    setSearchTerm(''); setPriceRangeState(null); setSelectedCategoryId('all'); setSelectedConditions([]); setInStockOnly(false); setSortBy('relevance'); setPage(1); setVisibleCount(MOBILE_BATCH);
+    setSearchTerm(''); setPriceRangeState(null); setSelectedCategoryId('all'); setSelectedConditions([]); setInStockOnly(false); setOnSaleOnly(false); setSavedOnly(false); setSortBy('relevance'); setPage(1); setVisibleCount(MOBILE_BATCH);
   }, []);
   const toggleCondition = useCallback((c) => setSelectedConditions((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c])), []);
   const resetCategory = useCallback(() => setSelectedCategoryId('all'), []);
   const resetPrice = useCallback(() => setPriceRangeState(null), []);
   const resetStock = useCallback(() => setInStockOnly(false), []);
+  const resetSale = useCallback(() => setOnSaleOnly(false), []);
+  const resetSaved = useCallback(() => setSavedOnly(false), []);
   const resetSearch = useCallback(() => setSearchTerm(''), []);
 
-  const activeFiltersCount = (searchTerm ? 1 : 0) + (selectedCategoryId !== 'all' ? 1 : 0) + selectedConditions.length + (priceRange ? 1 : 0) + (inStockOnly ? 1 : 0);
+  const activeFiltersCount = (searchTerm ? 1 : 0) + (selectedCategoryId !== 'all' ? 1 : 0) + selectedConditions.length + (priceRange ? 1 : 0) + (inStockOnly ? 1 : 0) + (onSaleOnly ? 1 : 0) + (savedOnly ? 1 : 0);
   const selectedCategoryName = useMemo(() => categories.find((c) => c.id === selectedCategoryId)?.name, [categories, selectedCategoryId]);
   const currency = t('currency');
   const totalCount = products.length;
 
   const filterPanelProps = useMemo(() => ({
     t, categories, productsByCategory, selectedCategoryId, setSelectedCategoryId, selectedConditions, toggleCondition, conditionCounts,
-    priceBounds, priceValue, setPriceRange, histogram, inStockOnly, setInStockOnly, open, setOpen, clearFilters, activeFiltersCount, totalCount,
+    priceBounds, priceValue, setPriceRange, histogram, inStockOnly, setInStockOnly, onSaleOnly, setOnSaleOnly, savedOnly, setSavedOnly,
+    open, setOpen, clearFilters, activeFiltersCount, totalCount,
   }), [t, categories, productsByCategory, selectedCategoryId, selectedConditions, toggleCondition, conditionCounts,
-    priceBounds, priceValue, setPriceRange, histogram, inStockOnly, open, clearFilters, activeFiltersCount, totalCount]);
+    priceBounds, priceValue, setPriceRange, histogram, inStockOnly, onSaleOnly, savedOnly, open, clearFilters, activeFiltersCount, totalCount]);
 
   const layout = isMobile ? 'grid' : viewMode;
   const skeletonCols = layout === 'grid' ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-1';
@@ -936,95 +1001,102 @@ const ProductsContent = memo(({ darkMode }) => {
         <Hero variant="devices" darkMode={darkMode} />
       </Suspense>
 
-      <CategoryGrid categories={categories} productsByCategory={productsByCategory} selectedCategoryId={selectedCategoryId} onSelect={selectCategory} darkMode={darkMode} t={t} />
+      <div className="nb-seq">
+        <CategoryGrid categories={categories} productsByCategory={productsByCategory} selectedCategoryId={selectedCategoryId} onSelect={selectCategory} darkMode={darkMode} t={t} />
 
-      {!isLoading && latestProducts.length > 0 && (
-        <LatestSection products={latestProducts} darkMode={darkMode} onAddToCart={handleAddToCart} onOpen={openProduct} t={t} />
-      )}
+        {!isLoading && latestProducts.length > 0 && (
+          <LatestSection products={latestProducts} darkMode={darkMode} saved={saved} onSave={toggleSaved} onAddToCart={handleAddToCart} onOpen={openProduct} t={t} />
+        )}
 
-      <section aria-label={t('allProducts')} className="nb-bg">
-        <span className="nb-divider" aria-hidden="true" />
-        <div id="products-grid" ref={gridRef} className="mx-auto max-w-7xl scroll-mt-20 px-4 py-12 sm:px-6 sm:py-20 lg:px-8">
-          <SectionHead eyebrow={t('eyebrowProducts')} title={t('allProducts')} subtitle={t('allProductsSubtitle')} />
+        <section aria-label={t('allProducts')}>
+          <div id="products-grid" ref={gridRef} className="mx-auto max-w-7xl scroll-mt-20 px-4 py-12 sm:px-6 sm:py-20 lg:px-8">
+            <SectionHead eyebrow={t('eyebrowProducts')} title={t('allProducts')} subtitle={t('allProductsSubtitle')} />
 
-          <div className="flex items-start gap-5 lg:gap-8">
-            <aside className="nb-aside sticky top-20 hidden max-h-[calc(100vh-6rem)] w-[17rem] min-w-0 flex-shrink-0 self-start overflow-y-auto overscroll-contain pb-2 pe-2 lg:block xl:w-[19rem]">
-              <FilterPanel {...filterPanelProps} />
-            </aside>
+            <div className="flex items-stretch gap-5 lg:gap-8">
+              <aside className="hidden w-[17rem] min-w-0 flex-shrink-0 lg:flex xl:w-[19rem]">
+                <div className="nb-card min-w-0 flex-1 p-3 sm:p-4">
+                  <div className="sticky top-20">
+                    <FilterPanel {...filterPanelProps} flat />
+                  </div>
+                </div>
+              </aside>
 
-            <div className="w-full min-w-0 flex-1">
-              <div className="nb-card mb-6 flex flex-col gap-3 p-3 sm:p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-sm opacity-80" aria-live="polite">
-                    {interpolateNodes(t('showing'), {
-                      range: <b className="opacity-100" dir="ltr">{startItem}–{endItem}</b>,
-                      total: <b dir="ltr">{filteredProducts.length}</b>,
-                    })}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="hidden items-center gap-2 lg:flex">
-                      <NbDropdown ariaLabel={t('rowsPerPage')} value={pageSize} onChange={setPageSize} options={rowOptions} className="w-36 flex-shrink-0" />
-                      {[['grid', FiGrid, t('gridView')], ['list', FiList, t('listView')]].map(([mode, Icon, label]) => (
-                        <button key={mode} type="button" onClick={() => setViewMode(mode)} aria-label={label} aria-pressed={viewMode === mode}
-                          className={`nb-btn h-10 w-10 ${viewMode === mode ? 'nb-btn-on' : ''}`}>
-                          <Icon className="h-4 w-4" />
-                        </button>
-                      ))}
+              <div className="w-full min-w-0 flex-1">
+                <div className="nb-card mb-6 flex flex-col gap-3 p-3 sm:p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm opacity-80" aria-live="polite">
+                      {interpolateNodes(t('showing'), {
+                        range: <b className="opacity-100" dir="ltr">{startItem}–{endItem}</b>,
+                        total: <b dir="ltr">{filteredProducts.length}</b>,
+                      })}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="hidden items-center gap-2 lg:flex">
+                        <NbDropdown ariaLabel={t('rowsPerPage')} value={pageSize} onChange={setPageSize} options={rowOptions} className="w-36 flex-shrink-0" />
+                        {[['grid', FiGrid, t('gridView')], ['list', FiList, t('listView')]].map(([mode, Icon, label]) => (
+                          <button key={mode} type="button" onClick={() => setViewMode(mode)} aria-label={label} aria-pressed={viewMode === mode}
+                            className={`nb-btn h-10 w-10 ${viewMode === mode ? 'nb-btn-on' : ''}`}>
+                            <Icon className="h-4 w-4" />
+                          </button>
+                        ))}
+                      </div>
+                      <button type="button" onClick={openSidebar} className="nb-btn h-10 px-3 text-xs uppercase lg:hidden">
+                        <FiSliders className="h-3.5 w-3.5" /> {t('filters')}
+                        {activeFiltersCount > 0 && <span className="flex h-4 min-w-[1rem] items-center justify-center bg-[color:var(--nb-on)] px-1 text-[10px] font-bold text-white">{activeFiltersCount}</span>}
+                      </button>
                     </div>
-                    <button type="button" onClick={openSidebar} className="nb-btn h-10 px-3 text-xs uppercase lg:hidden">
-                      <FiSliders className="h-3.5 w-3.5" /> {t('filters')}
-                      {activeFiltersCount > 0 && <span className="flex h-4 min-w-[1rem] items-center justify-center bg-[color:var(--nb-on)] px-1 text-[10px] font-bold text-white">{activeFiltersCount}</span>}
-                    </button>
+                  </div>
+
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <SearchField value={searchTerm} onChange={setSearchTerm} placeholder={t('search')} ariaLabel={t('searchAria')} clearLabel={t('clearSearch')} pending={searchPending} />
+                    <NbDropdown ariaLabel={t('sortProducts')} value={sortBy} onChange={setSortBy} options={sortOptions} className="w-full sm:w-52" />
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <SearchField value={searchTerm} onChange={setSearchTerm} placeholder={t('search')} ariaLabel={t('searchAria')} clearLabel={t('clearSearch')} pending={searchPending} />
-                  <NbDropdown ariaLabel={t('sortProducts')} value={sortBy} onChange={setSortBy} options={sortOptions} className="w-full sm:w-52" />
-                </div>
+                {activeFiltersCount > 0 && (
+                  <div className="mb-6 flex flex-wrap items-center gap-2">
+                    {selectedCategoryId !== 'all' && <FilterChip label={selectedCategoryName || t('category')} onRemove={resetCategory} />}
+                    {selectedConditions.map((c) => <FilterChip key={c} label={condLabel(t, c)} onRemove={() => toggleCondition(c)} />)}
+                    {priceRange && <FilterChip label={`${money(priceValue[0], currency)} – ${money(priceValue[1], currency)}`} onRemove={resetPrice} />}
+                    {inStockOnly && <FilterChip label={t('inStock')} onRemove={resetStock} />}
+                    {onSaleOnly && <FilterChip label={t('onSaleOnly')} onRemove={resetSale} />}
+                    {savedOnly && <FilterChip label={t('savedOnly')} onRemove={resetSaved} />}
+                    {searchTerm && <FilterChip label={`“${searchTerm.slice(0, 20)}”`} onRemove={resetSearch} />}
+                    <button type="button" onClick={clearFilters} className="text-xs font-bold underline underline-offset-4">{t('clearAll')}</button>
+                  </div>
+                )}
+
+                {isLoading ? (
+                  <div className={`grid gap-4 sm:gap-6 ${skeletonCols}`} role="status" aria-busy="true">
+                    {Array.from({ length: 8 }).map((_, i) => <div key={i} className="nb-gray nb-line h-[300px] animate-pulse border-2 motion-reduce:animate-none sm:h-[360px]" />)}
+                  </div>
+                ) : isError ? (
+                  <div className="nb-card px-4 py-14 text-center sm:py-20">
+                    <DeviceScene className="mx-auto mb-4 h-24 w-32" />
+                    <p className="mb-2 text-lg font-extrabold uppercase sm:text-xl">{t('loadErrorTitle')}</p>
+                    <p className="mb-6 text-sm opacity-80">{t('loadErrorText')}</p>
+                    <button type="button" onClick={() => refetch()} className="nb-btn nb-btn-a px-6 py-3 text-sm uppercase"><FiRefreshCw className="h-4 w-4" /> {t('tryAgain')}</button>
+                  </div>
+                ) : filteredProducts.length === 0 ? (
+                  <div className="nb-card px-4 py-14 text-center sm:py-24">
+                    <DeviceScene className="mx-auto mb-4 h-24 w-32" />
+                    <p className="mb-2 text-lg font-extrabold uppercase sm:text-2xl">{t('noProducts')}</p>
+                    <p className="mb-6 text-sm opacity-80 sm:text-base">{t('adjustFilters')}</p>
+                    <button type="button" onClick={clearFilters} className="nb-btn nb-btn-a px-6 py-3 text-sm uppercase sm:text-base">{t('clearFilters')}</button>
+                  </div>
+                ) : (
+                  <div aria-busy={stale} className={`transition-opacity duration-150 motion-reduce:transition-none ${stale ? 'opacity-70' : 'opacity-100'}`}>
+                    <ProductGrid products={listProducts} offset={listOffset} layout={layout} darkMode={darkMode} saved={saved} onSave={toggleSaved} onAddToCart={handleAddToCart} onOpen={openProduct} t={t} />
+                    {isMobile
+                      ? <InfiniteSentinel hasMore={hasMore} count={filteredProducts.length} onMore={loadMore} t={t} />
+                      : <Pagination page={currentPage} total={totalPages} onChange={goToPage} t={t} />}
+                  </div>
+                )}
               </div>
-
-              {activeFiltersCount > 0 && (
-                <div className="mb-6 flex flex-wrap items-center gap-2">
-                  {selectedCategoryId !== 'all' && <FilterChip label={selectedCategoryName || t('category')} onRemove={resetCategory} />}
-                  {selectedConditions.map((c) => <FilterChip key={c} label={condLabel(t, c)} onRemove={() => toggleCondition(c)} />)}
-                  {priceRange && <FilterChip label={`${money(priceValue[0], currency)} – ${money(priceValue[1], currency)}`} onRemove={resetPrice} />}
-                  {inStockOnly && <FilterChip label={t('inStock')} onRemove={resetStock} />}
-                  {searchTerm && <FilterChip label={`“${searchTerm.slice(0, 20)}”`} onRemove={resetSearch} />}
-                  <button type="button" onClick={clearFilters} className="text-xs font-bold underline underline-offset-4">{t('clearAll')}</button>
-                </div>
-              )}
-
-              {isLoading ? (
-                <div className={`grid gap-4 sm:gap-6 ${skeletonCols}`} role="status" aria-busy="true">
-                  {Array.from({ length: 8 }).map((_, i) => <div key={i} className="nb-gray nb-line h-[300px] animate-pulse border-2 motion-reduce:animate-none sm:h-[360px]" />)}
-                </div>
-              ) : isError ? (
-                <div className="nb-card px-4 py-14 text-center sm:py-20">
-                  <DeviceScene className="mx-auto mb-4 h-24 w-32" />
-                  <p className="mb-2 text-lg font-extrabold uppercase sm:text-xl">{t('loadErrorTitle')}</p>
-                  <p className="mb-6 text-sm opacity-80">{t('loadErrorText')}</p>
-                  <button type="button" onClick={() => refetch()} className="nb-btn nb-btn-a px-6 py-3 text-sm uppercase"><FiRefreshCw className="h-4 w-4" /> {t('tryAgain')}</button>
-                </div>
-              ) : filteredProducts.length === 0 ? (
-                <div className="nb-card px-4 py-14 text-center sm:py-24">
-                  <DeviceScene className="mx-auto mb-4 h-24 w-32" />
-                  <p className="mb-2 text-lg font-extrabold uppercase sm:text-2xl">{t('noProducts')}</p>
-                  <p className="mb-6 text-sm opacity-80 sm:text-base">{t('adjustFilters')}</p>
-                  <button type="button" onClick={clearFilters} className="nb-btn nb-btn-a px-6 py-3 text-sm uppercase sm:text-base">{t('clearFilters')}</button>
-                </div>
-              ) : (
-                <div aria-busy={stale} className={`transition-opacity duration-150 motion-reduce:transition-none ${stale ? 'opacity-70' : 'opacity-100'}`}>
-                  <ProductGrid products={listProducts} offset={listOffset} layout={layout} darkMode={darkMode} onAddToCart={handleAddToCart} onOpen={openProduct} t={t} />
-                  {isMobile
-                    ? <InfiniteSentinel hasMore={hasMore} count={filteredProducts.length} onMore={loadMore} t={t} />
-                    : <Pagination page={currentPage} total={totalPages} onChange={goToPage} t={t} />}
-                </div>
-              )}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
 
       <LazyMotion features={domAnimation}>
         <AnimatePresence>

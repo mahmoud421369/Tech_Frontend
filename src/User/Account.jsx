@@ -53,7 +53,7 @@ const NB_EXTRA_CSS = `
 `;
 
 const NB_CSS = `
-.nb{--nb-bg:#eef9f3;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e8ebe9;--nb-accent:#10b981;--nb-btn:#059669;--nb-on:#ffffff;background:var(--nb-bg);color:var(--nb-ink)}
+.nb{--nb-bg:#f3f4f6;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e5e7eb;--nb-accent:#10b981;--nb-btn:#059669;--nb-on:#ffffff;background:var(--nb-bg);color:var(--nb-ink)}
 .nb-dark{--nb-bg:#141414;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#1e1e1e;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-on:#022c22}
 .nb-dark .border-dotted,.nb-dark .nb-dot{border-color:#3f3f3f}
 .nb-bg{background:var(--nb-bg)}
@@ -373,12 +373,12 @@ const ProgressBar = memo(({ progress, label }) => {
   );
 });
 
-const InfoRow = ({ icon: Icon, children }) => (
+const InfoRow = memo(({ icon: Icon, children }) => (
   <p className="flex min-w-0 items-start gap-1.5 text-xs leading-snug">
     <Icon aria-hidden="true" className="nb-ic mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
     <span className="min-w-0 break-words">{children}</span>
   </p>
-);
+));
 
 const EMPTY_ICONS = { box: FiBox, wrench: FiTool, pin: FiMapPin, bell: FiBell, chart: FiPieChart };
 const EmptyState = memo(({ kind, title, subtitle }) => (
@@ -443,16 +443,16 @@ const CardShell = ({ index, children }) => (
   </article>
 );
 
-const Stat = ({ label, value, surface }) => (
+const Stat = memo(({ label, value, surface }) => (
   <div className={`nb-line min-w-0 border-2 px-2.5 py-1.5 ${surface === 'plain' ? 'bg-[color:var(--nb-card)]' : 'nb-gray'}`}>
     <p className="nb-muted text-[9px] font-extrabold uppercase tracking-widest">{label}</p>
     <p className="truncate text-sm font-bold">{value}</p>
   </div>
-);
+));
 
-const Price = ({ value }) => (
+const Price = memo(({ value }) => (
   <p className="text-xl font-extrabold tabular-nums">{value} <span className="nb-muted text-xs font-bold">EGP</span></p>
-);
+));
 
 const CARDS_PER_PAGE = 6;
 const CARDS_GRID_CLS = 'grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3';
@@ -756,9 +756,8 @@ const DetailCard = memo(({ icon, tone, label, value, copyable, ltr, children }) 
   );
 });
 
-const ProfileStat = memo(({ icon: Icon, tone, value, label }) => (
-  <div className="nb-gray nb-line relative flex flex-col items-center gap-0.5 overflow-hidden border-2 px-2 py-3 text-center">
-    <span aria-hidden="true" className={`pointer-events-none absolute -end-5 -top-5 h-14 w-14 rounded-full opacity-25 ${BLOB[tone]}`} />
+const ProfileStat = memo(({ icon: Icon, value, label }) => (
+  <div className="nb-gray nb-line flex flex-col items-center gap-0.5 border-2 px-2 py-3 text-center">
     <Icon className="nb-ic h-4 w-4" />
     <p className="text-xl font-extrabold tabular-nums">{value}</p>
     <p className="nb-muted truncate text-[10px] font-extrabold uppercase tracking-widest">{label}</p>
@@ -818,9 +817,9 @@ const ProfileTab = memo(({ profile, form, setForm, counts, onSave, onDelete, onL
           </div>
 
           <div className="mt-5 grid grid-cols-3 gap-3">
-            <ProfileStat icon={FiBox} tone="sky" value={counts.orders} label={t('orders')} />
-            <ProfileStat icon={FiTool} tone="vi" value={counts.repairs} label={t('repairs')} />
-            <ProfileStat icon={FiMapPin} tone="ro" value={counts.addresses} label={t('addresses')} />
+            <ProfileStat icon={FiBox} value={counts.orders} label={t('orders')} />
+            <ProfileStat icon={FiTool} value={counts.repairs} label={t('repairs')} />
+            <ProfileStat icon={FiMapPin} value={counts.addresses} label={t('addresses')} />
           </div>
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -1022,7 +1021,7 @@ const Donut = memo(({ data, darkMode, size = 144, thickness = 22 }) => {
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`${total} total`}>
       <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
-        {total === 0 ? <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={darkMode ? '#1e1e1e' : '#e8ebe9'} strokeWidth={thickness} />
+        {total === 0 ? <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={darkMode ? '#1e1e1e' : '#e5e7eb'} strokeWidth={thickness} />
           : data.map((d, i) => {
             const frac = d.value / total;
             const len = Math.max(0, frac * c - gap);
@@ -1231,12 +1230,9 @@ const RepairModal = memo(({ repair, onClose, t }) => (
           <p className="text-sm leading-relaxed">{repair.description}</p>
         </Section>
       )}
-      {(!isEmpty(repair.paymentMethod) || !isEmpty(repair.price)) && (
-        <Section icon={FiCreditCard} tone="vi" title={t('paymentMethod')}>
-          <div className="flex items-center justify-between gap-3">
-            {!isEmpty(repair.paymentMethod) && <Stat surface="plain" label={t('paymentMethod')} value={String(repair.paymentMethod).replace('_', ' ')} />}
-            {!isEmpty(repair.price) && <Price value={repair.price} />}
-          </div>
+      {!isEmpty(repair.price) && (
+        <Section icon={FiDollarSign} tone="vi" title={t('price', 'Price')}>
+          <Price value={repair.price} />
         </Section>
       )}
     </div>

@@ -6,7 +6,7 @@ import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-quer
 import {
   FiMapPin, FiPhone, FiX, FiSliders, FiGrid, FiList, FiArrowRight, FiArrowUp, FiCheck,
   FiShield, FiTool, FiRefreshCw, FiShoppingBag, FiExternalLink, FiInfo, FiNavigation,
-  FiMessageSquare, FiPackage, FiChevronDown, FiChevronLeft, FiChevronRight, FiSearch,
+  FiMessageSquare, FiPackage, FiChevronDown, FiChevronLeft, FiChevronRight, FiSearch, FiHeart,
 } from 'react-icons/fi';
 import { RiStarFill, RiVerifiedBadgeLine } from 'react-icons/ri';
 import { LazyMotion, MotionConfig, domAnimation, m, AnimatePresence } from 'framer-motion';
@@ -25,6 +25,7 @@ import {
 import { IsoIllustration, isoRoleKey } from '../components/user/IsoIllustrations';
 
 const Hero = lazy(() => import('../components/user/Hero'));
+const DeliveryMap = lazy(() => import('../Delivery/DeliveryMap'));
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { refetchOnWindowFocus: false, retry: 1, gcTime: 10 * 60 * 1000 } },
@@ -32,6 +33,7 @@ const queryClient = new QueryClient({
 
 const MOBILE_QUERY = '(max-width: 1023.98px)';
 const MOBILE_BATCH = 8;
+const SAVED_KEY = 'nb_saved_shops';
 
 const NB_FONT = "'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
 const NB_FONT_STYLE = { fontFamily: NB_FONT };
@@ -60,16 +62,31 @@ const EXTRA = {
     reviewOne: 'review', reviewMany: 'reviews', productOne: 'product', productMany: 'products',
     eyebrowSpecialties: 'Specialties', eyebrowShops: 'Directory', prevPage: 'Previous page', nextPage: 'Next page', pageN: 'Page {{n}}',
     noAddress: 'No address listed', loadingMore: 'Loading more shops', endOfList: 'You have seen all shops',
+    save: 'Save shop', saved: 'Saved', savedOnly: 'Saved only', directionsTo: 'Directions to', yourLocation: 'Your location',
+    locating: 'Finding your location', locationDenied: 'We could not get your location. The shop is shown on the map.',
+    openInMaps: 'Open in Maps', retryLocation: 'Try again',
+    moreFilters: 'More filters', ratedOnly: 'Has ratings', hasPhone: 'Has phone number', hasAddress: 'Has address',
+    repairAndSell: 'Repair & sell', sortVerified: 'Verified first',
   },
   ar: {
     reviewOne: 'تقييم', reviewMany: 'تقييمات', productOne: 'منتج', productMany: 'منتجات',
     eyebrowSpecialties: 'التخصصات', eyebrowShops: 'الدليل', prevPage: 'الصفحة السابقة', nextPage: 'الصفحة التالية', pageN: 'صفحة {{n}}',
     noAddress: 'لا يوجد عنوان مسجل', loadingMore: 'جارٍ تحميل المزيد من المتاجر', endOfList: 'لقد شاهدت جميع المتاجر',
+    save: 'حفظ المتجر', saved: 'تم الحفظ', savedOnly: 'المحفوظة فقط', directionsTo: 'الاتجاهات إلى', yourLocation: 'موقعك',
+    locating: 'جارٍ تحديد موقعك', locationDenied: 'تعذر تحديد موقعك. يظهر المتجر على الخريطة.',
+    openInMaps: 'فتح في الخرائط', retryLocation: 'إعادة المحاولة',
+    moreFilters: 'فلاتر إضافية', ratedOnly: 'لديه تقييمات', hasPhone: 'لديه رقم هاتف', hasAddress: 'لديه عنوان',
+    repairAndSell: 'صيانة وبيع', sortVerified: 'الموثقة أولاً',
   },
   fr: {
     reviewOne: 'avis', reviewMany: 'avis', productOne: 'produit', productMany: 'produits',
     eyebrowSpecialties: 'Spécialités', eyebrowShops: 'Annuaire', prevPage: 'Page précédente', nextPage: 'Page suivante', pageN: 'Page {{n}}',
     noAddress: 'Aucune adresse indiquée', loadingMore: "Chargement d'autres boutiques", endOfList: 'Vous avez vu toutes les boutiques',
+    save: 'Enregistrer', saved: 'Enregistré', savedOnly: 'Enregistrées uniquement', directionsTo: 'Itinéraire vers', yourLocation: 'Votre position',
+    locating: 'Localisation en cours', locationDenied: "Position introuvable. La boutique est affichée sur la carte.",
+    openInMaps: 'Ouvrir dans Maps', retryLocation: 'Réessayer',
+    moreFilters: 'Plus de filtres', ratedOnly: 'Avec des notes', hasPhone: 'Avec téléphone', hasAddress: 'Avec adresse',
+    repairAndSell: 'Réparation & vente', sortVerified: 'Vérifiées d’abord',
   },
 };
 
@@ -92,6 +109,28 @@ const useIsMobile = (query = MOBILE_QUERY) => {
     return () => mq.removeEventListener('change', on);
   }, [query]);
   return matches;
+};
+
+const readSaved = () => {
+  try {
+    const v = JSON.parse(localStorage.getItem(SAVED_KEY) || '[]');
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+};
+
+const useSavedShops = () => {
+  const [ids, setIds] = useState(readSaved);
+  const toggle = useCallback((id) => {
+    setIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      try { localStorage.setItem(SAVED_KEY, JSON.stringify(next)); } catch { }
+      return next;
+    });
+  }, []);
+  const set = useMemo(() => new Set(ids), [ids]);
+  return [set, toggle];
 };
 
 const toCount = (...vals) => {
@@ -192,17 +231,22 @@ const RATING_STEPS = [4, 4.5, 4.8];
 const VIEW_MODES = [['grid', FiGrid, 'gridView'], ['list', FiList, 'listView']];
 
 const NB_CSS = `
-.nb{--nb-bg:#eef9f3;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e8ebe9;--nb-accent:#10b981;--nb-btn:#059669;--nb-on:#ffffff;background:var(--nb-bg);color:var(--nb-ink)}
-.nb-dark{--nb-bg:#141414;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#1e1e1e;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-on:#022c22}
+.nb{--nb-bg:#f3f4f6;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e2e5e9;--nb-accent:#10b981;--nb-btn:#059669;--nb-on:#ffffff;background:var(--nb-bg);color:var(--nb-ink)}
+.nb-dark{--nb-bg:#121212;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#212121;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-on:#022c22}
 .nb-dark .border-dotted,.nb-dark .nb-dot{border-color:#3f3f3f}
-.nb-dark .nb-bg.nb-line{border-color:#3a3a3a}
+.nb-seq>section:nth-of-type(odd){background:var(--nb-bg)}
+.nb-seq>section:nth-of-type(even){background:var(--nb-gray)}
+.nb-seq>section+section{border-top:2px solid var(--nb-line)}
 .nb-bg{background:var(--nb-bg)}
 .nb-gray{background:var(--nb-gray)}
 .nb-muted{color:var(--nb-muted)}
 .nb-ic{color:var(--nb-accent)}
 .nb-line{border-color:var(--nb-line)}
-.nb-card{background:var(--nb-card);border:2px solid var(--nb-line);box-shadow:5px 5px 0 var(--nb-shadow);transition:transform .15s ease,box-shadow .15s ease}
-.nb-lift:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--nb-shadow)}
+.nb-card{background:var(--nb-card);border:2px solid var(--nb-line);box-shadow:5px 5px 0 var(--nb-shadow);transition:transform .18s cubic-bezier(.16,1,.3,1),box-shadow .18s cubic-bezier(.16,1,.3,1)}
+.nb-lift{contain:layout style;backface-visibility:hidden}
+.nb-lift:hover{transform:translate3d(-2px,-2px,0);box-shadow:7px 7px 0 var(--nb-shadow)}
+.nb-in{animation:nbIn .34s cubic-bezier(.16,1,.3,1) both;animation-delay:calc(var(--i,0)*32ms)}
+@keyframes nbIn{from{opacity:0;transform:translate3d(0,14px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
 .nb-bar{display:inline-block;width:52px;height:16px;background:var(--nb-accent);border:2px solid var(--nb-line)}
 .nb-ul{text-decoration:underline;text-decoration-color:var(--nb-accent);text-decoration-thickness:4px;text-underline-offset:5px;text-decoration-skip-ink:none}
 .nb-rule{display:block;width:100%;height:4px;margin-top:8px;background:var(--nb-accent)}
@@ -238,7 +282,7 @@ const NB_CSS = `
 .nb-dot:focus-visible{outline:3px solid var(--nb-accent);outline-offset:3px}
 @keyframes nbSpin{to{transform:rotate(360deg)}}
 .nb-spin{animation:nbSpin .7s linear infinite}
-@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn,.nb-arrow,.nb-dot{transition:none}.nb-spin{animation:none}}
+@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn,.nb-arrow,.nb-dot{transition:none}.nb-spin{animation:none}.nb-in{animation:none}}
 `;
 const STYLE_EL = <style>{`${UI3D_CSS}${LISTING_CSS}${NB_CSS}`}</style>;
 
@@ -412,13 +456,9 @@ const NoAddressBadge = memo(({ t }) => (
   </span>
 ));
 
-const DirectionsBtn = ({ shop, t, className = '', dense = false }) => (
-  <a
-    href={directionsUrl(shop, null)} target="_blank" rel="noopener noreferrer" aria-label={t('getDirections')} title={t('getDirections')}
-    onClick={(e) => e.stopPropagation()}
-    className={`nb-btn nb-btn-a min-w-0 px-3 text-xs ${className}`}
-  >
-    <FiNavigation className="h-3.5 w-3.5 flex-shrink-0" /> <span className={dense ? 'hidden truncate sm:inline lg:hidden' : 'truncate'}>{t('getDirections')}</span>
+const PhoneLink = ({ phone }) => (
+  <a href={`tel:${String(phone).replace(/[^\d+]/g, '')}`} onClick={(e) => e.stopPropagation()} dir="ltr" className="hover:underline focus-visible:underline">
+    {phone}
   </a>
 );
 
@@ -440,7 +480,8 @@ const ShopStats = memo(({ shop, t, className = '' }) => {
   );
 });
 
-const ShopCard = memo(({ shop, darkMode, index = 0, layout = 'grid', variant = 'grid', dense = false, onDetails, onOpen, t, className = '' }) => {
+const ShopCard = memo(({ shop, darkMode, index = 0, layout = 'grid', variant = 'grid', isSaved = false, actions, t, className = '' }) => {
+  const { onDetails, onOpen, onDirections, onSave } = actions;
   const role = getShopRole(shop);
   const rs = roleStyle(role);
   const address = addressLine(shop);
@@ -448,15 +489,28 @@ const ShopCard = memo(({ shop, darkMode, index = 0, layout = 'grid', variant = '
   const hasRating = typeof shop.rating === 'number' && shop.rating > 0;
   const snippet = clean(shop.description, 130) || t('noDescription');
   const open = useCallback(() => onOpen(shop.id), [onOpen, shop.id]);
-  const showDetails = useCallback((e) => { e.stopPropagation(); onDetails?.(shop); }, [onDetails, shop]);
+  const showDetails = useCallback((e) => { e.stopPropagation(); onDetails(shop); }, [onDetails, shop]);
   const visit = useCallback((e) => { e.stopPropagation(); open(); }, [open]);
+  const directions = useCallback((e) => { e.stopPropagation(); onDirections(shop); }, [onDirections, shop]);
+  const save = useCallback((e) => { e.stopPropagation(); onSave(shop.id); }, [onSave, shop.id]);
 
   const media = (
     <div className={`nb-media relative overflow-hidden ${
       isList ? 'h-28 flex-shrink-0 border-b-2 nb-line sm:h-auto sm:w-48 sm:border-b-0 sm:border-e-2' : `h-28 sm:h-32 ${variant === 'grid' ? 'nb-media-b' : ''}`}`}>
-      <span className="nb-chip nb-chip-a absolute start-2 top-2 z-10 max-w-[85%]">
+      <span className="nb-chip nb-chip-a absolute start-2 top-2 z-10 max-w-[calc(100%-3.5rem)]">
         <rs.icon className="h-3 w-3 flex-shrink-0" /> <span className="truncate">{serviceLabel(role, t)}</span>
       </span>
+      <div className="absolute end-2 top-2 z-10 flex flex-col gap-1.5">
+        <button type="button" onClick={directions} aria-label={t('getDirections')} title={t('getDirections')} className="nb-btn nb-btn-a h-8 w-8">
+          <FiNavigation className="h-4 w-4" />
+        </button>
+        <button
+          type="button" onClick={save} aria-pressed={isSaved} aria-label={isSaved ? t('saved') : t('save')} title={isSaved ? t('saved') : t('save')}
+          className={`nb-btn h-8 w-8 ${isSaved ? 'nb-btn-on' : ''}`}
+        >
+          <FiHeart className="h-4 w-4" fill={isSaved ? 'currentColor' : 'none'} />
+        </button>
+      </div>
       {hasRating && (
         <span className="nb-chip absolute bottom-2 end-2 z-10">
           <RiStarFill className="h-3 w-3 text-amber-500" /> <span dir="ltr">{shop.rating.toFixed(1)}</span>
@@ -486,15 +540,14 @@ const ShopCard = memo(({ shop, darkMode, index = 0, layout = 'grid', variant = '
     <div className="flex min-w-0 flex-col items-start gap-1.5">
       <ShopStats shop={shop} t={t} />
       <InfoRow icon={FiMapPin}>{address || <NoAddressBadge t={t} />}</InfoRow>
-      {shop.phone && <InfoRow icon={FiPhone}><span dir="ltr">{shop.phone}</span></InfoRow>}
+      {shop.phone && <InfoRow icon={FiPhone}><PhoneLink phone={shop.phone} /></InfoRow>}
     </div>
   );
 
   const footer = (
     <div className={`mt-auto flex items-center gap-2 ${variant === 'latest' && !isList ? 'border-t-2 nb-line pt-3' : 'pt-1'}`}>
-      <DirectionsBtn shop={shop} t={t} dense={dense} className="h-9 flex-1" />
-      <button type="button" onClick={showDetails} aria-label={t('details')} title={t('details')} className="nb-btn h-9 w-9 flex-shrink-0">
-        <FiInfo className="h-4 w-4" />
+      <button type="button" onClick={showDetails} aria-label={t('details')} title={t('details')} className="nb-btn h-9 min-w-0 flex-1 px-3 text-xs uppercase">
+        <FiInfo className="h-4 w-4 flex-shrink-0" /> <span className="truncate">{t('details')}</span>
       </button>
       <button type="button" onClick={visit} aria-label={t('visitShop')} title={t('visitShop')} className="nb-arrow">
         <FiArrowRight className="nb-flip h-4 w-4" />
@@ -509,7 +562,7 @@ const ShopCard = memo(({ shop, darkMode, index = 0, layout = 'grid', variant = '
       tabIndex={0}
       aria-label={shop.name || t('unnamedShop')}
       style={STAGGER[index % 8]}
-      className={`anim-fade-up nb-card nb-lift group relative flex h-full cursor-pointer focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--nb-accent)] ${
+      className={`nb-in nb-card nb-lift group relative flex h-full cursor-pointer focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--nb-accent)] ${
         isList ? 'flex-col sm:flex-row' : 'flex-col'} ${className}`}
     >
       {isList && media}
@@ -523,7 +576,89 @@ const ShopCard = memo(({ shop, darkMode, index = 0, layout = 'grid', variant = '
   );
 });
 
-const ShopDetailsModal = memo(({ shop, darkMode, onClose, onOpen, t }) => {
+const DirectionsModal = memo(({ shop, onClose, t }) => {
+  const isMobile = useIsMobile();
+  const [status, setStatus] = useState('locating');
+  const [origin, setOrigin] = useState(null);
+  const address = addressLine(shop);
+  const name = shop.name || t('unnamedShop');
+
+  const locate = useCallback(() => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) { setStatus('denied'); return; }
+    setStatus('locating');
+    navigator.geolocation.getCurrentPosition(
+      (p) => { setOrigin({ latitude: p.coords.latitude, longitude: p.coords.longitude }); setStatus('ready'); },
+      () => setStatus('denied'),
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 },
+    );
+  }, []);
+
+  useEffect(() => { locate(); }, [locate]);
+  useModalLock(true, onClose);
+
+  const items = useMemo(() => [{ id: shop.id, pickup: origin, drop: shop.shopAddress || {} }], [shop, origin]);
+  const noop = useCallback(() => {}, []);
+
+  return (
+    <div className="fixed inset-0 z-[1100] flex items-end justify-center p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={`${t('directionsTo')} ${name}`}>
+      <m.div {...BACKDROP_MOTION} className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <m.div
+        {...PANEL_MOTION} style={GPU}
+        className="nb-card relative max-h-[94vh] w-full transform-gpu overflow-y-auto overscroll-contain !transition-none sm:max-w-2xl"
+      >
+        <div className="nb-gray nb-line relative flex items-center gap-3 border-b-2 p-4 pe-14">
+          <span className="nb-chip nb-chip-a !p-2"><FiNavigation className="h-5 w-5" /></span>
+          <div className="min-w-0 flex-1">
+            <p className="nb-muted text-[10px] font-extrabold uppercase tracking-wide">{t('directionsTo')}</p>
+            <h2 className="line-clamp-1 text-base font-extrabold uppercase sm:text-lg">{name}</h2>
+            <p className="nb-muted line-clamp-1 text-xs">{address || t('noAddress')}</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label={t('close')} className="nb-btn absolute end-3 top-3 h-8 w-8">
+            <FiX className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-3 p-3 sm:p-4">
+          <Suspense fallback={<div className="nb-gray w-full animate-pulse" style={{ aspectRatio: isMobile ? '1 / 1' : '1 / 0.62' }} />}>
+            <DeliveryMap
+              items={items}
+              selectedId={origin ? shop.id : null}
+              onSelect={noop}
+              aspect={isMobile ? 1 : 0.62}
+              startLabel={t('yourLocation')}
+              endLabel={name}
+              className="!rounded-none !border-2 !border-[color:var(--nb-line)]"
+            />
+          </Suspense>
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div role="status" aria-live="polite" className="min-w-0 flex-1">
+              {status === 'locating' && (
+                <span className="nb-chip !px-3 !py-1.5">
+                  <span aria-hidden="true" className="nb-spin h-3.5 w-3.5 rounded-full border-2 border-current border-t-transparent" />
+                  {t('locating')}
+                </span>
+              )}
+              {status === 'denied' && <span className="nb-chip nb-chip-n !px-3 !py-1.5 normal-case">{t('locationDenied')}</span>}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {status === 'denied' && (
+                <button type="button" onClick={locate} className="nb-btn h-10 px-3 text-xs uppercase">
+                  <FiRefreshCw className="h-4 w-4" /> {t('retryLocation')}
+                </button>
+              )}
+              <a href={directionsUrl(shop, null)} target="_blank" rel="noopener noreferrer" className="nb-btn nb-btn-a h-10 px-3 text-xs uppercase">
+                <FiExternalLink className="h-4 w-4" /> {t('openInMaps')}
+              </a>
+            </div>
+          </div>
+        </div>
+      </m.div>
+    </div>
+  );
+});
+
+const ShopDetailsModal = memo(({ shop, darkMode, onClose, onOpen, onDirections, t }) => {
   const role = getShopRole(shop);
   const caps = capabilitiesFor(role);
   const address = addressLine(shop);
@@ -538,7 +673,7 @@ const ShopDetailsModal = memo(({ shop, darkMode, onClose, onOpen, t }) => {
         {...PANEL_MOTION} style={GPU}
         className="nb-card relative max-h-[92vh] w-full transform-gpu overflow-y-auto overscroll-contain !transition-none sm:max-w-lg"
       >
-        <div className="nb-gray nb-line relative flex items-center gap-3 border-b-2 p-4 pe-14 sm:gap-4 sm:p-5">
+        <div className="nb-gray nb-line relative flex items-center gap-3 border-b-2 p-4 pe-24 sm:gap-4 sm:p-5 sm:pe-24">
           <IsoIllustration type={isoRoleKey(role)} tone="emerald" darkMode={darkMode} onGreen={false} className="h-24 w-24 flex-shrink-0 sm:h-28 sm:w-28" />
           <div className="min-w-0 flex-1">
             <h2 className="line-clamp-2 text-base font-extrabold uppercase sm:text-lg">{shop.name || t('unnamedShop')}</h2>
@@ -554,9 +689,14 @@ const ShopDetailsModal = memo(({ shop, darkMode, onClose, onOpen, t }) => {
             </div>
             <ShopStats shop={shop} t={t} className="mt-2" />
           </div>
-          <button type="button" onClick={onClose} aria-label={t('close')} className="nb-btn absolute end-3 top-3 h-8 w-8">
-            <FiX className="h-4 w-4" />
-          </button>
+          <div className="absolute end-3 top-3 flex items-center gap-2">
+            <button type="button" onClick={() => onDirections(shop)} aria-label={t('getDirections')} title={t('getDirections')} className="nb-btn nb-btn-a h-8 w-8">
+              <FiNavigation className="h-4 w-4" />
+            </button>
+            <button type="button" onClick={onClose} aria-label={t('close')} className="nb-btn h-8 w-8">
+              <FiX className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         <div className="space-y-5 p-4 sm:p-5">
@@ -583,11 +723,10 @@ const ShopDetailsModal = memo(({ shop, darkMode, onClose, onOpen, t }) => {
           <section className="nb-gray nb-line grid justify-items-start gap-2 border-2 border-dotted p-3.5">
             {shop.shopType && <InfoRow icon={FiShoppingBag}>{shop.shopType}</InfoRow>}
             <InfoRow icon={FiMapPin}>{address || <NoAddressBadge t={t} />}</InfoRow>
-            {shop.phone && <InfoRow icon={FiPhone}><span dir="ltr">{shop.phone}</span></InfoRow>}
+            {shop.phone && <InfoRow icon={FiPhone}><PhoneLink phone={shop.phone} /></InfoRow>}
           </section>
 
           <div className="grid grid-cols-2 gap-3">
-            <DirectionsBtn shop={shop} t={t} className="col-span-2 py-3" />
             <button type="button" onClick={onClose} className="nb-btn py-2.5 text-sm uppercase">{t('close')}</button>
             <button type="button" onClick={() => onOpen(shop.id)} className="nb-btn nb-btn-a py-2.5 text-sm uppercase"><FiExternalLink className="h-4 w-4" /> {t('visitShop')}</button>
           </div>
@@ -601,7 +740,7 @@ const SpecialtyGrid = memo(({ shopTypes, countsByType, selected, onToggle, darkM
   const top = useMemo(() => [...shopTypes].sort((a, b) => (countsByType[b] || 0) - (countsByType[a] || 0)).slice(0, 6), [shopTypes, countsByType]);
   if (!top.length) return null;
   return (
-    <section aria-label={title} className="lk-cv nb-bg py-10 sm:py-16">
+    <section aria-label={title} className="lk-cv py-10 sm:py-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <SectionHead eyebrow={t('eyebrowSpecialties')} title={title} subtitle={subtitle} />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-6">
@@ -626,20 +765,20 @@ const SpecialtyGrid = memo(({ shopTypes, countsByType, selected, onToggle, darkM
   );
 });
 
-const FavoritesSection = memo(({ shops, darkMode, t, onDetails, onOpen }) => (
-  <section aria-label={t('customerFavorites')} className="nb-gray nb-line lk-cv border-t-2 py-10 sm:py-16">
+const FavoritesSection = memo(({ shops, darkMode, t, actions, saved }) => (
+  <section aria-label={t('customerFavorites')} className="lk-cv py-10 sm:py-16">
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
       <SectionHead eyebrow={t('topRated')} title={t('customerFavorites')} subtitle={t('topRatedSubtitle')} />
       <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
         {shops.map((s, i) => (
-          <ShopCard key={s.id} shop={s} darkMode={darkMode} index={i} variant="latest" dense onDetails={onDetails} onOpen={onOpen} t={t} />
+          <ShopCard key={s.id} shop={s} darkMode={darkMode} index={i} variant="latest" isSaved={saved.has(s.id)} actions={actions} t={t} />
         ))}
       </div>
     </div>
   </section>
 ));
 
-const RoleSections = memo(({ shops, darkMode, t, onDetails, onOpen, onViewAll }) => {
+const RoleSections = memo(({ shops, darkMode, t, actions, saved, onViewAll }) => {
   const groups = useMemo(() => ROLE_SECTIONS.map((sec) => {
     const list = shops.filter((s) => getShopRole(s) === sec.role);
     list.sort((a, b) => (b.rating || 0) - (a.rating || 0));
@@ -649,8 +788,8 @@ const RoleSections = memo(({ shops, darkMode, t, onDetails, onOpen, onViewAll })
   if (!groups.length) return null;
   return (
     <>
-      {groups.map(({ role, title, sub, list, top }, gi) => (
-        <section key={role} aria-label={t(title)} className={`lk-cv nb-line border-t-2 py-10 sm:py-16 ${gi % 2 === 0 ? 'nb-bg' : 'nb-gray'}`}>
+      {groups.map(({ role, title, sub, list, top }) => (
+        <section key={role} aria-label={t(title)} className="lk-cv py-10 sm:py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <SectionHead
               eyebrow={serviceLabel(role, t)} title={t(title)} count={list.length} subtitle={t(sub)}
@@ -662,7 +801,7 @@ const RoleSections = memo(({ shops, darkMode, t, onDetails, onOpen, onViewAll })
             />
             <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
               {top.map((s, i) => (
-                <ShopCard key={s.id} shop={s} darkMode={darkMode} index={i} dense onDetails={onDetails} onOpen={onOpen} t={t} />
+                <ShopCard key={s.id} shop={s} darkMode={darkMode} index={i} isSaved={saved.has(s.id)} actions={actions} t={t} />
               ))}
             </div>
           </div>
@@ -704,12 +843,13 @@ const Pill = memo(({ label, active, onClick }) => (
 const STAR = <RiStarFill className="h-3.5 w-3.5 flex-shrink-0 text-amber-500" />;
 
 const FilterPanel = memo((p) => {
-  const { t, shopTypes, countsByType, selectedShopTypes, toggleShopType, cities, selectedCities, toggleCity,
+  const { t, flat, shopTypes, countsByType, selectedShopTypes, toggleShopType, cities, selectedCities, toggleCity,
     roleFilter, setRoleFilter, roleCounts, minRating, setMinRating, showVerifiedOnly, setShowVerifiedOnly,
+    savedOnly, setSavedOnly, ratedOnly, setRatedOnly, hasPhoneOnly, setHasPhoneOnly, hasAddressOnly, setHasAddressOnly,
     open, setOpen, clearFilters, activeFiltersCount } = p;
   const toggle = (k) => setOpen((o) => ({ ...o, [k]: !o[k] }));
   return (
-    <div className="nb-card w-full min-w-0 max-w-full overflow-x-hidden p-3 sm:p-4">
+    <div className={flat ? 'w-full min-w-0 max-w-full overflow-x-hidden' : 'nb-card w-full min-w-0 max-w-full overflow-x-hidden p-3 sm:p-4'}>
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 pb-3">
         <h3 className="flex min-w-0 items-center gap-2 text-base font-extrabold uppercase">
           <FiSliders aria-hidden="true" className="h-4 w-4 flex-shrink-0" /> <span className="nb-ul truncate">{t('filters')}</span>
@@ -722,6 +862,7 @@ const FilterPanel = memo((p) => {
           <OptionRow type="radio" label={t('allShops')} count={roleCounts.ALL} selected={roleFilter === 'ALL'} onClick={() => setRoleFilter('ALL')} />
           <OptionRow type="radio" label={t('repairServices')} count={roleCounts.REPAIRER} selected={roleFilter === 'REPAIRER'} onClick={() => setRoleFilter('REPAIRER')} />
           <OptionRow type="radio" label={t('sellTradeIn')} count={roleCounts.SELLER} selected={roleFilter === 'SELLER'} onClick={() => setRoleFilter('SELLER')} />
+          <OptionRow type="radio" label={t('repairAndSell')} count={roleCounts.BOTH} selected={roleFilter === 'BOTH'} onClick={() => setRoleFilter('BOTH')} />
         </div>
       </FilterBlock>
 
@@ -750,6 +891,15 @@ const FilterPanel = memo((p) => {
         </div>
         <div className="mt-1">
           <OptionRow type="check" label={t('verifiedOnly')} selected={showVerifiedOnly} onClick={() => setShowVerifiedOnly((v) => !v)} />
+          <OptionRow type="check" label={t('savedOnly')} selected={savedOnly} onClick={() => setSavedOnly((v) => !v)} />
+        </div>
+      </FilterBlock>
+
+      <FilterBlock title={t('moreFilters')} isOpen={open.more} onToggle={() => toggle('more')}>
+        <div className="min-w-0 break-words">
+          <OptionRow type="check" label={t('ratedOnly')} selected={ratedOnly} onClick={() => setRatedOnly((v) => !v)} />
+          <OptionRow type="check" label={t('hasPhone')} selected={hasPhoneOnly} onClick={() => setHasPhoneOnly((v) => !v)} />
+          <OptionRow type="check" label={t('hasAddress')} selected={hasAddressOnly} onClick={() => setHasAddressOnly((v) => !v)} />
         </div>
       </FilterBlock>
     </div>
@@ -832,6 +982,7 @@ const ShopsContent = memo(({ darkMode }) => {
   const [, startTransition] = useTransition();
   useScrollTopOnEnter();
 
+  const [saved, toggleSaved] = useSavedShops();
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDeferredValue(searchTerm);
   const searchPending = searchTerm !== deferredSearch;
@@ -844,10 +995,15 @@ const ShopsContent = memo(({ darkMode }) => {
   const [selectedCities, setSelectedCities] = useState([]);
   const [minRating, setMinRating] = useState(0);
   const [showVerifiedOnly, setShowVerifiedOnly] = useState(false);
+  const [savedOnly, setSavedOnly] = useState(false);
+  const [ratedOnly, setRatedOnly] = useState(false);
+  const [hasPhoneOnly, setHasPhoneOnly] = useState(false);
+  const [hasAddressOnly, setHasAddressOnly] = useState(false);
   const [sortBy, setSortBy] = useState('relevance');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [detailsShop, setDetailsShop] = useState(null);
-  const [open, setOpen] = useState({ role: true, type: true, city: true, rating: true });
+  const [directionsShop, setDirectionsShop] = useState(null);
+  const [open, setOpen] = useState({ role: true, type: true, city: true, rating: true, more: true });
   const gridRef = useRef(null);
   const showTop = useBackToTop();
   const closeSidebar = useCallback(() => setIsSidebarOpen(false), []);
@@ -870,20 +1026,21 @@ const ShopsContent = memo(({ darkMode }) => {
 
   const { shopTypes, cities, countsByType, roleCounts, topRated, searchIndex } = useMemo(() => {
     const types = new Set(), citySet = new Set(), counts = {}, index = new Map();
-    let rep = 0, sell = 0;
+    let rep = 0, sell = 0, both = 0;
     for (const s of shops) {
       if (s.shopType) { types.add(s.shopType); counts[s.shopType] = (counts[s.shopType] || 0) + 1; }
       if (s.shopAddress?.city) citySet.add(s.shopAddress.city);
       const r = getShopRole(s);
       if (r !== 'SELLER') rep++;
       if (r !== 'REPAIRER') sell++;
+      if (r === 'BOTH') both++;
       index.set(s.id, `${s.name || ''} ${s.shopType || ''} ${s.shopAddress?.city || ''} ${s.shopAddress?.street || ''} ${s.description || ''} ${s.phone || ''}`.toLowerCase());
     }
     return {
       shopTypes: [...types].sort(),
       cities: [...citySet].sort(),
       countsByType: counts,
-      roleCounts: { ALL: shops.length, REPAIRER: rep, SELLER: sell },
+      roleCounts: { ALL: shops.length, REPAIRER: rep, SELLER: sell, BOTH: both },
       topRated: shops.filter((s) => s.rating > 0).sort((a, b) => b.rating - a.rating).slice(0, 4),
       searchIndex: index,
     };
@@ -898,19 +1055,24 @@ const ShopsContent = memo(({ darkMode }) => {
       if (selectedCities.length && !selectedCities.includes(s.shopAddress?.city)) return false;
       if ((s.rating || 0) < minRating) return false;
       if (showVerifiedOnly && !s.verified) return false;
+      if (savedOnly && !saved.has(s.id)) return false;
+      if (ratedOnly && !(s.rating > 0)) return false;
+      if (hasPhoneOnly && !s.phone) return false;
+      if (hasAddressOnly && !addressLine(s)) return false;
       if (term && !searchIndex.get(s.id)?.includes(term)) return false;
       return true;
     });
     if (sortBy === 'ratingHighToLow') list.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    else if (sortBy === 'verifiedFirst') list.sort((a, b) => (b.verified ? 1 : 0) - (a.verified ? 1 : 0) || (b.rating || 0) - (a.rating || 0));
     else if (sortBy === 'nameAZ') list.sort((a, b) => (a.name || '').localeCompare(b.name || '', language));
     return list;
-  }, [shops, searchIndex, deferredSearch, roleFilter, selectedShopTypes, selectedCities, minRating, showVerifiedOnly, sortBy, language]);
+  }, [shops, searchIndex, saved, deferredSearch, roleFilter, selectedShopTypes, selectedCities, minRating, showVerifiedOnly, savedOnly, ratedOnly, hasPhoneOnly, hasAddressOnly, sortBy, language]);
 
   const totalPages = Math.max(1, Math.ceil(filteredShops.length / pageSize));
   useEffect(() => {
     setCurrentPage(1);
     setVisibleCount(MOBILE_BATCH);
-  }, [pageSize, deferredSearch, roleFilter, selectedShopTypes, selectedCities, minRating, showVerifiedOnly, sortBy]);
+  }, [pageSize, deferredSearch, roleFilter, selectedShopTypes, selectedCities, minRating, showVerifiedOnly, savedOnly, ratedOnly, hasPhoneOnly, hasAddressOnly, sortBy]);
   const page = Math.min(currentPage, totalPages);
 
   const pageOffset = (page - 1) * pageSize;
@@ -931,18 +1093,25 @@ const ShopsContent = memo(({ darkMode }) => {
   const toggleCity = useCallback((c) => setSelectedCities((p) => (p.includes(c) ? p.filter((x) => x !== c) : [...p, c])), []);
   const pickSpecialty = useCallback((ty) => { toggleShopType(ty); scrollToGrid(); }, [toggleShopType, scrollToGrid]);
   const clearFilters = useCallback(() => {
-    setSearchTerm(''); setRoleFilter('ALL'); setSelectedShopTypes([]); setSelectedCities([]); setMinRating(0); setShowVerifiedOnly(false); setSortBy('relevance'); setCurrentPage(1); setVisibleCount(MOBILE_BATCH);
+    setSearchTerm(''); setRoleFilter('ALL'); setSelectedShopTypes([]); setSelectedCities([]); setMinRating(0); setShowVerifiedOnly(false); setSavedOnly(false); setRatedOnly(false); setHasPhoneOnly(false); setHasAddressOnly(false); setSortBy('relevance'); setCurrentPage(1); setVisibleCount(MOBILE_BATCH);
   }, []);
   const openDetails = useCallback((shop) => setDetailsShop(shop), []);
   const closeDetails = useCallback(() => setDetailsShop(null), []);
+  const openDirections = useCallback((shop) => setDirectionsShop(shop), []);
+  const closeDirections = useCallback(() => setDirectionsShop(null), []);
   const openFromModal = useCallback((id) => { setDetailsShop(null); openShop(id); }, [openShop]);
+  const directionsFromModal = useCallback((shop) => { setDetailsShop(null); setDirectionsShop(shop); }, []);
   const viewAllRole = useCallback((role) => {
     setRoleFilter(role === 'BOTH' ? 'ALL' : role);
     setSelectedShopTypes([]); setSelectedCities([]);
     scrollToGrid();
   }, [scrollToGrid]);
 
-  const activeFiltersCount = (searchTerm ? 1 : 0) + (roleFilter !== 'ALL' ? 1 : 0) + selectedShopTypes.length + selectedCities.length + (minRating > 0 ? 1 : 0) + (showVerifiedOnly ? 1 : 0);
+  const actions = useMemo(() => ({
+    onDetails: openDetails, onOpen: openShop, onDirections: openDirections, onSave: toggleSaved,
+  }), [openDetails, openShop, openDirections, toggleSaved]);
+
+  const activeFiltersCount = (searchTerm ? 1 : 0) + (roleFilter !== 'ALL' ? 1 : 0) + selectedShopTypes.length + selectedCities.length + (minRating > 0 ? 1 : 0) + (showVerifiedOnly ? 1 : 0) + (savedOnly ? 1 : 0) + (ratedOnly ? 1 : 0) + (hasPhoneOnly ? 1 : 0) + (hasAddressOnly ? 1 : 0);
 
   const heroButtons = useMemo(() => [
     { label: t('heroFind'), onClick: scrollToGrid, primary: true },
@@ -952,6 +1121,7 @@ const ShopsContent = memo(({ darkMode }) => {
   const sortOptions = useMemo(() => [
     { value: 'relevance', label: t('sortRelevance') },
     { value: 'ratingHighToLow', label: t('sortRating') },
+    { value: 'verifiedFirst', label: t('sortVerified') },
     { value: 'nameAZ', label: t('sortName') },
   ], [t]);
 
@@ -960,9 +1130,10 @@ const ShopsContent = memo(({ darkMode }) => {
   const filterPanelProps = useMemo(() => ({
     t, shopTypes, countsByType, selectedShopTypes, toggleShopType, cities, selectedCities, toggleCity,
     roleFilter, setRoleFilter, roleCounts, minRating, setMinRating, showVerifiedOnly, setShowVerifiedOnly,
+    savedOnly, setSavedOnly, ratedOnly, setRatedOnly, hasPhoneOnly, setHasPhoneOnly, hasAddressOnly, setHasAddressOnly,
     open, setOpen, clearFilters, activeFiltersCount,
   }), [t, shopTypes, countsByType, selectedShopTypes, toggleShopType, cities, selectedCities, toggleCity,
-    roleFilter, roleCounts, minRating, showVerifiedOnly, open, clearFilters, activeFiltersCount]);
+    roleFilter, roleCounts, minRating, showVerifiedOnly, savedOnly, ratedOnly, hasPhoneOnly, hasAddressOnly, open, clearFilters, activeFiltersCount]);
 
   const layout = isMobile ? 'grid' : viewMode;
   const gridCols = layout === 'grid' ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-1';
@@ -990,116 +1161,125 @@ const ShopsContent = memo(({ darkMode }) => {
             />
           </Suspense>
 
-          {!isLoading && (
-            <SpecialtyGrid shopTypes={shopTypes} countsByType={countsByType} selected={selectedShopTypes} onToggle={pickSpecialty}
-              darkMode={darkMode} title={t('findExpert')} subtitle={t('browseSpecialty')} t={t} />
-          )}
+          <div className="nb-seq">
+            {!isLoading && (
+              <SpecialtyGrid shopTypes={shopTypes} countsByType={countsByType} selected={selectedShopTypes} onToggle={pickSpecialty}
+                darkMode={darkMode} title={t('findExpert')} subtitle={t('browseSpecialty')} t={t} />
+            )}
 
-          {!isLoading && topRated.length > 0 && (
-            <FavoritesSection shops={topRated} darkMode={darkMode} t={t} onDetails={openDetails} onOpen={openShop} />
-          )}
+            {!isLoading && topRated.length > 0 && (
+              <FavoritesSection shops={topRated} darkMode={darkMode} t={t} actions={actions} saved={saved} />
+            )}
 
-          {!isLoading && !isError && (
-            <RoleSections shops={shops} darkMode={darkMode} t={t} onDetails={openDetails} onOpen={openShop} onViewAll={viewAllRole} />
-          )}
+            {!isLoading && !isError && (
+              <RoleSections shops={shops} darkMode={darkMode} t={t} actions={actions} saved={saved} onViewAll={viewAllRole} />
+            )}
 
-          <section aria-label={t('allShopsTitle')} className="nb-bg">
-            <span className="nb-divider" aria-hidden="true" />
-            <div id="shop-results" ref={gridRef} className="mx-auto max-w-7xl scroll-mt-20 px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
-              <div className="flex items-start gap-5 lg:gap-8">
-                {!isMobile && (
-                  <aside className="sticky top-20 max-h-[calc(100vh-5rem)] w-[17rem] min-w-0 flex-shrink-0 self-start overflow-y-auto overscroll-contain pb-2 pe-2 xl:w-[19rem]">
-                    <FilterPanel {...filterPanelProps} />
-                  </aside>
-                )}
+            <section aria-label={t('allShopsTitle')}>
+              <div id="shop-results" ref={gridRef} className="mx-auto max-w-7xl scroll-mt-20 px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
+                <SectionHead eyebrow={t('eyebrowShops')} title={t('allShopsTitle')} subtitle={t('allShopsSubtitle')} />
 
-                <div className="w-full min-w-0 flex-1">
-                  <SectionHead eyebrow={t('eyebrowShops')} title={t('allShopsTitle')} subtitle={t('allShopsSubtitle')} />
-
-                  <div className="nb-card mb-6 flex flex-col gap-3 p-3 sm:p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-sm opacity-80" aria-live="polite">
-                        <b dir="ltr">{startItem}–{endItem}</b> / <b dir="ltr">{filteredShops.length}</b> {t('shopsFound')}
-                      </p>
-                      <div className="flex flex-wrap items-center gap-2">
-                        {!isMobile && (
-                          <>
-                            <NbDropdown ariaLabel={t('rowsPerPage')} value={pageSize} onChange={setPageSize} options={rowOptions} align="end" className="w-36 flex-shrink-0" />
-                            {VIEW_MODES.map(([mode, Icon, labelKey]) => (
-                              <button key={mode} type="button" onClick={() => setViewMode(mode)} aria-label={t(labelKey)} title={t(labelKey)} aria-pressed={viewMode === mode}
-                                className={`nb-btn h-10 w-10 ${viewMode === mode ? 'nb-btn-on' : ''}`}>
-                                <Icon className="h-4 w-4" />
-                              </button>
-                            ))}
-                          </>
-                        )}
-                        {isMobile && (
-                          <button type="button" onClick={() => setIsSidebarOpen(true)} className="nb-btn nb-btn-a h-10 px-3 text-xs uppercase">
-                            <FiSliders className="h-3.5 w-3.5" /> {t('filters')}
-                            {activeFiltersCount > 0 && <span className="flex h-4 min-w-[1rem] items-center justify-center bg-white px-1 text-[10px] font-bold text-[#04261a]">{activeFiltersCount}</span>}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                      <SearchField value={searchTerm} onChange={setSearchTerm} placeholder={t('search')} ariaLabel={t('searchAria')} clearLabel={t('clearSearch')} pending={searchPending} />
-                      <NbDropdown ariaLabel={t('sortBy')} value={sortBy} onChange={setSortBy} options={sortOptions} align="end" className="w-full sm:w-52" />
-                    </div>
-                  </div>
-
-                  {activeFiltersCount > 0 && (
-                    <div className="mb-6 flex flex-wrap items-center gap-2">
-                      {roleFilter !== 'ALL' && <FilterChip label={serviceLabel(roleFilter, t)} onRemove={() => setRoleFilter('ALL')} />}
-                      {selectedShopTypes.map((ty) => <FilterChip key={ty} label={ty} onRemove={() => toggleShopType(ty)} />)}
-                      {selectedCities.map((c) => <FilterChip key={c} label={c} onRemove={() => toggleCity(c)} />)}
-                      {minRating > 0 && <FilterChip label={`${minRating}+ ${t('stars')}`} onRemove={() => setMinRating(0)} />}
-                      {showVerifiedOnly && <FilterChip label={t('verified')} onRemove={() => setShowVerifiedOnly(false)} />}
-                      {searchTerm && <FilterChip label={`“${searchTerm.slice(0, 20)}”`} onRemove={() => setSearchTerm('')} />}
-                      <button type="button" onClick={clearFilters} className="text-xs font-bold underline underline-offset-4">{t('clearAll')}</button>
-                    </div>
-                  )}
-
-                  {isLoading ? (
-                    <div className={`grid gap-4 sm:gap-6 ${gridCols}`} role="status" aria-label={t('loading')}>
-                      {Array.from({ length: 8 }).map((_, i) => <div key={i} className="nb-gray nb-line h-[360px] animate-pulse border-2 motion-reduce:animate-none" />)}
-                    </div>
-                  ) : isError ? (
-                    <div className="nb-card px-4 py-14 text-center sm:py-20">
-                      <IsoIllustration type="shopsEmpty" tone="emerald" darkMode={darkMode} onGreen={false} className="mx-auto mb-4 h-32 w-32" />
-                      <p className="mb-2 text-lg font-extrabold uppercase sm:text-xl">{t('loadErrorTitle')}</p>
-                      <p className="mb-6 text-sm opacity-80">{t('loadErrorText')}</p>
-                      <button type="button" onClick={() => refetch()} className="nb-btn nb-btn-a px-6 py-3 text-sm uppercase"><FiRefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} /> {t('tryAgain')}</button>
-                    </div>
-                  ) : filteredShops.length === 0 ? (
-                    <div className="nb-card px-4 py-14 text-center sm:py-24">
-                      <IsoIllustration type="shopsEmpty" tone="emerald" darkMode={darkMode} onGreen={false} className="mx-auto mb-4 h-32 w-32 sm:h-40 sm:w-40" />
-                      <p className="mb-2 text-lg font-extrabold uppercase sm:text-2xl">{shops.length ? t('noMatch') : t('noShops')}</p>
-                      <p className="mb-6 text-sm opacity-80 sm:text-base">{shops.length ? t('tryRemoveFilter') : t('newShopsSoon')}</p>
-                      {shops.length > 0 && <button type="button" onClick={clearFilters} className="nb-btn nb-btn-a px-6 py-3 text-sm uppercase sm:text-base">{t('clearFilters')}</button>}
-                    </div>
-                  ) : (
-                    <>
-                      <div className={`grid gap-4 sm:gap-6 ${gridCols}`}>
-                        {listShops.map((s, i) => (
-                          <ShopCard key={s.id} shop={s} darkMode={darkMode} index={listOffset + i} layout={layout} dense={layout === 'grid'} onDetails={openDetails} onOpen={openShop} t={t} />
-                        ))}
-                      </div>
-                      {isMobile ? (
-                        <InfiniteSentinel hasMore={hasMore} shown={visibleCount} total={filteredShops.length} onMore={loadMore} t={t} />
-                      ) : totalPages > 1 && (
-                        <div className="flex flex-col items-center gap-3 pt-8">
-                          <Pagination page={page} total={totalPages} onChange={goToPage} t={t} />
-                          <p className="nb-muted text-xs">
-                            <span dir="ltr">{startItem}–{endItem}</span> / <span dir="ltr">{filteredShops.length}</span> {t('shopsFound')}
-                          </p>
+                <div className="flex items-stretch gap-5 lg:gap-8">
+                  {!isMobile && (
+                    <aside className="flex w-[17rem] min-w-0 flex-shrink-0 xl:w-[19rem]">
+                      <div className="nb-card min-w-0 flex-1 p-3 sm:p-4">
+                        <div className="sticky top-20">
+                          <FilterPanel {...filterPanelProps} flat />
                         </div>
-                      )}
-                    </>
+                      </div>
+                    </aside>
                   )}
+
+                  <div className="w-full min-w-0 flex-1">
+                    <div className="nb-card mb-6 flex flex-col gap-3 p-3 sm:p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-sm opacity-80" aria-live="polite">
+                          <b dir="ltr">{startItem}–{endItem}</b> / <b dir="ltr">{filteredShops.length}</b> {t('shopsFound')}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {!isMobile && (
+                            <>
+                              <NbDropdown ariaLabel={t('rowsPerPage')} value={pageSize} onChange={setPageSize} options={rowOptions} align="end" className="w-36 flex-shrink-0" />
+                              {VIEW_MODES.map(([mode, Icon, labelKey]) => (
+                                <button key={mode} type="button" onClick={() => setViewMode(mode)} aria-label={t(labelKey)} title={t(labelKey)} aria-pressed={viewMode === mode}
+                                  className={`nb-btn h-10 w-10 ${viewMode === mode ? 'nb-btn-on' : ''}`}>
+                                  <Icon className="h-4 w-4" />
+                                </button>
+                              ))}
+                            </>
+                          )}
+                          {isMobile && (
+                            <button type="button" onClick={() => setIsSidebarOpen(true)} className="nb-btn nb-btn-a h-10 px-3 text-xs uppercase">
+                              <FiSliders className="h-3.5 w-3.5" /> {t('filters')}
+                              {activeFiltersCount > 0 && <span className="flex h-4 min-w-[1rem] items-center justify-center bg-white px-1 text-[10px] font-bold text-[#04261a]">{activeFiltersCount}</span>}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <SearchField value={searchTerm} onChange={setSearchTerm} placeholder={t('search')} ariaLabel={t('searchAria')} clearLabel={t('clearSearch')} pending={searchPending} />
+                        <NbDropdown ariaLabel={t('sortBy')} value={sortBy} onChange={setSortBy} options={sortOptions} align="end" className="w-full sm:w-52" />
+                      </div>
+                    </div>
+
+                    {activeFiltersCount > 0 && (
+                      <div className="mb-6 flex flex-wrap items-center gap-2">
+                        {roleFilter !== 'ALL' && <FilterChip label={serviceLabel(roleFilter, t)} onRemove={() => setRoleFilter('ALL')} />}
+                        {selectedShopTypes.map((ty) => <FilterChip key={ty} label={ty} onRemove={() => toggleShopType(ty)} />)}
+                        {selectedCities.map((c) => <FilterChip key={c} label={c} onRemove={() => toggleCity(c)} />)}
+                        {minRating > 0 && <FilterChip label={`${minRating}+ ${t('stars')}`} onRemove={() => setMinRating(0)} />}
+                        {showVerifiedOnly && <FilterChip label={t('verified')} onRemove={() => setShowVerifiedOnly(false)} />}
+                        {savedOnly && <FilterChip label={t('savedOnly')} onRemove={() => setSavedOnly(false)} />}
+                        {ratedOnly && <FilterChip label={t('ratedOnly')} onRemove={() => setRatedOnly(false)} />}
+                        {hasPhoneOnly && <FilterChip label={t('hasPhone')} onRemove={() => setHasPhoneOnly(false)} />}
+                        {hasAddressOnly && <FilterChip label={t('hasAddress')} onRemove={() => setHasAddressOnly(false)} />}
+                        {searchTerm && <FilterChip label={`“${searchTerm.slice(0, 20)}”`} onRemove={() => setSearchTerm('')} />}
+                        <button type="button" onClick={clearFilters} className="text-xs font-bold underline underline-offset-4">{t('clearAll')}</button>
+                      </div>
+                    )}
+
+                    {isLoading ? (
+                      <div className={`grid gap-4 sm:gap-6 ${gridCols}`} role="status" aria-label={t('loading')}>
+                        {Array.from({ length: 8 }).map((_, i) => <div key={i} className="nb-gray nb-line h-[360px] animate-pulse border-2 motion-reduce:animate-none" />)}
+                      </div>
+                    ) : isError ? (
+                      <div className="nb-card px-4 py-14 text-center sm:py-20">
+                        <IsoIllustration type="shopsEmpty" tone="emerald" darkMode={darkMode} onGreen={false} className="mx-auto mb-4 h-32 w-32" />
+                        <p className="mb-2 text-lg font-extrabold uppercase sm:text-xl">{t('loadErrorTitle')}</p>
+                        <p className="mb-6 text-sm opacity-80">{t('loadErrorText')}</p>
+                        <button type="button" onClick={() => refetch()} className="nb-btn nb-btn-a px-6 py-3 text-sm uppercase"><FiRefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} /> {t('tryAgain')}</button>
+                      </div>
+                    ) : filteredShops.length === 0 ? (
+                      <div className="nb-card px-4 py-14 text-center sm:py-24">
+                        <IsoIllustration type="shopsEmpty" tone="emerald" darkMode={darkMode} onGreen={false} className="mx-auto mb-4 h-32 w-32 sm:h-40 sm:w-40" />
+                        <p className="mb-2 text-lg font-extrabold uppercase sm:text-2xl">{shops.length ? t('noMatch') : t('noShops')}</p>
+                        <p className="mb-6 text-sm opacity-80 sm:text-base">{shops.length ? t('tryRemoveFilter') : t('newShopsSoon')}</p>
+                        {shops.length > 0 && <button type="button" onClick={clearFilters} className="nb-btn nb-btn-a px-6 py-3 text-sm uppercase sm:text-base">{t('clearFilters')}</button>}
+                      </div>
+                    ) : (
+                      <>
+                        <div className={`grid gap-4 sm:gap-6 ${gridCols}`}>
+                          {listShops.map((s, i) => (
+                            <ShopCard key={s.id} shop={s} darkMode={darkMode} index={i} layout={layout} isSaved={saved.has(s.id)} actions={actions} t={t} />
+                          ))}
+                        </div>
+                        {isMobile ? (
+                          <InfiniteSentinel hasMore={hasMore} shown={visibleCount} total={filteredShops.length} onMore={loadMore} t={t} />
+                        ) : totalPages > 1 && (
+                          <div className="flex flex-col items-center gap-3 pt-8">
+                            <Pagination page={page} total={totalPages} onChange={goToPage} t={t} />
+                            <p className="nb-muted text-xs">
+                              <span dir="ltr">{startItem}–{endItem}</span> / <span dir="ltr">{filteredShops.length}</span> {t('shopsFound')}
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          </section>
+            </section>
+          </div>
 
           <AnimatePresence>
             {showTop && (
@@ -1129,7 +1309,11 @@ const ShopsContent = memo(({ darkMode }) => {
           </AnimatePresence>
 
           <AnimatePresence>
-            {detailsShop && <ShopDetailsModal key={detailsShop.id} shop={detailsShop} darkMode={darkMode} onClose={closeDetails} onOpen={openFromModal} t={t} />}
+            {detailsShop && <ShopDetailsModal key={detailsShop.id} shop={detailsShop} darkMode={darkMode} onClose={closeDetails} onOpen={openFromModal} onDirections={directionsFromModal} t={t} />}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {directionsShop && <DirectionsModal key={`dir-${directionsShop.id}`} shop={directionsShop} onClose={closeDirections} t={t} />}
           </AnimatePresence>
         </div>
       </MotionConfig>

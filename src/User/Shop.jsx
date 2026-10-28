@@ -1,12 +1,12 @@
 import React, {
-  useEffect, useLayoutEffect, useState, useRef, useMemo, useCallback, useId, memo, lazy, Suspense, useDeferredValue,
+  useEffect, useLayoutEffect, useState, useRef, useMemo, useCallback, useId, memo, lazy, Suspense, useDeferredValue, useTransition,
 } from "react";
 import { useNavigate, useNavigationType, useParams } from "react-router-dom";
 import {
   FiSearch, FiTrash2, FiEdit3, FiMessageCircle, FiCheckCircle, FiShoppingCart, FiX, FiSliders,
   FiChevronLeft, FiChevronRight, FiArrowRight, FiCheck, FiChevronDown,
   FiShield, FiTruck, FiRefreshCw, FiTag, FiPackage, FiAward, FiExternalLink, FiArrowUp,
-  FiCalendar, FiClock,
+  FiCalendar, FiClock, FiHeart,
 } from "react-icons/fi";
 import { RiStarFill } from "react-icons/ri";
 import { LazyMotion, MotionConfig, domAnimation, m, AnimatePresence } from "framer-motion";
@@ -20,7 +20,7 @@ import { UI3D_CSS, Defs3D } from "../components/user/Ui3D";
 import { EXTRAS_CSS, Toaster, toast } from "../components/user/UiExtras";
 import {
   LISTING_CSS, PAGE_SIZES, CONDITIONS, safeImageUrl, priceStep, finalPrice, clamp, clean, loadSwal,
-  useLangFont, useBackToTop, useModalLock, useHScroll, PriceRangeSlider,
+  useLangFont, useBackToTop, useModalLock, useHScroll,
 } from "../components/user/ListingKit";
 import { IsoIllustration, isoCatKey } from "../components/user/IsoIllustrations";
 import enTranslations from "../locales/en/translation.json";
@@ -30,6 +30,10 @@ import frTranslations from "../locales/fr/translation.json";
 const queryClient = new QueryClient({
   defaultOptions: { queries: { refetchOnWindowFocus: false, retry: false, gcTime: 10 * 60 * 1000 } },
 });
+
+const SAVED_KEY = "nb_saved_products";
+const MOBILE_BATCH = 8;
+const HISTOGRAM_BINS = 16;
 
 const NB_FONT = "'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
 const NB_FONT_STYLE = { fontFamily: NB_FONT };
@@ -63,22 +67,40 @@ const EXTRA = {
     pageN: "Page {n}", pagination: "Pagination", productDetails: "Details", imageUnavailable: "Image unavailable", noAddress: "No address listed",
     addressLabel: "Address", phoneLabel: "Phone",
     eyebrowOffers: "Offers", shopOffers: "Shop Offers", shopOffersSubtitle: "Current deals from this shop", viewAllOffers: "View all offers",
+    save: "Save product", saved: "Saved", savedOnly: "Saved only", loadingMore: "Loading more products", endOfList: "You have seen all products",
+    all: "All", moreFilters: "More filters", priceMin: "Min", priceMax: "Max", minPriceAria: "Minimum price", maxPriceAria: "Maximum price",
+    errorInvalidNumber: "Enter a valid number", errorNegative: "Price can't be negative", errorMinGreater: "Min can't be above max",
+    errorMaxLess: "Max can't be below min", errorMaxPrice: "Max price is {{max}}",
   },
   ar: {
     eyebrowCollections: "المجموعات", eyebrowProducts: "الكتالوج", eyebrowReviews: "التقييمات", perPage: "لكل صفحة", prevPage: "الصفحة السابقة", nextPage: "الصفحة التالية",
     pageN: "صفحة {n}", pagination: "التنقل بين الصفحات", productDetails: "التفاصيل", imageUnavailable: "الصورة غير متاحة", noAddress: "لا يوجد عنوان مسجل",
     addressLabel: "العنوان", phoneLabel: "الهاتف",
     eyebrowOffers: "العروض", shopOffers: "عروض المتجر", shopOffersSubtitle: "أحدث العروض الحالية من هذا المتجر", viewAllOffers: "عرض كل العروض",
+    save: "حفظ المنتج", saved: "تم الحفظ", savedOnly: "المحفوظة فقط", loadingMore: "جارٍ تحميل المزيد من المنتجات", endOfList: "لقد شاهدت جميع المنتجات",
+    all: "الكل", moreFilters: "فلاتر إضافية", priceMin: "الأدنى", priceMax: "الأقصى", minPriceAria: "السعر الأدنى", maxPriceAria: "السعر الأقصى",
+    errorInvalidNumber: "أدخل رقمًا صحيحًا", errorNegative: "لا يمكن أن يكون السعر سالبًا", errorMinGreater: "الحد الأدنى لا يمكن أن يتجاوز الأقصى",
+    errorMaxLess: "الحد الأقصى لا يمكن أن يقل عن الأدنى", errorMaxPrice: "أقصى سعر هو {{max}}",
   },
   fr: {
     eyebrowCollections: "Collections", eyebrowProducts: "Catalogue", eyebrowReviews: "Avis", perPage: "par page", prevPage: "Page précédente", nextPage: "Page suivante",
     pageN: "Page {n}", pagination: "Pagination", productDetails: "Détails", imageUnavailable: "Image indisponible", noAddress: "Aucune adresse indiquée",
     addressLabel: "Adresse", phoneLabel: "Téléphone",
     eyebrowOffers: "Offres", shopOffers: "Offres de la boutique", shopOffersSubtitle: "Les offres du moment de cette boutique", viewAllOffers: "Voir toutes les offres",
+    save: "Enregistrer le produit", saved: "Enregistré", savedOnly: "Enregistrés uniquement", loadingMore: "Chargement d'autres produits", endOfList: "Vous avez vu tous les produits",
+    all: "Tous", moreFilters: "Plus de filtres", priceMin: "Min", priceMax: "Max", minPriceAria: "Prix minimum", maxPriceAria: "Prix maximum",
+    errorInvalidNumber: "Saisissez un nombre valide", errorNegative: "Le prix ne peut pas être négatif", errorMinGreater: "Le min ne peut pas dépasser le max",
+    errorMaxLess: "Le max ne peut pas être inférieur au min", errorMaxPrice: "Le prix max est {{max}}",
   },
 };
-const getShopTranslation = (language, key, fallback) =>
-  SHOP_TRANSLATIONS[language]?.[key] || EXTRA[language]?.[key] || SHOP_TRANSLATIONS.en?.[key] || EXTRA.en[key] || fallback || key;
+const getShopTranslation = (language, key, fallbackOrParams) => {
+  const fallback = typeof fallbackOrParams === "string" ? fallbackOrParams : undefined;
+  const raw = SHOP_TRANSLATIONS[language]?.[key] || EXTRA[language]?.[key] || SHOP_TRANSLATIONS.en?.[key] || EXTRA.en[key] || fallback || key;
+  if (fallbackOrParams && typeof fallbackOrParams === "object" && typeof raw === "string") {
+    return raw.replace(/\{\{(\w+)\}\}/g, (_, k) => (fallbackOrParams[k] !== undefined ? fallbackOrParams[k] : ""));
+  }
+  return raw;
+};
 const getOfferTranslation = (language, key) => OFFER_TRANSLATIONS[language]?.[key] || OFFER_TRANSLATIONS.en?.[key] || key;
 
 const LOCALE_MAP = { en: "en-GB", ar: "ar-EG", fr: "fr-FR" };
@@ -89,6 +111,7 @@ const prefetchChatModal = () => import("../components/user/UserChatModal");
 const conditionLabel = (t, value) => (value ? t(`condition${value}`, String(value)) : t("conditionUnknown"));
 
 const NUMBER_FORMAT = new Intl.NumberFormat(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const COMPACT_FORMAT = new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 });
 const money = (n, currency) => `${currency} ${NUMBER_FORMAT.format(Number(n) || 0)}`;
 
 const kindOf = (name = "") => {
@@ -196,22 +219,48 @@ const useIsMobile = (query = "(max-width: 1023.98px)") => {
   return matches;
 };
 
+const readSaved = () => {
+  try {
+    const v = JSON.parse(localStorage.getItem(SAVED_KEY) || "[]");
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+};
+
+const useSavedProducts = () => {
+  const [ids, setIds] = useState(readSaved);
+  const toggle = useCallback((id) => {
+    setIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem(SAVED_KEY, JSON.stringify(ids)); } catch { }
+  }, [ids]);
+  const set = useMemo(() => new Set(ids), [ids]);
+  return [set, toggle];
+};
+
 const NB_CSS = `
-.nb{--nb-bg:#eef9f3;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e8ebe9;--nb-accent:#10b981;--nb-btn:#059669;--nb-on:#ffffff;background:var(--nb-bg);color:var(--nb-ink)}
-.nb-dark{--nb-bg:#141414;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#1e1e1e;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-on:#022c22}
+.nb{--nb-bg:#f3f4f6;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e2e5e9;--nb-accent:#10b981;--nb-btn:#059669;--nb-on:#ffffff;background:var(--nb-bg);color:var(--nb-ink)}
+.nb-dark{--nb-bg:#121212;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#212121;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-on:#022c22}
 .nb-dark .border-dotted,.nb-dark .nb-dot{border-color:#3f3f3f}
-.nb-dark .nb-bg.nb-line{border-color:#3a3a3a}
+.nb-seq{border-top:2px solid var(--nb-line)}
+.nb-seq>section:nth-of-type(odd){background:var(--nb-bg)}
+.nb-seq>section:nth-of-type(even){background:var(--nb-gray)}
+.nb-seq>section+section{border-top:2px solid var(--nb-line)}
 .nb-bg{background:var(--nb-bg)}
 .nb-gray{background:var(--nb-gray)}
 .nb-muted{color:var(--nb-muted)}
 .nb-ic{color:var(--nb-accent)}
 .nb-line{border-color:var(--nb-line)}
 .nb-card{background:var(--nb-card);border:2px solid var(--nb-line);box-shadow:5px 5px 0 var(--nb-shadow);transition:transform .15s ease,box-shadow .15s ease}
-.nb-lift:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--nb-shadow)}
+.nb-lift{contain:layout style;backface-visibility:hidden}
+.nb-lift:hover{transform:translate3d(-2px,-2px,0);box-shadow:7px 7px 0 var(--nb-shadow)}
+.nb-num{display:inline-flex;align-items:center;justify-content:center;flex:none;width:28px;height:28px;background:var(--nb-btn);color:var(--nb-on);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+.nb-num-sm{width:24px;height:24px;font-size:10px;box-shadow:1px 1px 0 var(--nb-shadow)}
 .nb-bar{display:inline-block;width:52px;height:16px;background:var(--nb-accent);border:2px solid var(--nb-line)}
 .nb-ul{text-decoration:underline;text-decoration-color:var(--nb-accent);text-decoration-thickness:4px;text-underline-offset:5px;text-decoration-skip-ink:none}
 .nb-rule{display:block;width:100%;height:4px;margin-top:8px;background:var(--nb-accent)}
-.nb-divider{display:block;height:8px;background:var(--nb-accent);border-block:2px solid var(--nb-line)}
 .nb-squig path{stroke:var(--nb-accent)}
 .nb-chip{display:inline-flex;align-items:center;gap:4px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);padding:1px 6px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;line-height:1.5}
 .nb-chip-a{background:var(--nb-btn);color:var(--nb-on)}
@@ -239,9 +288,16 @@ const NB_CSS = `
 .nb-pic{border-radius:1rem;contain:layout paint}
 .nb-box{display:flex;align-items:center;justify-content:center;flex:none;width:20px;height:20px;border:2px solid var(--nb-line);background:var(--nb-card);color:var(--nb-on)}
 .nb-box-on{background:var(--nb-btn)}
+.nb-bin{background:var(--nb-gray)}
+.nb-bin-on{background:var(--nb-accent);box-shadow:inset 0 0 0 1.5px var(--nb-line)}
+.nb-range{position:absolute;inset:0;width:100%;height:20px;margin:0;appearance:none;-webkit-appearance:none;background:transparent;pointer-events:none}
+.nb-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;box-sizing:border-box;pointer-events:auto;width:20px;height:20px;border-radius:0;background:var(--nb-accent);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);cursor:grab}
+.nb-range::-moz-range-thumb{box-sizing:border-box;pointer-events:auto;width:20px;height:20px;border-radius:0;background:var(--nb-accent);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);cursor:grab}
 .nb-star-on{color:#f59e0b}
 .nb-star-off{color:var(--nb-muted);opacity:.35}
-@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn,.nb-arrow{transition:none}}
+@keyframes nbSpin{to{transform:rotate(360deg)}}
+.nb-spin{animation:nbSpin .7s linear infinite}
+@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn,.nb-arrow{transition:none}.nb-spin{animation:none}}
 `;
 const STYLE_EL = <style>{`${UI3D_CSS}${EXTRAS_CSS}${LISTING_CSS}${NB_CSS}`}</style>;
 
@@ -463,6 +519,30 @@ const Pagination = memo(({ page, total, onChange, label, t }) => {
   );
 });
 
+const InfiniteSentinel = memo(({ hasMore, shown, total, onMore, t }) => {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !hasMore) return undefined;
+    if (typeof IntersectionObserver === "undefined") { onMore(); return undefined; }
+    const io = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) onMore(); }, { rootMargin: "700px 0px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore, shown, onMore]);
+  return (
+    <div ref={ref} className="flex min-h-[3.5rem] items-center justify-center pt-8" role="status" aria-live="polite">
+      {hasMore ? (
+        <span className="nb-chip !px-3 !py-1.5">
+          <span aria-hidden="true" className="nb-spin h-3.5 w-3.5 rounded-full border-2 border-current border-t-transparent" />
+          {t("loadingMore")}
+        </span>
+      ) : total > MOBILE_BATCH ? (
+        <span className="nb-chip !px-3 !py-1.5"><FiCheck aria-hidden="true" className="h-3 w-3" />{t("endOfList")}</span>
+      ) : null}
+    </div>
+  );
+});
+
 const Frame = ({ darkMode, dir, language, font, isAr, children }) => (
   <div dir={dir} lang={language} style={isAr ? font.style : NB_FONT_STYLE}
     className={`nb ${darkMode ? "nb-dark" : ""} min-h-screen overflow-x-hidden ${isAr ? font.className : ""}`}>
@@ -636,7 +716,7 @@ const ShopOfferModal = memo(({ offer, language, currency, onClose, onViewProduct
   );
 });
 
-const ProductCard = memo(({ product: p, darkMode, index = 0, onAddToCart, onDetails, t, className = "" }) => {
+const ProductCard = memo(({ product: p, darkMode, index = 0, isSaved = false, onSave, onAddToCart, onDetails, t, className = "" }) => {
   const src = p.imageUrl;
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(!src);
@@ -667,6 +747,7 @@ const ProductCard = memo(({ product: p, darkMode, index = 0, onAddToCart, onDeta
   const snippet = useMemo(() => clean(p.description, 140) || t("noProductDescription"), [p.description, t]);
   const open = useCallback(() => onDetails(p), [onDetails, p]);
   const openFromArrow = useCallback((e) => { e.stopPropagation(); open(); }, [open]);
+  const save = useCallback((e) => { e.stopPropagation(); onSave(p.id); }, [onSave, p.id]);
   const handleLoad = useCallback(() => { loadedRef.current = true; setImgLoaded(true); }, []);
   const handleImgError = useCallback(() => setImgError(true), []);
 
@@ -716,6 +797,10 @@ const ProductCard = memo(({ product: p, darkMode, index = 0, onAddToCart, onDeta
             </>
           )}
           {hasDiscount && <span dir="ltr" className="nb-chip nb-chip-r absolute start-2 top-2 z-10">-{p.discount}%</span>}
+          <button type="button" onClick={save} aria-pressed={isSaved} aria-label={isSaved ? t("saved") : t("save")} title={isSaved ? t("saved") : t("save")}
+            className={`nb-btn absolute end-2 top-2 z-10 h-8 w-8 ${isSaved ? "nb-btn-on" : ""}`}>
+            <FiHeart className="h-4 w-4" fill={isSaved ? "currentColor" : "none"} />
+          </button>
           {p.condition && <span className="nb-chip nb-chip-a absolute bottom-2 end-2 z-10 max-w-[70%]"><span className="truncate">{conditionLabel(t, p.condition)}</span></span>}
         </div>
 
@@ -840,7 +925,7 @@ const ReviewCard = memo(({ review: r, mine, dateLocale, t, onEdit, onDelete }) =
   );
 });
 
-const ProductDetailsModal = memo(({ product, darkMode, onClose, onAddToCart, onView, t }) => {
+const ProductDetailsModal = memo(({ product, darkMode, isSaved, onSave, onClose, onAddToCart, onView, t }) => {
   const hasStock = product.stock != null;
   const inStock = !hasStock || product.stock > 0;
   const hasDiscount = product.discount > 0;
@@ -868,7 +953,13 @@ const ProductDetailsModal = memo(({ product, darkMode, onClose, onAddToCart, onV
     <div className="fixed inset-0 z-[1100] flex items-end justify-center p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={productName}>
       <m.div {...BACKDROP_MOTION} className="absolute inset-0 bg-black/60" onClick={onClose} />
       <m.div {...PANEL_MOTION} style={GPU} className="nb-card relative max-h-[92vh] w-full transform-gpu overflow-y-auto overscroll-contain !transition-none sm:max-w-lg">
-        <button type="button" onClick={onClose} aria-label={t("close")} className="nb-btn absolute end-3 top-3 z-10 h-8 w-8"><FiX className="h-4 w-4" /></button>
+        <div className="absolute end-3 top-3 z-10 flex items-center gap-2">
+          <button type="button" onClick={() => onSave(product.id)} aria-pressed={isSaved} aria-label={isSaved ? t("saved") : t("save")} title={isSaved ? t("saved") : t("save")}
+            className={`nb-btn h-8 w-8 ${isSaved ? "nb-btn-on" : ""}`}>
+            <FiHeart className="h-4 w-4" fill={isSaved ? "currentColor" : "none"} />
+          </button>
+          <button type="button" onClick={onClose} aria-label={t("close")} className="nb-btn h-8 w-8"><FiX className="h-4 w-4" /></button>
+        </div>
 
         <div className="nb-media nb-line relative aspect-[16/10] overflow-hidden border-b-2">
           {imgError ? (
@@ -933,7 +1024,7 @@ const ProductDetailsModal = memo(({ product, darkMode, onClose, onAddToCart, onV
   );
 });
 
-const CategorySlider = memo(({ category, items, darkMode, onAddToCart, onDetails, t, isRTL }) => {
+const CategorySlider = memo(({ category, items, darkMode, saved, onSave, onAddToCart, onDetails, t, isRTL }) => {
   const { ref: sliderRef, edge, scroll } = useHScroll(items.length, isRTL);
   const navigate = useNavigate();
   const goToCategory = useCallback(() => navigate(`/products/category/${encodeURIComponent(category.id)}`), [navigate, category.id]);
@@ -960,7 +1051,7 @@ const CategorySlider = memo(({ category, items, darkMode, onAddToCart, onDetails
       <div ref={sliderRef} className="hide-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-3 pe-3 ps-1 pt-1 sm:gap-6">
         {items.map((p, i) => (
           <div key={p.id} className="w-[200px] flex-shrink-0 snap-start sm:w-[250px]">
-            <ProductCard product={p} darkMode={darkMode} index={i} onAddToCart={onAddToCart} onDetails={onDetails} t={t} />
+            <ProductCard product={p} darkMode={darkMode} index={i} isSaved={saved.has(p.id)} onSave={onSave} onAddToCart={onAddToCart} onDetails={onDetails} t={t} />
           </div>
         ))}
       </div>
@@ -968,18 +1059,23 @@ const CategorySlider = memo(({ category, items, darkMode, onAddToCart, onDetails
   );
 });
 
-const OptionRow = memo(({ label, count, selected, onClick }) => (
-  <button type="button" role="checkbox" aria-checked={selected} onClick={onClick}
-    className="flex w-full items-center gap-2.5 py-1.5 text-start text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-[color:var(--nb-accent)]">
-    <span className={`nb-box ${selected ? "nb-box-on" : ""}`}>{selected && <FiCheck className="h-3 w-3" strokeWidth={3} />}</span>
+const OptionRow = memo(({ type, label, count, selected, onClick }) => (
+  <button
+    type="button" role={type === "check" ? "checkbox" : "radio"} aria-checked={selected} onClick={onClick}
+    className="flex w-full items-center gap-2.5 py-1.5 text-start text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-[color:var(--nb-accent)]"
+  >
+    <span className={`nb-box ${type === "radio" ? "rounded-full" : ""} ${selected ? "nb-box-on" : ""}`}>
+      {selected && (type === "check" ? <FiCheck className="h-3 w-3" strokeWidth={3} /> : <span className="h-2 w-2 rounded-full bg-[color:var(--nb-on)]" />)}
+    </span>
     <span className="min-w-0 flex-1 truncate">{label}</span>
     {count !== undefined && <span className="nb-muted text-xs tabular-nums" dir="ltr">{count}</span>}
   </button>
 ));
 
-const FilterBlock = memo(({ title, isOpen, onToggle, children }) => (
+const FilterBlock = memo(({ num, title, isOpen, onToggle, children }) => (
   <section className="border-t-2 nb-line">
     <button type="button" onClick={onToggle} aria-expanded={isOpen} className="flex w-full items-center gap-2.5 py-3 text-start">
+      <span className="nb-num nb-num-sm">{num}</span>
       <span className="min-w-0 flex-1 truncate text-[13px] font-extrabold uppercase"><span className="nb-ul">{title}</span></span>
       <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
     </button>
@@ -987,13 +1083,108 @@ const FilterBlock = memo(({ title, isOpen, onToggle, children }) => (
   </section>
 ));
 
+const NumField = memo(({ value, onCommit, label, t }) => {
+  const [draft, setDraft] = useState(String(value));
+  const [error, setError] = useState("");
+  useEffect(() => { setDraft(String(value)); }, [value]);
+  const commit = () => {
+    const n = Number(draft);
+    if (draft.trim() === "" || !Number.isFinite(n)) { setError(t("errorInvalidNumber")); setDraft(String(value)); return; }
+    const msg = onCommit(n);
+    if (msg) { setError(msg); setDraft(String(value)); } else setError("");
+  };
+  return (
+    <label className="min-w-0 flex-1">
+      <span className="mb-1 block text-[11px] font-bold uppercase">{label}</span>
+      <div className={`nb-field flex items-center px-2 py-1.5 text-xs font-bold ${error ? "!border-rose-500" : ""}`} dir="ltr">
+        <span className="nb-muted me-1">{t("currency")}</span>
+        <input type="number" inputMode="numeric" min={0} value={draft} aria-invalid={!!error}
+          onChange={(e) => { setDraft(e.target.value); setError(""); }} onBlur={commit}
+          onKeyDown={(e) => e.key === "Enter" && commit()} className="w-full min-w-0 bg-transparent tabular-nums outline-none" />
+      </div>
+      {error && <p role="alert" className="mt-1 text-[11px] font-semibold text-rose-500">{error}</p>}
+    </label>
+  );
+});
+
+const PriceRangeFilter = memo(({ bounds, value, onChange, histogram, t }) => {
+  const { max, step } = bounds;
+  const [lo, hi] = value;
+  const leftPct = (lo / max) * 100;
+  const rightPct = (hi / max) * 100;
+  const peak = Math.max(1, ...histogram);
+  const presets = useMemo(() => {
+    const snap = (v) => Math.round(v / step) * step;
+    const a = snap(max / 3);
+    const b = snap((max * 2) / 3);
+    if (!(a > 0 && b > a && b < max)) return [];
+    return [
+      { label: `< ${COMPACT_FORMAT.format(a)}`, r: [0, a] },
+      { label: `${COMPACT_FORMAT.format(a)} – ${COMPACT_FORMAT.format(b)}`, r: [a, b] },
+      { label: `> ${COMPACT_FORMAT.format(b)}`, r: [b, max] },
+    ];
+  }, [max, step]);
+
+  const commitMin = (n) => {
+    if (n < 0) return t("errorNegative");
+    if (n > hi) return t("errorMinGreater");
+    onChange([n, hi]);
+    return "";
+  };
+  const commitMax = (n) => {
+    if (n < 0) return t("errorNegative");
+    if (n < lo) return t("errorMaxLess");
+    if (n > max) return t("errorMaxPrice", { max: max.toLocaleString() });
+    onChange([lo, n]);
+    return "";
+  };
+
+  return (
+    <div className="min-w-0 space-y-4" dir="ltr">
+      <div className="flex h-12 items-end gap-[3px]" aria-hidden="true">
+        {histogram.map((c, i) => {
+          const binStart = (i / histogram.length) * max;
+          const binEnd = ((i + 1) / histogram.length) * max;
+          const inRange = binEnd > lo && binStart < hi;
+          return <div key={i} className={`flex-1 ${inRange ? "nb-bin-on" : "nb-bin"}`} style={{ height: `${Math.max(c ? 12 : 4, (c / peak) * 100)}%`, opacity: c ? 1 : 0.5 }} />;
+        })}
+      </div>
+      <div className="relative flex h-5 items-center">
+        <div className="nb-gray nb-line absolute inset-x-0 h-2 border-2" />
+        <div className="absolute h-2 border-y-2 nb-line bg-[color:var(--nb-accent)]" style={{ left: `${leftPct}%`, right: `${100 - rightPct}%` }} />
+        <input type="range" aria-label={t("minPriceAria")} min={0} max={max} step={step} value={lo}
+          onChange={(e) => onChange([Math.max(0, Math.min(Number(e.target.value), hi - step)), hi])} className="nb-range" style={{ zIndex: lo > max - step * 3 ? 5 : 3 }} />
+        <input type="range" aria-label={t("maxPriceAria")} min={0} max={max} step={step} value={hi}
+          onChange={(e) => onChange([lo, Math.max(Number(e.target.value), lo + step)])} className="nb-range" style={{ zIndex: 4 }} />
+      </div>
+      <div className="flex flex-col gap-4 min-[380px]:flex-row min-[380px]:gap-6">
+        <NumField label={t("priceMin")} value={lo} onCommit={commitMin} t={t} />
+        <NumField label={t("priceMax")} value={hi} onCommit={commitMax} t={t} />
+      </div>
+      {presets.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {presets.map((p) => {
+            const on = lo === p.r[0] && hi === p.r[1];
+            return (
+              <button key={p.r.join("-")} type="button" onClick={() => onChange(p.r)} aria-pressed={on}
+                className={`nb-btn px-2.5 py-1 text-[11px] ${on ? "nb-btn-on" : ""}`}>
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+});
+
 const FilterPanel = memo((p) => {
-  const { darkMode, t, countsByCondition, toggleCondition, conditions, categoryOptions, selectedCategories, toggleCategory,
-    onSaleOnly, setOnSaleOnly, onSaleCount, inStockOnly, setInStockOnly, inStockCount,
-    priceRange, setPriceRange, maxPrice, open, setOpen, clearFilters, activeFiltersCount } = p;
+  const { t, flat, conditionCounts, selectedConditions, toggleCondition, categoryOptions, selectedCategory, setSelectedCategory, totalCount,
+    priceBounds, priceValue, setPriceRange, histogram, inStockOnly, setInStockOnly, onSaleOnly, setOnSaleOnly, savedOnly, setSavedOnly,
+    open, setOpen, clearFilters, activeFiltersCount } = p;
   const toggle = (k) => setOpen((o) => ({ ...o, [k]: !o[k] }));
   return (
-    <div className="nb-card w-full min-w-0 max-w-full overflow-x-hidden p-3 sm:p-4">
+    <div className={flat ? "w-full min-w-0 max-w-full overflow-x-hidden" : "nb-card w-full min-w-0 max-w-full overflow-x-hidden p-3 sm:p-4"}>
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 pb-3">
         <h3 className="flex min-w-0 items-center gap-2 text-base font-extrabold uppercase">
           <FiSliders aria-hidden="true" className="h-4 w-4 flex-shrink-0" /> <span className="nb-ul truncate">{t("filters")}</span>
@@ -1001,32 +1192,38 @@ const FilterPanel = memo((p) => {
         {activeFiltersCount > 0 && <button type="button" onClick={clearFilters} className="flex-shrink-0 text-xs font-bold underline underline-offset-4">{t("resetAll")}</button>}
       </div>
 
-      <FilterBlock title={t("condition")} isOpen={open.cond} onToggle={() => toggle("cond")}>
+      {priceBounds.max > 0 && (
+        <FilterBlock num="01" title={t("priceRange")} isOpen={open.price} onToggle={() => toggle("price")}>
+          <div className="min-w-0 px-1">
+            <PriceRangeFilter bounds={priceBounds} value={priceValue} onChange={setPriceRange} histogram={histogram} t={t} />
+          </div>
+        </FilterBlock>
+      )}
+
+      <FilterBlock num="02" title={t("condition")} isOpen={open.cond} onToggle={() => toggle("cond")}>
         <div className="min-w-0 break-words">
-          {CONDITIONS.map((c) => <OptionRow key={c} label={conditionLabel(t, c)} count={countsByCondition[c] || 0} selected={conditions.includes(c)} onClick={() => toggleCondition(c)} />)}
+          {CONDITIONS.map((c) => (
+            <OptionRow key={c} type="check" label={conditionLabel(t, c)} count={conditionCounts[c] || 0} selected={selectedConditions.includes(c)} onClick={() => toggleCondition(c)} />
+          ))}
+          <OptionRow type="check" label={t("inStockOnly")} selected={inStockOnly} onClick={() => setInStockOnly((v) => !v)} />
         </div>
       </FilterBlock>
 
       {categoryOptions.length > 0 && (
-        <FilterBlock title={t("category")} isOpen={open.cat} onToggle={() => toggle("cat")}>
-          <div className="max-h-40 min-w-0 overflow-y-auto overscroll-contain break-words pe-1 sm:max-h-44">
-            {categoryOptions.map(({ name, count }) => <OptionRow key={name} label={name} count={count} selected={selectedCategories.includes(name)} onClick={() => toggleCategory(name)} />)}
+        <FilterBlock num="03" title={t("category")} isOpen={open.cat} onToggle={() => toggle("cat")}>
+          <div className="max-h-44 min-w-0 overflow-y-auto overscroll-contain break-words pe-1 sm:max-h-52" role="radiogroup" aria-label={t("category")}>
+            <OptionRow type="radio" label={t("all")} count={totalCount} selected={selectedCategory === "all"} onClick={() => setSelectedCategory("all")} />
+            {categoryOptions.map(({ name, count }) => (
+              <OptionRow key={name} type="radio" label={name} count={count} selected={selectedCategory === name} onClick={() => setSelectedCategory(name)} />
+            ))}
           </div>
         </FilterBlock>
       )}
 
-      {maxPrice > 0 && (
-        <FilterBlock title={t("priceRange")} isOpen={open.price} onToggle={() => toggle("price")}>
-          <div className="min-w-0 px-1">
-            <PriceRangeSlider range={priceRange || [0, maxPrice]} max={maxPrice} step={priceStep(maxPrice)} onChange={setPriceRange} darkMode={darkMode} />
-          </div>
-        </FilterBlock>
-      )}
-
-      <FilterBlock title={t("offers")} isOpen={open.offers} onToggle={() => toggle("offers")}>
+      <FilterBlock num="04" title={t("moreFilters")} isOpen={open.more} onToggle={() => toggle("more")}>
         <div className="min-w-0 break-words">
-          <OptionRow label={t("onSaleOnly")} count={onSaleCount} selected={onSaleOnly} onClick={() => setOnSaleOnly((v) => !v)} />
-          <OptionRow label={t("inStockOnly")} count={inStockCount} selected={inStockOnly} onClick={() => setInStockOnly((v) => !v)} />
+          <OptionRow type="check" label={t("onSaleOnly")} selected={onSaleOnly} onClick={() => setOnSaleOnly((v) => !v)} />
+          <OptionRow type="check" label={t("savedOnly")} selected={savedOnly} onClick={() => setSavedOnly((v) => !v)} />
         </div>
       </FilterBlock>
     </div>
@@ -1034,7 +1231,7 @@ const FilterPanel = memo((p) => {
 });
 
 const ChatCTABanner = memo(({ darkMode, onOpenChat, t }) => (
-  <section aria-label={t("chatBannerTitle")} className="lk-cv nb-bg nb-line border-t-2 py-10 sm:py-16">
+  <section aria-label={t("chatBannerTitle")} className="lk-cv py-10 sm:py-16">
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
       <div onMouseEnter={prefetchChatModal} className="nb-card group flex flex-col items-center gap-5 p-6 text-center sm:flex-row sm:gap-8 sm:p-10 sm:text-start">
         <span className="nb-media nb-media-b flex h-20 w-20 flex-shrink-0 items-center justify-center sm:h-24 sm:w-24">
@@ -1072,6 +1269,7 @@ const ShopContent = ({ darkMode, addToCart }) => {
   const isAuthenticated = !!accessToken;
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const [, startTransition] = useTransition();
   useScrollTopOnEnter(shopId);
 
   const dir = languageDirection(language);
@@ -1080,22 +1278,25 @@ const ShopContent = ({ darkMode, addToCart }) => {
   const dateLocale = LOCALE_MAP[language] || "en-GB";
   const font = useLangFont(language);
 
+  const [saved, toggleSaved] = useSavedProducts();
   const [search, setSearch] = useState("");
   const [conditions, setConditions] = useState([]);
-  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const [priceRange, setPriceRangeState] = useState(null);
   const [onSaleOnly, setOnSaleOnly] = useState(false);
   const [inStockOnly, setInStockOnly] = useState(false);
+  const [savedOnly, setSavedOnly] = useState(false);
   const [sortBy, setSortBy] = useState("relevance");
   const [pageSize, setPageSize] = useState(PAGE_SIZES[0]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [visibleCount, setVisibleCount] = useState(MOBILE_BATCH);
   const [reviewPage, setReviewPage] = useState(1);
   const [editingReview, setEditingReview] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [detailsProduct, setDetailsProduct] = useState(null);
   const [offerDetail, setOfferDetail] = useState(null);
   const [openChat, setOpenChat] = useState(false);
-  const [open, setOpen] = useState({ cond: true, cat: true, price: false, offers: true });
+  const [open, setOpen] = useState({ price: true, cond: true, cat: true, more: true });
   const queryClientLocal = useQueryClient();
 
   const reviewBusyRef = useRef(false);
@@ -1110,11 +1311,15 @@ const ShopContent = ({ darkMode, addToCart }) => {
   }, []);
 
   const filters = useMemo(
-    () => ({ search, conditions, selectedCategories, priceRange, onSaleOnly, inStockOnly, sortBy }),
-    [search, conditions, selectedCategories, priceRange, onSaleOnly, inStockOnly, sortBy]
+    () => ({ search, conditions, selectedCategory, priceRange, onSaleOnly, inStockOnly, savedOnly, sortBy }),
+    [search, conditions, selectedCategory, priceRange, onSaleOnly, inStockOnly, savedOnly, sortBy]
   );
   const deferred = useDeferredValue(filters);
   const isStale = deferred !== filters;
+  const {
+    search: dSearch, conditions: dConds, selectedCategory: dCat, priceRange: dPrice,
+    onSaleOnly: dSale, inStockOnly: dStock, savedOnly: dSaved, sortBy: dSort,
+  } = deferred;
 
   useEffect(() => {
     const run = () => prefetchChatModal();
@@ -1333,37 +1538,40 @@ const ShopContent = ({ darkMode, addToCart }) => {
   }, [reviews, userId, queryClientLocal, shopId, t]);
 
   const toggleCondition = useCallback((c) => setConditions((p) => (p.includes(c) ? p.filter((x) => x !== c) : [...p, c])), []);
-  const toggleCategory = useCallback((name) => setSelectedCategories((p) => (p.includes(name) ? p.filter((c) => c !== name) : [...p, name])), []);
 
   const clearFilters = useCallback(() => {
-    setSearch(""); setConditions([]); setSelectedCategories([]); setPriceRangeState(null);
-    setOnSaleOnly(false); setInStockOnly(false); setSortBy("relevance"); setCurrentPage(1);
+    setSearch(""); setConditions([]); setSelectedCategory("all"); setPriceRangeState(null);
+    setOnSaleOnly(false); setInStockOnly(false); setSavedOnly(false); setSortBy("relevance"); setCurrentPage(1); setVisibleCount(MOBILE_BATCH);
   }, []);
   useEffect(() => { clearFilters(); }, [shopId, clearFilters]);
   useEffect(() => { setReviewPage(1); setOfferDetail(null); }, [shopId]);
 
-  const maxPrice = useMemo(() => {
+  const priceBounds = useMemo(() => {
     const top = products.reduce((mx, p) => Math.max(mx, p._final), 0);
-    const step = priceStep(top);
-    return top ? Math.ceil(top / step) * step : 0;
+    if (!top) return { max: 0, step: 1 };
+    const step = priceStep(top) || 1;
+    return { max: Math.max(step * 10, Math.ceil(top / step) * step), step };
   }, [products]);
-  const setPriceRange = useCallback((r) => setPriceRangeState(r[0] <= 0 && r[1] >= maxPrice ? null : r), [maxPrice]);
+  const priceValue = useMemo(() => {
+    if (!priceRange) return [0, priceBounds.max];
+    const hi = clamp(Number(priceRange[1]) || 0, 0, priceBounds.max);
+    const lo = Math.min(clamp(Number(priceRange[0]) || 0, 0, priceBounds.max), hi);
+    return [lo, hi];
+  }, [priceRange, priceBounds.max]);
+  const setPriceRange = useCallback((r) => {
+    const hi = clamp(Number(r[1]) || 0, 0, priceBounds.max);
+    const lo = Math.min(clamp(Number(r[0]) || 0, 0, priceBounds.max), hi);
+    setPriceRangeState(lo <= 0 && hi >= priceBounds.max ? null : [lo, hi]);
+  }, [priceBounds.max]);
 
-  const { countsByCondition, onSaleCount, inStockCount, categoryOptions, productsByCategory } = useMemo(() => {
-    const cond = {}, cats = {}, byCat = {};
-    let sale = 0, stock = 0;
+  const { categoryOptions, productsByCategory } = useMemo(() => {
+    const cats = {}, byCat = {};
     for (const p of products) {
-      if (p.condition) cond[p.condition] = (cond[p.condition] || 0) + 1;
-      if (p.discount > 0) sale++;
-      if (p.stock == null || p.stock > 0) stock++;
       if (p._cat) cats[p._cat] = (cats[p._cat] || 0) + 1;
       const catId = p.categoryId ?? p.category?.id ?? p.category;
       if (catId != null) (byCat[catId] ||= []).push(p);
     }
     return {
-      countsByCondition: cond,
-      onSaleCount: sale,
-      inStockCount: stock,
       categoryOptions: Object.entries(cats).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count),
       productsByCategory: byCat,
     };
@@ -1374,27 +1582,45 @@ const ShopContent = ({ darkMode, addToCart }) => {
     .filter((s) => s.items.length > 0)
     .slice(0, 6), [categories, productsByCategory]);
 
-  const filteredProducts = useMemo(() => {
-    const { search: s, conditions: cs, selectedCategories: cats, priceRange: pr, onSaleOnly: os, inStockOnly: st, sortBy: sb } = deferred;
-    const term = s.trim().toLowerCase();
-    const lo = pr ? pr[0] : 0;
-    const hi = pr ? pr[1] : Infinity;
-    const result = products.filter((p) => {
-      if (p._final < lo || p._final > hi) return false;
-      if (cs.length && !cs.includes(p.condition)) return false;
-      if (cats.length && !cats.includes(p._cat)) return false;
-      if (os && !(p.discount > 0)) return false;
-      if (st && p.stock != null && p.stock <= 0) return false;
+  const baseFiltered = useMemo(() => {
+    const term = dSearch.trim().toLowerCase();
+    return products.filter((p) => {
+      if (dCat !== "all" && p._cat !== dCat) return false;
+      if (dSale && !(p.discount > 0)) return false;
+      if (dStock && p.stock != null && p.stock <= 0) return false;
+      if (dSaved && !saved.has(p.id)) return false;
       if (term && !p._text.includes(term)) return false;
       return true;
     });
-    if (sb === "priceLowToHigh") result.sort((a, b) => a._final - b._final);
-    else if (sb === "priceHighToLow") result.sort((a, b) => b._final - a._final);
-    else if (sb === "nameAsc") result.sort((a, b) => (a.name || "").localeCompare(b.name || "", language));
-    else if (sb === "discount") result.sort((a, b) => b.discount - a.discount);
-    else if (sb === "newest") result.sort((a, b) => b._ts - a._ts);
+  }, [products, saved, dSearch, dCat, dSale, dStock, dSaved]);
+
+  const conditionCounts = useMemo(() => {
+    const c = {};
+    for (const p of baseFiltered) if (p.condition) c[p.condition] = (c[p.condition] || 0) + 1;
+    return c;
+  }, [baseFiltered]);
+
+  const histogram = useMemo(() => {
+    const bins = Array(HISTOGRAM_BINS).fill(0);
+    if (!priceBounds.max) return bins;
+    for (const p of baseFiltered) {
+      if (dConds.length && !dConds.includes(p.condition)) continue;
+      bins[Math.min(HISTOGRAM_BINS - 1, Math.floor((p._final / priceBounds.max) * HISTOGRAM_BINS))]++;
+    }
+    return bins;
+  }, [baseFiltered, dConds, priceBounds.max]);
+
+  const filteredProducts = useMemo(() => {
+    const lo = dPrice ? dPrice[0] : 0;
+    const hi = dPrice ? dPrice[1] : Infinity;
+    const result = baseFiltered.filter((p) => p._final >= lo && p._final <= hi && (!dConds.length || dConds.includes(p.condition)));
+    if (dSort === "priceLowToHigh") result.sort((a, b) => a._final - b._final);
+    else if (dSort === "priceHighToLow") result.sort((a, b) => b._final - a._final);
+    else if (dSort === "nameAsc") result.sort((a, b) => (a.name || "").localeCompare(b.name || "", language));
+    else if (dSort === "discount") result.sort((a, b) => b.discount - a.discount);
+    else if (dSort === "newest") result.sort((a, b) => b._ts - a._ts);
     return result;
-  }, [products, deferred, language]);
+  }, [baseFiltered, dPrice, dConds, dSort, language]);
 
   const sortOptions = useMemo(() => [
     { value: "relevance", label: t("sortRelevance") },
@@ -1407,11 +1633,16 @@ const ShopContent = ({ darkMode, addToCart }) => {
   const rowOptions = useMemo(() => PAGE_SIZES.map((n) => ({ value: n, label: `${n} ${t("perPage")}` })), [t]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
-  useEffect(() => { setCurrentPage(1); }, [pageSize, deferred]);
+  useEffect(() => { setCurrentPage(1); setVisibleCount(MOBILE_BATCH); }, [pageSize, deferred]);
   useEffect(() => { setCurrentPage((p) => Math.min(p, totalPages)); }, [totalPages]);
-  const paginatedProducts = useMemo(() => filteredProducts.slice((currentPage - 1) * pageSize, currentPage * pageSize), [filteredProducts, currentPage, pageSize]);
-  const startItem = filteredProducts.length ? (currentPage - 1) * pageSize + 1 : 0;
-  const endItem = Math.min(currentPage * pageSize, filteredProducts.length);
+  const pageOffset = (currentPage - 1) * pageSize;
+  const paginatedProducts = useMemo(() => filteredProducts.slice(pageOffset, pageOffset + pageSize), [filteredProducts, pageOffset, pageSize]);
+  const infiniteProducts = useMemo(() => filteredProducts.slice(0, visibleCount), [filteredProducts, visibleCount]);
+  const listProducts = isMobile ? infiniteProducts : paginatedProducts;
+  const hasMore = isMobile && visibleCount < filteredProducts.length;
+  const startItem = filteredProducts.length ? (isMobile ? 1 : pageOffset + 1) : 0;
+  const endItem = isMobile ? infiniteProducts.length : Math.min(pageOffset + pageSize, filteredProducts.length);
+  const loadMore = useCallback(() => startTransition(() => setVisibleCount((c) => c + MOBILE_BATCH)), []);
 
   const reviewPages = Math.max(1, Math.ceil(reviews.length / REVIEWS_PER_PAGE));
   const safeReviewPage = Math.min(reviewPage, reviewPages);
@@ -1420,7 +1651,7 @@ const ShopContent = ({ darkMode, addToCart }) => {
     [reviews, safeReviewPage]
   );
 
-  const activeFiltersCount = (search ? 1 : 0) + conditions.length + selectedCategories.length + (priceRange ? 1 : 0) + (onSaleOnly ? 1 : 0) + (inStockOnly ? 1 : 0);
+  const activeFiltersCount = (search ? 1 : 0) + conditions.length + (selectedCategory !== "all" ? 1 : 0) + (priceRange ? 1 : 0) + (onSaleOnly ? 1 : 0) + (inStockOnly ? 1 : 0) + (savedOnly ? 1 : 0);
 
   const scrollToProducts = useCallback(() => document.getElementById("shop-products")?.scrollIntoView({ behavior: "smooth", block: "start" }), []);
   const scrollToTop = useCallback(() => window.scrollTo({ top: 0, behavior: "smooth" }), []);
@@ -1448,11 +1679,12 @@ const ShopContent = ({ darkMode, addToCart }) => {
   ], [products.length, avgRating, reviews.length, reviewWord, t]);
 
   const filterPanelProps = useMemo(() => ({
-    darkMode, t, countsByCondition, conditions, toggleCondition, categoryOptions, selectedCategories, toggleCategory,
-    onSaleOnly, setOnSaleOnly, onSaleCount, inStockOnly, setInStockOnly, inStockCount,
-    priceRange, setPriceRange, maxPrice, open, setOpen, clearFilters, activeFiltersCount,
-  }), [darkMode, t, countsByCondition, conditions, toggleCondition, categoryOptions, selectedCategories, toggleCategory,
-    onSaleOnly, onSaleCount, inStockOnly, inStockCount, priceRange, setPriceRange, maxPrice, open, clearFilters, activeFiltersCount]);
+    t, conditionCounts, selectedConditions: conditions, toggleCondition, categoryOptions, selectedCategory, setSelectedCategory,
+    totalCount: products.length, priceBounds, priceValue, setPriceRange, histogram,
+    inStockOnly, setInStockOnly, onSaleOnly, setOnSaleOnly, savedOnly, setSavedOnly,
+    open, setOpen, clearFilters, activeFiltersCount,
+  }), [t, conditionCounts, conditions, toggleCondition, categoryOptions, selectedCategory, products.length, priceBounds, priceValue,
+    setPriceRange, histogram, inStockOnly, onSaleOnly, savedOnly, open, clearFilters, activeFiltersCount]);
   const frameProps = { darkMode, dir, language, font, isAr };
   const currency = t("currency");
 
@@ -1485,204 +1717,210 @@ const ShopContent = ({ darkMode, addToCart }) => {
           <ShopBanner darkMode={darkMode} />
           <ShopDetails shop={shop} darkMode={darkMode} stats={stats} onViewProducts={scrollToProducts} onChat={handleOpenChat} t={t} />
 
-          {shopOffers.length > 0 && (
-            <section id="shop-offers" aria-label={t("shopOffers")} className="lk-cv nb-bg nb-line border-t-2 py-10 sm:py-16">
-              <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <SectionHead
-                  eyebrow={t("eyebrowOffers")} title={t("shopOffers")} subtitle={t("shopOffersSubtitle")} count={shopOffers.length}
-                  action={<IsoIllustration type="offersCard" tone="emerald" darkMode={darkMode} onGreen={false} className="lk-float-slow pointer-events-none hidden h-40 w-40 flex-shrink-0 sm:block lg:h-52 lg:w-52" />}
-                />
-                <div className="grid grid-cols-1 gap-6 pb-2 pe-2 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
-                  {shopOffers.slice(0, OFFERS_SHOWN).map((o, i) => (
-                    <ShopOfferCard key={o.id} offer={o} index={i} language={language} currency={currency} onOpen={openOfferDetail} ot={ot} />
-                  ))}
-                </div>
-                {shopOffers.length > OFFERS_SHOWN && (
-                  <div className="flex justify-center pt-8">
-                    <button type="button" onClick={goToOffers} className="nb-btn nb-btn-a px-6 py-3 text-sm uppercase">
-                      {t("viewAllOffers")} <FiArrowRight className="nb-flip h-4 w-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            </section>
-          )}
-
-          {!productsLoading && categorySections.length > 0 && (
-            <section aria-label={t("browseCollections")} className="nb-gray nb-line lk-cv border-t-2 py-10 sm:py-16">
-              <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <SectionHead eyebrow={t("eyebrowCollections")} title={t("browseCollections")} subtitle={t("browseCategory")} />
-                <div className="space-y-10 sm:space-y-14">
-                  {categorySections.map(({ category, items }) => (
-                    <CategorySlider key={category.id} category={category} items={items} darkMode={darkMode} onAddToCart={handleAddToCart} onDetails={openDetails} t={t} isRTL={isRTL} />
-                  ))}
-                </div>
-              </div>
-            </section>
-          )}
-
-          <section aria-label={t("allProducts")} className="nb-bg">
-            <span className="nb-divider" aria-hidden="true" />
-            <div id="shop-products" className="mx-auto max-w-7xl scroll-mt-20 px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
-              <div className="flex items-start gap-5 lg:gap-8">
-                {!isMobile && (
-                  <aside className="sticky top-20 max-h-[calc(100vh-5rem)] w-64 min-w-0 flex-shrink-0 self-start overflow-y-auto overscroll-contain pb-2 pe-2 xl:w-72">
-                    <FilterPanel {...filterPanelProps} />
-                  </aside>
-                )}
-
-                <div className="min-w-0 flex-1">
-                  <SectionHead eyebrow={t("eyebrowProducts")} title={t("allProducts")} subtitle={t("allProductsSubtitle")} />
-
-                  <div className="nb-card mb-6 flex flex-col gap-3 p-3 sm:p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-sm opacity-80" aria-live="polite">
-                        <b dir="ltr">{startItem}–{endItem}</b> / <b dir="ltr">{filteredProducts.length}</b> {t("productsFound")}
-                      </p>
-                      <div className="flex flex-wrap items-center gap-2">
-                        {!isMobile && (
-                          <NbDropdown ariaLabel={t("rowsPerPage", "Rows per page")} value={pageSize} onChange={setPageSize} options={rowOptions} align="end" className="w-36 flex-shrink-0" />
-                        )}
-                        {isMobile && (
-                          <button type="button" onClick={() => setIsSidebarOpen(true)} className="nb-btn nb-btn-a h-10 px-3 text-xs uppercase">
-                            <FiSliders className="h-3.5 w-3.5" /> {t("filters")}
-                            {activeFiltersCount > 0 && <span className="flex h-4 min-w-[1rem] items-center justify-center bg-white px-1 text-[10px] font-bold text-[#04261a]">{activeFiltersCount}</span>}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                      <div className="nb-field relative flex h-10 min-w-0 flex-1 items-center gap-2 px-3">
-                        <FiSearch aria-hidden="true" className="h-4 w-4 flex-shrink-0" />
-                        <input type="text" inputMode="search" autoComplete="off" value={search} maxLength={100} onChange={(e) => setSearch(e.target.value)}
-                          placeholder={t("searchProducts")} aria-label={t("searchProducts")}
-                          className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60" />
-                        {isStale && <span aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" />}
-                        {search && <button type="button" onClick={() => setSearch("")} aria-label={t("clear")} className="flex-shrink-0"><FiX className="h-4 w-4" /></button>}
-                      </div>
-                      <NbDropdown ariaLabel={t("sortBy")} value={sortBy} onChange={setSortBy} options={sortOptions} align="end" className="w-full sm:w-52" />
-                    </div>
-                  </div>
-
-                  {activeFiltersCount > 0 && (
-                    <div className="mb-6 flex flex-wrap items-center gap-2">
-                      {conditions.map((c) => <FilterChip key={c} label={conditionLabel(t, c)} onRemove={() => toggleCondition(c)} />)}
-                      {selectedCategories.map((c) => <FilterChip key={c} label={c} onRemove={() => toggleCategory(c)} />)}
-                      {priceRange && <FilterChip label={`${t("currency")} ${priceRange[0].toLocaleString(dateLocale)} – ${priceRange[1].toLocaleString(dateLocale)}`} onRemove={() => setPriceRangeState(null)} />}
-                      {onSaleOnly && <FilterChip label={t("onSale")} onRemove={() => setOnSaleOnly(false)} />}
-                      {inStockOnly && <FilterChip label={t("inStockOnly")} onRemove={() => setInStockOnly(false)} />}
-                      {search && <FilterChip label={`“${search.slice(0, 20)}”`} onRemove={() => setSearch("")} />}
-                      <button type="button" onClick={clearFilters} className="text-xs font-bold underline underline-offset-4">{t("clearAllFilters")}</button>
-                    </div>
-                  )}
-
-                  <div aria-busy={isStale} className={`transition-opacity duration-150 ${isStale ? "opacity-70" : "opacity-100"}`}>
-                    {productsLoading ? (
-                      <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3" role="status" aria-label={t("loading")}>{Array.from({ length: 9 }).map((_, i) => <ProductSkeleton key={i} />)}</div>
-                    ) : filteredProducts.length > 0 ? (
-                      <>
-                        <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3">
-                          {paginatedProducts.map((product, i) => (
-                            <ProductCard key={product.id} product={product} darkMode={darkMode} index={i} onAddToCart={handleAddToCart} onDetails={openDetails} t={t} />
-                          ))}
-                        </div>
-                        {totalPages > 1 && (
-                          <div className="flex flex-col items-center gap-3 pt-8">
-                            <Pagination page={currentPage} total={totalPages} onChange={goToPage} label={t("pagination")} t={t} />
-                            <p className="nb-muted text-xs">
-                              <span dir="ltr">{startItem}–{endItem}</span> / <span dir="ltr">{filteredProducts.length}</span> {t("productsFound")}
-                            </p>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <div className="nb-card px-4 py-14 text-center sm:py-24">
-                        <IsoIllustration type="shopEmpty" darkMode={darkMode} onGreen={false} className="mx-auto mb-4 h-32 w-32 sm:h-40 sm:w-40" />
-                        <p className="mb-2 text-lg font-extrabold uppercase sm:text-2xl">{t("noProducts")}</p>
-                        <p className="mb-6 text-sm opacity-80 sm:text-base">{t("adjustFilters")}</p>
-                        {activeFiltersCount > 0 && <button type="button" onClick={clearFilters} className="nb-btn nb-btn-a px-6 py-3 text-sm uppercase">{t("clearFilters")}</button>}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <ChatCTABanner darkMode={darkMode} onOpenChat={handleOpenChat} t={t} />
-
-          <span className="nb-divider" aria-hidden="true" />
-
-          <section id="shop-reviews" aria-label={t("customerReviews")} className="nb-gray nb-line lk-cv py-10 sm:py-16">
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-              <SectionHead
-                eyebrow={t("eyebrowReviews")} title={t("customerReviews")}
-                subtitle={<><span dir="ltr">{reviews.length}</span> {reviewWord(reviews.length)}{reviews.length > 0 && <> · {t("avgLabel")} <span dir="ltr">{avgRating}</span> ★</>}</>}
-              />
-
-              <div className="grid items-start gap-6 lg:grid-cols-[20rem_1fr] lg:gap-8 xl:grid-cols-[22rem_1fr]">
-                <aside className="nb-card p-5 sm:p-6">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="flex items-center gap-3 lg:flex-col">
-                      <RiStarFill className="nb-star-on h-12 w-12 sm:h-16 sm:w-16" aria-hidden="true" />
-                      <div>
-                        <p className="text-3xl font-extrabold tabular-nums sm:text-4xl" dir="ltr">{avgRating} / 5</p>
-                        <p className="text-sm font-extrabold uppercase">{reviews.length > 0 ? t("lovedByCustomers") : t("noReviewsYet")}</p>
-                        <p className="nb-muted text-xs font-bold">{t("basedOn")} <span dir="ltr">{reviews.length}</span> {reviewWord(reviews.length)}</p>
-                      </div>
-                    </div>
-                    <div className="mt-5 w-full space-y-2">
-                      {RATING_BARS.map((n) => {
-                        const pct = reviews.length ? (ratingCounts[n] / reviews.length) * 100 : 0;
-                        return (
-                          <div key={n} className="flex items-center gap-2" dir="ltr">
-                            <span className="w-3 text-xs font-bold">{n}</span>
-                            <RiStarFill className="nb-star-on h-3 w-3 flex-shrink-0" aria-hidden="true" />
-                            <div className="nb-gray nb-line h-3 flex-1 overflow-hidden border-2">
-                              <div className="h-full bg-[color:var(--nb-btn)]" style={{ width: `${pct}%` }} />
-                            </div>
-                            <span className="w-6 text-end text-[10px] font-bold tabular-nums">{ratingCounts[n]}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </aside>
-
-                <ReviewForm t={t} hasReview={!!myReview} onSubmit={submitReview} />
-              </div>
-
-              <div id="shop-reviews-list" className="mt-8 scroll-mt-24">
-                {reviewsLoading ? (
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
-                    {Array.from({ length: 3 }).map((_, i) => <div key={i} className="nb-gray nb-line h-44 animate-pulse border-2 motion-reduce:animate-none" />)}
-                  </div>
-                ) : reviews.length > 0 ? (
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
-                    {pagedReviews.map((r) => (
-                      <ReviewCard key={r.id} review={r} mine={userId != null && String(r.userId) === String(userId)}
-                        dateLocale={dateLocale} t={t} onEdit={setEditingReview} onDelete={deleteReview} />
+          <div className="nb-seq">
+            {shopOffers.length > 0 && (
+              <section id="shop-offers" aria-label={t("shopOffers")} className="lk-cv py-10 sm:py-16">
+                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                  <SectionHead
+                    eyebrow={t("eyebrowOffers")} title={t("shopOffers")} subtitle={t("shopOffersSubtitle")} count={shopOffers.length}
+                    action={<IsoIllustration type="offersCard" tone="emerald" darkMode={darkMode} onGreen={false} className="lk-float-slow pointer-events-none hidden h-40 w-40 flex-shrink-0 sm:block lg:h-52 lg:w-52" />}
+                  />
+                  <div className="grid grid-cols-1 gap-6 pb-2 pe-2 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
+                    {shopOffers.slice(0, OFFERS_SHOWN).map((o, i) => (
+                      <ShopOfferCard key={o.id} offer={o} index={i} language={language} currency={currency} onOpen={openOfferDetail} ot={ot} />
                     ))}
                   </div>
-                ) : (
-                  <div className="nb-card px-4 py-10 text-center sm:py-14">
-                    <IsoIllustration type="shopReviews" darkMode={darkMode} onGreen={false} className="mx-auto mb-3 h-32 w-32 sm:h-36 sm:w-36" />
-                    <p className="mb-1 text-base font-extrabold uppercase sm:text-lg">{t("noReviewsYet")}</p>
-                    <p className="text-xs opacity-80 sm:text-sm">{t("beFirstReview")}</p>
+                  {shopOffers.length > OFFERS_SHOWN && (
+                    <div className="flex justify-center pt-8">
+                      <button type="button" onClick={goToOffers} className="nb-btn nb-btn-a px-6 py-3 text-sm uppercase">
+                        {t("viewAllOffers")} <FiArrowRight className="nb-flip h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {!productsLoading && categorySections.length > 0 && (
+              <section aria-label={t("browseCollections")} className="lk-cv py-10 sm:py-16">
+                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                  <SectionHead eyebrow={t("eyebrowCollections")} title={t("browseCollections")} subtitle={t("browseCategory")} />
+                  <div className="space-y-10 sm:space-y-14">
+                    {categorySections.map(({ category, items }) => (
+                      <CategorySlider key={category.id} category={category} items={items} darkMode={darkMode} saved={saved} onSave={toggleSaved} onAddToCart={handleAddToCart} onDetails={openDetails} t={t} isRTL={isRTL} />
+                    ))}
+                  </div>
+                </div>
+              </section>
+            )}
+
+            <section aria-label={t("allProducts")}>
+              <div id="shop-products" className="mx-auto max-w-7xl scroll-mt-20 px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
+                <SectionHead eyebrow={t("eyebrowProducts")} title={t("allProducts")} subtitle={t("allProductsSubtitle")} />
+
+                <div className="flex items-stretch gap-5 lg:gap-8">
+                  {!isMobile && (
+                    <aside className="flex w-[17rem] min-w-0 flex-shrink-0 xl:w-[19rem]">
+                      <div className="nb-card min-w-0 flex-1 p-3 sm:p-4">
+                        <div className="sticky top-20">
+                          <FilterPanel {...filterPanelProps} flat />
+                        </div>
+                      </div>
+                    </aside>
+                  )}
+
+                  <div className="w-full min-w-0 flex-1">
+                    <div className="nb-card mb-6 flex flex-col gap-3 p-3 sm:p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-sm opacity-80" aria-live="polite">
+                          <b dir="ltr">{startItem}–{endItem}</b> / <b dir="ltr">{filteredProducts.length}</b> {t("productsFound")}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {!isMobile && (
+                            <NbDropdown ariaLabel={t("rowsPerPage", "Rows per page")} value={pageSize} onChange={setPageSize} options={rowOptions} align="end" className="w-36 flex-shrink-0" />
+                          )}
+                          {isMobile && (
+                            <button type="button" onClick={() => setIsSidebarOpen(true)} className="nb-btn nb-btn-a h-10 px-3 text-xs uppercase">
+                              <FiSliders className="h-3.5 w-3.5" /> {t("filters")}
+                              {activeFiltersCount > 0 && <span className="flex h-4 min-w-[1rem] items-center justify-center bg-white px-1 text-[10px] font-bold text-[#04261a]">{activeFiltersCount}</span>}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <div className="nb-field relative flex h-10 min-w-0 flex-1 items-center gap-2 px-3">
+                          <FiSearch aria-hidden="true" className="h-4 w-4 flex-shrink-0" />
+                          <input type="text" inputMode="search" autoComplete="off" value={search} maxLength={100} onChange={(e) => setSearch(e.target.value)}
+                            placeholder={t("searchProducts")} aria-label={t("searchProducts")}
+                            className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60" />
+                          {isStale && <span aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" />}
+                          {search && <button type="button" onClick={() => setSearch("")} aria-label={t("clear")} className="flex-shrink-0"><FiX className="h-4 w-4" /></button>}
+                        </div>
+                        <NbDropdown ariaLabel={t("sortBy")} value={sortBy} onChange={setSortBy} options={sortOptions} align="end" className="w-full sm:w-52" />
+                      </div>
+                    </div>
+
+                    {activeFiltersCount > 0 && (
+                      <div className="mb-6 flex flex-wrap items-center gap-2">
+                        {selectedCategory !== "all" && <FilterChip label={selectedCategory} onRemove={() => setSelectedCategory("all")} />}
+                        {conditions.map((c) => <FilterChip key={c} label={conditionLabel(t, c)} onRemove={() => toggleCondition(c)} />)}
+                        {priceRange && <FilterChip label={`${money(priceValue[0], currency)} – ${money(priceValue[1], currency)}`} onRemove={() => setPriceRangeState(null)} />}
+                        {onSaleOnly && <FilterChip label={t("onSaleOnly")} onRemove={() => setOnSaleOnly(false)} />}
+                        {inStockOnly && <FilterChip label={t("inStockOnly")} onRemove={() => setInStockOnly(false)} />}
+                        {savedOnly && <FilterChip label={t("savedOnly")} onRemove={() => setSavedOnly(false)} />}
+                        {search && <FilterChip label={`“${search.slice(0, 20)}”`} onRemove={() => setSearch("")} />}
+                        <button type="button" onClick={clearFilters} className="text-xs font-bold underline underline-offset-4">{t("clearAllFilters")}</button>
+                      </div>
+                    )}
+
+                    <div aria-busy={isStale} className={`transition-opacity duration-150 ${isStale ? "opacity-70" : "opacity-100"}`}>
+                      {productsLoading ? (
+                        <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3" role="status" aria-label={t("loading")}>{Array.from({ length: 9 }).map((_, i) => <ProductSkeleton key={i} />)}</div>
+                      ) : filteredProducts.length > 0 ? (
+                        <>
+                          <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3">
+                            {listProducts.map((product, i) => (
+                              <ProductCard key={product.id} product={product} darkMode={darkMode} index={i} isSaved={saved.has(product.id)} onSave={toggleSaved} onAddToCart={handleAddToCart} onDetails={openDetails} t={t} />
+                            ))}
+                          </div>
+                          {isMobile ? (
+                            <InfiniteSentinel hasMore={hasMore} shown={visibleCount} total={filteredProducts.length} onMore={loadMore} t={t} />
+                          ) : totalPages > 1 && (
+                            <div className="flex flex-col items-center gap-3 pt-8">
+                              <Pagination page={currentPage} total={totalPages} onChange={goToPage} label={t("pagination")} t={t} />
+                              <p className="nb-muted text-xs">
+                                <span dir="ltr">{startItem}–{endItem}</span> / <span dir="ltr">{filteredProducts.length}</span> {t("productsFound")}
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="nb-card px-4 py-14 text-center sm:py-24">
+                          <IsoIllustration type="shopEmpty" darkMode={darkMode} onGreen={false} className="mx-auto mb-4 h-32 w-32 sm:h-40 sm:w-40" />
+                          <p className="mb-2 text-lg font-extrabold uppercase sm:text-2xl">{t("noProducts")}</p>
+                          <p className="mb-6 text-sm opacity-80 sm:text-base">{t("adjustFilters")}</p>
+                          {activeFiltersCount > 0 && <button type="button" onClick={clearFilters} className="nb-btn nb-btn-a px-6 py-3 text-sm uppercase">{t("clearFilters")}</button>}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <ChatCTABanner darkMode={darkMode} onOpenChat={handleOpenChat} t={t} />
+
+            <section id="shop-reviews" aria-label={t("customerReviews")} className="lk-cv py-10 sm:py-16">
+              <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <SectionHead
+                  eyebrow={t("eyebrowReviews")} title={t("customerReviews")}
+                  subtitle={<><span dir="ltr">{reviews.length}</span> {reviewWord(reviews.length)}{reviews.length > 0 && <> · {t("avgLabel")} <span dir="ltr">{avgRating}</span> ★</>}</>}
+                />
+
+                <div className="grid items-start gap-6 lg:grid-cols-[20rem_1fr] lg:gap-8 xl:grid-cols-[22rem_1fr]">
+                  <aside className="nb-card p-5 sm:p-6">
+                    <div className="flex flex-col items-center text-center">
+                      <div className="flex items-center gap-3 lg:flex-col">
+                        <RiStarFill className="nb-star-on h-12 w-12 sm:h-16 sm:w-16" aria-hidden="true" />
+                        <div>
+                          <p className="text-3xl font-extrabold tabular-nums sm:text-4xl" dir="ltr">{avgRating} / 5</p>
+                          <p className="text-sm font-extrabold uppercase">{reviews.length > 0 ? t("lovedByCustomers") : t("noReviewsYet")}</p>
+                          <p className="nb-muted text-xs font-bold">{t("basedOn")} <span dir="ltr">{reviews.length}</span> {reviewWord(reviews.length)}</p>
+                        </div>
+                      </div>
+                      <div className="mt-5 w-full space-y-2">
+                        {RATING_BARS.map((n) => {
+                          const pct = reviews.length ? (ratingCounts[n] / reviews.length) * 100 : 0;
+                          return (
+                            <div key={n} className="flex items-center gap-2" dir="ltr">
+                              <span className="w-3 text-xs font-bold">{n}</span>
+                              <RiStarFill className="nb-star-on h-3 w-3 flex-shrink-0" aria-hidden="true" />
+                              <div className="nb-gray nb-line h-3 flex-1 overflow-hidden border-2">
+                                <div className="h-full bg-[color:var(--nb-btn)]" style={{ width: `${pct}%` }} />
+                              </div>
+                              <span className="w-6 text-end text-[10px] font-bold tabular-nums">{ratingCounts[n]}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </aside>
+
+                  <ReviewForm t={t} hasReview={!!myReview} onSubmit={submitReview} />
+                </div>
+
+                <div id="shop-reviews-list" className="mt-8 scroll-mt-24">
+                  {reviewsLoading ? (
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+                      {Array.from({ length: 3 }).map((_, i) => <div key={i} className="nb-gray nb-line h-44 animate-pulse border-2 motion-reduce:animate-none" />)}
+                    </div>
+                  ) : reviews.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+                      {pagedReviews.map((r) => (
+                        <ReviewCard key={r.id} review={r} mine={userId != null && String(r.userId) === String(userId)}
+                          dateLocale={dateLocale} t={t} onEdit={setEditingReview} onDelete={deleteReview} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="nb-card px-4 py-10 text-center sm:py-14">
+                      <IsoIllustration type="shopReviews" darkMode={darkMode} onGreen={false} className="mx-auto mb-3 h-32 w-32 sm:h-36 sm:w-36" />
+                      <p className="mb-1 text-base font-extrabold uppercase sm:text-lg">{t("noReviewsYet")}</p>
+                      <p className="text-xs opacity-80 sm:text-sm">{t("beFirstReview")}</p>
+                    </div>
+                  )}
+                </div>
+
+                {!reviewsLoading && reviews.length > REVIEWS_PER_PAGE && (
+                  <div className="flex flex-col items-center gap-3 pt-8">
+                    <Pagination page={safeReviewPage} total={reviewPages} onChange={goToReviewPage} label={t("reviewsPagination")} t={t} />
+                    <p className="nb-muted text-xs">
+                      <span dir="ltr">{(safeReviewPage - 1) * REVIEWS_PER_PAGE + 1}–{Math.min(safeReviewPage * REVIEWS_PER_PAGE, reviews.length)}</span> / <span dir="ltr">{reviews.length}</span> {reviewWord(reviews.length)}
+                    </p>
                   </div>
                 )}
               </div>
-
-              {!reviewsLoading && reviews.length > REVIEWS_PER_PAGE && (
-                <div className="flex flex-col items-center gap-3 pt-8">
-                  <Pagination page={safeReviewPage} total={reviewPages} onChange={goToReviewPage} label={t("reviewsPagination")} t={t} />
-                  <p className="nb-muted text-xs">
-                    <span dir="ltr">{(safeReviewPage - 1) * REVIEWS_PER_PAGE + 1}–{Math.min(safeReviewPage * REVIEWS_PER_PAGE, reviews.length)}</span> / <span dir="ltr">{reviews.length}</span> {reviewWord(reviews.length)}
-                  </p>
-                </div>
-              )}
-            </div>
-          </section>
+            </section>
+          </div>
 
           <AnimatePresence>
             {drawerOpen && (
@@ -1713,7 +1951,10 @@ const ShopContent = ({ darkMode, addToCart }) => {
           </AnimatePresence>
 
           <AnimatePresence>
-            {detailsProduct && <ProductDetailsModal key={detailsProduct.id} product={detailsProduct} darkMode={darkMode} onClose={closeDetails} onAddToCart={handleAddToCart} onView={viewProduct} t={t} />}
+            {detailsProduct && (
+              <ProductDetailsModal key={detailsProduct.id} product={detailsProduct} darkMode={darkMode} isSaved={saved.has(detailsProduct.id)} onSave={toggleSaved}
+                onClose={closeDetails} onAddToCart={handleAddToCart} onView={viewProduct} t={t} />
+            )}
           </AnimatePresence>
 
           <AnimatePresence>

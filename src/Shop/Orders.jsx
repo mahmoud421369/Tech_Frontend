@@ -11,7 +11,7 @@ import api from '../common/api/api';
 import { EXTRAS_CSS, Toaster, toast } from '../components/user/UiExtras';
 import {
   POLL_MS, SEARCH_MAX, SPAN_MS, DEFAULT_LABELS,
-  getFormats, tpl, renderTpl, toTs, fmt, num, formatPrice, timeAgo, sanitizeSearch, isSafeId, safePhone,
+  tpl, renderTpl, toTs, fmt, num, formatPrice, timeAgo, sanitizeSearch, isSafeId, safePhone,
   shortId, errText, confirmDialog, useDarkMode, useEscape, useShopLocale,
 } from '../components/shop/TableKit';
 import { ensureShopAssets } from '../common/utils/shopFonts';
@@ -61,6 +61,7 @@ const STYLE_EL = <style>{PG_CSS + EXTRAS_CSS}</style>;
 
 const TONES = { sky: '#22d3ee', am: '#facc15', ro: '#fb7185', vi: '#a3e635', te: '#2dd4bf', em: '#34d399' };
 const ROW_OPTIONS = [5, 10, 25, 50];
+const SKELETON_CELLS = [0, 1, 2, 3, 4, 5, 6, 7];
 
 const pageList = (page, total) => {
   const keep = new Set([1, total, page - 1, page, page + 1]);
@@ -107,7 +108,10 @@ const StatCard = memo(({ label, value, description, icon, tone }) => (
 ));
 
 const RowsSelect = memo(({ value, onChange, label, formatNumber }) => {
-  const options = ROW_OPTIONS.includes(value) ? ROW_OPTIONS : [...ROW_OPTIONS, value].sort((a, b) => a - b);
+  const options = useMemo(
+    () => (ROW_OPTIONS.includes(value) ? ROW_OPTIONS : [...ROW_OPTIONS, value].sort((a, b) => a - b)),
+    [value],
+  );
   const text = label || DEFAULT_LABELS.rows;
   return (
     <select
@@ -154,7 +158,7 @@ const Pagination = memo(({ page, total, onChange, labels = {}, formatNumber }) =
 const Overlay = memo(({ onClose, children }) => {
   useLockScroll();
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-4">
       <div className="pg-fade absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
       {children}
     </div>
@@ -232,6 +236,12 @@ const successToast = (t, status) => {
   return { title: t.toasts.statusUpdated.title, text: tpl(t.toasts.statusUpdated.text, { status: t.status[status] }) };
 };
 
+const sumQty = (items) => {
+  let total = 0;
+  for (const i of items) total += num(i.quantity);
+  return total;
+};
+
 const StatusPill = memo(({ status, label }) => (
   <span className="pg-chip">
     <span className={`pg-line w-2 h-2 border ${getMeta(status).dot}`} />
@@ -242,20 +252,31 @@ const StatusPill = memo(({ status, label }) => (
 const StatusTimeline = memo(({ status, labels }) => {
   if (status === 'CANCELLED') return null;
   const idx = LIFECYCLE_STATUSES.indexOf(status);
+  const last = LIFECYCLE_STATUSES.length - 1;
   return (
-    <div className="flex items-center">
-      {LIFECYCLE_STATUSES.map((s, i) => (
-        <React.Fragment key={s}>
-          <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
-            <span className={`pg-line w-3.5 h-3.5 border-2 ${i <= idx ? 'bg-[var(--pg-accent)]' : 'pg-gray'}`} />
-            <span className={`text-[8px] font-extrabold uppercase text-center leading-tight w-12 ${i <= idx ? '' : 'pg-muted'}`}>{labels[s]}</span>
-          </div>
-          {i < LIFECYCLE_STATUSES.length - 1 && (
-            <span className={`pg-line flex-1 h-1.5 mx-1 mb-4 border-y-2 ${i < idx ? 'bg-[var(--pg-accent)]' : 'pg-gray'}`} />
-          )}
-        </React.Fragment>
-      ))}
-    </div>
+    <ol className="flex flex-col gap-y-3 sm:grid sm:grid-cols-6 sm:gap-y-0">
+      {LIFECYCLE_STATUSES.map((s, i) => {
+        const done = i <= idx;
+        return (
+          <li
+            key={s}
+            aria-current={i === idx ? 'step' : undefined}
+            className="relative flex min-w-0 items-center gap-3 sm:flex-col sm:gap-1.5 sm:text-center"
+          >
+            {i < last && (
+              <span
+                aria-hidden="true"
+                className={`pg-line absolute z-0 top-2 start-[4px] h-[calc(100%+0.75rem)] w-1.5 border-x-2 sm:top-[4px] sm:start-1/2 sm:h-1.5 sm:w-full sm:border-x-0 sm:border-y-2 ${i < idx ? 'bg-[var(--pg-accent)]' : 'pg-gray'}`}
+              />
+            )}
+            <span className={`pg-line relative z-10 h-3.5 w-3.5 flex-shrink-0 border-2 ${done ? 'bg-[var(--pg-accent)]' : 'pg-gray'}`} />
+            <span className={`min-w-0 break-words text-[10px] font-extrabold uppercase leading-tight sm:w-full sm:px-0.5 sm:text-[8px] ${done ? '' : 'pg-muted'}`}>
+              {labels[s]}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
   );
 });
 
@@ -269,11 +290,10 @@ const InfoTile = memo(({ icon: Icon, label, children }) => (
   </div>
 ));
 
-const OrderRow = memo(({ order, busy, L, onDetails, onCopy, onAccept, onReject, onOpenStatusModal }) => {
+const OrderRow = memo(({ order, busy, L, fm, onDetails, onCopy, onAccept, onReject, onOpenStatusModal }) => {
   const t = L.orders;
-  const fm = getFormats(L.locale);
   const items = order.orderItems || [];
-  const totalQty = items.reduce((s, i) => s + num(i.quantity), 0);
+  const totalQty = useMemo(() => sumQty(items), [items]);
   const first = items[0];
   const extra = items.length - 1;
   const isPending = order.status === 'PENDING';
@@ -331,26 +351,26 @@ const OrderRow = memo(({ order, busy, L, onDetails, onCopy, onAccept, onReject, 
   );
 });
 
-const OrderDetailsModal = memo(({ order, busy, L, onClose, onCopy, onAccept, onReject, onOpenStatusModal }) => {
+const OrderDetailsModal = memo(({ order, busy, L, fm, onClose, onCopy, onAccept, onReject, onOpenStatusModal }) => {
   useEscape(onClose);
   const t = L.orders;
-  const fm = getFormats(L.locale);
   const meta = getMeta(order.status);
   const isPending = order.status === 'PENDING';
   const isDelivered = order.status === 'DELIVERED';
   const hasNext = (NEXT_STATUSES[order.status] || []).length > 0;
   const items = order.orderItems || [];
-  const totalQty = items.reduce((s, i) => s + num(i.quantity), 0);
+  const totalQty = useMemo(() => sumQty(items), [items]);
   const phone = safePhone(order.phoneNumber);
   const price = (v) => formatPrice(v, L.table.price, fm.number);
+  const closeLabel = L.table.close || DEFAULT_LABELS.close;
 
   return (
     <Overlay onClose={onClose}>
-      <div role="dialog" aria-modal="true" aria-label={t.details.title} className="pg-card pg-in relative w-full max-w-md overflow-hidden">
-        <div className="pg-gray pg-line px-5 py-3.5 border-b-2 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+      <div role="dialog" aria-modal="true" aria-label={t.details.title} className="pg-card pg-in relative flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden">
+        <div className="pg-gray pg-line flex flex-shrink-0 items-center justify-between gap-3 border-b-2 px-4 py-3.5 sm:px-5">
+          <div className="flex min-w-0 items-center gap-2.5">
             <Tile icon={FiShoppingBag} tone="sky" />
-            <div>
+            <div className="min-w-0">
               <h3 className="text-sm font-extrabold uppercase"><span className="pg-ul">{t.details.title}</span></h3>
               <p className="pg-muted mt-1 flex items-center gap-1.5 text-[10px] font-bold font-mono">
                 #{shortId(order.id)}
@@ -358,28 +378,28 @@ const OrderDetailsModal = memo(({ order, busy, L, onClose, onCopy, onAccept, onR
               </p>
             </div>
           </div>
-          <button type="button" onClick={onClose} aria-label={L.table.close || DEFAULT_LABELS.close} className="pg-btn h-8 w-8"><FiX size={15} aria-hidden="true" /></button>
+          <button type="button" onClick={onClose} aria-label={closeLabel} className="pg-btn h-8 w-8 flex-shrink-0"><FiX size={15} aria-hidden="true" /></button>
         </div>
 
-        <div className="px-5 py-4 space-y-4 overflow-y-auto max-h-[72vh] pg-scroll">
-          <div className="pg-gray pg-dot p-3.5">
+        <div className="pg-scroll min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-5">
+          <div className="pg-gray pg-dot p-3 sm:p-3.5">
             <div className="flex items-center gap-3">
               <Tile icon={meta.icon} tone={meta.tone} className="h-11 w-11" size={20} />
               <div className="min-w-0">
-                <p className="text-sm font-extrabold uppercase">{t.status[order.status] || order.status}</p>
-                <p className="pg-muted text-[10px] font-semibold mt-0.5">{timeAgo(order.createdAt, L.header.time, fm.number)} · {fmt(fm.full, order.createdAt)}</p>
+                <p className="break-words text-sm font-extrabold uppercase">{t.status[order.status] || order.status}</p>
+                <p className="pg-muted mt-0.5 break-words text-[10px] font-semibold">{timeAgo(order.createdAt, L.header.time, fm.number)} · {fmt(fm.full, order.createdAt)}</p>
               </div>
             </div>
             {order.status !== 'CANCELLED' && <div className="mt-3.5"><StatusTimeline status={order.status} labels={t.status} /></div>}
             {(isPending || isDelivered) && (
               <div className="pg-card !shadow-none mt-3 flex items-start gap-1.5 px-2.5 py-2">
-                <FiAlertCircle className="text-[var(--pg-accent)] flex-shrink-0 mt-0.5" size={12} aria-hidden="true" />
-                <p className="text-[10px] font-bold">{isPending ? t.details.pendingNote : t.details.deliveredNote}</p>
+                <FiAlertCircle className="mt-0.5 flex-shrink-0 text-[var(--pg-accent)]" size={12} aria-hidden="true" />
+                <p className="min-w-0 break-words text-[10px] font-bold">{isPending ? t.details.pendingNote : t.details.deliveredNote}</p>
               </div>
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             <InfoTile icon={FiUser} label={t.details.customer}>{fullName(order)}</InfoTile>
             <a href={phone ? `tel:${phone}` : undefined} className="pg-link min-w-0">
               <InfoTile icon={FiPhone} label={t.details.phone}><span dir="ltr" className="block text-start rtl:text-end">{order.phoneNumber || '—'}</span></InfoTile>
@@ -387,7 +407,7 @@ const OrderDetailsModal = memo(({ order, busy, L, onClose, onCopy, onAccept, onR
           </div>
 
           <div className="pg-card !shadow-none overflow-hidden">
-            <div className="pg-gray pg-line px-3.5 py-2.5 flex items-center justify-between border-b-2">
+            <div className="pg-gray pg-line flex items-center justify-between gap-2 border-b-2 px-3.5 py-2.5">
               <p className="text-[10px] font-extrabold uppercase">{t.details.items}</p>
               <span className="text-[10px] font-extrabold">{tpl(t.row.pieces, { n: fm.number.format(totalQty) })}</span>
             </div>
@@ -395,39 +415,39 @@ const OrderDetailsModal = memo(({ order, busy, L, onClose, onCopy, onAccept, onR
               {items.map((item, idx) => (
                 <div key={item.id ?? `${item.productName}-${idx}`} className="pg-td flex items-center justify-between gap-3 px-3.5 py-2.5">
                   <div className="min-w-0">
-                    <p className="text-[11px] font-extrabold truncate">{item.productName}</p>
-                    <p className="pg-muted text-[10px] font-semibold truncate">{fm.number.format(num(item.quantity))} × {price(item.priceAtCheckout)}{item.shopName ? ` · ${item.shopName}` : ''}</p>
+                    <p className="truncate text-[11px] font-extrabold">{item.productName}</p>
+                    <p className="pg-muted truncate text-[10px] font-semibold">{fm.number.format(num(item.quantity))} × {price(item.priceAtCheckout)}{item.shopName ? ` · ${item.shopName}` : ''}</p>
                   </div>
-                  <p className="text-[11px] font-extrabold font-mono flex-shrink-0">{price(item.subtotal)}</p>
+                  <p className="flex-shrink-0 font-mono text-[11px] font-extrabold">{price(item.subtotal)}</p>
                 </div>
               ))}
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2.5">
-            <div className="pg-gray pg-dot p-3">
-              <p className="pg-muted text-[9px] font-bold uppercase mb-1">{t.details.payment}</p>
-              <p className="text-xs font-extrabold">{order.paymentMethod === 'CASH' ? t.cashFull : (t.payment[order.paymentMethod] || order.paymentMethod || '—')}</p>
+            <div className="pg-gray pg-dot min-w-0 p-3">
+              <p className="pg-muted mb-1 text-[9px] font-bold uppercase">{t.details.payment}</p>
+              <p className="break-words text-xs font-extrabold">{order.paymentMethod === 'CASH' ? t.cashFull : (t.payment[order.paymentMethod] || order.paymentMethod || '—')}</p>
             </div>
-            <div className="pg-gray pg-dot p-3">
-              <p className="pg-muted text-[9px] font-bold uppercase mb-1">{t.details.finalTotal}</p>
-              <p className="text-base font-extrabold tabular-nums">{price(order.totalPrice)}</p>
+            <div className="pg-gray pg-dot min-w-0 p-3">
+              <p className="pg-muted mb-1 text-[9px] font-bold uppercase">{t.details.finalTotal}</p>
+              <p className="break-words text-base font-extrabold tabular-nums">{price(order.totalPrice)}</p>
             </div>
           </div>
         </div>
 
-        <div className="pg-line px-5 py-3.5 border-t-2 flex gap-2.5">
+        <div className="pg-line flex flex-shrink-0 flex-wrap gap-2.5 border-t-2 px-4 py-3.5 sm:px-5">
           {isPending ? (
             <>
-              <button type="button" disabled={busy} onClick={onReject} className="pg-btn pg-btn-danger flex-1 h-10 text-xs uppercase"><FiX size={13} aria-hidden="true" /> {t.details.reject}</button>
-              <button type="button" disabled={busy} onClick={onAccept} className="pg-btn pg-btn-a flex-1 h-10 text-xs uppercase"><FiCheck size={13} aria-hidden="true" /> {t.details.accept}</button>
+              <button type="button" disabled={busy} onClick={onReject} className="pg-btn pg-btn-danger h-10 min-w-[110px] flex-1 text-xs uppercase"><FiX size={13} aria-hidden="true" /> {t.details.reject}</button>
+              <button type="button" disabled={busy} onClick={onAccept} className="pg-btn pg-btn-a h-10 min-w-[110px] flex-1 text-xs uppercase"><FiCheck size={13} aria-hidden="true" /> {t.details.accept}</button>
             </>
           ) : hasNext ? (
-            <button type="button" disabled={busy} onClick={onOpenStatusModal} className="pg-btn pg-btn-a flex-1 h-10 text-xs uppercase">{t.row.updateStatus}</button>
+            <button type="button" disabled={busy} onClick={onOpenStatusModal} className="pg-btn pg-btn-a h-10 min-w-[110px] flex-1 text-xs uppercase">{t.row.updateStatus}</button>
           ) : (
-            <p className="pg-muted flex-1 py-2 text-center text-[11px] font-bold">{t.details.noActions}</p>
+            <p className="pg-muted min-w-[110px] flex-1 py-2 text-center text-[11px] font-bold">{t.details.noActions}</p>
           )}
-          <button type="button" onClick={onClose} className="pg-btn h-10 px-3 text-xs uppercase">{L.table.close || DEFAULT_LABELS.close}</button>
+          <button type="button" onClick={onClose} className="pg-btn h-10 px-3 text-xs uppercase">{closeLabel}</button>
         </div>
       </div>
     </Overlay>
@@ -487,9 +507,9 @@ const Orders = () => {
   const [busyIds, setBusyIds] = useState(() => new Set());
 
   const ordersRef = useRef(orders);
+  ordersRef.current = orders;
   const inflight = useRef(new Set());
   const abortRef = useRef(null);
-  useEffect(() => { ordersRef.current = orders; }, [orders]);
   useEffect(() => { document.title = t.docTitle; }, [t.docTitle]);
 
   const term = useDeferredValue(search).trim().toLowerCase();
@@ -733,7 +753,7 @@ const Orders = () => {
                 {loading && orders.length === 0 ? (
                   skeletonRows.map((i) => (
                     <tr key={i} className="animate-pulse motion-reduce:animate-none">
-                      {[0, 1, 2, 3, 4, 5, 6, 7].map((j) => <td key={j} className="pg-td px-3 py-4"><div className="pg-gray h-3.5 w-full" /></td>)}
+                      {SKELETON_CELLS.map((j) => <td key={j} className="pg-td px-3 py-4"><div className="pg-gray h-3.5 w-full" /></td>)}
                     </tr>
                   ))
                 ) : paginated.length === 0 ? (
@@ -745,6 +765,7 @@ const Orders = () => {
                       order={o}
                       busy={busyIds.has(o.id)}
                       L={L}
+                      fm={fm}
                       onDetails={handleDetails}
                       onCopy={handleCopy}
                       onAccept={handleAccept}
@@ -777,6 +798,7 @@ const Orders = () => {
           order={selectedOrder}
           busy={busyIds.has(selectedOrder.id)}
           L={L}
+          fm={fm}
           onClose={closeDetails}
           onCopy={handleCopy}
           onAccept={acceptSelected}

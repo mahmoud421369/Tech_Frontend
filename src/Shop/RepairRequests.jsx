@@ -55,6 +55,33 @@ const hasText = (v) => String(v ?? '').trim().length > 0;
 const hasValidDate = (v) => v != null && v !== '' && !Number.isNaN(new Date(v).getTime());
 const getNotSetLabel = (t, isAr) => t.notSelected || (isAr ? 'غير محدد' : 'Not selected');
 
+const normDate = (v) => {
+  if (Array.isArray(v) && v.length >= 3) {
+    const [y, m, d, h = 0, mi = 0, s = 0] = v;
+    return new Date(y, m - 1, d, h, mi, s).toISOString();
+  }
+  return v;
+};
+
+const shallowEqual = (a, b) => {
+  const ka = Object.keys(a);
+  if (ka.length !== Object.keys(b).length) return false;
+  for (const k of ka) if (a[k] !== b[k]) return false;
+  return true;
+};
+
+const mergeRepairs = (prev, next) => {
+  const byId = new Map(prev.map((r) => [r.id, r]));
+  let changed = prev.length !== next.length;
+  const out = next.map((n, i) => {
+    const p = byId.get(n.id);
+    const item = p && shallowEqual(p, n) ? p : n;
+    if (prev[i] !== item) changed = true;
+    return item;
+  });
+  return changed ? out : prev;
+};
+
 const getDeliveryMeta = (v, labels) => {
   const k = upper(v);
   return { label: labels[k] || (v ? String(v).slice(0, 30) : '—'), icon: DELIVERY_ICON[k] || FiMapPin };
@@ -63,7 +90,6 @@ const getPaymentMeta = (v, labels) => {
   const k = normPayment(v);
   return { label: labels[k] || (v ? String(v).slice(0, 30) : '—'), icon: PAYMENT_ICON[upper(v)] || FiDollarSign };
 };
-
 
 const STATUS_META = {
   SUBMITTED:        { hex: '#38bdf8', ink: INK,       icon: FiClock,       tone: 'sky' },
@@ -79,6 +105,22 @@ const STATUS_META = {
 };
 const FALLBACK_META = { hex: '#9ca3af', ink: INK, icon: FiInfo, tone: 'sky' };
 const getMeta = (s) => STATUS_META[s] || FALLBACK_META;
+
+const toStyles = (meta) => ({
+  chip: { background: meta.hex, color: meta.ink },
+  swatch: { background: meta.hex },
+});
+const STATUS_STYLES = Object.fromEntries(Object.entries(STATUS_META).map(([k, m]) => [k, toStyles(m)]));
+const FALLBACK_STYLES = toStyles(FALLBACK_META);
+const getStyles = (s) => STATUS_STYLES[s] || FALLBACK_STYLES;
+
+const STEP_ON = { background: 'var(--nb-accent)' };
+const STEP_OFF = { background: 'var(--nb-gray)' };
+const LINE_ON = { background: 'var(--nb-accent)' };
+const LINE_OFF = { background: 'var(--nb-dot)', opacity: 0.35 };
+const TAB_CHIP_OFF = { background: 'var(--nb-gray)' };
+const FILTER_BADGE = { background: 'var(--nb-accent)', color: INK };
+const BOLD_STYLE = { color: 'var(--nb-ink)' };
 
 const SORTERS = {
   newest: (a, b) => b.ts - a.ts,
@@ -98,20 +140,15 @@ const parsePrice = (v) => {
   return Number.isFinite(n) && n > 0 && n <= PRICE_MAX ? Math.round(n * 100) / 100 : null;
 };
 
-
-
 const NotSetBadge = memo(({ label }) => (
   <span className="nb-chip nb-chip-n !normal-case">{label}</span>
 ));
 
-const StatusPill = memo(({ status, labels }) => {
-  const m = getMeta(status);
-  return (
-    <span className="nb-chip !normal-case" style={{ background: m.hex, color: m.ink }}>
-      {labels[status] || status || '—'}
-    </span>
-  );
-});
+const StatusPill = memo(({ status, labels }) => (
+  <span className="nb-chip !normal-case" style={getStyles(status).chip}>
+    {labels[status] || status || '—'}
+  </span>
+));
 
 const TabBtn = memo(({ k, active, label, count, onSelect }) => {
   const click = useCallback(() => onSelect(k), [onSelect, k]);
@@ -124,51 +161,54 @@ const TabBtn = memo(({ k, active, label, count, onSelect }) => {
       className={`${BTN} flex-shrink-0 px-3 py-2 text-xs uppercase rtl:tracking-normal ${active ? 'nb-btn-on' : ''}`}
     >
       {label}
-      <span className="nb-chip !px-1.5" style={active ? undefined : { background: 'var(--nb-gray)' }}>{count}</span>
+      <span className="nb-chip !px-1.5" style={active ? undefined : TAB_CHIP_OFF}>{count}</span>
     </button>
   );
 });
 
 const RepairTimeline = memo(({ status, t }) => {
   if (TERMINAL_NEGATIVE.includes(status)) {
-    const m = getMeta(status);
     return (
-      <div className="nb-line flex items-center gap-2.5 border-2 p-3" style={{ background: m.hex, color: m.ink }}>
+      <div className="nb-line flex items-center gap-2.5 border-2 p-3" style={getStyles(status).chip}>
         <FiX size={18} aria-hidden="true" />
-        <div>
-          <p className="text-xs font-extrabold uppercase rtl:tracking-normal">{t.status[status]}</p>
-          <p className="mt-0.5 text-[10px] font-bold opacity-80">{t.timelineStopped}</p>
+        <div className="min-w-0">
+          <p className="break-words text-xs font-extrabold uppercase rtl:tracking-normal">{t.status[status]}</p>
+          <p className="mt-0.5 break-words text-[10px] font-bold opacity-80">{t.timelineStopped}</p>
         </div>
       </div>
     );
   }
   const idx = LIFECYCLE_STATUSES.indexOf(status);
+  const last = LIFECYCLE_STATUSES.length - 1;
   return (
-    <div className="slim-scroll overflow-x-auto pb-1">
-      <div className="flex min-w-[520px] items-center px-1">
-        {LIFECYCLE_STATUSES.map((s, i) => (
-          <React.Fragment key={s}>
-            <div className="flex w-[68px] flex-shrink-0 flex-col items-center gap-1.5">
+    <ol className="flex flex-col gap-y-3 sm:grid sm:grid-cols-7 sm:gap-y-0">
+      {LIFECYCLE_STATUSES.map((s, i) => {
+        const done = i <= idx;
+        return (
+          <li
+            key={s}
+            aria-current={i === idx ? 'step' : undefined}
+            className="relative flex min-w-0 items-start gap-3 sm:flex-col sm:items-center sm:gap-1.5 sm:text-center"
+          >
+            {i < last && (
               <span
-                className="nb-line block h-3.5 w-3.5 border-2"
-                style={{ background: i <= idx ? 'var(--nb-accent)' : 'var(--nb-gray)' }}
                 aria-hidden="true"
-              />
-              <span className={`text-center text-[8px] font-extrabold uppercase leading-tight rtl:tracking-normal ${i <= idx ? '' : 'nb-muted'}`}>
-                {t.status[s]}
-              </span>
-            </div>
-            {i < LIFECYCLE_STATUSES.length - 1 && (
-              <span
-                className="mx-1 mb-4 block h-[3px] flex-1"
-                style={{ background: i < idx ? 'var(--nb-accent)' : 'var(--nb-dot)', opacity: i < idx ? 1 : 0.35 }}
-                aria-hidden="true"
+                className="absolute start-[5px] top-[7px] z-0 h-[calc(100%+0.75rem)] w-[3px] sm:start-1/2 sm:top-[5px] sm:h-[3px] sm:w-full"
+                style={i < idx ? LINE_ON : LINE_OFF}
               />
             )}
-          </React.Fragment>
-        ))}
-      </div>
-    </div>
+            <span
+              aria-hidden="true"
+              className="nb-line relative z-10 block h-3.5 w-3.5 flex-shrink-0 border-2"
+              style={done ? STEP_ON : STEP_OFF}
+            />
+            <span className={`min-w-0 break-words text-[10px] font-extrabold uppercase leading-tight rtl:tracking-normal sm:w-full sm:px-0.5 sm:text-[8px] ${done ? '' : 'nb-muted'}`}>
+              {t.status[s]}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
   );
 });
 
@@ -186,7 +226,6 @@ const RepairRow = memo(({ repair, busy, loc, onDetails, onCopy, onPrice, onOpenS
   const payment = getPaymentMeta(repair.paymentMethod, t.payment);
   const PaymentIcon = payment.icon;
   const hasPrice = repair.price != null && repair.price !== '';
-  const hasDate = hasValidDate(repair.createdAt);
 
   const details = useCallback(() => onDetails(repair), [onDetails, repair]);
   const copy = useCallback(() => onCopy(repair.id), [onCopy, repair.id]);
@@ -219,12 +258,8 @@ const RepairRow = memo(({ repair, busy, loc, onDetails, onCopy, onPrice, onOpenS
         ) : <NotSetBadge label={notSet} />}
       </td>
       <td className="whitespace-nowrap px-3 py-3">
-        {hasDate ? (
-          <>
-            <p className="text-xs font-extrabold">{fmt(fm.date, repair.createdAt)}</p>
-            <p className="nb-muted text-[10px] font-semibold">{fmt(fm.time, repair.createdAt)}</p>
-          </>
-        ) : <NotSetBadge label={notSet} />}
+        <p className="text-xs font-extrabold">{fmt(fm.date, repair.createdAt)}</p>
+        <p className="nb-muted text-[10px] font-semibold">{fmt(fm.time, repair.createdAt)}</p>
       </td>
       <td className="whitespace-nowrap px-3 py-3">
         {hasPrice
@@ -249,7 +284,7 @@ const RepairRow = memo(({ repair, busy, loc, onDetails, onCopy, onPrice, onOpenS
 });
 
 const InfoTile = memo(({ icon: Icon, label, children }) => (
-  <div className={`${PANEL} flex items-start gap-2.5 p-3`}>
+  <div className={`${PANEL} flex min-w-0 items-start gap-2.5 p-3`}>
     <Icon size={15} className="nb-ic mt-0.5 flex-shrink-0" aria-hidden="true" />
     <div className="min-w-0">
       <p className="nb-muted mb-0.5 text-[9px] font-bold uppercase rtl:tracking-normal">{label}</p>
@@ -258,8 +293,8 @@ const InfoTile = memo(({ icon: Icon, label, children }) => (
   </div>
 ));
 
-const ModalHeader = ({ icon, tone, title, children, onClose, closeLabel }) => (
-  <div className="nb-gray nb-line flex flex-shrink-0 items-center justify-between border-b-2 px-5 py-4">
+const ModalHeader = memo(({ icon, tone, title, children, onClose, closeLabel }) => (
+  <div className="nb-gray nb-line flex flex-shrink-0 items-center justify-between gap-3 border-b-2 px-4 py-4 sm:px-5">
     <div className="flex min-w-0 items-center gap-2.5">
       <IconTile icon={icon} tone={tone} className="h-9 w-9 flex-shrink-0" size={16} />
       <div className="min-w-0">
@@ -267,9 +302,9 @@ const ModalHeader = ({ icon, tone, title, children, onClose, closeLabel }) => (
         {children}
       </div>
     </div>
-    {onClose && <button type="button" onClick={onClose} aria-label={closeLabel} className={BTN_ICON}><FiX size={15} /></button>}
+    {onClose && <button type="button" onClick={onClose} aria-label={closeLabel} className={`${BTN_ICON} flex-shrink-0`}><FiX size={15} /></button>}
   </div>
-);
+));
 
 const RepairDetailsModal = memo(({ repair, busy, loc, onClose, onCopy, onPrice, onOpenStatusModal }) => {
   useEscape(onClose);
@@ -299,17 +334,15 @@ const RepairDetailsModal = memo(({ repair, busy, loc, onClose, onCopy, onPrice, 
           </p>
         </ModalHeader>
 
-        <div className="slim-scroll space-y-4 overflow-y-auto px-5 py-4">
-          <div className={`${PANEL} p-3.5`}>
+        <div className="slim-scroll min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-5">
+          <div className={`${PANEL} p-3 sm:p-3.5`}>
             <div className="flex items-center gap-3">
               <IconTile icon={meta.icon} tone={meta.tone} className="h-11 w-11 flex-shrink-0" size={19} />
               <div className="min-w-0">
-                <p className="text-sm font-extrabold uppercase rtl:tracking-normal">{t.status[repair.status] || repair.status}</p>
-                <div className="nb-muted mt-0.5 text-[10px] font-semibold">
-                  {hasDate
-                    ? `${timeAgo(repair.createdAt, L.table.ago, nf)} · ${fmt(fm.full, repair.createdAt)}`
-                    : <NotSetBadge label={notSet} />}
-                </div>
+                <p className="break-words text-sm font-extrabold uppercase rtl:tracking-normal">{t.status[repair.status] || repair.status}</p>
+                <p className="nb-muted mt-0.5 break-words text-[10px] font-semibold">
+                  {hasDate ? `${timeAgo(repair.createdAt, L.table.ago, nf)} · ${fmt(fm.full, repair.createdAt)}` : '—'}
+                </p>
               </div>
             </div>
             <div className="mt-3.5"><RepairTimeline status={repair.status} t={t} /></div>
@@ -331,23 +364,23 @@ const RepairDetailsModal = memo(({ repair, busy, loc, onClose, onCopy, onPrice, 
           </InfoTile>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className={`${PANEL} p-3`}>
+            <div className={`${PANEL} min-w-0 p-3`}>
               <p className="nb-muted mb-1 text-[9px] font-bold uppercase rtl:tracking-normal">{d.payment}</p>
               {hasPayment
-                ? <p className="text-xs font-extrabold">{payment.label}</p>
+                ? <p className="break-words text-xs font-extrabold">{payment.label}</p>
                 : <NotSetBadge label={notSet} />}
             </div>
-            <div className={`${PANEL} p-3`}>
+            <div className={`${PANEL} min-w-0 p-3`}>
               <p className="nb-muted mb-1 text-[9px] font-bold uppercase rtl:tracking-normal">{d.amount}</p>
-              <p className="text-base font-extrabold tabular-nums">{hasPrice ? formatPrice(repair.price, L.table.price, nf) : '—'}</p>
+              <p className="break-words text-base font-extrabold tabular-nums">{hasPrice ? formatPrice(repair.price, L.table.price, nf) : '—'}</p>
             </div>
           </div>
         </div>
 
-        <div className="nb-gray nb-line flex flex-shrink-0 gap-2.5 border-t-2 px-5 py-4">
-          {canPrice && <button type="button" disabled={busy} onClick={onPrice} className={`${BTN_PRIMARY} flex-1 uppercase rtl:tracking-normal`}><FiDollarSign size={13} aria-hidden="true" /> {d.setPrice}</button>}
-          {hasNext && <button type="button" disabled={busy} onClick={onOpenStatusModal} className={`${BTN_MD} flex-1 uppercase rtl:tracking-normal`}>{t.updateStatus}</button>}
-          {!canPrice && !hasNext && <p className="nb-muted flex-1 py-2 text-center text-[11px] font-bold">{d.noActions}</p>}
+        <div className="nb-gray nb-line flex flex-shrink-0 flex-wrap gap-2.5 border-t-2 px-4 py-4 sm:px-5">
+          {canPrice && <button type="button" disabled={busy} onClick={onPrice} className={`${BTN_PRIMARY} min-w-[110px] flex-1 uppercase rtl:tracking-normal`}><FiDollarSign size={13} aria-hidden="true" /> {d.setPrice}</button>}
+          {hasNext && <button type="button" disabled={busy} onClick={onOpenStatusModal} className={`${BTN_MD} min-w-[110px] flex-1 uppercase rtl:tracking-normal`}>{t.updateStatus}</button>}
+          {!canPrice && !hasNext && <p className="nb-muted min-w-[110px] flex-1 py-2 text-center text-[11px] font-bold">{d.noActions}</p>}
           <button type="button" onClick={onClose} className={`${BTN_MD} uppercase rtl:tracking-normal`}>{d.close}</button>
         </div>
       </div>
@@ -357,14 +390,13 @@ const RepairDetailsModal = memo(({ repair, busy, loc, onClose, onCopy, onPrice, 
 
 const StatusOption = memo(({ s, label, busy, onSelect }) => {
   const click = useCallback(() => onSelect(s), [onSelect, s]);
-  const m = getMeta(s);
   return (
     <button type="button" disabled={busy} onClick={click} className={`${BTN} w-full justify-between px-4 py-3 text-xs uppercase rtl:tracking-normal`}>
-      <span className="flex items-center gap-2.5">
-        <span className="nb-line block h-3 w-3 border-2" style={{ background: m.hex }} aria-hidden="true" />
-        {label}
+      <span className="flex min-w-0 items-center gap-2.5">
+        <span className="nb-line block h-3 w-3 flex-shrink-0 border-2" style={getStyles(s).swatch} aria-hidden="true" />
+        <span className="min-w-0 break-words">{label}</span>
       </span>
-      <FiChevronRight size={14} className="rtl:rotate-180" aria-hidden="true" />
+      <FiChevronRight size={14} className="flex-shrink-0 rtl:rotate-180" aria-hidden="true" />
     </button>
   );
 });
@@ -377,17 +409,17 @@ const StatusUpdateModal = memo(({ repair, busy, loc, onClose, onSelectStatus }) 
   return (
     <Overlay onClose={onClose}>
       <div role="dialog" aria-modal="true" aria-label={m.title} className="nb-card relative w-full max-w-sm overflow-hidden">
-        <div className="nb-gray nb-line border-b-2 px-6 py-5">
+        <div className="nb-gray nb-line border-b-2 px-5 py-5 sm:px-6">
           <h3 className="text-base font-extrabold uppercase rtl:tracking-normal"><span className="nb-ul">{m.title}</span></h3>
           <p className="nb-muted mt-2 text-[11px] font-bold"><span dir="ltr" className="tabular-nums">#{shortId(repair.id)}</span> · {t.status[repair.status]}</p>
         </div>
-        <div className="space-y-2.5 p-6">
+        <div className="space-y-2.5 p-5 sm:p-6">
           <p className="nb-muted mb-1 text-[10px] font-bold uppercase rtl:tracking-normal">{m.choose}</p>
           {options.length
             ? options.map((s) => <StatusOption key={s} s={s} label={t.status[s]} busy={busy} onSelect={onSelectStatus} />)
             : <p className="nb-muted py-6 text-center text-xs font-bold">{m.none}</p>}
         </div>
-        <div className="px-6 pb-6">
+        <div className="px-5 pb-5 sm:px-6 sm:pb-6">
           <button type="button" onClick={onClose} className={`${BTN_MD} w-full uppercase rtl:tracking-normal`}>{m.cancel}</button>
         </div>
       </div>
@@ -411,13 +443,18 @@ const PriceModal = memo(({ repair, busy, loc, onClose, onSubmit }) => {
     onSubmit(price);
   };
 
+  const change = useCallback((e) => {
+    setValue(e.target.value.replace(/[^\d.-]/g, ''));
+    setError('');
+  }, []);
+
   return (
     <Overlay onClose={onClose}>
       <form onSubmit={submit} noValidate role="dialog" aria-modal="true" aria-label={m.title} className="nb-card relative w-full max-w-sm overflow-hidden">
         <ModalHeader icon={FiDollarSign} tone="em" title={m.title}>
           <p dir="ltr" className="nb-muted mt-1 text-start text-[11px] font-bold tabular-nums">#{shortId(repair.id)}</p>
         </ModalHeader>
-        <div className="p-6">
+        <div className="p-5 sm:p-6">
           <label htmlFor="repair-price" className={LABEL}>{m.label}</label>
           <input
             id="repair-price"
@@ -430,12 +467,12 @@ const PriceModal = memo(({ repair, busy, loc, onClose, onSubmit }) => {
             value={value}
             aria-invalid={!!error}
             aria-describedby={error ? 'repair-price-error' : undefined}
-            onChange={(e) => { setValue(e.target.value.replace(/[^\d.-]/g, '')); setError(''); }}
+            onChange={change}
             className={`nb-input h-12 w-full text-center text-lg font-extrabold tabular-nums ${error ? '!border-red-500' : ''}`}
           />
           {error && <p id="repair-price-error" role="alert" className="mt-2 text-[11px] font-bold text-red-500">{error}</p>}
         </div>
-        <div className="nb-gray nb-line flex gap-2.5 border-t-2 px-6 py-4">
+        <div className="nb-gray nb-line flex gap-2.5 border-t-2 px-5 py-4 sm:px-6">
           <button type="button" onClick={onClose} className={`${BTN_MD} flex-1 uppercase rtl:tracking-normal`}>{m.cancel}</button>
           <button type="submit" disabled={busy} className={`${BTN_PRIMARY} flex-1 uppercase rtl:tracking-normal`}>{m.submit}</button>
         </div>
@@ -443,8 +480,6 @@ const PriceModal = memo(({ repair, busy, loc, onClose, onSubmit }) => {
     </Overlay>
   );
 });
-
-
 
 const RepairRequests = () => {
   const darkMode = useDarkMode();
@@ -493,7 +528,12 @@ const RepairRequests = () => {
       });
       const data = Array.isArray(res.data) ? res.data : res.data?.content || [];
       if (!controller.signal.aborted) {
-        setRepairs(data.map((r) => ({ ...r, status: upper(r.status) })));
+        const next = data.map((r) => ({
+          ...r,
+          status: upper(r.status),
+          createdAt: normDate(r.createdAt ?? r.created_at),
+        }));
+        setRepairs((prev) => mergeRepairs(prev, next));
         setLastUpdated(new Date());
       }
     } catch (err) {
@@ -746,7 +786,7 @@ const RepairRequests = () => {
             <button type="button" onClick={openFilter} className={`${BTN_MD} relative h-10 uppercase rtl:tracking-normal`}>
               <FiFilter size={14} aria-hidden="true" /> {tt.filter}
               {activeFilterCount > 0 && (
-                <span className="nb-chip absolute -end-2 -top-2.5 !px-1.5" style={{ background: 'var(--nb-accent)', color: INK }}>{nf.format(activeFilterCount)}</span>
+                <span className="nb-chip absolute -end-2 -top-2.5 !px-1.5" style={FILTER_BADGE}>{nf.format(activeFilterCount)}</span>
               )}
             </button>
           </div>
@@ -807,8 +847,8 @@ const RepairRequests = () => {
             <div className="nb-gray nb-line flex flex-col items-center justify-between gap-3 border-t-2 px-4 py-3 sm:flex-row">
               <p className="nb-muted text-xs font-semibold">
                 {renderTpl(t.showing, {
-                  range: <b className="tabular-nums" style={{ color: 'var(--nb-ink)' }}>{nf.format(from)}–{nf.format(to)}</b>,
-                  total: <b className="tabular-nums" style={{ color: 'var(--nb-ink)' }}>{nf.format(filtered.length)}</b>,
+                  range: <b className="tabular-nums" style={BOLD_STYLE}>{nf.format(from)}–{nf.format(to)}</b>,
+                  total: <b className="tabular-nums" style={BOLD_STYLE}>{nf.format(filtered.length)}</b>,
                 })}
               </p>
               {totalPages > 1 && <Pagination page={page} total={totalPages} onChange={setCurrentPage} labels={tt} formatNumber={nf.format} />}

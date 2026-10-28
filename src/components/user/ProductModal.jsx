@@ -1,13 +1,11 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback, memo } from 'react';
-import { FiX, FiPlus, FiEdit3, FiUploadCloud, FiTrash2, FiAlertCircle } from 'react-icons/fi';
-import { Dropdown } from './Dropdown';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback, memo } from 'react';
+import { createPortal } from 'react-dom';
+import { FiX, FiPlus, FiEdit3, FiUploadCloud, FiTrash2, FiAlertCircle, FiChevronDown, FiCheck } from 'react-icons/fi';
 import { useEscape, useShopLocale, tpl } from '../shop/TableKit';
 import {
   CONDITIONS, CONDITION_LABELS, ALLOWED_IMAGE_TYPES, IMAGE_MAX_BYTES, PRICE_MAX, STOCK_MAX,
   resolveImageSrc, validateImageFile, validateProduct,
 } from '../../common/utils/productutils';
-
-/* ───────── translations (Arabic / English) ───────── */
 
 const TRANSLATIONS = {
   ar: {
@@ -54,7 +52,6 @@ const TRANSLATIONS = {
     category: 'Category',
     categoryPlaceholder: 'Select category',
     condition: 'Product condition',
-    /* optional overrides keyed by condition value, e.g. { NEW: 'New', USED: 'Used' } */
     conditions: { NEW: 'New', USED: 'Used', REFURBISHED: 'Refurbished', OPEN_BOX: 'Open box' },
     cancel: 'Cancel',
     saving: 'Saving…',
@@ -62,8 +59,6 @@ const TRANSLATIONS = {
     add: 'Add product',
   },
 };
-
-/* ───────── styles (same tokens as the Orders modals, scoped under .pm) ───────── */
 
 const PM_CSS = `
 .pm{--pm-card:#ffffff;--pm-ink:#04261a;--pm-muted:#4b6b5c;--pm-line:#04261a;--pm-shadow:#04261a;--pm-gray:#e8ebe9;--pm-dot:#04261a;--pm-accent:#10b981;--pm-btn:#059669;--pm-on:#ffffff}
@@ -102,8 +97,6 @@ const PM_CSS = `
 `;
 const STYLE_EL = <style>{PM_CSS}</style>;
 
-/* ───────── constants & helpers (module scope = created once) ───────── */
-
 const TONES = { am: '#facc15', em: '#34d399' };
 
 const money = (v) => v.replace(/[^\d.]/g, '').replace(/(\..*?)\./g, '$1').slice(0, 10);
@@ -130,7 +123,6 @@ const useLockScroll = () => {
   }, []);
 };
 
-/* dimmed backdrop + centered content (same behaviour as the Orders overlay) */
 const Overlay = ({ onClose, dir, children }) => {
   useLockScroll();
   return (
@@ -155,7 +147,157 @@ const Field = ({ label, htmlFor, children }) => (
   </div>
 );
 
-/* ───────── image picker (isolated so typing in other fields doesn't re-render it) ───────── */
+const MENU_MAX_H = 240;
+
+const Dropdown = memo(({ id, value, options, placeholder, dir, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(-1);
+  const [pos, setPos] = useState(null);
+  const btnRef = useRef(null);
+  const menuRef = useRef(null);
+
+  const selectedIndex = useMemo(() => options.findIndex((o) => o.value === value), [options, value]);
+  const selected = selectedIndex >= 0 ? options[selectedIndex] : null;
+  const listId = `${id}-list`;
+
+  const measure = useCallback(() => {
+    const el = btnRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const below = window.innerHeight - r.bottom - 12;
+    const above = r.top - 12;
+    const want = Math.min(MENU_MAX_H, options.length * 40 + 8);
+    const up = below < want && above > below;
+    setPos({
+      left: r.left,
+      width: r.width,
+      top: up ? undefined : r.bottom + 4,
+      bottom: up ? window.innerHeight - r.top + 4 : undefined,
+      maxHeight: Math.max(96, Math.min(MENU_MAX_H, up ? above : below)),
+    });
+  }, [options.length]);
+
+  const close = useCallback(() => setOpen(false), []);
+
+  const openMenu = useCallback(() => {
+    setActive(selectedIndex >= 0 ? selectedIndex : 0);
+    setOpen(true);
+  }, [selectedIndex]);
+
+  const toggle = useCallback(() => {
+    if (open) close();
+    else openMenu();
+  }, [open, close, openMenu]);
+
+  const choose = useCallback((i) => {
+    const o = options[i];
+    if (o) onChange(o.value);
+    setOpen(false);
+  }, [options, onChange]);
+
+  useLayoutEffect(() => {
+    if (!open) return undefined;
+    measure();
+    const onScroll = (e) => { if (!menuRef.current?.contains(e.target)) measure(); };
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', measure);
+    return () => {
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', measure);
+    };
+  }, [open, measure]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => {
+      if (btnRef.current?.contains(e.target) || menuRef.current?.contains(e.target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || active < 0) return;
+    menuRef.current?.children[active]?.scrollIntoView({ block: 'nearest' });
+  }, [open, active, pos]);
+
+  const onKeyDown = (e) => {
+    const last = options.length - 1;
+    if (!open) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openMenu();
+      }
+      return;
+    }
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); setActive((i) => (i >= last ? 0 : i + 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((i) => (i <= 0 ? last : i - 1)); }
+    else if (e.key === 'Home') { e.preventDefault(); setActive(0); }
+    else if (e.key === 'End') { e.preventDefault(); setActive(last); }
+    else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(active); }
+    else if (e.key === 'Tab') close();
+  };
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        id={id}
+        type="button"
+        role="combobox"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={open ? listId : undefined}
+        aria-activedescendant={open && active >= 0 ? `${id}-opt-${active}` : undefined}
+        onClick={toggle}
+        onKeyDown={onKeyDown}
+        className={`${INPUT} !flex items-center justify-between gap-2 text-start`}
+      >
+        <span className={`min-w-0 flex-1 truncate ${selected ? '' : 'pm-muted'}`}>
+          {selected ? selected.label : placeholder || ''}
+        </span>
+        <FiChevronDown size={16} aria-hidden="true" className={`flex-shrink-0 transition-transform duration-150 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && pos && createPortal(
+        <div className="pm" dir={dir}>
+          <ul
+            ref={menuRef}
+            id={listId}
+            role="listbox"
+            aria-labelledby={id}
+            style={{ left: pos.left, width: pos.width, top: pos.top, bottom: pos.bottom, maxHeight: pos.maxHeight }}
+            className="pm-card pm-scroll pm-in fixed z-[1100] overflow-y-auto py-1"
+          >
+            {options.length === 0 && <li className="pm-muted px-3 py-2 text-xs font-bold">—</li>}
+            {options.map((o, i) => {
+              const isSel = o.value === value;
+              return (
+                <li
+                  key={o.value}
+                  id={`${id}-opt-${i}`}
+                  role="option"
+                  aria-selected={isSel}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onMouseEnter={() => setActive(i)}
+                  onClick={() => choose(i)}
+                  className={`flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-start text-xs font-bold uppercase ${
+                    isSel ? 'bg-[var(--pm-btn)] text-[var(--pm-on)]' : i === active ? 'bg-[var(--pm-gray)]' : ''
+                  }`}
+                >
+                  <span className="min-w-0 flex-1 truncate">{o.label}</span>
+                  {isSel && <FiCheck size={14} aria-hidden="true" className="flex-shrink-0" />}
+                </li>
+              );
+            })}
+          </ul>
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+});
 
 const ImagePicker = memo(({ image, isEdit, T, onChange, onClearError }) => {
   const [imgError, setImgError] = useState('');
@@ -165,7 +307,6 @@ const ImagePicker = memo(({ image, isEdit, T, onChange, onClearError }) => {
 
   const isFile = image instanceof File;
 
-  /* preview: object URL for a newly picked file (revoked on change/unmount) or the stored uploads/ path */
   useEffect(() => {
     if (image instanceof File) {
       const url = URL.createObjectURL(image);
@@ -234,7 +375,6 @@ const ImagePicker = memo(({ image, isEdit, T, onChange, onClearError }) => {
   );
 });
 
-/* props: mode ('add' | 'edit'), data, categories, onChange(field, value), onSubmit(), onClose(), busy */
 const ProductModal = ({ mode, data, categories, onChange, onSubmit, onClose, busy = false }) => {
   useEscape(onClose);
   const { language, dir, font } = useShopLocale();
@@ -338,10 +478,23 @@ const ProductModal = ({ mode, data, categories, onChange, onSubmit, onClose, bus
               />
             </Field>
             <Field label={T.category} htmlFor="p-cat">
-              <Dropdown id="p-cat" value={data.categoryId ? String(data.categoryId) : ''} options={categoryOptions} placeholder={T.categoryPlaceholder} onChange={handlers.category} />
+              <Dropdown
+                id="p-cat"
+                dir={dir}
+                value={data.categoryId ? String(data.categoryId) : ''}
+                options={categoryOptions}
+                placeholder={T.categoryPlaceholder}
+                onChange={handlers.category}
+              />
             </Field>
             <Field label={T.condition} htmlFor="p-cond">
-              <Dropdown id="p-cond" value={data.condition} options={conditionOptions} onChange={handlers.condition} />
+              <Dropdown
+                id="p-cond"
+                dir={dir}
+                value={data.condition || CONDITIONS[0]}
+                options={conditionOptions}
+                onChange={handlers.condition}
+              />
             </Field>
           </div>
 
