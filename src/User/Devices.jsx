@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   FiShoppingCart, FiX, FiSliders, FiCheck, FiGrid, FiList, FiArrowUp, FiRefreshCw,
-  FiArrowRight, FiChevronDown, FiChevronLeft, FiChevronRight, FiSearch, FiHeart,
+  FiArrowRight, FiChevronDown, FiChevronLeft, FiChevronRight, FiSearch, FiHeart, FiTag,
 } from 'react-icons/fi';
 import { LazyMotion, domAnimation, m, AnimatePresence } from 'framer-motion';
 import api from '../common/api/api';
@@ -54,14 +54,17 @@ const DEFAULT_TEXT = {
   en: {
     eyebrowCategories: 'Categories', eyebrowProducts: 'Shop', prevPage: 'Previous page', nextPage: 'Next page', pageN: 'Page {{n}}', loadingMore: 'Loading more devices', endOfList: 'You have seen all devices',
     save: 'Save', saved: 'Saved', savedOnly: 'Saved only', onSaleOnly: 'On sale only', moreFilters: 'More filters', sortDiscount: 'Biggest discount',
+    youSave: 'Save {{value}}', originalPrice: 'Original price', discountedPrice: 'Price after discount', discountValue: 'Discount',
   },
   ar: {
     eyebrowCategories: 'التصنيفات', eyebrowProducts: 'المتجر', prevPage: 'الصفحة السابقة', nextPage: 'الصفحة التالية', pageN: 'صفحة {{n}}', loadingMore: 'جارٍ تحميل المزيد من الأجهزة', endOfList: 'لقد شاهدت جميع الأجهزة',
     save: 'حفظ', saved: 'تم الحفظ', savedOnly: 'المحفوظة فقط', onSaleOnly: 'العروض فقط', moreFilters: 'فلاتر إضافية', sortDiscount: 'أكبر خصم',
+    youSave: 'وفّر {{value}}', originalPrice: 'السعر الأصلي', discountedPrice: 'السعر بعد الخصم', discountValue: 'الخصم',
   },
   fr: {
     eyebrowCategories: 'Catégories', eyebrowProducts: 'Boutique', prevPage: 'Page précédente', nextPage: 'Page suivante', pageN: 'Page {{n}}', loadingMore: "Chargement d'autres appareils", endOfList: 'Vous avez vu tous les appareils',
     save: 'Enregistrer', saved: 'Enregistré', savedOnly: 'Enregistrés uniquement', onSaleOnly: 'En promotion uniquement', moreFilters: 'Plus de filtres', sortDiscount: 'Plus grande remise',
+    youSave: 'Économisez {{value}}', originalPrice: "Prix d'origine", discountedPrice: 'Prix après remise', discountValue: 'Remise',
   },
 };
 const DEVICE_SECTIONS = {
@@ -90,6 +93,7 @@ const interpolateNodes = (text, nodes) =>
 
 const NUMBER_FORMAT = new Intl.NumberFormat(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 const money = (n, currency) => `${currency} ${NUMBER_FORMAT.format(Number(n) || 0)}`;
+const round2 = (n) => Math.round(n * 100) / 100;
 
 const MAX_QUERY = 60;
 const sanitizeQuery = (raw) =>
@@ -139,6 +143,44 @@ const EMPTY_LIST = [];
 
 const STAGGER = Array.from({ length: 8 }, (_, i) => ({ '--i': i }));
 
+const computeFinal = (price, type, value) => {
+  if (!(price > 0) || !(value > 0) || !type) return price;
+  if (type === 'PERCENTAGE') return value < 100 ? round2(price - (price * value) / 100) : price;
+  return value < price ? round2(price - value) : price;
+};
+
+const normalizeProduct = (p) => {
+  const price = Number(p.price) || 0;
+  const legacy = clamp(Number(p.discount) || 0, 0, 100);
+  const apiFinal = Number(p.finalPrice);
+  const discountValue = Number(p.discountValue) || 0;
+  const apiType = p.discountType || null;
+  let finalPrice = price;
+  if (apiFinal > 0 && apiFinal < price) finalPrice = apiFinal;
+  else if (discountValue > 0 && apiType) finalPrice = computeFinal(price, apiType, discountValue);
+  else if (legacy) finalPrice = round2(price * (1 - legacy / 100));
+  const saving = round2(Math.max(0, price - finalPrice));
+  return {
+    ...p,
+    price,
+    finalPrice,
+    saving,
+    discount: price > 0 ? (saving / price) * 100 : 0,
+    discountType: saving > 0 ? (apiType || 'PERCENTAGE') : null,
+    discountValue: saving > 0 && discountValue > 0 ? discountValue : 0,
+    _text: fold(`${p.name || ''} ${p.categoryName || ''}`),
+    _ts: Date.parse(p.createdAt) || 0,
+  };
+};
+
+const discountBadge = (product, currency) => {
+  if (product.discountValue > 0 && product.discountType === 'FIXED_AMOUNT') return `-${money(product.discountValue, currency)}`;
+  if (product.discountValue > 0 && product.discountType === 'PERCENTAGE') return `-${NUMBER_FORMAT.format(product.discountValue)}%`;
+  return product.discountType === 'FIXED_AMOUNT'
+    ? `-${money(product.saving, currency)}`
+    : `-${Math.max(1, Math.round(product.discount))}%`;
+};
+
 const readSaved = () => {
   try {
     const v = JSON.parse(localStorage.getItem(SAVED_KEY) || '[]');
@@ -162,8 +204,8 @@ const useSavedProducts = () => {
 };
 
 const NB_CSS = `
-.nb{--nb-bg:#f3f4f6;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e2e5e9;--nb-soft:#e2e5e9;--nb-accent:#10b981;--nb-on:#04261a;background:var(--nb-bg);color:var(--nb-ink)}
-.nb-dark{--nb-bg:#121212;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#212121;--nb-soft:#212121;--nb-accent:#39ff88;--nb-on:#022c22}
+.nb{--nb-bg:#f3f4f6;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e2e5e9;--nb-soft:#e2e5e9;--nb-accent:#10b981;--nb-on:#04261a;--nb-sale:#dc2626;background:var(--nb-bg);color:var(--nb-ink)}
+.nb-dark{--nb-bg:#121212;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#212121;--nb-soft:#212121;--nb-accent:#39ff88;--nb-on:#022c22;--nb-sale:#fb7185}
 .nb-dark .nb-drawer{border-color:#3a3a3a}
 .nb-seq>section:nth-of-type(odd){background:var(--nb-bg)}
 .nb-seq>section:nth-of-type(even){background:var(--nb-gray)}
@@ -186,6 +228,10 @@ const NB_CSS = `
 .nb-divider{display:block;height:8px;background:var(--nb-accent);border-block:2px solid var(--nb-line)}
 .nb-squig path{stroke:var(--nb-accent)}
 .nb-chip{display:inline-flex;align-items:center;gap:4px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);padding:1px 6px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;line-height:1.5}
+.nb-sale{color:var(--nb-sale)}
+.nb-price-old{color:var(--nb-muted);text-decoration:line-through;text-decoration-thickness:2px;text-decoration-color:var(--nb-sale)}
+.nb-save{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin-top:5px;padding:1px 7px;background:var(--nb-accent);color:var(--nb-on);border:2px solid var(--nb-line);font-size:10px;font-weight:800;text-transform:uppercase;line-height:1.5;white-space:nowrap}
+.nb-ribbon{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:var(--nb-sale);color:#fff;border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);font-size:11px;font-weight:800;line-height:1.3;font-variant-numeric:tabular-nums}
 .nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow);font-weight:700;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,background-color .12s ease}
 .nb-btn:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--nb-shadow)}
 .nb-btn:active:not(:disabled){transform:translate(2px,2px);box-shadow:0 0 0 var(--nb-shadow)}
@@ -373,6 +419,30 @@ const DeviceScene = memo(({ className = 'h-24 w-32' }) => (
   </div>
 ));
 
+const PriceBlock = memo(({ product, currency, isList, t }) => {
+  const discounted = product.saving > 0;
+  return (
+    <div className={`flex min-w-0 flex-col ${isList ? '' : 'max-sm:rtl:items-end'}`} dir="ltr">
+      {discounted && (
+        <span className="nb-price-old text-[11px] font-semibold tabular-nums">
+          <span className="sr-only">{t('originalPrice')}: </span>
+          {money(product.price, currency)}
+        </span>
+      )}
+      <span className={`truncate text-lg font-extrabold leading-tight tabular-nums tracking-tight ${discounted ? 'nb-sale' : ''}`}>
+        <span className="sr-only">{discounted ? `${t('discountedPrice')}: ` : ''}</span>
+        {money(product.finalPrice, currency)}
+      </span>
+      {discounted && (
+        <span dir="auto" className="nb-save">
+          <FiTag className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+          {t('youSave', { value: money(product.saving, currency) })}
+        </span>
+      )}
+    </div>
+  );
+});
+
 const ProductCard = memo(({ product, darkMode, onAddToCart, onOpen, onSave, isSaved = false, number, layout = 'grid', variant = 'grid', tone = 'emerald', t, className = '' }) => {
   const src = useMemo(() => safeImageUrl(product.imageUrl), [product.imageUrl]);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -395,9 +465,10 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, onOpen, onSave, isSa
 
   const outOfStock = product.stock === 0;
   const isList = layout === 'list';
-  const hasDiscount = product.discount > 0;
+  const hasDiscount = product.saving > 0;
   const currency = t('currency');
   const snippet = useMemo(() => clean(product.description, 140) || t('noDescription'), [product.description, t]);
+  const badge = useMemo(() => (hasDiscount ? discountBadge(product, currency) : ''), [hasDiscount, product, currency]);
 
   const handleCart = useCallback(async (e) => {
     e.stopPropagation();
@@ -435,7 +506,9 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, onOpen, onSave, isSa
         </>
       )}
       {hasDiscount && (
-        <span dir="ltr" className="nb-chip nb-btn-a absolute start-2 top-2 z-10">-{Math.round(product.discount)}%</span>
+        <span dir="ltr" className="nb-ribbon absolute start-2 top-2 z-10" title={t('discountValue')}>
+          <FiTag className="h-3 w-3" aria-hidden="true" />{badge}
+        </span>
       )}
       <button
         type="button" onClick={save} aria-pressed={isSaved} aria-label={isSaved ? t('saved') : t('save')} title={isSaved ? t('saved') : t('save')}
@@ -465,13 +538,10 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, onOpen, onSave, isSa
   const footer = (
     <div
       className={`mt-auto flex gap-2 ${
-        isList ? 'items-center justify-between' : 'flex-col sm:flex-row sm:items-center sm:justify-between'
+        isList ? 'items-center justify-between' : 'flex-col sm:flex-row sm:items-end sm:justify-between'
       } ${variant === 'latest' && !isList ? 'border-t-2 nb-line pt-3' : ''}`}
     >
-      <div className={`flex min-w-0 flex-col ${isList ? '' : 'max-sm:rtl:items-end'}`} dir="ltr">
-        <span className="truncate text-base font-extrabold tabular-nums tracking-tight">{money(product.finalPrice, currency)}</span>
-        {hasDiscount && <span className="nb-muted text-[11px] tabular-nums line-through">{money(product.price, currency)}</span>}
-      </div>
+      <PriceBlock product={product} currency={currency} isList={isList} t={t} />
       <div className={`flex items-center gap-2 ${isList ? 'flex-shrink-0' : 'w-full sm:w-auto sm:flex-shrink-0'}`}>
         <button
           type="button" onClick={handleCart} disabled={outOfStock || adding} aria-label={t('addToCart')}
@@ -835,14 +905,7 @@ const ProductsContent = memo(({ darkMode }) => {
       const out = [];
       for (const p of list) {
         if (!p || p.deleted) continue;
-        const price = Number(p.price) || 0;
-        const discount = clamp(Number(p.discount) || 0, 0, 100);
-        out.push({
-          ...p, price, discount,
-          finalPrice: discount ? Math.round(price * (1 - discount / 100) * 100) / 100 : price,
-          _text: fold(`${p.name || ''} ${p.categoryName || ''}`),
-          _ts: Date.parse(p.createdAt) || 0,
-        });
+        out.push(normalizeProduct(p));
       }
       return out;
     },
@@ -881,7 +944,7 @@ const ProductsContent = memo(({ darkMode }) => {
       if (selectedCategoryId !== 'all' && p.categoryId !== selectedCategoryId) return false;
       if (term && !p._text.includes(term)) return false;
       if (inStockOnly && p.stock === 0) return false;
-      if (onSaleOnly && !(p.discount > 0)) return false;
+      if (onSaleOnly && !(p.saving > 0)) return false;
       if (savedOnly && !saved.has(p.id)) return false;
       return true;
     });

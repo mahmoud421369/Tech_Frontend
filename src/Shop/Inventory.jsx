@@ -4,7 +4,7 @@ import React, {
 import {
   FiSearch, FiDownload, FiUpload, FiPackage, FiBox, FiInfo, FiX, FiFilter, FiRefreshCw,
   FiLayers, FiAlertTriangle, FiXCircle, FiDollarSign, FiShield, FiChevronUp, FiChevronDown,
-  FiChevronLeft, FiChevronRight, FiCheck,
+  FiChevronLeft, FiChevronRight, FiCheck, FiTag, FiList,
 } from 'react-icons/fi';
 import api from '../common/api/api';
 import { EXTRAS_CSS, Toaster, toast } from '../components/user/UiExtras';
@@ -48,6 +48,35 @@ const TABLE_FALLBACK = {
   },
 };
 
+const EXTRA = {
+  en: {
+    pricing: 'Pricing',
+    priceBefore: 'Price before discount',
+    priceAfter: 'Price after discount',
+    discountValue: 'Discount value',
+    discountType: 'Discount type',
+    percentage: 'Percentage',
+    fixedAmount: 'Fixed amount',
+    youSave: 'You save',
+    noDiscount: 'No discount',
+    specifications: 'Specifications',
+    noSpecs: 'No specifications added',
+  },
+  ar: {
+    pricing: 'التسعير',
+    priceBefore: 'السعر قبل الخصم',
+    priceAfter: 'السعر بعد الخصم',
+    discountValue: 'قيمة الخصم',
+    discountType: 'نوع الخصم',
+    percentage: 'نسبة مئوية',
+    fixedAmount: 'مبلغ ثابت',
+    youSave: 'التوفير',
+    noDiscount: 'لا يوجد خصم',
+    specifications: 'المواصفات',
+    noSpecs: 'لا توجد مواصفات',
+  },
+};
+
 const mergeLabels = (base, fallback) => {
   const out = { ...fallback };
   if (base) for (const k of Object.keys(base)) if (base[k] != null && base[k] !== '') out[k] = base[k];
@@ -68,6 +97,7 @@ const PG_CSS = `
 .pg-bar{display:inline-block;width:40px;height:12px;background:var(--pg-accent);border:2px solid var(--pg-line)}
 .pg-ul{text-decoration:underline;text-decoration-color:var(--pg-accent);text-decoration-thickness:3px;text-underline-offset:4px;text-decoration-skip-ink:none}
 .pg-chip{display:inline-flex;align-items:center;gap:6px;background:var(--pg-card);color:var(--pg-ink);border:2px solid var(--pg-line);padding:1px 8px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;line-height:1.6;white-space:nowrap}
+.pg-chip-a{background:var(--pg-accent);color:#04261a}
 .pg-tile{display:inline-flex;align-items:center;justify-content:center;flex:none;border:2px solid var(--pg-line);background:var(--pg-accent);color:#04261a}
 .pg-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--pg-card);color:var(--pg-ink);border:2px solid var(--pg-line);box-shadow:2px 2px 0 var(--pg-shadow);font-weight:700;cursor:pointer;white-space:nowrap;transition:transform .12s ease,box-shadow .12s ease}
 .pg-btn:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--pg-shadow)}
@@ -102,13 +132,49 @@ const STATUS_DOT = { ok: 'bg-emerald-500', low: 'bg-amber-400', out: 'bg-red-500
 const TONES = { sky: '#22d3ee', am: '#facc15', ro: '#fb7185', vi: '#2dd4bf', em: '#34d399' };
 
 const statusOf = (i) => (i.stock <= 0 ? 'out' : i.stock < i.threshold ? 'low' : 'ok');
+const hasDiscount = (i) => i.finalPrice < i.price;
+const discountPct = (i) => (i.price > 0 ? ((i.price - i.finalPrice) / i.price) * 100 : 0);
+const discountBadge = (i, nf, priceLabel) => {
+  if (i.discountValue > 0 && i.discountType === 'FIXED_AMOUNT') {
+    return `-${formatPrice(i.discountValue, priceLabel, nf)}`;
+  }
+  if (i.discountValue > 0 && i.discountType === 'PERCENTAGE') {
+    return `-${nf.format(i.discountValue)}%`;
+  }
+  return i.discountType === 'FIXED_AMOUNT'
+    ? `-${formatPrice(i.price - i.finalPrice, priceLabel, nf)}`
+    : `-${nf.format(Math.max(1, Math.round(discountPct(i))))}%`;
+};
 
-const normalize = (i) => ({
-  ...i,
-  stock: Math.max(0, num(i.stock ?? i.stockQuantity)),
-  price: num(i.price),
-  threshold: num(i.threshold) > 0 ? num(i.threshold) : DEFAULT_THRESHOLD,
-});
+const toSpecList = (v) => {
+  if (Array.isArray(v)) return v.map((s) => String(s ?? '').trim()).filter(Boolean);
+  if (typeof v === 'string') return v.split(/[\n,،]/).map((s) => s.trim()).filter(Boolean);
+  return [];
+};
+
+const computeFinal = (price, type, value) => {
+  if (!(price > 0) || !(value > 0) || !type) return price;
+  if (type === 'PERCENTAGE') return value < 100 ? Math.round((price - (price * value) / 100) * 100) / 100 : price;
+  return value < price ? Math.round((price - value) * 100) / 100 : price;
+};
+
+const normalize = (i) => {
+  const price = num(i.price);
+  const apiFinal = num(i.finalPrice);
+  const discountType = i.discountType || null;
+  const discountValue = num(i.discountValue);
+  const finalPrice = apiFinal > 0 && apiFinal < price ? apiFinal : computeFinal(price, discountType, discountValue);
+  return {
+    ...i,
+    stock: Math.max(0, num(i.stock ?? i.stockQuantity)),
+    price,
+    finalPrice,
+    discountType,
+    discountValue,
+    specifications: toSpecList(i.specifications),
+    threshold: num(i.threshold) > 0 ? num(i.threshold) : DEFAULT_THRESHOLD,
+  };
+};
 
 const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩';
 const toDigits = (v) => v.replace(/[٠-٩]/g, (d) => ARABIC_DIGITS.indexOf(d)).replace(/\D/g, '');
@@ -260,6 +326,7 @@ const InventoryRow = memo(({ item, busy, L, onDetails, onUpdateStock }) => {
   const t = L.inventory;
   const fm = getFormats(L.locale);
   const status = statusOf(item);
+  const discounted = hasDiscount(item);
   return (
     <tr className="pg-tr">
       <td className="pg-td px-3 py-2.5 whitespace-nowrap">
@@ -271,7 +338,17 @@ const InventoryRow = memo(({ item, busy, L, onDetails, onUpdateStock }) => {
           </div>
         </div>
       </td>
-      <td className="pg-td px-3 py-2.5 whitespace-nowrap font-extrabold text-[13px] tabular-nums">{formatPrice(item.price, L.table.price, fm.number)}</td>
+      <td className="pg-td px-3 py-2.5 whitespace-nowrap">
+        <div className="flex flex-col gap-0.5">
+          <span className="font-extrabold text-[13px] tabular-nums">{formatPrice(item.finalPrice, L.table.price, fm.number)}</span>
+          {discounted && (
+            <span className="flex items-center gap-1.5">
+              <span className="pg-muted text-[10px] font-semibold tabular-nums line-through">{formatPrice(item.price, L.table.price, fm.number)}</span>
+              <span dir="ltr" className="pg-chip pg-chip-a !px-1.5 !py-0 !gap-1"><FiTag size={9} aria-hidden="true" />{discountBadge(item, fm.number, L.table.price)}</span>
+            </span>
+          )}
+        </div>
+      </td>
       <td className="pg-td px-3 py-2.5 whitespace-nowrap">
         <span className={`text-sm font-extrabold tabular-nums ${item.stock > 0 ? '' : 'text-red-500'}`}>{fm.number.format(item.stock)}</span>
         <span className="pg-muted text-[10px] font-semibold ms-1">{t.row.unit}</span>
@@ -287,20 +364,22 @@ const InventoryRow = memo(({ item, busy, L, onDetails, onUpdateStock }) => {
   );
 });
 
-const DetailsModal = memo(({ item, L, onClose }) => {
+const DetailsModal = memo(({ item, L, X, onClose }) => {
   useEscape(onClose);
   const t = L.inventory;
   const fm = getFormats(L.locale);
   const status = statusOf(item);
+  const discounted = hasDiscount(item);
+  const saved = discounted ? item.price - item.finalPrice : 0;
+  const typeLabel = item.discountType === 'FIXED_AMOUNT' ? X.fixedAmount : item.discountType === 'PERCENTAGE' ? X.percentage : '';
   const cells = [
-    [t.details.unitPrice, formatPrice(item.price, L.table.price, fm.number)],
     [t.details.quantity, `${fm.number.format(item.stock)} ${t.row.unit}`],
     [t.details.threshold, `${fm.number.format(item.threshold)} ${t.row.unit}`],
   ];
   return (
     <Overlay onClose={onClose}>
-      <div role="dialog" aria-modal="true" aria-label={t.details.title} className="pg-card pg-in relative w-full max-w-sm overflow-hidden">
-        <div className="pg-gray pg-line px-5 py-3.5 border-b-2 flex items-center justify-between">
+      <div role="dialog" aria-modal="true" aria-label={t.details.title} className="pg-card pg-in relative flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden">
+        <div className="pg-gray pg-line px-5 py-3.5 border-b-2 flex flex-shrink-0 items-center justify-between">
           <div className="flex items-center gap-2.5">
             <span className="pg-tile h-9 w-9" style={{ background: TONES.sky }}><FiInfo size={16} aria-hidden="true" /></span>
             <h3 className="text-sm font-extrabold uppercase"><span className="pg-ul">{t.details.title}</span></h3>
@@ -308,7 +387,7 @@ const DetailsModal = memo(({ item, L, onClose }) => {
           <button type="button" onClick={onClose} aria-label={L.table.close} className="pg-btn h-8 w-8"><FiX size={15} aria-hidden="true" /></button>
         </div>
 
-        <div className="px-5 py-4 space-y-3.5">
+        <div className="pg-scroll flex-1 overflow-y-auto px-5 py-4 space-y-3.5">
           <div className="flex items-center gap-3">
             <span className="pg-tile h-12 w-12"><FiPackage size={20} aria-hidden="true" /></span>
             <div className="min-w-0">
@@ -317,7 +396,43 @@ const DetailsModal = memo(({ item, L, onClose }) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-2.5">
+          <div className="pg-gray pg-dot p-3 space-y-2.5">
+            <p className="flex items-center gap-2 text-[10px] font-bold uppercase pg-muted">
+              <FiTag size={13} className="text-[var(--pg-accent)]" aria-hidden="true" /> {X.pricing}
+            </p>
+
+            <div className="flex items-center justify-between gap-3">
+              <span className="pg-muted text-[11px] font-bold uppercase">{X.priceBefore}</span>
+              <span className={`text-xs font-extrabold tabular-nums ${discounted ? 'pg-muted line-through' : ''}`}>
+                {formatPrice(item.price, L.table.price, fm.number)}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <span className="pg-muted text-[11px] font-bold uppercase">{X.discountValue}</span>
+              {discounted ? (
+                <span className="flex items-center gap-2">
+                  {typeLabel && <span className="pg-muted text-[10px] font-semibold">{typeLabel}</span>}
+                  <span dir="ltr" className="pg-chip pg-chip-a">{discountBadge(item, fm.number, L.table.price)}</span>
+                </span>
+              ) : (
+                <span className="pg-muted text-xs font-semibold">{X.noDiscount}</span>
+              )}
+            </div>
+
+            <div className="pg-line flex items-center justify-between gap-3 border-t-2 border-dotted pt-2.5">
+              <span className="text-[11px] font-extrabold uppercase">{X.priceAfter}</span>
+              <span className="text-base font-extrabold tabular-nums">{formatPrice(item.finalPrice, L.table.price, fm.number)}</span>
+            </div>
+
+            {discounted && (
+              <p className="pg-muted text-[11px] font-bold">
+                {X.youSave}: <span className="tabular-nums text-[var(--pg-ink)]">{formatPrice(saved, L.table.price, fm.number)}</span>
+              </p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2.5">
             {cells.map(([label, value]) => (
               <div key={label} className="pg-gray pg-dot p-3 min-w-0">
                 <p className="pg-muted text-[10px] font-bold uppercase mb-1 truncate">{label}</p>
@@ -326,13 +441,31 @@ const DetailsModal = memo(({ item, L, onClose }) => {
             ))}
           </div>
 
+          <div className="pg-gray pg-dot p-3">
+            <p className="pg-muted mb-2 flex items-center gap-2 text-[10px] font-bold uppercase">
+              <FiList size={13} className="text-[var(--pg-accent)]" aria-hidden="true" /> {X.specifications}
+            </p>
+            {item.specifications.length > 0 ? (
+              <ul className="pg-scroll max-h-40 space-y-1 overflow-y-auto text-xs font-semibold">
+                {item.specifications.map((s, i) => (
+                  <li key={i} className="flex min-w-0 gap-1.5">
+                    <span aria-hidden="true" className="flex-shrink-0">•</span>
+                    <span className="min-w-0 flex-1 break-words">{s}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="pg-muted text-xs font-semibold">{X.noSpecs}</p>
+            )}
+          </div>
+
           <div className="pg-gray pg-dot p-3 flex items-center justify-between">
             <span className="flex items-center gap-2 text-[11px] font-bold uppercase"><FiShield size={14} className="text-[var(--pg-accent)]" aria-hidden="true" /> {t.details.status}</span>
             <StatusPill status={status} label={t.status[status]} />
           </div>
         </div>
 
-        <div className="pg-line px-5 py-3.5 border-t-2">
+        <div className="pg-line px-5 py-3.5 border-t-2 flex-shrink-0">
           <button type="button" onClick={onClose} className="pg-btn w-full h-10 text-xs uppercase">{L.table.close}</button>
         </div>
       </div>
@@ -401,6 +534,7 @@ const Inventory = () => {
   const t = L.inventory;
   const nf = fm.number;
   const tl = useMemo(() => mergeLabels(L.table, isAr ? TABLE_FALLBACK.ar : TABLE_FALLBACK.en), [L.table, isAr]);
+  const X = isAr ? EXTRA.ar : EXTRA.en;
 
   const tRef = useRef(L);
   tRef.current = L;
@@ -571,7 +705,7 @@ const Inventory = () => {
   const index = useMemo(() => inventory.map((i) => ({
     i,
     status: statusOf(i),
-    text: [i.name, i.category, i.categoryName].filter(Boolean).join(' ').toLowerCase(),
+    text: [i.name, i.category, i.categoryName, ...i.specifications].filter(Boolean).join(' ').toLowerCase(),
   })), [inventory]);
 
   const counts = useMemo(() => {
@@ -580,7 +714,6 @@ const Inventory = () => {
     return c;
   }, [index, inventory.length]);
 
-  // Share the "low / out of stock" count with the shop header badge (only after the first successful load).
   const lowStockCount = counts.low + counts.out;
   const loaded = lastUpdated !== null;
   useEffect(() => {
@@ -597,8 +730,8 @@ const Inventory = () => {
       if ((statusFilter === 'all' || status === statusFilter) && (!term || text.includes(term))) list.push(i);
     }
     list.sort((a, b) => {
-      if (sortBy === 'highest_price') return b.price - a.price;
-      if (sortBy === 'lowest_price') return a.price - b.price;
+      if (sortBy === 'highest_price') return b.finalPrice - a.finalPrice;
+      if (sortBy === 'lowest_price') return a.finalPrice - b.finalPrice;
       if (sortBy === 'highest_stock') return b.stock - a.stock;
       if (sortBy === 'lowest_stock') return a.stock - b.stock;
       return collator.compare(String(a.name || ''), String(b.name || ''));
@@ -804,7 +937,7 @@ const Inventory = () => {
         </section>
       </div>
 
-      {detailsItem && <DetailsModal item={detailsItem} L={L} onClose={closeDetails} />}
+      {detailsItem && <DetailsModal item={detailsItem} L={L} X={X} onClose={closeDetails} />}
 
       {showFilterPanel && (
         <FilterPanel title={t.filter.title} note={t.filter.note} groups={filterGroups} onReset={resetFilters} onClose={closeFilter} labels={tl} />

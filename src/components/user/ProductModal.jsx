@@ -28,6 +28,21 @@ const TRANSLATIONS = {
     categoryPlaceholder: 'اختر الفئة',
     condition: 'حالة المنتج',
     conditions: {},
+    optional: 'اختياري',
+    specifications: 'المواصفات',
+    specificationsHint: 'افصل بين كل مواصفة وأخرى بفاصلة — تظهر كل مواصفة في سطر مستقل',
+    specificationsPlaceholder: 'شاشة 6.1 بوصة, رام 8 جيجا, تخزين 256 جيجا',
+    specCount: '{n} / {max} مواصفة',
+    discount: 'الخصم',
+    discountTypes: { PERCENTAGE: 'نسبة مئوية (%)', FIXED_AMOUNT: 'مبلغ ثابت (ج.م)' },
+    discountPlaceholders: { PERCENTAGE: 'من 0 إلى 99.99', FIXED_AMOUNT: '0.00' },
+    discountValueLabel: 'قيمة الخصم',
+    finalPrice: 'السعر بعد الخصم',
+    currency: 'ج.م',
+    errSpecsCount: 'عدد المواصفات كبير (الحد الأقصى {n})',
+    errSpecLen: 'يجب ألا تتجاوز كل مواصفة {n} حرفاً',
+    errPercent: 'نسبة الخصم يجب أن تكون أقل من 100',
+    errFixed: 'مبلغ الخصم يجب أن يكون أقل من سعر المنتج',
     cancel: 'إلغاء',
     saving: 'جارٍ الحفظ…',
     save: 'حفظ التعديلات',
@@ -53,6 +68,21 @@ const TRANSLATIONS = {
     categoryPlaceholder: 'Select category',
     condition: 'Product condition',
     conditions: { NEW: 'New', USED: 'Used', REFURBISHED: 'Refurbished', OPEN_BOX: 'Open box' },
+    optional: 'Optional',
+    specifications: 'Specifications',
+    specificationsHint: 'Separate each specification with a comma — each one is shown on its own line',
+    specificationsPlaceholder: 'Screen 6.1 inch, 8GB RAM, 256GB storage',
+    specCount: '{n} / {max} specifications',
+    discount: 'Discount',
+    discountTypes: { PERCENTAGE: 'Percentage (%)', FIXED_AMOUNT: 'Fixed amount (EGP)' },
+    discountPlaceholders: { PERCENTAGE: '0 to 99.99', FIXED_AMOUNT: '0.00' },
+    discountValueLabel: 'Discount value',
+    finalPrice: 'Final price after discount',
+    currency: 'EGP',
+    errSpecsCount: 'Too many specifications (max {n})',
+    errSpecLen: 'Each specification must be at most {n} characters',
+    errPercent: 'Percentage discount must be less than 100',
+    errFixed: 'Fixed discount must be less than the product price',
     cancel: 'Cancel',
     saving: 'Saving…',
     save: 'Save changes',
@@ -101,6 +131,53 @@ const TONES = { am: '#facc15', em: '#34d399' };
 
 const money = (v) => v.replace(/[^\d.]/g, '').replace(/(\..*?)\./g, '$1').slice(0, 10);
 const digits = (v) => v.replace(/\D/g, '').slice(0, 7);
+const discountMoney = (v) =>
+  v.replace(/[^\d.]/g, '').replace(/(\..*?)\./g, '$1').replace(/^(\d*\.\d{0,2}).*$/, '$1').slice(0, 11);
+const specsText = (v) => v.replace(/،/g, ',');
+
+const asText = (v) => (Array.isArray(v) ? v.join(', ') : v == null ? '' : String(v));
+const asDiscountText = (v) => (parseFloat(v) > 0 ? String(v) : '');
+
+const SPEC_MAX_LINES = 50;
+const SPEC_MAX_LEN = 200;
+const DISCOUNT_TYPES = ['PERCENTAGE', 'FIXED_AMOUNT'];
+const DEFAULT_DISCOUNT_TYPE = DISCOUNT_TYPES[0];
+
+const parseSpecs = (raw) => {
+  const text = asText(raw);
+  if (!text) return [];
+  const seen = new Set();
+  const out = [];
+  for (const part of text.split(',')) {
+    const s = part.trim();
+    if (s && !seen.has(s)) {
+      seen.add(s);
+      out.push(s);
+    }
+  }
+  return out;
+};
+
+const computeFinalPrice = (priceRaw, type, valueRaw) => {
+  const price = parseFloat(priceRaw);
+  const value = parseFloat(valueRaw);
+  if (!(price > 0) || !(value > 0)) return null;
+  if (type === 'PERCENTAGE') return value < 100 ? price - (price * value) / 100 : null;
+  return value < price ? price - value : null;
+};
+
+const validateExtras = (data, T) => {
+  const specs = parseSpecs(data.specifications);
+  if (specs.length > SPEC_MAX_LINES) return tpl(T.errSpecsCount, { n: SPEC_MAX_LINES });
+  if (specs.some((s) => s.length > SPEC_MAX_LEN)) return tpl(T.errSpecLen, { n: SPEC_MAX_LEN });
+  const value = parseFloat(data.discountValue);
+  if (value > 0) {
+    const type = data.discountType || DEFAULT_DISCOUNT_TYPE;
+    if (type === 'PERCENTAGE' && value >= 100) return T.errPercent;
+    if (type === 'FIXED_AMOUNT' && value >= parseFloat(data.price)) return T.errFixed;
+  }
+  return '';
+};
 
 const ACCEPT = ALLOWED_IMAGE_TYPES.join(',');
 const MAX_MB = IMAGE_MAX_BYTES / 1024 / 1024;
@@ -140,9 +217,12 @@ const Tile = memo(({ icon: Icon, tone = 'em', className = 'h-9 w-9', size = 16 }
   </span>
 ));
 
-const Field = ({ label, htmlFor, children }) => (
+const Field = ({ label, htmlFor, tag, children }) => (
   <div>
-    <label htmlFor={htmlFor} className="pm-label">{label}</label>
+    <label htmlFor={htmlFor} className="pm-label">
+      {label}
+      {tag && <span className="pm-muted ms-1.5 text-[10px] font-semibold normal-case">({tag})</span>}
+    </label>
     {children}
   </div>
 );
@@ -375,6 +455,42 @@ const ImagePicker = memo(({ image, isEdit, T, onChange, onClearError }) => {
   );
 });
 
+const SpecPreview = memo(({ value, T }) => {
+  const lines = useMemo(() => parseSpecs(value), [value]);
+  if (lines.length === 0) return null;
+  const over = lines.length > SPEC_MAX_LINES;
+  return (
+    <div className="mt-2">
+      <ul className="pm-drop pm-scroll max-h-28 space-y-1 overflow-y-auto p-2 text-[11px] font-semibold">
+        {lines.slice(0, SPEC_MAX_LINES).map((line, i) => (
+          <li key={i} className="flex min-w-0 gap-1.5">
+            <span aria-hidden="true" className="flex-shrink-0">•</span>
+            <span className="min-w-0 flex-1 break-words">{line}</span>
+          </li>
+        ))}
+      </ul>
+      <p className={`mt-1 text-[10px] font-bold ${over ? 'text-red-500' : 'pm-muted'}`}>
+        {tpl(T.specCount, { n: lines.length, max: SPEC_MAX_LINES })}
+      </p>
+    </div>
+  );
+});
+
+const FinalPriceNote = memo(({ amount, label, currency, locale }) => {
+  const text = useMemo(
+    () => (amount == null
+      ? ''
+      : new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)),
+    [amount, locale],
+  );
+  if (!text) return null;
+  return (
+    <p className="pm-muted mt-2 text-[11px] font-bold">
+      {label}: <span dir="ltr" className="pm-ul text-[var(--pm-ink)]">{text} {currency}</span>
+    </p>
+  );
+});
+
 const ProductModal = ({ mode, data, categories, onChange, onSubmit, onClose, busy = false }) => {
   useEscape(onClose);
   const { language, dir, font } = useShopLocale();
@@ -385,6 +501,15 @@ const ProductModal = ({ mode, data, categories, onChange, onSubmit, onClose, bus
   const isEdit = mode === 'edit';
   const title = isEdit ? T.titleEdit : T.titleAdd;
 
+  const specsValue = asText(data.specifications);
+  const discountValue = asDiscountText(data.discountValue);
+  const discountType = data.discountType || DEFAULT_DISCOUNT_TYPE;
+
+  useEffect(() => {
+    if (!data.discountType) onChange('discountType', DEFAULT_DISCOUNT_TYPE);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const categoryOptions = useMemo(
     () => categories.map((c) => ({ value: String(c.id), label: String(c.name ?? '').slice(0, 60) })),
     [categories],
@@ -393,6 +518,16 @@ const ProductModal = ({ mode, data, categories, onChange, onSubmit, onClose, bus
     () => CONDITIONS.map((c) => ({ value: c, label: T.conditions[c] || CONDITION_LABELS[c] || c })),
     [T],
   );
+  const discountTypeOptions = useMemo(
+    () => DISCOUNT_TYPES.map((t) => ({ value: t, label: T.discountTypes[t] })),
+    [T],
+  );
+
+  const finalPrice = useMemo(
+    () => computeFinalPrice(data.price, discountType, discountValue),
+    [data.price, discountType, discountValue],
+  );
+  const numberLocale = language === 'ar' ? 'ar-EG' : 'en-US';
 
   const clearError = useCallback(() => setError(''), []);
 
@@ -406,15 +541,18 @@ const ProductModal = ({ mode, data, categories, onChange, onSubmit, onClose, bus
       description: mk('description'),
       price: mk('price', money),
       stock: mk('stockQuantity', digits),
+      specifications: mk('specifications', specsText),
+      discountValue: mk('discountValue', discountMoney),
       category: (v) => { setError(''); onChange('categoryId', v); },
       condition: (v) => { setError(''); onChange('condition', v); },
+      discountType: (v) => { setError(''); onChange('discountType', v); },
     };
   }, [onChange]);
 
   const submit = (e) => {
     e.preventDefault();
     if (busy) return;
-    const problem = validateProduct(data, categories);
+    const problem = validateProduct(data, categories) || validateExtras(data, T);
     if (problem) { setError(problem); return; }
     setError('');
     onSubmit();
@@ -497,6 +635,37 @@ const ProductModal = ({ mode, data, categories, onChange, onSubmit, onClose, bus
               />
             </Field>
           </div>
+
+          <Field label={T.specifications} htmlFor="p-specs" tag={T.optional}>
+            <textarea
+              id="p-specs" rows={3} maxLength={5000}
+              value={specsValue} onChange={handlers.specifications}
+              placeholder={T.specificationsPlaceholder}
+              className={TEXTAREA}
+            />
+            <p className="pm-muted mt-1.5 text-[10px] font-semibold">{T.specificationsHint}</p>
+            <SpecPreview value={specsValue} T={T} />
+          </Field>
+
+          <Field label={T.discount} htmlFor="p-disc-type" tag={T.optional}>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Dropdown
+                id="p-disc-type"
+                dir={dir}
+                value={discountType}
+                options={discountTypeOptions}
+                onChange={handlers.discountType}
+              />
+              <input
+                id="p-disc-value" type="text" inputMode="decimal" dir="ltr" autoComplete="off"
+                aria-label={T.discountValueLabel}
+                value={discountValue} onChange={handlers.discountValue}
+                placeholder={T.discountPlaceholders[discountType]}
+                className={NUM_INPUT}
+              />
+            </div>
+            <FinalPriceNote amount={finalPrice} label={T.finalPrice} currency={T.currency} locale={numberLocale} />
+          </Field>
 
           {error && (
             <p role="alert" className="pm-card !shadow-none !border-red-500 flex items-center gap-1.5 px-3 py-2 text-[11px] font-bold text-red-600 dark:text-red-300">

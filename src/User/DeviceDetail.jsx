@@ -3,6 +3,7 @@ import { useParams, useNavigate, useNavigationType, Link } from 'react-router-do
 import {
   FiChevronLeft, FiChevronRight, FiShoppingCart, FiCheck, FiTag, FiBox, FiCalendar, FiPackage,
   FiMinus, FiPlus, FiAlertCircle, FiDollarSign, FiAward, FiShield, FiFileText, FiHeart,
+  FiCpu, FiCheckCircle, FiPercent,
 } from 'react-icons/fi';
 import { RiStoreLine } from 'react-icons/ri';
 import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -26,6 +27,8 @@ const CARD_IMG_H = 400;
 const MAIN_IMG_W = 900;
 const MAIN_IMG_H = 600;
 const SAVED_KEY = 'nb_saved_devices';
+const SPEC_MAX = 50;
+const EMPTY_LIST = [];
 
 const NB_FONT = "'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
 const NB_FONT_STYLE = { fontFamily: NB_FONT };
@@ -46,8 +49,8 @@ const ensureNbFont = () => {
 const STAGGER = Array.from({ length: 8 }, (_, i) => ({ '--i': i }));
 
 const NB_CSS = `
-.nb{--nb-bg:#f3f4f6;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e2e5e9;--nb-accent:#10b981;--nb-btn:#059669;--nb-on:#ffffff;--nb-media:#ffffff;background:var(--nb-bg);color:var(--nb-ink)}
-.nb-dark{--nb-bg:#121212;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#212121;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-on:#022c22;--nb-media:#1e1e1e}
+.nb{--nb-bg:#f3f4f6;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e2e5e9;--nb-accent:#10b981;--nb-btn:#059669;--nb-on:#ffffff;--nb-media:#ffffff;--nb-sale:#dc2626;background:var(--nb-bg);color:var(--nb-ink)}
+.nb-dark{--nb-bg:#121212;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#212121;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-on:#022c22;--nb-media:#1e1e1e;--nb-sale:#fb7185}
 .nb-bg{background:var(--nb-bg)}
 .nb-gray{background:var(--nb-gray)}
 .nb-muted{color:var(--nb-muted)}
@@ -68,6 +71,10 @@ const NB_CSS = `
 .nb-chip-r{background:#e11d48;color:#fff}
 .nb-chip-w{background:#d97706;color:#fff}
 .nb-chip-s{background:#0284c7;color:#fff}
+.nb-sale{color:var(--nb-sale)}
+.nb-price-old{color:var(--nb-muted);text-decoration:line-through;text-decoration-thickness:2px;text-decoration-color:var(--nb-sale)}
+.nb-save{display:inline-flex;align-items:center;gap:4px;max-width:100%;padding:1px 7px;background:var(--nb-btn);color:var(--nb-on);border:2px solid var(--nb-line);font-size:10px;font-weight:800;text-transform:uppercase;line-height:1.5;white-space:nowrap}
+.nb-ribbon{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:var(--nb-sale);color:#fff;border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);font-size:11px;font-weight:800;line-height:1.3;font-variant-numeric:tabular-nums}
 .nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow);font-weight:700;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease}
 .nb-btn:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--nb-shadow)}
 .nb-btn:active:not(:disabled){transform:translate(2px,2px);box-shadow:0 0 0 var(--nb-shadow)}
@@ -129,9 +136,18 @@ const useSavedProducts = () => {
 };
 
 const DEFAULT_TEXT = {
-  en: { save: 'Save', saved: 'Saved' },
-  ar: { save: 'حفظ', saved: 'تم الحفظ' },
-  fr: { save: 'Enregistrer', saved: 'Enregistré' },
+  en: {
+    save: 'Save', saved: 'Saved',
+    youSave: 'Save {{value}}', originalPrice: 'Original price', discountedPrice: 'Price after discount', discountValue: 'Discount', specifications: 'Specifications',
+  },
+  ar: {
+    save: 'حفظ', saved: 'تم الحفظ',
+    youSave: 'وفّر {{value}}', originalPrice: 'السعر الأصلي', discountedPrice: 'السعر بعد الخصم', discountValue: 'الخصم', specifications: 'المواصفات',
+  },
+  fr: {
+    save: 'Enregistrer', saved: 'Enregistré',
+    youSave: 'Économisez {{value}}', originalPrice: "Prix d'origine", discountedPrice: 'Prix après remise', discountValue: 'Remise', specifications: 'Caractéristiques',
+  },
 };
 const DETAIL_SECTIONS = {
   en: enTranslations.deviceDetail,
@@ -168,6 +184,33 @@ const fmtDate = (v, lang) => {
   const d = v ? new Date(v) : null;
   return d && !Number.isNaN(d.getTime()) ? d.toLocaleDateString(lang, { month: 'short', day: 'numeric', year: 'numeric' }) : null;
 };
+const round2 = (n) => Math.round(n * 100) / 100;
+
+const computeFinal = (price, type, value) => {
+  if (!(price > 0) || !(value > 0) || !type) return price;
+  if (type === 'PERCENTAGE') return value < 100 ? round2(price - (price * value) / 100) : price;
+  return value < price ? round2(price - value) : price;
+};
+
+const discountBadge = (product, currency) => {
+  if (product.discountValue > 0 && product.discountType === 'FIXED_AMOUNT') return `-${fmtPrice(product.discountValue, currency)}`;
+  if (product.discountValue > 0 && product.discountType === 'PERCENTAGE') return `-${NUMBER_FORMAT.format(product.discountValue)}%`;
+  return product.discountType === 'FIXED_AMOUNT'
+    ? `-${fmtPrice(product.saving, currency)}`
+    : `-${Math.max(1, Math.round(product.discount))}%`;
+};
+
+const toSpecList = (v) => {
+  const source = Array.isArray(v) ? v : typeof v === 'string' ? v.split(/[\n,،]/) : EMPTY_LIST;
+  if (!source.length) return EMPTY_LIST;
+  const out = [];
+  for (const s of source) {
+    const c = clean(typeof s === 'string' ? s : s?.name ?? s?.value ?? '', 120);
+    if (c) out.push(c);
+    if (out.length >= SPEC_MAX) break;
+  }
+  return out.length ? out : EMPTY_LIST;
+};
 
 const galleryOf = (p) => {
   const extra = [p.images, p.imageUrls, p.gallery].find(Array.isArray) || [];
@@ -177,18 +220,27 @@ const galleryOf = (p) => {
   return [...new Set(list)].slice(0, 8);
 };
 
-const normalizeProduct = (p) => {
+const normalizeProduct = (p, detailed = false) => {
   const base = Math.max(0, Number(p.price) || 0);
-  const discount = clamp(Number(p.discount) || 0, 0, 100);
+  const legacyPct = clamp(Number(p.discount) || 0, 0, 100);
   const legacyOld = Math.max(0, Number(p.oldPrice ?? p.originalPrice) || 0);
-  const price = discount ? Math.round(base * (1 - discount / 100) * 100) / 100 : base;
-  const oldPrice = discount ? base : legacyOld > base ? legacyOld : 0;
-  const images = galleryOf(p);
+  const apiFinal = Number(p.finalPrice);
+  const discountValue = Number(p.discountValue) || 0;
+  const apiType = p.discountType || null;
+  let price = base;
+  let finalPrice = base;
+  if (apiFinal > 0 && apiFinal < base) finalPrice = apiFinal;
+  else if (discountValue > 0 && apiType) finalPrice = computeFinal(base, apiType, discountValue);
+  else if (legacyPct) finalPrice = round2(base * (1 - legacyPct / 100));
+  else if (legacyOld > base) price = legacyOld;
+  const saving = round2(Math.max(0, price - finalPrice));
+  const images = detailed ? galleryOf(p) : [safeImageUrl(p.imageUrl)].filter(Boolean);
   return {
     id: String(p.id),
     rawId: p.id,
     name: clean(String(p.name ?? ''), 160),
-    description: clean(String(p.description ?? ''), 3000),
+    description: clean(String(p.description ?? ''), detailed ? 3000 : 200),
+    specifications: detailed ? toSpecList(p.specifications) : EMPTY_LIST,
     categoryId: p.categoryId ?? null,
     categoryName: clean(String(p.categoryName ?? ''), 80),
     condition: typeof p.condition === 'string' ? p.condition : '',
@@ -198,7 +250,11 @@ const normalizeProduct = (p) => {
     shopName: clean(String(p.shopName ?? p.brandName ?? ''), 80),
     createdAt: p.createdAt || null,
     price,
-    oldPrice,
+    finalPrice,
+    saving,
+    discount: price > 0 ? (saving / price) * 100 : 0,
+    discountType: saving > 0 ? (apiType || 'PERCENTAGE') : null,
+    discountValue: saving > 0 && discountValue > 0 ? discountValue : 0,
     images,
     imageUrl: images[0] || '',
   };
@@ -216,6 +272,12 @@ const snippetOf = (text, max = SNIPPET_MAX) => {
   const i = cut.lastIndexOf(' ');
   return `${cut.slice(0, i > max * 0.6 ? i : max).trimEnd()}…`;
 };
+
+const TRUST_ITEMS = [
+  [FiDollarSign, 'cashOnDelivery'],
+  [FiAward, 'bestPrice'],
+  [FiShield, 'authentic'],
+];
 
 const Shell = ({ language, darkMode, className = '', children }) => {
   const font = useLangFont(language);
@@ -271,6 +333,30 @@ const DeviceImage = memo(({ src, alt, category, className, label, darkMode, big 
   );
 });
 
+const PriceBlock = memo(({ product, currency, t }) => {
+  const discounted = product.saving > 0;
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5 max-sm:rtl:items-end" dir="ltr">
+      {discounted && (
+        <span className="nb-price-old text-[11px] font-semibold tabular-nums">
+          <span className="sr-only">{t('originalPrice')}: </span>
+          {fmtPrice(product.price, currency)}
+        </span>
+      )}
+      <span className={`truncate text-sm font-extrabold leading-tight tabular-nums sm:text-base ${discounted ? 'nb-sale' : ''}`}>
+        <span className="sr-only">{discounted ? `${t('discountedPrice')}: ` : ''}</span>
+        {fmtPrice(product.finalPrice, currency)}
+      </span>
+      {discounted && (
+        <span dir="auto" className="nb-save mt-1 self-start">
+          <FiTag className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+          <span className="truncate">{t('youSave', { value: fmtPrice(product.saving, currency) })}</span>
+        </span>
+      )}
+    </div>
+  );
+});
+
 const ProductCard = memo(({ product, darkMode, onAddToCart, onOpen, onSave, isSaved = false, index = 0, t }) => {
   const [added, setAdded] = useState(false);
   const timer = useRef();
@@ -278,6 +364,9 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, onOpen, onSave, isSa
 
   const cond = condOf(product.condition);
   const out = product.stock <= 0;
+  const currency = t('currency');
+  const discounted = product.saving > 0;
+  const badge = useMemo(() => (discounted ? discountBadge(product, currency) : ''), [discounted, product, currency]);
   const snippet = useMemo(() => snippetOf(product.description) || t('noDescription'), [product.description, t]);
   const open = useCallback(() => onOpen(product.id), [onOpen, product.id]);
   const save = useCallback((e) => { e.stopPropagation(); onSave(product.rawId); }, [onSave, product.rawId]);
@@ -301,6 +390,11 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, onOpen, onSave, isSa
       <div className="p-2.5 pb-0">
         <div className="nb-media-w nb-media-b relative aspect-[3/2] overflow-hidden">
           <span className={`nb-chip ${cond.chip} absolute start-2 top-2 z-10 !rounded-full`}>{condLabel(t, product.condition)}</span>
+          {discounted && (
+            <span dir="ltr" className="nb-ribbon absolute bottom-2 start-2 z-10" title={t('discountValue')}>
+              <FiTag className="h-3 w-3" aria-hidden="true" />{badge}
+            </span>
+          )}
           <button
             type="button" onClick={save} aria-pressed={isSaved} aria-label={isSaved ? t('saved') : t('save')} title={isSaved ? t('saved') : t('save')}
             className={`nb-btn absolute end-2 top-2 z-10 h-8 w-8 ${isSaved ? 'nb-btn-on' : ''}`}
@@ -317,10 +411,10 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, onOpen, onSave, isSa
         <span className="nb-muted truncate text-[10px] font-bold uppercase tracking-wide">{product.categoryName || t('uncategorized')}</span>
         <h3 className="line-clamp-2 min-h-[2.4rem] text-[13px] font-extrabold uppercase leading-snug"><span className="nb-ul">{product.name}</span></h3>
         <p className="line-clamp-2 min-h-[2rem] text-xs leading-4 opacity-90">{snippet}</p>
-        <div className="mt-auto flex flex-col gap-2 pt-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0 max-sm:rtl:text-end" dir="ltr">
-            <p className="truncate text-sm font-extrabold tabular-nums sm:text-base">{fmtPrice(product.price, t('currency'))}</p>
-            {out && <p className="text-[10px] font-bold uppercase text-rose-600">{t('outOfStock')}</p>}
+        <div className="mt-auto flex flex-col gap-2 pt-2 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <PriceBlock product={product} currency={currency} t={t} />
+            {out && <p className="mt-1 text-[10px] font-bold uppercase text-rose-600">{t('outOfStock')}</p>}
           </div>
           <button type="button" onClick={handleCart} disabled={out} aria-label={t('addToCart')} className="nb-btn nb-btn-a h-9 w-full flex-shrink-0 sm:w-9">
             {added ? <FiCheck className="h-4 w-4" /> : <FiShoppingCart className="h-4 w-4" />}
@@ -359,6 +453,22 @@ const ProductSlider = memo(({ title, products, darkMode, isRTL, saved, onSave, o
     </section>
   );
 });
+
+const SpecList = memo(({ specs, title }) => (
+  <section aria-label={title} className="nb-card p-4 sm:p-6">
+    <h2 className="mb-4 flex items-center gap-3 text-lg font-extrabold uppercase sm:text-xl">
+      <span className="nb-chip nb-chip-a !p-2"><FiCpu aria-hidden="true" className="h-4 w-4" /></span> <span className="nb-ul">{title}</span>
+    </h2>
+    <ul className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+      {specs.map((s, i) => (
+        <li key={i} className="nb-gray nb-line flex min-w-0 items-start gap-2.5 border-2 px-3 py-2.5 text-xs font-bold leading-snug">
+          <FiCheckCircle aria-hidden="true" className="nb-ic mt-px h-4 w-4 flex-shrink-0" />
+          <span className="min-w-0 break-words">{s}</span>
+        </li>
+      ))}
+    </ul>
+  </section>
+));
 
 const Gallery = memo(({ product, cond, label, darkMode, t }) => {
   const images = product.images;
@@ -419,11 +529,11 @@ const DeviceDetailContent = memo(({ id, addToCart, darkMode }) => {
 
   const { data: product, isLoading, isError } = useQuery({
     queryKey: ['product', id],
-    queryFn: async ({ signal }) => normalizeProduct((await api.get(`/api/products/${encodeURIComponent(id)}`, { signal })).data),
+    queryFn: async ({ signal }) => normalizeProduct((await api.get(`/api/products/${encodeURIComponent(id)}`, { signal })).data, true),
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: allProducts = [] } = useQuery({
+  const { data: allProducts = EMPTY_LIST } = useQuery({
     queryKey: ['productsAll'],
     queryFn: async ({ signal }) => {
       const res = await api.get('/api/products', { signal });
@@ -441,12 +551,12 @@ const DeviceDetailContent = memo(({ id, addToCart, darkMode }) => {
   useEffect(() => { if (isError) toast({ icon: 'error', title: t('errorTitle'), text: t('productNotFound'), timer: 3500 }); }, [isError, t]);
 
   const { sameCategory, moreGroup } = useMemo(() => {
-    if (!product) return { sameCategory: [], moreGroup: { title: '', products: [] } };
+    if (!product) return { sameCategory: EMPTY_LIST, moreGroup: { title: '', products: EMPTY_LIST } };
     const pool = allProducts.filter((p) => p.id !== product.id);
     const cat = pool.filter((p) => p.categoryId != null && p.categoryId === product.categoryId);
     const seen = new Set(cat.map((p) => p.id));
     const rest = pool.filter((p) => !seen.has(p.id));
-    const byShop = product.shopId ? rest.filter((p) => p.shopId === product.shopId) : [];
+    const byShop = product.shopId ? rest.filter((p) => p.shopId === product.shopId) : EMPTY_LIST;
     return {
       sameCategory: cat.slice(-RELATED_LIMIT),
       moreGroup: byShop.length
@@ -482,7 +592,7 @@ const DeviceDetailContent = memo(({ id, addToCart, darkMode }) => {
     setAdding(true);
     try {
       await postToCart(product, quantity);
-      addToCart?.({ ...product, quantity });
+      addToCart?.({ ...product, price: product.finalPrice, quantity });
       successToast(product.name);
     } catch (err) {
       failToast(err);
@@ -523,7 +633,8 @@ const DeviceDetailContent = memo(({ id, addToCart, darkMode }) => {
   const cond = condOf(product.condition);
   const listed = fmtDate(product.createdAt, language);
   const isSaved = saved.has(product.rawId);
-  const off = product.oldPrice > product.price ? Math.round((1 - product.price / product.oldPrice) * 100) : 0;
+  const discounted = product.saving > 0;
+  const badge = discounted ? discountBadge(product, currency) : '';
   const stockStatus = product.deleted || product.stock <= 0
     ? { label: t('outOfStock'), cls: 'nb-chip-r' }
     : product.stock > 10
@@ -532,15 +643,11 @@ const DeviceDetailContent = memo(({ id, addToCart, darkMode }) => {
   const maxQty = Math.max(1, product.stock);
   const qty = clamp(quantity, 1, maxQty);
 
-  const trust = [
-    { icon: FiDollarSign, label: t('cashOnDelivery') },
-    { icon: FiAward, label: t('bestPrice') },
-    { icon: FiShield, label: t('authentic') },
-  ];
-  const specs = [
+  const facts = [
     { icon: FiTag, text: product.categoryName || t('uncategorized') },
     { icon: FiBox, text: condLabel(t, product.condition) },
     { icon: FiPackage, text: product.stock > 0 ? t('stockCount', { count: product.stock }) : t('outOfStock') },
+    discounted && { icon: FiPercent, text: `${t('discountValue')}: ${badge}` },
     listed && { icon: FiCalendar, text: t('listed', { date: listed }) },
   ].filter(Boolean);
 
@@ -569,12 +676,26 @@ const DeviceDetailContent = memo(({ id, addToCart, darkMode }) => {
               </div>
 
               <div className="text-center lg:text-start" dir="ltr">
-                <p className="break-words text-3xl font-extrabold tabular-nums sm:text-4xl">{fmtPrice(product.price, currency)}</p>
-                {off > 0 && (
-                  <p className="mt-1 flex items-center justify-center gap-2 lg:justify-start">
-                    <s className="nb-muted text-sm tabular-nums">{fmtPrice(product.oldPrice, currency)}</s>
-                    <span className="nb-chip nb-chip-r">-{off}%</span>
+                {discounted && (
+                  <p className="nb-price-old text-sm font-semibold tabular-nums">
+                    <span className="sr-only">{t('originalPrice')}: </span>
+                    {fmtPrice(product.price, currency)}
                   </p>
+                )}
+                <p className={`break-words text-3xl font-extrabold tabular-nums sm:text-4xl ${discounted ? 'nb-sale' : ''}`}>
+                  <span className="sr-only">{discounted ? `${t('discountedPrice')}: ` : ''}</span>
+                  {fmtPrice(product.finalPrice, currency)}
+                </p>
+                {discounted && (
+                  <div className="mt-3 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
+                    <span className="nb-ribbon" title={t('discountValue')}>
+                      <FiTag className="h-3.5 w-3.5" aria-hidden="true" />{badge}
+                    </span>
+                    <span dir="auto" className="nb-save !text-xs">
+                      <FiTag className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+                      <span className="truncate">{t('youSave', { value: fmtPrice(product.saving, currency) })}</span>
+                    </span>
+                  </div>
                 )}
               </div>
 
@@ -607,10 +728,10 @@ const DeviceDetailContent = memo(({ id, addToCart, darkMode }) => {
               </div>
 
               <ul className="nb-line nb-dotted grid grid-cols-3 gap-2 border-t-2 border-dotted pt-4">
-                {trust.map(({ icon: Icon, label }) => (
-                  <li key={label} className="flex flex-col items-center gap-2 text-center">
+                {TRUST_ITEMS.map(([Icon, key]) => (
+                  <li key={key} className="flex flex-col items-center gap-2 text-center">
                     <span className="nb-chip nb-chip-a !p-2.5"><Icon className="h-5 w-5" /></span>
-                    <span className="nb-muted text-[10px] font-extrabold uppercase leading-tight tracking-wide">{label}</span>
+                    <span className="nb-muted text-[10px] font-extrabold uppercase leading-tight tracking-wide">{t(key)}</span>
                   </li>
                 ))}
               </ul>
@@ -620,20 +741,21 @@ const DeviceDetailContent = memo(({ id, addToCart, darkMode }) => {
       </div>
 
       <section aria-label={t('productDescription')} className="nb-gray nb-line border-y-2 py-10 sm:py-14">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
           <div className="nb-card p-4 sm:p-6">
             <h2 className="mb-4 flex items-center gap-3 text-lg font-extrabold uppercase sm:text-xl">
               <span className="nb-chip nb-chip-a !p-2"><FiFileText className="h-4 w-4" /></span> <span className="nb-ul">{t('productDescription')}</span>
             </h2>
             <p className="whitespace-pre-line break-words text-sm leading-relaxed opacity-90">{product.description || t('noDescription')}</p>
             <ul className="nb-gray nb-line nb-dotted mt-5 grid grid-cols-1 gap-3 border-2 border-dotted p-3.5 sm:grid-cols-2">
-              {specs.map(({ icon: Icon, text }) => (
+              {facts.map(({ icon: Icon, text }) => (
                 <li key={text} className="flex min-w-0 items-center gap-2 text-xs font-bold">
                   <Icon aria-hidden="true" className="nb-ic h-4 w-4 flex-shrink-0" /> <span className="truncate">{text}</span>
                 </li>
               ))}
             </ul>
           </div>
+          {product.specifications.length > 0 && <SpecList specs={product.specifications} title={t('specifications')} />}
         </div>
       </section>
 

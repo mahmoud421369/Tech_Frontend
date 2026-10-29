@@ -72,6 +72,29 @@ const STYLE_EL = <style>{PG_CSS + EXTRAS_CSS}</style>;
 const TONES = { sky: '#22d3ee', am: '#facc15', ro: '#fb7185', vi: '#a3e635', te: '#2dd4bf', em: '#34d399' };
 const ROW_OPTIONS = [5, 10, 25, 50];
 
+const DEFAULT_DISCOUNT_TYPE = 'PERCENTAGE';
+const NEW_PRODUCT = {
+  ...EMPTY_PRODUCT,
+  specifications: '',
+  discountType: DEFAULT_DISCOUNT_TYPE,
+  discountValue: '',
+};
+
+const specsToText = (v) => (Array.isArray(v) ? v.filter(Boolean).join(', ') : v == null ? '' : String(v));
+
+const toProductFormData = (data) => {
+  const fd = buildFormData(data);
+  if (!(fd instanceof FormData)) return fd;
+  fd.set('specifications', specsToText(data.specifications));
+  fd.delete('discountType');
+  fd.delete('discountValue');
+  if (parseFloat(data.discountValue) > 0) {
+    fd.set('discountType', data.discountType || DEFAULT_DISCOUNT_TYPE);
+    fd.set('discountValue', String(data.discountValue));
+  }
+  return fd;
+};
+
 const pageList = (page, total) => {
   const keep = new Set([1, total, page - 1, page, page + 1]);
   const nums = [...keep].filter((n) => n >= 1 && n <= total).sort((a, b) => a - b);
@@ -227,13 +250,25 @@ const stockMeta = (n, s) => {
   return { label: s.in, dot: 'bg-emerald-500' };
 };
 
-const normalize = (p) => ({
-  ...p,
-  condition: upper(p.condition),
-  stock: Math.max(0, num(p.stock ?? p.stockQuantity)),
-  price: num(p.price),
-  image: rawImageOf(p) || p.imageUrl || p.image_url || '',
-});
+const normalize = (p) => {
+  const price = num(p.price);
+  const apiFinal = num(p.finalPrice);
+  return {
+    ...p,
+    condition: upper(p.condition),
+    stock: Math.max(0, num(p.stock ?? p.stockQuantity)),
+    price,
+    finalPrice: apiFinal > 0 && apiFinal < price ? apiFinal : price,
+    discountType: p.discountType || null,
+    discountValue: num(p.discountValue),
+    specifications: Array.isArray(p.specifications)
+      ? p.specifications.filter(Boolean)
+      : typeof p.specifications === 'string'
+        ? p.specifications.split(/[\n,،]/).map((s) => s.trim()).filter(Boolean)
+        : [],
+    image: rawImageOf(p) || p.imageUrl || p.image_url || '',
+  };
+};
 
 const ProductThumb = memo(({ raw, alt = '', className = 'w-12 h-12', iconSize = 18 }) => {
   const src = useMemo(() => resolveImageSrc(raw), [raw]);
@@ -313,6 +348,7 @@ const ProductRow = memo(({ product, busy, loc, onEdit, onDelete, onStock, onPrev
   const nf = fm.number;
   const sm = stockMeta(product.stock, t.stock);
   const hasImage = !!product.image;
+  const discounted = product.finalPrice < product.price;
   const previewLabel = t.previewAria || t.imagePreview || 'Preview image';
   return (
     <tr className="pg-tr">
@@ -337,8 +373,13 @@ const ProductRow = memo(({ product, busy, loc, onEdit, onDelete, onStock, onPrev
       <td className="pg-td px-3 py-2.5 whitespace-nowrap">
         <Pill dot={COND_DOT[product.condition] || 'bg-gray-400'}>{t.conditions[product.condition] || product.condition || '—'}</Pill>
       </td>
-      <td className="pg-td px-3 py-2.5 whitespace-nowrap font-extrabold text-[13px] tabular-nums">
-        {formatPrice(product.price, L.table.price, nf)}
+      <td className="pg-td px-3 py-2.5 whitespace-nowrap">
+        <div className="flex flex-col gap-0.5">
+          <span className="font-extrabold text-[13px] tabular-nums">{formatPrice(product.finalPrice, L.table.price, nf)}</span>
+          {discounted && (
+            <span className="pg-muted text-[10px] font-semibold tabular-nums line-through">{formatPrice(product.price, L.table.price, nf)}</span>
+          )}
+        </div>
       </td>
       <td className="pg-td px-3 py-2.5 whitespace-nowrap">
         <div className="flex items-center gap-2">
@@ -435,7 +476,7 @@ const Products = () => {
   const [sortBy, setSortBy] = useState('name');
   const [showFilterPanel, setShowFilterPanel] = useState(false);
 
-  const [newProduct, setNewProduct] = useState(EMPTY_PRODUCT);
+  const [newProduct, setNewProduct] = useState(NEW_PRODUCT);
   const [editingProduct, setEditingProduct] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -501,10 +542,10 @@ const Products = () => {
     savingRef.current = true;
     setSaving(true);
     try {
-      await api.post('/api/shops/products/v2', buildFormData(newProduct), UPLOAD_CONFIG);
+      await api.post('/api/shops/products/v2', toProductFormData(newProduct), UPLOAD_CONFIG);
       toast({ icon: 'success', title: x.toasts.added });
       setShowAddModal(false);
-      setNewProduct(EMPTY_PRODUCT);
+      setNewProduct(NEW_PRODUCT);
       fetchProducts({ silent: true });
     } catch (err) {
       toast({ icon: 'error', title: x.toasts.addFail, text: uploadErrText(err, x.upload) });
@@ -524,7 +565,7 @@ const Products = () => {
     savingRef.current = true;
     setSaving(true);
     try {
-      await api.put(`/api/shops/products/${encodeURIComponent(id)}`, buildFormData(editingProduct), UPLOAD_CONFIG);
+      await api.put(`/api/shops/products/${encodeURIComponent(id)}`, toProductFormData(editingProduct), UPLOAD_CONFIG);
       toast({ icon: 'success', title: x.toasts.updated });
       setEditingProduct(null);
       fetchProducts({ silent: true });
@@ -593,7 +634,7 @@ const Products = () => {
 
   const index = useMemo(() => products.map((p) => ({
     p,
-    text: [p.name, p.categoryName, p.description].filter(Boolean).join(' ').toLowerCase(),
+    text: [p.name, p.categoryName, p.description, ...p.specifications].filter(Boolean).join(' ').toLowerCase(),
   })), [products]);
 
   const counts = useMemo(() => {
@@ -614,8 +655,8 @@ const Products = () => {
       && (!term || text.includes(term))
     )).map((e) => e.p);
     list.sort((a, b) => {
-      if (sortBy === 'highest_price') return b.price - a.price;
-      if (sortBy === 'lowest_price') return a.price - b.price;
+      if (sortBy === 'highest_price') return b.finalPrice - a.finalPrice;
+      if (sortBy === 'lowest_price') return a.finalPrice - b.finalPrice;
       if (sortBy === 'highest_stock') return b.stock - a.stock;
       if (sortBy === 'lowest_stock') return a.stock - b.stock;
       return collator.compare(String(a.name || ''), String(b.name || ''));
@@ -667,6 +708,9 @@ const Products = () => {
       stockQuantity: String(p.stock ?? ''),
       condition: p.condition || 'NEW',
       image: p.image || null,
+      specifications: specsToText(p.specifications),
+      discountType: p.discountType || DEFAULT_DISCOUNT_TYPE,
+      discountValue: p.discountValue > 0 ? String(p.discountValue) : '',
     });
   }, []);
   const handleStock = useCallback((p) => setStockId(p.id), []);
@@ -674,7 +718,7 @@ const Products = () => {
   const handleAddChange = useCallback((f, v) => setNewProduct((prev) => ({ ...prev, [f]: v })), []);
   const handleEditChange = useCallback((f, v) => setEditingProduct((prev) => (prev ? { ...prev, [f]: v } : prev)), []);
   const openAdd = useCallback(() => setShowAddModal(true), []);
-  const closeAdd = useCallback(() => { if (!savingRef.current) { setShowAddModal(false); setNewProduct(EMPTY_PRODUCT); } }, []);
+  const closeAdd = useCallback(() => { if (!savingRef.current) { setShowAddModal(false); setNewProduct(NEW_PRODUCT); } }, []);
   const closeEdit = useCallback(() => { if (!savingRef.current) setEditingProduct(null); }, []);
   const closeStock = useCallback(() => setStockId(null), []);
   const closePreview = useCallback(() => setPreviewId(null), []);

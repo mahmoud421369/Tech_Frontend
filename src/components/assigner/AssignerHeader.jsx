@@ -214,11 +214,9 @@ html,body{overflow-x:hidden;max-width:100vw}
 .nb-surface{background:var(--nb-card);color:var(--nb-ink)}
 .nb-gray{background:var(--nb-gray)}
 .nb-muted{color:var(--nb-muted)}
-.nb-ic{color:var(--nb-accent)}
 .nb-line{border-color:var(--nb-line)}
 .nb-accent-bg{background:var(--nb-accent)}
 .nb-ul{text-decoration:underline;text-decoration-color:var(--nb-accent);text-decoration-thickness:3px;text-underline-offset:4px;text-decoration-skip-ink:none}
-.nb-sep{border-top:2px dotted var(--nb-dot)}
 .nb-row{border-bottom:2px dotted var(--nb-dot)}
 .nb-row:last-child{border-bottom:0}
 :where(.nb-tile){display:inline-flex}
@@ -232,6 +230,11 @@ html,body{overflow-x:hidden;max-width:100vw}
 .nb-btn:disabled{opacity:.45;cursor:not-allowed}
 .nb-btn-a,.nb-btn-on{background:var(--nb-btn);color:var(--nb-on)}
 .nb-btn-danger:hover:not(:disabled){background:#ef4444;color:#fff}
+:where(.nb-tab){display:inline-flex}
+.nb-tab{align-items:center;justify-content:center;border-radius:9999px;border:2px solid transparent;font-weight:700;cursor:pointer;color:var(--nb-ink);transition:background-color .12s ease,color .12s ease}
+.nb-tab:hover{background:var(--nb-gray)}
+.nb-tab[aria-pressed="true"]{background:var(--nb-btn);color:var(--nb-on);border-color:var(--nb-line)}
+.nb-tab:focus-visible{outline:3px solid var(--nb-accent);outline-offset:2px}
 .nb-btn:focus-visible,.nb-field:focus-within,.nb-field:focus-visible,.nb-link:focus-visible{outline:3px solid var(--nb-accent);outline-offset:2px}
 .nb-field{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow)}
 .nb-field-link{transition:transform .12s ease,box-shadow .12s ease}
@@ -256,7 +259,7 @@ html,body{overflow-x:hidden;max-width:100vw}
 .badge-pop{animation:nbPop .3s ease-out both}
 .bell-ring{animation:nbWiggle .5s ease-in-out 3;transform-origin:50% 0}
 @media (prefers-reduced-motion:reduce){
-  .nb-btn,.nb-link,.nb-field-link{transition:none}
+  .nb-btn,.nb-link,.nb-field-link,.nb-tab{transition:none}
   .notif-panel,.badge-pop,.bell-ring{animation:none}
 }
 `;
@@ -299,21 +302,54 @@ const SidebarLink = memo(({ item, active, onClick }) => {
       className={`nb-link ${active ? "nb-link-on" : ""}`}
     >
       <Icon size={ICON} aria-hidden="true" className="flex-shrink-0" />
-      <span className="truncate">{PAGES[item.key]}</span>
+      <span className="truncate">{item.name}</span>
     </Link>
   );
 });
 
 const SidebarNav = memo(({ pathname, onClick }) => (
-  <nav aria-label="Main navigation" className="flex-1 overflow-y-auto overscroll-contain px-3 py-4 space-y-5 custom-scrollbar-thin">
-    {MENU_GROUPS.map((g, i) => (
-      <div key={g.key} className={`space-y-1.5 ${i === 0 ? "" : "nb-sep pt-5"}`}>
-        {g.items.map((item) => (
-          <SidebarLink key={item.path} item={item} active={pathname === item.path} onClick={onClick} />
-        ))}
-      </div>
+  <nav aria-label="Main navigation" className="flex-1 overflow-y-auto overscroll-contain px-3 py-4 space-y-1.5 custom-scrollbar-thin">
+    {ALL_ITEMS.map((item) => (
+      <SidebarLink key={item.path} item={item} active={pathname === item.path} onClick={onClick} />
     ))}
   </nav>
+));
+
+const ThemeSwitch = memo(({ darkMode, onLight, onDark }) => (
+  <div role="group" aria-label="Theme" className="nb-field flex items-center gap-1 rounded-full p-1 flex-shrink-0">
+    <button
+      type="button"
+      onClick={onLight}
+      aria-pressed={!darkMode}
+      aria-label="Light mode"
+      title="Light mode"
+      className="nb-tab h-8 w-8"
+    >
+      <FiSun size={15} aria-hidden="true" />
+    </button>
+    <button
+      type="button"
+      onClick={onDark}
+      aria-pressed={darkMode}
+      aria-label="Dark mode"
+      title="Dark mode"
+      className="nb-tab h-8 w-8"
+    >
+      <FiMoon size={15} aria-hidden="true" />
+    </button>
+  </div>
+));
+
+const SidebarFooter = memo(({ darkMode, onLight, onDark, onLogout }) => (
+  <div className="nb-line p-3 space-y-3 flex-shrink-0 border-t-2">
+    <div className="flex justify-center">
+      <ThemeSwitch darkMode={darkMode} onLight={onLight} onDark={onDark} />
+    </div>
+    <button type="button" onClick={onLogout} className="nb-btn nb-btn-a w-full py-2 text-xs uppercase">
+      <FiLogOut size={14} aria-hidden="true" /> Logout
+    </button>
+    <p className="nb-muted pt-0.5 text-center text-[10px] font-semibold">© {YEAR} Tech &amp; Restore</p>
+  </div>
 ));
 
 const SearchBox = memo(({ onNavigate }) => {
@@ -393,7 +429,7 @@ const SearchBox = memo(({ onNavigate }) => {
 });
 
 const NotifItem = memo(({ notif, onDelete }) => {
-  const { Icon, tone } = getNotifMeta(notif);
+  const { Icon, tone } = useMemo(() => getNotifMeta(notif), [notif]);
   const [exit, setExit] = useState(false);
   const timer = useRef(null);
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -525,13 +561,13 @@ const NotificationMenu = memo(() => {
     window.dispatchEvent(new CustomEvent(NOTIF_EVENT, { detail: next }));
   }, []);
 
-  const fetchNotifs = useCallback(async () => {
+  const fetchNotifs = useCallback(async (manual = false) => {
     const token = readStorage("authToken");
     if (!token || isTokenExpired(token)) return;
     abortRef.current?.abort();
     const ctrl = new AbortController();
     abortRef.current = ctrl;
-    setLoading(true);
+    if (manual === true || listRef.current.length === 0) setLoading(true);
     try {
       const res = await api.get("/api/notifications/assigner", {
         headers: { Authorization: `Bearer ${token}` },
@@ -559,6 +595,8 @@ const NotificationMenu = memo(() => {
       if (abortRef.current === ctrl) setLoading(false);
     }
   }, [publish]);
+
+  const refresh = useCallback(() => fetchNotifs(true), [fetchNotifs]);
 
   useEffect(() => {
     let timer;
@@ -652,7 +690,7 @@ const NotificationMenu = memo(() => {
           loading={loading}
           unread={unread}
           onDelete={handleDelete}
-          onRefresh={fetchNotifs}
+          onRefresh={refresh}
         />
       )}
     </div>
@@ -693,6 +731,7 @@ const AssignerHeader = ({ darkMode: darkModeProp, toggleDarkMode }) => {
   const [name, setName] = useState(() => readName(tokenRef.current));
 
   useEffect(() => {
+    setSidebarOpen(false);
     if (isTokenExpired(readStorage("authToken"))) {
       try {
         localStorage.removeItem("authToken");
@@ -750,8 +789,6 @@ const AssignerHeader = ({ darkMode: darkModeProp, toggleDarkMode }) => {
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
   const openSidebar = useCallback(() => setSidebarOpen(true), []);
   const goTo = useCallback((path) => navigate(path), [navigate]);
-
-  useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
   useEffect(() => {
     if (!sidebarOpen) return undefined;
@@ -818,30 +855,7 @@ const AssignerHeader = ({ darkMode: darkModeProp, toggleDarkMode }) => {
 
         <SidebarNav pathname={pathname} onClick={closeSidebar} />
 
-        <div className="nb-line p-3 space-y-2.5 flex-shrink-0 border-t-2">
-          <div role="group" aria-label="Theme" className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={setLight}
-              aria-pressed={!darkMode}
-              className={`nb-btn py-1.5 text-xs uppercase ${!darkMode ? "nb-btn-on" : ""}`}
-            >
-              <FiSun size={14} aria-hidden="true" /> Light
-            </button>
-            <button
-              type="button"
-              onClick={setDark}
-              aria-pressed={darkMode}
-              className={`nb-btn py-1.5 text-xs uppercase ${darkMode ? "nb-btn-on" : ""}`}
-            >
-              <FiMoon size={14} aria-hidden="true" /> Dark
-            </button>
-          </div>
-          <button type="button" onClick={handleLogout} className="nb-btn nb-btn-a w-full py-2 text-xs uppercase">
-            <FiLogOut size={14} aria-hidden="true" /> Logout
-          </button>
-          <p className="nb-muted pt-0.5 text-center text-[10px] font-semibold">© {YEAR} Tech &amp; Restore</p>
-        </div>
+        <SidebarFooter darkMode={darkMode} onLight={setLight} onDark={setDark} onLogout={handleLogout} />
       </aside>
 
       <header
@@ -872,9 +886,10 @@ const AssignerHeader = ({ darkMode: darkModeProp, toggleDarkMode }) => {
 
           <Link
             to="/assigner/profile"
-            className="nb-field nb-field-link flex items-center gap-2.5 h-10 pl-1 pr-1 md:pr-3 flex-shrink-0"
+            aria-label="My profile"
+            className="nb-field nb-field-link flex items-center gap-2.5 h-10 rounded-full pl-1 pr-1 md:pr-4 flex-shrink-0"
           >
-            <span className="nb-tile w-7 h-7 text-sm font-extrabold uppercase">
+            <span className="nb-tile w-7 h-7 rounded-full text-sm font-extrabold uppercase">
               {name ? name.charAt(0) : <FiUser size={16} aria-hidden="true" />}
             </span>
             <span className="hidden md:block leading-tight text-left">

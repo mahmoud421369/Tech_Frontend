@@ -12,6 +12,7 @@ import useAuthStore from './common/store/Auth';
 import { redirectFor, canAccessArea, parseAccessToken } from './common/utils/authSession';
 import ShopChatModal from './components/shop/ShopChatModal';
 import ShopReports from './Shop/ShopReports';
+import ShopReviews from './Shop/ShopReviews';
 
 const DeliveryDashboard = React.lazy(() => import('./Delivery/DeliveryDashboard'));
 const DeliveryProfile = React.lazy(() => import('./Delivery/DeliveryProfile'));
@@ -217,6 +218,7 @@ function App() {
           <Route index element={<AreaFallback to="/shop/dashboard" />} />
           <Route path="dashboard" element={withShopLayout(ShopDashboard)} />
           <Route path="reports" element={withShopLayout(ShopReports)} />
+          <Route path="reviews" element={withShopLayout(ShopReviews)} />
           <Route path="chats" element={withShopLayout(ShopChatModal)} />
           <Route path="transactions" element={withShopLayout(Transactions)} />
           <Route path="repair-requests" element={withShopLayout(RepairRequests)} />

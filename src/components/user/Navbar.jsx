@@ -34,10 +34,9 @@ const NAVBAR_TRANSLATIONS = { en: enTranslations.navbar, ar: arTranslations.navb
 const getNavbarTranslation = (language, key) => NAVBAR_TRANSLATIONS[language]?.[key] || NAVBAR_TRANSLATIONS.en?.[key] || key;
 
 const NB_FONT_STYLE = { fontFamily: "'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" };
-const TOAST_STYLE_AR = { fontFamily: "'Cairo', sans-serif", fontSize: 14, borderRadius: 0 };
-const TOAST_STYLE_LTR = { fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, borderRadius: 0 };
+const TOAST_STYLE_AR = { fontFamily: "'Cairo', sans-serif", fontSize: 14, borderRadius: 16 };
+const TOAST_STYLE_LTR = { fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, borderRadius: 16 };
 
-/* ---------- Fonts: one <link>, no render-blocking @import ---------- */
 const ensureNbFont = () => {
   if (typeof document === 'undefined' || document.getElementById('nb-font')) return;
   [['https://fonts.googleapis.com', false], ['https://fonts.gstatic.com', true]].forEach(([href, cors]) => {
@@ -53,71 +52,74 @@ const ensureNbFont = () => {
   document.head.appendChild(link);
 };
 
-/*
- * Scroll behaviour (shrink / hide) is driven by data-attributes on .nv-root,
- * set from the scroll handler without React state, so scrolling never re-renders.
- *   data-tier = top | scrolled | deep
- *   data-hide = true | false
- */
 const NAV_CSS = `
   html, body { overflow-x: hidden; max-width: 100vw; }
   .nv-root{display:contents}
   .nv{
-    --nv-bg:#ffffff;--nv-card:#ffffff;--nv-ink:#04261a;--nv-muted:#4b6b5c;--nv-line:#04261a;--nv-shadow:#04261a;
-    --nv-gray:#e6f6ee;--nv-accent:#10b981;--nv-btn:#059669;--nv-on:#ffffff;
-    --nv-soft:#f1f3f2;--nv-soft-line:#d5dbd8;
+    --nv-bg:#ffffff;--nv-card:#ffffff;--nv-ink:#0f2a1f;--nv-muted:#6b7f75;--nv-line:#e4e9e6;
+    --nv-gray:#ecfaf3;--nv-accent:#10b981;--nv-btn:#059669;--nv-on:#ffffff;--nv-lbl:#059669;
+    --nv-soft:#f3f5f4;--nv-soft-line:#e4e9e6;
+    --nv-shadow:0 10px 30px -8px rgba(15,42,31,.18),0 2px 6px rgba(15,42,31,.06);
+    --nv-glow:0 8px 18px -4px rgba(5,150,105,.55);
     background:var(--nv-bg);color:var(--nv-ink)
   }
   .nv-dark{
-    --nv-bg:#1a1a1a;--nv-card:#2a2a2a;--nv-ink:#ffffff;--nv-muted:#a3a3a3;--nv-line:#000000;--nv-shadow:#000000;
-    --nv-gray:#333333;--nv-accent:#39ff88;--nv-btn:#2cff7a;--nv-on:#021a0c;
-    --nv-soft:#262626;--nv-soft-line:#000000
+    --nv-bg:#1a1a1a;--nv-card:#262626;--nv-ink:#ffffff;--nv-muted:#a3a3a3;--nv-line:#333333;
+    --nv-gray:#2f2f2f;--nv-accent:#39ff88;--nv-btn:#2cff7a;--nv-on:#021a0c;--nv-lbl:#39ff88;
+    --nv-soft:#262626;--nv-soft-line:#333333;
+    --nv-shadow:0 10px 30px -8px rgba(0,0,0,.7),0 2px 6px rgba(0,0,0,.4);
+    --nv-glow:0 6px 20px -2px rgba(57,255,136,.55)
   }
-  .nv-bar{border:2px solid var(--nv-line);box-shadow:0 4px 0 var(--nv-shadow);will-change:transform;
+  .nv-bar{border:1px solid var(--nv-line);box-shadow:var(--nv-shadow);border-radius:24px;
     transition:margin .2s ease,padding .2s ease,transform .2s ease}
-  .nv-desk{margin:0;padding:10px 28px}
-  .nv-mob{margin:0}
-  .nv-root[data-tier=scrolled] .nv-desk,.nv-root[data-tier=deep] .nv-desk{margin:10px 16px 0}
-  .nv-root[data-tier=deep] .nv-desk{padding-block:6px}
-  .nv-root[data-tier=scrolled] .nv-mob,.nv-root[data-tier=deep] .nv-mob{margin:8px 10px 0}
+  .nv-desk{margin:12px 16px 0;padding:10px 24px}
+  .nv-mob{margin:10px 12px 0}
+  .nv-root[data-tier=scrolled] .nv-desk{margin:8px 20px 0}
+  .nv-root[data-tier=deep] .nv-desk{margin:8px 20px 0;padding-block:6px}
+  .nv-root[data-tier=scrolled] .nv-mob,.nv-root[data-tier=deep] .nv-mob{margin:6px 12px 0}
   .nv-root[data-tier=deep] .nv-logo-m{height:2.5rem}
-  .nv-root[data-hide=true] .nv-bar{transform:translateY(-160%)}
+  .nv-root[data-hide=true] .nv-bar{transform:translateY(-170%)}
   .nv-gray{background:var(--nv-gray)}
   .nv-soft{background:var(--nv-soft)}
   .nv-soft-line{border-color:var(--nv-soft-line)}
   .nv-line{border-color:var(--nv-line)}
   .nv-muted{color:var(--nv-muted)}
-  .nv-card{background:var(--nv-card);color:var(--nv-ink);border:2px solid var(--nv-line);box-shadow:5px 5px 0 var(--nv-shadow)}
-  .nv-num{display:inline-flex;align-items:center;justify-content:center;flex:none;width:36px;height:36px;background:var(--nv-btn);color:var(--nv-on);border:2px solid var(--nv-line);box-shadow:2px 2px 0 var(--nv-shadow)}
-  .nv-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nv-card);color:var(--nv-ink);border:2px solid var(--nv-line);box-shadow:3px 3px 0 var(--nv-shadow);font-weight:700;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,background-color .12s ease}
-  .nv-btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--nv-shadow)}
-  .nv-btn:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--nv-shadow)}
-  .nv-btn-danger{background:#dc2626;color:#fff}
+  .nv-card{background:var(--nv-card);color:var(--nv-ink);border:1px solid var(--nv-line);box-shadow:var(--nv-shadow);border-radius:22px}
+  .nv-num{display:inline-flex;align-items:center;justify-content:center;flex:none;width:36px;height:36px;border-radius:9999px;background:var(--nv-btn);color:var(--nv-on)}
+  .nv-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nv-soft);color:var(--nv-ink);border:1px solid var(--nv-line);border-radius:9999px;font-weight:700;cursor:pointer;transition:transform .12s ease,background-color .12s ease,box-shadow .12s ease}
+  .nv-btn:hover{background:var(--nv-gray);transform:translateY(-1px)}
+  .nv-btn:active{transform:scale(.94)}
+  .nv-btn-danger{background:#dc2626;color:#fff;border-color:#dc2626}
   .nv-btn-danger:hover{background:#b91c1c}
   .nv-btn:focus-visible,.nv-link:focus-visible,.nv-tab:focus-visible,.nv-tog:focus-visible{outline:3px solid var(--nv-accent);outline-offset:2px}
-  .nv-link{color:var(--nv-ink)}
+  .nv-link{color:var(--nv-ink);border-radius:9999px}
   .nv-link:not(.nv-active):hover{background:var(--nv-card)}
-  .nv-active,.nv-active:hover{background:var(--nv-btn);color:var(--nv-on);border-color:var(--nv-btn);box-shadow:0 2px 0 var(--nv-soft-line)}
-  .nv-dark .nv-active,.nv-dark .nv-active:hover{box-shadow:2px 2px 0 var(--nv-shadow),0 0 16px rgba(57,255,136,.55);border-color:var(--nv-line)}
-  .nv-dark .nv-num{box-shadow:2px 2px 0 var(--nv-shadow),0 0 12px rgba(57,255,136,.5)}
+  .nv-active,.nv-active:hover{background:var(--nv-btn);color:var(--nv-on);box-shadow:var(--nv-glow)}
   .nv-active svg,.nv-active span{color:var(--nv-on)}
 
-  /* ---------- Sun / Moon theme toggle ---------- */
+  .nv-dock{border:1px solid var(--nv-line);box-shadow:var(--nv-shadow);border-radius:28px;background:var(--nv-card);position:relative}
+  .nv-dock::after{content:"";position:absolute;bottom:5px;left:50%;width:84px;height:4px;margin-left:-42px;border-radius:9999px;background:var(--nv-soft-line);pointer-events:none}
+  .nv-ico{color:var(--nv-ink);transition:transform .25s cubic-bezier(.2,.8,.2,1),background-color .2s ease,box-shadow .2s ease}
+  .nv-ico-on{background:var(--nv-btn);color:var(--nv-on);transform:translateY(-10px);box-shadow:0 0 0 4px var(--nv-card),var(--nv-glow)}
+  .nv-ico-on svg{color:var(--nv-on)}
+  .nv-lbl{color:var(--nv-lbl);transform:translateY(-8px)}
+  .nv-lbl-t{transition:transform .25s cubic-bezier(.2,.8,.2,1),color .2s ease}
+
   .nv-tog{position:relative;flex:none;display:inline-flex;align-items:center;padding:0;overflow:hidden;border-radius:9999px;
-    border:2px solid var(--nv-line);box-shadow:3px 3px 0 var(--nv-shadow);cursor:pointer;
+    border:1px solid var(--nv-line);cursor:pointer;
     background:linear-gradient(180deg,#7dd3fc 0%,#bae6fd 100%);
-    transition:transform .12s ease,box-shadow .12s ease,background .35s ease}
-  .nv-tog:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--nv-shadow)}
-  .nv-tog:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--nv-shadow)}
+    transition:transform .12s ease,background .35s ease}
+  .nv-tog:hover{transform:translateY(-1px)}
+  .nv-tog:active{transform:scale(.95)}
   .nv-tog[aria-checked=true]{background:linear-gradient(180deg,#0f172a 0%,#312e81 100%)}
   .nv-tog::before,.nv-tog::after{content:"";position:absolute;inset:0;pointer-events:none;transition:opacity .35s ease}
-  .nv-tog::before{ /* clouds */
+  .nv-tog::before{
     background:
       radial-gradient(circle at 72% 72%,#fff 0 7px,transparent 8px),
       radial-gradient(circle at 84% 58%,#fff 0 5px,transparent 6px),
       radial-gradient(circle at 62% 78%,#fff 0 5px,transparent 6px);
     opacity:.95}
-  .nv-tog::after{ /* stars */
+  .nv-tog::after{
     background:
       radial-gradient(circle at 70% 30%,#fff 0 1.3px,transparent 2.2px),
       radial-gradient(circle at 52% 66%,#fff 0 1px,transparent 2px),
@@ -138,14 +140,13 @@ const NAV_CSS = `
   @keyframes navPop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
   .nav-pop { animation: navPop 0.14s cubic-bezier(.2,.8,.2,1) both; }
   .nav-scroll::-webkit-scrollbar { width: 6px; }
-  .nav-scroll::-webkit-scrollbar-thumb { background: var(--nv-soft-line); }
+  .nav-scroll::-webkit-scrollbar-thumb { background: var(--nv-soft-line); border-radius: 9999px; }
   .nv-dark .nav-scroll::-webkit-scrollbar-thumb { background: #4a4a4a; }
-  .Toastify__toast { font-family: 'Space Grotesk', 'Cairo', sans-serif; border-radius: 0 !important; border: 2px solid #04261a; box-shadow: 4px 4px 0 #04261a; }
-  .Toastify__toast--dark { background: #2a2a2a; border-color: #000; box-shadow: 4px 4px 0 #000; }
-  .Toastify__progress-bar { border-radius: 0 !important; }
+  .Toastify__toast { font-family: 'Space Grotesk', 'Cairo', sans-serif; border-radius: 16px !important; box-shadow: 0 10px 30px -8px rgba(15,42,31,.25); }
+  .Toastify__toast--dark { background: #262626; }
   @media (prefers-reduced-motion: reduce) {
     .nav-pop { animation: none !important; }
-    .nv-bar,.nv-btn,.nv-tog,.nv-tog-thumb,.nv-tog-ico,.nv-tog::before,.nv-tog::after { transition: none; }
+    .nv-bar,.nv-btn,.nv-tog,.nv-tog-thumb,.nv-tog-ico,.nv-tog::before,.nv-tog::after,.nv-ico,.nv-lbl-t { transition: none; }
   }
 `;
 
@@ -162,7 +163,6 @@ const useNavCss = () => {
   }, []);
 };
 
-/* ---------- Helpers (module scope = created once) ---------- */
 const clearAccountCache = () => {
   try { Object.keys(window.sessionStorage).filter((k) => k.startsWith('acct:')).forEach((k) => window.sessionStorage.removeItem(k)); } catch { }
 };
@@ -177,7 +177,6 @@ const formatTime = (ts) => {
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
-/* Render only the navbar that matches the viewport (desktop OR mobile). MediaQueryList is created once. */
 const DESKTOP_MQ = '(min-width: 768px)';
 let mql = null;
 const getMql = () => (mql ||= window.matchMedia(DESKTOP_MQ));
@@ -190,7 +189,6 @@ const getMq = () => getMql().matches;
 const getMqServer = () => true;
 const useIsDesktop = () => useSyncExternalStore(subscribeMq, getMq, getMqServer);
 
-/* Static nav definitions. Icon = outline (inactive), ActiveIcon = filled (active tab). */
 const AUTH_ITEMS = [
   { key: 'home', path: '/', Icon: RiHome4Line, ActiveIcon: RiHome4Fill, size: 17 },
   { key: 'devices', path: '/devices', Icon: RiDeviceLine, ActiveIcon: RiDeviceFill, size: 17 },
@@ -204,10 +202,8 @@ const GUEST_ITEMS = [
   { key: 'signup', path: '/signup', Icon: RiUserAddLine, ActiveIcon: RiUserAddFill, size: 17 },
 ];
 
-/* The key includes the user id (same pattern as the Home page), so one user never sees another user's cached notifications. */
 const notifKeyFor = (userId) => ['notifications', userId ?? 'anon'];
 
-/* ---------- Small components ---------- */
 const Logo = memo(({ darkMode, heightClass }) => (
   <span className={`inline-flex items-center transition-all duration-200 ${darkMode ? 'px-2 py-1' : ''}`}>
     <img
@@ -249,15 +245,14 @@ const ThemeToggle = memo(({ darkMode, onToggle, label, size = 'md' }) => {
 });
 
 const NotificationItem = memo(({ n, onDelete }) => (
-  <div className={`nv-line group flex items-start gap-3 border-b-2 border-dotted px-5 py-3.5 ${!n.read ? 'nv-gray' : ''}`}>
-    <span className={`nv-line mt-1.5 h-2.5 w-2.5 flex-shrink-0 border-2 ${!n.read ? 'bg-[color:var(--nv-btn)]' : 'bg-transparent'}`} />
+  <div className={`nv-line group flex items-start gap-3 border-b px-5 py-3.5 last:border-b-0 ${!n.read ? 'nv-gray' : ''}`}>
+    <span className={`mt-1.5 h-2.5 w-2.5 flex-shrink-0 rounded-full ${!n.read ? 'bg-[color:var(--nv-btn)]' : 'bg-transparent'}`} />
     <div className="min-w-0 flex-1">
       <p className="truncate text-sm font-extrabold">{n.title}</p>
       <p className="nv-muted mt-0.5 line-clamp-2 text-xs">{n.message}</p>
-      <p className="mt-1.5 text-[11px] font-bold">{formatTime(n.timestamp)}</p>
+      <p className="nv-muted mt-1.5 text-[11px] font-bold">{formatTime(n.timestamp)}</p>
     </div>
-    <button type="button" onClick={() => onDelete(n.id)} aria-label="Remove notification"
-      className="nv-btn h-7 w-7 flex-shrink-0 !shadow-[2px_2px_0_var(--nv-shadow)]">
+    <button type="button" onClick={() => onDelete(n.id)} aria-label="Remove notification" className="nv-btn h-7 w-7 flex-shrink-0">
       <FiX size={13} />
     </button>
   </div>
@@ -269,7 +264,7 @@ const NotificationList = memo(({ notifications, loading, onDelete, t }) => {
   if (loading) {
     return (
       <div className="space-y-3 p-5">
-        {SKELETON_ROWS.map((i) => <div key={i} className="nv-gray nv-line h-14 animate-pulse border-2 motion-reduce:animate-none" />)}
+        {SKELETON_ROWS.map((i) => <div key={i} className="nv-gray h-14 animate-pulse rounded-2xl motion-reduce:animate-none" />)}
       </div>
     );
   }
@@ -285,12 +280,12 @@ const NotificationList = memo(({ notifications, loading, onDelete, t }) => {
 });
 
 const NotifHeader = memo(({ unread, onClose, t }) => (
-  <div className="nv-line flex items-center justify-between border-b-2 px-5 py-3.5">
+  <div className="nv-line flex items-center justify-between border-b px-5 py-3.5">
     <div className="flex items-center gap-3">
       <span className="nv-num"><FiBell className="h-4 w-4" /></span>
       <div>
         <p className="text-sm font-extrabold uppercase">{t('notifications')}</p>
-        {unread > 0 && <p className="text-xs font-bold"><span className="inline-block h-2 w-2 bg-[color:var(--nv-btn)] align-middle" /> {unread} {t('unread')}</p>}
+        {unread > 0 && <p className="text-xs font-bold"><span className="inline-block h-2 w-2 rounded-full bg-[color:var(--nv-btn)] align-middle" /> {unread} {t('unread')}</p>}
       </div>
     </div>
     <button type="button" onClick={onClose} aria-label="Close notifications" className="nv-btn h-8 w-8">
@@ -309,20 +304,20 @@ const NotifPanel = memo(({ className, unread, notifications, loading, onClose, o
 ));
 
 const Badge = memo(({ count }) => (
-  <span className="nv-line absolute -end-2 -top-2 flex h-5 min-w-[20px] items-center justify-center border-2 bg-rose-500 px-1 text-[10px] font-extrabold text-white">
+  <span className="absolute -end-1.5 -top-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-extrabold text-white ring-2 ring-[color:var(--nv-bg)]">
     {count > 9 ? '9+' : count}
   </span>
 ));
 
 const DesktopLinks = memo(({ items }) => (
-  <div className="nv-soft nv-soft-line flex items-center gap-1 rounded-none border-2 p-1">
+  <div className="nv-soft nv-soft-line flex items-center gap-1 rounded-full border p-1">
     {items.map(({ key, path, Icon, ActiveIcon, size, name }) => (
       <NavLink
         key={key}
         to={path}
         end={path === '/'}
         className={({ isActive }) =>
-          `nv-link flex items-center gap-2 whitespace-nowrap border-2 px-3 py-2 text-[13.5px] font-bold transition-colors duration-100 lg:px-4 ${isActive ? 'nv-active' : 'border-transparent'}`}
+          `nv-link flex items-center gap-2 whitespace-nowrap px-4 py-2 text-[13.5px] font-bold transition-colors duration-150 ${isActive ? 'nv-active' : ''}`}
       >
         {({ isActive }) => {
           const Glyph = isActive ? ActiveIcon : Icon;
@@ -339,18 +334,22 @@ const DesktopLinks = memo(({ items }) => (
 ));
 
 const MobileTabs = memo(({ items, dir, fontStyle, tone, font }) => (
-  <div dir={dir} style={fontStyle} className={`${tone} ${font} nv-soft nv-soft-line fixed inset-x-0 bottom-0 z-50 border-t-2`}>
-    <div className="flex items-center justify-around px-2 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-1.5">
+  <div
+    dir={dir}
+    style={fontStyle}
+    className={`${tone} ${font} pointer-events-none fixed inset-x-0 bottom-0 z-50 bg-transparent px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]`}
+  >
+    <div className="nv-dock pointer-events-auto flex items-end justify-around px-2 pb-4 pt-3">
       {items.map(({ key, path, Icon, ActiveIcon, size, name }) => (
-        <NavLink key={key} to={path} end={path === '/'} className="nv-tab flex min-w-[56px] flex-col items-center gap-1 px-1 py-0.5">
+        <NavLink key={key} to={path} end={path === '/'} className="nv-tab flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl py-0.5">
           {({ isActive }) => {
             const Glyph = isActive ? ActiveIcon : Icon;
             return (
               <>
-                <span className={`flex h-9 w-9 items-center justify-center border-2 transition-colors duration-100 ${isActive ? 'nv-active' : 'border-transparent'}`}>
-                  <Glyph size={size + 2} aria-hidden="true" />
+                <span className={`nv-ico flex h-11 w-11 items-center justify-center rounded-full ${isActive ? 'nv-ico-on' : ''}`}>
+                  <Glyph size={size + 5} aria-hidden="true" />
                 </span>
-                <span className={`text-[10px] ${isActive ? 'font-extrabold' : 'nv-muted font-semibold'}`}>{name}</span>
+                <span className={`nv-lbl-t max-w-full truncate text-[11px] leading-none ${isActive ? 'nv-lbl font-bold' : 'nv-muted font-semibold'}`}>{name}</span>
               </>
             );
           }}
@@ -360,7 +359,6 @@ const MobileTabs = memo(({ items, dir, fontStyle, tone, font }) => (
   </div>
 ));
 
-/* ---------- Main ---------- */
 const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
   useNavCss();
   const location = useLocation();
@@ -372,7 +370,6 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
   const isRtl = dir === 'rtl';
   const t = useCallback((key) => getNavbarTranslation(language, key), [language]);
 
-  /* Single source of truth = auth store (same one the Home page, Cart, OffersSlider and api.js use). */
   const token = useAuthStore((s) => s.accessToken);
   const userId = useAuthStore((s) => s.userId);
   const clearAuth = useAuthStore((s) => s.clearAuth);
@@ -388,7 +385,6 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   notifOpenRef.current = showNotifications;
 
-  /* Scroll progress + shrink/hide: rAF-throttled, passive, writes to the DOM only, no React re-render. */
   useEffect(() => {
     let raf = 0;
     const update = () => {
@@ -422,7 +418,6 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
     };
   }, [location.pathname]);
 
-  /* Close notifications on outside click / Escape (listeners only while open) */
   useEffect(() => {
     if (!showNotifications) return undefined;
     const onDown = (e) => { if (notifRef.current && !notifRef.current.contains(e.target)) setShowNotifications(false); };
@@ -432,12 +427,9 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
     return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
   }, [showNotifications]);
 
-  /* Close the panel on navigation. The Navbar never redirects: route guards and the api.js 401 interceptor own that. */
   useEffect(() => { setShowNotifications(false); }, [location.pathname]);
 
   const handleLogout = useCallback(async () => {
-    /* the refresh token lives in an httpOnly cookie that api.js sends (withCredentials); the legacy
-       localStorage value is only a fallback for old sessions */
     let refreshToken = null;
     try { refreshToken = window.localStorage.getItem('refreshToken'); } catch { }
     try {
@@ -446,7 +438,6 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
     clearAuth();
     clearLegacyAuth();
     clearAccountCache();
-    /* a left-over Google cookie / mark would let the Home page sign the user in again right after logout */
     clearClientCookie();
     clearGoogleMark();
     qc.clear();
@@ -454,7 +445,6 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
     navigate('/login', { replace: true });
   }, [token, clearAuth, navigate, t, qc]);
 
-  /* Auth header is added by the api.js interceptor, so the key doesn't change when the token refreshes. */
   const { data: notifications = [], isLoading: loadingNotifs } = useQuery({
     queryKey: notifKey,
     queryFn: async ({ signal }) => {
@@ -519,8 +509,8 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
         toastStyle={isAr ? TOAST_STYLE_AR : TOAST_STYLE_LTR}
       />
 
-      <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 z-[60] h-1.5">
-        <div ref={progressRef} className="h-full w-full will-change-transform" style={progressStyle} />
+      <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 z-[60] h-1">
+        <div ref={progressRef} className="h-full w-full rounded-full will-change-transform" style={progressStyle} />
       </div>
 
       {isDesktop ? (
@@ -553,7 +543,7 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
             )}
             <ThemeToggle darkMode={darkMode} onToggle={toggleDarkMode} label={t('toggleTheme')} />
             {isAuthenticated && (
-              <button type="button" onClick={handleLogout} className="nv-btn nv-btn-danger h-10 px-3.5 text-[13px] lg:px-4">
+              <button type="button" onClick={handleLogout} className="nv-btn nv-btn-danger h-10 px-4 text-[13px]">
                 <RiLogoutBoxRLine size={16} /><span>{t('logout')}</span>
               </button>
             )}

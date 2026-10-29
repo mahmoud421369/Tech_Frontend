@@ -6,7 +6,7 @@ import {
   FiSearch, FiTrash2, FiEdit3, FiMessageCircle, FiCheckCircle, FiShoppingCart, FiX, FiSliders,
   FiChevronLeft, FiChevronRight, FiArrowRight, FiCheck, FiChevronDown,
   FiShield, FiTruck, FiRefreshCw, FiTag, FiPackage, FiAward, FiExternalLink, FiArrowUp,
-  FiCalendar, FiClock, FiHeart,
+  FiCalendar, FiClock, FiHeart, FiCornerDownRight,
 } from "react-icons/fi";
 import { RiStarFill } from "react-icons/ri";
 import { LazyMotion, MotionConfig, domAnimation, m, AnimatePresence } from "framer-motion";
@@ -19,7 +19,7 @@ import { useAppLanguage, languageDirection } from "../common/utils/useAppLanguag
 import { UI3D_CSS, Defs3D } from "../components/user/Ui3D";
 import { EXTRAS_CSS, Toaster, toast } from "../components/user/UiExtras";
 import {
-  LISTING_CSS, PAGE_SIZES, CONDITIONS, safeImageUrl, priceStep, finalPrice, clamp, clean, loadSwal,
+  LISTING_CSS, PAGE_SIZES, CONDITIONS, safeImageUrl, priceStep, clamp, clean, loadSwal,
   useLangFont, useBackToTop, useModalLock, useHScroll,
 } from "../components/user/ListingKit";
 import { IsoIllustration, isoCatKey } from "../components/user/IsoIllustrations";
@@ -65,32 +65,35 @@ const EXTRA = {
   en: {
     eyebrowCollections: "Collections", eyebrowProducts: "Catalog", eyebrowReviews: "Reviews", perPage: "per page", prevPage: "Previous page", nextPage: "Next page",
     pageN: "Page {n}", pagination: "Pagination", productDetails: "Details", imageUnavailable: "Image unavailable", noAddress: "No address listed",
-    addressLabel: "Address", phoneLabel: "Phone",
+    addressLabel: "Address", phoneLabel: "Phone", shopReply: "Shop reply",
     eyebrowOffers: "Offers", shopOffers: "Shop Offers", shopOffersSubtitle: "Current deals from this shop", viewAllOffers: "View all offers",
     save: "Save product", saved: "Saved", savedOnly: "Saved only", loadingMore: "Loading more products", endOfList: "You have seen all products",
     all: "All", moreFilters: "More filters", priceMin: "Min", priceMax: "Max", minPriceAria: "Minimum price", maxPriceAria: "Maximum price",
     errorInvalidNumber: "Enter a valid number", errorNegative: "Price can't be negative", errorMinGreater: "Min can't be above max",
     errorMaxLess: "Max can't be below min", errorMaxPrice: "Max price is {{max}}",
+    youSave: "Save {{value}}", originalPrice: "Original price", discountedPrice: "Price after discount", discountValue: "Discount",
   },
   ar: {
     eyebrowCollections: "المجموعات", eyebrowProducts: "الكتالوج", eyebrowReviews: "التقييمات", perPage: "لكل صفحة", prevPage: "الصفحة السابقة", nextPage: "الصفحة التالية",
     pageN: "صفحة {n}", pagination: "التنقل بين الصفحات", productDetails: "التفاصيل", imageUnavailable: "الصورة غير متاحة", noAddress: "لا يوجد عنوان مسجل",
-    addressLabel: "العنوان", phoneLabel: "الهاتف",
+    addressLabel: "العنوان", phoneLabel: "الهاتف", shopReply: "رد المتجر",
     eyebrowOffers: "العروض", shopOffers: "عروض المتجر", shopOffersSubtitle: "أحدث العروض الحالية من هذا المتجر", viewAllOffers: "عرض كل العروض",
     save: "حفظ المنتج", saved: "تم الحفظ", savedOnly: "المحفوظة فقط", loadingMore: "جارٍ تحميل المزيد من المنتجات", endOfList: "لقد شاهدت جميع المنتجات",
     all: "الكل", moreFilters: "فلاتر إضافية", priceMin: "الأدنى", priceMax: "الأقصى", minPriceAria: "السعر الأدنى", maxPriceAria: "السعر الأقصى",
     errorInvalidNumber: "أدخل رقمًا صحيحًا", errorNegative: "لا يمكن أن يكون السعر سالبًا", errorMinGreater: "الحد الأدنى لا يمكن أن يتجاوز الأقصى",
     errorMaxLess: "الحد الأقصى لا يمكن أن يقل عن الأدنى", errorMaxPrice: "أقصى سعر هو {{max}}",
+    youSave: "وفّر {{value}}", originalPrice: "السعر الأصلي", discountedPrice: "السعر بعد الخصم", discountValue: "الخصم",
   },
   fr: {
     eyebrowCollections: "Collections", eyebrowProducts: "Catalogue", eyebrowReviews: "Avis", perPage: "par page", prevPage: "Page précédente", nextPage: "Page suivante",
     pageN: "Page {n}", pagination: "Pagination", productDetails: "Détails", imageUnavailable: "Image indisponible", noAddress: "Aucune adresse indiquée",
-    addressLabel: "Adresse", phoneLabel: "Téléphone",
+    addressLabel: "Adresse", phoneLabel: "Téléphone", shopReply: "Réponse de la boutique",
     eyebrowOffers: "Offres", shopOffers: "Offres de la boutique", shopOffersSubtitle: "Les offres du moment de cette boutique", viewAllOffers: "Voir toutes les offres",
     save: "Enregistrer le produit", saved: "Enregistré", savedOnly: "Enregistrés uniquement", loadingMore: "Chargement d'autres produits", endOfList: "Vous avez vu tous les produits",
     all: "Tous", moreFilters: "Plus de filtres", priceMin: "Min", priceMax: "Max", minPriceAria: "Prix minimum", maxPriceAria: "Prix maximum",
     errorInvalidNumber: "Saisissez un nombre valide", errorNegative: "Le prix ne peut pas être négatif", errorMinGreater: "Le min ne peut pas dépasser le max",
     errorMaxLess: "Le max ne peut pas être inférieur au min", errorMaxPrice: "Le prix max est {{max}}",
+    youSave: "Économisez {{value}}", originalPrice: "Prix d'origine", discountedPrice: "Prix après remise", discountValue: "Remise",
   },
 };
 const getShopTranslation = (language, key, fallbackOrParams) => {
@@ -113,6 +116,48 @@ const conditionLabel = (t, value) => (value ? t(`condition${value}`, String(valu
 const NUMBER_FORMAT = new Intl.NumberFormat(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 const COMPACT_FORMAT = new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 });
 const money = (n, currency) => `${currency} ${NUMBER_FORMAT.format(Number(n) || 0)}`;
+const round2 = (n) => Math.round(n * 100) / 100;
+
+const computeFinal = (price, type, value) => {
+  if (!(price > 0) || !(value > 0) || !type) return price;
+  if (type === "PERCENTAGE") return value < 100 ? round2(price - (price * value) / 100) : price;
+  return value < price ? round2(price - value) : price;
+};
+
+const normalizeProduct = (p) => {
+  const price = Math.max(0, Number(p.price) || 0);
+  const legacy = clamp(Number(p.discount) || 0, 0, 100);
+  const apiFinal = Number(p.finalPrice);
+  const discountValue = Number(p.discountValue) || 0;
+  const apiType = p.discountType || null;
+  let finalPrice = price;
+  if (apiFinal > 0 && apiFinal < price) finalPrice = apiFinal;
+  else if (discountValue > 0 && apiType) finalPrice = computeFinal(price, apiType, discountValue);
+  else if (legacy) finalPrice = round2(price * (1 - legacy / 100));
+  const saving = round2(Math.max(0, price - finalPrice));
+  return {
+    ...p,
+    price,
+    finalPrice,
+    saving,
+    discount: price > 0 ? (saving / price) * 100 : 0,
+    discountType: saving > 0 ? (apiType || "PERCENTAGE") : null,
+    discountValue: saving > 0 && discountValue > 0 ? discountValue : 0,
+    imageUrl: safeImageUrl(p.imageUrl || p.image) || "",
+    _final: finalPrice,
+    _text: `${p.name || ""} ${p.description || ""} ${p.brand || ""}`.toLowerCase(),
+    _cat: p.categoryName || p.category || "",
+    _ts: Date.parse(p.createdAt) || 0,
+  };
+};
+
+const discountBadge = (product, currency) => {
+  if (product.discountValue > 0 && product.discountType === "FIXED_AMOUNT") return `-${money(product.discountValue, currency)}`;
+  if (product.discountValue > 0 && product.discountType === "PERCENTAGE") return `-${NUMBER_FORMAT.format(product.discountValue)}%`;
+  return product.discountType === "FIXED_AMOUNT"
+    ? `-${money(product.saving, currency)}`
+    : `-${Math.max(1, Math.round(product.discount))}%`;
+};
 
 const kindOf = (name = "") => {
   const k = String(name).toLowerCase();
@@ -133,6 +178,7 @@ const STARS = [1, 2, 3, 4, 5];
 const RATING_BARS = [5, 4, 3, 2, 1];
 const SOON_DAYS = 3;
 const OFFERS_SHOWN = 6;
+const EMPTY_LIST = [];
 
 const STAGGER = Array.from({ length: 8 }, (_, i) => ({ "--i": i }));
 const ACCENT_FILL = { fill: "var(--nb-accent)" };
@@ -241,8 +287,8 @@ const useSavedProducts = () => {
 };
 
 const NB_CSS = `
-.nb{--nb-bg:#f3f4f6;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e2e5e9;--nb-accent:#10b981;--nb-btn:#059669;--nb-on:#ffffff;background:var(--nb-bg);color:var(--nb-ink)}
-.nb-dark{--nb-bg:#121212;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#212121;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-on:#022c22}
+.nb{--nb-bg:#f3f4f6;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e2e5e9;--nb-accent:#10b981;--nb-btn:#059669;--nb-on:#ffffff;--nb-sale:#dc2626;background:var(--nb-bg);color:var(--nb-ink)}
+.nb-dark{--nb-bg:#121212;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#212121;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-on:#022c22;--nb-sale:#fb7185}
 .nb-dark .border-dotted,.nb-dark .nb-dot{border-color:#3f3f3f}
 .nb-seq{border-top:2px solid var(--nb-line)}
 .nb-seq>section:nth-of-type(odd){background:var(--nb-bg)}
@@ -267,6 +313,10 @@ const NB_CSS = `
 .nb-chip-r{background:#e11d48;color:#fff}
 .nb-chip-w{background:#fbbf24;color:#04261a}
 .nb-chip-n{background:var(--nb-gray);color:var(--nb-muted);border-style:dashed}
+.nb-sale{color:var(--nb-sale)}
+.nb-price-old{color:var(--nb-muted);text-decoration:line-through;text-decoration-thickness:2px;text-decoration-color:var(--nb-sale)}
+.nb-save{display:inline-flex;align-items:center;gap:4px;max-width:100%;padding:1px 7px;background:var(--nb-btn);color:var(--nb-on);border:2px solid var(--nb-line);font-size:10px;font-weight:800;text-transform:uppercase;line-height:1.5;white-space:nowrap}
+.nb-ribbon{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:var(--nb-sale);color:#fff;border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);font-size:11px;font-weight:800;line-height:1.3;font-variant-numeric:tabular-nums}
 .nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow);font-weight:700;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,background-color .12s ease}
 .nb-btn:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--nb-shadow)}
 .nb-btn:active:not(:disabled){transform:translate(2px,2px);box-shadow:0 0 0 var(--nb-shadow)}
@@ -293,6 +343,7 @@ const NB_CSS = `
 .nb-range{position:absolute;inset:0;width:100%;height:20px;margin:0;appearance:none;-webkit-appearance:none;background:transparent;pointer-events:none}
 .nb-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;box-sizing:border-box;pointer-events:auto;width:20px;height:20px;border-radius:0;background:var(--nb-accent);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);cursor:grab}
 .nb-range::-moz-range-thumb{box-sizing:border-box;pointer-events:auto;width:20px;height:20px;border-radius:0;background:var(--nb-accent);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);cursor:grab}
+.nb-sub{background:var(--nb-gray);border:2px solid var(--nb-line);border-inline-start:5px solid var(--nb-accent)}
 .nb-star-on{color:#f59e0b}
 .nb-star-off{color:var(--nb-muted);opacity:.35}
 @keyframes nbSpin{to{transform:rotate(360deg)}}
@@ -716,6 +767,30 @@ const ShopOfferModal = memo(({ offer, language, currency, onClose, onViewProduct
   );
 });
 
+const PriceBlock = memo(({ product, currency, t, big = false }) => {
+  const discounted = product.saving > 0;
+  return (
+    <div className={`flex min-w-0 flex-col gap-0.5 ${big ? "" : "max-sm:rtl:items-end"}`} dir="ltr">
+      {discounted && (
+        <span className={`nb-price-old font-semibold tabular-nums ${big ? "text-sm" : "text-[11px]"}`}>
+          <span className="sr-only">{t("originalPrice")}: </span>
+          {money(product.price, currency)}
+        </span>
+      )}
+      <span className={`truncate font-extrabold leading-tight tabular-nums tracking-tight ${big ? "text-2xl" : "text-base"} ${discounted ? "nb-sale" : ""}`}>
+        <span className="sr-only">{discounted ? `${t("discountedPrice")}: ` : ""}</span>
+        {money(product._final, currency)}
+      </span>
+      {discounted && (
+        <span dir="auto" className="nb-save mt-1 self-start">
+          <FiTag className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+          <span className="truncate">{t("youSave", { value: money(product.saving, currency) })}</span>
+        </span>
+      )}
+    </div>
+  );
+});
+
 const ProductCard = memo(({ product: p, darkMode, index = 0, isSaved = false, onSave, onAddToCart, onDetails, t, className = "" }) => {
   const src = p.imageUrl;
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -740,11 +815,12 @@ const ProductCard = memo(({ product: p, darkMode, index = 0, isSaved = false, on
     return () => clearTimeout(id);
   }, [src]);
 
-  const hasDiscount = p.discount > 0;
+  const hasDiscount = p.saving > 0;
   const inStock = p.stock == null || p.stock > 0;
   const name = clean(p.name, 120) || t("product");
   const currency = t("currency");
   const snippet = useMemo(() => clean(p.description, 140) || t("noProductDescription"), [p.description, t]);
+  const badge = useMemo(() => (hasDiscount ? discountBadge(p, currency) : ""), [hasDiscount, p, currency]);
   const open = useCallback(() => onDetails(p), [onDetails, p]);
   const openFromArrow = useCallback((e) => { e.stopPropagation(); open(); }, [open]);
   const save = useCallback((e) => { e.stopPropagation(); onSave(p.id); }, [onSave, p.id]);
@@ -796,7 +872,11 @@ const ProductCard = memo(({ product: p, darkMode, index = 0, isSaved = false, on
               />
             </>
           )}
-          {hasDiscount && <span dir="ltr" className="nb-chip nb-chip-r absolute start-2 top-2 z-10">-{p.discount}%</span>}
+          {hasDiscount && (
+            <span dir="ltr" className="nb-ribbon absolute start-2 top-2 z-10" title={t("discountValue")}>
+              <FiTag className="h-3 w-3" aria-hidden="true" />{badge}
+            </span>
+          )}
           <button type="button" onClick={save} aria-pressed={isSaved} aria-label={isSaved ? t("saved") : t("save")} title={isSaved ? t("saved") : t("save")}
             className={`nb-btn absolute end-2 top-2 z-10 h-8 w-8 ${isSaved ? "nb-btn-on" : ""}`}>
             <FiHeart className="h-4 w-4" fill={isSaved ? "currentColor" : "none"} />
@@ -804,11 +884,8 @@ const ProductCard = memo(({ product: p, darkMode, index = 0, isSaved = false, on
           {p.condition && <span className="nb-chip nb-chip-a absolute bottom-2 end-2 z-10 max-w-[70%]"><span className="truncate">{conditionLabel(t, p.condition)}</span></span>}
         </div>
 
-        <div className="mt-auto flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 flex-col max-sm:rtl:items-end" dir="ltr">
-            <span className="truncate text-base font-extrabold tabular-nums tracking-tight">{money(p._final, currency)}</span>
-            {hasDiscount && <span className="nb-muted text-[11px] tabular-nums line-through">{money(p.price, currency)}</span>}
-          </div>
+        <div className="mt-auto flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <PriceBlock product={p} currency={currency} t={t} />
           <div className="flex w-full items-center gap-2 sm:w-auto sm:flex-shrink-0">
             <button type="button" onClick={add} disabled={!inStock || adding} aria-label={t("addToCart")} title={t("addToCart")}
               className={`nb-btn h-9 flex-1 sm:w-9 sm:flex-none ${added ? "nb-btn-on" : ""}`}>
@@ -893,9 +970,11 @@ const EditReviewModal = memo(({ review, t, onClose, onSave }) => {
   );
 });
 
-const ReviewCard = memo(({ review: r, mine, dateLocale, t, onEdit, onDelete }) => {
+const ReviewCard = memo(({ review: r, mine, dateLocale, shopName, t, onEdit, onDelete }) => {
   const when = Date.parse(r.createdAt);
   const name = clean(r.userName, 60);
+  const reply = r.reply ? clean(r.reply, 1000) : "";
+  const replyWhen = Date.parse(r.repliedAt);
   return (
     <article className="nb-card flex h-full min-w-0 flex-col gap-3 p-4 sm:p-5">
       <div className="flex items-center gap-3">
@@ -921,6 +1000,21 @@ const ReviewCard = memo(({ review: r, mine, dateLocale, t, onEdit, onDelete }) =
           <button type="button" onClick={() => onDelete(r.id)} aria-label={t("deleteReview")} title={t("deleteReview")} className="nb-btn h-8 w-8 !text-red-500"><FiTrash2 className="h-4 w-4" /></button>
         </div>
       )}
+      {reply && (
+        <div role="note" aria-label={t("shopReply")} className="nb-sub ms-3 flex min-w-0 flex-col gap-2 p-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <FiCornerDownRight aria-hidden="true" className="nb-ic nb-flip h-4 w-4 flex-shrink-0" />
+            <span className="nb-chip nb-chip-a">{t("shopReply")}</span>
+            {shopName && <span className="min-w-0 max-w-full truncate text-[11px] font-extrabold uppercase">{shopName}</span>}
+            {Number.isFinite(replyWhen) && (
+              <span className="nb-muted text-[11px] font-bold" dir="ltr">
+                {new Date(replyWhen).toLocaleDateString(dateLocale, { day: "numeric", month: "short", year: "numeric" })}
+              </span>
+            )}
+          </div>
+          <p className="break-words text-sm leading-relaxed opacity-90">{reply}</p>
+        </div>
+      )}
     </article>
   );
 });
@@ -928,9 +1022,10 @@ const ReviewCard = memo(({ review: r, mine, dateLocale, t, onEdit, onDelete }) =
 const ProductDetailsModal = memo(({ product, darkMode, isSaved, onSave, onClose, onAddToCart, onView, t }) => {
   const hasStock = product.stock != null;
   const inStock = !hasStock || product.stock > 0;
-  const hasDiscount = product.discount > 0;
+  const hasDiscount = product.saving > 0;
   const currency = t("currency");
   const productName = clean(product.name, 120) || t("product");
+  const badge = hasDiscount ? discountBadge(product, currency) : "";
   const [imgError, setImgError] = useState(!product.imageUrl);
   const [added, setAdded] = useState(false);
   const timer = useRef();
@@ -968,16 +1063,19 @@ const ProductDetailsModal = memo(({ product, darkMode, isSaved, onSave, onClose,
             <img src={product.imageUrl} alt={productName} referrerPolicy="no-referrer" decoding="async"
               onError={() => setImgError(true)} className="h-full w-full object-cover" />
           )}
-          {hasDiscount && <span className="nb-chip nb-chip-r absolute start-3 top-3" dir="ltr">-{product.discount}%</span>}
+          {hasDiscount && (
+            <span dir="ltr" className="nb-ribbon absolute start-3 top-3" title={t("discountValue")}>
+              <FiTag className="h-3 w-3" aria-hidden="true" />{badge}
+            </span>
+          )}
         </div>
 
         <div className="space-y-5 p-4 sm:p-5">
           <div>
             <h2 className="text-lg font-extrabold uppercase leading-snug sm:text-xl">{clean(product.name, 160) || t("product")}</h2>
             <span className="nb-rule" aria-hidden="true" />
-            <div className="mt-3 flex items-baseline gap-2" dir="ltr">
-              <span className="text-2xl font-extrabold tabular-nums">{money(product._final, currency)}</span>
-              {hasDiscount && <span className="nb-muted text-sm tabular-nums line-through">{money(product.price, currency)}</span>}
+            <div className="mt-3">
+              <PriceBlock product={product} currency={currency} t={t} big />
             </div>
           </div>
 
@@ -1050,7 +1148,7 @@ const CategorySlider = memo(({ category, items, darkMode, saved, onSave, onAddTo
       </div>
       <div ref={sliderRef} className="hide-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-3 pe-3 ps-1 pt-1 sm:gap-6">
         {items.map((p, i) => (
-          <div key={p.id} className="w-[200px] flex-shrink-0 snap-start sm:w-[250px]">
+          <div key={p.id} className="w-[220px] flex-shrink-0 snap-start sm:w-[270px]">
             <ProductCard product={p} darkMode={darkMode} index={i} isSaved={saved.has(p.id)} onSave={onSave} onAddToCart={onAddToCart} onDetails={onDetails} t={t} />
           </div>
         ))}
@@ -1302,6 +1400,7 @@ const ShopContent = ({ darkMode, addToCart }) => {
   const reviewBusyRef = useRef(false);
   const showTop = useBackToTop();
   const closeSidebar = useCallback(() => setIsSidebarOpen(false), []);
+  const openSidebar = useCallback(() => setIsSidebarOpen(true), []);
   const drawerOpen = isMobile && isSidebarOpen;
   useModalLock(drawerOpen, closeSidebar);
   useEffect(() => { if (!isMobile) setIsSidebarOpen(false); }, [isMobile]);
@@ -1356,7 +1455,7 @@ const ShopContent = ({ darkMode, addToCart }) => {
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: categories = [] } = useQuery({
+  const { data: categories = EMPTY_LIST } = useQuery({
     queryKey: ["categories"],
     queryFn: async ({ signal }) => {
       try {
@@ -1367,31 +1466,21 @@ const ShopContent = ({ darkMode, addToCart }) => {
     staleTime: 10 * 60 * 1000,
   });
 
-  const { data: products = [], isLoading: productsLoading } = useQuery({
+  const { data: products = EMPTY_LIST, isLoading: productsLoading } = useQuery({
     queryKey: ["products", shopId],
     queryFn: async ({ signal }) => {
       try {
         const { data } = await api.get(`/api/products/shop/${encodeURIComponent(shopId)}`, { signal });
         const list = data.content || data || [];
         if (!Array.isArray(list)) return [];
-        return list.filter(Boolean).map((p) => {
-          const base = { ...p, price: Number(p.price) || 0, discount: clamp(Number(p.discount) || 0, 0, 100) };
-          return {
-            ...base,
-            imageUrl: safeImageUrl(p.imageUrl || p.image) || "",
-            _final: finalPrice(base),
-            _text: `${p.name || ""} ${p.description || ""} ${p.brand || ""}`.toLowerCase(),
-            _cat: p.categoryName || p.category || "",
-            _ts: Date.parse(p.createdAt) || 0,
-          };
-        });
+        return list.filter(Boolean).map(normalizeProduct);
       } catch { return []; }
     },
     enabled: !!shopId,
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: shopOffers = [] } = useQuery({
+  const { data: shopOffers = EMPTY_LIST } = useQuery({
     queryKey: ["shopOffers", shopId, userId ?? "anon"],
     queryFn: async ({ signal }) => {
       try {
@@ -1407,7 +1496,7 @@ const ShopContent = ({ darkMode, addToCart }) => {
     staleTime: 2 * 60 * 1000,
   });
 
-  const { data: reviews = [], isLoading: reviewsLoading } = useQuery({
+  const { data: reviews = EMPTY_LIST, isLoading: reviewsLoading } = useQuery({
     queryKey: ["reviews", shopId],
     queryFn: async ({ signal }) => {
       try {
@@ -1436,7 +1525,7 @@ const ShopContent = ({ darkMode, addToCart }) => {
     }
     try {
       await api.post("/api/cart/items", { productId: product.id, quantity: 1 });
-      addToCart?.({ ...product, quantity: 1 });
+      addToCart?.({ ...product, price: product.finalPrice, quantity: 1 });
       window.dispatchEvent(new Event("cart:updated"));
       toast({ icon: "success", title: t("addedToCartToast"), text: clean(product.name, 60), timer: TOAST_MS });
       return true;
@@ -1586,7 +1675,7 @@ const ShopContent = ({ darkMode, addToCart }) => {
     const term = dSearch.trim().toLowerCase();
     return products.filter((p) => {
       if (dCat !== "all" && p._cat !== dCat) return false;
-      if (dSale && !(p.discount > 0)) return false;
+      if (dSale && !(p.saving > 0)) return false;
       if (dStock && p.stock != null && p.stock <= 0) return false;
       if (dSaved && !saved.has(p.id)) return false;
       if (term && !p._text.includes(term)) return false;
@@ -1780,7 +1869,7 @@ const ShopContent = ({ darkMode, addToCart }) => {
                             <NbDropdown ariaLabel={t("rowsPerPage", "Rows per page")} value={pageSize} onChange={setPageSize} options={rowOptions} align="end" className="w-36 flex-shrink-0" />
                           )}
                           {isMobile && (
-                            <button type="button" onClick={() => setIsSidebarOpen(true)} className="nb-btn nb-btn-a h-10 px-3 text-xs uppercase">
+                            <button type="button" onClick={openSidebar} className="nb-btn nb-btn-a h-10 px-3 text-xs uppercase">
                               <FiSliders className="h-3.5 w-3.5" /> {t("filters")}
                               {activeFiltersCount > 0 && <span className="flex h-4 min-w-[1rem] items-center justify-center bg-white px-1 text-[10px] font-bold text-[#04261a]">{activeFiltersCount}</span>}
                             </button>
@@ -1898,7 +1987,7 @@ const ShopContent = ({ darkMode, addToCart }) => {
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
                       {pagedReviews.map((r) => (
                         <ReviewCard key={r.id} review={r} mine={userId != null && String(r.userId) === String(userId)}
-                          dateLocale={dateLocale} t={t} onEdit={setEditingReview} onDelete={deleteReview} />
+                          dateLocale={dateLocale} shopName={clean(shop?.name, 80)} t={t} onEdit={setEditingReview} onDelete={deleteReview} />
                       ))}
                     </div>
                   ) : (

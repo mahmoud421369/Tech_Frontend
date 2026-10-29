@@ -3,7 +3,7 @@ import {
   FiLogOut, FiMenu, FiX, FiBox, FiTool, FiSearch, FiBell,
   FiGrid, FiTag, FiMessageSquare, FiShoppingBag, FiCreditCard, FiPackage,
   FiCalendar, FiInfo, FiAlertTriangle, FiAlertCircle, FiChevronRight, FiUser,
-  FiBarChart2,
+  FiBarChart2, FiStar,
 } from "react-icons/fi";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
@@ -25,7 +25,7 @@ const MAX_RENDERED_NOTIFS = 50;
 const SEARCH_MAX = 40;
 const YEAR = new Date().getFullYear();
 const UNREAD_EVENT = "shopChatUnread";
-const BADGE_EVENT = "shopBadgeCounts"; // detail: { orders?, repairs?, stock? } dispatched by Orders / RepairRequests / Inventory
+const BADGE_EVENT = "shopBadgeCounts";
 const BADGE_KEYS = ["orders", "repairs", "stock"];
 const INITIAL_BADGES = Object.freeze({ orders: 0, repairs: 0, stock: 0 });
 const BADGES_POLL_MS = 60_000;
@@ -33,7 +33,6 @@ const DEFAULT_THRESHOLD = 5;
 const ORDERS_PATH = "/api/shops/orders/control";
 const REPAIRS_PATH = "/api/shops/repair-request";
 const INVENTORY_PATH = "/api/shop/inventory/search";
-// Module-level params keep the request config stable between polls.
 const LIST_PARAMS = Object.freeze({ page: 0, size: 500, sort: "createdAt,desc" });
 const INVENTORY_PARAMS = Object.freeze({ query: "", page: 0, size: 500 });
 
@@ -60,7 +59,6 @@ const countLowStock = (d) => {
   return n;
 };
 
-/** Merge a partial { orders?, repairs?, stock? } into the badge state; ignores unknown keys / non-finite numbers. */
 const applyBadges = (prev, patch) => {
   if (!patch || typeof patch !== "object") return prev;
   let next = prev;
@@ -73,12 +71,13 @@ const applyBadges = (prev, patch) => {
   }
   return next;
 };
+
 const CHATS_PATH = "/shop/chats";
 const MOBILE_QUERY = "(max-width: 1023px)";
 const THEME_EVENT = "appDarkModeChanged";
 const REPORTS_LABEL = { ar: "التقارير", en: "Reports" };
+const REVIEWS_LABEL = { ar: "التقييمات", en: "Reviews" };
 
-// path -> { key in badge state, css class for its colour }
 const BADGE_BY_PATH = {
   "/shop/orders": { key: "orders", cls: "nb-badge-orders" },
   "/shop/repair-requests": { key: "repairs", cls: "nb-badge-repairs" },
@@ -92,6 +91,7 @@ const MENU_GROUPS = [
       { key: "dashboard", path: "/shop/dashboard", icon: FiGrid },
       { key: "reports", path: "/shop/reports", icon: FiBarChart2 },
       { key: "chats", path: CHATS_PATH, icon: FiMessageSquare },
+      { key: "reviews", path: "/shop/reviews", icon: FiStar },
     ],
   },
   {
@@ -189,6 +189,48 @@ const useMediaQuery = (query) => {
   return matches;
 };
 
+const usePoller = (task, baseMs, enabled) => {
+  const taskRef = useRef(task);
+  taskRef.current = task;
+
+  useEffect(() => {
+    if (!enabled) return undefined;
+    let timer;
+    let stopped = false;
+    let fails = 0;
+    let generation = 0;
+    let controller = null;
+
+    const run = async () => {
+      const mine = ++generation;
+      if (!document.hidden) {
+        controller?.abort();
+        const c = new AbortController();
+        controller = c;
+        const ok = await taskRef.current(c.signal);
+        if (stopped || mine !== generation) return;
+        fails = ok ? 0 : Math.min(fails + 1, MAX_BACKOFF_STEPS);
+      }
+      timer = setTimeout(run, baseMs * 2 ** fails);
+    };
+
+    const onVisible = () => {
+      if (document.hidden) return;
+      clearTimeout(timer);
+      run();
+    };
+
+    run();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      controller?.abort();
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [enabled, baseMs]);
+};
+
 const confirmDialog = async (opts, darkMode) => {
   const { default: Swal } = await import("sweetalert2");
   const { isConfirmed } = await Swal.fire({
@@ -241,6 +283,7 @@ html,body{overflow-x:hidden;max-width:100vw}
 .nb-tile{align-items:center;justify-content:center;flex:none;border:2px solid var(--nb-line);color:var(--nb-on);background:var(--nb-btn)}
 .nb-tile-warn{background:#facc15;color:#000}
 .nb-tile-danger{background:#ef4444;color:#fff}
+.nb-avatar{background:#ec4899;color:#fff;border-radius:9999px}
 :where(.nb-btn){display:inline-flex}
 .nb-btn{align-items:center;justify-content:center;gap:6px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);font-weight:700;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,background-color .12s ease}
 .nb-btn:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--nb-shadow)}
@@ -248,6 +291,11 @@ html,body{overflow-x:hidden;max-width:100vw}
 .nb-btn:disabled{opacity:.45;cursor:not-allowed}
 .nb-btn-a,.nb-btn-on{background:var(--nb-btn);color:var(--nb-on)}
 .nb-btn-danger:hover:not(:disabled){background:#ef4444;color:#fff}
+.nb-btn-logout{background:#ef4444;color:#fff;border-color:#000;box-shadow:3px 3px 0 #000}
+.nb-btn-logout:hover:not(:disabled){background:#dc2626;color:#fff;box-shadow:4px 4px 0 #000}
+.nb-btn-logout:active:not(:disabled){box-shadow:0 0 0 #000}
+.nb-bell,.nb-bell:hover:not(:disabled){background:#6366f1;color:#fff;border-radius:9999px}
+.nb-bell-open,.nb-bell-open:hover:not(:disabled){background:#f59e0b;color:#1f1300}
 .nb-btn:focus-visible,.nb-field:focus-within,.nb-field:focus-visible,.nb-link:focus-visible,.nb-orb:focus-visible{outline:3px solid var(--nb-accent);outline-offset:2px}
 .nb-field{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow)}
 .nb-field-link{transition:transform .12s ease,box-shadow .12s ease}
@@ -348,7 +396,7 @@ const SidebarNav = memo(({ t, pathname, chatUnread, badges, onClick }) => (
 
 const SidebarFooter = memo(({ t, onLogout }) => (
   <div className="nb-line p-3 flex flex-col gap-2.5 flex-shrink-0 border-t-2">
-    <button type="button" onClick={onLogout} className="nb-btn nb-btn-a w-full py-2 text-xs uppercase">
+    <button type="button" onClick={onLogout} className="nb-btn nb-btn-logout w-full py-2 text-xs uppercase">
       <FiLogOut size={14} aria-hidden="true" className="rtl:rotate-180" /> {t.logout}
     </button>
     <p className="nb-muted pt-0.5 text-center text-[10px] font-semibold">© {YEAR} Tech &amp; Restore</p>
@@ -557,15 +605,13 @@ const NotificationCenter = memo(({ t, locale, token }) => {
   const prevUnreadRef = useRef(0);
   const ringTimer = useRef(null);
   const notifsRef = useRef(notifications);
-  const fetchAbortRef = useRef(null);
   const busyRef = useRef(new Set());
-  const failCountRef = useRef(0);
   const tRef = useRef(t);
   notifsRef.current = notifications;
   tRef.current = t;
 
   useEffect(() => { prevUnreadRef.current = unreadCount; }, [unreadCount]);
-
+  useEffect(() => () => clearTimeout(ringTimer.current), []);
   useEffect(() => { setOpen(false); }, [pathname]);
 
   useEffect(() => {
@@ -580,14 +626,10 @@ const NotificationCenter = memo(({ t, locale, token }) => {
     };
   }, [open]);
 
-  const fetchNotifications = useCallback(async () => {
-    if (!token) return true;
-    fetchAbortRef.current?.abort();
-    const controller = new AbortController();
-    fetchAbortRef.current = controller;
+  const fetchNotifications = useCallback(async (signal) => {
     try {
-      const res = await api.get("/api/notifications/shops", { signal: controller.signal });
-      if (controller.signal.aborted) return true;
+      const res = await api.get("/api/notifications/shops", { signal });
+      if (signal.aborted) return true;
       const data = Array.isArray(res.data) ? res.data : res.data?.content || [];
       if (notifSignature(data) !== notifSignature(notifsRef.current)) {
         const newUnread = countUnread(data);
@@ -601,44 +643,13 @@ const NotificationCenter = memo(({ t, locale, token }) => {
       }
       return true;
     } catch {
-      return controller.signal.aborted;
+      return signal.aborted;
     } finally {
-      if (!controller.signal.aborted) setLoading(false);
+      if (!signal.aborted) setLoading(false);
     }
-  }, [token]);
+  }, []);
 
-  useEffect(() => {
-    if (!token) return undefined;
-    let timer;
-    let stopped = false;
-    let generation = 0;
-
-    const run = async () => {
-      const mine = ++generation;
-      if (!document.hidden) {
-        const ok = await fetchNotifications();
-        failCountRef.current = ok ? 0 : Math.min(failCountRef.current + 1, MAX_BACKOFF_STEPS);
-      }
-      if (stopped || mine !== generation) return;
-      timer = setTimeout(run, POLL_MS * 2 ** failCountRef.current);
-    };
-
-    const onVisible = () => {
-      if (document.hidden) return;
-      clearTimeout(timer);
-      run();
-    };
-
-    run();
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      stopped = true;
-      clearTimeout(timer);
-      clearTimeout(ringTimer.current);
-      fetchAbortRef.current?.abort();
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [token, fetchNotifications]);
+  usePoller(fetchNotifications, POLL_MS, !!token);
 
   const handleDelete = useCallback(async (id) => {
     const key = `del:${id}`;
@@ -665,7 +676,7 @@ const NotificationCenter = memo(({ t, locale, token }) => {
         aria-label={unreadCount > 0 ? tpl(t.bellAria, { n: unreadCount }) : t.notifications.title}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className={`nb-btn relative w-10 h-10 ${open ? "nb-btn-on" : ""}`}
+        className={`nb-btn nb-bell relative w-10 h-10 ${open ? "nb-bell-open" : ""}`}
       >
         <FiBell size={ICON} aria-hidden="true" className={ringing ? "bell-ring" : ""} />
         {unreadCount > 0 && (
@@ -703,7 +714,11 @@ const ShopHeader = () => {
   const t = useMemo(
     () => ({
       ...base,
-      pages: { reports: REPORTS_LABEL[language] || REPORTS_LABEL.en, ...base.pages },
+      pages: {
+        reports: REPORTS_LABEL[language] || REPORTS_LABEL.en,
+        reviews: REVIEWS_LABEL[language] || REVIEWS_LABEL.en,
+        ...base.pages,
+      },
     }),
     [base, language]
   );
@@ -768,99 +783,41 @@ const ShopHeader = () => {
     return () => window.removeEventListener(UNREAD_EVENT, onUnread);
   }, []);
 
-  // Instant updates pushed by the Orders / RepairRequests / Inventory pages (after accepting, pricing, restocking...).
   useEffect(() => {
     const onBadges = (e) => setBadges((prev) => applyBadges(prev, e.detail));
     window.addEventListener(BADGE_EVENT, onBadges);
     return () => window.removeEventListener(BADGE_EVENT, onBadges);
   }, []);
 
-  // The header loads the counts itself, so badges show on every page without visiting Orders / Repairs / Inventory first.
-  useEffect(() => {
-    if (!token) return undefined;
-    let timer;
-    let stopped = false;
-    let fails = 0;
-    let controller = null;
+  const loadBadges = useCallback(async (signal) => {
+    const get = (path, params) => api.get(path, { params, signal });
+    const [o, r, s] = await Promise.allSettled([
+      get(ORDERS_PATH, LIST_PARAMS),
+      get(REPAIRS_PATH, LIST_PARAMS),
+      get(INVENTORY_PATH, INVENTORY_PARAMS),
+    ]);
+    if (signal.aborted) return true;
+    const patch = {};
+    if (o.status === "fulfilled") patch.orders = countOrders(o.value.data);
+    if (r.status === "fulfilled") patch.repairs = countRepairs(r.value.data);
+    if (s.status === "fulfilled") patch.stock = countLowStock(s.value.data);
+    const got = Object.keys(patch).length > 0;
+    if (got) setBadges((prev) => applyBadges(prev, patch));
+    return got;
+  }, []);
 
-    const load = async () => {
-      controller?.abort();
-      const c = new AbortController();
-      controller = c;
-      const get = (path, params) => api.get(path, { params, signal: c.signal });
-      const [o, r, s] = await Promise.allSettled([
-        get(ORDERS_PATH, LIST_PARAMS),
-        get(REPAIRS_PATH, LIST_PARAMS),
-        get(INVENTORY_PATH, INVENTORY_PARAMS),
-      ]);
-      if (c.signal.aborted || stopped) return true;
-      const patch = {};
-      if (o.status === "fulfilled") patch.orders = countOrders(o.value.data);
-      if (r.status === "fulfilled") patch.repairs = countRepairs(r.value.data);
-      if (s.status === "fulfilled") patch.stock = countLowStock(s.value.data);
-      const got = Object.keys(patch).length > 0;
-      if (got) setBadges((prev) => applyBadges(prev, patch));
-      return got;
-    };
+  const loadChatUnread = useCallback(async (signal) => {
+    try {
+      const { data } = await chatApi.unreadCount(shopId);
+      if (!signal.aborted) setChatUnread(parseCount(data));
+      return true;
+    } catch {
+      return signal.aborted;
+    }
+  }, [shopId]);
 
-    const run = async () => {
-      if (!document.hidden) {
-        const ok = await load();
-        fails = ok ? 0 : Math.min(fails + 1, MAX_BACKOFF_STEPS);
-      }
-      if (!stopped) timer = setTimeout(run, BADGES_POLL_MS * 2 ** fails);
-    };
-
-    const onVisible = () => {
-      if (document.hidden) return;
-      clearTimeout(timer);
-      run();
-    };
-
-    run();
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      stopped = true;
-      clearTimeout(timer);
-      controller?.abort();
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [token]);
-
-  useEffect(() => {
-    if (!token || !shopId || onChatsPage) return undefined;
-
-    let timer;
-    let stopped = false;
-    let fails = 0;
-
-    const run = async () => {
-      if (!document.hidden) {
-        try {
-          const { data } = await chatApi.unreadCount(shopId);
-          if (!stopped) setChatUnread(parseCount(data));
-          fails = 0;
-        } catch {
-          fails = Math.min(fails + 1, MAX_BACKOFF_STEPS);
-        }
-      }
-      if (!stopped) timer = setTimeout(run, POLL_MS * 2 ** fails);
-    };
-
-    const onVisible = () => {
-      if (document.hidden) return;
-      clearTimeout(timer);
-      run();
-    };
-
-    run();
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      stopped = true;
-      clearTimeout(timer);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [token, shopId, onChatsPage]);
+  usePoller(loadBadges, BADGES_POLL_MS, !!token);
+  usePoller(loadChatUnread, POLL_MS, !!token && !!shopId && !onChatsPage);
 
   const handleLogout = useCallback(async () => {
     if (busyRef.current) return;
@@ -1006,9 +963,10 @@ const ShopHeader = () => {
 
           <Link
             to="/shop/profile"
-            className="nb-field nb-field-link flex items-center gap-2.5 h-10 ps-1 pe-1 md:pe-3 flex-shrink-0"
+            aria-label={profileName || t.owner}
+            className="nb-field nb-field-link flex items-center gap-2.5 h-10 ps-1 pe-1 md:pe-4 rounded-full flex-shrink-0"
           >
-            <span className="nb-tile w-7 h-7 text-sm font-extrabold uppercase">
+            <span className="nb-tile nb-avatar w-8 h-8 text-sm font-extrabold uppercase">
               {profileName ? profileName.charAt(0) : <FiUser size={16} aria-hidden="true" />}
             </span>
             <span key={language} className="lang-fade hidden md:block leading-tight text-start">

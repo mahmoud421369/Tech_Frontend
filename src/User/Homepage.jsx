@@ -4,7 +4,7 @@ import React, {
 import { useNavigate, Link } from 'react-router-dom';
 import {
   FiSearch, FiX, FiArrowRight, FiChevronLeft, FiChevronRight, FiMapPin, FiPhone,
-  FiMonitor, FiShield, FiCheckCircle, FiDollarSign, FiShoppingCart, FiCheck, FiArrowUp,
+  FiMonitor, FiShield, FiCheckCircle, FiDollarSign, FiShoppingCart, FiCheck, FiArrowUp, FiTag,
 } from 'react-icons/fi';
 import { RiVerifiedBadgeLine, RiStarFill, RiStoreLine, RiCookieLine } from 'react-icons/ri';
 import { useQuery, QueryClientProvider } from '@tanstack/react-query';
@@ -18,9 +18,11 @@ import { Hero } from '../components';
 import {
   Defs3D, Device3DStyles, DeviceScene, Btn3D, Chip3D, useOnScreen, money,
 } from '../components/user/Device3D';
-import { safeImageUrl, StorefrontIllustration, loadSwal, clean, useBackToTop } from '../components/user/ListingKit';
+import {
+  safeImageUrl, StorefrontIllustration, loadSwal, clean, useBackToTop, kindOfCategory,
+} from '../components/user/ListingKit';
 import { EXTRAS_CSS, Toaster, toast } from '../components/user/UiExtras';
-import { IsoIllustration } from '../components/user/IsoIllustrations';
+import { IsoIllustration, isoCatKey } from '../components/user/IsoIllustrations';
 import enTranslations from '../locales/en/translation.json';
 import arTranslations from '../locales/ar/translation.json';
 import frTranslations from '../locales/fr/translation.json';
@@ -36,9 +38,24 @@ const HOMEPAGE_TRANSLATIONS = {
 };
 
 const LOCAL_TEXT = {
-  en: { noAddress: 'No address' },
-  ar: { noAddress: 'لا يوجد عنوان' },
-  fr: { noAddress: 'Aucune adresse' },
+  en: {
+    noAddress: 'No address',
+    youSave: 'Save {{value}}', originalPrice: 'Original price', discountedPrice: 'Price after discount', discountValue: 'Discount',
+    homeCategoriesLabel: 'Categories', homeCategoriesTitle: 'Shop by category', homeCategoriesSub: 'Pick a category to see every device in it',
+    homeCategoryCta: 'View devices', homeItemSingular: 'item', homeItemPlural: 'items',
+  },
+  ar: {
+    noAddress: 'لا يوجد عنوان',
+    youSave: 'وفّر {{value}}', originalPrice: 'السعر الأصلي', discountedPrice: 'السعر بعد الخصم', discountValue: 'الخصم',
+    homeCategoriesLabel: 'التصنيفات', homeCategoriesTitle: 'تسوّق حسب التصنيف', homeCategoriesSub: 'اختر تصنيفًا لعرض كل الأجهزة فيه',
+    homeCategoryCta: 'عرض الأجهزة', homeItemSingular: 'منتج', homeItemPlural: 'منتجات',
+  },
+  fr: {
+    noAddress: 'Aucune adresse',
+    youSave: 'Économisez {{value}}', originalPrice: "Prix d'origine", discountedPrice: 'Prix après remise', discountValue: 'Remise',
+    homeCategoriesLabel: 'Catégories', homeCategoriesTitle: 'Acheter par catégorie', homeCategoriesSub: 'Choisissez une catégorie pour voir tous ses appareils',
+    homeCategoryCta: 'Voir les appareils', homeItemSingular: 'article', homeItemPlural: 'articles',
+  },
 };
 
 const tr = (language, key, vars) => {
@@ -221,20 +238,48 @@ const safeId = (id) => {
 };
 
 const RAIL_LIMIT = 8;
+const CATEGORY_LIMIT = 6;
+const EMPTY_LIST = [];
+const PCT_FORMAT = new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const round2 = (n) => Math.round(n * 100) / 100;
+
+const computeFinal = (price, type, value) => {
+  if (!(price > 0) || !(value > 0) || !type) return price;
+  if (type === 'PERCENTAGE') return value < 100 ? round2(price - (price * value) / 100) : price;
+  return value < price ? round2(price - value) : price;
+};
 
 const normalizeProduct = (p) => {
-  const price = Number(p.price) || 0;
-  const discount = Math.min(Math.max(Number(p.discount) || 0, 0), 100);
+  const price = Math.max(0, Number(p.price) || 0);
+  const legacy = Math.min(Math.max(Number(p.discount) || 0, 0), 100);
+  const apiFinal = Number(p.finalPrice);
+  const discountValue = Number(p.discountValue) || 0;
+  const apiType = p.discountType || null;
+  let finalPrice = price;
+  if (apiFinal > 0 && apiFinal < price) finalPrice = apiFinal;
+  else if (discountValue > 0 && apiType) finalPrice = computeFinal(price, apiType, discountValue);
+  else if (legacy) finalPrice = round2(price * (1 - legacy / 100));
+  const saving = round2(Math.max(0, price - finalPrice));
   return {
     ...p,
     price,
-    discount,
+    finalPrice,
+    saving,
+    discount: price > 0 ? (saving / price) * 100 : 0,
+    discountType: saving > 0 ? (apiType || 'PERCENTAGE') : null,
+    discountValue: saving > 0 && discountValue > 0 ? discountValue : 0,
     imageUrl: safeImageUrl(p.imageUrl),
-    finalPrice: discount ? Math.round(price * (1 - discount / 100) * 100) / 100 : price,
     _text: fold(`${p.name || ''} ${p.description || ''}`),
     _snippet: snippet(p.description),
   };
 };
+
+const discountBadge = (p) => {
+  if (p.discountValue > 0 && p.discountType === 'FIXED_AMOUNT') return `-${money(p.discountValue)}`;
+  if (p.discountValue > 0 && p.discountType === 'PERCENTAGE') return `-${PCT_FORMAT.format(p.discountValue)}%`;
+  return p.discountType === 'FIXED_AMOUNT' ? `-${money(p.saving)}` : `-${Math.max(1, Math.round(p.discount))}%`;
+};
+
 const normalizeShop = (s) => ({
   ...s,
   services: s.services || [],
@@ -274,6 +319,14 @@ const HP_CSS = `
   @keyframes hpConsentIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
   .hp-consent-in { animation: hpConsentIn 0.22s cubic-bezier(.2,.8,.2,1) both; }
   .hp-search::-webkit-search-cancel-button, .hp-search::-webkit-search-decoration { display: none; -webkit-appearance: none; }
+  .hp-cat { --c-card: #ffffff; --c-ink: #04261a; --c-line: #04261a; --c-acc: #10b981; --c-on: #04261a; }
+  .hp-cat-dark { --c-card: #2a2a2a; --c-ink: #ffffff; --c-line: #000000; --c-acc: #39ff88; --c-on: #022c22; }
+  .hp-dot { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; background: var(--c-card); color: var(--c-ink); border: 2px dotted var(--c-line); cursor: pointer; transition: transform .15s ease, background-color .15s ease; }
+  .hp-cat-dark .hp-dot { border-color: #3f3f3f; }
+  .hp-dot:hover { background: var(--c-acc); color: var(--c-on); transform: translateY(-3px); }
+  .hp-dot:focus-visible { outline: 3px solid var(--c-acc); outline-offset: 3px; }
+  .hp-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--c-card); color: var(--c-ink); border: 2px solid var(--c-line); padding: 1px 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; line-height: 1.5; }
+  .hp-dot:hover .hp-chip { background: var(--c-on); color: #ecfdf5; border-color: var(--c-on); }
   html[data-hp-theme] { --sb-thumb: #34d399; --sb-thumb-hover: #6ee7b7; --sb-track: #e8ebe9; --sb-ink: #022c22; }
   html[data-hp-theme="dark"] { --sb-thumb: #39ff88; --sb-thumb-hover: #86ffb4; --sb-track: #1e1e1e; --sb-ink: #000000; }
   html[data-hp-theme], .hp-sb { scrollbar-width: thin; scrollbar-color: var(--sb-thumb) var(--sb-track); }
@@ -288,7 +341,7 @@ const HP_CSS = `
     html[data-hp-theme]::-webkit-scrollbar-thumb:hover, .hp-sb::-webkit-scrollbar-thumb:hover { background: var(--sb-thumb-hover); }
     html[data-hp-theme]::-webkit-scrollbar-corner, .hp-sb::-webkit-scrollbar-corner { background: var(--sb-track); }
   }
-  @media (prefers-reduced-motion: reduce) { .hp-consent-in { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .hp-consent-in { animation: none; } .hp-dot { transition: none; } .hp-dot:hover { transform: none; } }
 `;
 let hpStylesInjected = false;
 const injectHpStylesOnce = () => {
@@ -331,6 +384,9 @@ const COOKIE_BTN =
   '[box-shadow:calc(var(--dx)*4px)_4px_0_0_var(--sh)] transition-[transform,box-shadow] duration-150 ' +
   'active:translate-y-[4px] active:translate-x-[calc(var(--dx)*4px)] active:[box-shadow:0_0_0_0_var(--sh)] ' +
   'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
+
+const SAVE_CHIP =
+  'mt-1 inline-flex max-w-full items-center gap-1 border-2 border-[color:var(--ink)] bg-[color:var(--acc)] px-1.5 py-px text-[10px] font-extrabold uppercase leading-snug text-emerald-950';
 
 const MEDIA_WRAP = 'p-2.5 pb-0';
 const MEDIA_BOX = 'relative overflow-hidden rounded-2xl [contain:layout_paint]';
@@ -560,7 +616,7 @@ const EmptyRail = memo(({ label, darkMode }) => (
 
 const RailSkeleton = memo(({ w, h, darkMode }) => (
   <div className="flex gap-5 overflow-hidden pb-4">
-    {Array.from({ length: 4 }).map((_, i) => <div key={i} className={`flex-shrink-0 animate-pulse ${w} ${h} ${darkMode ? 'bg-[#2a2a2a]' : 'bg-gray-200/70'}`} />)}
+    {Array.from({ length: 4 }).map((_, i) => <div key={i} className={`flex-shrink-0 animate-pulse motion-reduce:animate-none ${w} ${h} ${darkMode ? 'bg-[#2a2a2a]' : 'bg-gray-200/70'}`} />)}
   </div>
 ));
 
@@ -940,6 +996,64 @@ const ActionSection = memo(({ darkMode, language }) => (
   </section>
 ));
 
+const CategoryCard = memo(({ category, count, showCount, darkMode, language }) => {
+  const id = safeId(category.id);
+  const catKey = useMemo(() => isoCatKey(kindOfCategory(category.name)), [category.name]);
+  if (!id) return null;
+  return (
+    <Link
+      to={`/products/category/${id}`}
+      aria-label={category.name}
+      className="hp-dot group relative p-3 pt-9 text-center sm:gap-2.5 sm:p-4 sm:pt-10"
+    >
+      <IsoIllustration
+        type={catKey} darkMode={darkMode} onGreen={false}
+        className="h-14 w-14 transition-transform duration-200 motion-reduce:transition-none group-hover:scale-110 sm:h-16 sm:w-16"
+      />
+      <span className="line-clamp-1 w-full text-sm font-extrabold uppercase">{category.name}</span>
+      {showCount && (
+        <span className="hp-chip">
+          <span dir="ltr">{count}</span> {tr(language, count === 1 ? 'homeItemSingular' : 'homeItemPlural')}
+        </span>
+      )}
+    </Link>
+  );
+});
+
+const CategorySection = memo(({ categories, counts, showCount, loading, darkMode, language }) => {
+  const top = useMemo(
+    () => [...categories].sort((a, b) => (counts[String(b.id)] || 0) - (counts[String(a.id)] || 0)).slice(0, CATEGORY_LIMIT),
+    [categories, counts],
+  );
+  if (!loading && top.length === 0) return null;
+  const grid = 'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-6';
+  return (
+    <section aria-label={tr(language, 'homeCategoriesTitle')} className={`py-14 sm:py-20 ${LAZY_SECTION} ${darkMode ? DARK_PAGE : 'bg-gray-50'}`}>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <SectionTitle
+          darkMode={darkMode} isAr={language === 'ar'}
+          label={tr(language, 'homeCategoriesLabel')}
+          title={tr(language, 'homeCategoriesTitle')}
+          subtitle={tr(language, 'homeCategoriesSub')}
+        />
+        <div className={`hp-cat ${darkMode ? 'hp-cat-dark' : ''}`}>
+          {loading ? (
+            <div className={grid} role="status" aria-busy="true">
+              {Array.from({ length: 6 }).map((_, i) => <div key={i} className={`h-[150px] animate-pulse motion-reduce:animate-none ${darkMode ? 'bg-[#2a2a2a]' : 'bg-gray-200/70'}`} />)}
+            </div>
+          ) : (
+            <div className={grid}>
+              {top.map((c) => (
+                <CategoryCard key={c.id} category={c} count={counts[String(c.id)] || 0} showCount={showCount} darkMode={darkMode} language={language} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+});
+
 const ProductCard = memo(({ product, darkMode, language, onAddToCart, onOpen }) => {
   const [failed, setFailed] = useState(false);
   const [btn, setBtn] = useState('idle');
@@ -950,8 +1064,9 @@ const ProductCard = memo(({ product, darkMode, language, onAddToCart, onOpen }) 
 
   const cond = pick(CONDITION, product.condition);
   const out = product.stock === 0;
-  const hasDiscount = product.discount > 0;
+  const hasDiscount = product.saving > 0;
   const showImage = !!product.imageUrl && !failed;
+  const badge = useMemo(() => (hasDiscount ? discountBadge(product) : ''), [hasDiscount, product]);
 
   const open = useCallback(() => onOpen(product), [onOpen, product]);
   const handleKey = useCallback((e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open(); }, [open]);
@@ -978,7 +1093,11 @@ const ProductCard = memo(({ product, darkMode, language, onAddToCart, onOpen }) 
         <div className={`${MEDIA_BOX} aspect-[3/2] ${mediaBg(darkMode)}`}>
           <div className="absolute start-2.5 top-2.5 z-10 flex flex-col items-start gap-1">
             {cond && <span className={`rounded-full border-2 border-[color:var(--ink)] px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-white ${cond.badge}`}>{tr(language, cond.labelKey)}</span>}
-            {hasDiscount && <span className="rounded-full border-2 border-[color:var(--ink)] bg-rose-500 px-2 py-0.5 text-[9px] font-extrabold text-white" dir="ltr">-{product.discount}%</span>}
+            {hasDiscount && (
+              <span className="inline-flex items-center gap-1 rounded-full border-2 border-[color:var(--ink)] bg-rose-500 px-2 py-0.5 text-[9px] font-extrabold text-white" dir="ltr" title={tr(language, 'discountValue')}>
+                <FiTag className="h-2.5 w-2.5" aria-hidden="true" />{badge}
+              </span>
+            )}
           </div>
           {showImage ? (
             <img
@@ -1000,10 +1119,22 @@ const ProductCard = memo(({ product, darkMode, language, onAddToCart, onOpen }) 
             <p className={`mt-1.5 line-clamp-2 text-xs font-medium leading-relaxed ${darkMode ? 'text-neutral-400' : 'text-gray-600'}`}>{product._snippet}</p>
           )}
         </div>
-        <div className="flex items-center justify-between gap-2 border-t-2 border-[color:var(--ink)] pt-3">
+        <div className="flex items-end justify-between gap-2 border-t-2 border-[color:var(--ink)] pt-3">
           <div className="min-w-0">
-            <p className={`truncate text-base font-extrabold tabular-nums ${darkMode ? 'text-[#39ff88]' : 'text-emerald-800'}`}>{money(product.finalPrice)}</p>
-            {hasDiscount && <p className={`truncate text-[11px] tabular-nums line-through ${darkMode ? 'text-neutral-500' : 'text-gray-400'}`}>{money(product.price)}</p>}
+            {hasDiscount && (
+              <p className={`truncate text-[11px] tabular-nums line-through ${darkMode ? 'text-neutral-500' : 'text-gray-400'}`}>
+                <span className="sr-only">{tr(language, 'originalPrice')}: </span>{money(product.price)}
+              </p>
+            )}
+            <p className={`truncate text-base font-extrabold tabular-nums ${hasDiscount ? (darkMode ? 'text-rose-400' : 'text-rose-600') : (darkMode ? 'text-[#39ff88]' : 'text-emerald-800')}`}>
+              <span className="sr-only">{hasDiscount ? `${tr(language, 'discountedPrice')}: ` : ''}</span>{money(product.finalPrice)}
+            </p>
+            {hasDiscount && (
+              <span dir="auto" className={SAVE_CHIP}>
+                <FiTag className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+                <span className="truncate">{tr(language, 'youSave', { value: money(product.saving) })}</span>
+              </span>
+            )}
             {out && <p className="text-[10px] font-semibold text-rose-500">{tr(language, 'outOfStock')}</p>}
           </div>
           <button type="button" onClick={handleCart} disabled={out || btn === 'adding'} aria-label={tr(language, 'addToCart')} className={NEO_ICON}>
@@ -1132,14 +1263,37 @@ const HomepageContent = memo(({ darkMode }) => {
   });
   const isLoading = !!accessToken && queryLoading;
 
-  const shops = data?.shops || [];
-  const catalog = data?.catalog || [];
-  const products = data?.latestProducts || [];
-  const latestShops = data?.latestShops || [];
+  const { data: categories = EMPTY_LIST, isLoading: categoriesLoading } = useQuery({
+    queryKey: ['homeCategories'],
+    queryFn: async ({ signal }) => {
+      const res = await api.get('/api/categories', { signal });
+      const raw = res.data?.content || res.data || [];
+      const out = [];
+      if (Array.isArray(raw)) {
+        for (const c of raw) {
+          if (c && c.id != null) out.push({ id: c.id, name: clean(String(c.name || c.id), 60) });
+        }
+      }
+      return out;
+    },
+    staleTime: 10 * 60 * 1000,
+    retry: false,
+  });
+
+  const shops = data?.shops || EMPTY_LIST;
+  const catalog = data?.catalog || EMPTY_LIST;
+  const products = data?.latestProducts || EMPTY_LIST;
+  const latestShops = data?.latestShops || EMPTY_LIST;
   const prodRail = useRail(products);
   const shopRail = useRail(latestShops);
   const [prodSecRef, prodVisible] = useOnScreen();
   const [shopSecRef, shopVisible] = useOnScreen();
+
+  const categoryCounts = useMemo(() => {
+    const map = {};
+    for (const p of catalog) if (p.categoryId != null) map[String(p.categoryId)] = (map[String(p.categoryId)] || 0) + 1;
+    return map;
+  }, [catalog]);
 
   const showTop = useBackToTop();
   const scrollToTop = useCallback(() => {
@@ -1203,6 +1357,11 @@ const HomepageContent = memo(({ darkMode }) => {
       </Suspense>
 
       <SearchSection darkMode={darkMode} language={language} products={catalog} shops={shops} />
+
+      <CategorySection
+        categories={categories} counts={categoryCounts} showCount={!!data}
+        loading={categoriesLoading} darkMode={darkMode} language={language}
+      />
 
       <section ref={prodSecRef} className={`py-14 sm:py-20 ${LAZY_SECTION} ${prodVisible ? '' : 'anim-paused'} ${sectionBg}`}>
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

@@ -250,6 +250,15 @@ const pageList = (cur, total) => {
   return out;
 };
 
+const statusKey = (s) => String(s ?? "").trim().toLowerCase();
+const statusEntry = (cfg, status) => cfg.statusMap?.get(statusKey(status)) || null;
+const actionsOf = (cfg, it) => statusEntry(cfg, it.status)?.actions ?? cfg.actions ?? null;
+const canAct = (cfg, it) => {
+  if (statusEntry(cfg, it.status)?.final) return false;
+  const a = actionsOf(cfg, it);
+  return !!(a && (a.primary || a.secondary));
+};
+
 const normalize = (raw, cfg) => ({
   ...raw,
   userName: `${txt(raw.firstName)} ${txt(raw.lastName)}`.trim() || txt(raw.userName),
@@ -263,24 +272,50 @@ const nameOf = (it, t) => it.userName || t.customer;
 
 const stateOf = (it, cfg, t) =>
   cfg.statuses
-    ? cfg.statuses[it.status] || { label: human(it.status, t), tone: "am" }
+    ? statusEntry(cfg, it.status) || { label: human(it.status, t), tone: "am" }
     : { label: t.open, tone: "em" };
+
+const mergeAction = (base, over) => (base || over ? { ...base, ...over } : undefined);
+
+const buildStatusMap = (statuses) =>
+  statuses ? new Map(Object.entries(statuses).map(([k, v]) => [statusKey(k), v])) : null;
 
 const buildCfg = (config, isAr) => {
   const base = { ...DEFAULTS, ...config };
   const ar = isAr ? config.ar : null;
-  if (!ar) return base;
-  const actions = { primary: { ...base.actions.primary, ...ar.actions?.primary } };
-  if (base.actions.secondary) actions.secondary = { ...base.actions.secondary, ...ar.actions?.secondary };
-  return {
-    ...base,
-    ...ar,
-    actions,
-    tabs: base.tabs && base.tabs.map((x) => ({ ...x, label: ar.tabLabels?.[x.key] ?? x.label })),
-    statuses: base.statuses && ar.statusLabels
-      ? Object.fromEntries(Object.entries(base.statuses).map(([k, v]) => [k, { ...v, label: ar.statusLabels[k] ?? v.label }]))
-      : base.statuses,
-  };
+  let cfg = base;
+  if (ar) {
+    const actions = base.actions
+      ? {
+          primary: mergeAction(base.actions.primary, ar.actions?.primary),
+          secondary: base.actions.secondary ? mergeAction(base.actions.secondary, ar.actions?.secondary) : undefined,
+        }
+      : base.actions;
+    cfg = {
+      ...base,
+      ...ar,
+      actions,
+      tabs: base.tabs && base.tabs.map((x) => ({ ...x, label: ar.tabLabels?.[x.key] ?? x.label })),
+      statuses: base.statuses
+        ? Object.fromEntries(
+            Object.entries(base.statuses).map(([k, v]) => {
+              const sa = ar.statusActions?.[k];
+              return [k, {
+                ...v,
+                label: ar.statusLabels?.[k] ?? v.label,
+                actions: v.actions
+                  ? {
+                      primary: mergeAction(v.actions.primary, sa?.primary),
+                      secondary: v.actions.secondary ? mergeAction(v.actions.secondary, sa?.secondary) : undefined,
+                    }
+                  : v.actions,
+              }];
+            })
+          )
+        : base.statuses,
+    };
+  }
+  return { ...cfg, statusMap: buildStatusMap(cfg.statuses) };
 };
 
 const confirmDialog = async ({ title, text, icon, confirmText, confirmColor, cancelText }, darkMode) => {
@@ -548,7 +583,9 @@ const CustomerBox = memo(({ item }) => {
 
 const Actions = memo(({ cfg, it, onAct, busy, cls }) => {
   const { t } = useL();
-  const { primary, secondary } = cfg.actions;
+  const acts = actionsOf(cfg, it);
+  if (!acts) return null;
+  const { primary, secondary } = acts;
   const aria = (a) => tpl(t.actionAria, { label: a.label, noun: cfg.noun, id: shortId(it.id) });
   return (
     <>
@@ -557,9 +594,11 @@ const Actions = memo(({ cfg, it, onAct, busy, cls }) => {
           {secondary.label}
         </button>
       )}
-      <button type="button" disabled={busy} onClick={() => onAct(it.id, primary)} aria-label={aria(primary)} className={`flex-1 ${cls} ${BTN_ON}`}>
-        <FiCheck size={15} aria-hidden="true" /> {primary.label}
-      </button>
+      {primary && (
+        <button type="button" disabled={busy} onClick={() => onAct(it.id, primary)} aria-label={aria(primary)} className={`flex-1 ${cls} ${BTN_ON}`}>
+          <FiCheck size={15} aria-hidden="true" /> {primary.label}
+        </button>
+      )}
     </>
   );
 });
@@ -570,6 +609,7 @@ const QueueCard = memo(({ it, cfg, final, done, onOpen, onCopy, onAct }) => {
   const ageLabel = cfg.ageLabel ?? t.waiting;
   const labels = cfg.stopLabels || t.stops;
   const created = validDate(it.createdAt);
+  const showActions = canAct(cfg, it);
   return (
     <li className="min-w-0">
       <article className={`${CARD} flex h-full flex-col overflow-hidden transition-transform hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:transform-none`}>
@@ -606,11 +646,11 @@ const QueueCard = memo(({ it, cfg, final, done, onOpen, onCopy, onAct }) => {
               type="button"
               onClick={() => onOpen(it.id)}
               aria-label={tpl(t.viewMapAria, { noun: cfg.noun, id: shortId(it.id) })}
-              className={final ? `${BTN} h-11 flex-1 text-sm` : `${BTN} h-11 w-11 flex-shrink-0`}
+              className={showActions ? `${BTN} h-11 w-11 flex-shrink-0` : `${BTN} h-11 flex-1 text-sm`}
             >
-              <FiMap size={16} aria-hidden="true" />{final && ` ${t.detailsMap}`}
+              <FiMap size={16} aria-hidden="true" />{!showActions && ` ${t.detailsMap}`}
             </button>
-            {!final && <Actions cfg={cfg} it={it} onAct={onAct} cls="h-11 text-sm" />}
+            {showActions && <Actions cfg={cfg} it={it} onAct={onAct} cls="h-11 text-sm" />}
           </div>
         </div>
       </article>
@@ -644,6 +684,7 @@ const MapSheet = memo(({ cfg, it, final, busy, onClose, onOpen, onAct }) => {
   const { t, f } = useL();
   const st = stateOf(it, cfg, t);
   const ageLabel = cfg.ageLabel ?? t.waiting;
+  const showActions = canAct(cfg, it);
   return (
     <div className={`${CARD} absolute bottom-3 end-3 start-3 space-y-3 p-3 sm:end-auto sm:w-96`}>
       <div className="flex items-start justify-between gap-3">
@@ -662,7 +703,7 @@ const MapSheet = memo(({ cfg, it, final, busy, onClose, onOpen, onAct }) => {
       </div>
       <div className="flex gap-2">
         <button type="button" onClick={() => onOpen(it.id)} className={`${BTN} h-10 flex-1`}>{t.details}</button>
-        {!final && <Actions cfg={cfg} it={it} onAct={onAct} busy={busy} cls="h-10" />}
+        {showActions && <Actions cfg={cfg} it={it} onAct={onAct} busy={busy} cls="h-10" />}
       </div>
     </div>
   );
@@ -677,6 +718,7 @@ const Drawer = ({ cfg, it, final, busy, onClose, onAct, onCopy }) => {
   const mapItems = useMemo(() => [{ id: it.id, pickup: it.pickup, drop: it.drop }], [it.id, it.pickup, it.drop]);
   const title = tpl(t.detailsTitle, { noun: cfg.noun, Noun: cap(cfg.noun) });
   const created = validDate(it.createdAt);
+  const showActions = canAct(cfg, it);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -691,7 +733,10 @@ const Drawer = ({ cfg, it, final, busy, onClose, onAct, onCopy }) => {
     return () => window.removeEventListener("keydown", onKey);
   }, [busy, onClose]);
 
-  const act = useCallback(async (id, a) => { if (await onAct(id, a)) onClose(); }, [onAct, onClose]);
+  const act = useCallback(async (id, a) => {
+    const ok = await onAct(id, a);
+    if (ok && (!a.status || statusEntry(cfg, a.status)?.final)) onClose();
+  }, [onAct, onClose, cfg]);
 
   return (
     <div className="fixed inset-0 z-[100]">
@@ -734,7 +779,7 @@ const Drawer = ({ cfg, it, final, busy, onClose, onAct, onCopy }) => {
 
         <div className="nb-gray nb-line flex flex-shrink-0 gap-3 border-t-2 px-5 py-4">
           <button type="button" onClick={onClose} disabled={busy} className={`${BTN} h-11 flex-1 text-sm`}>{t.close}</button>
-          {!final && <Actions cfg={cfg} it={it} onAct={act} busy={busy} cls="h-11 text-sm" />}
+          {showActions && <Actions cfg={cfg} it={it} onAct={act} busy={busy} cls="h-11 text-sm" />}
         </div>
       </aside>
     </div>
@@ -782,8 +827,8 @@ const DeliveryBoard = ({ config, darkMode: darkModeProp }) => {
   darkRef.current = darkMode;
   const term = sanitizeSearch(useDeferredValue(search)).trim().toLowerCase();
 
-  const isFinal = useCallback((it) => !!cfg.statuses?.[it.status]?.final, [cfg]);
-  const isDone = useCallback((it) => !!cfg.statuses?.[it.status]?.done, [cfg]);
+  const isFinal = useCallback((it) => !!statusEntry(cfg, it.status)?.final, [cfg]);
+  const isDone = useCallback((it) => !!statusEntry(cfg, it.status)?.done, [cfg]);
 
   useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
 
@@ -856,8 +901,8 @@ const DeliveryBoard = ({ config, darkMode: darkModeProp }) => {
       actingRef.current.delete(id);
       if (mountedRef.current) setBusy(false);
     }
-    if (failed) load(true);
-    return true;
+    load(true);
+    return !failed;
   }, [load]);
 
   const handleCopy = useCallback(async (id) => {
