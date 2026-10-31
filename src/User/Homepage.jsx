@@ -1,22 +1,23 @@
 import React, {
-  useState, useRef, useEffect, useCallback, memo, useMemo, useDeferredValue, useId, Suspense, lazy,
+  useState, useRef, useEffect, useCallback, memo, useMemo, useId, Suspense, lazy,
 } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
-  FiSearch, FiX, FiArrowRight, FiChevronLeft, FiChevronRight, FiMapPin, FiPhone,
-  FiMonitor, FiShield, FiCheckCircle, FiDollarSign, FiShoppingCart, FiCheck, FiArrowUp, FiTag,
+  FiArrowRight, FiChevronLeft, FiChevronRight, FiMapPin, FiPhone,
+  FiPlus, FiCheck, FiArrowUp, FiAlertCircle, FiPackage, FiTool,
 } from 'react-icons/fi';
-import { RiVerifiedBadgeLine, RiStarFill, RiStoreLine, RiCookieLine } from 'react-icons/ri';
+import { RiStarFill, RiCookieLine } from 'react-icons/ri';
 import { useQuery, QueryClientProvider } from '@tanstack/react-query';
 import '../common/styles/style.css';
 import api from '../common/api/api';
+import { resolveImageSrc } from '../common/utils/productutils';
 import queryClient from '../common/utils/queryClient';
 import useAuthStore from '../common/store/Auth';
 import { recoverGoogleSession } from '../common/utils/googleSession';
 import { redirectFor } from '../common/utils/authSession';
 import { Hero } from '../components';
 import {
-  Defs3D, Device3DStyles, DeviceScene, Btn3D, Chip3D, useOnScreen, money,
+  Defs3D, Device3DStyles, DeviceScene, Btn3D, useOnScreen, money,
 } from '../components/user/Device3D';
 import {
   safeImageUrl, StorefrontIllustration, loadSwal, clean, useBackToTop, kindOfCategory,
@@ -28,8 +29,10 @@ import arTranslations from '../locales/ar/translation.json';
 import frTranslations from '../locales/fr/translation.json';
 import { useAppLanguage, languageDirection } from '../common/utils/useAppLanguage';
 
-const Service = lazy(() => import('./Service'));
-const OffersSlider = lazy(() => import('../components').then((m) => ({ default: m.OffersSlider })));
+const loadService = () => import('./Service');
+const loadComponents = () => import('../components');
+const Service = lazy(loadService);
+const OffersSlider = lazy(() => loadComponents().then((m) => ({ default: m.OffersSlider })));
 
 const HOMEPAGE_TRANSLATIONS = {
   en: enTranslations.homepage,
@@ -41,20 +44,32 @@ const LOCAL_TEXT = {
   en: {
     noAddress: 'No address',
     youSave: 'Save {{value}}', originalPrice: 'Original price', discountedPrice: 'Price after discount', discountValue: 'Discount',
+    onlyLeft: 'Only {{count}} left in stock',
     homeCategoriesLabel: 'Categories', homeCategoriesTitle: 'Shop by category', homeCategoriesSub: 'Pick a category to see every device in it',
     homeCategoryCta: 'View devices', homeItemSingular: 'item', homeItemPlural: 'items',
+    topRatedLabel: 'Top rated', topRatedTitle: 'Our top rated shops', topRatedSub: 'The shops customers rate highest, ranked by rating',
+    reviewsCount: '{{count}} reviews', outOf: '/ 5', rankLabel: 'Rank {{n}}',
+    statOrders: 'Orders', statRepairs: 'Repairs', viewAllShops: 'View all shops',
   },
   ar: {
     noAddress: 'لا يوجد عنوان',
     youSave: 'وفّر {{value}}', originalPrice: 'السعر الأصلي', discountedPrice: 'السعر بعد الخصم', discountValue: 'الخصم',
+    onlyLeft: 'متبقي {{count}} فقط في المخزون',
     homeCategoriesLabel: 'التصنيفات', homeCategoriesTitle: 'تسوّق حسب التصنيف', homeCategoriesSub: 'اختر تصنيفًا لعرض كل الأجهزة فيه',
     homeCategoryCta: 'عرض الأجهزة', homeItemSingular: 'منتج', homeItemPlural: 'منتجات',
+    topRatedLabel: 'الأعلى تقييمًا', topRatedTitle: 'متاجرنا الأعلى تقييمًا', topRatedSub: 'المتاجر التي يقيّمها العملاء الأعلى، مرتبة حسب التقييم',
+    reviewsCount: '{{count}} تقييم', outOf: '/ 5', rankLabel: 'المركز {{n}}',
+    statOrders: 'الطلبات', statRepairs: 'الإصلاحات', viewAllShops: 'عرض كل المتاجر',
   },
   fr: {
     noAddress: 'Aucune adresse',
     youSave: 'Économisez {{value}}', originalPrice: "Prix d'origine", discountedPrice: 'Prix après remise', discountValue: 'Remise',
+    onlyLeft: 'Plus que {{count}} en stock',
     homeCategoriesLabel: 'Catégories', homeCategoriesTitle: 'Acheter par catégorie', homeCategoriesSub: 'Choisissez une catégorie pour voir tous ses appareils',
     homeCategoryCta: 'Voir les appareils', homeItemSingular: 'article', homeItemPlural: 'articles',
+    topRatedLabel: 'Mieux notées', topRatedTitle: 'Nos boutiques les mieux notées', topRatedSub: 'Les boutiques les plus appréciées, classées par note',
+    reviewsCount: '{{count}} avis', outOf: '/ 5', rankLabel: 'Rang {{n}}',
+    statOrders: 'Commandes', statRepairs: 'Réparations', viewAllShops: 'Voir toutes les boutiques',
   },
 };
 
@@ -197,8 +212,6 @@ const pad2 = (language, n) => {
   return fmt.format(n);
 };
 
-const pick = (obj, key) => (typeof key === 'string' && Object.prototype.hasOwnProperty.call(obj, key) ? obj[key] : undefined);
-
 const phoneHref = (phone) => {
   const digits = String(phone || '').replace(/[^\d+]/g, '').slice(0, 20);
   return digits ? `tel:${digits}` : undefined;
@@ -223,14 +236,6 @@ const fold = (s) =>
     .replace(/[\u0300-\u036f\u064B-\u065F\u0670\u0640]/g, '')
     .toLowerCase();
 
-const MAX_QUERY = 60;
-const sanitizeQuery = (raw) =>
-  String(raw ?? '')
-    .replace(/[\p{Cc}\p{Cf}<>]/gu, '')
-    .replace(/\s+/g, ' ')
-    .trimStart()
-    .slice(0, MAX_QUERY);
-
 const safeId = (id) => {
   if (typeof id !== 'string' && typeof id !== 'number') return null;
   const s = String(id);
@@ -239,9 +244,34 @@ const safeId = (id) => {
 
 const RAIL_LIMIT = 8;
 const CATEGORY_LIMIT = 6;
+const LOW_STOCK_LIMIT = 5;
+const TOP_LIMIT = 4;
+const LATEST_SHOPS_LIMIT = 8;
+const SHOPS_FETCH_SIZE = 100;
+const STATS_STALE = 5 * 60 * 1000;
 const EMPTY_LIST = [];
-const PCT_FORMAT = new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const EMPTY_OBJECT = {};
+const STAGGER = Array.from({ length: LATEST_SHOPS_LIMIT }, (_, i) => ({ '--i': i }));
+const COUNT_FORMAT = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
 const round2 = (n) => Math.round(n * 100) / 100;
+
+const STATS_SOURCES = {
+  orders: ['/api/users/orders'],
+  repairs: ['/api/users/repair-request'],
+};
+const STATS_DONE = { orders: 'DELIVERED', repairs: 'DEVICE_DELIVERED' };
+const STATS_PAGE_SIZE = 1000;
+
+const SHOP_ROW =
+  'hide-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 pe-2 pt-1 ' +
+  'sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-2 sm:pt-0 lg:grid-cols-4 lg:gap-5';
+const SHOP_ITEM = 'w-[85%] min-w-0 flex-shrink-0 snap-start sm:w-auto';
+
+const toCount = (v) => {
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+};
 
 const computeFinal = (price, type, value) => {
   if (!(price > 0) || !(value > 0) || !type) return price;
@@ -260,45 +290,165 @@ const normalizeProduct = (p) => {
   else if (discountValue > 0 && apiType) finalPrice = computeFinal(price, apiType, discountValue);
   else if (legacy) finalPrice = round2(price * (1 - legacy / 100));
   const saving = round2(Math.max(0, price - finalPrice));
+  const rating = Number(p.rating ?? p.averageRating) || 0;
+  const reviews = Number(p.reviewCount ?? p.ratingCount ?? p.reviewsCount) || 0;
   return {
     ...p,
     price,
     finalPrice,
     saving,
+    rating,
+    reviews,
     discount: price > 0 ? (saving / price) * 100 : 0,
     discountType: saving > 0 ? (apiType || 'PERCENTAGE') : null,
     discountValue: saving > 0 && discountValue > 0 ? discountValue : 0,
     imageUrl: safeImageUrl(p.imageUrl),
+    _ts: Date.parse(p.createdAt || p.created_at) || 0,
     _text: fold(`${p.name || ''} ${p.description || ''}`),
-    _snippet: snippet(p.description),
   };
 };
 
-const discountBadge = (p) => {
-  if (p.discountValue > 0 && p.discountType === 'FIXED_AMOUNT') return `-${money(p.discountValue)}`;
-  if (p.discountValue > 0 && p.discountType === 'PERCENTAGE') return `-${PCT_FORMAT.format(p.discountValue)}%`;
-  return p.discountType === 'FIXED_AMOUNT' ? `-${money(p.saving)}` : `-${Math.max(1, Math.round(p.discount))}%`;
+const latestOf = (catalog) => {
+  const timed = catalog.some((p) => p._ts > 0);
+  const ordered = timed ? [...catalog].sort((a, b) => b._ts - a._ts) : [...catalog].reverse();
+  return ordered.slice(0, RAIL_LIMIT);
+};
+
+const latestShopsOf = (shops) => {
+  const timed = shops.some((s) => s._ts > 0);
+  const ordered = timed ? [...shops].sort((a, b) => b._ts - a._ts) : [...shops].reverse();
+  return ordered.slice(0, LATEST_SHOPS_LIMIT);
+};
+
+const topShopsOf = (shops) =>
+  shops
+    .filter((s) => s.rating > 0)
+    .sort((a, b) => b.rating - a.rating || b.reviews - a.reviews)
+    .slice(0, TOP_LIMIT);
+
+const LOGO_DIR = '/uploads/shop-logos/';
+const ABSOLUTE_SRC = /^(https?:)?\/\/|^data:image\/|^blob:/i;
+const shopLogoSrc = (s) => {
+  const found = [s?.logoUrl, s?.logo, s?.logoPath, s?.shopLogo].find((v) => typeof v === 'string' && v.trim());
+  const raw = found ? found.trim() : '';
+  if (!raw || raw.includes('..')) return null;
+  if (ABSOLUTE_SRC.test(raw)) return raw;
+  const path = raw.includes('/') ? (raw.startsWith('/') ? raw : `/${raw}`) : `${LOGO_DIR}${encodeURIComponent(raw)}`;
+  return resolveImageSrc(path) || path;
 };
 
 const normalizeShop = (s) => ({
   ...s,
   services: s.services || [],
-  _text: fold(`${s.name || ''} ${s.description || ''} ${s.shopAddress?.city || ''}`),
+  rating: Number(s.rating ?? s.averageRating) || 0,
+  reviews: Number(s.reviewCount ?? s.ratingCount ?? s.reviewsCount) || 0,
+  _logo: shopLogoSrc(s),
+  _ts: Date.parse(s.createdAt || s.created_at) || 0,
+  _orders: toCount(s.completedOrders ?? s.completedOrdersCount ?? s.ordersCompleted),
+  _repairs: toCount(s.completedRepairs ?? s.completedRepairsCount ?? s.repairsCompleted),
   _snippet: snippet(s.description),
   _address: [s.shopAddress?.street, s.shopAddress?.city].filter((x) => typeof x === 'string' && x.trim()).join(', '),
 });
 
-const OFFERS = [
-  { id: 'o1', key: 'offerScreenRepair', Icon: FiMonitor },
-  { id: 'o2', key: 'offerBattery', Icon: FiShield },
-  { id: 'o3', key: 'offerDiagnostics', Icon: FiCheckCircle },
-  { id: 'o4', key: 'offerAccessories', Icon: FiDollarSign },
-];
+const nameKey = (v) => `n:${fold(v).trim()}`;
 
-const CONDITION = {
-  NEW: { badge: 'bg-emerald-500', labelKey: 'conditionNew' },
-  USED: { badge: 'bg-amber-500', labelKey: 'conditionUsed' },
-  REFURBISHED: { badge: 'bg-sky-500', labelKey: 'conditionRefurbished' },
+const shopKeysOf = (entity) => {
+  const keys = new Set();
+  const add = (id, name) => {
+    if (id != null && id !== '') keys.add(`i:${id}`);
+    else if (typeof name === 'string' && name.trim()) keys.add(nameKey(name));
+  };
+  add(entity.shopId ?? entity.shop?.id, entity.shopName ?? entity.shop?.name);
+  if (Array.isArray(entity.orderItems)) {
+    for (const it of entity.orderItems) add(it?.shopId ?? it?.shop?.id, it?.shopName ?? it?.shop?.name);
+  }
+  return keys;
+};
+
+const tally = (list, doneStatus) => {
+  if (!Array.isArray(list)) return null;
+  const map = {};
+  for (const x of list) {
+    if (!x || String(x.status || '').toUpperCase() !== doneStatus) continue;
+    for (const k of shopKeysOf(x)) map[k] = (map[k] || 0) + 1;
+  }
+  return map;
+};
+
+const fetchList = async (paths, signal) => {
+  for (const path of paths) {
+    try {
+      const res = await api.get(path, { params: { page: 0, size: STATS_PAGE_SIZE }, signal });
+      const raw = res.data?.content ?? res.data;
+      if (Array.isArray(raw)) return raw;
+    } catch (e) {
+      if (signal?.aborted) throw e;
+    }
+  }
+  return null;
+};
+
+const fetchShopStats = async (signal) => {
+  const [orders, repairs] = await Promise.all([
+    fetchList(STATS_SOURCES.orders, signal),
+    fetchList(STATS_SOURCES.repairs, signal),
+  ]);
+  return {
+    orders: tally(orders, STATS_DONE.orders),
+    repairs: tally(repairs, STATS_DONE.repairs),
+  };
+};
+
+let sharedIO;
+const seenCallbacks = new WeakMap();
+const observeOnce = (el, cb) => {
+  if (typeof IntersectionObserver === 'undefined') { cb(); return undefined; }
+  sharedIO ||= new IntersectionObserver((entries) => {
+    entries.forEach((e) => {
+      if (!e.isIntersecting) return;
+      const fn = seenCallbacks.get(e.target);
+      sharedIO.unobserve(e.target);
+      seenCallbacks.delete(e.target);
+      fn?.();
+    });
+  }, { rootMargin: '200px' });
+  seenCallbacks.set(el, cb);
+  sharedIO.observe(el);
+  return () => { sharedIO.unobserve(el); seenCallbacks.delete(el); };
+};
+
+const useSeen = () => {
+  const ref = useRef(null);
+  const [seen, setSeen] = useState(false);
+  useEffect(() => {
+    if (seen || !ref.current) return undefined;
+    return observeOnce(ref.current, () => setSeen(true));
+  }, [seen]);
+  return [ref, seen];
+};
+
+const useShopLogo = (shop) => {
+  const [ref, seen] = useSeen();
+  const id = shop.id;
+  const listLogo = shop._logo;
+  const q = useQuery({
+    queryKey: ['shop', id],
+    queryFn: async ({ signal }) => {
+      try {
+        return (await api.get(`/api/shops/${encodeURIComponent(id)}`, { signal })).data;
+      } catch (e) {
+        if (signal?.aborted) throw e;
+        return null;
+      }
+    },
+    select: shopLogoSrc,
+    enabled: seen && !listLogo && id != null,
+    staleTime: STATS_STALE,
+    retry: false,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
+  return [ref, listLogo || q.data || null];
 };
 
 const LAZY_SECTION = '[content-visibility:auto] [contain-intrinsic-size:auto_760px]';
@@ -306,7 +456,7 @@ const LAZY_SECTION = '[content-visibility:auto] [contain-intrinsic-size:auto_760
 const DARK_PAGE = 'bg-[#141414]';
 
 const HP_CSS = `
-  .hp-hl, .hp-hl-dark {
+  .hp-hl, .hp-hl-dark, .hp-hl-gold, .hp-hl-gold-dark {
     padding-bottom: 0.2em;
     background-position: left bottom;
     background-repeat: no-repeat;
@@ -316,17 +466,56 @@ const HP_CSS = `
   }
   .hp-hl      { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2310b981' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
   .hp-hl-dark { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2339ff88' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
+  .hp-hl-gold { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%23f59e0b' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
+  .hp-hl-gold-dark { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%23facc15' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
   @keyframes hpConsentIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
   .hp-consent-in { animation: hpConsentIn 0.22s cubic-bezier(.2,.8,.2,1) both; }
-  .hp-search::-webkit-search-cancel-button, .hp-search::-webkit-search-decoration { display: none; -webkit-appearance: none; }
-  .hp-cat { --c-card: #ffffff; --c-ink: #04261a; --c-line: #04261a; --c-acc: #10b981; --c-on: #04261a; }
+  @keyframes hpRise { from { opacity: 0; transform: translateY(22px) scale(.97); } to { opacity: 1; transform: none; } }
+  .hp-rise { animation: hpRise 0.42s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 35ms); }
+  .hp-glow {
+    background-image:
+      radial-gradient(circle at 6% 0%, rgba(52, 211, 153, .2), transparent 38%),
+      radial-gradient(circle at 96% 100%, rgba(249, 115, 22, .1), transparent 36%);
+  }
+  .hp-glow-dark {
+    background-image:
+      radial-gradient(circle at 6% 0%, rgba(57, 255, 136, .09), transparent 38%),
+      radial-gradient(circle at 96% 100%, rgba(249, 115, 22, .07), transparent 36%);
+  }
+  .hp-pattern {
+    --p1: rgba(4, 38, 26, .13);
+    --p2: rgba(16, 185, 129, .12);
+    background-image:
+      radial-gradient(circle at 2px 2px, var(--p1) 1.6px, transparent 1.8px),
+      repeating-linear-gradient(135deg, var(--p2) 0 2px, transparent 2px 18px);
+    background-size: 22px 22px, auto;
+  }
+  .hp-pattern-dark { --p1: rgba(57, 255, 136, .14); --p2: rgba(57, 255, 136, .06); }
+  .hp-media {
+    --m-dot: rgba(4, 38, 26, .14);
+    background-image: radial-gradient(circle at 1px 1px, var(--m-dot) 1px, transparent 1.4px);
+    background-size: 14px 14px;
+  }
+  .hp-media-dark { --m-dot: rgba(57, 255, 136, .16); }
+  .hp-cat { --dx: 1; --c-card: #ffffff; --c-ink: #04261a; --c-line: #04261a; --c-acc: #10b981; --c-on: #04261a; }
+  [dir="rtl"] .hp-cat { --dx: -1; }
   .hp-cat-dark { --c-card: #2a2a2a; --c-ink: #ffffff; --c-line: #000000; --c-acc: #39ff88; --c-on: #022c22; }
-  .hp-dot { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; background: var(--c-card); color: var(--c-ink); border: 2px dotted var(--c-line); cursor: pointer; transition: transform .15s ease, background-color .15s ease; }
-  .hp-cat-dark .hp-dot { border-color: #3f3f3f; }
-  .hp-dot:hover { background: var(--c-acc); color: var(--c-on); transform: translateY(-3px); }
-  .hp-dot:focus-visible { outline: 3px solid var(--c-acc); outline-offset: 3px; }
-  .hp-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--c-card); color: var(--c-ink); border: 2px solid var(--c-line); padding: 1px 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; line-height: 1.5; }
-  .hp-dot:hover .hp-chip { background: var(--c-on); color: #ecfdf5; border-color: var(--c-on); }
+  .hp-dot {
+    display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+    background: var(--c-card); color: var(--c-ink); cursor: pointer;
+    border: 3px solid var(--c-line); border-radius: 1rem;
+    box-shadow: calc(var(--dx) * 5px) 5px 0 0 var(--c-line);
+    transition: transform .2s ease, box-shadow .2s ease, background-color .2s ease, color .2s ease;
+  }
+  @media (hover: hover) {
+    .hp-dot:hover {
+      background: var(--c-acc); color: var(--c-on);
+      transform: translateY(-4px);
+      box-shadow: calc(var(--dx) * 7px) 9px 0 0 var(--c-line);
+    }
+  }
+  .hp-dot:active { transform: translateY(2px); box-shadow: calc(var(--dx) * 2px) 2px 0 0 var(--c-line); }
+  .hp-dot:focus-visible { outline: 3px solid var(--c-acc); outline-offset: 4px; }
   html[data-hp-theme] { --sb-thumb: #34d399; --sb-thumb-hover: #6ee7b7; --sb-track: #e8ebe9; --sb-ink: #022c22; }
   html[data-hp-theme="dark"] { --sb-thumb: #39ff88; --sb-thumb-hover: #86ffb4; --sb-track: #1e1e1e; --sb-ink: #000000; }
   html[data-hp-theme], .hp-sb { scrollbar-width: thin; scrollbar-color: var(--sb-thumb) var(--sb-track); }
@@ -341,7 +530,11 @@ const HP_CSS = `
     html[data-hp-theme]::-webkit-scrollbar-thumb:hover, .hp-sb::-webkit-scrollbar-thumb:hover { background: var(--sb-thumb-hover); }
     html[data-hp-theme]::-webkit-scrollbar-corner, .hp-sb::-webkit-scrollbar-corner { background: var(--sb-track); }
   }
-  @media (prefers-reduced-motion: reduce) { .hp-consent-in { animation: none; } .hp-dot { transition: none; } .hp-dot:hover { transform: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .hp-consent-in, .hp-rise { animation: none; }
+    .hp-dot { transition: none; }
+    .hp-dot:hover, .hp-dot:active { transform: none; }
+  }
 `;
 let hpStylesInjected = false;
 const injectHpStylesOnce = () => {
@@ -360,39 +553,68 @@ const NEO_THEME = {
 };
 const NEO_SURFACE = { light: 'bg-white', dark: 'bg-[#2a2a2a]' };
 const NEO_BOX = {
-  lg: 'flex flex-col border-[3px] border-[color:var(--ink)] [box-shadow:calc(var(--dx)*8px)_8px_0_0_var(--sh)]',
-  sm: 'flex flex-col border-[3px] border-[color:var(--ink)] [box-shadow:calc(var(--dx)*6px)_6px_0_0_var(--sh)]',
+  lg: 'flex flex-col rounded-2xl border-[3px] border-[color:var(--ink)] [box-shadow:calc(var(--dx)*8px)_8px_0_0_var(--sh)]',
+  sm: 'flex flex-col rounded-2xl border-[3px] border-[color:var(--ink)] [box-shadow:calc(var(--dx)*6px)_6px_0_0_var(--sh)]',
 };
 const NEO_PRESS =
-  'transition-[transform,box-shadow] duration-150 motion-reduce:transition-none hover:translate-y-[3px] hover:translate-x-[calc(var(--dx)*3px)] ' +
-  'hover:[box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)] ' +
+  'transition-[transform,box-shadow] duration-200 motion-reduce:transition-none ' +
+  '[@media(hover:hover)]:hover:-translate-y-1 [@media(hover:hover)]:hover:[box-shadow:calc(var(--dx)*8px)_10px_0_0_var(--sh)] ' +
+  'active:translate-y-[2px] active:translate-x-[calc(var(--dx)*2px)] active:[box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)] ' +
   'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-[color:var(--acc)]';
 const neoCard = (darkMode, size = 'lg', press = false) => {
   const k = darkMode ? 'dark' : 'light';
   return `${NEO_THEME[k]} ${NEO_BOX[size]} ${NEO_SURFACE[k]}${press ? ` ${NEO_PRESS}` : ''}`;
 };
 
+const GOLD_THEME = {
+  light: '[--dx:1] rtl:[--dx:-1] [--ink:#422006] [--sh:#422006] [--acc:#fbbf24]',
+  dark: '[--dx:1] rtl:[--dx:-1] [--ink:#000] [--sh:#000] [--acc:#facc15]',
+};
+const GOLD_SURFACE = { light: 'bg-amber-50', dark: 'bg-[#2a2a2a]' };
+const goldCard = (darkMode, press = false) => {
+  const k = darkMode ? 'dark' : 'light';
+  return `${GOLD_THEME[k]} ${NEO_BOX.sm} ${GOLD_SURFACE[k]}${press ? ` ${NEO_PRESS}` : ''}`;
+};
+
 const NEO_ICON =
-  'inline-flex h-9 w-9 flex-shrink-0 items-center justify-center border-2 border-[color:var(--ink)] bg-[color:var(--acc)] text-emerald-950 ' +
+  'inline-flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-lg border-2 border-[color:var(--ink)] bg-[color:var(--acc)] text-emerald-950 ' +
   '[box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)] transition-[transform,box-shadow] duration-150 ' +
   'active:translate-y-[3px] active:translate-x-[calc(var(--dx)*3px)] active:[box-shadow:0_0_0_0_var(--sh)] ' +
   'disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
 const neoIcon = (darkMode) => `${NEO_THEME[darkMode ? 'dark' : 'light']} ${NEO_ICON}`;
 
 const COOKIE_BTN =
-  'inline-flex w-full items-center justify-center border-[3px] border-[color:var(--ink)] px-4 py-3 text-sm font-extrabold uppercase ' +
+  'inline-flex min-h-11 w-full cursor-pointer items-center justify-center rounded-xl border-[3px] border-[color:var(--ink)] px-4 py-3 text-sm font-extrabold uppercase ' +
   '[box-shadow:calc(var(--dx)*4px)_4px_0_0_var(--sh)] transition-[transform,box-shadow] duration-150 ' +
   'active:translate-y-[4px] active:translate-x-[calc(var(--dx)*4px)] active:[box-shadow:0_0_0_0_var(--sh)] ' +
   'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
 
-const SAVE_CHIP =
-  'mt-1 inline-flex max-w-full items-center gap-1 border-2 border-[color:var(--ink)] bg-[color:var(--acc)] px-1.5 py-px text-[10px] font-extrabold uppercase leading-snug text-emerald-950';
+const NEO_BTN =
+  'inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border-[3px] border-[color:var(--ink)] px-4 py-2.5 text-sm font-extrabold uppercase ' +
+  '[box-shadow:calc(var(--dx)*4px)_4px_0_0_var(--sh)] transition-[transform,box-shadow] duration-150 motion-reduce:transition-none ' +
+  'active:translate-y-[4px] active:translate-x-[calc(var(--dx)*4px)] active:[box-shadow:0_0_0_0_var(--sh)] ' +
+  'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
+const neoBtn = (darkMode, active) => {
+  const k = darkMode ? 'dark' : 'light';
+  const tone = active ? 'bg-[color:var(--acc)] text-emerald-950' : `${NEO_SURFACE[k]} ${darkMode ? 'text-white' : 'text-emerald-950'}`;
+  return `${NEO_THEME[k]} ${NEO_BTN} ${tone}`;
+};
 
-const MEDIA_WRAP = 'p-2.5 pb-0';
-const MEDIA_BOX = 'relative overflow-hidden rounded-2xl [contain:layout_paint]';
-const PRODUCT_IMG_W = 600;
-const PRODUCT_IMG_H = 400;
+const PRODUCT_IMG_W = 400;
+const PRODUCT_IMG_H = 320;
 const mediaBg = (darkMode) => (darkMode ? 'bg-[#1e1e1e]' : 'bg-white');
+const productMediaBg = (darkMode) => (darkMode ? 'hp-media hp-media-dark bg-[#1e1e1e]' : 'bg-white');
+
+const PRODUCT_MEDIA =
+  'relative aspect-[5/4] w-full flex-shrink-0 overflow-hidden border-b-[3px] border-[color:var(--ink)] [contain:layout_paint]';
+const PRODUCT_ADD_BTN =
+  'relative z-10 inline-flex h-11 w-11 flex-shrink-0 cursor-pointer items-center justify-center rounded-xl border-2 border-[color:var(--ink)] bg-[color:var(--acc)] text-emerald-950 ' +
+  '[box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)] transition-[transform,box-shadow] duration-150 motion-reduce:transition-none ' +
+  'active:translate-y-[3px] active:translate-x-[calc(var(--dx)*3px)] active:[box-shadow:0_0_0_0_var(--sh)] ' +
+  'disabled:cursor-not-allowed disabled:opacity-40 disabled:[box-shadow:none] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
+const PRODUCT_LINK =
+  'outline-none after:absolute after:inset-0 after:z-[1] focus-visible:after:outline focus-visible:after:outline-[3px] ' +
+  'focus-visible:after:-outline-offset-4 focus-visible:after:outline-[color:var(--acc)]';
 
 const splitHeading = (text) => {
   const str = String(text ?? '');
@@ -405,22 +627,17 @@ const splitHeading = (text) => {
   return [{ part: `${words.slice(0, -n).join(' ')} `, hl: false }, { part: words.slice(-n).join(' '), hl: true }];
 };
 
-const SectionTitle = memo(({ label, title, subtitle, darkMode, isAr, children }) => {
-  const hl = darkMode ? 'hp-hl-dark' : 'hp-hl';
+const SectionTitle = memo(({ title, subtitle, darkMode, isAr, gold, children }) => {
+  const hl = gold ? (darkMode ? 'hp-hl-gold-dark' : 'hp-hl-gold') : (darkMode ? 'hp-hl-dark' : 'hp-hl');
+  const ink = darkMode ? 'text-white' : gold ? 'text-amber-950' : 'text-emerald-950';
   const parts = useMemo(() => splitHeading(title), [title]);
   return (
     <div className="mb-10 flex flex-wrap items-end justify-between gap-x-8 gap-y-4 sm:mb-14">
       <div className="min-w-0 max-w-3xl">
-        {label && (
-          <div className="mb-5 flex items-center gap-3">
-            <span aria-hidden="true" className={`h-3.5 w-12 border-2 ${darkMode ? 'border-[#39ff88] bg-[#39ff88]' : 'border-emerald-950 bg-emerald-400'}`} />
-            <span className={`text-sm font-bold uppercase ${isAr ? 'tracking-normal' : 'tracking-wide'} ${darkMode ? 'text-white' : 'text-emerald-950'}`}>{label}</span>
-          </div>
-        )}
         <h2
           className={`text-3xl font-extrabold [text-wrap:balance] sm:text-5xl lg:text-6xl ${
             isAr ? 'leading-[1.4] tracking-normal' : 'leading-[1.18] tracking-[-0.04em]'
-          } ${darkMode ? 'text-white' : 'text-emerald-950'}`}
+          } ${ink}`}
         >
           {parts.map(({ part, hl: on }, i) => (on ? <span key={i} className={hl}>{part}</span> : part))}
         </h2>
@@ -433,23 +650,10 @@ const SectionTitle = memo(({ label, title, subtitle, darkMode, isAr, children })
   );
 });
 
-const NumBadge = memo(({ n, darkMode }) => (
-  <span
-    aria-hidden="true"
-    className={`inline-flex h-9 min-w-9 flex-shrink-0 items-center justify-center border-2 px-1.5 text-sm font-extrabold tabular-nums text-emerald-950 ${
-      darkMode
-        ? 'border-black bg-[#39ff88] [box-shadow:calc(var(--dx)*3px)_3px_0_0_#000]'
-        : 'border-emerald-950 bg-emerald-400 [box-shadow:calc(var(--dx)*3px)_3px_0_0_#022c22]'
-    }`}
-  >
-    {n}
-  </span>
-));
-
-const CardFooter = memo(({ label, darkMode, isAr }) => (
-  <div className="mt-auto flex items-center justify-between gap-3 border-t-2 border-[color:var(--ink)] pt-4">
-    <span className={`truncate text-sm font-extrabold uppercase ${isAr ? 'tracking-normal' : 'tracking-wide'} ${darkMode ? 'text-white' : 'text-emerald-950'}`}>{label}</span>
-    <span aria-hidden="true" className={NEO_ICON}><FiArrowRight className="h-4 w-4 rtl:rotate-180" /></span>
+const CardFooter = memo(({ label, darkMode, isAr, gold }) => (
+  <div className="mt-auto flex items-center justify-between gap-3 border-t-2 border-[color:var(--ink)] pt-3">
+    <span className={`truncate text-sm font-extrabold uppercase ${isAr ? 'tracking-normal' : 'tracking-wide'} ${darkMode ? 'text-white' : gold ? 'text-amber-950' : 'text-emerald-950'}`}>{label}</span>
+    <span aria-hidden="true" className={`${NEO_ICON} ${gold ? '!text-amber-950' : ''}`}><FiArrowRight className="h-4 w-4 rtl:rotate-180" /></span>
   </div>
 ));
 
@@ -586,6 +790,36 @@ const ProductFallbackArt = memo(({ name, categoryName, label, darkMode }) => {
   );
 });
 
+const AWNING_STRIPES = [0, 1, 2, 3, 4];
+
+const TopShopArt = memo(({ darkMode }) => {
+  const ink = darkMode ? '#000000' : '#422006';
+  const wall = darkMode ? '#3f3f3f' : '#FEF3C7';
+  const glass = darkMode ? '#FDE047' : '#FCD34D';
+  return (
+    <svg viewBox="0 0 200 150" className="h-full w-full p-3" aria-hidden="true" focusable="false">
+      <ellipse cx="100" cy="138" rx="76" ry="8" fill={darkMode ? '#000' : '#78350F'} opacity={darkMode ? 0.45 : 0.2} />
+      <rect x="38" y="62" width="124" height="74" fill={wall} stroke={ink} strokeWidth="3" />
+      {AWNING_STRIPES.map((i) => (
+        <rect key={i} x={30 + i * 28} y="36" width="28" height="28" fill={i % 2 ? '#FFFFFF' : '#FBBF24'} stroke={ink} strokeWidth="3" />
+      ))}
+      <rect x="48" y="78" width="32" height="28" fill={glass} stroke={ink} strokeWidth="3" />
+      <rect x="120" y="78" width="32" height="28" fill={glass} stroke={ink} strokeWidth="3" />
+      <rect x="88" y="90" width="24" height="46" fill="#F59E0B" stroke={ink} strokeWidth="3" />
+      <circle cx="106" cy="114" r="2.5" fill={ink} />
+      <path d="M100 8l4.4 11 11.6 1-8.8 7.6 2.8 11.4L100 33l-10 6 2.8-11.4L84 20l11.6-1z" fill="#FBBF24" stroke={ink} strokeWidth="2.5" strokeLinejoin="round" />
+    </svg>
+  );
+});
+
+const Stars = memo(({ value, darkMode }) => (
+  <span className="inline-flex" aria-hidden="true">
+    {[1, 2, 3, 4, 5].map((i) => (
+      <RiStarFill key={i} className={`h-4 w-4 ${value >= i - 0.5 ? 'text-amber-500' : darkMode ? 'text-neutral-600' : 'text-amber-200'}`} />
+    ))}
+  </span>
+));
+
 const RailArrows = ({ rail, darkMode, language }) => {
   if (!rail.back && !rail.forward) return null;
   const rtl = languageDirection(language) === 'rtl';
@@ -608,7 +842,7 @@ const RailArrows = ({ rail, darkMode, language }) => {
 };
 
 const EmptyRail = memo(({ label, darkMode }) => (
-  <div className={`flex flex-col items-center gap-3 border-[3px] border-dashed py-12 text-center ${darkMode ? 'border-[#39ff88]/40 bg-[#1e1e1e]' : 'border-emerald-300 bg-white/60'}`}>
+  <div className={`flex flex-col items-center gap-3 rounded-2xl border-[3px] border-dashed py-12 text-center ${darkMode ? 'border-[#39ff88]/40 bg-[#1e1e1e]' : 'border-emerald-300 bg-white/60'}`}>
     <DeviceScene compact className="h-24 w-32" />
     <p className={`text-sm font-semibold sm:text-base ${darkMode ? 'text-neutral-300' : 'text-gray-600'}`}>{label}</p>
   </div>
@@ -616,7 +850,18 @@ const EmptyRail = memo(({ label, darkMode }) => (
 
 const RailSkeleton = memo(({ w, h, darkMode }) => (
   <div className="flex gap-5 overflow-hidden pb-4">
-    {Array.from({ length: 4 }).map((_, i) => <div key={i} className={`flex-shrink-0 animate-pulse motion-reduce:animate-none ${w} ${h} ${darkMode ? 'bg-[#2a2a2a]' : 'bg-gray-200/70'}`} />)}
+    {Array.from({ length: 4 }).map((_, i) => <div key={i} className={`flex-shrink-0 animate-pulse rounded-2xl motion-reduce:animate-none ${w} ${h} ${darkMode ? 'bg-[#2a2a2a]' : 'bg-gray-200/70'}`} />)}
+  </div>
+));
+
+const ShopSkeleton = memo(({ darkMode, gold, count }) => (
+  <div className={`${SHOP_ROW} overflow-hidden`} role="status" aria-busy="true">
+    {Array.from({ length: count }).map((_, i) => (
+      <div
+        key={i}
+        className={`h-[430px] animate-pulse rounded-2xl motion-reduce:animate-none ${SHOP_ITEM} ${darkMode ? 'bg-[#2a2a2a]' : gold ? 'bg-amber-200/60' : 'bg-gray-200/70'}`}
+      />
+    ))}
   </div>
 ));
 
@@ -628,13 +873,13 @@ const CookieSwitch = memo(({ checked, onChange, disabled, label, darkMode }) => 
     aria-label={label}
     disabled={disabled}
     onClick={onChange}
-    className={`relative h-6 w-11 flex-shrink-0 border-2 border-[color:var(--ink)] transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)] ${
+    className={`relative h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-[color:var(--ink)] transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)] ${
       checked ? 'bg-[color:var(--acc)]' : darkMode ? 'bg-[#1e1e1e]' : 'bg-gray-200'
     }`}
   >
     <span
       aria-hidden="true"
-      className={`absolute start-0.5 top-0.5 h-4 w-4 border-2 border-[color:var(--ink)] bg-white transition-transform duration-150 ${
+      className={`absolute start-0.5 top-0.5 h-4 w-4 rounded-full border-2 border-[color:var(--ink)] bg-white transition-transform duration-150 motion-reduce:transition-none ${
         checked ? '[transform:translateX(calc(var(--dx)*20px))]' : ''
       }`}
     />
@@ -716,7 +961,7 @@ const CookieConsent = memo(({ darkMode, language }) => {
   const primary = `${COOKIE_BTN} bg-[color:var(--acc)] text-emerald-950`;
   const secondary = `${COOKIE_BTN} ${surface}`;
   const track = isAr ? 'tracking-normal' : 'tracking-wide';
-  const linkBtn = `text-center text-sm font-extrabold underline decoration-[color:var(--acc)] decoration-2 underline-offset-4 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)] ${ink}`;
+  const linkBtn = `min-h-11 cursor-pointer text-center text-sm font-extrabold underline decoration-[color:var(--acc)] decoration-2 underline-offset-4 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)] ${ink}`;
 
   return (
     <div className="fixed inset-0 z-[1100] flex items-end justify-center bg-black/60 p-4 sm:items-center">
@@ -729,7 +974,7 @@ const CookieConsent = memo(({ darkMode, language }) => {
         className={`hp-consent-in hp-sb max-h-[90vh] w-full max-w-lg overflow-y-auto overscroll-contain p-5 sm:p-6 ${neoCard(darkMode, 'lg')}`}
       >
         <div className="flex items-center gap-3">
-          <span aria-hidden="true" className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center border-2 border-[color:var(--ink)] bg-[color:var(--acc)] text-emerald-950 [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)]">
+          <span aria-hidden="true" className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border-2 border-[color:var(--ink)] bg-[color:var(--acc)] text-emerald-950 [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)]">
             <RiCookieLine className="h-6 w-6" />
           </span>
           <h2 id={titleId} className={`text-xl font-extrabold uppercase sm:text-2xl ${isAr ? 'tracking-normal' : 'tracking-[-0.02em]'} ${ink}`}>
@@ -742,7 +987,7 @@ const CookieConsent = memo(({ darkMode, language }) => {
         {custom && (
           <ul className="mt-5 space-y-3">
             {COOKIE_OPTIONS.map(([key, labelKey, descKey, locked]) => (
-              <li key={key} className={`flex items-start justify-between gap-4 border-2 border-[color:var(--ink)] p-3 ${darkMode ? 'bg-[#1e1e1e]' : 'bg-gray-50'}`}>
+              <li key={key} className={`flex items-start justify-between gap-4 rounded-xl border-2 border-[color:var(--ink)] p-3 ${darkMode ? 'bg-[#1e1e1e]' : 'bg-gray-50'}`}>
                 <div className="min-w-0">
                   <p className={`text-sm font-extrabold uppercase ${track} ${ink}`}>{ctr(language, labelKey)}</p>
                   <p className={`mt-1 text-xs font-medium leading-relaxed ${muted}`}>{ctr(language, descKey)}</p>
@@ -779,179 +1024,12 @@ const CookieConsent = memo(({ darkMode, language }) => {
   );
 });
 
-const SearchBar = memo(({ darkMode, products, shops, language }) => {
-  const [query, setQuery] = useState('');
-  const deferred = useDeferredValue(query);
-  const [focused, setFocused] = useState(false);
-  const wrapRef = useRef(null);
-  const inputRef = useRef(null);
-  const panelId = useId();
-
-  const offerIndex = useMemo(
-    () => OFFERS.map((o) => { const title = tr(language, o.key); return { ...o, title, _text: fold(title) }; }),
-    [language],
-  );
-
-  const results = useMemo(() => {
-    const q = fold(deferred).trim();
-    if (!q) return { products: [], shops: [], offers: [] };
-    const take = (list, max, base, row) => {
-      const out = [];
-      for (let i = 0; i < list.length && out.length < max; i++) {
-        const it = list[i];
-        if (!it._text.includes(q)) continue;
-        const id = safeId(it.id);
-        if (id) out.push({ ...row(it), key: id, href: `${base}${id}` });
-      }
-      return out;
-    };
-    return {
-      products: take(products, 4, '/device/', (p) => ({ name: p.name, imageUrl: p.imageUrl, finalPrice: p.finalPrice })),
-      shops: take(shops, 3, '/shops/', (s) => ({ name: s.name, city: s.shopAddress?.city })),
-      offers: offerIndex.filter((o) => o._text.includes(q)).slice(0, 3),
-    };
-  }, [deferred, products, shops, offerIndex]);
-
-  useEffect(() => {
-    if (!focused) return undefined;
-    const onDown = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setFocused(false); };
-    const onKey = (e) => { if (e.key === 'Escape') setFocused(false); };
-    document.addEventListener('pointerdown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('pointerdown', onDown); document.removeEventListener('keydown', onKey); };
-  }, [focused]);
-
-  const close = useCallback(() => setFocused(false), []);
-  const onChange = useCallback((e) => setQuery(sanitizeQuery(e.target.value)), []);
-  const onFocus = useCallback(() => setFocused(true), []);
-  const clear = useCallback(() => { setQuery(''); inputRef.current?.focus(); }, []);
-
-  const hasQuery = query.trim().length > 0;
-  const open = focused && hasQuery;
-  const total = results.products.length + results.shops.length + results.offers.length;
-  const muted = darkMode ? 'text-neutral-500' : 'text-gray-400';
-  const rowCls = `group flex items-center gap-3 px-1 py-2 transition-colors duration-100 ${darkMode ? 'hover:bg-white/10 focus-visible:bg-white/10' : 'rounded-xl hover:bg-emerald-50 focus-visible:bg-emerald-50'}`;
-  const label = (txt) => <p className={`mb-1 text-[11px] font-bold uppercase tracking-wide ${muted}`}>{txt}</p>;
-  const arrow = <FiArrowRight className={`h-4 w-4 opacity-0 transition-opacity duration-100 group-hover:opacity-100 rtl:rotate-180 ${muted}`} />;
-  const neon = darkMode ? 'text-[#39ff88]' : 'text-emerald-500';
-
-  return (
-    <div className="relative w-full max-w-xl" ref={wrapRef} role="search">
-      <div className={`flex items-center gap-3 border-[3px] px-4 py-3 transition-colors duration-150 ${
-        darkMode
-          ? `bg-[#2a2a2a] [box-shadow:5px_5px_0_0_#000] ${focused ? 'border-[#39ff88]' : 'border-black'}`
-          : `rounded-2xl border-2 bg-white ${focused ? 'border-emerald-500' : 'border-gray-200'}`
-      }`}>
-        <FiSearch className={`h-5 w-5 flex-shrink-0 transition-colors duration-150 ${focused ? neon : muted}`} />
-        <input
-          ref={inputRef}
-          type="search"
-          value={query}
-          maxLength={MAX_QUERY}
-          onChange={onChange}
-          onFocus={onFocus}
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="none"
-          spellCheck={false}
-          inputMode="search"
-          enterKeyHint="search"
-          aria-expanded={open}
-          aria-controls={hasQuery ? panelId : undefined}
-          placeholder={tr(language, 'search')}
-          aria-label={tr(language, 'searchAria')}
-          className={`hp-search min-w-0 flex-1 bg-transparent text-sm font-medium outline-none ${darkMode ? 'text-white placeholder:text-neutral-500' : 'text-gray-900 placeholder:text-gray-500'}`}
-        />
-        {query && (
-          <button type="button" onClick={clear} aria-label={tr(language, 'clearSearch')} className={darkMode ? 'text-neutral-400 hover:text-white' : 'text-gray-500 hover:text-gray-800'}>
-            <FiX className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-
-      {hasQuery && (
-        <div
-          id={panelId}
-          aria-hidden={!open}
-          className={`hp-sb absolute inset-x-0 top-full z-50 mt-3 max-h-[420px] origin-top overflow-y-auto overscroll-contain p-4 text-start transition-[opacity,transform,visibility] duration-150 ease-out motion-reduce:transition-none ${
-            open ? 'visible translate-y-0 opacity-100' : 'pointer-events-none invisible -translate-y-1 opacity-0'
-          } ${darkMode ? 'border-[3px] border-black bg-[#2a2a2a] [box-shadow:6px_6px_0_0_#000]' : 'rounded-2xl border border-emerald-100 bg-white shadow-2xl'}`}
-        >
-          {total === 0 && (
-            <div className="py-6 text-center" role="status">
-              <p className={`text-sm font-medium ${darkMode ? 'text-neutral-300' : 'text-gray-600'}`}>{tr(language, 'noResultsFor', { query: query.slice(0, 30) })}</p>
-              <p className={`mt-1 text-xs ${muted}`}>{tr(language, 'tryDifferent')}</p>
-            </div>
-          )}
-
-          {results.products.length > 0 && (
-            <div className="mb-3">
-              {label(tr(language, 'searchProducts'))}
-              {results.products.map((p) => (
-                <Link key={p.key} to={p.href} onClick={close} className={rowCls}>
-                  <div className={`h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl ${darkMode ? 'border-2 border-black bg-[#1e1e1e]' : 'border border-emerald-100 bg-white'}`}>
-                    {p.imageUrl && <img src={p.imageUrl} alt="" width={48} height={48} loading="lazy" decoding="async" referrerPolicy="no-referrer" className="h-full w-full object-contain p-1" onError={(e) => { e.currentTarget.style.display = 'none'; }} />}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className={`truncate text-sm font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{p.name}</p>
-                    <p className={`text-xs font-bold tabular-nums ${darkMode ? 'text-[#39ff88]' : 'text-emerald-700'}`}>{money(p.finalPrice)}</p>
-                  </div>
-                  {arrow}
-                </Link>
-              ))}
-            </div>
-          )}
-
-          {results.shops.length > 0 && (
-            <div className="mb-3">
-              {label(tr(language, 'searchShops'))}
-              {results.shops.map((s) => (
-                <Link key={s.key} to={s.href} onClick={close} className={rowCls}>
-                  <Chip3D className="h-10 w-10 flex-shrink-0 text-base font-black">{s.name?.charAt(0)?.toUpperCase() || 'S'}</Chip3D>
-                  <div className="min-w-0 flex-1">
-                    <p className={`truncate text-sm font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{s.name}</p>
-                    {s.city && <p className={`truncate text-xs ${muted}`}>{s.city}</p>}
-                  </div>
-                  {arrow}
-                </Link>
-              ))}
-            </div>
-          )}
-
-          {results.offers.length > 0 && (
-            <div>
-              {label(tr(language, 'searchOffers'))}
-              {results.offers.map(({ id, title, Icon }) => (
-                <Link key={id} to="/offers" onClick={close} className={rowCls}>
-                  <Chip3D tone="am" className="h-10 w-10 flex-shrink-0"><Icon className="h-4 w-4" /></Chip3D>
-                  <p className={`flex-1 text-sm font-medium ${darkMode ? 'text-neutral-200' : 'text-gray-700'}`}>{title}</p>
-                  {arrow}
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-});
-
-const SearchSection = memo(({ darkMode, language, products, shops }) => (
-  <section className={`relative z-20 py-10 sm:py-12 ${darkMode ? DARK_PAGE : 'bg-gray-50'}`}>
-    <div className="mx-auto flex max-w-7xl flex-col items-center gap-4 px-4 text-center sm:px-6 lg:px-8">
-      <div>
-        <h2 className={`text-xl font-bold tracking-tight sm:text-2xl ${darkMode ? 'text-white' : 'text-emerald-950'}`}>{tr(language, 'findDeviceOrShop')}</h2>
-        <p className={`mt-1 text-sm ${darkMode ? 'text-neutral-400' : 'text-emerald-800/70'}`}>{tr(language, 'searchSubtitle')}</p>
-      </div>
-      <SearchBar darkMode={darkMode} products={products} shops={shops} language={language} />
-    </div>
-  </section>
-));
-
 const ActionCard = memo(({ darkMode, language, index, title, description, to, ctaLabel, scene }) => (
   <Link to={to} className={`group h-full p-5 sm:p-6 ${neoCard(darkMode, 'lg', true)}`}>
     <div className="flex items-center gap-3">
-      <NumBadge n={pad2(language, index)} darkMode={darkMode} />
+      <span aria-hidden="true" className={`text-3xl font-black tabular-nums sm:text-4xl ${darkMode ? 'text-[#39ff88]' : 'text-emerald-600'}`}>
+        {pad2(language, index)}
+      </span>
       <h3 className={`text-xl font-extrabold uppercase sm:text-2xl ${language === 'ar' ? 'tracking-normal' : 'tracking-[-0.02em]'} ${darkMode ? 'text-white' : 'text-emerald-950'}`}>
         <span className={darkMode ? 'hp-hl-dark' : 'hp-hl'}>{title}</span>
       </h3>
@@ -968,10 +1046,9 @@ const ActionCard = memo(({ darkMode, language, index, title, description, to, ct
 ));
 
 const ActionSection = memo(({ darkMode, language }) => (
-  <section className={`py-14 sm:py-20 ${LAZY_SECTION} ${darkMode ? DARK_PAGE : 'bg-gray-50'}`}>
+  <section className={`hp-glow ${darkMode ? `hp-glow-dark ${DARK_PAGE}` : 'bg-gray-50'} py-14 sm:py-20 ${LAZY_SECTION}`}>
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
       <SectionTitle
-        label={tr(language, 'quickAccess')}
         title={tr(language, 'todayPrompt')}
         subtitle={tr(language, 'getStarted')}
         darkMode={darkMode}
@@ -1004,7 +1081,7 @@ const CategoryCard = memo(({ category, count, showCount, darkMode, language }) =
     <Link
       to={`/products/category/${id}`}
       aria-label={category.name}
-      className="hp-dot group relative p-3 pt-9 text-center sm:gap-2.5 sm:p-4 sm:pt-10"
+      className="hp-dot group relative min-h-11 p-3 pt-6 text-center sm:gap-2.5 sm:p-4 sm:pt-7"
     >
       <IsoIllustration
         type={catKey} darkMode={darkMode} onGreen={false}
@@ -1012,8 +1089,8 @@ const CategoryCard = memo(({ category, count, showCount, darkMode, language }) =
       />
       <span className="line-clamp-1 w-full text-sm font-extrabold uppercase">{category.name}</span>
       {showCount && (
-        <span className="hp-chip">
-          <span dir="ltr">{count}</span> {tr(language, count === 1 ? 'homeItemSingular' : 'homeItemPlural')}
+        <span className="text-xs font-bold opacity-80">
+          <span dir="ltr" className="tabular-nums">{count}</span> {tr(language, count === 1 ? 'homeItemSingular' : 'homeItemPlural')}
         </span>
       )}
     </Link>
@@ -1026,20 +1103,22 @@ const CategorySection = memo(({ categories, counts, showCount, loading, darkMode
     [categories, counts],
   );
   if (!loading && top.length === 0) return null;
-  const grid = 'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-6';
+  const grid = 'grid grid-cols-2 gap-4 pb-2 pe-2 sm:grid-cols-3 sm:gap-5 lg:grid-cols-6';
   return (
-    <section aria-label={tr(language, 'homeCategoriesTitle')} className={`py-14 sm:py-20 ${LAZY_SECTION} ${darkMode ? DARK_PAGE : 'bg-gray-50'}`}>
+    <section
+      aria-label={tr(language, 'homeCategoriesTitle')}
+      className={`hp-glow ${darkMode ? `hp-glow-dark ${DARK_PAGE}` : 'bg-gray-50'} py-14 sm:py-20 ${LAZY_SECTION}`}
+    >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <SectionTitle
           darkMode={darkMode} isAr={language === 'ar'}
-          label={tr(language, 'homeCategoriesLabel')}
           title={tr(language, 'homeCategoriesTitle')}
           subtitle={tr(language, 'homeCategoriesSub')}
         />
         <div className={`hp-cat ${darkMode ? 'hp-cat-dark' : ''}`}>
           {loading ? (
             <div className={grid} role="status" aria-busy="true">
-              {Array.from({ length: 6 }).map((_, i) => <div key={i} className={`h-[150px] animate-pulse motion-reduce:animate-none ${darkMode ? 'bg-[#2a2a2a]' : 'bg-gray-200/70'}`} />)}
+              {Array.from({ length: 6 }).map((_, i) => <div key={i} className={`h-[150px] animate-pulse rounded-2xl motion-reduce:animate-none ${darkMode ? 'bg-[#2a2a2a]' : 'bg-gray-200/70'}`} />)}
             </div>
           ) : (
             <div className={grid}>
@@ -1054,7 +1133,7 @@ const CategorySection = memo(({ categories, counts, showCount, loading, darkMode
   );
 });
 
-const ProductCard = memo(({ product, darkMode, language, onAddToCart, onOpen }) => {
+const ProductCard = memo(({ product, darkMode, language, onAddToCart }) => {
   const [failed, setFailed] = useState(false);
   const [btn, setBtn] = useState('idle');
   const timer = useRef();
@@ -1062,17 +1141,15 @@ const ProductCard = memo(({ product, darkMode, language, onAddToCart, onOpen }) 
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; clearTimeout(timer.current); }; }, []);
   useEffect(() => { setFailed(false); }, [product.imageUrl]);
 
-  const cond = pick(CONDITION, product.condition);
+  const id = safeId(product.id);
   const out = product.stock === 0;
+  const low = typeof product.stock === 'number' && product.stock > 0 && product.stock <= LOW_STOCK_LIMIT;
   const hasDiscount = product.saving > 0;
+  const hasRating = product.rating > 0;
   const showImage = !!product.imageUrl && !failed;
-  const badge = useMemo(() => (hasDiscount ? discountBadge(product) : ''), [hasDiscount, product]);
 
-  const open = useCallback(() => onOpen(product), [onOpen, product]);
-  const handleKey = useCallback((e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open(); }, [open]);
   const handleError = useCallback(() => setFailed(true), []);
-  const handleCart = useCallback(async (e) => {
-    e.stopPropagation();
+  const handleCart = useCallback(async () => {
     if (out || btn === 'adding') return;
     setBtn('adding');
     const ok = await onAddToCart(product);
@@ -1081,65 +1158,76 @@ const ProductCard = memo(({ product, darkMode, language, onAddToCart, onOpen }) 
     if (ok) timer.current = setTimeout(() => mounted.current && setBtn('idle'), 1400);
   }, [out, btn, onAddToCart, product]);
 
+  const ink = darkMode ? 'text-white' : 'text-emerald-950';
+  const muted = darkMode ? 'text-neutral-400' : 'text-gray-600';
+  const deal = darkMode ? 'text-orange-400' : 'text-orange-700';
+  const alert = darkMode ? 'text-rose-400' : 'text-rose-600';
+
   return (
-    <article
-      onClick={open}
-      onKeyDown={handleKey}
-      tabIndex={0}
-      aria-label={product.name}
-      className={`group h-full cursor-pointer ${neoCard(darkMode, 'sm', true)}`}
-    >
-      <div className={MEDIA_WRAP}>
-        <div className={`${MEDIA_BOX} aspect-[3/2] ${mediaBg(darkMode)}`}>
-          <div className="absolute start-2.5 top-2.5 z-10 flex flex-col items-start gap-1">
-            {cond && <span className={`rounded-full border-2 border-[color:var(--ink)] px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-white ${cond.badge}`}>{tr(language, cond.labelKey)}</span>}
-            {hasDiscount && (
-              <span className="inline-flex items-center gap-1 rounded-full border-2 border-[color:var(--ink)] bg-rose-500 px-2 py-0.5 text-[9px] font-extrabold text-white" dir="ltr" title={tr(language, 'discountValue')}>
-                <FiTag className="h-2.5 w-2.5" aria-hidden="true" />{badge}
-              </span>
-            )}
-          </div>
-          {showImage ? (
-            <img
-              src={product.imageUrl} alt={product.name} width={PRODUCT_IMG_W} height={PRODUCT_IMG_H} loading="lazy" decoding="async" fetchPriority="low" referrerPolicy="no-referrer"
-              onError={handleError}
-              className="h-full w-full object-cover transition-transform duration-200 motion-reduce:transition-none group-hover:scale-105"
-            />
-          ) : (
-            <ProductFallbackArt name={product.name} categoryName={product.categoryName} label={tr(language, 'deviceLabel')} darkMode={darkMode} />
-          )}
-        </div>
+    <article aria-label={product.name} className={`group relative h-full overflow-hidden ${neoCard(darkMode, 'sm', true)}`}>
+      <div className={`${PRODUCT_MEDIA} ${productMediaBg(darkMode)}`}>
+        {showImage ? (
+          <img
+            src={product.imageUrl} alt={product.name} width={PRODUCT_IMG_W} height={PRODUCT_IMG_H}
+            loading="lazy" decoding="async" fetchPriority="low" referrerPolicy="no-referrer"
+            onError={handleError}
+            className={`h-full w-full bg-white object-contain p-4 transition-transform duration-300 motion-reduce:transition-none [@media(hover:hover)]:group-hover:scale-105 ${darkMode ? 'bg-transparent drop-shadow-[0_6px_6px_rgba(0,0,0,0.18)]' : ''} ${out ? 'opacity-50' : ''}`}
+          />
+        ) : (
+          <ProductFallbackArt name={product.name} categoryName={product.categoryName} label={tr(language, 'deviceLabel')} darkMode={darkMode} />
+        )}
       </div>
 
-      <div className="flex flex-1 flex-col p-4">
-        <div className="flex-1 pb-3">
-          {product.categoryName && <span className={`block truncate text-[10px] font-bold uppercase tracking-wide ${darkMode ? 'text-neutral-400' : 'text-gray-500'}`}>{product.categoryName}</span>}
-          <h3 className={`mt-0.5 line-clamp-1 text-base font-extrabold uppercase ${language === 'ar' ? 'tracking-normal' : 'tracking-[-0.01em]'} ${darkMode ? 'text-white' : 'text-emerald-950'}`}>{product.name}</h3>
-          {product._snippet && (
-            <p className={`mt-1.5 line-clamp-2 text-xs font-medium leading-relaxed ${darkMode ? 'text-neutral-400' : 'text-gray-600'}`}>{product._snippet}</p>
-          )}
-        </div>
-        <div className="flex items-end justify-between gap-2 border-t-2 border-[color:var(--ink)] pt-3">
+      <div className="flex flex-1 flex-col gap-1.5 p-3.5">
+        <h3 className={`line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-snug ${ink}`} title={product.name}>
+          {id ? <Link to={`/device/${id}`} className={PRODUCT_LINK}>{product.name}</Link> : product.name}
+        </h3>
+
+        {hasRating && (
+          <p className={`flex items-center gap-1 text-xs font-bold ${ink}`}>
+            <RiStarFill className="h-3.5 w-3.5 text-amber-500" aria-hidden="true" />
+            <span dir="ltr" className="tabular-nums">{product.rating.toFixed(1)}</span>
+            {product.reviews > 0 && <span dir="ltr" className={`font-medium tabular-nums ${muted}`}>({COUNT_FORMAT.format(product.reviews)})</span>}
+          </p>
+        )}
+
+        {out ? (
+          <p className={`flex items-center gap-1.5 text-xs font-bold ${alert}`}>
+            <FiAlertCircle className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+            <span>{tr(language, 'outOfStock')}</span>
+          </p>
+        ) : low ? (
+          <p className={`flex items-center gap-1.5 text-xs font-medium ${darkMode ? 'text-neutral-300' : 'text-gray-700'}`}>
+            <FiAlertCircle className="h-3.5 w-3.5 flex-shrink-0 text-orange-500" aria-hidden="true" />
+            <span>{tr(language, 'onlyLeft', { count: product.stock })}</span>
+          </p>
+        ) : null}
+
+        <div className="mt-auto flex items-end justify-between gap-2 border-t-2 border-dotted border-[color:var(--ink)] pt-2.5">
           <div className="min-w-0">
             {hasDiscount && (
-              <p className={`truncate text-[11px] tabular-nums line-through ${darkMode ? 'text-neutral-500' : 'text-gray-400'}`}>
+              <p className={`text-[11px] tabular-nums line-through ${muted}`}>
                 <span className="sr-only">{tr(language, 'originalPrice')}: </span>{money(product.price)}
               </p>
             )}
-            <p className={`truncate text-base font-extrabold tabular-nums ${hasDiscount ? (darkMode ? 'text-rose-400' : 'text-rose-600') : (darkMode ? 'text-[#39ff88]' : 'text-emerald-800')}`}>
+            <p className={`truncate text-lg font-extrabold leading-tight tabular-nums ${hasDiscount ? deal : ink}`}>
               <span className="sr-only">{hasDiscount ? `${tr(language, 'discountedPrice')}: ` : ''}</span>{money(product.finalPrice)}
             </p>
             {hasDiscount && (
-              <span dir="auto" className={SAVE_CHIP}>
-                <FiTag className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
-                <span className="truncate">{tr(language, 'youSave', { value: money(product.saving) })}</span>
-              </span>
+              <p className={`truncate text-[11px] font-bold ${deal}`}>
+                {tr(language, 'youSave', { value: money(product.saving) })}
+              </p>
             )}
-            {out && <p className="text-[10px] font-semibold text-rose-500">{tr(language, 'outOfStock')}</p>}
           </div>
-          <button type="button" onClick={handleCart} disabled={out || btn === 'adding'} aria-label={tr(language, 'addToCart')} className={NEO_ICON}>
-            {btn === 'adding' ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-emerald-950 border-t-transparent" />
-              : btn === 'added' ? <FiCheck className="h-4 w-4" /> : <FiShoppingCart className={`h-4 w-4 ${darkMode ? '' : 'text-white'}`} />}
+          <button
+            type="button"
+            onClick={handleCart}
+            disabled={out || btn === 'adding'}
+            aria-label={tr(language, 'addToCart')}
+            className={PRODUCT_ADD_BTN}
+          >
+            {btn === 'adding' ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" />
+              : btn === 'added' ? <FiCheck className="h-5 w-5" /> : <FiPlus className="h-5 w-5" />}
           </button>
         </div>
       </div>
@@ -1147,67 +1235,284 @@ const ProductCard = memo(({ product, darkMode, language, onAddToCart, onOpen }) 
   );
 });
 
-const ShopCard = memo(({ shop, darkMode, language, onOpen }) => {
+const SHOP_MEDIA = 'relative h-40 w-full flex-shrink-0 overflow-hidden border-b-[3px] border-[color:var(--ink)] [contain:layout_paint] sm:h-44';
+const ShopMedia = memo(({ shop, darkMode, gold }) => {
+  const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const imgRef = useRef(null);
+  const [mediaRef, logo] = useShopLogo(shop);
+
+  useEffect(() => {
+    setFailed(false);
+    setLoaded(false);
+  }, [logo]);
+
+  useEffect(() => {
+    const el = imgRef.current;
+    if (el && el.complete && el.naturalWidth > 0) setLoaded(true);
+  }, [logo, failed]);
+
+  const handleError = useCallback(() => setFailed(true), []);
+  const handleLoad = useCallback(() => setLoaded(true), []);
+  const showLogo = !!logo && !failed;
+  const bg = showLogo ? 'bg-white' : gold ? (darkMode ? 'bg-[#1e1e1e]' : 'bg-amber-100') : mediaBg(darkMode);
+  return (
+    <div ref={mediaRef} className={`${SHOP_MEDIA} ${bg}`}>
+      {showLogo ? (
+        <>
+          {!loaded && <div aria-hidden="true" className="absolute inset-0 animate-pulse bg-black/5 motion-reduce:animate-none" />}
+          <img
+            ref={imgRef}
+            src={logo}
+            alt={shop.name || ''}
+            width={400}
+            height={300}
+            loading="lazy"
+            decoding="async"
+            fetchPriority="low"
+            referrerPolicy="no-referrer"
+            onLoad={handleLoad}
+            onError={handleError}
+            className={`absolute inset-0 h-full w-full object-contain p-4 transition-[opacity,transform] duration-300 motion-reduce:transition-none [@media(hover:hover)]:group-hover:scale-105 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          />
+        </>
+      ) : (
+        <div className="flex h-full w-full items-end justify-center px-4 pt-4">
+          {gold ? (
+            <TopShopArt darkMode={darkMode} />
+          ) : (
+            <StorefrontIllustration className="pointer-events-none h-full w-auto max-w-full transition-transform duration-200 motion-reduce:transition-none group-hover:scale-105" />
+          )}
+        </div>
+      )}
+    </div>
+  );
+});
+
+const STAT_ITEMS = [
+  [FiPackage, 'statOrders', 'orders'],
+  [FiTool, 'statRepairs', 'repairs'],
+];
+
+const ShopStats = memo(({ orders, repairs, loading, darkMode, language, gold }) => {
+  const values = { orders, repairs };
+  const surface = darkMode ? 'bg-[#1e1e1e]' : gold ? 'bg-white' : 'bg-gray-50';
+  const label = darkMode ? 'text-neutral-300' : 'text-gray-700';
+  const icon = darkMode ? (gold ? 'text-[#facc15]' : 'text-[#39ff88]') : gold ? 'text-amber-600' : 'text-emerald-600';
+  const ink = darkMode ? 'text-white' : gold ? 'text-amber-950' : 'text-emerald-950';
+  return (
+    <dl className="mb-3 grid grid-cols-2 gap-2">
+      {STAT_ITEMS.map(([Icon, key, field]) => {
+        const value = values[field];
+        return (
+          <div key={key} className={`flex min-w-0 items-center gap-1.5 rounded-lg border-2 border-[color:var(--ink)] px-2 py-1.5 ${surface}`}>
+            <Icon className={`h-3.5 w-3.5 flex-shrink-0 ${icon}`} aria-hidden="true" />
+            <dt className={`min-w-0 flex-1 truncate text-[10px] font-extrabold uppercase ${label}`}>{tr(language, key)}</dt>
+            <dd dir="ltr" className={`flex-shrink-0 text-sm font-black leading-none tabular-nums ${ink}`}>
+              {value == null && loading
+                ? <span className={`inline-block h-3.5 w-6 animate-pulse rounded motion-reduce:animate-none ${darkMode ? 'bg-white/15' : 'bg-black/10'}`} />
+                : value == null ? '—' : COUNT_FORMAT.format(value)}
+            </dd>
+          </div>
+        );
+      })}
+    </dl>
+  );
+});
+
+const statOf = (shop, stats, key) => {
+  if (shop[`_${key}`] != null) return shop[`_${key}`];
+  const map = stats?.[key];
+  if (!map) return null;
+  return map[`i:${shop.id}`] ?? map[nameKey(shop.name)] ?? 0;
+};
+
+const ShopCard = memo(({ shop, stats, statsLoading, darkMode, language, onOpen }) => {
   const open = useCallback(() => onOpen(shop), [onOpen, shop]);
   const handleKey = useCallback((e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open(); }, [open]);
-  const hasRating = typeof shop.rating === 'number' && shop.rating > 0;
+  const hasRating = shop.rating > 0;
   const tel = phoneHref(shop.phone);
   const isAr = language === 'ar';
-  const neonText = darkMode ? 'text-[#39ff88]' : 'text-emerald-500';
+  const neonText = darkMode ? 'text-[#39ff88]' : 'text-emerald-600';
+  const amber = darkMode ? 'text-amber-300' : 'text-amber-700';
+  const body = darkMode ? 'text-neutral-300' : 'text-gray-700';
   return (
     <article
       onClick={open}
       onKeyDown={handleKey}
       tabIndex={0}
       aria-label={shop.name}
-      className={`group relative h-full cursor-pointer ${neoCard(darkMode, 'sm', true)}`}
+      className={`group relative h-full cursor-pointer overflow-hidden ${neoCard(darkMode, 'sm', true)}`}
     >
-      <div className={MEDIA_WRAP}>
-        <div className={`${MEDIA_BOX} ${mediaBg(darkMode)} flex h-48 items-end justify-center px-4 pt-4 sm:h-56`}>
-          <StorefrontIllustration className="pointer-events-none h-full w-auto max-w-full transition-transform duration-200 motion-reduce:transition-none group-hover:scale-105" />
-          {shop.verified && (
-            <span className={`absolute start-3 top-3 flex items-center gap-1 rounded-full border-2 border-[color:var(--ink)] px-2 py-1 text-[10px] font-extrabold uppercase ${darkMode ? 'bg-[#39ff88] text-black' : 'bg-emerald-400 text-white'}`}>
-              <RiVerifiedBadgeLine className="h-3 w-3" /> {tr(language, 'verified')}
-            </span>
-          )}
-        </div>
-      </div>
+      <ShopMedia shop={shop} darkMode={darkMode} />
 
       <div className="flex min-w-0 flex-1 flex-col p-4">
-        <div className="flex flex-1 flex-col gap-1.5 pb-3">
+        <div className="flex flex-1 flex-col gap-2.5 pb-3">
           <div className="flex items-start justify-between gap-2">
-            <h3 className={`line-clamp-1 text-base font-extrabold uppercase leading-snug ${isAr ? 'tracking-normal' : 'tracking-[-0.01em]'} ${darkMode ? 'text-white' : 'text-emerald-950'}`}>{shop.name || tr(language, 'unnamedShop')}</h3>
+            <h3 className={`min-w-0 text-base font-extrabold uppercase leading-snug ${isAr ? 'tracking-normal' : 'tracking-[-0.01em]'} ${darkMode ? 'text-white' : 'text-emerald-950'}`}>
+              <span className="line-clamp-1">{shop.name || tr(language, 'unnamedShop')}</span>
+            </h3>
             {hasRating && (
-              <span className={`flex flex-shrink-0 items-center gap-1 rounded-full border-2 border-[color:var(--ink)] px-2 py-0.5 text-xs font-extrabold ${darkMode ? 'bg-amber-500/10 text-amber-300' : 'bg-amber-50 text-amber-700'}`}>
-                <RiStarFill className="h-3 w-3" /><span dir="ltr">{shop.rating.toFixed(1)}</span>
+              <span className={`flex flex-shrink-0 items-center gap-1 text-sm font-extrabold ${amber}`}>
+                <RiStarFill className="h-4 w-4" aria-hidden="true" /><span dir="ltr" className="tabular-nums">{shop.rating.toFixed(1)}</span>
               </span>
             )}
           </div>
-          {shop.shopType && (
-            <span className={`inline-flex max-w-full items-center gap-1 self-start text-[11px] font-bold uppercase tracking-wide ${darkMode ? 'text-[#39ff88]' : 'text-emerald-700'}`}>
-              <RiStoreLine className="h-3 w-3 flex-shrink-0" /><span className="truncate">{shop.shopType}</span>
-            </span>
-          )}
           {shop._address ? (
-            <p className={`flex items-center gap-1.5 text-xs font-medium ${darkMode ? 'text-neutral-300' : 'text-gray-700'}`}>
-              <FiMapPin className={`h-3 w-3 flex-shrink-0 ${neonText}`} />
+            <p className={`flex items-center gap-1.5 text-xs font-medium ${body}`}>
+              <FiMapPin className={`h-3.5 w-3.5 flex-shrink-0 ${neonText}`} aria-hidden="true" />
               <span className="line-clamp-1">{shop._address}</span>
             </p>
           ) : (
-            <span className={`inline-flex items-center gap-1 self-start rounded-full border-2 border-[color:var(--ink)] px-2 py-0.5 text-[10px] font-extrabold uppercase ${isAr ? 'tracking-normal' : 'tracking-wide'} ${darkMode ? 'bg-amber-500/10 text-amber-300' : 'bg-amber-50 text-amber-700'}`}>
-              <FiMapPin className="h-3 w-3 flex-shrink-0" />{tr(language, 'noAddress')}
-            </span>
+            <p className={`flex items-center gap-1.5 text-xs font-bold ${amber}`}>
+              <FiMapPin className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />{tr(language, 'noAddress')}
+            </p>
           )}
-          <p className={`line-clamp-2 text-sm font-medium leading-relaxed ${darkMode ? 'text-neutral-300' : 'text-gray-700'}`}>{shop._snippet || tr(language, 'shopDescription')}</p>
           {tel && (
-            <a href={tel} onClick={(e) => e.stopPropagation()} className={`flex min-w-0 items-center gap-1.5 text-xs font-bold ${darkMode ? 'text-neutral-200 hover:text-[#39ff88]' : 'text-gray-800 hover:text-emerald-500'}`}>
-              <FiPhone className={`h-3 w-3 flex-shrink-0 ${neonText}`} /><span className="truncate" dir="ltr">{shop.phone}</span>
+            <a href={tel} onClick={(e) => e.stopPropagation()} className={`flex min-h-6 min-w-0 items-center gap-1.5 text-xs font-bold ${darkMode ? 'text-neutral-200 hover:text-[#39ff88]' : 'text-gray-800 hover:text-emerald-600'}`}>
+              <FiPhone className={`h-3.5 w-3.5 flex-shrink-0 ${neonText}`} aria-hidden="true" /><span className="truncate" dir="ltr">{shop.phone}</span>
             </a>
           )}
+          <p className={`line-clamp-2 min-h-[2.25rem] text-xs font-medium leading-relaxed ${body}`}>{shop._snippet || tr(language, 'shopDescription')}</p>
         </div>
+        <ShopStats
+          orders={statOf(shop, stats, 'orders')} repairs={statOf(shop, stats, 'repairs')}
+          loading={statsLoading} darkMode={darkMode} language={language}
+        />
         <CardFooter label={tr(language, 'visitShop')} darkMode={darkMode} isAr={isAr} />
       </div>
     </article>
+  );
+});
+
+const GoldRow = memo(({ icon: Icon, children, className = '' }) => (
+  <p className={`flex min-w-0 items-center gap-2 text-xs font-semibold ${className}`}>
+    <Icon aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 text-amber-600" />
+    <span className="min-w-0 flex-1">{children}</span>
+  </p>
+));
+
+const TopShopCard = memo(({ shop, rank, stats, statsLoading, darkMode, language, onOpen }) => {
+  const open = useCallback(() => onOpen(shop), [onOpen, shop]);
+  const handleKey = useCallback((e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open(); }, [open]);
+  const tel = phoneHref(shop.phone);
+  const isAr = language === 'ar';
+  const ink = darkMode ? 'text-white' : 'text-amber-950';
+  const body = darkMode ? 'text-neutral-100' : 'text-gray-900';
+  return (
+    <article
+      onClick={open}
+      onKeyDown={handleKey}
+      tabIndex={0}
+      aria-label={`${tr(language, 'rankLabel', { n: rank })}: ${shop.name || ''}`}
+      className={`group relative h-full cursor-pointer overflow-hidden ${goldCard(darkMode, true)}`}
+    >
+      <ShopMedia shop={shop} darkMode={darkMode} gold />
+
+      <div className="flex min-w-0 flex-1 flex-col p-4">
+        <div className="flex flex-1 flex-col gap-2.5 pb-3">
+          <h3 className={`flex min-w-0 items-center gap-2 text-base font-extrabold uppercase leading-snug ${isAr ? 'tracking-normal' : 'tracking-[-0.01em]'} ${ink}`}>
+            <span aria-hidden="true" className={`flex-shrink-0 text-2xl font-black tabular-nums ${darkMode ? 'text-[#facc15]' : 'text-amber-600'}`}>{pad2(language, rank)}</span>
+            <span className="min-w-0 flex-1 truncate">{shop.name || tr(language, 'unnamedShop')}</span>
+          </h3>
+
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+            <span className={`inline-flex items-center gap-1 text-lg font-black ${ink}`}>
+              <RiStarFill className="h-4 w-4 text-amber-500" aria-hidden="true" />
+              <span dir="ltr" className="tabular-nums">{shop.rating.toFixed(1)}</span>
+              <span dir="ltr" className="text-[10px] font-bold opacity-70">{tr(language, 'outOf')}</span>
+            </span>
+            <Stars value={shop.rating} darkMode={darkMode} />
+            {shop.reviews > 0 && (
+              <span className={`text-xs font-bold ${body}`}>{tr(language, 'reviewsCount', { count: COUNT_FORMAT.format(shop.reviews) })}</span>
+            )}
+          </div>
+
+          {shop._address && <GoldRow icon={FiMapPin} className={body}><span className="line-clamp-1">{shop._address}</span></GoldRow>}
+          {tel && (
+            <GoldRow icon={FiPhone} className={body}>
+              <a href={tel} onClick={(e) => e.stopPropagation()} dir="ltr" className="truncate underline decoration-[color:var(--acc)] decoration-2 underline-offset-4">{shop.phone}</a>
+            </GoldRow>
+          )}
+          <p className={`line-clamp-2 min-h-[2.25rem] text-xs font-medium leading-relaxed ${darkMode ? 'text-neutral-300' : 'text-gray-800'}`}>{shop._snippet || tr(language, 'shopDescription')}</p>
+        </div>
+        <ShopStats
+          orders={statOf(shop, stats, 'orders')} repairs={statOf(shop, stats, 'repairs')}
+          loading={statsLoading} darkMode={darkMode} language={language} gold
+        />
+        <CardFooter label={tr(language, 'visitShop')} darkMode={darkMode} isAr={isAr} gold />
+      </div>
+    </article>
+  );
+});
+
+const TopRatedSection = memo(({ shops, stats, statsLoading, loading, darkMode, language, onOpen, sectionRef, visible }) => {
+  if (!loading && shops.length === 0) return null;
+  return (
+    <section
+      ref={sectionRef}
+      aria-label={tr(language, 'topRatedTitle')}
+      className={`border-y-4 py-14 sm:py-20 ${LAZY_SECTION} ${visible ? '' : 'anim-paused'} ${
+        darkMode ? 'border-[#facc15]/40 bg-[#1a1708]' : 'border-amber-300 bg-white'
+      }`}
+    >
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <SectionTitle
+          gold darkMode={darkMode} isAr={language === 'ar'}
+          title={tr(language, 'topRatedTitle')}
+          subtitle={tr(language, 'topRatedSub')}
+        />
+        {loading ? <ShopSkeleton darkMode={darkMode} gold count={TOP_LIMIT} /> : (
+          <ol className={SHOP_ROW}>
+            {shops.map((s, i) => (
+              <li key={s.id} className={SHOP_ITEM}>
+                <TopShopCard
+                  shop={s} rank={i + 1} stats={stats} statsLoading={statsLoading}
+                  darkMode={darkMode} language={language} onOpen={onOpen}
+                />
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    </section>
+  );
+});
+
+const ShopsSection = memo(({ shops, stats, statsLoading, loading, darkMode, language, onOpen, sectionRef, visible }) => {
+  const isAr = language === 'ar';
+  return (
+    <section
+      ref={sectionRef}
+      className={`hp-pattern ${darkMode ? 'hp-pattern-dark' : ''} py-14 sm:py-20 ${LAZY_SECTION} ${visible ? '' : 'anim-paused'} ${darkMode ? DARK_PAGE : 'bg-gray-50'}`}
+    >
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <SectionTitle
+          darkMode={darkMode} isAr={isAr}
+          title={tr(language, 'topShops')}
+          subtitle={tr(language, 'shopsSubtitle')}
+        >
+          <div className="pb-2 pe-2">
+            <Link to="/shops" className={neoBtn(darkMode, true)}>
+              <span>{tr(language, 'viewAllShops')}</span>
+              <FiArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+            </Link>
+          </div>
+        </SectionTitle>
+
+        {loading ? <ShopSkeleton darkMode={darkMode} count={LATEST_SHOPS_LIMIT} />
+          : shops.length === 0 ? <EmptyRail label={tr(language, 'noShops')} darkMode={darkMode} />
+          : (
+            <div className={SHOP_ROW}>
+              {shops.map((s, i) => (
+                <div key={s.id} className={`hp-rise ${SHOP_ITEM}`} style={STAGGER[i % LATEST_SHOPS_LIMIT]}>
+                  <ShopCard shop={s} stats={stats} statsLoading={statsLoading} darkMode={darkMode} language={language} onOpen={onOpen} />
+                </div>
+              ))}
+            </div>
+          )}
+      </div>
+    </section>
   );
 });
 
@@ -1227,6 +1532,16 @@ const HomepageContent = memo(({ darkMode }) => {
     return () => { delete el.dataset.hpTheme; };
   }, [darkMode]);
 
+  useEffect(() => {
+    const warm = () => { loadService(); loadComponents(); };
+    if (typeof window.requestIdleCallback === 'function') {
+      const id = window.requestIdleCallback(warm, { timeout: 3000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const id = setTimeout(warm, 1500);
+    return () => clearTimeout(id);
+  }, []);
+
   const recoveredRef = useRef(false);
   useEffect(() => {
     if (recoveredRef.current || useAuthStore.getState().accessToken) return;
@@ -1243,7 +1558,7 @@ const HomepageContent = memo(({ darkMode }) => {
     enabled: !!accessToken,
     queryFn: async ({ signal }) => {
       const [shopRes, productRes] = await Promise.all([
-        api.get('/api/users/shops/all', { signal }),
+        api.get('/api/users/shops/all', { params: { page: 0, size: SHOPS_FETCH_SIZE }, signal }),
         api.get('/api/products', { signal }).catch((e) => {
           if (signal?.aborted) throw e;
           return { data: { content: [] } };
@@ -1251,15 +1566,17 @@ const HomepageContent = memo(({ darkMode }) => {
       ]);
       const list = productRes.data?.content || productRes.data || [];
       const catalog = (Array.isArray(list) ? list : []).filter((p) => p && !p.deleted).map(normalizeProduct);
-      const shops = (shopRes.data?.content || []).filter(Boolean).map(normalizeShop);
+      const rawShops = shopRes.data?.content || (Array.isArray(shopRes.data) ? shopRes.data : []);
+      const shops = rawShops.filter(Boolean).map(normalizeShop);
       return {
-        shops,
         catalog,
-        latestShops: shops.slice(-RAIL_LIMIT),
-        latestProducts: catalog.slice(-RAIL_LIMIT),
+        latestProducts: latestOf(catalog),
+        topShops: topShopsOf(shops),
+        latestShops: latestShopsOf(shops),
       };
     },
     staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
   const isLoading = !!accessToken && queryLoading;
 
@@ -1277,16 +1594,33 @@ const HomepageContent = memo(({ darkMode }) => {
       return out;
     },
     staleTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
     retry: false,
   });
 
-  const shops = data?.shops || EMPTY_LIST;
   const catalog = data?.catalog || EMPTY_LIST;
   const products = data?.latestProducts || EMPTY_LIST;
+  const topShops = data?.topShops || EMPTY_LIST;
   const latestShops = data?.latestShops || EMPTY_LIST;
+
+  const needsStats = useMemo(
+    () => topShops.some((s) => s._orders == null || s._repairs == null) || latestShops.some((s) => s._orders == null || s._repairs == null),
+    [topShops, latestShops],
+  );
+
+  const { data: shopStats = EMPTY_OBJECT, isLoading: statsQueryLoading } = useQuery({
+    queryKey: ['homeShopStats', userId ?? 'anon'],
+    enabled: !!accessToken && needsStats,
+    queryFn: ({ signal }) => fetchShopStats(signal),
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+  const statsLoading = needsStats && statsQueryLoading;
+
   const prodRail = useRail(products);
-  const shopRail = useRail(latestShops);
   const [prodSecRef, prodVisible] = useOnScreen();
+  const [topSecRef, topVisible] = useOnScreen();
   const [shopSecRef, shopVisible] = useOnScreen();
 
   const categoryCounts = useMemo(() => {
@@ -1326,10 +1660,6 @@ const HomepageContent = memo(({ darkMode }) => {
     }
   }, [navigate, language]);
 
-  const openProduct = useCallback((p) => {
-    const id = safeId(p.id);
-    if (id) navigate(`/device/${id}`);
-  }, [navigate]);
   const openShop = useCallback((s) => {
     const id = safeId(s.id);
     if (id) navigate(`/shops/${id}`);
@@ -1352,35 +1682,35 @@ const HomepageContent = memo(({ darkMode }) => {
 
       <ActionSection darkMode={darkMode} language={language} />
 
-      <Suspense fallback={<div className={`h-[420px] w-full animate-pulse ${darkMode ? DARK_PAGE : 'bg-emerald-50'}`} />}>
+      <Suspense fallback={<div className={`h-[420px] w-full animate-pulse motion-reduce:animate-none ${darkMode ? DARK_PAGE : 'bg-emerald-50'}`} />}>
         <Service darkMode={darkMode} />
       </Suspense>
-
-      <SearchSection darkMode={darkMode} language={language} products={catalog} shops={shops} />
 
       <CategorySection
         categories={categories} counts={categoryCounts} showCount={!!data}
         loading={categoriesLoading} darkMode={darkMode} language={language}
       />
 
-      <section ref={prodSecRef} className={`py-14 sm:py-20 ${LAZY_SECTION} ${prodVisible ? '' : 'anim-paused'} ${sectionBg}`}>
+      <section
+        ref={prodSecRef}
+        className={`hp-pattern ${darkMode ? 'hp-pattern-dark' : ''} py-14 sm:py-20 ${LAZY_SECTION} ${prodVisible ? '' : 'anim-paused'} ${sectionBg}`}
+      >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionTitle
             darkMode={darkMode} isAr={isAr}
-            label={tr(language, 'featuredBadge')}
             title={tr(language, 'featuredProducts')}
             subtitle={tr(language, 'featuredSubtitle')}
           >
             <RailArrows rail={prodRail} darkMode={darkMode} language={language} />
           </SectionTitle>
 
-          {isLoading ? <RailSkeleton w="w-[280px] sm:w-[320px]" h="h-[400px]" darkMode={darkMode} />
+          {isLoading ? <RailSkeleton w="w-[210px] sm:w-[230px]" h="h-[380px]" darkMode={darkMode} />
             : products.length === 0 ? <EmptyRail label={tr(language, 'noProducts')} darkMode={darkMode} />
             : (
               <div ref={prodRail.ref} className={RAIL}>
                 {products.map((p) => (
-                  <div key={p.id} className="w-[280px] flex-shrink-0 snap-start pb-2 pe-2 sm:w-[320px] md:w-[340px]">
-                    <ProductCard product={p} darkMode={darkMode} language={language} onAddToCart={handleAddToCart} onOpen={openProduct} />
+                  <div key={p.id} className="w-[210px] flex-shrink-0 snap-start pb-2 pe-2 sm:w-[230px]">
+                    <ProductCard product={p} darkMode={darkMode} language={language} onAddToCart={handleAddToCart} />
                   </div>
                 ))}
               </div>
@@ -1388,32 +1718,19 @@ const HomepageContent = memo(({ darkMode }) => {
         </div>
       </section>
 
-      <section ref={shopSecRef} className={`py-14 sm:py-20 ${LAZY_SECTION} ${shopVisible ? '' : 'anim-paused'} ${sectionBg}`}>
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <SectionTitle
-            darkMode={darkMode} isAr={isAr}
-            label={tr(language, 'verified')}
-            title={tr(language, 'topShops')}
-            subtitle={tr(language, 'shopsSubtitle')}
-          >
-            <RailArrows rail={shopRail} darkMode={darkMode} language={language} />
-          </SectionTitle>
+      <TopRatedSection
+        shops={topShops} stats={shopStats} statsLoading={statsLoading}
+        loading={isLoading} darkMode={darkMode} language={language}
+        onOpen={openShop} sectionRef={topSecRef} visible={topVisible}
+      />
 
-          {isLoading ? <RailSkeleton w="w-[300px] sm:w-[350px]" h="h-[520px]" darkMode={darkMode} />
-            : latestShops.length === 0 ? <EmptyRail label={tr(language, 'noShops')} darkMode={darkMode} />
-            : (
-              <div ref={shopRail.ref} className={RAIL}>
-                {latestShops.map((s) => (
-                  <div key={s.id} className="w-[300px] flex-shrink-0 snap-start pb-2 pe-2 sm:w-[350px]">
-                    <ShopCard shop={s} darkMode={darkMode} language={language} onOpen={openShop} />
-                  </div>
-                ))}
-              </div>
-            )}
-        </div>
-      </section>
+      <ShopsSection
+        shops={latestShops} stats={shopStats} statsLoading={statsLoading}
+        loading={isLoading} darkMode={darkMode} language={language}
+        onOpen={openShop} sectionRef={shopSecRef} visible={shopVisible}
+      />
 
-      <Suspense fallback={<div className={`h-64 w-full animate-pulse ${darkMode ? DARK_PAGE : 'bg-white'}`} />}>
+      <Suspense fallback={<div className={`h-64 w-full animate-pulse motion-reduce:animate-none ${darkMode ? DARK_PAGE : 'bg-white'}`} />}>
         <OffersSlider darkMode={darkMode} />
       </Suspense>
 

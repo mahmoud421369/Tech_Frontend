@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef, useId, memo, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef, useId, memo } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
-  FiPackage, FiCheckCircle, FiTruck, FiXCircle, FiClock, FiBox, FiShoppingBag, FiLock, FiCheck, FiChevronDown,
+  FiPackage, FiCheckCircle, FiTruck, FiXCircle, FiClock, FiBox, FiShoppingBag, FiLock, FiCheck, FiChevronDown, FiChevronRight,
   FiCreditCard, FiMapPin, FiCalendar, FiHeadphones, FiMessageCircle, FiShield, FiRefreshCw,
 } from 'react-icons/fi';
 import api from '../common/api/api';
@@ -9,27 +10,10 @@ import { useAppLanguage, languageDirection } from '../common/utils/useAppLanguag
 import enTranslations from '../locales/en/translation.json';
 import arTranslations from '../locales/ar/translation.json';
 import frTranslations from '../locales/fr/translation.json';
-import { Defs3D } from '../components/user/Ui3D';
+import { Hero } from '../components';
+import { HeroArt } from '../components/user/HeroArt';
 
-const Hero = lazy(() => import('../components/user/Hero'));
 const queryClient = new QueryClient({ defaultOptions: { queries: { refetchOnWindowFocus: false, gcTime: 10 * 60 * 1000 } } });
-
-
-const NB_FONT = "'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
-const NB_FONT_STYLE = { fontFamily: NB_FONT };
-const ensureNbFont = () => {
-  if (typeof document === 'undefined' || document.getElementById('nb-font')) return;
-  [['https://fonts.googleapis.com', false], ['https://fonts.gstatic.com', true]].forEach(([href, cors]) => {
-    const l = document.createElement('link');
-    l.rel = 'preconnect'; l.href = href; if (cors) l.crossOrigin = '';
-    document.head.appendChild(l);
-  });
-  const link = document.createElement('link');
-  link.id = 'nb-font';
-  link.rel = 'stylesheet';
-  link.href = 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap';
-  document.head.appendChild(link);
-};
 
 const shouldRetry = (count, err) => count < 2 && ![400, 401, 403, 404].includes(err?.response?.status);
 
@@ -39,12 +23,7 @@ const TRACK_TRANSLATIONS = {
   fr: frTranslations.track || frTranslations.hero?.track,
 };
 
-const EXTRA = {
-  en: { eyebrowTrack: 'Order tracking', eyebrowHelp: 'Need help?' },
-  ar: { eyebrowTrack: 'تتبع الطلب', eyebrowHelp: 'تحتاج مساعدة؟' },
-  fr: { eyebrowTrack: 'Suivi de commande', eyebrowHelp: "Besoin d'aide ?" },
-};
-const tr = (lang, key) => TRACK_TRANSLATIONS[lang]?.[key] || TRACK_TRANSLATIONS.en?.[key] || EXTRA[lang]?.[key] || EXTRA.en[key] || key;
+const tr = (lang, key) => TRACK_TRANSLATIONS[lang]?.[key] || TRACK_TRANSLATIONS.en?.[key] || key;
 
 const LOCALES = { en: 'en-GB', ar: 'ar-EG', fr: 'fr-FR' };
 
@@ -90,7 +69,11 @@ const stepTimestamp = (order, key, loc) => {
   return null;
 };
 
-const statusChip = (status) => (status === 'DELIVERED' ? 'nb-chip-a' : status === 'CANCELLED' ? 'nb-chip-r' : 'nb-chip-w');
+const statusTone = (status, darkMode) => {
+  if (status === 'DELIVERED') return darkMode ? 'text-[#39ff88]' : 'text-emerald-600';
+  if (status === 'CANCELLED') return darkMode ? 'text-rose-400' : 'text-rose-600';
+  return darkMode ? 'text-amber-300' : 'text-amber-700';
+};
 
 const buildMeta = (o, t, loc) => [
   { icon: FiPackage, label: t('trackingId'), value: o.trackingNumber ?? o.id?.slice(0, 12) },
@@ -117,225 +100,354 @@ const buildDetails = (o, t, loc) => {
   ].filter(Boolean);
 };
 
-
-const NB_CSS = `
-.nb{--nb-bg:#eef9f3;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e8ebe9;--nb-accent:#10b981;--nb-btn:#059669;--nb-on:#ffffff;background:var(--nb-bg);color:var(--nb-ink)}
-.nb-dark{--nb-bg:#141414;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#1e1e1e;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-on:#022c22}
-.nb-dark .border-dotted{border-color:#3f3f3f}
-.nb-gray{background:var(--nb-gray)}
-.nb-muted{color:var(--nb-muted)}
-.nb-ic{color:var(--nb-accent)}
-.nb-line{border-color:var(--nb-line)}
-.nb-card{background:var(--nb-card);border:2px solid var(--nb-line);box-shadow:5px 5px 0 var(--nb-shadow)}
-.nb-bar{display:inline-block;width:52px;height:16px;background:var(--nb-accent);border:2px solid var(--nb-line)}
-.nb-ul{text-decoration:underline;text-decoration-color:var(--nb-accent);text-decoration-thickness:4px;text-underline-offset:5px;text-decoration-skip-ink:none}
-.nb-chip{display:inline-flex;align-items:center;gap:4px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);padding:1px 6px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;line-height:1.5}
-.nb-chip-a{background:var(--nb-btn);color:var(--nb-on)}
-.nb-chip-r{background:#e11d48;color:#fff}
-.nb-chip-w{background:#d97706;color:#fff}
-.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow);font-weight:700;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease}
-.nb-btn:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--nb-shadow)}
-.nb-btn:active:not(:disabled){transform:translate(2px,2px);box-shadow:0 0 0 var(--nb-shadow)}
-.nb-btn:disabled{opacity:.45;cursor:not-allowed}
-.nb-btn-a{background:var(--nb-btn);color:var(--nb-on)}
-.nb-btn:focus-visible,.nb-field:focus-within{outline:3px solid var(--nb-accent);outline-offset:2px}
-.nb-field{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow)}
-.nb-menu{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:4px 4px 0 var(--nb-shadow)}
-.nb-opt{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;font-size:12px;font-weight:700;text-transform:uppercase;text-align:start;cursor:pointer}
-.nb-opt-active{background:var(--nb-gray)}
-.nb-opt[aria-selected=true]{background:var(--nb-btn);color:var(--nb-on)}
-.nb-sq{display:flex;align-items:center;justify-content:center;flex:none;width:36px;height:36px;border:2px solid var(--nb-line);background:var(--nb-card);color:var(--nb-muted)}
-.nb-sq-on{background:var(--nb-btn);color:var(--nb-on);box-shadow:2px 2px 0 var(--nb-shadow)}
-.nb-sq-bad{background:#e11d48;color:#fff;box-shadow:2px 2px 0 var(--nb-shadow)}
-@media (prefers-reduced-motion:reduce){.nb-btn{transition:none}}
+const PAGE_CSS = `
+  .hp-hl, .hp-hl-dark {
+    padding-bottom: 0.2em;
+    background-position: left bottom;
+    background-repeat: no-repeat;
+    background-size: 100% 0.3em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+  .hp-hl      { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2310b981' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
+  .hp-hl-dark { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2339ff88' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
+  @keyframes hpRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  .hp-rise { animation: hpRise 0.28s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes hpPop { from { opacity: 0; transform: translateY(-6px) scale(.98); } to { opacity: 1; transform: none; } }
+  .hp-pop { animation: hpPop 0.14s ease-out both; transform-origin: top; }
+  .hp-pattern {
+    --p1: rgba(4, 38, 26, .13);
+    --p2: rgba(16, 185, 129, .12);
+    background-image:
+      radial-gradient(circle at 2px 2px, var(--p1) 1.6px, transparent 1.8px),
+      repeating-linear-gradient(135deg, var(--p2) 0 2px, transparent 2px 18px);
+    background-size: 22px 22px, auto;
+  }
+  .hp-pattern-dark { --p1: rgba(57, 255, 136, .14); --p2: rgba(57, 255, 136, .06); }
+  @media (prefers-reduced-motion: reduce) {
+    .hp-rise, .hp-pop { animation: none; }
+  }
 `;
+let stylesInjected = false;
+const injectStylesOnce = () => {
+  if (stylesInjected || typeof document === 'undefined') return;
+  const tag = document.createElement('style');
+  tag.setAttribute('data-track-styles', 'true');
+  tag.textContent = PAGE_CSS;
+  document.head.appendChild(tag);
+  stylesInjected = true;
+};
+injectStylesOnce();
 
+const DARK_PAGE = 'bg-[#141414]';
 
-const STYLE_EL = <style>{NB_CSS}</style>;
+const NEO_THEME = {
+  light: '[--dx:1] rtl:[--dx:-1] [--ink:#022c22] [--sh:#022c22] [--acc:#34d399]',
+  dark: '[--dx:1] rtl:[--dx:-1] [--ink:#000] [--sh:#000] [--acc:#39ff88]',
+};
+const NEO_SURFACE = { light: 'bg-white', dark: 'bg-[#2a2a2a]' };
+const NEO_BOX = {
+  lg: 'flex flex-col rounded-2xl border-[3px] border-[color:var(--ink)] [box-shadow:calc(var(--dx)*8px)_8px_0_0_var(--sh)]',
+  sm: 'flex flex-col rounded-2xl border-[3px] border-[color:var(--ink)] [box-shadow:calc(var(--dx)*6px)_6px_0_0_var(--sh)]',
+};
+const neoCard = (darkMode, size = 'lg') => {
+  const k = darkMode ? 'dark' : 'light';
+  return `${NEO_THEME[k]} ${NEO_BOX[size]} ${NEO_SURFACE[k]}`;
+};
 
-const UnderlinedTitle = memo(({ text }) => {
-  const s = String(text || '');
-  const i = s.lastIndexOf(' ');
-  const head = i > 0 ? s.slice(0, i + 1) : '';
-  const tail = i > 0 ? s.slice(i + 1) : s;
-  return <>{head}<span className="nb-ul">{tail}</span></>;
-});
+const NEO_BTN =
+  'inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border-[3px] border-[color:var(--ink)] px-4 py-2.5 text-sm font-extrabold uppercase ' +
+  '[box-shadow:calc(var(--dx)*4px)_4px_0_0_var(--sh)] transition-[transform,box-shadow] duration-150 motion-reduce:transition-none ' +
+  'active:translate-y-[4px] active:translate-x-[calc(var(--dx)*4px)] active:[box-shadow:0_0_0_0_var(--sh)] ' +
+  'disabled:cursor-not-allowed disabled:opacity-40 ' +
+  'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
+const neoBtn = (darkMode, active) => {
+  const k = darkMode ? 'dark' : 'light';
+  const tone = active ? 'bg-[color:var(--acc)] text-emerald-950' : `${NEO_SURFACE[k]} ${darkMode ? 'text-white' : 'text-emerald-950'}`;
+  return `${NEO_THEME[k]} ${NEO_BTN} ${tone}`;
+};
 
+const ICON_BOX =
+  'inline-flex flex-shrink-0 items-center justify-center rounded-lg border-2 border-[color:var(--ink)] bg-[color:var(--acc)] text-emerald-950 [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)]';
+const ROW_BOX = 'rounded-xl border-2 border-dotted border-[color:var(--ink)]';
 
-const NbDropdown = memo(({ value, onChange, options, ariaLabel, className = '', align = 'start', placeholder = '' }) => {
-  const [isOpen, setIsOpen] = useState(false);
+const Dropdown = memo(({ value, onChange, options, ariaLabel, darkMode }) => {
+  const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const rootRef = useRef(null);
   const btnRef = useRef(null);
   const listRef = useRef(null);
-  const uid = useId();
+  const uid = useId().replace(/:/g, '');
   const listId = `${uid}-list`;
   const foundIdx = options.findIndex((o) => o.value === value);
   const selectedIdx = Math.max(0, foundIdx);
   const current = foundIdx >= 0 ? options[foundIdx] : null;
 
   useEffect(() => {
-    if (!isOpen) return undefined;
-    const onDown = (e) => { if (!rootRef.current?.contains(e.target)) setIsOpen(false); };
+    if (!open) return undefined;
+    const onDown = (e) => { if (!rootRef.current?.contains(e.target)) setOpen(false); };
     document.addEventListener('pointerdown', onDown);
     return () => document.removeEventListener('pointerdown', onDown);
-  }, [isOpen]);
-  useEffect(() => { if (isOpen) setActive(selectedIdx); }, [isOpen, selectedIdx]);
-  useEffect(() => { if (isOpen) listRef.current?.children[active]?.scrollIntoView({ block: 'nearest' }); }, [isOpen, active]);
+  }, [open]);
 
-  const choose = (i) => {
+  useEffect(() => { if (open) setActive(selectedIdx); }, [open, selectedIdx]);
+
+  useEffect(() => {
+    if (open) listRef.current?.children[active]?.scrollIntoView({ block: 'nearest' });
+  }, [open, active]);
+
+  const choose = useCallback((i) => {
     const o = options[i];
     if (o) onChange(o.value);
-    setIsOpen(false);
+    setOpen(false);
     btnRef.current?.focus();
-  };
+  }, [options, onChange]);
+
   const onKeyDown = (e) => {
     const last = options.length - 1;
     switch (e.key) {
-      case 'ArrowDown': e.preventDefault(); if (!isOpen) setIsOpen(true); else setActive((i) => Math.min(i + 1, last)); break;
-      case 'ArrowUp': e.preventDefault(); if (!isOpen) setIsOpen(true); else setActive((i) => Math.max(i - 1, 0)); break;
-      case 'Home': if (isOpen) { e.preventDefault(); setActive(0); } break;
-      case 'End': if (isOpen) { e.preventDefault(); setActive(last); } break;
-      case 'Enter': case ' ': e.preventDefault(); if (isOpen) choose(active); else setIsOpen(true); break;
-      case 'Escape': if (isOpen) { e.preventDefault(); e.stopPropagation(); setIsOpen(false); } break;
-      case 'Tab': setIsOpen(false); break;
+      case 'ArrowDown': e.preventDefault(); if (!open) setOpen(true); else setActive((i) => Math.min(i + 1, last)); break;
+      case 'ArrowUp': e.preventDefault(); if (!open) setOpen(true); else setActive((i) => Math.max(i - 1, 0)); break;
+      case 'Home': if (open) { e.preventDefault(); setActive(0); } break;
+      case 'End': if (open) { e.preventDefault(); setActive(last); } break;
+      case 'Enter':
+      case ' ': e.preventDefault(); if (open) choose(active); else setOpen(true); break;
+      case 'Escape': if (open) { e.preventDefault(); e.stopPropagation(); setOpen(false); } break;
+      case 'Tab': setOpen(false); break;
       default:
     }
   };
 
+  const surface = darkMode ? 'bg-[#1e1e1e] text-white' : 'bg-white text-emerald-950';
+  const hover = darkMode ? 'bg-white/10' : 'bg-emerald-100';
+
   return (
-    <div ref={rootRef} className={`relative ${isOpen ? 'z-30' : ''} ${className}`}>
+    <div ref={rootRef} className={`relative ${open ? 'z-30' : ''}`}>
       <button
-        ref={btnRef} type="button" aria-label={ariaLabel} aria-haspopup="listbox" aria-expanded={isOpen} aria-controls={listId}
-        aria-activedescendant={isOpen ? `${uid}-o${active}` : undefined}
-        onClick={() => setIsOpen((o) => !o)} onKeyDown={onKeyDown}
-        className="nb-field flex h-11 w-full items-center justify-between gap-2 ps-3 pe-3 text-start text-xs font-bold uppercase"
+        ref={btnRef}
+        type="button"
+        role="combobox"
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={listId}
+        aria-activedescendant={open ? `${uid}-o${active}` : undefined}
+        onClick={() => setOpen((o) => !o)}
+        onKeyDown={onKeyDown}
+        className={`flex min-h-11 w-full cursor-pointer items-center justify-between gap-2 rounded-lg border-2 border-[color:var(--ink)] px-3 text-start text-sm font-semibold outline-none focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)] ${surface}`}
       >
-        <span className="truncate">{current?.label ?? placeholder}</span>
-        <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform duration-150 ${isOpen ? 'rotate-180' : ''}`} />
+        <span className="truncate">{current?.label}</span>
+        <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform duration-150 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
       </button>
-      {isOpen && (
-        <ul ref={listRef} id={listId} role="listbox" aria-label={ariaLabel} tabIndex={-1}
-          className={`nb-menu absolute top-full z-30 mt-2 max-h-64 min-w-full overflow-y-auto overscroll-contain py-1 ${align === 'end' ? 'end-0' : 'start-0'}`}>
-          {options.map((o, i) => (
-            <li key={o.value} id={`${uid}-o${i}`} role="option" aria-selected={o.value === value}
-              onPointerEnter={() => setActive(i)} onClick={() => choose(i)}
-              className={`nb-opt whitespace-nowrap ${i === active ? 'nb-opt-active' : ''}`}>
-              <span>{o.label}</span>
-              {o.value === value && <FiCheck aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0" strokeWidth={3} />}
-            </li>
-          ))}
+      {open && (
+        <ul
+          ref={listRef}
+          id={listId}
+          role="listbox"
+          aria-label={ariaLabel}
+          tabIndex={-1}
+          className={`hp-pop absolute start-0 top-full z-30 mt-2 max-h-64 min-w-full overflow-y-auto overscroll-contain rounded-xl border-[3px] border-[color:var(--ink)] py-1 [box-shadow:calc(var(--dx)*4px)_4px_0_0_var(--sh)] ${surface}`}
+        >
+          {options.map((o, i) => {
+            const selected = o.value === value;
+            return (
+              <li
+                key={o.value}
+                id={`${uid}-o${i}`}
+                role="option"
+                aria-selected={selected}
+                onPointerEnter={() => setActive(i)}
+                onClick={() => choose(i)}
+                className={`flex min-h-11 cursor-pointer items-center justify-between gap-2 whitespace-nowrap px-3 py-2 text-sm font-bold ${
+                  selected ? 'bg-[color:var(--acc)] text-emerald-950' : i === active ? hover : ''
+                }`}
+              >
+                <span className="truncate">{o.label}</span>
+                {selected && <FiCheck aria-hidden="true" className="h-4 w-4 flex-shrink-0" strokeWidth={3} />}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
   );
 });
 
-const MetaTile = memo(({ icon: Icon, label, value }) => (
-  <div className="nb-gray nb-line min-w-0 border-2 border-dotted p-2.5">
-    <p className="nb-muted flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wide">
-      <Icon className="nb-ic h-3 w-3 flex-shrink-0" /> <span className="truncate">{label}</span>
+const MetaTile = memo(({ icon: Icon, label, value, darkMode }) => (
+  <div className={`min-w-0 p-3 ${ROW_BOX} ${darkMode ? 'bg-[#1e1e1e]' : 'bg-gray-50'}`}>
+    <p className={`flex items-center gap-1.5 text-[11px] font-extrabold uppercase ${darkMode ? 'text-neutral-400' : 'text-gray-600'}`}>
+      <Icon aria-hidden="true" className={`h-3.5 w-3.5 flex-shrink-0 ${darkMode ? 'text-[#39ff88]' : 'text-emerald-600'}`} /><span className="truncate">{label}</span>
     </p>
-    <p className="mt-0.5 truncate text-xs font-extrabold">{value}</p>
+    <p className={`mt-1 truncate text-sm font-extrabold ${darkMode ? 'text-white' : 'text-emerald-950'}`}>{value}</p>
   </div>
 ));
 
-const StepRow = memo(({ step, isCompleted, isCurrent, isCancelledStep, isLast, timestamp, t }) => {
+const StepRow = memo(({ step, isCompleted, isCurrent, isCancelledStep, isLast, timestamp, darkMode, t }) => {
   const Icon = step.icon;
   const active = isCompleted || isCancelledStep;
+  const muted = darkMode ? 'text-neutral-400' : 'text-gray-600';
+  const box = isCancelledStep
+    ? 'bg-rose-500 text-white [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)]'
+    : isCompleted
+      ? 'bg-[color:var(--acc)] text-emerald-950 [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)]'
+      : `${darkMode ? 'bg-[#1e1e1e] text-neutral-500' : 'bg-gray-100 text-gray-500'}`;
   return (
-    <li className={`relative flex gap-3 ${isLast ? '' : 'pb-5'}`} aria-current={isCurrent && !isCancelledStep ? 'step' : undefined}>
+    <li className={`relative flex gap-4 ${isLast ? '' : 'pb-6'}`} aria-current={isCurrent && !isCancelledStep ? 'step' : undefined}>
       {!isLast && (
-        <span aria-hidden="true" className={`absolute start-[17px] top-9 bottom-0 w-0.5 ${isCompleted && !isCurrent ? 'bg-[color:var(--nb-btn)]' : 'bg-[color:var(--nb-muted)] opacity-40'}`} />
+        <span
+          aria-hidden="true"
+          className={`absolute start-[18px] top-10 bottom-0 w-1 rounded-full ${isCompleted && !isCurrent ? 'bg-[color:var(--acc)]' : darkMode ? 'bg-neutral-700' : 'bg-gray-200'}`}
+        />
       )}
-      <span className={`nb-sq relative z-10 ${isCancelledStep ? 'nb-sq-bad' : isCompleted ? 'nb-sq-on' : ''}`}>
-        {isCurrent && !isCancelledStep && <span aria-hidden="true" className="absolute -inset-1 animate-ping border-2 border-[color:var(--nb-accent)] opacity-60 motion-reduce:animate-none" />}
-        <Icon className="relative h-4 w-4" aria-hidden="true" />
+      <span className={`relative z-10 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border-2 border-[color:var(--ink)] ${box}`}>
+        <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
       </span>
       <div className="min-w-0 flex-1 pt-0.5">
         <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-          <p className={`text-sm font-extrabold uppercase leading-snug ${isCancelledStep ? 'text-rose-500' : active ? '' : 'nb-muted opacity-70'}`}>{step.label}</p>
-          {timestamp && active && <span className="nb-muted text-[11px] font-bold">{timestamp}</span>}
+          <p className={`text-sm font-extrabold uppercase leading-snug ${isCancelledStep ? 'text-rose-500' : active ? (darkMode ? 'text-white' : 'text-emerald-950') : muted}`}>{step.label}</p>
+          {timestamp && active && <span className={`text-xs font-bold ${muted}`}>{timestamp}</span>}
         </div>
-        <p className={`nb-muted text-xs ${active ? '' : 'opacity-60'}`}>{step.sub}</p>
-        {isCurrent && !isCancelledStep && <span className="nb-chip nb-chip-a mt-1.5">{t('currentStatus')}</span>}
+        <p className={`mt-0.5 text-xs font-medium ${muted}`}>{step.sub}</p>
+        {isCurrent && !isCancelledStep && (
+          <p className={`mt-1.5 flex items-center gap-1.5 text-xs font-extrabold uppercase ${darkMode ? 'text-[#39ff88]' : 'text-emerald-600'}`}>
+            <FiChevronRight aria-hidden="true" className="h-3.5 w-3.5 rtl:rotate-180" />{t('currentStatus')}
+          </p>
+        )}
       </div>
     </li>
   );
 });
 
-const InfoPanel = memo(({ rows, status, statusText, t }) => (
-  <aside className="nb-card flex h-fit flex-col gap-5 p-4 sm:p-5 lg:sticky lg:top-20">
-    <div className="nb-gray nb-line flex items-center gap-3 border-2 p-3">
-      <span className="nb-chip nb-chip-a !p-2.5"><FiBox className="h-6 w-6" /></span>
-      <div className="min-w-0">
-        <p className="nb-muted text-[10px] font-extrabold uppercase tracking-wider">{t('liveTracking')}</p>
-        <span className={`nb-chip mt-1 ${statusChip(status)}`}>{statusText}</span>
-      </div>
-    </div>
-
-    {rows.length > 0 && (
-      <div>
-        <h4 className="mb-3 text-xs font-extrabold uppercase"><span className="nb-ul">{t('orderDetails')}</span></h4>
-        <ul className="space-y-3">
-          {rows.map(({ icon: Icon, label, value }) => (
-            <li key={label + value} className="flex items-start gap-2.5">
-              <span className="nb-chip nb-chip-a !p-1.5"><Icon className="h-3.5 w-3.5" /></span>
-              <div className="min-w-0">
-                <p className="nb-muted text-[11px] font-bold uppercase">{label}</p>
-                <p className="truncate text-sm font-extrabold">{value}</p>
+const StatusStrip = memo(({ order, options, onSelect, progressPct, isCancelled, statusText, darkMode, isAr, t }) => {
+  const StatusIcon = STATUS_STEPS[STEP_INDEX[order.status]]?.icon || FiBox;
+  const ink = darkMode ? 'text-white' : 'text-emerald-950';
+  const muted = darkMode ? 'text-neutral-300' : 'text-gray-700';
+  return (
+    <div className={`relative z-20 mb-10 mr-2 p-5 sm:p-6 rtl:mr-0 rtl:ml-2 ${neoCard(darkMode, 'lg')}`}>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-end lg:gap-10">
+        <div>
+          <p className={`mb-2 text-xs font-extrabold uppercase ${isAr ? 'tracking-normal' : 'tracking-wide'} ${ink}`}>{t('selectOrder')}</p>
+          <Dropdown ariaLabel={t('selectOrder')} value={order.id} onChange={onSelect} options={options} darkMode={darkMode} />
+        </div>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+            <h2 className={`text-2xl font-extrabold uppercase sm:text-3xl ${isAr ? 'tracking-normal' : 'tracking-[-0.02em]'} ${ink}`}>
+              {t('orderNumber')} <span className={darkMode ? 'hp-hl-dark' : 'hp-hl'} dir="ltr">#{shortId(order)}</span>
+            </h2>
+            <p className={`flex items-center gap-2 text-sm font-extrabold uppercase ${statusTone(order.status, darkMode)}`}>
+              <StatusIcon aria-hidden="true" className="h-5 w-5" />{statusText}
+            </p>
+          </div>
+          {!isCancelled && (
+            <div className="mt-4">
+              <div className="mb-2 flex items-center justify-between">
+                <p className={`text-xs font-extrabold uppercase ${muted}`}>{t('overallProgress')}</p>
+                <p className={`text-xs font-extrabold tabular-nums ${ink}`} dir="ltr">{progressPct}%</p>
               </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-    )}
-
-    <div className="nb-gray nb-line flex items-start gap-2 border-2 border-dotted p-3 text-xs">
-      <FiShield className="nb-ic mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
-      <p className="opacity-90"><span className="font-extrabold">{t('trackingHelp')}</span> {t('trackingHelpText')}</p>
-    </div>
-  </aside>
-));
-
-export const CantFindCard = memo(({ t }) => (
-  <div className="nb-card flex flex-col items-start gap-4 p-4 sm:flex-row sm:items-center sm:p-5">
-    <span className="nb-chip nb-chip-a !p-2.5"><FiHeadphones className="h-5 w-5" /></span>
-    <div className="min-w-0 flex-1">
-      <p className="text-sm font-extrabold uppercase">{t('cantFindTitle')}</p>
-      <p className="nb-muted text-xs">{t('cantFindText')}</p>
-    </div>
-    <div className="flex w-full gap-3 sm:w-auto">
-      <a href="/support" className="nb-btn flex-1 px-3 py-2 text-xs uppercase sm:flex-none"><FiHeadphones className="h-3.5 w-3.5" /> {t('support')}</a>
-      <a href="/chat" className="nb-btn nb-btn-a flex-1 px-3 py-2 text-xs uppercase sm:flex-none"><FiMessageCircle className="h-3.5 w-3.5" /> {t('liveChat')}</a>
-    </div>
-  </div>
-));
-
-const StateCard = ({ icon: Icon = FiBox, title, text, children }) => (
-  <div className="nb-card mx-auto max-w-md px-6 py-10 text-center">
-    <span className="nb-chip nb-chip-a mx-auto mb-4 !p-3"><Icon className="h-8 w-8" /></span>
-    <p className="text-lg font-extrabold uppercase"><UnderlinedTitle text={title} /></p>
-    {text && <p className="mt-3 mb-6 text-sm opacity-80">{text}</p>}
-    {children}
-  </div>
-);
-
-const SKELETON_W = [[60, 40], [72, 52], [50, 34], [66, 46]];
-const TrackSkeleton = () => (
-  <div className="nb-card space-y-4 p-5" aria-busy="true">
-    <div className="nb-gray nb-line h-11 animate-pulse border-2 motion-reduce:animate-none" />
-    {SKELETON_W.map(([a, b], i) => (
-      <div key={i} className="flex items-center gap-3">
-        <div className="nb-gray nb-line h-9 w-9 animate-pulse border-2 motion-reduce:animate-none" />
-        <div className="flex-1 space-y-1.5">
-          <div className="nb-gray h-3.5 animate-pulse motion-reduce:animate-none" style={{ width: `${a}%` }} />
-          <div className="nb-gray h-3 animate-pulse opacity-70 motion-reduce:animate-none" style={{ width: `${b}%` }} />
+              <div
+                className={`h-4 overflow-hidden rounded-full border-2 border-[color:var(--ink)] ${darkMode ? 'bg-[#1e1e1e]' : 'bg-gray-100'}`}
+                role="progressbar" aria-label={t('overallProgress')} aria-valuenow={progressPct} aria-valuemin={0} aria-valuemax={100}
+              >
+                <div
+                  className="h-full origin-left rounded-full bg-[color:var(--acc)] transition-transform duration-500 ease-out rtl:origin-right motion-reduce:transition-none"
+                  style={{ transform: `scaleX(${progressPct / 100})` }}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
-    ))}
+    </div>
+  );
+});
+
+const InfoPanel = memo(({ rows, status, statusText, darkMode, t }) => {
+  const ink = darkMode ? 'text-white' : 'text-emerald-950';
+  const muted = darkMode ? 'text-neutral-400' : 'text-gray-600';
+  return (
+    <aside className={`h-fit gap-5 p-5 lg:sticky lg:top-24 ${neoCard(darkMode, 'sm')}`}>
+      <div className={`flex items-center gap-3 p-3 ${ROW_BOX} ${darkMode ? 'bg-[#1e1e1e]' : 'bg-gray-50'}`}>
+        <span aria-hidden="true" className={`${ICON_BOX} h-12 w-12`}><FiBox className="h-6 w-6" /></span>
+        <div className="min-w-0">
+          <p className={`text-[11px] font-extrabold uppercase ${muted}`}>{t('liveTracking')}</p>
+          <p className={`mt-0.5 truncate text-sm font-extrabold uppercase ${statusTone(status, darkMode)}`}>{statusText}</p>
+        </div>
+      </div>
+
+      {rows.length > 0 && (
+        <div>
+          <h3 className={`mb-3 text-base font-extrabold uppercase ${ink}`}><span className={darkMode ? 'hp-hl-dark' : 'hp-hl'}>{t('orderDetails')}</span></h3>
+          <ul className="space-y-3">
+            {rows.map(({ icon: Icon, label, value }) => (
+              <li key={label + value} className="flex items-start gap-3">
+                <span aria-hidden="true" className={`${ICON_BOX} h-9 w-9`}><Icon className="h-4 w-4" /></span>
+                <div className="min-w-0">
+                  <p className={`text-[11px] font-bold uppercase ${muted}`}>{label}</p>
+                  <p className={`truncate text-sm font-extrabold ${ink}`}>{value}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className={`flex items-start gap-2.5 p-3 text-xs ${ROW_BOX} ${darkMode ? 'bg-[#1e1e1e] text-neutral-300' : 'bg-gray-50 text-gray-700'}`}>
+        <FiShield aria-hidden="true" className={`mt-0.5 h-4 w-4 flex-shrink-0 ${darkMode ? 'text-[#39ff88]' : 'text-emerald-600'}`} />
+        <p className="font-medium leading-relaxed"><span className={`font-extrabold ${ink}`}>{t('trackingHelp')}</span> {t('trackingHelpText')}</p>
+      </div>
+    </aside>
+  );
+});
+
+export const CantFindCard = memo(({ t, darkMode = false }) => (
+  <div className={`items-start gap-4 p-5 sm:flex-row sm:items-center ${neoCard(darkMode, 'sm')}`}>
+    <span aria-hidden="true" className={`${ICON_BOX} h-11 w-11`}><FiHeadphones className="h-5 w-5" /></span>
+    <div className="min-w-0 flex-1">
+      <p className={`text-base font-extrabold uppercase ${darkMode ? 'text-white' : 'text-emerald-950'}`}>{t('cantFindTitle')}</p>
+      <p className={`mt-1 text-sm font-medium ${darkMode ? 'text-neutral-300' : 'text-gray-700'}`}>{t('cantFindText')}</p>
+    </div>
+    <div className="flex w-full flex-wrap gap-3 pb-1 pe-1 sm:w-auto">
+      <Link to="/support" className={`${neoBtn(darkMode, false)} flex-1 sm:flex-none`}><FiHeadphones aria-hidden="true" className="h-4 w-4" />{t('support')}</Link>
+      <Link to="/chat" className={`${neoBtn(darkMode, true)} flex-1 sm:flex-none`}><FiMessageCircle aria-hidden="true" className="h-4 w-4" />{t('liveChat')}</Link>
+    </div>
   </div>
-);
+));
+
+const StateCard = memo(({ icon: Icon, title, text, darkMode, children }) => (
+  <div className={`mx-auto max-w-md items-center px-6 py-10 text-center ${neoCard(darkMode, 'lg')}`}>
+    {Icon ? (
+      <span aria-hidden="true" className={`${ICON_BOX} mb-4 h-16 w-16 !rounded-xl`}><Icon className="h-8 w-8" /></span>
+    ) : (
+      <div aria-hidden="true" className="mb-3 h-40 w-40">
+        <HeroArt type="track" darkMode={darkMode} />
+      </div>
+    )}
+    <h2 className={`text-xl font-extrabold uppercase ${darkMode ? 'text-white' : 'text-emerald-950'}`}><span className={darkMode ? 'hp-hl-dark' : 'hp-hl'}>{title}</span></h2>
+    {text && <p className={`mt-4 mb-6 text-sm font-medium ${darkMode ? 'text-neutral-300' : 'text-gray-700'}`}>{text}</p>}
+    <div className="pb-1 pe-1">{children}</div>
+  </div>
+));
+
+const SKELETON_W = [[60, 40], [72, 52], [50, 34], [66, 46]];
+const TrackSkeleton = memo(({ darkMode }) => {
+  const bar = darkMode ? 'bg-[#2a2a2a]' : 'bg-gray-200/70';
+  return (
+    <div className="space-y-5" role="status" aria-busy="true">
+      <div className={`h-12 animate-pulse rounded-2xl motion-reduce:animate-none ${bar}`} />
+      {SKELETON_W.map(([a, b], i) => (
+        <div key={i} className="flex items-center gap-4">
+          <div className={`h-10 w-10 flex-shrink-0 animate-pulse rounded-lg motion-reduce:animate-none ${bar}`} />
+          <div className="flex-1 space-y-2">
+            <div className={`h-4 animate-pulse rounded motion-reduce:animate-none ${bar}`} style={{ width: `${a}%` }} />
+            <div className={`h-3 animate-pulse rounded motion-reduce:animate-none ${bar}`} style={{ width: `${b}%` }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+});
+
+const EMPTY_LIST = [];
 
 const TrackContent = memo(({ darkMode }) => {
   const language = useAppLanguage();
@@ -345,10 +457,9 @@ const TrackContent = memo(({ darkMode }) => {
   const [token] = useState(() => (typeof window !== 'undefined' ? localStorage.getItem('authToken') : null));
   const [selectedId, setSelectedId] = useState(null);
 
-  useEffect(() => { ensureNbFont(); }, []);
   useEffect(() => { document.title = 'Track your order | Tech-Restore'; }, []);
 
-  const { data: orders = [], isLoading, isError, isFetching, refetch } = useQuery({
+  const { data: orders = EMPTY_LIST, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['track_orders', token],
     queryFn: async ({ signal }) => {
       const res = await api.get('/api/users/orders', { signal, headers: { Authorization: `Bearer ${token}` } });
@@ -374,113 +485,101 @@ const TrackContent = memo(({ darkMode }) => {
     () => STATUS_STEPS
       .filter((s) => (isCancelled ? s.key !== 'DELIVERED' : s.key !== 'CANCELLED'))
       .map((s) => ({ ...s, label: t(s.labelKey), sub: t(s.subKey) })),
-    [isCancelled, t]
+    [isCancelled, t],
   );
 
-  const timestamps = useMemo(
-    () => (order ? steps.map((s) => stepTimestamp(order, s.key, loc)) : []),
-    [order, steps, loc]
-  );
-  const meta = useMemo(() => (order ? buildMeta(order, t, loc) : []), [order, t, loc]);
-  const rows = useMemo(() => (order ? buildDetails(order, t, loc) : []), [order, t, loc]);
+  const timestamps = useMemo(() => (order ? steps.map((s) => stepTimestamp(order, s.key, loc)) : EMPTY_LIST), [order, steps, loc]);
+  const meta = useMemo(() => (order ? buildMeta(order, t, loc) : EMPTY_LIST), [order, t, loc]);
+  const rows = useMemo(() => (order ? buildDetails(order, t, loc) : EMPTY_LIST), [order, t, loc]);
   const orderOptions = useMemo(
     () => orders.map((o) => ({ value: o.id, label: `${t('orderNumber')} #${shortId(o)} · ${statusLabel(o.status)}` })),
-    [orders, t, statusLabel]
+    [orders, t, statusLabel],
   );
+
+  const ready = !!token && !isLoading && !isError && !!order;
+  const ink = darkMode ? 'text-white' : 'text-emerald-950';
 
   let body;
   if (!token) {
     body = (
-      <StateCard icon={FiLock} title={t('loginRequired')} text={t('loginTrack')}>
-        <a href="/login" className="nb-btn nb-btn-a px-5 py-2.5 text-sm uppercase"><FiLock className="h-4 w-4" /> {t('goToLogin')}</a>
+      <StateCard icon={FiLock} title={t('loginRequired')} text={t('loginTrack')} darkMode={darkMode}>
+        <Link to="/login" className={neoBtn(darkMode, true)}><FiLock aria-hidden="true" className="h-4 w-4" />{t('goToLogin')}</Link>
       </StateCard>
     );
   } else if (isLoading) {
-    body = <TrackSkeleton />;
+    body = <TrackSkeleton darkMode={darkMode} />;
   } else if (isError) {
     body = (
-      <StateCard title={t('loadErrorTitle')} text={t('loadErrorText')}>
-        <button type="button" onClick={() => refetch()} className="nb-btn nb-btn-a px-5 py-2.5 text-sm uppercase"><FiRefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin motion-reduce:animate-none' : ''}`} /> {t('tryAgain')}</button>
+      <StateCard title={t('loadErrorTitle')} text={t('loadErrorText')} darkMode={darkMode}>
+        <button type="button" onClick={() => refetch()} className={neoBtn(darkMode, true)}>
+          <FiRefreshCw aria-hidden="true" className={`h-4 w-4 ${isFetching ? 'animate-spin motion-reduce:animate-none' : ''}`} />{t('tryAgain')}
+        </button>
       </StateCard>
     );
   } else if (!order) {
     body = (
-      <StateCard icon={FiShoppingBag} title={t('noOrders')} text={t('startShopping')}>
-        <a href="/devices" className="nb-btn nb-btn-a px-5 py-2.5 text-sm uppercase"><FiShoppingBag className="h-4 w-4" /> {t('startShoppingButton')}</a>
+      <StateCard icon={FiShoppingBag} title={t('noOrders')} text={t('startShopping')} darkMode={darkMode}>
+        <Link to="/devices" className={neoBtn(darkMode, true)}><FiShoppingBag aria-hidden="true" className="h-4 w-4" />{t('startShoppingButton')}</Link>
       </StateCard>
     );
   } else {
     body = (
-      <div className="grid items-start gap-5 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <section className="nb-card min-w-0 space-y-6 p-4 sm:p-6">
-          <div>
-            <p className="mb-2 flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide"><span className="nb-bar" aria-hidden="true" />{t('selectOrder')}</p>
-            <NbDropdown ariaLabel={t('selectOrder')} value={order.id} onChange={setSelectedId} options={orderOptions} className="w-full" />
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-2xl font-extrabold uppercase tracking-tight sm:text-3xl">
-              {t('orderNumber')} <span className="nb-ul">#{shortId(order)}</span>
-            </h2>
-            <span className={`nb-chip ${statusChip(order.status)}`}>{statusLabel(order.status)}</span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {meta.map((m) => <MetaTile key={m.label} {...m} />)}
-          </div>
-
-          {!isCancelled && (
-            <div>
-              <div className="mb-1.5 flex items-center justify-between">
-                <p className="nb-muted text-xs font-extrabold uppercase">{t('overallProgress')}</p>
-                <p className="text-xs font-extrabold tabular-nums" dir="ltr">{progressPct}%</p>
-              </div>
-              <div className="nb-gray nb-line h-4 overflow-hidden border-2" role="progressbar" aria-label={t('overallProgress')} aria-valuenow={progressPct} aria-valuemin={0} aria-valuemax={100}>
-                <div className="h-full bg-[color:var(--nb-btn)] transition-[width] duration-700 ease-out motion-reduce:transition-none" style={{ width: `${progressPct}%` }} />
-              </div>
+      <div className="space-y-8">
+        <div className="grid items-start gap-6 pb-2 pe-2 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-8">
+          <section aria-label={t('orderNumber')} className={`hp-rise min-w-0 gap-8 p-5 sm:p-8 ${neoCard(darkMode, 'lg')}`}>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {meta.map((m) => <MetaTile key={m.label} {...m} darkMode={darkMode} />)}
             </div>
-          )}
 
-          <ol>
-            {steps.map((step, i) => {
-              const idx = STEP_INDEX[step.key];
-              return (
-                <StepRow
-                  key={step.key} step={step} t={t}
-                  isLast={i === steps.length - 1}
-                  isCompleted={!isCancelled && idx <= currentIdx}
-                  isCurrent={idx === currentIdx}
-                  isCancelledStep={isCancelled && step.key === 'CANCELLED'}
-                  timestamp={timestamps[i]}
-                />
-              );
-            })}
-          </ol>
+            <ol>
+              {steps.map((step, i) => {
+                const idx = STEP_INDEX[step.key];
+                return (
+                  <StepRow
+                    key={step.key} step={step} darkMode={darkMode} t={t}
+                    isLast={i === steps.length - 1}
+                    isCompleted={!isCancelled && idx <= currentIdx}
+                    isCurrent={idx === currentIdx}
+                    isCancelledStep={isCancelled && step.key === 'CANCELLED'}
+                    timestamp={timestamps[i]}
+                  />
+                );
+              })}
+            </ol>
 
-          <div className="flex justify-center">
-            <a href="/devices" className="nb-btn nb-btn-a px-5 py-2.5 text-sm uppercase"><FiShoppingBag className="h-4 w-4" /> {t('exploreDevices')}</a>
-          </div>
-        </section>
+            <div className="flex justify-center pb-1 pe-1">
+              <Link to="/devices" className={neoBtn(darkMode, true)}><FiShoppingBag aria-hidden="true" className="h-4 w-4" />{t('exploreDevices')}</Link>
+            </div>
+          </section>
 
-        <InfoPanel rows={rows} status={order.status} statusText={statusLabel(order.status)} t={t} />
+          <InfoPanel rows={rows} status={order.status} statusText={statusLabel(order.status)} darkMode={darkMode} t={t} />
+        </div>
+
+       
       </div>
     );
   }
 
   return (
     <div
-      dir={languageDirection(language)} lang={language} style={isAr ? undefined : NB_FONT_STYLE}
-      className={`nb ${darkMode ? 'nb-dark' : ''} min-h-screen overflow-x-hidden pb-14 ${isAr ? 'font-cairo' : ''}`}
+      dir={languageDirection(language)}
+      lang={language}
+      className={`min-h-screen overflow-x-hidden ${isAr ? 'font-cairo' : 'font-jakarta'} ${darkMode ? `${DARK_PAGE} ${ink}` : 'bg-gray-50 text-gray-900'}`}
     >
-      {STYLE_EL}
-      <Defs3D />
-      <Suspense fallback={<div className="nb-gray h-[260px] w-full animate-pulse motion-reduce:animate-none sm:h-[320px]" />}>
-        <Hero variant="track" darkMode={darkMode} />
-      </Suspense>
+      <Hero variant="track" darkMode={darkMode} />
 
-      <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
-        {body}
-      </div>
+      <section className={`hp-pattern ${darkMode ? 'hp-pattern-dark' : ''} py-10 sm:py-14 ${darkMode ? DARK_PAGE : 'bg-gray-50'}`}>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          {ready && (
+            <StatusStrip
+              order={order} options={orderOptions} onSelect={setSelectedId}
+              progressPct={progressPct} isCancelled={isCancelled} statusText={statusLabel(order.status)}
+              darkMode={darkMode} isAr={isAr} t={t}
+            />
+          )}
+          {body}
+        </div>
+      </section>
     </div>
   );
 });

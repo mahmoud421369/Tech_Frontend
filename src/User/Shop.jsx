@@ -1,12 +1,12 @@
 import React, {
   useEffect, useLayoutEffect, useState, useRef, useMemo, useCallback, useId, memo, lazy, Suspense, useDeferredValue, useTransition,
 } from "react";
-import { useNavigate, useNavigationType, useParams } from "react-router-dom";
+import { Link, useNavigate, useNavigationType, useParams } from "react-router-dom";
 import {
   FiSearch, FiTrash2, FiEdit3, FiMessageCircle, FiCheckCircle, FiShoppingCart, FiX, FiSliders,
   FiChevronLeft, FiChevronRight, FiArrowRight, FiCheck, FiChevronDown,
   FiShield, FiTruck, FiRefreshCw, FiTag, FiPackage, FiAward, FiExternalLink, FiArrowUp,
-  FiCalendar, FiClock, FiHeart, FiCornerDownRight,
+  FiCalendar, FiClock, FiHeart, FiCornerDownRight, FiPlus, FiMapPin, FiPhone, FiAlertCircle, FiShoppingBag,
 } from "react-icons/fi";
 import { RiStarFill } from "react-icons/ri";
 import { LazyMotion, MotionConfig, domAnimation, m, AnimatePresence } from "framer-motion";
@@ -15,12 +15,13 @@ import api from "../common/api/api";
 import useAuthStore from "../common/store/Auth";
 import { parseAccessToken } from "../common/utils/authSession";
 import { recoverGoogleSession } from "../common/utils/googleSession";
+import { resolveImageSrc } from "../common/utils/productutils";
 import { useAppLanguage, languageDirection } from "../common/utils/useAppLanguage";
 import { UI3D_CSS, Defs3D } from "../components/user/Ui3D";
 import { EXTRAS_CSS, Toaster, toast } from "../components/user/UiExtras";
 import {
-  LISTING_CSS, PAGE_SIZES, CONDITIONS, safeImageUrl, priceStep, clamp, clean, loadSwal,
-  useLangFont, useBackToTop, useModalLock, useHScroll,
+  CONDITIONS, safeImageUrl, priceStep, clamp, clean, loadSwal,
+  useBackToTop, useModalLock, useHScroll,
 } from "../components/user/ListingKit";
 import { IsoIllustration, isoCatKey } from "../components/user/IsoIllustrations";
 import enTranslations from "../locales/en/translation.json";
@@ -32,23 +33,84 @@ const queryClient = new QueryClient({
 });
 
 const SAVED_KEY = "nb_saved_products";
+const SAVED_MAX = 500;
 const MOBILE_BATCH = 8;
 const HISTOGRAM_BINS = 16;
+const LOW_STOCK = 5;
+const PRODUCT_PAGE_SIZES = [10, 15, 20, 30];
 
-const NB_FONT = "'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
-const NB_FONT_STYLE = { fontFamily: NB_FONT };
-const ensureNbFont = () => {
-  if (typeof document === "undefined" || document.getElementById("nb-font")) return;
-  [["https://fonts.googleapis.com", false], ["https://fonts.gstatic.com", true]].forEach(([href, cors]) => {
-    const l = document.createElement("link");
-    l.rel = "preconnect"; l.href = href; if (cors) l.crossOrigin = "";
-    document.head.appendChild(l);
-  });
-  const link = document.createElement("link");
-  link.id = "nb-font";
-  link.rel = "stylesheet";
-  link.href = "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap";
-  document.head.appendChild(link);
+const HL = (hex) => `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%23${hex}' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E")`;
+
+const PG_CSS = `
+.pg-root{--dx:1;--ink:#022c22;--sh:#022c22;--acc:#34d399;--tx:#022c22;--mu:#4b5563;--sf:#ffffff;--sf2:#f3f4f6;--pg:#f9fafb;--sale:#c2410c;--pos:#15803d;background:var(--pg);color:var(--tx)}
+.pg-root[dir=rtl]{--dx:-1}
+.pg-dark{--ink:#000000;--sh:#000000;--acc:#39ff88;--tx:#ffffff;--mu:#a3a3a3;--sf:#2a2a2a;--sf2:#1e1e1e;--pg:#141414;--sale:#fb923c;--pos:#4ade80}
+.pg-hl{padding-bottom:.2em;background-position:left bottom;background-repeat:no-repeat;background-size:100% .3em;-webkit-box-decoration-break:clone;box-decoration-break:clone;background-image:${HL("10b981")}}
+.pg-dark .pg-hl{background-image:${HL("39ff88")}}
+.pg-glow{background-image:radial-gradient(circle at 6% 0%,rgba(52,211,153,.2),transparent 38%),radial-gradient(circle at 96% 100%,rgba(249,115,22,.1),transparent 36%)}
+.pg-dark .pg-glow{background-image:radial-gradient(circle at 6% 0%,rgba(57,255,136,.09),transparent 38%),radial-gradient(circle at 96% 100%,rgba(249,115,22,.07),transparent 36%)}
+.pg-pattern{--p1:rgba(4,38,26,.13);--p2:rgba(16,185,129,.12);background-image:radial-gradient(circle at 2px 2px,var(--p1) 1.6px,transparent 1.8px),repeating-linear-gradient(135deg,var(--p2) 0 2px,transparent 2px 18px);background-size:22px 22px,auto}
+.pg-dark .pg-pattern{--p1:rgba(57,255,136,.14);--p2:rgba(57,255,136,.06)}
+.pg-hero{background-color:#d1fae5}
+.pg-dark .pg-hero{background-color:#141414}
+.pg-rise{animation:pgRise .24s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*22ms)}
+@keyframes pgRise{from{opacity:0;transform:translate3d(0,12px,0)}to{opacity:1;transform:none}}
+.pg-hero-in{animation:pgHeroIn .5s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*70ms)}
+@keyframes pgHeroIn{from{opacity:0;transform:translate3d(0,18px,0)}to{opacity:1;transform:none}}
+.pg-pop{animation:pgPop .12s ease-out both;transform-origin:top}
+@keyframes pgPop{from{opacity:0;transform:translate3d(0,-6px,0) scale(.98)}to{opacity:1;transform:none}}
+.pg-fade{animation:pgFade .16s ease both}
+@keyframes pgFade{from{opacity:0}to{opacity:1}}
+.pg-spin{animation:pgSpin .7s linear infinite}
+@keyframes pgSpin{to{transform:rotate(360deg)}}
+.pg-nosb{scrollbar-width:none}
+.pg-nosb::-webkit-scrollbar{display:none}
+.pg-sb{scrollbar-width:thin;scrollbar-color:var(--acc) var(--sf2)}
+.pg-bin{background:var(--sf2);box-shadow:inset 0 0 0 1px rgba(128,128,128,.35)}
+.pg-bin-on{background:var(--acc);box-shadow:inset 0 0 0 1.5px var(--ink)}
+.pg-range{position:absolute;inset:0;width:100%;height:20px;margin:0;appearance:none;-webkit-appearance:none;background:transparent;pointer-events:none}
+.pg-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;box-sizing:border-box;pointer-events:auto;width:20px;height:20px;border-radius:6px;background:var(--acc);border:2px solid var(--ink);box-shadow:2px 2px 0 var(--sh);cursor:grab}
+.pg-range::-moz-range-thumb{box-sizing:border-box;pointer-events:auto;width:20px;height:20px;border-radius:6px;background:var(--acc);border:2px solid var(--ink);box-shadow:2px 2px 0 var(--sh);cursor:grab}
+@media (prefers-reduced-motion:reduce){.pg-rise,.pg-hero-in,.pg-pop,.pg-fade,.pg-spin{animation:none}}
+`;
+
+let stylesInjected = false;
+const injectStyles = () => {
+  if (stylesInjected || typeof document === "undefined") return;
+  if (document.getElementById("shop-page-styles")) { stylesInjected = true; return; }
+  const tag = document.createElement("style");
+  tag.id = "shop-page-styles";
+  tag.textContent = `${UI3D_CSS}${EXTRAS_CSS}${PG_CSS}`;
+  document.head.appendChild(tag);
+  stylesInjected = true;
+};
+injectStyles();
+
+const FOCUS = "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]";
+const BOX_LG = "rounded-2xl border-[3px] border-[color:var(--ink)] bg-[color:var(--sf)] text-[color:var(--tx)] [box-shadow:calc(var(--dx)*8px)_8px_0_0_var(--sh)]";
+const BOX_SM = "rounded-2xl border-[3px] border-[color:var(--ink)] bg-[color:var(--sf)] text-[color:var(--tx)] [box-shadow:calc(var(--dx)*6px)_6px_0_0_var(--sh)]";
+const PRESS = `transition-[transform,box-shadow] duration-150 ease-out motion-reduce:transition-none [@media(hover:hover)]:hover:-translate-y-1 [@media(hover:hover)]:hover:[box-shadow:calc(var(--dx)*8px)_10px_0_0_var(--sh)] active:translate-y-[2px] active:translate-x-[calc(var(--dx)*2px)] active:[box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)] ${FOCUS}`;
+const BTN = `inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border-[3px] border-[color:var(--ink)] px-4 py-2.5 text-sm font-extrabold uppercase [box-shadow:calc(var(--dx)*4px)_4px_0_0_var(--sh)] transition-[transform,box-shadow] duration-100 motion-reduce:transition-none active:translate-y-[4px] active:translate-x-[calc(var(--dx)*4px)] active:[box-shadow:0_0_0_0_var(--sh)] disabled:cursor-not-allowed disabled:opacity-40 ${FOCUS}`;
+const BTN_ON = "bg-[color:var(--acc)] text-emerald-950";
+const BTN_OFF = "bg-[color:var(--sf)] text-[color:var(--tx)]";
+const BTN_SM = "!min-h-9 !px-3 !py-1.5 text-xs";
+const ICON = `inline-flex flex-shrink-0 cursor-pointer items-center justify-center rounded-lg border-2 border-[color:var(--ink)] [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)] transition-[transform,box-shadow] duration-100 motion-reduce:transition-none active:translate-y-[3px] active:translate-x-[calc(var(--dx)*3px)] active:[box-shadow:none] disabled:cursor-not-allowed disabled:opacity-40 ${FOCUS}`;
+const FIELD = "rounded-lg border-2 border-[color:var(--ink)] bg-[color:var(--sf2)] text-[color:var(--tx)] focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-[color:var(--acc)]";
+const WRAP = "mx-auto max-w-7xl px-4 sm:px-6 lg:px-8";
+const SECTION = "py-14 sm:py-20";
+const LAZY = "[content-visibility:auto] [contain-intrinsic-size:auto_760px]";
+const GRID = "grid grid-cols-2 gap-4 pb-2 pe-2 sm:grid-cols-3 sm:gap-5 lg:grid-cols-5";
+const MUTED = "text-[color:var(--mu)]";
+
+const LOGO_DIR = "/uploads/shop-logos/";
+const ABSOLUTE_SRC = /^(https?:)?\/\/|^data:image\/|^blob:/i;
+const shopLogoSrc = (s) => {
+  const found = [s?.logoUrl, s?.logo, s?.logoPath, s?.shopLogo].find((v) => typeof v === "string" && v.trim());
+  const raw = found ? found.trim() : "";
+  if (!raw || raw.includes("..")) return null;
+  if (ABSOLUTE_SRC.test(raw)) return raw;
+  const path = raw.includes("/") ? (raw.startsWith("/") ? raw : `/${raw}`) : `${LOGO_DIR}${encodeURIComponent(raw)}`;
+  return resolveImageSrc(path) || path;
 };
 
 const SHOP_TRANSLATIONS = {
@@ -63,37 +125,46 @@ const OFFER_TRANSLATIONS = {
 };
 const EXTRA = {
   en: {
-    eyebrowCollections: "Collections", eyebrowProducts: "Catalog", eyebrowReviews: "Reviews", perPage: "per page", prevPage: "Previous page", nextPage: "Next page",
+    crumbHome: "Home", crumbBreadcrumb: "Breadcrumb", shopBadge: "Shop profile",
+    shopBannerTagline: "Browse products, check offers and chat directly with the shop.",
+    perPage: "per page", prevPage: "Previous page", nextPage: "Next page",
     pageN: "Page {n}", pagination: "Pagination", productDetails: "Details", imageUnavailable: "Image unavailable", noAddress: "No address listed",
     addressLabel: "Address", phoneLabel: "Phone", shopReply: "Shop reply",
-    eyebrowOffers: "Offers", shopOffers: "Shop Offers", shopOffersSubtitle: "Current deals from this shop", viewAllOffers: "View all offers",
+    shopOffers: "Shop Offers", shopOffersSubtitle: "Current deals from this shop", viewAllOffers: "View all offers",
     save: "Save product", saved: "Saved", savedOnly: "Saved only", loadingMore: "Loading more products", endOfList: "You have seen all products",
     all: "All", moreFilters: "More filters", priceMin: "Min", priceMax: "Max", minPriceAria: "Minimum price", maxPriceAria: "Maximum price",
     errorInvalidNumber: "Enter a valid number", errorNegative: "Price can't be negative", errorMinGreater: "Min can't be above max",
     errorMaxLess: "Max can't be below min", errorMaxPrice: "Max price is {{max}}",
     youSave: "Save {{value}}", originalPrice: "Original price", discountedPrice: "Price after discount", discountValue: "Discount",
+    onlyLeft: "Only {{count}} left in stock",
   },
   ar: {
-    eyebrowCollections: "المجموعات", eyebrowProducts: "الكتالوج", eyebrowReviews: "التقييمات", perPage: "لكل صفحة", prevPage: "الصفحة السابقة", nextPage: "الصفحة التالية",
+    crumbHome: "الرئيسية", crumbBreadcrumb: "مسار التنقل", shopBadge: "ملف المتجر",
+    shopBannerTagline: "تصفح المنتجات واطلع على العروض وتحدث مع المتجر مباشرة.",
+    perPage: "لكل صفحة", prevPage: "الصفحة السابقة", nextPage: "الصفحة التالية",
     pageN: "صفحة {n}", pagination: "التنقل بين الصفحات", productDetails: "التفاصيل", imageUnavailable: "الصورة غير متاحة", noAddress: "لا يوجد عنوان مسجل",
     addressLabel: "العنوان", phoneLabel: "الهاتف", shopReply: "رد المتجر",
-    eyebrowOffers: "العروض", shopOffers: "عروض المتجر", shopOffersSubtitle: "أحدث العروض الحالية من هذا المتجر", viewAllOffers: "عرض كل العروض",
+    shopOffers: "عروض المتجر", shopOffersSubtitle: "أحدث العروض الحالية من هذا المتجر", viewAllOffers: "عرض كل العروض",
     save: "حفظ المنتج", saved: "تم الحفظ", savedOnly: "المحفوظة فقط", loadingMore: "جارٍ تحميل المزيد من المنتجات", endOfList: "لقد شاهدت جميع المنتجات",
     all: "الكل", moreFilters: "فلاتر إضافية", priceMin: "الأدنى", priceMax: "الأقصى", minPriceAria: "السعر الأدنى", maxPriceAria: "السعر الأقصى",
     errorInvalidNumber: "أدخل رقمًا صحيحًا", errorNegative: "لا يمكن أن يكون السعر سالبًا", errorMinGreater: "الحد الأدنى لا يمكن أن يتجاوز الأقصى",
     errorMaxLess: "الحد الأقصى لا يمكن أن يقل عن الأدنى", errorMaxPrice: "أقصى سعر هو {{max}}",
     youSave: "وفّر {{value}}", originalPrice: "السعر الأصلي", discountedPrice: "السعر بعد الخصم", discountValue: "الخصم",
+    onlyLeft: "متبقي {{count}} فقط في المخزون",
   },
   fr: {
-    eyebrowCollections: "Collections", eyebrowProducts: "Catalogue", eyebrowReviews: "Avis", perPage: "par page", prevPage: "Page précédente", nextPage: "Page suivante",
+    crumbHome: "Accueil", crumbBreadcrumb: "Fil d'Ariane", shopBadge: "Profil de la boutique",
+    shopBannerTagline: "Parcourez les produits, consultez les offres et discutez directement avec la boutique.",
+    perPage: "par page", prevPage: "Page précédente", nextPage: "Page suivante",
     pageN: "Page {n}", pagination: "Pagination", productDetails: "Détails", imageUnavailable: "Image indisponible", noAddress: "Aucune adresse indiquée",
     addressLabel: "Adresse", phoneLabel: "Téléphone", shopReply: "Réponse de la boutique",
-    eyebrowOffers: "Offres", shopOffers: "Offres de la boutique", shopOffersSubtitle: "Les offres du moment de cette boutique", viewAllOffers: "Voir toutes les offres",
+    shopOffers: "Offres de la boutique", shopOffersSubtitle: "Les offres du moment de cette boutique", viewAllOffers: "Voir toutes les offres",
     save: "Enregistrer le produit", saved: "Enregistré", savedOnly: "Enregistrés uniquement", loadingMore: "Chargement d'autres produits", endOfList: "Vous avez vu tous les produits",
     all: "Tous", moreFilters: "Plus de filtres", priceMin: "Min", priceMax: "Max", minPriceAria: "Prix minimum", maxPriceAria: "Prix maximum",
     errorInvalidNumber: "Saisissez un nombre valide", errorNegative: "Le prix ne peut pas être négatif", errorMinGreater: "Le min ne peut pas dépasser le max",
     errorMaxLess: "Le max ne peut pas être inférieur au min", errorMaxPrice: "Le prix max est {{max}}",
     youSave: "Économisez {{value}}", originalPrice: "Prix d'origine", discountedPrice: "Prix après remise", discountValue: "Remise",
+    onlyLeft: "Plus que {{count}} en stock",
   },
 };
 const getShopTranslation = (language, key, fallbackOrParams) => {
@@ -135,28 +206,24 @@ const normalizeProduct = (p) => {
   else if (discountValue > 0 && apiType) finalPrice = computeFinal(price, apiType, discountValue);
   else if (legacy) finalPrice = round2(price * (1 - legacy / 100));
   const saving = round2(Math.max(0, price - finalPrice));
+  const discount = price > 0 ? (saving / price) * 100 : 0;
   return {
     ...p,
     price,
     finalPrice,
     saving,
-    discount: price > 0 ? (saving / price) * 100 : 0,
+    discount,
     discountType: saving > 0 ? (apiType || "PERCENTAGE") : null,
     discountValue: saving > 0 && discountValue > 0 ? discountValue : 0,
     imageUrl: safeImageUrl(p.imageUrl || p.image) || "",
     _final: finalPrice,
+    _desc: clean(p.description, 140),
+    _rating: clamp(Number(p.rating ?? p.averageRating) || 0, 0, 5),
+    _reviews: Math.max(0, Number(p.reviewCount ?? p.reviewsCount ?? p.ratingCount) || 0),
     _text: `${p.name || ""} ${p.description || ""} ${p.brand || ""}`.toLowerCase(),
     _cat: p.categoryName || p.category || "",
     _ts: Date.parse(p.createdAt) || 0,
   };
-};
-
-const discountBadge = (product, currency) => {
-  if (product.discountValue > 0 && product.discountType === "FIXED_AMOUNT") return `-${money(product.discountValue, currency)}`;
-  if (product.discountValue > 0 && product.discountType === "PERCENTAGE") return `-${NUMBER_FORMAT.format(product.discountValue)}%`;
-  return product.discountType === "FIXED_AMOUNT"
-    ? `-${money(product.saving, currency)}`
-    : `-${Math.max(1, Math.round(product.discount))}%`;
 };
 
 const kindOf = (name = "") => {
@@ -179,9 +246,7 @@ const RATING_BARS = [5, 4, 3, 2, 1];
 const SOON_DAYS = 3;
 const OFFERS_SHOWN = 6;
 const EMPTY_LIST = [];
-
-const STAGGER = Array.from({ length: 8 }, (_, i) => ({ "--i": i }));
-const ACCENT_FILL = { fill: "var(--nb-accent)" };
+const STAGGER = Array.from({ length: 10 }, (_, i) => ({ "--i": i }));
 
 const fmtCache = {};
 const dateFmt = (language, withYear) => {
@@ -245,7 +310,6 @@ const useOfferMeta = (offer, language, currency) =>
     return {
       isPct,
       isFixed,
-      isActive: offer.status === "ACTIVE",
       remaining: days === null ? null : rtf(language).format(days, "day"),
       urgent: days !== null && days <= SOON_DAYS,
       range: formatRange(offer.startDate, offer.endDate, language),
@@ -268,7 +332,8 @@ const useIsMobile = (query = "(max-width: 1023.98px)") => {
 const readSaved = () => {
   try {
     const v = JSON.parse(localStorage.getItem(SAVED_KEY) || "[]");
-    return Array.isArray(v) ? v : [];
+    if (!Array.isArray(v)) return [];
+    return v.filter((x) => (typeof x === "string" && x.length <= 64) || Number.isFinite(x)).slice(-SAVED_MAX);
   } catch {
     return [];
   }
@@ -277,96 +342,34 @@ const readSaved = () => {
 const useSavedProducts = () => {
   const [ids, setIds] = useState(readSaved);
   const toggle = useCallback((id) => {
-    setIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id].slice(-SAVED_MAX);
+      try { localStorage.setItem(SAVED_KEY, JSON.stringify(next)); } catch { }
+      return next;
+    });
   }, []);
-  useEffect(() => {
-    try { localStorage.setItem(SAVED_KEY, JSON.stringify(ids)); } catch { }
-  }, [ids]);
   const set = useMemo(() => new Set(ids), [ids]);
   return [set, toggle];
 };
 
-const NB_CSS = `
-.nb{--nb-bg:#f3f4f6;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e2e5e9;--nb-accent:#10b981;--nb-btn:#059669;--nb-on:#ffffff;--nb-sale:#dc2626;background:var(--nb-bg);color:var(--nb-ink)}
-.nb-dark{--nb-bg:#121212;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#212121;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-on:#022c22;--nb-sale:#fb7185}
-.nb-dark .border-dotted,.nb-dark .nb-dot{border-color:#3f3f3f}
-.nb-seq{border-top:2px solid var(--nb-line)}
-.nb-seq>section:nth-of-type(odd){background:var(--nb-bg)}
-.nb-seq>section:nth-of-type(even){background:var(--nb-gray)}
-.nb-seq>section+section{border-top:2px solid var(--nb-line)}
-.nb-bg{background:var(--nb-bg)}
-.nb-gray{background:var(--nb-gray)}
-.nb-muted{color:var(--nb-muted)}
-.nb-ic{color:var(--nb-accent)}
-.nb-line{border-color:var(--nb-line)}
-.nb-card{background:var(--nb-card);border:2px solid var(--nb-line);box-shadow:5px 5px 0 var(--nb-shadow);transition:transform .15s ease,box-shadow .15s ease}
-.nb-lift{contain:layout style;backface-visibility:hidden}
-.nb-lift:hover{transform:translate3d(-2px,-2px,0);box-shadow:7px 7px 0 var(--nb-shadow)}
-.nb-num{display:inline-flex;align-items:center;justify-content:center;flex:none;width:28px;height:28px;background:var(--nb-btn);color:var(--nb-on);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
-.nb-num-sm{width:24px;height:24px;font-size:10px;box-shadow:1px 1px 0 var(--nb-shadow)}
-.nb-bar{display:inline-block;width:52px;height:16px;background:var(--nb-accent);border:2px solid var(--nb-line)}
-.nb-ul{text-decoration:underline;text-decoration-color:var(--nb-accent);text-decoration-thickness:4px;text-underline-offset:5px;text-decoration-skip-ink:none}
-.nb-rule{display:block;width:100%;height:4px;margin-top:8px;background:var(--nb-accent)}
-.nb-squig path{stroke:var(--nb-accent)}
-.nb-chip{display:inline-flex;align-items:center;gap:4px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);padding:1px 6px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;line-height:1.5}
-.nb-chip-a{background:var(--nb-btn);color:var(--nb-on)}
-.nb-chip-r{background:#e11d48;color:#fff}
-.nb-chip-w{background:#fbbf24;color:#04261a}
-.nb-chip-n{background:var(--nb-gray);color:var(--nb-muted);border-style:dashed}
-.nb-sale{color:var(--nb-sale)}
-.nb-price-old{color:var(--nb-muted);text-decoration:line-through;text-decoration-thickness:2px;text-decoration-color:var(--nb-sale)}
-.nb-save{display:inline-flex;align-items:center;gap:4px;max-width:100%;padding:1px 7px;background:var(--nb-btn);color:var(--nb-on);border:2px solid var(--nb-line);font-size:10px;font-weight:800;text-transform:uppercase;line-height:1.5;white-space:nowrap}
-.nb-ribbon{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:var(--nb-sale);color:#fff;border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);font-size:11px;font-weight:800;line-height:1.3;font-variant-numeric:tabular-nums}
-.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow);font-weight:700;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,background-color .12s ease}
-.nb-btn:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--nb-shadow)}
-.nb-btn:active:not(:disabled){transform:translate(2px,2px);box-shadow:0 0 0 var(--nb-shadow)}
-.nb-btn:disabled{opacity:.45;cursor:not-allowed}
-.nb-btn-a,.nb-btn-on{background:var(--nb-btn);color:var(--nb-on)}
-.nb-btn:focus-visible,.nb-field:focus-within{outline:3px solid var(--nb-accent);outline-offset:2px}
-.nb-arrow{display:inline-flex;align-items:center;justify-content:center;flex:none;width:36px;height:36px;background:var(--nb-btn);color:var(--nb-on);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);cursor:pointer;transition:transform .15s ease}
-.nb-arrow:focus-visible{outline:3px solid var(--nb-accent);outline-offset:2px}
-.nb-lift:hover .nb-arrow{transform:translateX(3px)}
-.nb[dir=rtl] .nb-lift:hover .nb-arrow{transform:translateX(-3px)}
-.nb[dir=rtl] .nb-flip{transform:scaleX(-1)}
-.nb-field{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow)}
-.nb-menu{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:4px 4px 0 var(--nb-shadow)}
-.nb-opt{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;font-size:12px;font-weight:700;text-transform:uppercase;text-align:start;cursor:pointer}
-.nb-opt-active{background:var(--nb-gray)}
-.nb-opt[aria-selected=true]{background:var(--nb-btn);color:var(--nb-on)}
-.nb-media{background:var(--nb-gray)}
-.nb-media-b{border:2px solid var(--nb-line)}
-.nb-pic{border-radius:1rem;contain:layout paint}
-.nb-box{display:flex;align-items:center;justify-content:center;flex:none;width:20px;height:20px;border:2px solid var(--nb-line);background:var(--nb-card);color:var(--nb-on)}
-.nb-box-on{background:var(--nb-btn)}
-.nb-bin{background:var(--nb-gray)}
-.nb-bin-on{background:var(--nb-accent);box-shadow:inset 0 0 0 1.5px var(--nb-line)}
-.nb-range{position:absolute;inset:0;width:100%;height:20px;margin:0;appearance:none;-webkit-appearance:none;background:transparent;pointer-events:none}
-.nb-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;box-sizing:border-box;pointer-events:auto;width:20px;height:20px;border-radius:0;background:var(--nb-accent);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);cursor:grab}
-.nb-range::-moz-range-thumb{box-sizing:border-box;pointer-events:auto;width:20px;height:20px;border-radius:0;background:var(--nb-accent);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);cursor:grab}
-.nb-sub{background:var(--nb-gray);border:2px solid var(--nb-line);border-inline-start:5px solid var(--nb-accent)}
-.nb-star-on{color:#f59e0b}
-.nb-star-off{color:var(--nb-muted);opacity:.35}
-@keyframes nbSpin{to{transform:rotate(360deg)}}
-.nb-spin{animation:nbSpin .7s linear infinite}
-@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn,.nb-arrow{transition:none}.nb-spin{animation:none}}
-`;
-const STYLE_EL = <style>{`${UI3D_CSS}${EXTRAS_CSS}${LISTING_CSS}${NB_CSS}`}</style>;
-
 const EASE = [0.16, 1, 0.3, 1];
 const BACKDROP_MOTION = {
   initial: { opacity: 0 },
-  animate: { opacity: 1, transition: { duration: 0.2, ease: "easeOut" } },
-  exit: { opacity: 0, transition: { duration: 0.18, ease: "easeIn" } },
+  animate: { opacity: 1, transition: { duration: 0.14, ease: "easeOut" } },
+  exit: { opacity: 0, transition: { duration: 0.1, ease: "easeIn" } },
 };
 const PANEL_MOTION = {
-  initial: { opacity: 0, y: 24, scale: 0.97 },
-  animate: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.26, ease: EASE } },
-  exit: { opacity: 0, y: 16, scale: 0.98, transition: { duration: 0.18, ease: "easeIn" } },
+  initial: { opacity: 0, y: 16, scale: 0.98 },
+  animate: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.18, ease: EASE } },
+  exit: { opacity: 0, y: 10, scale: 0.98, transition: { duration: 0.1, ease: "easeIn" } },
 };
-const DRAWER_MOTION = {
-  initial: { y: "100%" },
-  animate: { y: 0, transition: { duration: 0.28, ease: EASE } },
-  exit: { y: "100%", transition: { duration: 0.2, ease: "easeIn" } },
+const drawerMotion = (rtl) => {
+  const off = rtl ? "100%" : "-100%";
+  return {
+    initial: { x: off },
+    animate: { x: 0, transition: { duration: 0.2, ease: EASE } },
+    exit: { x: off, transition: { duration: 0.13, ease: "easeIn" } },
+  };
 };
 const GPU = { willChange: "transform, opacity" };
 
@@ -378,7 +381,7 @@ const useScrollTopOnEnter = (key) => {
   }, [key]);
 };
 
-const telHref = (phone) => `tel:${String(phone).replace(/[^\d+]/g, "")}`;
+const telHref = (phone) => `tel:${String(phone).replace(/[^\d+]/g, "").slice(0, 20)}`;
 
 const isDuplicateReview = (err) => {
   const status = err?.response?.status;
@@ -404,55 +407,37 @@ const reviewError = (err, fallback, ctx, t) => {
   return raw;
 };
 
-const PhoneArt = memo(({ className = "h-9 w-9" }) => (
-  <svg viewBox="0 0 48 48" className={className} aria-hidden="true" focusable="false">
-    <ellipse cx="24" cy="44" rx="11" ry="2.5" fill="#000" opacity=".18" />
-    <rect x="13" y="3" width="22" height="39" rx="5" fill="#0f172a" stroke="#04261a" strokeWidth="2" />
-    <rect x="16" y="8" width="16" height="26" rx="2" style={ACCENT_FILL} />
-    <path d="M16 8h16v6L16 24z" fill="#fff" opacity=".25" />
-    <rect x="21" y="5" width="6" height="1.4" rx=".7" fill="#475569" />
-    <circle cx="24" cy="38" r="1.8" fill="#94a3b8" />
-  </svg>
-));
+const splitHeading = (text) => {
+  const str = String(text ?? "");
+  if (str.includes("**")) return str.split("**").map((part, i) => ({ part, hl: i % 2 === 1 }));
+  const mt = str.match(/^(.*[,،]\s*)([^,،]+)$/);
+  if (mt) return [{ part: mt[1], hl: false }, { part: mt[2], hl: true }];
+  const words = str.split(" ");
+  if (words.length < 2) return [{ part: str, hl: true }];
+  const n = words.length <= 3 ? 1 : 2;
+  return [{ part: `${words.slice(0, -n).join(" ")} `, hl: false }, { part: words.slice(-n).join(" "), hl: true }];
+};
 
-const PinArt = memo(({ className = "h-9 w-9" }) => (
-  <svg viewBox="0 0 48 48" className={className} aria-hidden="true" focusable="false">
-    <ellipse cx="24" cy="44" rx="10" ry="2.5" fill="#000" opacity=".18" />
-    <path d="M24 42C24 42 9 28 9 18a15 15 0 0 1 30 0c0 10-15 24-15 24z" style={ACCENT_FILL} stroke="#04261a" strokeWidth="2" strokeLinejoin="round" />
-    <circle cx="24" cy="18" r="6" fill="#fff" stroke="#04261a" strokeWidth="2" />
-  </svg>
-));
-
-const UnderlinedTitle = memo(({ text }) => {
-  const s = String(text || "");
-  const i = s.lastIndexOf(" ");
-  const head = i > 0 ? s.slice(0, i + 1) : "";
-  const tail = i > 0 ? s.slice(i + 1) : s;
+const SectionTitle = memo(({ title, subtitle, children }) => {
+  const parts = useMemo(() => splitHeading(title), [title]);
   return (
-    <>
-      {head}
-      <span className="relative inline-block">
-        {tail}
-        <svg aria-hidden="true" focusable="false" viewBox="0 0 100 10" preserveAspectRatio="none" className="nb-squig pointer-events-none absolute inset-x-0 -bottom-2 h-2.5 w-full">
-          <path d="M1 6 C 20 2, 40 9, 60 5 S 90 3, 99 6" fill="none" strokeWidth="5" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-        </svg>
-      </span>
-    </>
+    <div className="mb-10 flex flex-wrap items-end justify-between gap-x-8 gap-y-4 sm:mb-12">
+      <div className="min-w-0 max-w-3xl">
+        <h2 className="text-3xl font-extrabold leading-[1.18] tracking-[-0.04em] [text-wrap:balance] rtl:leading-[1.4] rtl:tracking-normal sm:text-5xl lg:text-6xl">
+          {parts.map(({ part, hl }, i) => (hl ? <span key={i} className="pg-hl">{part}</span> : part))}
+        </h2>
+        {subtitle && <p className={`mt-5 max-w-2xl text-base font-medium leading-relaxed sm:text-lg ${MUTED}`}>{subtitle}</p>}
+      </div>
+      {children}
+    </div>
   );
 });
 
-const SectionHead = memo(({ eyebrow, title, subtitle, count, action, as: Tag = "h2" }) => (
-  <header className="mb-6 flex flex-wrap items-end justify-between gap-4 sm:mb-8">
-    <div className="min-w-0 max-w-2xl">
-      <p className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide"><span className="nb-bar" aria-hidden="true" />{eyebrow}</p>
-      <Tag className="mt-3 text-3xl font-extrabold leading-[1.15] tracking-tight sm:text-4xl lg:text-5xl">
-        <UnderlinedTitle text={title} />
-        {count != null && <span dir="ltr" className="nb-chip ms-3 align-middle text-xs">{count}</span>}
-      </Tag>
-      {subtitle && <p className="nb-muted mt-4 text-base sm:text-lg">{subtitle}</p>}
-    </div>
-    {action}
-  </header>
+const CardFooter = memo(({ label }) => (
+  <div className="mt-auto flex items-center justify-between gap-3 border-t-2 border-[color:var(--ink)] pt-3">
+    <span className="truncate text-sm font-extrabold uppercase tracking-wide rtl:tracking-normal">{label}</span>
+    <span aria-hidden="true" className={`${ICON} h-9 w-9 bg-[color:var(--acc)] text-emerald-950`}><FiArrowRight className="h-4 w-4 rtl:rotate-180" /></span>
+  </div>
 ));
 
 const NbDropdown = memo(({ value, onChange, options, ariaLabel, className = "", align = "start" }) => {
@@ -501,22 +486,25 @@ const NbDropdown = memo(({ value, onChange, options, ariaLabel, className = "", 
         ref={btnRef} type="button" aria-label={ariaLabel} aria-haspopup="listbox" aria-expanded={isOpen} aria-controls={listId}
         aria-activedescendant={isOpen ? `${uid}-o${active}` : undefined}
         onClick={() => setIsOpen((o) => !o)} onKeyDown={onKeyDown}
-        className="nb-field flex h-10 w-full items-center justify-between gap-2 ps-3 pe-3 text-start text-xs font-bold uppercase"
+        className={`flex h-11 w-full cursor-pointer items-center justify-between gap-2 px-3 text-start text-sm font-semibold outline-none ${FIELD} ${FOCUS}`}
       >
         <span className="truncate">{current?.label}</span>
-        <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform duration-150 ${isOpen ? "rotate-180" : ""}`} />
+        <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform duration-150 motion-reduce:transition-none ${isOpen ? "rotate-180" : ""}`} />
       </button>
       {isOpen && (
         <ul ref={listRef} id={listId} role="listbox" aria-label={ariaLabel} tabIndex={-1}
-          className={`nb-menu absolute top-full z-30 mt-2 max-h-64 min-w-full overflow-y-auto overscroll-contain py-1 ${align === "end" ? "end-0" : "start-0"}`}>
-          {options.map((o, i) => (
-            <li key={o.value} id={`${uid}-o${i}`} role="option" aria-selected={o.value === value}
-              onPointerEnter={() => setActive(i)} onClick={() => choose(i)}
-              className={`nb-opt whitespace-nowrap ${i === active ? "nb-opt-active" : ""}`}>
-              <span>{o.label}</span>
-              {o.value === value && <FiCheck aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0" strokeWidth={3} />}
-            </li>
-          ))}
+          className={`pg-pop pg-sb absolute top-full z-30 mt-2 max-h-64 min-w-full overflow-y-auto overscroll-contain py-1 ${BOX_SM} !rounded-xl ${align === "end" ? "end-0" : "start-0"}`}>
+          {options.map((o, i) => {
+            const selected = o.value === value;
+            return (
+              <li key={o.value} id={`${uid}-o${i}`} role="option" aria-selected={selected}
+                onPointerEnter={() => setActive(i)} onClick={() => choose(i)}
+                className={`flex min-h-11 cursor-pointer items-center justify-between gap-2 whitespace-nowrap px-3 py-2 text-sm font-bold ${selected ? "bg-[color:var(--acc)] text-emerald-950" : i === active ? "bg-[color:var(--sf2)]" : ""}`}>
+                <span className="truncate">{o.label}</span>
+                {selected && <FiCheck aria-hidden="true" className="h-4 w-4 flex-shrink-0" strokeWidth={3} />}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
@@ -524,8 +512,8 @@ const NbDropdown = memo(({ value, onChange, options, ariaLabel, className = "", 
 });
 
 const FilterChip = memo(({ label, onRemove }) => (
-  <button type="button" onClick={onRemove} className="nb-btn gap-1.5 px-2.5 py-1 text-xs">
-    <span className="max-w-[10rem] truncate">{label}</span><FiX className="h-3 w-3 flex-shrink-0" />
+  <button type="button" onClick={onRemove} className={`${BTN} ${BTN_OFF} ${BTN_SM} normal-case`}>
+    <span className="max-w-[10rem] truncate">{label}</span><FiX aria-hidden="true" className="h-3 w-3 flex-shrink-0" />
   </button>
 ));
 
@@ -540,29 +528,28 @@ const pageWindow = (cur, total) => {
   return out;
 };
 
-const PAGE_BTN = "inline-flex h-10 min-w-[2.5rem] items-center justify-center border-2 border-[color:var(--nb-line)] bg-[color:var(--nb-card)] px-2 text-sm font-bold tabular-nums text-[color:var(--nb-ink)] shadow-[3px_3px_0_var(--nb-shadow)] transition duration-100 hover:-translate-x-px hover:-translate-y-px hover:shadow-[4px_4px_0_var(--nb-shadow)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--nb-accent)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-x-0 disabled:hover:translate-y-0 disabled:hover:shadow-[3px_3px_0_var(--nb-shadow)] motion-reduce:transition-none";
-const PAGE_BTN_ON = "!bg-[color:var(--nb-btn)] !text-[color:var(--nb-on)]";
+const PAGE_BTN = `${BTN} !min-h-10 !min-w-[2.5rem] !px-2 tabular-nums`;
 
 const Pagination = memo(({ page, total, onChange, label, t }) => {
   const items = useMemo(() => pageWindow(page, total), [page, total]);
   if (total <= 1) return null;
   return (
     <nav aria-label={label}>
-      <ul className="flex flex-wrap items-center justify-center gap-2">
+      <ul className="flex flex-wrap items-center justify-center gap-2 pe-1 pb-1">
         <li>
-          <button type="button" className={PAGE_BTN} disabled={page <= 1} onClick={() => onChange(page - 1)} aria-label={t("prevPage")}>
-            <FiChevronLeft aria-hidden="true" className="nb-flip h-4 w-4" />
+          <button type="button" className={`${PAGE_BTN} ${BTN_OFF}`} disabled={page <= 1} onClick={() => onChange(page - 1)} aria-label={t("prevPage")}>
+            <FiChevronLeft aria-hidden="true" className="h-4 w-4 rtl:rotate-180" />
           </button>
         </li>
         {items.map((x) => (typeof x === "number" ? (
           <li key={x}>
             <button type="button" onClick={() => onChange(x)} aria-label={t("pageN").replace("{n}", x)} aria-current={x === page ? "page" : undefined}
-              className={`${PAGE_BTN} ${x === page ? PAGE_BTN_ON : ""}`}>{x}</button>
+              className={`${PAGE_BTN} ${x === page ? BTN_ON : BTN_OFF}`}>{x}</button>
           </li>
         ) : <li key={x} aria-hidden="true" className="px-1 font-extrabold">…</li>))}
         <li>
-          <button type="button" className={PAGE_BTN} disabled={page >= total} onClick={() => onChange(page + 1)} aria-label={t("nextPage")}>
-            <FiChevronRight aria-hidden="true" className="nb-flip h-4 w-4" />
+          <button type="button" className={`${PAGE_BTN} ${BTN_OFF}`} disabled={page >= total} onClick={() => onChange(page + 1)} aria-label={t("nextPage")}>
+            <FiChevronRight aria-hidden="true" className="h-4 w-4 rtl:rotate-180" />
           </button>
         </li>
       </ul>
@@ -583,158 +570,208 @@ const InfiniteSentinel = memo(({ hasMore, shown, total, onMore, t }) => {
   return (
     <div ref={ref} className="flex min-h-[3.5rem] items-center justify-center pt-8" role="status" aria-live="polite">
       {hasMore ? (
-        <span className="nb-chip !px-3 !py-1.5">
-          <span aria-hidden="true" className="nb-spin h-3.5 w-3.5 rounded-full border-2 border-current border-t-transparent" />
+        <span className="flex items-center gap-2 text-xs font-extrabold uppercase">
+          <span aria-hidden="true" className="pg-spin h-4 w-4 rounded-full border-2 border-current border-t-transparent" />
           {t("loadingMore")}
         </span>
       ) : total > MOBILE_BATCH ? (
-        <span className="nb-chip !px-3 !py-1.5"><FiCheck aria-hidden="true" className="h-3 w-3" />{t("endOfList")}</span>
+        <span className={`flex items-center gap-1.5 text-xs font-extrabold uppercase ${MUTED}`}><FiCheck aria-hidden="true" className="h-3.5 w-3.5" />{t("endOfList")}</span>
       ) : null}
     </div>
   );
 });
 
-const Frame = ({ darkMode, dir, language, font, isAr, children }) => (
-  <div dir={dir} lang={language} style={isAr ? font.style : NB_FONT_STYLE}
-    className={`nb ${darkMode ? "nb-dark" : ""} min-h-screen overflow-x-hidden ${isAr ? font.className : ""}`}>
-    {STYLE_EL}
+const Frame = ({ darkMode, dir, language, isAr, children }) => (
+  <div dir={dir} lang={language} className={`pg-root ${darkMode ? "pg-dark" : ""} min-h-screen overflow-x-clip ${isAr ? "font-cairo" : "font-jakarta"}`}>
     {children}
   </div>
 );
 
+const ShopLogo = memo(({ src, name, children }) => {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => { setFailed(false); }, [src]);
+  const onError = useCallback(() => setFailed(true), []);
+  if (!src || failed) return children;
+  return (
+    <img
+      src={src} alt={name || ""} width={200} height={200}
+      decoding="async" fetchPriority="high" referrerPolicy="no-referrer" onError={onError}
+      className="absolute inset-0 h-full w-full object-cover"
+    />
+  );
+});
+
 const DeviceArt = memo(({ name, categoryName, darkMode, label }) => (
   <div
-    className="nb-gray absolute inset-0 flex flex-col items-center justify-center gap-1 overflow-hidden"
+    className="absolute inset-0 flex flex-col items-center justify-center gap-1 overflow-hidden bg-[color:var(--sf2)]"
     role="img" aria-label={name ? `${name} – ${label}` : label}
   >
     <IsoIllustration
       type={isoCatKey(kindOf(categoryName || name))} tone="emerald" darkMode={darkMode} onGreen={false}
-      className="h-[64%] w-[64%] transition-transform duration-300 group-hover:scale-105"
+      className="h-[64%] w-[64%] transition-transform duration-200 motion-reduce:transition-none group-hover:scale-105"
     />
-    <span className="nb-muted max-w-full truncate px-2 text-[9px] font-extrabold uppercase tracking-widest">{label}</span>
+    <span className={`max-w-full truncate px-2 text-[9px] font-extrabold uppercase tracking-widest ${MUTED}`}>{label}</span>
   </div>
 ));
 
-const ShopBanner = memo(({ darkMode }) => (
-  <section aria-hidden="true" className="nb-gray nb-line relative mt-10 h-56 overflow-hidden border-b-2 sm:h-72 lg:h-80">
-    <IsoIllustration type="shopHero" darkMode={darkMode} onGreen={false} className="absolute inset-x-0 bottom-0 mx-auto aspect-square h-[92%] max-w-full" />
-  </section>
-));
-
-const ContactTile = memo(({ art, label, href, children }) => {
-  const cls = "nb-field flex w-full min-w-0 items-center justify-start gap-3 px-3 py-2.5 text-start";
-  const body = (
-    <>
-      <span className="nb-media nb-media-b flex h-12 w-12 flex-shrink-0 items-center justify-center">{art}</span>
-      <span className="min-w-0 flex-1">
-        <span className="nb-muted block text-[10px] font-bold uppercase">{label}</span>
-        <span className="block text-sm font-extrabold">{children}</span>
-      </span>
-    </>
-  );
-  return href
-    ? <a href={href} className={`${cls} transition hover:-translate-x-px hover:-translate-y-px motion-reduce:transition-none`}>{body}</a>
-    : <div className={cls}>{body}</div>;
-});
-
-const ShopDetails = memo(({ shop, darkMode, stats, onViewProducts, onChat, t }) => {
-  const address = clean(shop?.shopAddress?.fullAddress || [shop?.shopAddress?.street, shop?.shopAddress?.city].filter(Boolean).join(", "), 200);
-  const phone = shop?.phone ? clean(String(shop.phone), 30) : "";
+const ShopBanner = memo(({ darkMode, title, onViewProducts, onChat, t }) => {
+  const parts = useMemo(() => splitHeading(title), [title]);
   return (
-    <section aria-label={clean(shop?.name, 120) || t("shopFallback")} className="relative z-20 mx-auto -mt-16 max-w-7xl px-4 pb-10 sm:-mt-24 sm:px-6 sm:pb-16 lg:px-8">
-      <div className="nb-card p-4 sm:p-7">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex min-w-0 flex-1 items-start gap-4">
-            <span className="nb-media nb-media-b flex h-16 w-16 flex-shrink-0 items-center justify-center sm:h-24 sm:w-24">
-              <IsoIllustration type="shop_store" darkMode={darkMode} onGreen={false} className="h-12 w-12 sm:h-20 sm:w-20" />
-            </span>
-            <div className="min-w-0">
-              <span className="nb-chip nb-chip-a mb-2"><FiCheckCircle className="h-3 w-3" /> {shop?.verified ? t("verifiedShop") : t("officialShop")}</span>
-              <h1 className="break-words text-2xl font-extrabold uppercase leading-tight tracking-tight sm:text-4xl">{clean(shop?.name, 120) || t("shopFallback")}</h1>
-              <span className="nb-rule" aria-hidden="true" />
-              <p className="mt-4 max-w-2xl text-sm leading-relaxed opacity-90 sm:text-base">{clean(shop?.description, 600) || t("shopDescription")}</p>
-            </div>
-          </div>
+    <section className="pg-pattern pg-hero relative isolate overflow-hidden border-b-[3px] border-[color:var(--ink)]">
+      <div aria-hidden="true" className="pg-glow pointer-events-none absolute inset-0 -z-10" />
+      <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 pb-28 pt-32 sm:px-6 sm:pb-36 sm:pt-40 lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-14 lg:px-8 lg:pb-44">
+        <div className="min-w-0">
+          <nav aria-label={t("crumbBreadcrumb")} className="pg-hero-in flex flex-wrap items-center gap-1.5 text-xs font-bold uppercase sm:text-sm" style={STAGGER[0]}>
+            <Link to="/" className={`rounded underline decoration-[color:var(--acc)] decoration-2 underline-offset-4 hover:no-underline ${FOCUS}`}>{t("crumbHome")}</Link>
+            <FiChevronRight aria-hidden="true" className="h-3 w-3 flex-shrink-0 rtl:rotate-180" />
+            <span className={`max-w-[14rem] truncate ${MUTED}`} aria-current="page">{title}</span>
+          </nav>
 
-          <div className="grid w-full items-start justify-items-stretch gap-3 sm:grid-cols-2 lg:w-[24rem] lg:grid-cols-1">
-            <ContactTile art={<PinArt />} label={t("addressLabel")}>
-              {address ? <span className="line-clamp-2 break-words">{address}</span> : <span className="nb-chip nb-chip-n"><span className="truncate">{t("noAddress")}</span></span>}
-            </ContactTile>
-            {phone && (
-              <ContactTile art={<PhoneArt />} label={t("phoneLabel")} href={telHref(phone)}>
-                <span dir="ltr" className="block truncate text-start">{phone}</span>
-              </ContactTile>
-            )}
+          <p
+            className="pg-hero-in mt-6 inline-flex items-center gap-2 rounded-full border-[3px] border-[color:var(--ink)] bg-[color:var(--acc)] px-4 py-1.5 text-xs font-extrabold uppercase text-emerald-950 [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)] rtl:tracking-normal"
+            style={STAGGER[1]}
+          >
+            <FiShoppingBag aria-hidden="true" className="h-3.5 w-3.5" />{t("shopBadge")}
+          </p>
+
+          <h1
+            className="pg-hero-in mt-6 max-w-3xl break-words text-4xl font-extrabold leading-[1.15] tracking-[-0.04em] [text-wrap:balance] rtl:leading-[1.4] rtl:tracking-normal sm:text-6xl lg:text-7xl"
+            style={STAGGER[2]}
+          >
+            {parts.map(({ part, hl }, i) => (hl ? <span key={i} className="pg-hl">{part}</span> : part))}
+          </h1>
+
+          <p className={`pg-hero-in mt-6 max-w-xl text-base font-medium leading-relaxed sm:text-lg ${MUTED}`} style={STAGGER[3]}>{t("shopBannerTagline")}</p>
+
+          <div className="pg-hero-in mt-8 flex flex-wrap items-center gap-4 pb-1 pe-1" style={STAGGER[4]}>
+            <button type="button" onClick={onViewProducts} className={`${BTN} ${BTN_ON}`}>
+              <FiShoppingCart aria-hidden="true" className="h-4 w-4" />{t("viewProducts")}
+            </button>
+            <button type="button" onClick={onChat} onMouseEnter={prefetchChatModal} onFocus={prefetchChatModal} className={`${BTN} ${BTN_OFF}`}>
+              <FiMessageCircle aria-hidden="true" className="h-4 w-4" />{t("chatWithShop")}
+            </button>
           </div>
         </div>
 
-        <div className="nb-line mt-6 grid grid-cols-3 border-y-2 border-dotted py-4 text-center">
-          {stats.map((s) => (
-            <div key={s.label} className="min-w-0 px-1">
-              <p className="text-xl font-extrabold tabular-nums sm:text-3xl" dir="ltr">{s.value}</p>
-              <p className="nb-muted truncate text-[11px] font-bold uppercase sm:text-xs">{s.label}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-5 grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:max-w-md">
-          <button type="button" onClick={onViewProducts} className="nb-btn nb-btn-a px-4 py-2.5 text-sm uppercase"><FiShoppingCart className="h-4 w-4" /> {t("viewProducts")}</button>
-          <button type="button" onClick={onChat} onMouseEnter={prefetchChatModal} className="nb-btn px-4 py-2.5 text-sm uppercase"><FiMessageCircle className="nb-ic h-4 w-4" /> {t("chatWithShop")}</button>
+        <div aria-hidden="true" className="pg-hero-in pointer-events-none hidden h-56 w-56 lg:block xl:h-72 xl:w-72" style={STAGGER[3]}>
+          <IsoIllustration type="shop_store" tone="emerald" darkMode={darkMode} onGreen={false} className="h-full w-full" />
         </div>
       </div>
     </section>
   );
 });
 
-const OfferStatusChips = memo(({ isActive, remaining, urgent, ot }) => (
-  <div className="flex flex-wrap items-center gap-1.5">
-    <span className={`nb-chip ${isActive ? "nb-chip-a" : ""}`}>{isActive ? ot("active") : ot("inactive")}</span>
-    {remaining && <span className={`nb-chip ${urgent ? "nb-chip-w" : ""}`}><FiClock aria-hidden="true" className="h-3 w-3" />{remaining}</span>}
-  </div>
+const ContactTile = memo(({ icon: Icon, label, href, children }) => {
+  const cls = "flex w-full min-w-0 items-center gap-3 rounded-xl border-2 border-[color:var(--ink)] bg-[color:var(--sf2)] px-3 py-2.5 text-start";
+  const body = (
+    <>
+      <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg border-2 border-[color:var(--ink)] bg-[color:var(--acc)] text-emerald-950">
+        <Icon aria-hidden="true" className="h-5 w-5" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className={`block text-[10px] font-bold uppercase ${MUTED}`}>{label}</span>
+        <span className="block text-sm font-extrabold">{children}</span>
+      </span>
+    </>
+  );
+  return href
+    ? <a href={href} className={`${cls} transition-transform duration-150 hover:-translate-y-0.5 motion-reduce:transition-none ${FOCUS}`}>{body}</a>
+    : <div className={cls}>{body}</div>;
+});
+
+const ShopDetails = memo(({ shop, logo, darkMode, stats, t }) => {
+  const address = clean(shop?.shopAddress?.fullAddress || [shop?.shopAddress?.street, shop?.shopAddress?.city].filter(Boolean).join(", "), 200);
+  const phone = shop?.phone ? clean(String(shop.phone), 30) : "";
+  return (
+    <section aria-label={clean(shop?.name, 120) || t("shopFallback")} className="pg-glow relative z-20 bg-[color:var(--pg)]">
+      <div className={`${WRAP} -mt-16 pb-14 sm:-mt-24 sm:pb-20`}>
+        <div className={`${BOX_LG} p-4 sm:p-7`}>
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex min-w-0 flex-1 items-start gap-4">
+              <span className="relative flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl border-[3px] border-[color:var(--ink)] bg-[color:var(--sf2)] sm:h-24 sm:w-24">
+                <ShopLogo src={logo} name={shop?.name}>
+                  <IsoIllustration type="shop_store" darkMode={darkMode} onGreen={false} className="h-12 w-12 sm:h-20 sm:w-20" />
+                </ShopLogo>
+              </span>
+              <div className="min-w-0">
+                <h2 className="break-words text-2xl font-extrabold uppercase leading-tight tracking-[-0.02em] rtl:tracking-normal sm:text-4xl">{clean(shop?.name, 120) || t("shopFallback")}</h2>
+                <p className={`mt-4 max-w-2xl text-sm font-medium leading-relaxed sm:text-base ${MUTED}`}>{clean(shop?.description, 600) || t("shopDescription")}</p>
+              </div>
+            </div>
+
+            <div className="grid w-full items-start gap-3 sm:grid-cols-2 lg:w-[24rem] lg:grid-cols-1">
+              <ContactTile icon={FiMapPin} label={t("addressLabel")}>
+                {address ? <span className="line-clamp-2 break-words">{address}</span> : <span className={`font-bold ${MUTED}`}>{t("noAddress")}</span>}
+              </ContactTile>
+              {phone && (
+                <ContactTile icon={FiPhone} label={t("phoneLabel")} href={telHref(phone)}>
+                  <span dir="ltr" className="block truncate text-start">{phone}</span>
+                </ContactTile>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-3 border-t-2 border-dotted border-[color:var(--ink)] pt-4 text-center">
+            {stats.map((s) => (
+              <div key={s.label} className="min-w-0 px-1">
+                <p className="text-xl font-extrabold tabular-nums sm:text-3xl" dir="ltr">{s.value}</p>
+                <p className={`truncate text-[11px] font-bold uppercase sm:text-xs ${MUTED}`}>{s.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+});
+
+const OfferStatus = memo(({ remaining, urgent }) => (
+  remaining ? (
+    <p className={`flex items-center gap-1 text-xs font-extrabold uppercase ${urgent ? "text-[color:var(--sale)]" : MUTED}`}>
+      <FiClock aria-hidden="true" className="h-3 w-3" />{remaining}
+    </p>
+  ) : null
 ));
 
 const ShopOfferCard = memo(({ offer, index, language, currency, onOpen, ot }) => {
   const meta = useOfferMeta(offer, language, currency);
   const open = useCallback(() => onOpen(offer), [onOpen, offer]);
-  const stub = meta.isPct ? "bg-amber-400 text-[#04261a]" : "bg-[color:var(--nb-btn)] text-[color:var(--nb-on)]";
-
   return (
     <article
       onClick={open}
       onKeyDown={(e) => { if (e.key === "Enter" && e.target === e.currentTarget) open(); }}
       tabIndex={0}
       aria-label={offer.name}
-      style={STAGGER[index % 8]}
-      className="anim-fade-up nb-card nb-lift group relative flex h-full cursor-pointer flex-col focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-[color:var(--nb-accent)]"
+      style={STAGGER[index % 10]}
+      className={`pg-rise group relative flex h-full cursor-pointer flex-col overflow-hidden ${BOX_SM} ${PRESS}`}
     >
-      <div className={`nb-line flex h-24 items-baseline justify-center gap-1.5 border-b-2 pt-5 ${stub}`}>
-        <span dir="ltr" className="text-5xl font-extrabold leading-none tabular-nums">{offer.discountValue}{meta.isPct ? "%" : ""}</span>
+      <div className="flex h-28 items-baseline justify-center gap-2 border-b-[3px] border-[color:var(--ink)] bg-[color:var(--acc)] pt-7 text-emerald-950">
+        <span dir="ltr" className="text-5xl font-black leading-none tabular-nums">{offer.discountValue}{meta.isPct ? "%" : ""}</span>
         <span className="text-xs font-extrabold uppercase">{meta.isFixed ? `${currency} ` : ""}{ot("off")}</span>
       </div>
-      <div className="flex min-w-0 flex-1 flex-col gap-3 p-3 sm:p-4">
-        <OfferStatusChips isActive={meta.isActive} remaining={meta.remaining} urgent={meta.urgent} ot={ot} />
+      <div className="flex min-w-0 flex-1 flex-col gap-3 p-4">
+        <OfferStatus remaining={meta.remaining} urgent={meta.urgent} />
         <div className="min-w-0">
-          <h3 className="line-clamp-1 text-sm font-extrabold uppercase leading-snug">{offer.name}</h3>
-          <span className="nb-rule" aria-hidden="true" />
-          <p className="mt-3 line-clamp-2 min-h-[2.5rem] text-xs font-medium leading-5 opacity-90">{offer.description || ot("descriptionFallback")}</p>
+          <h3 className="line-clamp-1 text-base font-extrabold uppercase leading-snug">{offer.name}</h3>
+          <p className={`mt-2 line-clamp-2 min-h-[2.5rem] text-xs font-medium leading-5 ${MUTED}`}>{offer.description || ot("descriptionFallback")}</p>
         </div>
-        <div className="flex min-w-0 flex-col gap-1.5 text-xs font-medium">
-          {meta.range && <p className="flex items-center gap-1.5"><FiCalendar aria-hidden="true" className="nb-ic h-3.5 w-3.5 flex-shrink-0" /><span dir="ltr" className="truncate">{meta.range}</span></p>}
-        </div>
-        <div className="nb-line mt-auto flex items-center justify-between gap-2 border-t-2 pt-3">
-          <span className="nb-muted text-[10px] font-bold uppercase">{meta.isPct ? ot("percentageDiscount") : ""}</span>
-          <span className="nb-arrow" aria-hidden="true"><FiArrowRight className="nb-flip h-4 w-4" /></span>
-        </div>
+        {meta.range && (
+          <p className="flex items-center gap-1.5 text-xs font-bold">
+            <FiCalendar aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 text-[color:var(--pos)]" />
+            <span dir="ltr" className="truncate">{meta.range}</span>
+          </p>
+        )}
+        <CardFooter label={meta.isPct ? ot("percentageDiscount") : ot("off")} />
       </div>
     </article>
   );
 });
 
 const OfferInfoRow = ({ Icon, label, value }) => (
-  <div className="nb-gray nb-line flex items-center gap-3 border-2 border-dotted p-3">
-    <span className="nb-chip nb-chip-a !p-1.5"><Icon aria-hidden="true" className="h-4 w-4" /></span>
+  <div className="flex items-center gap-3 rounded-xl border-2 border-dotted border-[color:var(--ink)] bg-[color:var(--sf2)] p-3">
+    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border-2 border-[color:var(--ink)] bg-[color:var(--acc)] text-emerald-950"><Icon aria-hidden="true" className="h-4 w-4" /></span>
     <div className="min-w-0 flex-1">
-      <p className="nb-muted text-[10px] font-extrabold uppercase">{label}</p>
+      <p className={`text-[10px] font-extrabold uppercase ${MUTED}`}>{label}</p>
       <p className="truncate text-sm font-bold">{value}</p>
     </div>
   </div>
@@ -745,21 +782,20 @@ const ShopOfferModal = memo(({ offer, language, currency, onClose, onViewProduct
   const meta = useOfferMeta(offer || EMPTY_OFFER, language, currency);
   return (
     <div className="fixed inset-0 z-[1100] flex items-end justify-center p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={offer?.name || ot("offerDetails")}>
-      <m.div {...BACKDROP_MOTION} className="absolute inset-0 bg-black/70" onClick={onClose} />
-      <m.div {...PANEL_MOTION} style={GPU} className="nb-card relative max-h-[92vh] w-full transform-gpu overflow-y-auto overscroll-contain !transition-none sm:max-w-md">
-        <div className="nb-gray nb-line relative border-b-2 p-4 pe-14 sm:p-5">
-          <h2 className="line-clamp-2 text-base font-extrabold uppercase sm:text-lg">{offer?.name || ot("offerDetails")}</h2>
-          <span className="nb-rule" aria-hidden="true" />
-          <button type="button" onClick={onClose} aria-label={t("close")} className="nb-btn absolute end-3 top-3 h-8 w-8"><FiX className="h-4 w-4" /></button>
+      <m.div {...BACKDROP_MOTION} className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <m.div {...PANEL_MOTION} style={GPU} className={`pg-sb relative max-h-[92vh] w-full transform-gpu overflow-y-auto overscroll-contain sm:max-w-md ${BOX_LG}`}>
+        <div className="relative border-b-[3px] border-[color:var(--ink)] bg-[color:var(--sf2)] p-4 pe-16 sm:p-5">
+          <h2 className="line-clamp-2 text-base font-extrabold uppercase sm:text-lg"><span className="pg-hl">{offer?.name || ot("offerDetails")}</span></h2>
+          <button type="button" onClick={onClose} aria-label={t("close")} className={`${ICON} ${BTN_OFF} absolute end-3 top-3 h-10 w-10`}><FiX aria-hidden="true" className="h-4 w-4" /></button>
         </div>
         <div className="space-y-3 p-4 sm:p-5">
-          <OfferStatusChips isActive={meta.isActive} remaining={meta.remaining} urgent={meta.urgent} ot={ot} />
-          {offer?.description && <p className="text-sm font-medium leading-relaxed opacity-90">{offer.description}</p>}
+          <OfferStatus remaining={meta.remaining} urgent={meta.urgent} />
+          {offer?.description && <p className={`text-sm font-medium leading-relaxed ${MUTED}`}>{offer.description}</p>}
           <OfferInfoRow Icon={FiTag} label={ot("youSave")} value={meta.amount} />
           {meta.range && <OfferInfoRow Icon={FiCalendar} label={ot("validPeriod")} value={meta.range} />}
-          <div className="grid grid-cols-2 gap-3 pb-1 pe-1 pt-2">
-            <button type="button" onClick={onClose} className="nb-btn py-2.5 text-sm uppercase">{t("close")}</button>
-            <button type="button" onClick={() => { onClose(); onViewProducts(); }} className="nb-btn nb-btn-a py-2.5 text-sm uppercase"><FiShoppingCart className="h-4 w-4" /> {t("viewProducts")}</button>
+          <div className="grid grid-cols-2 gap-3 pb-2 pe-1 pt-2">
+            <button type="button" onClick={onClose} className={`${BTN} ${BTN_OFF}`}>{t("close")}</button>
+            <button type="button" onClick={() => { onClose(); onViewProducts(); }} className={`${BTN} ${BTN_ON}`}><FiShoppingCart aria-hidden="true" className="h-4 w-4" />{t("viewProducts")}</button>
           </div>
         </div>
       </m.div>
@@ -767,31 +803,28 @@ const ShopOfferModal = memo(({ offer, language, currency, onClose, onViewProduct
   );
 });
 
-const PriceBlock = memo(({ product, currency, t, big = false }) => {
-  const discounted = product.saving > 0;
+const Price = memo(({ product, currency, t, large = false }) => {
+  const d = product.saving > 0;
   return (
-    <div className={`flex min-w-0 flex-col gap-0.5 ${big ? "" : "max-sm:rtl:items-end"}`} dir="ltr">
-      {discounted && (
-        <span className={`nb-price-old font-semibold tabular-nums ${big ? "text-sm" : "text-[11px]"}`}>
-          <span className="sr-only">{t("originalPrice")}: </span>
-          {money(product.price, currency)}
-        </span>
+    <div className="min-w-0" dir="ltr">
+      {d && (
+        <p className={`tabular-nums line-through ${MUTED} ${large ? "text-sm" : "text-[11px]"}`}>
+          <span className="sr-only">{t("originalPrice")}: </span>{money(product.price, currency)}
+        </p>
       )}
-      <span className={`truncate font-extrabold leading-tight tabular-nums tracking-tight ${big ? "text-2xl" : "text-base"} ${discounted ? "nb-sale" : ""}`}>
-        <span className="sr-only">{discounted ? `${t("discountedPrice")}: ` : ""}</span>
-        {money(product._final, currency)}
-      </span>
-      {discounted && (
-        <span dir="auto" className="nb-save mt-1 self-start">
-          <FiTag className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
-          <span className="truncate">{t("youSave", { value: money(product.saving, currency) })}</span>
-        </span>
+      <p className={`truncate font-extrabold leading-tight tabular-nums ${large ? "text-3xl" : "text-lg"} ${d ? "text-[color:var(--sale)]" : ""}`}>
+        <span className="sr-only">{d ? `${t("discountedPrice")}: ` : ""}</span>{money(product._final, currency)}
+      </p>
+      {d && (
+        <p dir="auto" className={`truncate font-bold text-[color:var(--sale)] ${large ? "mt-1 text-sm" : "text-[11px]"}`}>
+          {t("youSave", { value: money(product.saving, currency) })}
+        </p>
       )}
     </div>
   );
 });
 
-const ProductCard = memo(({ product: p, darkMode, index = 0, isSaved = false, onSave, onAddToCart, onDetails, t, className = "" }) => {
+const ProductCard = memo(({ product: p, darkMode, isSaved = false, onSave, onAddToCart, onDetails, t }) => {
   const src = p.imageUrl;
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(!src);
@@ -815,14 +848,12 @@ const ProductCard = memo(({ product: p, darkMode, index = 0, isSaved = false, on
     return () => clearTimeout(id);
   }, [src]);
 
-  const hasDiscount = p.saving > 0;
   const inStock = p.stock == null || p.stock > 0;
+  const low = p.stock != null && p.stock > 0 && p.stock <= LOW_STOCK;
   const name = clean(p.name, 120) || t("product");
   const currency = t("currency");
-  const snippet = useMemo(() => clean(p.description, 140) || t("noProductDescription"), [p.description, t]);
-  const badge = useMemo(() => (hasDiscount ? discountBadge(p, currency) : ""), [hasDiscount, p, currency]);
+  const snippet = p._desc || t("noProductDescription");
   const open = useCallback(() => onDetails(p), [onDetails, p]);
-  const openFromArrow = useCallback((e) => { e.stopPropagation(); open(); }, [open]);
   const save = useCallback((e) => { e.stopPropagation(); onSave(p.id); }, [onSave, p.id]);
   const handleLoad = useCallback(() => { loadedRef.current = true; setImgLoaded(true); }, []);
   const handleImgError = useCallback(() => setImgError(true), []);
@@ -843,75 +874,74 @@ const ProductCard = memo(({ product: p, darkMode, index = 0, isSaved = false, on
 
   return (
     <article
-      onClick={open} tabIndex={0} aria-label={name} style={STAGGER[index % 8]}
+      onClick={open} tabIndex={0} aria-label={name}
       onKeyDown={(e) => { if (e.key === "Enter" && e.target === e.currentTarget) open(); }}
-      className={`anim-fade-up nb-card nb-lift group relative flex h-full cursor-pointer flex-col focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--nb-accent)] ${className}`}
+      className={`group relative flex h-full cursor-pointer flex-col overflow-hidden ${BOX_SM} ${PRESS}`}
     >
-      <div className="flex min-w-0 flex-1 flex-col gap-3 p-3 sm:p-4">
-        <div className="min-w-0">
-          <h3 className="line-clamp-2 min-h-[2.4rem] text-[13px] font-extrabold uppercase leading-snug sm:text-sm">{name}</h3>
-          <span className="nb-rule" aria-hidden="true" />
-        </div>
+      <div className="relative aspect-[5/4] w-full flex-shrink-0 overflow-hidden border-b-[3px] border-[color:var(--ink)] bg-white [contain:layout_paint]">
+        {imgError ? (
+          <DeviceArt name={name} categoryName={p.categoryName || p._cat} darkMode={darkMode} label={t("imageUnavailable")} />
+        ) : (
+          <>
+            {!imgLoaded && <div className="absolute inset-0 animate-pulse bg-black/5 motion-reduce:animate-none" />}
+            <img
+              src={src} alt={name} width={480} height={384}
+              loading="lazy" decoding="async" fetchPriority="low" referrerPolicy="no-referrer"
+              onLoad={handleLoad} onError={handleImgError}
+              className={`absolute inset-0 h-full w-full object-contain p-4 transition-[opacity,transform] duration-200 motion-reduce:transition-none [@media(hover:hover)]:group-hover:scale-105 ${imgLoaded ? "opacity-100" : "opacity-0"} ${inStock ? "" : "opacity-50"}`}
+            />
+          </>
+        )}
+        <button type="button" onClick={save} aria-pressed={isSaved} aria-label={isSaved ? t("saved") : t("save")} title={isSaved ? t("saved") : t("save")}
+          className={`${ICON} absolute end-2.5 top-2.5 z-10 h-10 w-10 bg-white text-emerald-950`}>
+          <FiHeart aria-hidden="true" className={`h-4 w-4 ${isSaved ? "text-rose-500" : ""}`} fill={isSaved ? "currentColor" : "none"} />
+        </button>
+      </div>
 
-        <div className="min-w-0">
-          <p className="nb-muted mb-1 truncate text-[10px] font-bold uppercase tracking-wide">{clean(p.brand, 40) || clean(p._cat, 40) || t("uncategorized")}</p>
-          <p className="line-clamp-2 min-h-[2.5rem] text-xs leading-5 opacity-90">{snippet}</p>
-        </div>
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5 p-3.5">
+        <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-snug">{name}</h3>
+        <p className={`line-clamp-2 min-h-[2.5rem] text-xs leading-5 ${MUTED}`}>{snippet}</p>
 
-        <div className="nb-media nb-pic relative aspect-[3/2] w-full overflow-hidden">
-          {imgError ? (
-            <DeviceArt name={name} categoryName={p.categoryName || p._cat} darkMode={darkMode} label={t("imageUnavailable")} />
-          ) : (
-            <>
-              {!imgLoaded && <div className="absolute inset-0 animate-pulse bg-black/5" />}
-              <img
-                src={src} alt={name} width={600} height={400}
-                loading="lazy" decoding="async" fetchPriority="low" referrerPolicy="no-referrer"
-                onLoad={handleLoad} onError={handleImgError}
-                className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-200 ${imgLoaded ? "opacity-100" : "opacity-0"}`}
-              />
-            </>
-          )}
-          {hasDiscount && (
-            <span dir="ltr" className="nb-ribbon absolute start-2 top-2 z-10" title={t("discountValue")}>
-              <FiTag className="h-3 w-3" aria-hidden="true" />{badge}
-            </span>
-          )}
-          <button type="button" onClick={save} aria-pressed={isSaved} aria-label={isSaved ? t("saved") : t("save")} title={isSaved ? t("saved") : t("save")}
-            className={`nb-btn absolute end-2 top-2 z-10 h-8 w-8 ${isSaved ? "nb-btn-on" : ""}`}>
-            <FiHeart className="h-4 w-4" fill={isSaved ? "currentColor" : "none"} />
+        {p._rating > 0 && (
+          <p className="flex items-center gap-1 text-xs font-bold" dir="ltr">
+            <RiStarFill aria-hidden="true" className="h-3.5 w-3.5 text-amber-500" />
+            <span className="tabular-nums">{p._rating.toFixed(1)}</span>
+            {p._reviews > 0 && <span className={`font-medium tabular-nums ${MUTED}`}>({COMPACT_FORMAT.format(p._reviews)})</span>}
+          </p>
+        )}
+
+        {!inStock ? (
+          <p className="flex items-center gap-1.5 text-xs font-bold text-rose-500">
+            <FiAlertCircle aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0" />{t("outOfStock")}
+          </p>
+        ) : low ? (
+          <p className="flex items-center gap-1.5 text-xs font-medium">
+            <FiAlertCircle aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 text-orange-500" />{t("onlyLeft", { count: p.stock })}
+          </p>
+        ) : null}
+
+        <div className="mt-auto flex items-end justify-between gap-2 border-t-2 border-dotted border-[color:var(--ink)] pt-2.5">
+          <Price product={p} currency={currency} t={t} />
+          <button type="button" onClick={add} disabled={!inStock || adding} aria-label={t("addToCart")} title={t("addToCart")}
+            className={`${ICON} h-11 w-11 rounded-xl bg-[color:var(--acc)] text-emerald-950`}>
+            {adding ? <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" />
+              : added ? <FiCheck aria-hidden="true" className="h-5 w-5" /> : <FiPlus aria-hidden="true" className="h-5 w-5" />}
           </button>
-          {p.condition && <span className="nb-chip nb-chip-a absolute bottom-2 end-2 z-10 max-w-[70%]"><span className="truncate">{conditionLabel(t, p.condition)}</span></span>}
         </div>
-
-        <div className="mt-auto flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <PriceBlock product={p} currency={currency} t={t} />
-          <div className="flex w-full items-center gap-2 sm:w-auto sm:flex-shrink-0">
-            <button type="button" onClick={add} disabled={!inStock || adding} aria-label={t("addToCart")} title={t("addToCart")}
-              className={`nb-btn h-9 flex-1 sm:w-9 sm:flex-none ${added ? "nb-btn-on" : ""}`}>
-              {adding ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                : added ? <FiCheck className="h-4 w-4" /> : <FiShoppingCart className="h-4 w-4" />}
-            </button>
-            <button type="button" onClick={openFromArrow} aria-label={t("productDetails")} title={t("productDetails")} className="nb-arrow">
-              <FiArrowRight className="nb-flip h-4 w-4" />
-            </button>
-          </div>
-        </div>
-        {!inStock && <p className="text-[10px] font-extrabold uppercase text-rose-500">{t("outOfStock")}</p>}
       </div>
     </article>
   );
 });
 
-const ProductSkeleton = () => <div className="nb-gray nb-line h-[360px] animate-pulse border-2 motion-reduce:animate-none" />;
+const ProductSkeleton = () => <div className="h-[380px] animate-pulse rounded-2xl bg-[color:var(--sf2)] motion-reduce:animate-none" />;
 
-const StarRating = memo(({ value, onChange, size = "h-7 w-7 sm:h-9 sm:w-9", t }) => (
+const StarRating = memo(({ value, onChange, size = "h-8 w-8 sm:h-9 sm:w-9", t }) => (
   <div className="flex gap-1 sm:gap-2" role="radiogroup" aria-label={t("rating")}>
     {STARS.map((star) => (
       <button key={star} type="button" role="radio" aria-checked={value === star} onClick={() => onChange(star)}
         aria-label={t("rateStars").replace("{star}", star)}
-        className="transition-transform hover:scale-110 active:scale-95 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-[color:var(--nb-accent)]">
-        <RiStarFill className={`${size} ${value >= star ? "nb-star-on" : "nb-star-off"}`} />
+        className={`rounded-md transition-transform duration-100 hover:scale-110 active:scale-95 motion-reduce:transition-none ${FOCUS}`}>
+        <RiStarFill className={`${size} ${value >= star ? "text-amber-500" : "text-[color:var(--mu)] opacity-35"}`} />
       </button>
     ))}
   </div>
@@ -934,17 +964,19 @@ const ReviewForm = memo(({ t, hasReview, onSubmit }) => {
   };
 
   return (
-    <div className="nb-card p-4 sm:p-6">
-      <h3 className="mb-3 text-base font-extrabold uppercase sm:mb-4 sm:text-lg"><span className="nb-ul">{t("shareYourExperience")}</span></h3>
-      {hasReview && <p role="status" className="nb-gray nb-line mb-3 border-2 border-dotted px-3 py-2 text-xs font-bold">{t("alreadyReviewedNote")}</p>}
+    <div className={`${BOX_LG} p-4 sm:p-6`}>
+      <h3 className="mb-4 text-lg font-extrabold uppercase sm:text-xl"><span className="pg-hl">{t("shareYourExperience")}</span></h3>
+      {hasReview && <p role="status" className="mb-3 rounded-lg border-2 border-dotted border-[color:var(--ink)] bg-[color:var(--sf2)] px-3 py-2 text-xs font-bold">{t("alreadyReviewedNote")}</p>}
       <StarRating value={rating} onChange={setRating} t={t} />
       <textarea value={comment} onChange={(e) => setComment(e.target.value)}
         placeholder={t("reviewPlaceholder")} maxLength={1000} rows={3} aria-label={t("shareYourExperience")}
-        className="nb-field mt-4 w-full resize-none p-3 text-sm font-medium leading-relaxed outline-none placeholder:opacity-60 sm:p-4" />
+        className={`mt-4 w-full resize-none p-3 text-sm font-medium leading-relaxed outline-none placeholder:opacity-60 sm:p-4 ${FIELD}`} />
       <div className="mt-2 flex items-center justify-between gap-3">
-        <span className="nb-muted text-[11px] font-bold" dir="ltr">{comment.length}/1000</span>
+        <span className={`text-[11px] font-bold ${MUTED}`} dir="ltr">{comment.length}/1000</span>
       </div>
-      <button type="button" onClick={send} disabled={!comment.trim() || rating === 0 || hasReview || sending} className="nb-btn nb-btn-a mt-3 w-full py-2.5 text-sm uppercase sm:py-3">{t("submitReview")}</button>
+      <div className="mt-3 pe-1 pb-1">
+        <button type="button" onClick={send} disabled={!comment.trim() || rating === 0 || hasReview || sending} className={`${BTN} ${BTN_ON} w-full`}>{t("submitReview")}</button>
+      </div>
     </div>
   );
 });
@@ -956,14 +988,14 @@ const EditReviewModal = memo(({ review, t, onClose, onSave }) => {
   return (
     <div className="fixed inset-0 z-[1100] flex items-end justify-center p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={t("editReview")}>
       <m.div {...BACKDROP_MOTION} className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <m.div {...PANEL_MOTION} style={GPU} className="nb-card relative w-full max-w-lg transform-gpu p-5 !transition-none sm:p-8">
-        <h3 className="mb-5 text-xl font-extrabold uppercase sm:text-2xl"><span className="nb-ul">{t("editReview")}</span></h3>
+      <m.div {...PANEL_MOTION} style={GPU} className={`relative w-full max-w-lg transform-gpu p-5 sm:p-8 ${BOX_LG}`}>
+        <h3 className="mb-5 text-xl font-extrabold uppercase sm:text-2xl"><span className="pg-hl">{t("editReview")}</span></h3>
         <StarRating value={rating} onChange={setRating} t={t} />
         <textarea value={comment} onChange={(e) => setComment(e.target.value)} maxLength={1000} rows={4} aria-label={t("editReview")}
-          className="nb-field mt-4 w-full resize-none p-3 text-sm font-medium outline-none sm:p-4" />
-        <div className="mt-5 flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="nb-btn px-5 py-2.5 text-sm uppercase">{t("cancel")}</button>
-          <button type="button" onClick={() => onSave({ ...review, rating, comment })} className="nb-btn nb-btn-a px-6 py-2.5 text-sm uppercase">{t("update")}</button>
+          className={`mt-4 w-full resize-none p-3 text-sm font-medium outline-none sm:p-4 ${FIELD}`} />
+        <div className="mt-5 flex justify-end gap-3 pe-1 pb-1">
+          <button type="button" onClick={onClose} className={`${BTN} ${BTN_OFF}`}>{t("cancel")}</button>
+          <button type="button" onClick={() => onSave({ ...review, rating, comment })} className={`${BTN} ${BTN_ON}`}>{t("update")}</button>
         </div>
       </m.div>
     </div>
@@ -976,43 +1008,43 @@ const ReviewCard = memo(({ review: r, mine, dateLocale, shopName, t, onEdit, onD
   const reply = r.reply ? clean(r.reply, 1000) : "";
   const replyWhen = Date.parse(r.repliedAt);
   return (
-    <article className="nb-card flex h-full min-w-0 flex-col gap-3 p-4 sm:p-5">
+    <article className={`flex h-full min-w-0 flex-col gap-3 p-4 sm:p-5 ${BOX_SM}`}>
       <div className="flex items-center gap-3">
-        <div aria-hidden="true" className="nb-chip nb-chip-a !h-10 !w-10 flex-shrink-0 justify-center !text-base">
+        <div aria-hidden="true" className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border-2 border-[color:var(--ink)] bg-[color:var(--acc)] text-base font-extrabold text-emerald-950">
           {name?.[0]?.toUpperCase() || "?"}
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-extrabold uppercase">{name || t("anonymous")}</p>
           {Number.isFinite(when) && (
-            <p className="nb-muted text-[11px] font-bold" dir="ltr">
+            <p className={`text-[11px] font-bold ${MUTED}`} dir="ltr">
               {new Date(when).toLocaleDateString(dateLocale, { day: "numeric", month: "short", year: "numeric" })}
             </p>
           )}
         </div>
       </div>
       <div className="flex" role="img" aria-label={`${r.rating} / 5`}>
-        {STARS.map((n) => <RiStarFill key={n} className={`h-4 w-4 ${n <= r.rating ? "nb-star-on" : "nb-star-off"}`} />)}
+        {STARS.map((n) => <RiStarFill key={n} className={`h-4 w-4 ${n <= r.rating ? "text-amber-500" : "text-[color:var(--mu)] opacity-35"}`} />)}
       </div>
-      <p className="flex-1 break-words text-sm leading-relaxed opacity-90">{clean(r.comment, 1000)}</p>
+      <p className="flex-1 break-words text-sm leading-relaxed">{clean(r.comment, 1000)}</p>
       {mine && (
-        <div className="flex flex-shrink-0 gap-2">
-          <button type="button" onClick={() => onEdit(r)} aria-label={t("editReview")} title={t("editReview")} className="nb-btn h-8 w-8"><FiEdit3 className="h-4 w-4" /></button>
-          <button type="button" onClick={() => onDelete(r.id)} aria-label={t("deleteReview")} title={t("deleteReview")} className="nb-btn h-8 w-8 !text-red-500"><FiTrash2 className="h-4 w-4" /></button>
+        <div className="flex flex-shrink-0 gap-2 pb-1 pe-1">
+          <button type="button" onClick={() => onEdit(r)} aria-label={t("editReview")} title={t("editReview")} className={`${ICON} ${BTN_OFF} h-10 w-10`}><FiEdit3 aria-hidden="true" className="h-4 w-4" /></button>
+          <button type="button" onClick={() => onDelete(r.id)} aria-label={t("deleteReview")} title={t("deleteReview")} className={`${ICON} ${BTN_OFF} h-10 w-10 !text-red-500`}><FiTrash2 aria-hidden="true" className="h-4 w-4" /></button>
         </div>
       )}
       {reply && (
-        <div role="note" aria-label={t("shopReply")} className="nb-sub ms-3 flex min-w-0 flex-col gap-2 p-3">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <FiCornerDownRight aria-hidden="true" className="nb-ic nb-flip h-4 w-4 flex-shrink-0" />
-            <span className="nb-chip nb-chip-a">{t("shopReply")}</span>
-            {shopName && <span className="min-w-0 max-w-full truncate text-[11px] font-extrabold uppercase">{shopName}</span>}
+        <div role="note" aria-label={t("shopReply")} className="ms-3 flex min-w-0 flex-col gap-2 rounded-xl border-2 border-[color:var(--ink)] bg-[color:var(--sf2)] p-3 [border-inline-start-width:5px] [border-inline-start-color:var(--acc)]">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 text-[11px] font-extrabold uppercase">
+            <FiCornerDownRight aria-hidden="true" className="h-4 w-4 flex-shrink-0 text-[color:var(--pos)] rtl:-scale-x-100" />
+            <span>{t("shopReply")}</span>
+            {shopName && <span className={`min-w-0 max-w-full truncate ${MUTED}`}>{shopName}</span>}
             {Number.isFinite(replyWhen) && (
-              <span className="nb-muted text-[11px] font-bold" dir="ltr">
+              <span className={`font-bold ${MUTED}`} dir="ltr">
                 {new Date(replyWhen).toLocaleDateString(dateLocale, { day: "numeric", month: "short", year: "numeric" })}
               </span>
             )}
           </div>
-          <p className="break-words text-sm leading-relaxed opacity-90">{reply}</p>
+          <p className="break-words text-sm leading-relaxed">{reply}</p>
         </div>
       )}
     </article>
@@ -1022,17 +1054,15 @@ const ReviewCard = memo(({ review: r, mine, dateLocale, shopName, t, onEdit, onD
 const ProductDetailsModal = memo(({ product, darkMode, isSaved, onSave, onClose, onAddToCart, onView, t }) => {
   const hasStock = product.stock != null;
   const inStock = !hasStock || product.stock > 0;
-  const hasDiscount = product.saving > 0;
   const currency = t("currency");
   const productName = clean(product.name, 120) || t("product");
-  const badge = hasDiscount ? discountBadge(product, currency) : "";
   const [imgError, setImgError] = useState(!product.imageUrl);
   const [added, setAdded] = useState(false);
   const timer = useRef();
   useModalLock(true, onClose);
   useEffect(() => () => clearTimeout(timer.current), []);
 
-  const offers = [
+  const perks = [
     { icon: FiShield, label: t("verified") },
     { icon: FiTruck, label: t("fastShip") },
     { icon: FiRefreshCw, label: t("returns") },
@@ -1047,51 +1077,45 @@ const ProductDetailsModal = memo(({ product, darkMode, isSaved, onSave, onClose,
   return (
     <div className="fixed inset-0 z-[1100] flex items-end justify-center p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={productName}>
       <m.div {...BACKDROP_MOTION} className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <m.div {...PANEL_MOTION} style={GPU} className="nb-card relative max-h-[92vh] w-full transform-gpu overflow-y-auto overscroll-contain !transition-none sm:max-w-lg">
+      <m.div {...PANEL_MOTION} style={GPU} className={`pg-sb relative max-h-[92vh] w-full transform-gpu overflow-y-auto overscroll-contain sm:max-w-lg ${BOX_LG}`}>
         <div className="absolute end-3 top-3 z-10 flex items-center gap-2">
           <button type="button" onClick={() => onSave(product.id)} aria-pressed={isSaved} aria-label={isSaved ? t("saved") : t("save")} title={isSaved ? t("saved") : t("save")}
-            className={`nb-btn h-8 w-8 ${isSaved ? "nb-btn-on" : ""}`}>
-            <FiHeart className="h-4 w-4" fill={isSaved ? "currentColor" : "none"} />
+            className={`${ICON} h-10 w-10 ${isSaved ? BTN_ON : "bg-white text-emerald-950"}`}>
+            <FiHeart aria-hidden="true" className="h-4 w-4" fill={isSaved ? "currentColor" : "none"} />
           </button>
-          <button type="button" onClick={onClose} aria-label={t("close")} className="nb-btn h-8 w-8"><FiX className="h-4 w-4" /></button>
+          <button type="button" onClick={onClose} aria-label={t("close")} className={`${ICON} h-10 w-10 bg-white text-emerald-950`}><FiX aria-hidden="true" className="h-4 w-4" /></button>
         </div>
 
-        <div className="nb-media nb-line relative aspect-[16/10] overflow-hidden border-b-2">
+        <div className="relative aspect-[16/10] overflow-hidden border-b-[3px] border-[color:var(--ink)] bg-white">
           {imgError ? (
             <DeviceArt name={productName} categoryName={product.categoryName || product._cat} darkMode={darkMode} label={t("imageUnavailable")} />
           ) : (
             <img src={product.imageUrl} alt={productName} referrerPolicy="no-referrer" decoding="async"
-              onError={() => setImgError(true)} className="h-full w-full object-cover" />
-          )}
-          {hasDiscount && (
-            <span dir="ltr" className="nb-ribbon absolute start-3 top-3" title={t("discountValue")}>
-              <FiTag className="h-3 w-3" aria-hidden="true" />{badge}
-            </span>
+              onError={() => setImgError(true)} className="h-full w-full bg-white object-contain p-4" />
           )}
         </div>
 
         <div className="space-y-5 p-4 sm:p-5">
           <div>
             <h2 className="text-lg font-extrabold uppercase leading-snug sm:text-xl">{clean(product.name, 160) || t("product")}</h2>
-            <span className="nb-rule" aria-hidden="true" />
             <div className="mt-3">
-              <PriceBlock product={product} currency={currency} t={t} big />
+              <Price product={product} currency={currency} t={t} large />
             </div>
           </div>
 
           <section>
-            <h3 className="mb-2 text-xs font-extrabold uppercase"><span className="nb-ul">{t("aboutProduct")}</span></h3>
-            <p className="text-sm leading-relaxed opacity-90">{clean(product.description, 1500) || t("noProductDescription")}</p>
+            <h3 className="mb-2 text-xs font-extrabold uppercase"><span className="pg-hl">{t("aboutProduct")}</span></h3>
+            <p className={`text-sm leading-relaxed ${MUTED}`}>{clean(product.description, 1500) || t("noProductDescription")}</p>
           </section>
 
           <section>
-            <h3 className="mb-3 text-xs font-extrabold uppercase"><span className="nb-ul">{t("details")}</span></h3>
-            <div className="nb-gray nb-line grid grid-cols-1 gap-3 border-2 border-dotted p-3.5 min-[400px]:grid-cols-2">
+            <h3 className="mb-3 text-xs font-extrabold uppercase"><span className="pg-hl">{t("details")}</span></h3>
+            <div className="grid grid-cols-1 gap-3 rounded-xl border-2 border-dotted border-[color:var(--ink)] bg-[color:var(--sf2)] p-3.5 min-[400px]:grid-cols-2">
               {specs.map(({ icon: Icon, label, value }) => (
                 <div key={label} className="flex min-w-0 items-center gap-2.5">
-                  <Icon className="nb-ic h-4 w-4 flex-shrink-0" />
+                  <Icon aria-hidden="true" className="h-4 w-4 flex-shrink-0 text-[color:var(--pos)]" />
                   <div className="min-w-0">
-                    <p className="nb-muted text-[10px] font-bold uppercase">{label}</p>
+                    <p className={`text-[10px] font-bold uppercase ${MUTED}`}>{label}</p>
                     <p className="truncate text-xs font-extrabold">{value}</p>
                   </div>
                 </div>
@@ -1099,12 +1123,14 @@ const ProductDetailsModal = memo(({ product, darkMode, isSaved, onSave, onClose,
             </div>
           </section>
 
-          <ul className="flex flex-wrap gap-2">
-            {offers.map(({ icon: Icon, label }) => <li key={label} className="nb-chip !px-2 !py-1"><Icon className="h-3 w-3" /> {label}</li>)}
+          <ul className="flex flex-wrap gap-x-4 gap-y-2">
+            {perks.map(({ icon: Icon, label }) => (
+              <li key={label} className="flex items-center gap-1.5 text-xs font-bold"><Icon aria-hidden="true" className="h-3.5 w-3.5 text-[color:var(--pos)]" />{label}</li>
+            ))}
           </ul>
 
-          <div className="grid grid-cols-2 gap-3">
-            <button type="button" disabled={!inStock} className={`nb-btn px-3 py-2.5 text-sm uppercase ${added ? "nb-btn-on" : ""}`}
+          <div className="grid grid-cols-2 gap-3 pe-1 pb-1">
+            <button type="button" disabled={!inStock} className={`${BTN} ${added ? BTN_ON : BTN_OFF}`}
               onClick={async () => {
                 const ok = await onAddToCart(product);
                 if (!ok) return;
@@ -1112,9 +1138,9 @@ const ProductDetailsModal = memo(({ product, darkMode, isSaved, onSave, onClose,
                 clearTimeout(timer.current);
                 timer.current = setTimeout(() => setAdded(false), 1600);
               }}>
-              {added ? <><FiCheck className="h-4 w-4" /> {t("added")}</> : <><FiShoppingCart className="nb-ic h-4 w-4" /> {t("addToCart")}</>}
+              {added ? <><FiCheck aria-hidden="true" className="h-4 w-4" />{t("added")}</> : <><FiShoppingCart aria-hidden="true" className="h-4 w-4" />{t("addToCart")}</>}
             </button>
-            <button type="button" onClick={() => onView(product)} className="nb-btn nb-btn-a px-3 py-2.5 text-sm uppercase"><FiExternalLink className="h-4 w-4" /> {t("viewProduct")}</button>
+            <button type="button" onClick={() => onView(product)} className={`${BTN} ${BTN_ON}`}><FiExternalLink aria-hidden="true" className="h-4 w-4" />{t("viewProduct")}</button>
           </div>
         </div>
       </m.div>
@@ -1133,23 +1159,23 @@ const CategorySlider = memo(({ category, items, darkMode, saved, onSave, onAddTo
   if (!items.length) return null;
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <button type="button" onClick={goToCategory} className="min-w-0 text-start">
-          <span className="block truncate text-lg font-extrabold uppercase sm:text-xl"><span className="nb-ul">{category.name}</span></span>
-          <span className="nb-muted mt-1 block text-xs font-bold uppercase"><span dir="ltr">{items.length}</span> {items.length === 1 ? t("item") : t("items")}</span>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-x-3 gap-y-3">
+        <button type="button" onClick={goToCategory} className={`min-w-0 rounded-lg text-start ${FOCUS}`}>
+          <span className="block truncate text-xl font-extrabold uppercase sm:text-2xl"><span className="pg-hl">{category.name}</span></span>
+          <span className={`mt-1 block text-xs font-bold uppercase ${MUTED}`}><span dir="ltr">{items.length}</span> {items.length === 1 ? t("item") : t("items")}</span>
         </button>
-        <div className="flex items-center gap-2">
-          <button type="button" onClick={goToCategory} className="nb-btn nb-btn-a h-9 px-3 text-xs uppercase">
-            {t("viewAll")} <FiArrowRight className="nb-flip h-3.5 w-3.5" />
+        <div className="flex items-center gap-2 pe-1 pb-1">
+          <button type="button" onClick={goToCategory} className={`${BTN} ${BTN_ON} ${BTN_SM}`}>
+            {t("viewAll")} <FiArrowRight aria-hidden="true" className="h-3.5 w-3.5 rtl:rotate-180" />
           </button>
-          <button type="button" onClick={() => scroll("back")} disabled={!edge.l} aria-label={t("scrollBack")} className="nb-btn hidden h-9 w-9 sm:flex"><BackIcon className="h-4 w-4" /></button>
-          <button type="button" onClick={() => scroll("forward")} disabled={!edge.r} aria-label={t("scrollForward")} className="nb-btn hidden h-9 w-9 sm:flex"><ForwardIcon className="h-4 w-4" /></button>
+          <button type="button" onClick={() => scroll("back")} disabled={!edge.l} aria-label={t("scrollBack")} className={`${ICON} ${BTN_OFF} hidden h-10 w-10 sm:inline-flex`}><BackIcon aria-hidden="true" className="h-4 w-4" /></button>
+          <button type="button" onClick={() => scroll("forward")} disabled={!edge.r} aria-label={t("scrollForward")} className={`${ICON} ${BTN_OFF} hidden h-10 w-10 sm:inline-flex`}><ForwardIcon aria-hidden="true" className="h-4 w-4" /></button>
         </div>
       </div>
-      <div ref={sliderRef} className="hide-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-3 pe-3 ps-1 pt-1 sm:gap-6">
-        {items.map((p, i) => (
-          <div key={p.id} className="w-[220px] flex-shrink-0 snap-start sm:w-[270px]">
-            <ProductCard product={p} darkMode={darkMode} index={i} isSaved={saved.has(p.id)} onSave={onSave} onAddToCart={onAddToCart} onDetails={onDetails} t={t} />
+      <div ref={sliderRef} className="pg-nosb flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-4 pe-3 ps-1 pt-1 motion-reduce:scroll-auto sm:gap-6">
+        {items.map((p) => (
+          <div key={p.id} className="w-[210px] flex-shrink-0 snap-start sm:w-[240px]">
+            <ProductCard product={p} darkMode={darkMode} isSaved={saved.has(p.id)} onSave={onSave} onAddToCart={onAddToCart} onDetails={onDetails} t={t} />
           </div>
         ))}
       </div>
@@ -1160,22 +1186,22 @@ const CategorySlider = memo(({ category, items, darkMode, saved, onSave, onAddTo
 const OptionRow = memo(({ type, label, count, selected, onClick }) => (
   <button
     type="button" role={type === "check" ? "checkbox" : "radio"} aria-checked={selected} onClick={onClick}
-    className="flex w-full items-center gap-2.5 py-1.5 text-start text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-[color:var(--nb-accent)]"
+    className={`flex min-h-10 w-full items-center gap-2.5 rounded-md py-1.5 text-start text-sm font-semibold ${FOCUS}`}
   >
-    <span className={`nb-box ${type === "radio" ? "rounded-full" : ""} ${selected ? "nb-box-on" : ""}`}>
-      {selected && (type === "check" ? <FiCheck className="h-3 w-3" strokeWidth={3} /> : <span className="h-2 w-2 rounded-full bg-[color:var(--nb-on)]" />)}
+    <span className={`flex h-5 w-5 flex-none items-center justify-center border-2 border-[color:var(--ink)] text-emerald-950 ${type === "radio" ? "rounded-full" : "rounded-md"} ${selected ? "bg-[color:var(--acc)]" : "bg-[color:var(--sf2)]"}`}>
+      {selected && (type === "check" ? <FiCheck aria-hidden="true" className="h-3 w-3" strokeWidth={3} /> : <span className="h-2 w-2 rounded-full bg-emerald-950" />)}
     </span>
     <span className="min-w-0 flex-1 truncate">{label}</span>
-    {count !== undefined && <span className="nb-muted text-xs tabular-nums" dir="ltr">{count}</span>}
+    {count !== undefined && <span className={`text-xs tabular-nums ${MUTED}`} dir="ltr">{count}</span>}
   </button>
 ));
 
 const FilterBlock = memo(({ num, title, isOpen, onToggle, children }) => (
-  <section className="border-t-2 nb-line">
-    <button type="button" onClick={onToggle} aria-expanded={isOpen} className="flex w-full items-center gap-2.5 py-3 text-start">
-      <span className="nb-num nb-num-sm">{num}</span>
-      <span className="min-w-0 flex-1 truncate text-[13px] font-extrabold uppercase"><span className="nb-ul">{title}</span></span>
-      <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+  <section className="border-t-2 border-[color:var(--ink)]">
+    <button type="button" onClick={onToggle} aria-expanded={isOpen} className={`flex min-h-11 w-full items-center gap-2.5 rounded-md py-3 text-start ${FOCUS}`}>
+      <span aria-hidden="true" className="text-sm font-black tabular-nums text-[color:var(--pos)]">{num}</span>
+      <span className="min-w-0 flex-1 truncate text-[13px] font-extrabold uppercase"><span className="pg-hl">{title}</span></span>
+      <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform duration-150 motion-reduce:transition-none ${isOpen ? "rotate-180" : ""}`} />
     </button>
     {isOpen && <div className="min-w-0 pb-4">{children}</div>}
   </section>
@@ -1194,8 +1220,8 @@ const NumField = memo(({ value, onCommit, label, t }) => {
   return (
     <label className="min-w-0 flex-1">
       <span className="mb-1 block text-[11px] font-bold uppercase">{label}</span>
-      <div className={`nb-field flex items-center px-2 py-1.5 text-xs font-bold ${error ? "!border-rose-500" : ""}`} dir="ltr">
-        <span className="nb-muted me-1">{t("currency")}</span>
+      <div className={`flex min-h-11 items-center px-2 py-2 text-xs font-bold ${FIELD} ${error ? "!border-rose-500" : ""}`} dir="ltr">
+        <span className={`me-1 ${MUTED}`}>{t("currency")}</span>
         <input type="number" inputMode="numeric" min={0} value={draft} aria-invalid={!!error}
           onChange={(e) => { setDraft(e.target.value); setError(""); }} onBlur={commit}
           onKeyDown={(e) => e.key === "Enter" && commit()} className="w-full min-w-0 bg-transparent tabular-nums outline-none" />
@@ -1244,28 +1270,28 @@ const PriceRangeFilter = memo(({ bounds, value, onChange, histogram, t }) => {
           const binStart = (i / histogram.length) * max;
           const binEnd = ((i + 1) / histogram.length) * max;
           const inRange = binEnd > lo && binStart < hi;
-          return <div key={i} className={`flex-1 ${inRange ? "nb-bin-on" : "nb-bin"}`} style={{ height: `${Math.max(c ? 12 : 4, (c / peak) * 100)}%`, opacity: c ? 1 : 0.5 }} />;
+          return <div key={i} className={`flex-1 rounded-sm ${inRange ? "pg-bin-on" : "pg-bin"}`} style={{ height: `${Math.max(c ? 12 : 4, (c / peak) * 100)}%`, opacity: c ? 1 : 0.5 }} />;
         })}
       </div>
       <div className="relative flex h-5 items-center">
-        <div className="nb-gray nb-line absolute inset-x-0 h-2 border-2" />
-        <div className="absolute h-2 border-y-2 nb-line bg-[color:var(--nb-accent)]" style={{ left: `${leftPct}%`, right: `${100 - rightPct}%` }} />
+        <div className="absolute inset-x-0 h-2 rounded-full border-2 border-[color:var(--ink)] bg-[color:var(--sf2)]" />
+        <div className="absolute h-2 border-y-2 border-[color:var(--ink)] bg-[color:var(--acc)]" style={{ left: `${leftPct}%`, right: `${100 - rightPct}%` }} />
         <input type="range" aria-label={t("minPriceAria")} min={0} max={max} step={step} value={lo}
-          onChange={(e) => onChange([Math.max(0, Math.min(Number(e.target.value), hi - step)), hi])} className="nb-range" style={{ zIndex: lo > max - step * 3 ? 5 : 3 }} />
+          onChange={(e) => onChange([Math.max(0, Math.min(Number(e.target.value), hi - step)), hi])} className="pg-range" style={{ zIndex: lo > max - step * 3 ? 5 : 3 }} />
         <input type="range" aria-label={t("maxPriceAria")} min={0} max={max} step={step} value={hi}
-          onChange={(e) => onChange([lo, Math.max(Number(e.target.value), lo + step)])} className="nb-range" style={{ zIndex: 4 }} />
+          onChange={(e) => onChange([lo, Math.max(Number(e.target.value), lo + step)])} className="pg-range" style={{ zIndex: 4 }} />
       </div>
       <div className="flex flex-col gap-4 min-[380px]:flex-row min-[380px]:gap-6">
         <NumField label={t("priceMin")} value={lo} onCommit={commitMin} t={t} />
         <NumField label={t("priceMax")} value={hi} onCommit={commitMax} t={t} />
       </div>
       {presets.length > 0 && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 pe-1 pb-1">
           {presets.map((p) => {
             const on = lo === p.r[0] && hi === p.r[1];
             return (
               <button key={p.r.join("-")} type="button" onClick={() => onChange(p.r)} aria-pressed={on}
-                className={`nb-btn px-2.5 py-1 text-[11px] ${on ? "nb-btn-on" : ""}`}>
+                className={`${BTN} ${BTN_SM} ${on ? BTN_ON : BTN_OFF}`}>
                 {p.label}
               </button>
             );
@@ -1277,17 +1303,17 @@ const PriceRangeFilter = memo(({ bounds, value, onChange, histogram, t }) => {
 });
 
 const FilterPanel = memo((p) => {
-  const { t, flat, conditionCounts, selectedConditions, toggleCondition, categoryOptions, selectedCategory, setSelectedCategory, totalCount,
+  const { t, conditionCounts, selectedConditions, toggleCondition, categoryOptions, selectedCategory, setSelectedCategory, totalCount,
     priceBounds, priceValue, setPriceRange, histogram, inStockOnly, setInStockOnly, onSaleOnly, setOnSaleOnly, savedOnly, setSavedOnly,
     open, setOpen, clearFilters, activeFiltersCount } = p;
   const toggle = (k) => setOpen((o) => ({ ...o, [k]: !o[k] }));
   return (
-    <div className={flat ? "w-full min-w-0 max-w-full overflow-x-hidden" : "nb-card w-full min-w-0 max-w-full overflow-x-hidden p-3 sm:p-4"}>
+    <div className={`w-full min-w-0 max-w-full overflow-x-hidden p-3 sm:p-4 ${BOX_SM}`}>
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 pb-3">
         <h3 className="flex min-w-0 items-center gap-2 text-base font-extrabold uppercase">
-          <FiSliders aria-hidden="true" className="h-4 w-4 flex-shrink-0" /> <span className="nb-ul truncate">{t("filters")}</span>
+          <FiSliders aria-hidden="true" className="h-4 w-4 flex-shrink-0" /> <span className="truncate">{t("filters")}</span>
         </h3>
-        {activeFiltersCount > 0 && <button type="button" onClick={clearFilters} className="flex-shrink-0 text-xs font-bold underline underline-offset-4">{t("resetAll")}</button>}
+        {activeFiltersCount > 0 && <button type="button" onClick={clearFilters} className={`min-h-11 flex-shrink-0 rounded-md text-xs font-bold underline underline-offset-4 ${FOCUS}`}>{t("resetAll")}</button>}
       </div>
 
       {priceBounds.max > 0 && (
@@ -1309,7 +1335,7 @@ const FilterPanel = memo((p) => {
 
       {categoryOptions.length > 0 && (
         <FilterBlock num="03" title={t("category")} isOpen={open.cat} onToggle={() => toggle("cat")}>
-          <div className="max-h-44 min-w-0 overflow-y-auto overscroll-contain break-words pe-1 sm:max-h-52" role="radiogroup" aria-label={t("category")}>
+          <div className="pg-sb max-h-44 min-w-0 overflow-y-auto overscroll-contain break-words pe-1 sm:max-h-52" role="radiogroup" aria-label={t("category")}>
             <OptionRow type="radio" label={t("all")} count={totalCount} selected={selectedCategory === "all"} onClick={() => setSelectedCategory("all")} />
             {categoryOptions.map(({ name, count }) => (
               <OptionRow key={name} type="radio" label={name} count={count} selected={selectedCategory === name} onClick={() => setSelectedCategory(name)} />
@@ -1329,20 +1355,29 @@ const FilterPanel = memo((p) => {
 });
 
 const ChatCTABanner = memo(({ darkMode, onOpenChat, t }) => (
-  <section aria-label={t("chatBannerTitle")} className="lk-cv py-10 sm:py-16">
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-      <div onMouseEnter={prefetchChatModal} className="nb-card group flex flex-col items-center gap-5 p-6 text-center sm:flex-row sm:gap-8 sm:p-10 sm:text-start">
-        <span className="nb-media nb-media-b flex h-20 w-20 flex-shrink-0 items-center justify-center sm:h-24 sm:w-24">
+  <section aria-label={t("chatBannerTitle")} className={`pg-pattern bg-[color:var(--pg)] ${SECTION} ${LAZY}`}>
+    <div className={WRAP}>
+      <div onMouseEnter={prefetchChatModal} className={`group flex flex-col items-center gap-5 p-6 text-center sm:flex-row sm:gap-8 sm:p-10 sm:text-start ${BOX_LG}`}>
+        <span className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-xl border-[3px] border-[color:var(--ink)] bg-[color:var(--sf2)] sm:h-24 sm:w-24">
           <IsoIllustration type="shopChat" darkMode={darkMode} onGreen={false} hoverOnly className="h-16 w-16 sm:h-20 sm:w-20" />
         </span>
         <div className="min-w-0 flex-1">
-          <h3 className="mb-2 text-lg font-extrabold uppercase sm:text-2xl"><span className="nb-ul">{t("chatBannerTitle")}</span></h3>
-          <p className="mt-3 text-sm opacity-80 sm:text-base">{t("chatBannerDescription")}</p>
+          <h3 className="text-xl font-extrabold uppercase sm:text-3xl"><span className="pg-hl">{t("chatBannerTitle")}</span></h3>
+          <p className={`mt-4 text-sm font-medium sm:text-base ${MUTED}`}>{t("chatBannerDescription")}</p>
         </div>
-        <button type="button" onClick={onOpenChat} className="nb-btn nb-btn-a w-full flex-shrink-0 px-6 py-3 text-sm uppercase sm:w-auto"><FiMessageCircle className="h-4 w-4" /> {t("startChat")}</button>
+        <button type="button" onClick={onOpenChat} className={`${BTN} ${BTN_ON} w-full flex-shrink-0 sm:w-auto`}><FiMessageCircle aria-hidden="true" className="h-4 w-4" />{t("startChat")}</button>
       </div>
     </div>
   </section>
+));
+
+const EmptyState = memo(({ illustration, title, text, darkMode, children, compact = false }) => (
+  <div className={`px-4 text-center ${BOX_SM} ${compact ? "py-10 sm:py-14" : "py-14 sm:py-24"}`}>
+    <IsoIllustration type={illustration} darkMode={darkMode} onGreen={false} className={`mx-auto mb-4 ${compact ? "h-32 w-32 sm:h-36 sm:w-36" : "h-32 w-32 sm:h-40 sm:w-40"}`} />
+    <p className="mb-2 text-lg font-extrabold uppercase sm:text-2xl">{title}</p>
+    {text && <p className={`mb-6 text-sm font-medium sm:text-base ${MUTED}`}>{text}</p>}
+    {children}
+  </div>
 ));
 
 const ShopContent = ({ darkMode, addToCart }) => {
@@ -1374,7 +1409,6 @@ const ShopContent = ({ darkMode, addToCart }) => {
   const isRTL = dir === "rtl";
   const isAr = language === "ar";
   const dateLocale = LOCALE_MAP[language] || "en-GB";
-  const font = useLangFont(language);
 
   const [saved, toggleSaved] = useSavedProducts();
   const [search, setSearch] = useState("");
@@ -1385,7 +1419,7 @@ const ShopContent = ({ darkMode, addToCart }) => {
   const [inStockOnly, setInStockOnly] = useState(false);
   const [savedOnly, setSavedOnly] = useState(false);
   const [sortBy, setSortBy] = useState("relevance");
-  const [pageSize, setPageSize] = useState(PAGE_SIZES[0]);
+  const [pageSize, setPageSize] = useState(PRODUCT_PAGE_SIZES[0]);
   const [currentPage, setCurrentPage] = useState(1);
   const [visibleCount, setVisibleCount] = useState(MOBILE_BATCH);
   const [reviewPage, setReviewPage] = useState(1);
@@ -1401,10 +1435,7 @@ const ShopContent = ({ darkMode, addToCart }) => {
   const showTop = useBackToTop();
   const closeSidebar = useCallback(() => setIsSidebarOpen(false), []);
   const openSidebar = useCallback(() => setIsSidebarOpen(true), []);
-  const drawerOpen = isMobile && isSidebarOpen;
-  useModalLock(drawerOpen, closeSidebar);
-  useEffect(() => { if (!isMobile) setIsSidebarOpen(false); }, [isMobile]);
-  useEffect(() => { ensureNbFont(); }, []);
+  useModalLock(isSidebarOpen, closeSidebar);
   useEffect(() => {
     if (!useAuthStore.getState().accessToken) recoverGoogleSession();
   }, []);
@@ -1454,6 +1485,9 @@ const ShopContent = ({ darkMode, addToCart }) => {
     enabled: !!shopId,
     staleTime: 5 * 60 * 1000,
   });
+
+  const logo = useMemo(() => shopLogoSrc(shop), [shop]);
+  const shopTitle = useMemo(() => clean(shop?.name, 120), [shop?.name]);
 
   const { data: categories = EMPTY_LIST } = useQuery({
     queryKey: ["categories"],
@@ -1685,19 +1719,20 @@ const ShopContent = ({ darkMode, addToCart }) => {
 
   const conditionCounts = useMemo(() => {
     const c = {};
+    if (!isSidebarOpen) return c;
     for (const p of baseFiltered) if (p.condition) c[p.condition] = (c[p.condition] || 0) + 1;
     return c;
-  }, [baseFiltered]);
+  }, [baseFiltered, isSidebarOpen]);
 
   const histogram = useMemo(() => {
     const bins = Array(HISTOGRAM_BINS).fill(0);
-    if (!priceBounds.max) return bins;
+    if (!isSidebarOpen || !priceBounds.max) return bins;
     for (const p of baseFiltered) {
       if (dConds.length && !dConds.includes(p.condition)) continue;
       bins[Math.min(HISTOGRAM_BINS - 1, Math.floor((p._final / priceBounds.max) * HISTOGRAM_BINS))]++;
     }
     return bins;
-  }, [baseFiltered, dConds, priceBounds.max]);
+  }, [baseFiltered, dConds, priceBounds.max, isSidebarOpen]);
 
   const filteredProducts = useMemo(() => {
     const lo = dPrice ? dPrice[0] : 0;
@@ -1719,7 +1754,7 @@ const ShopContent = ({ darkMode, addToCart }) => {
     { value: "discount", label: t("sortDiscount") },
     { value: "newest", label: t("sortNewest") },
   ], [t]);
-  const rowOptions = useMemo(() => PAGE_SIZES.map((n) => ({ value: n, label: `${n} ${t("perPage")}` })), [t]);
+  const rowOptions = useMemo(() => PRODUCT_PAGE_SIZES.map((n) => ({ value: n, label: `${n} ${t("perPage")}` })), [t]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
   useEffect(() => { setCurrentPage(1); setVisibleCount(MOBILE_BATCH); }, [pageSize, deferred]);
@@ -1767,20 +1802,20 @@ const ShopContent = ({ darkMode, addToCart }) => {
     { value: String(reviews.length), label: reviewWord(reviews.length) },
   ], [products.length, avgRating, reviews.length, reviewWord, t]);
 
-  const filterPanelProps = useMemo(() => ({
+  const filterPanelProps = useMemo(() => (isSidebarOpen ? {
     t, conditionCounts, selectedConditions: conditions, toggleCondition, categoryOptions, selectedCategory, setSelectedCategory,
     totalCount: products.length, priceBounds, priceValue, setPriceRange, histogram,
     inStockOnly, setInStockOnly, onSaleOnly, setOnSaleOnly, savedOnly, setSavedOnly,
     open, setOpen, clearFilters, activeFiltersCount,
-  }), [t, conditionCounts, conditions, toggleCondition, categoryOptions, selectedCategory, products.length, priceBounds, priceValue,
+  } : null), [isSidebarOpen, t, conditionCounts, conditions, toggleCondition, categoryOptions, selectedCategory, products.length, priceBounds, priceValue,
     setPriceRange, histogram, inStockOnly, onSaleOnly, savedOnly, open, clearFilters, activeFiltersCount]);
-  const frameProps = { darkMode, dir, language, font, isAr };
+  const frameProps = { darkMode, dir, language, isAr };
   const currency = t("currency");
 
   if (shopLoading) return (
     <Frame {...frameProps}>
       <div className="flex min-h-screen items-center justify-center">
-        <div className="h-14 w-14 animate-spin rounded-full border-4 border-[color:var(--nb-accent)] border-t-transparent motion-reduce:animate-none" role="status" aria-label={t("loading")} />
+        <div className="h-14 w-14 animate-spin rounded-full border-4 border-[color:var(--acc)] border-t-transparent motion-reduce:animate-none" role="status" aria-label={t("loading")} />
       </div>
     </Frame>
   );
@@ -1788,10 +1823,7 @@ const ShopContent = ({ darkMode, addToCart }) => {
   if (!shop) return (
     <Frame {...frameProps}>
       <div className="flex min-h-screen items-center justify-center px-4">
-        <div className="nb-card px-6 py-14 text-center sm:px-12">
-          <IsoIllustration type="shopEmpty" darkMode={darkMode} onGreen={false} className="mx-auto mb-4 h-32 w-32 sm:h-40 sm:w-40" />
-          <p className="text-xl font-extrabold uppercase">{t("shopNotFound")}</p>
-        </div>
+        <EmptyState illustration="shopEmpty" title={t("shopNotFound")} darkMode={darkMode} />
       </div>
     </Frame>
   );
@@ -1803,227 +1835,207 @@ const ShopContent = ({ darkMode, addToCart }) => {
           <Defs3D />
           <Toaster darkMode={darkMode} />
 
-          <ShopBanner darkMode={darkMode} />
-          <ShopDetails shop={shop} darkMode={darkMode} stats={stats} onViewProducts={scrollToProducts} onChat={handleOpenChat} t={t} />
+          <ShopBanner darkMode={darkMode} title={shopTitle || t("shopFallback")} onViewProducts={scrollToProducts} onChat={handleOpenChat} t={t} />
+          <ShopDetails shop={shop} logo={logo} darkMode={darkMode} stats={stats} t={t} />
 
-          <div className="nb-seq">
-            {shopOffers.length > 0 && (
-              <section id="shop-offers" aria-label={t("shopOffers")} className="lk-cv py-10 sm:py-16">
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                  <SectionHead
-                    eyebrow={t("eyebrowOffers")} title={t("shopOffers")} subtitle={t("shopOffersSubtitle")} count={shopOffers.length}
-                    action={<IsoIllustration type="offersCard" tone="emerald" darkMode={darkMode} onGreen={false} className="lk-float-slow pointer-events-none hidden h-40 w-40 flex-shrink-0 sm:block lg:h-52 lg:w-52" />}
-                  />
-                  <div className="grid grid-cols-1 gap-6 pb-2 pe-2 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
-                    {shopOffers.slice(0, OFFERS_SHOWN).map((o, i) => (
-                      <ShopOfferCard key={o.id} offer={o} index={i} language={language} currency={currency} onOpen={openOfferDetail} ot={ot} />
-                    ))}
+          {shopOffers.length > 0 && (
+            <section id="shop-offers" aria-label={t("shopOffers")} className={`pg-pattern bg-[color:var(--pg)] ${SECTION} ${LAZY}`}>
+              <div className={WRAP}>
+                <SectionTitle title={t("shopOffers")} subtitle={t("shopOffersSubtitle")}>
+                  <div aria-hidden="true" className="pointer-events-none hidden h-40 w-40 flex-shrink-0 sm:block lg:h-52 lg:w-52">
+                    <IsoIllustration type="offersCard" tone="emerald" darkMode={darkMode} onGreen={false} className="h-full w-full" />
                   </div>
-                  {shopOffers.length > OFFERS_SHOWN && (
-                    <div className="flex justify-center pt-8">
-                      <button type="button" onClick={goToOffers} className="nb-btn nb-btn-a px-6 py-3 text-sm uppercase">
-                        {t("viewAllOffers")} <FiArrowRight className="nb-flip h-4 w-4" />
-                      </button>
-                    </div>
-                  )}
+                </SectionTitle>
+                <div className="grid grid-cols-1 gap-6 pb-2 pe-2 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
+                  {shopOffers.slice(0, OFFERS_SHOWN).map((o, i) => (
+                    <ShopOfferCard key={o.id} offer={o} index={i} language={language} currency={currency} onOpen={openOfferDetail} ot={ot} />
+                  ))}
                 </div>
-              </section>
-            )}
-
-            {!productsLoading && categorySections.length > 0 && (
-              <section aria-label={t("browseCollections")} className="lk-cv py-10 sm:py-16">
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                  <SectionHead eyebrow={t("eyebrowCollections")} title={t("browseCollections")} subtitle={t("browseCategory")} />
-                  <div className="space-y-10 sm:space-y-14">
-                    {categorySections.map(({ category, items }) => (
-                      <CategorySlider key={category.id} category={category} items={items} darkMode={darkMode} saved={saved} onSave={toggleSaved} onAddToCart={handleAddToCart} onDetails={openDetails} t={t} isRTL={isRTL} />
-                    ))}
-                  </div>
-                </div>
-              </section>
-            )}
-
-            <section aria-label={t("allProducts")}>
-              <div id="shop-products" className="mx-auto max-w-7xl scroll-mt-20 px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
-                <SectionHead eyebrow={t("eyebrowProducts")} title={t("allProducts")} subtitle={t("allProductsSubtitle")} />
-
-                <div className="flex items-stretch gap-5 lg:gap-8">
-                  {!isMobile && (
-                    <aside className="flex w-[17rem] min-w-0 flex-shrink-0 xl:w-[19rem]">
-                      <div className="nb-card min-w-0 flex-1 p-3 sm:p-4">
-                        <div className="sticky top-20">
-                          <FilterPanel {...filterPanelProps} flat />
-                        </div>
-                      </div>
-                    </aside>
-                  )}
-
-                  <div className="w-full min-w-0 flex-1">
-                    <div className="nb-card mb-6 flex flex-col gap-3 p-3 sm:p-4">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <p className="text-sm opacity-80" aria-live="polite">
-                          <b dir="ltr">{startItem}–{endItem}</b> / <b dir="ltr">{filteredProducts.length}</b> {t("productsFound")}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {!isMobile && (
-                            <NbDropdown ariaLabel={t("rowsPerPage", "Rows per page")} value={pageSize} onChange={setPageSize} options={rowOptions} align="end" className="w-36 flex-shrink-0" />
-                          )}
-                          {isMobile && (
-                            <button type="button" onClick={openSidebar} className="nb-btn nb-btn-a h-10 px-3 text-xs uppercase">
-                              <FiSliders className="h-3.5 w-3.5" /> {t("filters")}
-                              {activeFiltersCount > 0 && <span className="flex h-4 min-w-[1rem] items-center justify-center bg-white px-1 text-[10px] font-bold text-[#04261a]">{activeFiltersCount}</span>}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                        <div className="nb-field relative flex h-10 min-w-0 flex-1 items-center gap-2 px-3">
-                          <FiSearch aria-hidden="true" className="h-4 w-4 flex-shrink-0" />
-                          <input type="text" inputMode="search" autoComplete="off" value={search} maxLength={100} onChange={(e) => setSearch(e.target.value)}
-                            placeholder={t("searchProducts")} aria-label={t("searchProducts")}
-                            className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60" />
-                          {isStale && <span aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" />}
-                          {search && <button type="button" onClick={() => setSearch("")} aria-label={t("clear")} className="flex-shrink-0"><FiX className="h-4 w-4" /></button>}
-                        </div>
-                        <NbDropdown ariaLabel={t("sortBy")} value={sortBy} onChange={setSortBy} options={sortOptions} align="end" className="w-full sm:w-52" />
-                      </div>
-                    </div>
-
-                    {activeFiltersCount > 0 && (
-                      <div className="mb-6 flex flex-wrap items-center gap-2">
-                        {selectedCategory !== "all" && <FilterChip label={selectedCategory} onRemove={() => setSelectedCategory("all")} />}
-                        {conditions.map((c) => <FilterChip key={c} label={conditionLabel(t, c)} onRemove={() => toggleCondition(c)} />)}
-                        {priceRange && <FilterChip label={`${money(priceValue[0], currency)} – ${money(priceValue[1], currency)}`} onRemove={() => setPriceRangeState(null)} />}
-                        {onSaleOnly && <FilterChip label={t("onSaleOnly")} onRemove={() => setOnSaleOnly(false)} />}
-                        {inStockOnly && <FilterChip label={t("inStockOnly")} onRemove={() => setInStockOnly(false)} />}
-                        {savedOnly && <FilterChip label={t("savedOnly")} onRemove={() => setSavedOnly(false)} />}
-                        {search && <FilterChip label={`“${search.slice(0, 20)}”`} onRemove={() => setSearch("")} />}
-                        <button type="button" onClick={clearFilters} className="text-xs font-bold underline underline-offset-4">{t("clearAllFilters")}</button>
-                      </div>
-                    )}
-
-                    <div aria-busy={isStale} className={`transition-opacity duration-150 ${isStale ? "opacity-70" : "opacity-100"}`}>
-                      {productsLoading ? (
-                        <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3" role="status" aria-label={t("loading")}>{Array.from({ length: 9 }).map((_, i) => <ProductSkeleton key={i} />)}</div>
-                      ) : filteredProducts.length > 0 ? (
-                        <>
-                          <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3">
-                            {listProducts.map((product, i) => (
-                              <ProductCard key={product.id} product={product} darkMode={darkMode} index={i} isSaved={saved.has(product.id)} onSave={toggleSaved} onAddToCart={handleAddToCart} onDetails={openDetails} t={t} />
-                            ))}
-                          </div>
-                          {isMobile ? (
-                            <InfiniteSentinel hasMore={hasMore} shown={visibleCount} total={filteredProducts.length} onMore={loadMore} t={t} />
-                          ) : totalPages > 1 && (
-                            <div className="flex flex-col items-center gap-3 pt-8">
-                              <Pagination page={currentPage} total={totalPages} onChange={goToPage} label={t("pagination")} t={t} />
-                              <p className="nb-muted text-xs">
-                                <span dir="ltr">{startItem}–{endItem}</span> / <span dir="ltr">{filteredProducts.length}</span> {t("productsFound")}
-                              </p>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div className="nb-card px-4 py-14 text-center sm:py-24">
-                          <IsoIllustration type="shopEmpty" darkMode={darkMode} onGreen={false} className="mx-auto mb-4 h-32 w-32 sm:h-40 sm:w-40" />
-                          <p className="mb-2 text-lg font-extrabold uppercase sm:text-2xl">{t("noProducts")}</p>
-                          <p className="mb-6 text-sm opacity-80 sm:text-base">{t("adjustFilters")}</p>
-                          {activeFiltersCount > 0 && <button type="button" onClick={clearFilters} className="nb-btn nb-btn-a px-6 py-3 text-sm uppercase">{t("clearFilters")}</button>}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <ChatCTABanner darkMode={darkMode} onOpenChat={handleOpenChat} t={t} />
-
-            <section id="shop-reviews" aria-label={t("customerReviews")} className="lk-cv py-10 sm:py-16">
-              <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <SectionHead
-                  eyebrow={t("eyebrowReviews")} title={t("customerReviews")}
-                  subtitle={<><span dir="ltr">{reviews.length}</span> {reviewWord(reviews.length)}{reviews.length > 0 && <> · {t("avgLabel")} <span dir="ltr">{avgRating}</span> ★</>}</>}
-                />
-
-                <div className="grid items-start gap-6 lg:grid-cols-[20rem_1fr] lg:gap-8 xl:grid-cols-[22rem_1fr]">
-                  <aside className="nb-card p-5 sm:p-6">
-                    <div className="flex flex-col items-center text-center">
-                      <div className="flex items-center gap-3 lg:flex-col">
-                        <RiStarFill className="nb-star-on h-12 w-12 sm:h-16 sm:w-16" aria-hidden="true" />
-                        <div>
-                          <p className="text-3xl font-extrabold tabular-nums sm:text-4xl" dir="ltr">{avgRating} / 5</p>
-                          <p className="text-sm font-extrabold uppercase">{reviews.length > 0 ? t("lovedByCustomers") : t("noReviewsYet")}</p>
-                          <p className="nb-muted text-xs font-bold">{t("basedOn")} <span dir="ltr">{reviews.length}</span> {reviewWord(reviews.length)}</p>
-                        </div>
-                      </div>
-                      <div className="mt-5 w-full space-y-2">
-                        {RATING_BARS.map((n) => {
-                          const pct = reviews.length ? (ratingCounts[n] / reviews.length) * 100 : 0;
-                          return (
-                            <div key={n} className="flex items-center gap-2" dir="ltr">
-                              <span className="w-3 text-xs font-bold">{n}</span>
-                              <RiStarFill className="nb-star-on h-3 w-3 flex-shrink-0" aria-hidden="true" />
-                              <div className="nb-gray nb-line h-3 flex-1 overflow-hidden border-2">
-                                <div className="h-full bg-[color:var(--nb-btn)]" style={{ width: `${pct}%` }} />
-                              </div>
-                              <span className="w-6 text-end text-[10px] font-bold tabular-nums">{ratingCounts[n]}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </aside>
-
-                  <ReviewForm t={t} hasReview={!!myReview} onSubmit={submitReview} />
-                </div>
-
-                <div id="shop-reviews-list" className="mt-8 scroll-mt-24">
-                  {reviewsLoading ? (
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
-                      {Array.from({ length: 3 }).map((_, i) => <div key={i} className="nb-gray nb-line h-44 animate-pulse border-2 motion-reduce:animate-none" />)}
-                    </div>
-                  ) : reviews.length > 0 ? (
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
-                      {pagedReviews.map((r) => (
-                        <ReviewCard key={r.id} review={r} mine={userId != null && String(r.userId) === String(userId)}
-                          dateLocale={dateLocale} shopName={clean(shop?.name, 80)} t={t} onEdit={setEditingReview} onDelete={deleteReview} />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="nb-card px-4 py-10 text-center sm:py-14">
-                      <IsoIllustration type="shopReviews" darkMode={darkMode} onGreen={false} className="mx-auto mb-3 h-32 w-32 sm:h-36 sm:w-36" />
-                      <p className="mb-1 text-base font-extrabold uppercase sm:text-lg">{t("noReviewsYet")}</p>
-                      <p className="text-xs opacity-80 sm:text-sm">{t("beFirstReview")}</p>
-                    </div>
-                  )}
-                </div>
-
-                {!reviewsLoading && reviews.length > REVIEWS_PER_PAGE && (
-                  <div className="flex flex-col items-center gap-3 pt-8">
-                    <Pagination page={safeReviewPage} total={reviewPages} onChange={goToReviewPage} label={t("reviewsPagination")} t={t} />
-                    <p className="nb-muted text-xs">
-                      <span dir="ltr">{(safeReviewPage - 1) * REVIEWS_PER_PAGE + 1}–{Math.min(safeReviewPage * REVIEWS_PER_PAGE, reviews.length)}</span> / <span dir="ltr">{reviews.length}</span> {reviewWord(reviews.length)}
-                    </p>
+                {shopOffers.length > OFFERS_SHOWN && (
+                  <div className="flex justify-center pe-1 pb-1 pt-8">
+                    <button type="button" onClick={goToOffers} className={`${BTN} ${BTN_ON}`}>
+                      {t("viewAllOffers")} <FiArrowRight aria-hidden="true" className="h-4 w-4 rtl:rotate-180" />
+                    </button>
                   </div>
                 )}
               </div>
             </section>
-          </div>
+          )}
+
+          {!productsLoading && categorySections.length > 0 && (
+            <section aria-label={t("browseCollections")} className={`pg-glow bg-[color:var(--pg)] ${SECTION} ${LAZY}`}>
+              <div className={WRAP}>
+                <SectionTitle title={t("browseCollections")} subtitle={t("browseCategory")} />
+                <div className="space-y-12 sm:space-y-16">
+                  {categorySections.map(({ category, items }) => (
+                    <CategorySlider key={category.id} category={category} items={items} darkMode={darkMode} saved={saved} onSave={toggleSaved} onAddToCart={handleAddToCart} onDetails={openDetails} t={t} isRTL={isRTL} />
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+
+          <section aria-label={t("allProducts")} className="pg-pattern bg-[color:var(--pg)]">
+            <div id="shop-products" className={`${WRAP} scroll-mt-20 ${SECTION}`}>
+              <SectionTitle title={t("allProducts")} subtitle={t("allProductsSubtitle")} />
+
+              <div className="w-full min-w-0">
+                <div className={`mb-6 flex flex-col gap-3 p-3 sm:p-4 ${BOX_SM}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className={`text-sm font-medium ${MUTED}`} aria-live="polite">
+                      <b dir="ltr" className="text-[color:var(--tx)]">{startItem}–{endItem}</b> / <b dir="ltr" className="text-[color:var(--tx)]">{filteredProducts.length}</b> {t("productsFound")}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2 pe-1 pb-1">
+                      {!isMobile && (
+                        <NbDropdown ariaLabel={t("rowsPerPage", "Rows per page")} value={pageSize} onChange={setPageSize} options={rowOptions} align="end" className="w-40 flex-shrink-0" />
+                      )}
+                      <button type="button" onClick={openSidebar} aria-haspopup="dialog" aria-expanded={isSidebarOpen} className={`${BTN} ${BTN_ON}`}>
+                        <FiSliders aria-hidden="true" className="h-4 w-4" />{t("filters")}
+                        {activeFiltersCount > 0 && <span dir="ltr" className="tabular-nums">({activeFiltersCount})</span>}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <div className={`relative flex h-11 min-w-0 flex-1 items-center gap-2 px-3 ${FIELD}`}>
+                      <FiSearch aria-hidden="true" className="h-4 w-4 flex-shrink-0" />
+                      <input type="text" inputMode="search" autoComplete="off" value={search} maxLength={100} onChange={(e) => setSearch(e.target.value)}
+                        placeholder={t("searchProducts")} aria-label={t("searchProducts")}
+                        className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60" />
+                      {isStale && <span aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" />}
+                      {search && <button type="button" onClick={() => setSearch("")} aria-label={t("clear")} className={`flex-shrink-0 rounded ${FOCUS}`}><FiX aria-hidden="true" className="h-4 w-4" /></button>}
+                    </div>
+                    <NbDropdown ariaLabel={t("sortBy")} value={sortBy} onChange={setSortBy} options={sortOptions} align="end" className="w-full sm:w-56" />
+                  </div>
+                </div>
+
+                {activeFiltersCount > 0 && (
+                  <div className="mb-6 flex flex-wrap items-center gap-2 pe-1 pb-1">
+                    {selectedCategory !== "all" && <FilterChip label={selectedCategory} onRemove={() => setSelectedCategory("all")} />}
+                    {conditions.map((c) => <FilterChip key={c} label={conditionLabel(t, c)} onRemove={() => toggleCondition(c)} />)}
+                    {priceRange && <FilterChip label={`${money(priceValue[0], currency)} – ${money(priceValue[1], currency)}`} onRemove={() => setPriceRangeState(null)} />}
+                    {onSaleOnly && <FilterChip label={t("onSaleOnly")} onRemove={() => setOnSaleOnly(false)} />}
+                    {inStockOnly && <FilterChip label={t("inStockOnly")} onRemove={() => setInStockOnly(false)} />}
+                    {savedOnly && <FilterChip label={t("savedOnly")} onRemove={() => setSavedOnly(false)} />}
+                    {search && <FilterChip label={`“${search.slice(0, 20)}”`} onRemove={() => setSearch("")} />}
+                    <button type="button" onClick={clearFilters} className={`min-h-11 rounded-md text-xs font-bold underline underline-offset-4 ${FOCUS}`}>{t("clearAllFilters")}</button>
+                  </div>
+                )}
+
+                <div aria-busy={isStale} className={`transition-opacity duration-150 motion-reduce:transition-none ${isStale ? "opacity-70" : "opacity-100"}`}>
+                  {productsLoading ? (
+                    <div className={GRID} role="status" aria-label={t("loading")}>{Array.from({ length: 10 }).map((_, i) => <ProductSkeleton key={i} />)}</div>
+                  ) : filteredProducts.length > 0 ? (
+                    <>
+                      <div className={GRID}>
+                        {listProducts.map((product, i) => (
+                          <div key={product.id} className="pg-rise min-w-0" style={STAGGER[i % 10]}>
+                            <ProductCard product={product} darkMode={darkMode} isSaved={saved.has(product.id)} onSave={toggleSaved} onAddToCart={handleAddToCart} onDetails={openDetails} t={t} />
+                          </div>
+                        ))}
+                      </div>
+                      {isMobile ? (
+                        <InfiniteSentinel hasMore={hasMore} shown={visibleCount} total={filteredProducts.length} onMore={loadMore} t={t} />
+                      ) : totalPages > 1 && (
+                        <div className="flex flex-col items-center gap-3 pt-8">
+                          <Pagination page={currentPage} total={totalPages} onChange={goToPage} label={t("pagination")} t={t} />
+                          <p className={`text-xs font-medium ${MUTED}`}>
+                            <span dir="ltr">{startItem}–{endItem}</span> / <span dir="ltr">{filteredProducts.length}</span> {t("productsFound")}
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <EmptyState illustration="shopEmpty" title={t("noProducts")} text={t("adjustFilters")} darkMode={darkMode}>
+                      {activeFiltersCount > 0 && <button type="button" onClick={clearFilters} className={`${BTN} ${BTN_ON}`}>{t("clearFilters")}</button>}
+                    </EmptyState>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <ChatCTABanner darkMode={darkMode} onOpenChat={handleOpenChat} t={t} />
+
+          <section id="shop-reviews" aria-label={t("customerReviews")} className={`pg-glow bg-[color:var(--pg)] ${SECTION} ${LAZY}`}>
+            <div className={WRAP}>
+              <SectionTitle
+                title={t("customerReviews")}
+                subtitle={<><span dir="ltr">{reviews.length}</span> {reviewWord(reviews.length)}{reviews.length > 0 && <> · {t("avgLabel")} <span dir="ltr">{avgRating}</span> ★</>}</>}
+              />
+
+              <div className="grid items-start gap-6 pb-2 pe-2 lg:grid-cols-[20rem_1fr] lg:gap-8 xl:grid-cols-[22rem_1fr]">
+                <aside className={`p-5 sm:p-6 ${BOX_LG}`}>
+                  <div className="flex flex-col items-center text-center">
+                    <div className="flex items-center gap-3 lg:flex-col">
+                      <RiStarFill className="h-12 w-12 text-amber-500 sm:h-16 sm:w-16" aria-hidden="true" />
+                      <div>
+                        <p className="text-3xl font-extrabold tabular-nums sm:text-4xl" dir="ltr">{avgRating} / 5</p>
+                        <p className="text-sm font-extrabold uppercase">{reviews.length > 0 ? t("lovedByCustomers") : t("noReviewsYet")}</p>
+                        <p className={`text-xs font-bold ${MUTED}`}>{t("basedOn")} <span dir="ltr">{reviews.length}</span> {reviewWord(reviews.length)}</p>
+                      </div>
+                    </div>
+                    <div className="mt-5 w-full space-y-2">
+                      {RATING_BARS.map((n) => {
+                        const pct = reviews.length ? (ratingCounts[n] / reviews.length) * 100 : 0;
+                        return (
+                          <div key={n} className="flex items-center gap-2" dir="ltr">
+                            <span className="w-3 text-xs font-bold">{n}</span>
+                            <RiStarFill className="h-3 w-3 flex-shrink-0 text-amber-500" aria-hidden="true" />
+                            <div className="h-3 flex-1 overflow-hidden rounded-full border-2 border-[color:var(--ink)] bg-[color:var(--sf2)]">
+                              <div className="h-full bg-[color:var(--acc)]" style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="w-6 text-end text-[10px] font-bold tabular-nums">{ratingCounts[n]}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </aside>
+
+                <ReviewForm t={t} hasReview={!!myReview} onSubmit={submitReview} />
+              </div>
+
+              <div id="shop-reviews-list" className="mt-10 scroll-mt-24">
+                {reviewsLoading ? (
+                  <div className="grid grid-cols-1 gap-5 pb-2 pe-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-44 animate-pulse rounded-2xl bg-[color:var(--sf2)] motion-reduce:animate-none" />)}
+                  </div>
+                ) : reviews.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-5 pb-2 pe-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {pagedReviews.map((r) => (
+                      <ReviewCard key={r.id} review={r} mine={userId != null && String(r.userId) === String(userId)}
+                        dateLocale={dateLocale} shopName={clean(shop?.name, 80)} t={t} onEdit={setEditingReview} onDelete={deleteReview} />
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState compact illustration="shopReviews" title={t("noReviewsYet")} text={t("beFirstReview")} darkMode={darkMode} />
+                )}
+              </div>
+
+              {!reviewsLoading && reviews.length > REVIEWS_PER_PAGE && (
+                <div className="flex flex-col items-center gap-3 pt-8">
+                  <Pagination page={safeReviewPage} total={reviewPages} onChange={goToReviewPage} label={t("reviewsPagination")} t={t} />
+                  <p className={`text-xs font-medium ${MUTED}`}>
+                    <span dir="ltr">{(safeReviewPage - 1) * REVIEWS_PER_PAGE + 1}–{Math.min(safeReviewPage * REVIEWS_PER_PAGE, reviews.length)}</span> / <span dir="ltr">{reviews.length}</span> {reviewWord(reviews.length)}
+                  </p>
+                </div>
+              )}
+            </div>
+          </section>
 
           <AnimatePresence>
-            {drawerOpen && (
+            {isSidebarOpen && filterPanelProps && (
               <div className="fixed inset-0 z-[1050]" role="dialog" aria-modal="true" aria-label={t("filters")}>
                 <m.div {...BACKDROP_MOTION} className="absolute inset-0 bg-black/60" onClick={closeSidebar} />
-                <m.div {...DRAWER_MOTION} style={GPU}
-                  className="nb-bg nb-line absolute inset-x-0 bottom-0 flex max-h-[88vh] min-w-0 transform-gpu flex-col border-t-2 sm:inset-y-0 sm:end-auto sm:start-0 sm:max-h-none sm:w-[22rem] sm:max-w-[90vw] sm:border-e-2 sm:border-t-0 md:w-96">
+                <m.div {...drawerMotion(isRTL)} style={GPU}
+                  className="absolute inset-y-0 start-0 flex w-[22rem] min-w-0 max-w-[90vw] transform-gpu flex-col border-e-[3px] border-[color:var(--ink)] bg-[color:var(--pg)] text-[color:var(--tx)] md:w-96">
                   <div className="flex items-center justify-between px-3 pb-2 pt-4 sm:px-4">
-                    <h3 className="text-base font-extrabold uppercase"><span className="nb-ul">{t("filters")}</span></h3>
-                    <button type="button" onClick={closeSidebar} aria-label={t("closeFilters")} className="nb-btn h-9 w-9"><FiX className="h-5 w-5" /></button>
+                    <h3 className="text-base font-extrabold uppercase"><span className="pg-hl">{t("filters")}</span></h3>
+                    <button type="button" onClick={closeSidebar} aria-label={t("closeFilters")} className={`${ICON} ${BTN_OFF} h-11 w-11`}><FiX aria-hidden="true" className="h-5 w-5" /></button>
                   </div>
-                  <div className="min-w-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4 pe-4 sm:px-4 sm:pe-5"><FilterPanel {...filterPanelProps} /></div>
-                  <div className="nb-line border-t-2 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4">
-                    <button type="button" onClick={() => { closeSidebar(); scrollToProducts(); }} className="nb-btn nb-btn-a w-full py-3 text-sm uppercase">{t("showProducts").replace("{count}", filteredProducts.length)}</button>
+                  <div className="pg-sb min-w-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4 pe-4 sm:px-4 sm:pe-5"><FilterPanel {...filterPanelProps} /></div>
+                  <div className="border-t-[3px] border-[color:var(--ink)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4">
+                    <button type="button" onClick={() => { closeSidebar(); scrollToProducts(); }} className={`${BTN} ${BTN_ON} w-full`}>{t("showProducts").replace("{count}", filteredProducts.length)}</button>
                   </div>
                 </m.div>
               </div>
@@ -2031,8 +2043,8 @@ const ShopContent = ({ darkMode, addToCart }) => {
           </AnimatePresence>
 
           <div className="fixed bottom-5 end-4 z-40 flex flex-col gap-3 sm:end-6 lg:bottom-8 lg:end-8">
-            {showTop && <button type="button" onClick={scrollToTop} aria-label={t("backToTop")} title={t("backToTop")} className="nb-btn h-11 w-11"><FiArrowUp className="h-5 w-5" /></button>}
-            <button type="button" onClick={handleOpenChat} onMouseEnter={prefetchChatModal} aria-label={t("chatWithShop")} title={t("chatWithShop")} className="nb-btn nb-btn-a h-12 w-12 sm:h-14 sm:w-14"><FiMessageCircle className="h-5 w-5 sm:h-6 sm:w-6" /></button>
+            {showTop && <button type="button" onClick={scrollToTop} aria-label={t("backToTop")} title={t("backToTop")} className={`${BTN} ${BTN_OFF} !min-h-0 h-11 w-11 !px-0`}><FiArrowUp aria-hidden="true" className="h-5 w-5" /></button>}
+            <button type="button" onClick={handleOpenChat} onMouseEnter={prefetchChatModal} aria-label={t("chatWithShop")} title={t("chatWithShop")} className={`${BTN} ${BTN_ON} !min-h-0 h-12 w-12 !px-0 sm:h-14 sm:w-14`}><FiMessageCircle aria-hidden="true" className="h-5 w-5 sm:h-6 sm:w-6" /></button>
           </div>
 
           <AnimatePresence>

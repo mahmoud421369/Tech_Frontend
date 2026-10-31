@@ -9,8 +9,8 @@ import {
   FiMessageSquare, FiPackage, FiChevronDown, FiChevronLeft, FiChevronRight, FiSearch, FiHeart,
 } from 'react-icons/fi';
 import { RiStarFill, RiVerifiedBadgeLine } from 'react-icons/ri';
-import { LazyMotion, MotionConfig, domAnimation, m, AnimatePresence } from 'framer-motion';
 import api from '../common/api/api';
+import { resolveImageSrc } from '../common/utils/productutils';
 import enTranslations from '../locales/en/translation.json';
 import arTranslations from '../locales/ar/translation.json';
 import frTranslations from '../locales/fr/translation.json';
@@ -19,9 +19,7 @@ import {
   roleStyle, getShopRole, serviceLabel, addressLine, directionsUrl,
 } from '../common/utils/shopsutils';
 import { UI3D_CSS, Defs3D } from '../components/user/Ui3D';
-import {
-  LISTING_CSS, PAGE_SIZES, useLangFont, useBackToTop, useModalLock,
-} from '../components/user/ListingKit';
+import { LISTING_CSS, useBackToTop, useModalLock } from '../components/user/ListingKit';
 import { IsoIllustration, isoRoleKey } from '../components/user/IsoIllustrations';
 
 const Hero = lazy(() => import('../components/user/Hero'));
@@ -34,21 +32,45 @@ const queryClient = new QueryClient({
 const MOBILE_QUERY = '(max-width: 1023.98px)';
 const MOBILE_BATCH = 8;
 const SAVED_KEY = 'nb_saved_shops';
+const SAVED_MAX = 500;
+const SHOP_PAGE_SIZES = [10, 15, 20, 30];
+const FEATURED_LIMIT = 5;
+const FAVORITES_LIMIT = 4;
+const SPECIALTY_LIMIT = 6;
+const EXIT_MS = 180;
+const STATS_STALE = 5 * 60 * 1000;
+const STAGGER = Array.from({ length: 12 }, (_, i) => ({ '--i': i }));
 
-const NB_FONT = "'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
-const NB_FONT_STYLE = { fontFamily: NB_FONT };
-const ensureNbFont = () => {
-  if (typeof document === 'undefined' || document.getElementById('nb-font')) return;
-  [['https://fonts.googleapis.com', false], ['https://fonts.gstatic.com', true]].forEach(([href, cors]) => {
-    const l = document.createElement('link');
-    l.rel = 'preconnect'; l.href = href; if (cors) l.crossOrigin = '';
-    document.head.appendChild(l);
-  });
-  const link = document.createElement('link');
-  link.id = 'nb-font';
-  link.rel = 'stylesheet';
-  link.href = 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap';
-  document.head.appendChild(link);
+const DARK_PAGE = 'bg-[#141414]';
+const LAZY_SECTION = '[content-visibility:auto] [contain-intrinsic-size:auto_760px]';
+const SHOP_GRID = 'grid grid-cols-2 gap-3 pb-2 pe-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5';
+const FAVORITES_GRID = 'grid grid-cols-2 gap-3 pb-2 pe-2 sm:gap-4 md:grid-cols-4';
+
+const LOGO_DIR = '/uploads/shop-logos/';
+const LOGO_MAX = 2048;
+const BAD_LOGO_CHARS = /[\x00-\x1f\\<>"'`]/;
+const DATA_IMAGE = /^data:image\/(png|jpe?g|webp|gif|avif);base64,[a-z0-9+/=]+$/i;
+const REMOTE_SRC = /^(https?:)?\/\//i;
+const ANY_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
+
+const isHttpUrl = (raw) => {
+  try {
+    const u = new URL(raw.startsWith('//') ? `https:${raw}` : raw);
+    return u.protocol === 'https:' || u.protocol === 'http:';
+  } catch {
+    return false;
+  }
+};
+
+const shopLogoSrc = (s) => {
+  const raw = String(s?.logoUrl ?? s?.logo ?? s?.logoPath ?? s?.shopLogo ?? '').trim();
+  if (!raw || raw.length > LOGO_MAX || raw.includes('..')) return null;
+  if (DATA_IMAGE.test(raw)) return raw;
+  if (BAD_LOGO_CHARS.test(raw)) return null;
+  if (REMOTE_SRC.test(raw)) return isHttpUrl(raw) ? raw : null;
+  if (ANY_SCHEME.test(raw)) return null;
+  const path = raw.includes('/') ? (raw.startsWith('/') ? raw : `/${raw}`) : `${LOGO_DIR}${encodeURIComponent(raw)}`;
+  return resolveImageSrc(path) || path;
 };
 
 const SHOPS_TRANSLATIONS = {
@@ -92,12 +114,12 @@ const EXTRA = {
 
 const tr = (lang, key, params) => {
   const raw = SHOPS_TRANSLATIONS[lang]?.[key] ?? EXTRA[lang]?.[key] ?? SHOPS_TRANSLATIONS.en?.[key] ?? EXTRA.en[key] ?? key;
-  return params ? raw.replace(/\{\{(\w+)\}\}/g, (_, k) => (params[k] !== undefined ? params[k] : '')) : raw;
+  const text = typeof raw === 'string' ? raw : String(key);
+  return params ? text.replace(/\{\{(\w+)\}\}/g, (_, k) => (params[k] !== undefined ? params[k] : '')) : text;
 };
 
 const clean = (v, max = 200) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
-
-const STAGGER = Array.from({ length: 8 }, (_, i) => ({ '--i': i }));
+const telHref = (phone) => `tel:${String(phone).replace(/[^\d+]/g, '').slice(0, 20)}`;
 
 const useIsMobile = (query = MOBILE_QUERY) => {
   const [matches, setMatches] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
@@ -114,7 +136,8 @@ const useIsMobile = (query = MOBILE_QUERY) => {
 const readSaved = () => {
   try {
     const v = JSON.parse(localStorage.getItem(SAVED_KEY) || '[]');
-    return Array.isArray(v) ? v : [];
+    if (!Array.isArray(v)) return [];
+    return v.filter((x) => (typeof x === 'string' && x.length <= 64) || Number.isFinite(x)).slice(-SAVED_MAX);
   } catch {
     return [];
   }
@@ -124,13 +147,33 @@ const useSavedShops = () => {
   const [ids, setIds] = useState(readSaved);
   const toggle = useCallback((id) => {
     setIds((prev) => {
-      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id].slice(-SAVED_MAX);
       try { localStorage.setItem(SAVED_KEY, JSON.stringify(next)); } catch { }
       return next;
     });
   }, []);
   const set = useMemo(() => new Set(ids), [ids]);
   return [set, toggle];
+};
+
+const useScrollTopOnEnter = () => {
+  const navType = useNavigationType();
+  useLayoutEffect(() => {
+    if (navType === 'POP') return;
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, []);
+};
+
+const useExit = (onClose) => {
+  const [leaving, setLeaving] = useState(false);
+  const timer = useRef();
+  const close = useCallback(() => {
+    if (timer.current) return;
+    setLeaving(true);
+    timer.current = setTimeout(onClose, EXIT_MS);
+  }, [onClose]);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  return [leaving, close];
 };
 
 const toCount = (...vals) => {
@@ -182,8 +225,6 @@ const useSeen = () => {
   return [ref, seen];
 };
 
-const STATS_STALE = 5 * 60 * 1000;
-
 const useShopCounts = (shop, enabled) => {
   const id = shop.id;
   const on = enabled && id != null;
@@ -210,6 +251,28 @@ const useShopCounts = (shop, enabled) => {
   };
 };
 
+const useShopLogo = (shop, active) => {
+  const id = shop.id;
+  const listLogo = useMemo(() => shopLogoSrc(shop), [shop]);
+  const q = useQuery({
+    queryKey: ['shop', id],
+    queryFn: async ({ signal }) => {
+      try {
+        return (await api.get(`/api/shops/${encodeURIComponent(id)}`, { signal })).data;
+      } catch (e) {
+        if (signal?.aborted) throw e;
+        return null;
+      }
+    },
+    select: shopLogoSrc,
+    enabled: active && !listLogo && id != null,
+    staleTime: STATS_STALE,
+    retry: false,
+    refetchOnMount: false,
+  });
+  return listLogo || q.data || null;
+};
+
 const REPAIR_CAPS = [
   { icon: FiTool, titleKey: 'capRepairTitle', textKey: 'capRepairText' },
   { icon: FiShield, titleKey: 'capCertifiedTitle', textKey: 'capCertifiedText' },
@@ -224,360 +287,492 @@ const capabilitiesFor = (role) => (role === 'REPAIRER' ? REPAIR_CAPS : role === 
 const ROLE_SECTIONS = [
   { role: 'REPAIRER', title: 'repairSectionTitle', sub: 'repairSectionSub' },
   { role: 'SELLER', title: 'sellSectionTitle', sub: 'sellSectionSub' },
-  { role: 'BOTH', title: 'bothSectionTitle', sub: 'bothSectionSub' },
 ];
 
 const RATING_STEPS = [4, 4.5, 4.8];
 const VIEW_MODES = [['grid', FiGrid, 'gridView'], ['list', FiList, 'listView']];
 
-const NB_CSS = `
-.nb{--nb-bg:#f3f4f6;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e2e5e9;--nb-accent:#10b981;--nb-btn:#059669;--nb-on:#ffffff;background:var(--nb-bg);color:var(--nb-ink)}
-.nb-dark{--nb-bg:#121212;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#212121;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-on:#022c22}
-.nb-dark .border-dotted,.nb-dark .nb-dot{border-color:#3f3f3f}
-.nb-seq>section:nth-of-type(odd){background:var(--nb-bg)}
-.nb-seq>section:nth-of-type(even){background:var(--nb-gray)}
-.nb-seq>section+section{border-top:2px solid var(--nb-line)}
-.nb-bg{background:var(--nb-bg)}
-.nb-gray{background:var(--nb-gray)}
-.nb-muted{color:var(--nb-muted)}
-.nb-ic{color:var(--nb-accent)}
-.nb-line{border-color:var(--nb-line)}
-.nb-card{background:var(--nb-card);border:2px solid var(--nb-line);box-shadow:5px 5px 0 var(--nb-shadow);transition:transform .18s cubic-bezier(.16,1,.3,1),box-shadow .18s cubic-bezier(.16,1,.3,1)}
-.nb-lift{contain:layout style;backface-visibility:hidden}
-.nb-lift:hover{transform:translate3d(-2px,-2px,0);box-shadow:7px 7px 0 var(--nb-shadow)}
-.nb-in{animation:nbIn .34s cubic-bezier(.16,1,.3,1) both;animation-delay:calc(var(--i,0)*32ms)}
-@keyframes nbIn{from{opacity:0;transform:translate3d(0,14px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
-.nb-bar{display:inline-block;width:52px;height:16px;background:var(--nb-accent);border:2px solid var(--nb-line)}
-.nb-ul{text-decoration:underline;text-decoration-color:var(--nb-accent);text-decoration-thickness:4px;text-underline-offset:5px;text-decoration-skip-ink:none}
-.nb-rule{display:block;width:100%;height:4px;margin-top:8px;background:var(--nb-accent)}
-.nb-divider{display:block;height:8px;background:var(--nb-accent);border-block:2px solid var(--nb-line)}
-.nb-squig path{stroke:var(--nb-accent)}
-.nb-chip{display:inline-flex;align-items:center;gap:4px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);padding:1px 6px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;line-height:1.5}
-.nb-chip-a{background:var(--nb-btn);color:var(--nb-on)}
-.nb-chip-n{background:var(--nb-gray);color:var(--nb-muted);border-style:dashed}
-.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow);font-weight:700;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,background-color .12s ease}
-.nb-btn:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--nb-shadow)}
-.nb-btn:active:not(:disabled){transform:translate(2px,2px);box-shadow:0 0 0 var(--nb-shadow)}
-.nb-btn:disabled{opacity:.45;cursor:not-allowed}
-.nb-btn-a,.nb-btn-on{background:var(--nb-btn);color:var(--nb-on)}
-.nb-btn:focus-visible,.nb-field:focus-within{outline:3px solid var(--nb-accent);outline-offset:2px}
-.nb-arrow{display:inline-flex;align-items:center;justify-content:center;flex:none;width:36px;height:36px;background:var(--nb-btn);color:var(--nb-on);border:2px solid var(--nb-line);box-shadow:2px 2px 0 var(--nb-shadow);cursor:pointer;transition:transform .15s ease}
-.nb-arrow:focus-visible{outline:3px solid var(--nb-accent);outline-offset:2px}
-.nb-lift:hover .nb-arrow{transform:translateX(3px)}
-.nb[dir=rtl] .nb-lift:hover .nb-arrow{transform:translateX(-3px)}
-.nb[dir=rtl] .nb-flip{transform:scaleX(-1)}
-.nb-field{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow)}
-.nb-menu{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:4px 4px 0 var(--nb-shadow)}
-.nb-opt{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;font-size:12px;font-weight:700;text-transform:uppercase;text-align:start;cursor:pointer}
-.nb-opt-active{background:var(--nb-gray)}
-.nb-opt[aria-selected=true]{background:var(--nb-btn);color:var(--nb-on)}
-.nb-media{background:var(--nb-gray)}
-.nb-media-b{border:2px solid var(--nb-line)}
-.nb-box{display:flex;align-items:center;justify-content:center;flex:none;width:20px;height:20px;border:2px solid var(--nb-line);background:var(--nb-card);color:var(--nb-on)}
-.nb-box-on{background:var(--nb-btn)}
-.nb-dot{background:var(--nb-card);color:var(--nb-ink);border:2px dotted var(--nb-line);cursor:pointer;transition:transform .15s ease,background-color .15s ease}
-.nb-dot:hover,.nb-dot-on{background:var(--nb-btn);color:var(--nb-on)}
-.nb-dot:hover{transform:translateY(-3px)}
-.nb-dot:hover .nb-chip,.nb-dot-on .nb-chip{background:#ffffff;color:#04261a;border-color:#04261a}
-.nb-dot:focus-visible{outline:3px solid var(--nb-accent);outline-offset:3px}
-@keyframes nbSpin{to{transform:rotate(360deg)}}
-.nb-spin{animation:nbSpin .7s linear infinite}
-@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn,.nb-arrow,.nb-dot{transition:none}.nb-spin{animation:none}.nb-in{animation:none}}
+const HL = (hex) => `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%23${hex}' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E")`;
+
+const PX_CSS = `
+.hp-hl,.hp-hl-dark,.hp-hl-gold,.hp-hl-gold-dark{padding-bottom:.2em;background-position:left bottom;background-repeat:no-repeat;background-size:100% .3em;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.hp-hl{background-image:${HL('10b981')}}
+.hp-hl-dark{background-image:${HL('39ff88')}}
+.hp-hl-gold{background-image:${HL('f59e0b')}}
+.hp-hl-gold-dark{background-image:${HL('facc15')}}
+@keyframes hpPop{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:none}}
+.hp-pop{animation:hpPop .14s ease-out both;transform-origin:top}
+@keyframes hpRise{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:none}}
+.hp-rise{animation:hpRise .32s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*30ms)}
+@keyframes hpDot{0%,80%,100%{transform:scale(.55);opacity:.4}40%{transform:scale(1);opacity:1}}
+.hp-load-dot{animation:hpDot 1s ease-in-out infinite}
+.hp-load-dot:nth-child(2){animation-delay:.15s}
+.hp-load-dot:nth-child(3){animation-delay:.3s}
+@keyframes hpFadeIn{from{opacity:0}to{opacity:1}}
+@keyframes hpFadeOut{from{opacity:1}to{opacity:0}}
+@keyframes hpModalIn{from{opacity:0;transform:translateY(24px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes hpModalOut{from{opacity:1;transform:none}to{opacity:0;transform:translateY(16px) scale(.98)}}
+@keyframes hpDrawerIn{from{transform:translateX(calc(var(--dx)*-100%))}to{transform:none}}
+@keyframes hpDrawerOut{from{transform:none}to{transform:translateX(calc(var(--dx)*-100%))}}
+.hp-fade-in{animation:hpFadeIn .18s ease-out both}
+.hp-fade-out{animation:hpFadeOut .18s ease-in both}
+.hp-modal-in{animation:hpModalIn .24s cubic-bezier(.2,.8,.2,1) both}
+.hp-modal-out{animation:hpModalOut .18s ease-in both}
+.hp-drawer{animation:hpDrawerIn .24s cubic-bezier(.2,.8,.2,1) both}
+.hp-drawer-out{animation:hpDrawerOut .18s ease-in both}
+.hp-search::-webkit-search-cancel-button,.hp-search::-webkit-search-decoration{display:none;-webkit-appearance:none}
+.hp-glow{background-image:radial-gradient(circle at 6% 0%,rgba(52,211,153,.2),transparent 38%),radial-gradient(circle at 96% 100%,rgba(249,115,22,.1),transparent 36%)}
+.hp-glow-dark{background-image:radial-gradient(circle at 6% 0%,rgba(57,255,136,.09),transparent 38%),radial-gradient(circle at 96% 100%,rgba(249,115,22,.07),transparent 36%)}
+.hp-pattern{--p1:rgba(4,38,26,.13);--p2:rgba(16,185,129,.12);background-image:radial-gradient(circle at 2px 2px,var(--p1) 1.6px,transparent 1.8px),repeating-linear-gradient(135deg,var(--p2) 0 2px,transparent 2px 18px);background-size:22px 22px,auto}
+.hp-pattern-dark{--p1:rgba(57,255,136,.14);--p2:rgba(57,255,136,.06)}
+.hp-media{--m-dot:rgba(4,38,26,.14);background-image:radial-gradient(circle at 1px 1px,var(--m-dot) 1px,transparent 1.4px);background-size:14px 14px}
+.hp-media-dark{--m-dot:rgba(57,255,136,.16)}
+.hp-cat{--dx:1;--c-card:#ffffff;--c-ink:#04261a;--c-line:#04261a;--c-acc:#10b981;--c-on:#04261a}
+[dir="rtl"] .hp-cat{--dx:-1}
+.hp-cat-dark{--c-card:#2a2a2a;--c-ink:#ffffff;--c-line:#000000;--c-acc:#39ff88;--c-on:#022c22}
+.hp-dot{display:flex;flex-direction:column;align-items:center;gap:.5rem;background:var(--c-card);color:var(--c-ink);cursor:pointer;border:3px solid var(--c-line);border-radius:1rem;box-shadow:calc(var(--dx)*5px) 5px 0 0 var(--c-line);transition:transform .2s ease,box-shadow .2s ease,background-color .2s ease,color .2s ease}
+.hp-dot-on{background:var(--c-acc);color:var(--c-on)}
+@media (hover:hover){.hp-dot:hover{background:var(--c-acc);color:var(--c-on);transform:translateY(-4px);box-shadow:calc(var(--dx)*7px) 9px 0 0 var(--c-line)}}
+.hp-dot:active{transform:translateY(2px);box-shadow:calc(var(--dx)*2px) 2px 0 0 var(--c-line)}
+.hp-dot:focus-visible{outline:3px solid var(--c-acc);outline-offset:4px}
+html[data-hp-theme]{--sb-thumb:#34d399;--sb-thumb-hover:#6ee7b7;--sb-track:#e8ebe9;--sb-ink:#022c22}
+html[data-hp-theme="dark"]{--sb-thumb:#39ff88;--sb-thumb-hover:#86ffb4;--sb-track:#1e1e1e;--sb-ink:#000000}
+html[data-hp-theme],.hp-sb{scrollbar-width:thin;scrollbar-color:var(--sb-thumb) var(--sb-track)}
+@supports selector(::-webkit-scrollbar){
+html[data-hp-theme],.hp-sb{scrollbar-width:auto;scrollbar-color:auto}
+html[data-hp-theme]::-webkit-scrollbar{width:14px;height:14px}
+.hp-sb::-webkit-scrollbar{width:10px;height:10px}
+html[data-hp-theme]::-webkit-scrollbar-track,.hp-sb::-webkit-scrollbar-track{background:var(--sb-track)}
+html[data-hp-theme]::-webkit-scrollbar-track:vertical,.hp-sb::-webkit-scrollbar-track:vertical{border-left:3px solid var(--sb-ink)}
+html[data-hp-theme]::-webkit-scrollbar-thumb,.hp-sb::-webkit-scrollbar-thumb{background:var(--sb-thumb);border:3px solid var(--sb-ink)}
+html[data-hp-theme]::-webkit-scrollbar-thumb:hover,.hp-sb::-webkit-scrollbar-thumb:hover{background:var(--sb-thumb-hover)}
+html[data-hp-theme]::-webkit-scrollbar-corner,.hp-sb::-webkit-scrollbar-corner{background:var(--sb-track)}
+}
+@media (prefers-reduced-motion:reduce){
+.hp-pop,.hp-rise,.hp-load-dot,.hp-fade-in,.hp-fade-out,.hp-modal-in,.hp-modal-out,.hp-drawer,.hp-drawer-out{animation:none}
+.hp-dot{transition:none}
+.hp-dot:hover,.hp-dot:active{transform:none}
+}
 `;
-const STYLE_EL = <style>{`${UI3D_CSS}${LISTING_CSS}${NB_CSS}`}</style>;
+let pxStylesInjected = false;
+const injectPxStylesOnce = () => {
+  if (pxStylesInjected || typeof document === 'undefined') return;
+  const tag = document.createElement('style');
+  tag.setAttribute('data-shops-styles', 'true');
+  tag.textContent = PX_CSS;
+  document.head.appendChild(tag);
+  pxStylesInjected = true;
+};
+injectPxStylesOnce();
 
-const EASE = [0.16, 1, 0.3, 1];
-const BACKDROP_MOTION = {
-  initial: { opacity: 0 },
-  animate: { opacity: 1, transition: { duration: 0.2, ease: 'easeOut' } },
-  exit: { opacity: 0, transition: { duration: 0.18, ease: 'easeIn' } },
-};
-const PANEL_MOTION = {
-  initial: { opacity: 0, y: 24, scale: 0.97 },
-  animate: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.26, ease: EASE } },
-  exit: { opacity: 0, y: 16, scale: 0.98, transition: { duration: 0.18, ease: 'easeIn' } },
-};
-const DRAWER_MOTION = {
-  initial: { y: '100%' },
-  animate: { y: 0, transition: { duration: 0.28, ease: EASE } },
-  exit: { y: '100%', transition: { duration: 0.2, ease: 'easeIn' } },
-};
-const GPU = { willChange: 'transform, opacity' };
+const STYLE_EL = <style>{`${UI3D_CSS}${LISTING_CSS}`}</style>;
 
-const useScrollTopOnEnter = () => {
-  const navType = useNavigationType();
-  useLayoutEffect(() => {
-    if (navType === 'POP') return;
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-  }, []);
+const NEO_THEME = {
+  light: '[--dx:1] rtl:[--dx:-1] [--ink:#022c22] [--sh:#022c22] [--acc:#34d399] [--fld:#ffffff] [--txt:#022c22] [--mut:#4b5563] [--hist:#d1d5db] [--row:#ecfdf5]',
+  dark: '[--dx:1] rtl:[--dx:-1] [--ink:#000] [--sh:#000] [--acc:#39ff88] [--fld:#1e1e1e] [--txt:#ffffff] [--mut:#a3a3a3] [--hist:#3a3a3a] [--row:#232323]',
+};
+const GOLD_THEME = {
+  light: '[--dx:1] rtl:[--dx:-1] [--ink:#422006] [--sh:#422006] [--acc:#fbbf24] [--fld:#ffffff] [--txt:#422006] [--mut:#78350f] [--hist:#fde68a] [--row:#fef3c7]',
+  dark: '[--dx:1] rtl:[--dx:-1] [--ink:#000] [--sh:#000] [--acc:#facc15] [--fld:#1e1e1e] [--txt:#ffffff] [--mut:#a3a3a3] [--hist:#3a3a3a] [--row:#232323]',
+};
+const NEO_SURFACE = { light: 'bg-white', dark: 'bg-[#2a2a2a]' };
+const GOLD_SURFACE = { light: 'bg-amber-50', dark: 'bg-[#2a2a2a]' };
+const NEO_BOX = {
+  lg: 'flex flex-col rounded-2xl border-[3px] border-[color:var(--ink)] [box-shadow:calc(var(--dx)*8px)_8px_0_0_var(--sh)]',
+  sm: 'flex flex-col rounded-2xl border-[3px] border-[color:var(--ink)] [box-shadow:calc(var(--dx)*6px)_6px_0_0_var(--sh)]',
+};
+const NEO_PRESS =
+  'transition-[transform,box-shadow] duration-200 motion-reduce:transition-none ' +
+  '[@media(hover:hover)]:hover:-translate-y-1 [@media(hover:hover)]:hover:[box-shadow:calc(var(--dx)*8px)_10px_0_0_var(--sh)] ' +
+  'active:translate-y-[2px] active:translate-x-[calc(var(--dx)*2px)] active:[box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)] ' +
+  'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-[color:var(--acc)]';
+const neoCard = (darkMode, size = 'lg', press = false) => {
+  const k = darkMode ? 'dark' : 'light';
+  return `${NEO_THEME[k]} ${NEO_BOX[size]} ${NEO_SURFACE[k]}${press ? ` ${NEO_PRESS}` : ''}`;
+};
+const goldCard = (darkMode, press = false) => {
+  const k = darkMode ? 'dark' : 'light';
+  return `${GOLD_THEME[k]} ${NEO_BOX.sm} ${GOLD_SURFACE[k]}${press ? ` ${NEO_PRESS}` : ''}`;
 };
 
-const UnderlinedTitle = memo(({ text }) => {
-  const s = String(text || '');
-  const i = s.lastIndexOf(' ');
-  const head = i > 0 ? s.slice(0, i + 1) : '';
-  const tail = i > 0 ? s.slice(i + 1) : s;
+const NEO_ICON =
+  'inline-flex h-11 w-11 flex-shrink-0 cursor-pointer items-center justify-center rounded-xl border-2 border-[color:var(--ink)] bg-[color:var(--acc)] text-emerald-950 ' +
+  '[box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)] transition-[transform,box-shadow] duration-150 motion-reduce:transition-none ' +
+  'active:translate-y-[3px] active:translate-x-[calc(var(--dx)*3px)] active:[box-shadow:0_0_0_0_var(--sh)] ' +
+  'disabled:cursor-not-allowed disabled:opacity-40 disabled:[box-shadow:none] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
+const NEO_BTN =
+  'inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border-[3px] border-[color:var(--ink)] px-4 py-2.5 text-sm font-extrabold uppercase ' +
+  '[box-shadow:calc(var(--dx)*4px)_4px_0_0_var(--sh)] transition-[transform,box-shadow] duration-150 motion-reduce:transition-none ' +
+  'active:translate-y-[4px] active:translate-x-[calc(var(--dx)*4px)] active:[box-shadow:0_0_0_0_var(--sh)] ' +
+  'disabled:cursor-not-allowed disabled:opacity-40 disabled:[box-shadow:none] ' +
+  'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
+const neoBtn = (darkMode, active) => {
+  const k = darkMode ? 'dark' : 'light';
+  const tone = active ? 'bg-[color:var(--acc)] text-emerald-950' : `${NEO_SURFACE[k]} ${darkMode ? 'text-white' : 'text-emerald-950'}`;
+  return `${NEO_THEME[k]} ${NEO_BTN} ${tone}`;
+};
+const CARD_BTN = `${NEO_BTN} min-w-0 flex-1 !min-h-10 !px-2 !py-1.5 !text-[11px] bg-[color:var(--fld)] text-[color:var(--txt)]`;
+const CARD_BTN_ACC = `${NEO_BTN} min-w-0 flex-1 !min-h-10 !px-2 !py-1.5 !text-[11px] bg-[color:var(--acc)] text-emerald-950`;
+
+const FIELD =
+  'min-h-11 w-full rounded-lg border-2 border-[color:var(--ink)] bg-[color:var(--fld)] px-3 py-2.5 text-sm font-semibold text-[color:var(--txt)] outline-none ' +
+  'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
+const FOCUS = 'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
+const TEXT_LINK = `min-h-11 cursor-pointer text-xs font-extrabold underline decoration-[color:var(--acc)] decoration-2 underline-offset-4 text-[color:var(--txt)] ${FOCUS}`;
+
+const splitHeading = (text) => {
+  const str = String(text ?? '');
+  if (str.includes('**')) return str.split('**').map((part, i) => ({ part, hl: i % 2 === 1 }));
+  const m = str.match(/^(.*[,،]\s*)([^,،]+)$/);
+  if (m) return [{ part: m[1], hl: false }, { part: m[2], hl: true }];
+  const words = str.split(' ');
+  if (words.length < 2) return [{ part: str, hl: true }];
+  const n = words.length <= 3 ? 1 : 2;
+  return [{ part: `${words.slice(0, -n).join(' ')} `, hl: false }, { part: words.slice(-n).join(' '), hl: true }];
+};
+
+const SectionTitle = memo(({ label, title, subtitle, count, darkMode, isAr, gold, children }) => {
+  const hl = gold ? (darkMode ? 'hp-hl-gold-dark' : 'hp-hl-gold') : (darkMode ? 'hp-hl-dark' : 'hp-hl');
+  const bar = gold
+    ? (darkMode ? 'border-black bg-[#facc15]' : 'border-amber-950 bg-amber-400')
+    : (darkMode ? 'border-[#39ff88] bg-[#39ff88]' : 'border-emerald-950 bg-emerald-400');
+  const ink = darkMode ? 'text-white' : gold ? 'text-amber-950' : 'text-emerald-950';
+  const parts = useMemo(() => splitHeading(title), [title]);
   return (
-    <>
-      {head}
-      <span className="relative inline-block">
-        {tail}
-        <svg aria-hidden="true" focusable="false" viewBox="0 0 100 10" preserveAspectRatio="none" className="nb-squig pointer-events-none absolute inset-x-0 -bottom-2 h-2.5 w-full">
-          <path d="M1 6 C 20 2, 40 9, 60 5 S 90 3, 99 6" fill="none" strokeWidth="5" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-        </svg>
-      </span>
-    </>
+    <div className="mb-10 flex flex-wrap items-end justify-between gap-x-8 gap-y-4 sm:mb-14">
+      <div className="min-w-0 max-w-3xl">
+        {label && (
+          <div className="mb-5 flex items-center gap-3">
+            <span aria-hidden="true" className={`h-3.5 w-12 rounded-full border-2 ${bar}`} />
+            <span className={`text-sm font-bold uppercase ${isAr ? 'tracking-normal' : 'tracking-wide'} ${ink}`}>{label}</span>
+          </div>
+        )}
+        <h2
+          className={`text-3xl font-extrabold [text-wrap:balance] sm:text-5xl lg:text-6xl ${
+            isAr ? 'leading-[1.4] tracking-normal' : 'leading-[1.18] tracking-[-0.04em]'
+          } ${ink}`}
+        >
+          {parts.map(({ part, hl: on }, i) => (on ? <span key={i} className={hl}>{part}</span> : part))}
+          {count != null && <span dir="ltr" className="ms-3 align-middle text-xl font-bold tabular-nums opacity-70 sm:text-2xl">({count})</span>}
+        </h2>
+        {subtitle && (
+          <p className={`mt-5 max-w-2xl text-base font-medium leading-relaxed sm:text-lg ${darkMode ? 'text-neutral-300' : 'text-gray-800'}`}>{subtitle}</p>
+        )}
+      </div>
+      {children}
+    </div>
   );
 });
 
-const SectionHead = memo(({ eyebrow, title, subtitle, count, action }) => (
-  <header className="mb-6 flex flex-wrap items-end justify-between gap-4 sm:mb-8">
-    <div className="min-w-0 max-w-2xl">
-      <p className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide"><span className="nb-bar" aria-hidden="true" />{eyebrow}</p>
-      <h2 className="mt-3 text-3xl font-extrabold leading-[1.15] tracking-tight sm:text-4xl lg:text-5xl">
-        <UnderlinedTitle text={title} />
-        {count != null && <span dir="ltr" className="nb-chip ms-3 align-middle text-xs">{count}</span>}
-      </h2>
-      {subtitle && <p className="nb-muted mt-4 text-base sm:text-lg">{subtitle}</p>}
-    </div>
-    {action}
-  </header>
-));
-
-const NbDropdown = memo(({ value, onChange, options, ariaLabel, className = '', align = 'start' }) => {
-  const [isOpen, setIsOpen] = useState(false);
+const Dropdown = memo(({ id, value, options, onChange, ariaLabel, className = '' }) => {
+  const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const rootRef = useRef(null);
   const btnRef = useRef(null);
   const listRef = useRef(null);
-  const uid = useId();
-  const listId = `${uid}-list`;
-  const selectedIdx = Math.max(0, options.findIndex((o) => o.value === value));
+  const listId = `${id}-list`;
+  const selectedIdx = Math.max(0, options.findIndex((o) => String(o.value) === String(value)));
   const current = options[selectedIdx];
 
   useEffect(() => {
-    if (!isOpen) return undefined;
-    const onDown = (e) => { if (!rootRef.current?.contains(e.target)) setIsOpen(false); };
+    if (!open) return undefined;
+    const onDown = (e) => { if (!rootRef.current?.contains(e.target)) setOpen(false); };
     document.addEventListener('pointerdown', onDown);
     return () => document.removeEventListener('pointerdown', onDown);
-  }, [isOpen]);
+  }, [open]);
 
-  useEffect(() => { if (isOpen) setActive(selectedIdx); }, [isOpen, selectedIdx]);
+  useEffect(() => { if (open) setActive(selectedIdx); }, [open, selectedIdx]);
+
   useEffect(() => {
-    if (isOpen) listRef.current?.children[active]?.scrollIntoView({ block: 'nearest' });
-  }, [isOpen, active]);
+    if (!open) return;
+    const el = listRef.current?.children[active];
+    if (el) el.scrollIntoView({ block: 'nearest' });
+  }, [open, active]);
 
-  const choose = (i) => {
+  const choose = useCallback((i) => {
     const o = options[i];
     if (o) onChange(o.value);
-    setIsOpen(false);
+    setOpen(false);
     btnRef.current?.focus();
-  };
+  }, [options, onChange]);
 
   const onKeyDown = (e) => {
     const last = options.length - 1;
     switch (e.key) {
-      case 'ArrowDown': e.preventDefault(); if (!isOpen) setIsOpen(true); else setActive((i) => Math.min(i + 1, last)); break;
-      case 'ArrowUp': e.preventDefault(); if (!isOpen) setIsOpen(true); else setActive((i) => Math.max(i - 1, 0)); break;
-      case 'Home': if (isOpen) { e.preventDefault(); setActive(0); } break;
-      case 'End': if (isOpen) { e.preventDefault(); setActive(last); } break;
-      case 'Enter': case ' ': e.preventDefault(); if (isOpen) choose(active); else setIsOpen(true); break;
-      case 'Escape': if (isOpen) { e.preventDefault(); e.stopPropagation(); setIsOpen(false); } break;
-      case 'Tab': setIsOpen(false); break;
+      case 'ArrowDown': e.preventDefault(); if (!open) setOpen(true); else setActive((i) => Math.min(i + 1, last)); break;
+      case 'ArrowUp': e.preventDefault(); if (!open) setOpen(true); else setActive((i) => Math.max(i - 1, 0)); break;
+      case 'Home': if (open) { e.preventDefault(); setActive(0); } break;
+      case 'End': if (open) { e.preventDefault(); setActive(last); } break;
+      case 'Enter':
+      case ' ': e.preventDefault(); if (open) choose(active); else setOpen(true); break;
+      case 'Escape': if (open) { e.preventDefault(); e.stopPropagation(); setOpen(false); } break;
+      case 'Tab': setOpen(false); break;
       default:
     }
   };
 
+  const surface = 'bg-[color:var(--fld)] text-[color:var(--txt)]';
+
   return (
-    <div ref={rootRef} className={`relative ${isOpen ? 'z-30' : ''} ${className}`}>
+    <div ref={rootRef} className={`relative ${open ? 'z-30' : ''} ${className}`}>
       <button
-        ref={btnRef} type="button" aria-label={ariaLabel} aria-haspopup="listbox" aria-expanded={isOpen} aria-controls={listId}
-        aria-activedescendant={isOpen ? `${uid}-o${active}` : undefined}
-        onClick={() => setIsOpen((o) => !o)} onKeyDown={onKeyDown}
-        className="nb-field flex h-10 w-full items-center justify-between gap-2 ps-3 pe-3 text-start text-xs font-bold uppercase"
+        ref={btnRef} id={id} type="button" role="combobox" aria-label={ariaLabel}
+        aria-haspopup="listbox" aria-expanded={open} aria-controls={listId}
+        aria-activedescendant={open ? `${id}-o${active}` : undefined}
+        onClick={() => setOpen((o) => !o)} onKeyDown={onKeyDown}
+        className={`flex h-11 w-full cursor-pointer items-center justify-between gap-2 rounded-lg border-2 border-[color:var(--ink)] px-3 text-start text-sm font-semibold outline-none ${FOCUS} ${surface}`}
       >
         <span className="truncate">{current?.label}</span>
-        <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform duration-150 ${isOpen ? 'rotate-180' : ''}`} />
+        <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform duration-200 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
       </button>
-      {isOpen && (
+      {open && (
         <ul
-          ref={listRef} id={listId} role="listbox" aria-label={ariaLabel} tabIndex={-1}
-          className={`nb-menu absolute top-full z-30 mt-2 max-h-64 min-w-full overflow-y-auto overscroll-contain py-1 ${align === 'end' ? 'end-0' : 'start-0'}`}
+          ref={listRef} id={listId} role="listbox" tabIndex={-1}
+          className={`hp-pop hp-sb absolute end-0 top-full z-30 mt-2 max-h-60 min-w-full overflow-y-auto overscroll-contain rounded-xl border-[3px] border-[color:var(--ink)] py-1 [box-shadow:calc(var(--dx)*4px)_4px_0_0_var(--sh)] ${surface}`}
         >
-          {options.map((o, i) => (
-            <li
-              key={o.value} id={`${uid}-o${i}`} role="option" aria-selected={o.value === value}
-              onPointerEnter={() => setActive(i)} onClick={() => choose(i)}
-              className={`nb-opt whitespace-nowrap ${i === active ? 'nb-opt-active' : ''}`}
-            >
-              <span>{o.label}</span>
-              {o.value === value && <FiCheck aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0" strokeWidth={3} />}
-            </li>
-          ))}
+          {options.map((o, i) => {
+            const selected = String(o.value) === String(value);
+            return (
+              <li
+                key={String(o.value)} id={`${id}-o${i}`} role="option" aria-selected={selected}
+                onPointerEnter={() => setActive(i)} onClick={() => choose(i)}
+                className={`flex min-h-11 cursor-pointer items-center justify-between gap-2 whitespace-nowrap px-3 py-2 text-sm font-bold transition-colors duration-100 ${
+                  selected ? 'bg-[color:var(--acc)] text-emerald-950' : i === active ? 'bg-[color:var(--hist)]' : ''
+                }`}
+              >
+                <span className="truncate">{o.label}</span>
+                {selected && <FiCheck aria-hidden="true" className="h-4 w-4 flex-shrink-0" strokeWidth={3} />}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
   );
 });
 
-const SearchField = memo(({ value, onChange, placeholder, ariaLabel, clearLabel, pending }) => (
-  <div className="nb-field relative flex h-10 min-w-0 flex-1 items-center gap-2 px-3">
-    <FiSearch aria-hidden="true" className="h-4 w-4 flex-shrink-0" />
-    <input
-      type="text" inputMode="search" autoComplete="off" maxLength={100}
-      value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} aria-label={ariaLabel}
-      className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60"
-    />
-    {pending && <span aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" />}
-    {value && (
-      <button type="button" onClick={() => onChange('')} aria-label={clearLabel} className="flex-shrink-0 focus-visible:outline focus-visible:outline-2">
-        <FiX className="h-4 w-4" />
-      </button>
-    )}
-  </div>
-));
+const SearchField = memo(({ value, onChange, placeholder, ariaLabel, clearLabel, pending }) => {
+  const inputRef = useRef(null);
+  const handleClear = useCallback(() => { onChange(''); inputRef.current?.focus(); }, [onChange]);
+  return (
+    <div className="relative min-w-0 flex-1" role="search">
+      <FiSearch aria-hidden="true" className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--txt)]" />
+      <input
+        ref={inputRef} type="search" inputMode="search" autoComplete="off" maxLength={100}
+        value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} aria-label={ariaLabel}
+        className={`${FIELD} hp-search ps-10 pe-16`}
+      />
+      <div className="absolute end-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
+        {pending && <span aria-hidden="true" className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent text-[color:var(--txt)] motion-reduce:animate-none" />}
+        {value && (
+          <button type="button" onClick={handleClear} aria-label={clearLabel} className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-[color:var(--txt)] ${FOCUS}`}>
+            <FiX className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+});
 
-const FilterChip = memo(({ label, onRemove }) => (
-  <button type="button" onClick={onRemove} className="nb-btn gap-1.5 px-2.5 py-1 text-xs">
-    <span className="max-w-[10rem] truncate">{label}</span><FiX className="h-3 w-3 flex-shrink-0" />
-  </button>
-));
-
-const InfoRow = ({ icon: Icon, children }) => (
-  <p className="flex min-w-0 items-start justify-start gap-1.5 text-xs leading-snug">
-    <Icon aria-hidden="true" className="nb-ic mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+const InfoRow = ({ icon: Icon, className = '', children }) => (
+  <p className={`flex min-w-0 items-start gap-1.5 text-xs font-medium leading-snug text-[color:var(--txt)] ${className}`}>
+    <Icon aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-[color:var(--acc)]" />
     <span className="line-clamp-2 min-w-0 break-words">{children}</span>
   </p>
 );
 
-const NoAddressBadge = memo(({ t }) => (
-  <span className="nb-chip nb-chip-n w-fit max-w-full">
-    <span className="truncate">{t('noAddress')}</span>
-  </span>
-));
+const NoAddress = memo(({ t }) => <span className="font-bold text-[color:var(--deal,#b45309)]">{t('noAddress')}</span>);
 
 const PhoneLink = ({ phone }) => (
-  <a href={`tel:${String(phone).replace(/[^\d+]/g, '')}`} onClick={(e) => e.stopPropagation()} dir="ltr" className="hover:underline focus-visible:underline">
-    {phone}
+  <a href={telHref(phone)} onClick={(e) => e.stopPropagation()} dir="ltr" className="hover:underline focus-visible:underline">
+    {clean(String(phone), 30)}
   </a>
 );
 
-const ShopStats = memo(({ shop, t, className = '' }) => {
-  const [ref, seen] = useSeen();
-  const { reviews, products } = useShopCounts(shop, seen);
+const VerifiedMark = memo(({ label, darkMode }) => (
+  <span className="inline-flex flex-shrink-0" title={label}>
+    <RiVerifiedBadgeLine aria-hidden="true" className={`h-4 w-4 ${darkMode ? 'text-[#39ff88]' : 'text-emerald-600'}`} />
+    <span className="sr-only">{label}</span>
+  </span>
+));
+
+const AWNING_STRIPES = [0, 1, 2, 3, 4];
+
+const GoldShopArt = memo(({ darkMode }) => {
+  const ink = darkMode ? '#000000' : '#422006';
+  const wall = darkMode ? '#3f3f3f' : '#FEF3C7';
+  const glass = darkMode ? '#FDE047' : '#FCD34D';
+  return (
+    <svg viewBox="0 0 200 150" className="h-full w-full p-3" aria-hidden="true" focusable="false">
+      <ellipse cx="100" cy="138" rx="76" ry="8" fill={darkMode ? '#000' : '#78350F'} opacity={darkMode ? 0.45 : 0.2} />
+      <rect x="38" y="62" width="124" height="74" fill={wall} stroke={ink} strokeWidth="3" />
+      {AWNING_STRIPES.map((i) => (
+        <rect key={i} x={30 + i * 28} y="36" width="28" height="28" fill={i % 2 ? '#FFFFFF' : '#FBBF24'} stroke={ink} strokeWidth="3" />
+      ))}
+      <rect x="48" y="78" width="32" height="28" fill={glass} stroke={ink} strokeWidth="3" />
+      <rect x="120" y="78" width="32" height="28" fill={glass} stroke={ink} strokeWidth="3" />
+      <rect x="88" y="90" width="24" height="46" fill="#F59E0B" stroke={ink} strokeWidth="3" />
+      <circle cx="106" cy="114" r="2.5" fill={ink} />
+      <path d="M100 8l4.4 11 11.6 1-8.8 7.6 2.8 11.4L100 33l-10 6 2.8-11.4L84 20l11.6-1z" fill="#FBBF24" stroke={ink} strokeWidth="2.5" strokeLinejoin="round" />
+    </svg>
+  );
+});
+
+const ShopImage = memo(({ src, name, role, darkMode, eager = false, hover = true, gold = false }) => {
+  const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const imgRef = useRef(null);
+  useEffect(() => { setFailed(false); setLoaded(false); }, [src]);
+  useEffect(() => {
+    const el = imgRef.current;
+    if (el && el.complete && el.naturalWidth > 0) setLoaded(true);
+  }, [src, failed]);
+  const onError = useCallback(() => setFailed(true), []);
+  const onLoad = useCallback(() => setLoaded(true), []);
+  if (!src || failed) {
+    if (gold) {
+      return (
+        <div className="absolute inset-0 flex items-end justify-center">
+          <GoldShopArt darkMode={darkMode} />
+        </div>
+      );
+    }
+    return (
+      <div className="absolute inset-0 flex items-end justify-center px-4 pt-4">
+        <div className="flex h-full max-w-full items-end justify-center">
+          <IsoIllustration
+            type={isoRoleKey(role)} tone="emerald" darkMode={darkMode} onGreen={false}
+            className={`pointer-events-none h-full w-auto max-w-full transition-transform duration-200 motion-reduce:transition-none ${hover ? 'group-hover:scale-105' : ''}`}
+          />
+        </div>
+      </div>
+    );
+  }
+  return (
+    <>
+      {!loaded && <div aria-hidden="true" className={`absolute inset-0 animate-pulse motion-reduce:animate-none ${darkMode ? 'bg-[#2a2a2a]' : 'bg-black/5'}`} />}
+      <img
+        ref={imgRef} src={src} alt={name || ''} width={400} height={300}
+        loading={eager ? 'eager' : 'lazy'} fetchPriority={eager ? 'high' : 'low'} decoding="async" referrerPolicy="no-referrer"
+        onLoad={onLoad} onError={onError}
+        className={`absolute inset-0 h-full w-full object-cover transition-[opacity,transform] duration-300 motion-reduce:transition-none ${hover ? '[@media(hover:hover)]:group-hover:scale-105' : ''} ${loaded ? 'opacity-100' : 'opacity-0'}`}
+      />
+    </>
+  );
+});
+
+const ShopStats = memo(({ shop, active, t, className = '' }) => {
+  const { reviews, products } = useShopCounts(shop, active);
   const plus = (n) => (n == null ? '+–' : `+${n}`);
   return (
-    <div ref={ref} className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-bold ${className}`}>
+    <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-bold text-[color:var(--txt)] ${className}`}>
       <span className="inline-flex min-w-0 items-center gap-1">
-        <FiMessageSquare className="nb-ic h-3 w-3 flex-shrink-0" />
+        <FiMessageSquare aria-hidden="true" className="h-3 w-3 flex-shrink-0 text-[color:var(--acc)]" />
         <span dir="ltr" className="tabular-nums">{plus(reviews)}</span> <span className="truncate">{reviews === 1 ? t('reviewOne') : t('reviewMany')}</span>
       </span>
       <span className="inline-flex min-w-0 items-center gap-1">
-        <FiPackage className="nb-ic h-3 w-3 flex-shrink-0" />
+        <FiPackage aria-hidden="true" className="h-3 w-3 flex-shrink-0 text-[color:var(--acc)]" />
         <span dir="ltr" className="tabular-nums">{plus(products)}</span> <span className="truncate">{products === 1 ? t('productOne') : t('productMany')}</span>
       </span>
     </div>
   );
 });
 
-const ShopCard = memo(({ shop, darkMode, index = 0, layout = 'grid', variant = 'grid', isSaved = false, actions, t, className = '' }) => {
+const ShopCard = memo(({ shop, darkMode, layout = 'grid', gold = false, isSaved = false, actions, t }) => {
   const { onDetails, onOpen, onDirections, onSave } = actions;
   const role = getShopRole(shop);
   const rs = roleStyle(role);
   const address = addressLine(shop);
   const isList = layout === 'list';
   const hasRating = typeof shop.rating === 'number' && shop.rating > 0;
-  const snippet = clean(shop.description, 130) || t('noDescription');
+  const snippet = clean(shop.description, 110) || t('noDescription');
+  const [cardRef, seen] = useSeen();
+  const logo = useShopLogo(shop, seen);
+  const accent = gold ? (darkMode ? 'text-[#facc15]' : 'text-amber-700') : (darkMode ? 'text-[#39ff88]' : 'text-emerald-700');
   const open = useCallback(() => onOpen(shop.id), [onOpen, shop.id]);
   const showDetails = useCallback((e) => { e.stopPropagation(); onDetails(shop); }, [onDetails, shop]);
   const visit = useCallback((e) => { e.stopPropagation(); open(); }, [open]);
   const directions = useCallback((e) => { e.stopPropagation(); onDirections(shop); }, [onDirections, shop]);
   const save = useCallback((e) => { e.stopPropagation(); onSave(shop.id); }, [onSave, shop.id]);
-
-  const media = (
-    <div className={`nb-media relative overflow-hidden ${
-      isList ? 'h-28 flex-shrink-0 border-b-2 nb-line sm:h-auto sm:w-48 sm:border-b-0 sm:border-e-2' : `h-28 sm:h-32 ${variant === 'grid' ? 'nb-media-b' : ''}`}`}>
-      <span className="nb-chip nb-chip-a absolute start-2 top-2 z-10 max-w-[calc(100%-3.5rem)]">
-        <rs.icon className="h-3 w-3 flex-shrink-0" /> <span className="truncate">{serviceLabel(role, t)}</span>
-      </span>
-      <div className="absolute end-2 top-2 z-10 flex flex-col gap-1.5">
-        <button type="button" onClick={directions} aria-label={t('getDirections')} title={t('getDirections')} className="nb-btn nb-btn-a h-8 w-8">
-          <FiNavigation className="h-4 w-4" />
-        </button>
-        <button
-          type="button" onClick={save} aria-pressed={isSaved} aria-label={isSaved ? t('saved') : t('save')} title={isSaved ? t('saved') : t('save')}
-          className={`nb-btn h-8 w-8 ${isSaved ? 'nb-btn-on' : ''}`}
-        >
-          <FiHeart className="h-4 w-4" fill={isSaved ? 'currentColor' : 'none'} />
-        </button>
-      </div>
-      {hasRating && (
-        <span className="nb-chip absolute bottom-2 end-2 z-10">
-          <RiStarFill className="h-3 w-3 text-amber-500" /> <span dir="ltr">{shop.rating.toFixed(1)}</span>
-        </span>
-      )}
-      <IsoIllustration
-        type={isoRoleKey(role)} tone="emerald" darkMode={darkMode} onGreen={false}
-        className="absolute inset-x-0 bottom-0 mx-auto aspect-square h-[88%] transition-transform duration-300 group-hover:scale-105"
-      />
-    </div>
-  );
-
-  const head = (
-    <div className="min-w-0">
-      <h3 className={`line-clamp-2 text-[13px] font-extrabold uppercase leading-snug sm:text-sm ${isList ? '' : 'min-h-[2.4rem]'}`}>
-        {shop.name || t('unnamedShop')}
-        {shop.verified && <RiVerifiedBadgeLine className="ms-1 inline h-4 w-4 align-text-bottom text-sky-500" title={t('verified')} aria-label={t('verified')} />}
-      </h3>
-      <span className="nb-rule" aria-hidden="true" />
-      <p className="nb-muted mt-2 truncate text-[10px] font-bold uppercase tracking-wide">{shop.shopType || t('electronics')}</p>
-    </div>
-  );
-
-  const text = <p className={`line-clamp-2 text-xs leading-5 opacity-90 ${isList ? '' : 'min-h-[2.5rem]'}`}>{snippet}</p>;
-
-  const details = (
-    <div className="flex min-w-0 flex-col items-start gap-1.5">
-      <ShopStats shop={shop} t={t} />
-      <InfoRow icon={FiMapPin}>{address || <NoAddressBadge t={t} />}</InfoRow>
-      {shop.phone && <InfoRow icon={FiPhone}><PhoneLink phone={shop.phone} /></InfoRow>}
-    </div>
-  );
-
-  const footer = (
-    <div className={`mt-auto flex items-center gap-2 ${variant === 'latest' && !isList ? 'border-t-2 nb-line pt-3' : 'pt-1'}`}>
-      <button type="button" onClick={showDetails} aria-label={t('details')} title={t('details')} className="nb-btn h-9 min-w-0 flex-1 px-3 text-xs uppercase">
-        <FiInfo className="h-4 w-4 flex-shrink-0" /> <span className="truncate">{t('details')}</span>
-      </button>
-      <button type="button" onClick={visit} aria-label={t('visitShop')} title={t('visitShop')} className="nb-arrow">
-        <FiArrowRight className="nb-flip h-4 w-4" />
-      </button>
-    </div>
-  );
+  const mediaBg = gold ? (darkMode ? 'bg-[#1e1e1e]' : 'bg-amber-100') : (darkMode ? 'hp-media hp-media-dark bg-[#1e1e1e]' : 'bg-white');
 
   return (
     <article
+      ref={cardRef}
       onClick={open}
       onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open(); }}
       tabIndex={0}
       aria-label={shop.name || t('unnamedShop')}
-      style={STAGGER[index % 8]}
-      className={`nb-in nb-card nb-lift group relative flex h-full cursor-pointer focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--nb-accent)] ${
-        isList ? 'flex-col sm:flex-row' : 'flex-col'} ${className}`}
+      className={`group relative h-full cursor-pointer overflow-hidden ${gold ? goldCard(darkMode, true) : neoCard(darkMode, 'sm', true)} ${isList ? 'sm:!flex-row' : ''}`}
     >
-      {isList && media}
-      <div className="flex min-w-0 flex-1 flex-col gap-3 p-3 sm:p-4">
-        {head}
-        {isList ? text : variant === 'latest' ? <>{media}{text}</> : <>{text}{media}</>}
-        {details}
-        {footer}
+      <div
+        className={`flex flex-shrink-0 flex-col border-b-[3px] border-[color:var(--ink)] ${
+          isList ? 'w-full sm:w-56 sm:border-b-0 sm:border-e-[3px]' : 'w-full'
+        }`}
+      >
+        <div
+          className={`relative w-full overflow-hidden [contain:layout_paint] ${mediaBg} ${
+            isList ? 'h-40 sm:h-auto sm:min-h-[9rem] sm:flex-1' : 'h-40 sm:h-44'
+          }`}
+        >
+          <ShopImage src={logo} name={shop.name} role={role} darkMode={darkMode} gold={gold} />
+        </div>
+        <div className="flex items-center gap-2 border-t-[3px] border-[color:var(--ink)] bg-[color:var(--row)] p-2">
+          <button type="button" onClick={directions} aria-label={t('getDirections')} title={t('getDirections')} className={CARD_BTN_ACC}>
+            <FiNavigation className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+            <span className="truncate">{t('getDirections')}</span>
+          </button>
+          <button
+            type="button" onClick={save} aria-pressed={isSaved} aria-label={isSaved ? t('saved') : t('save')} title={isSaved ? t('saved') : t('save')}
+            className={`${NEO_ICON} !h-10 !w-10 ${isSaved ? '' : '!bg-white'}`}
+          >
+            <FiHeart className={`h-4 w-4 ${isSaved ? 'text-rose-600' : ''}`} fill={isSaved ? 'currentColor' : 'none'} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex min-w-0 flex-1 flex-col p-3.5">
+        <div className="flex flex-1 flex-col gap-1.5 pb-3">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="flex min-w-0 items-center gap-1.5 text-sm font-extrabold uppercase leading-snug text-[color:var(--txt)]">
+              <span className="truncate">{shop.name || t('unnamedShop')}</span>
+              {shop.verified && <VerifiedMark label={t('verified')} darkMode={darkMode} />}
+            </h3>
+            {hasRating && (
+              <span className={`flex flex-shrink-0 items-center gap-1 text-xs font-extrabold ${darkMode ? 'text-amber-300' : 'text-amber-700'}`}>
+                <RiStarFill className="h-3.5 w-3.5" aria-hidden="true" /><span dir="ltr" className="tabular-nums">{shop.rating.toFixed(1)}</span>
+              </span>
+            )}
+          </div>
+          <p className={`flex min-w-0 items-center gap-1 text-[11px] font-bold uppercase tracking-wide ${accent}`}>
+            <rs.icon aria-hidden="true" className="h-3 w-3 flex-shrink-0" />
+            <span className="truncate">{serviceLabel(role, t)}{shop.shopType ? ` · ${shop.shopType}` : ''}</span>
+          </p>
+          <InfoRow icon={FiMapPin}>{address || <NoAddress t={t} />}</InfoRow>
+          <p className="line-clamp-2 text-xs font-medium leading-relaxed text-[color:var(--mut)]">{snippet}</p>
+          <ShopStats shop={shop} active={seen} t={t} className="mt-0.5" />
+          {shop.phone && <InfoRow icon={FiPhone}><PhoneLink phone={shop.phone} /></InfoRow>}
+        </div>
+        <div className="mt-auto flex items-center gap-2 border-t-2 border-[color:var(--ink)] pt-3">
+          <button type="button" onClick={showDetails} aria-label={t('details')} title={t('details')} className={CARD_BTN}>
+            <FiInfo className="h-4 w-4 flex-shrink-0" aria-hidden="true" /> <span className="truncate">{t('details')}</span>
+          </button>
+          <button type="button" onClick={visit} aria-label={t('visitShop')} title={t('visitShop')} className={`${NEO_ICON} !h-10 !w-10`}>
+            <FiArrowRight className="h-4 w-4 rtl:rotate-180" />
+          </button>
+        </div>
       </div>
     </article>
   );
 });
 
-const DirectionsModal = memo(({ shop, onClose, t }) => {
+const ShopCell = ({ index, children }) => (
+  <div className="hp-rise min-w-0" style={STAGGER[index % STAGGER.length]}>{children}</div>
+);
+
+const DirectionsModal = memo(({ shop, darkMode, onClose, t }) => {
   const isMobile = useIsMobile();
+  const [leaving, close] = useExit(onClose);
   const [status, setStatus] = useState('locating');
   const [origin, setOrigin] = useState(null);
   const address = addressLine(shop);
@@ -594,32 +789,29 @@ const DirectionsModal = memo(({ shop, onClose, t }) => {
   }, []);
 
   useEffect(() => { locate(); }, [locate]);
-  useModalLock(true, onClose);
+  useModalLock(true, close);
 
   const items = useMemo(() => [{ id: shop.id, pickup: origin, drop: shop.shopAddress || {} }], [shop, origin]);
   const noop = useCallback(() => {}, []);
 
   return (
-    <div className="fixed inset-0 z-[1100] flex items-end justify-center p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={`${t('directionsTo')} ${name}`}>
-      <m.div {...BACKDROP_MOTION} className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <m.div
-        {...PANEL_MOTION} style={GPU}
-        className="nb-card relative max-h-[94vh] w-full transform-gpu overflow-y-auto overscroll-contain !transition-none sm:max-w-2xl"
-      >
-        <div className="nb-gray nb-line relative flex items-center gap-3 border-b-2 p-4 pe-14">
-          <span className="nb-chip nb-chip-a !p-2"><FiNavigation className="h-5 w-5" /></span>
-          <div className="min-w-0 flex-1">
-            <p className="nb-muted text-[10px] font-extrabold uppercase tracking-wide">{t('directionsTo')}</p>
+    <div className="fixed inset-0 z-[1100] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={`${t('directionsTo')} ${name}`}>
+      <div className={`absolute inset-0 bg-black/60 ${leaving ? 'hp-fade-out' : 'hp-fade-in'}`} onClick={close} />
+      <div className={`${leaving ? 'hp-modal-out' : 'hp-modal-in'} hp-sb relative max-h-[94vh] w-full transform-gpu overflow-y-auto overscroll-contain rounded-b-none sm:max-w-2xl sm:rounded-b-2xl ${neoCard(darkMode, 'lg')}`}>
+        <div className="relative flex items-center gap-3 border-b-[3px] border-[color:var(--ink)] p-4 pe-16">
+          <span aria-hidden="true" className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border-2 border-[color:var(--ink)] bg-[color:var(--acc)] text-emerald-950"><FiNavigation className="h-5 w-5" /></span>
+          <div className="min-w-0 flex-1 text-[color:var(--txt)]">
+            <p className="text-[11px] font-extrabold uppercase tracking-wide text-[color:var(--mut)]">{t('directionsTo')}</p>
             <h2 className="line-clamp-1 text-base font-extrabold uppercase sm:text-lg">{name}</h2>
-            <p className="nb-muted line-clamp-1 text-xs">{address || t('noAddress')}</p>
+            <p className="line-clamp-1 text-xs font-medium text-[color:var(--mut)]">{address || t('noAddress')}</p>
           </div>
-          <button type="button" onClick={onClose} aria-label={t('close')} className="nb-btn absolute end-3 top-3 h-8 w-8">
+          <button type="button" onClick={close} aria-label={t('close')} className={`${NEO_ICON} absolute end-3 top-3 !h-10 !w-10`}>
             <FiX className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="space-y-3 p-3 sm:p-4">
-          <Suspense fallback={<div className="nb-gray w-full animate-pulse" style={{ aspectRatio: isMobile ? '1 / 1' : '1 / 0.62' }} />}>
+        <div className="space-y-4 p-3 sm:p-4">
+          <Suspense fallback={<div className={`w-full animate-pulse rounded-xl motion-reduce:animate-none ${darkMode ? 'bg-[#2a2a2a]' : 'bg-gray-200/70'}`} style={{ aspectRatio: isMobile ? '1 / 1' : '1 / 0.62' }} />}>
             <DeliveryMap
               items={items}
               selectedId={origin ? shop.id : null}
@@ -627,181 +819,196 @@ const DirectionsModal = memo(({ shop, onClose, t }) => {
               aspect={isMobile ? 1 : 0.62}
               startLabel={t('yourLocation')}
               endLabel={name}
-              className="!rounded-none !border-2 !border-[color:var(--nb-line)]"
+              className="!rounded-xl !border-[3px] !border-[color:var(--ink)]"
             />
           </Suspense>
 
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div role="status" aria-live="polite" className="min-w-0 flex-1">
+            <div role="status" aria-live="polite" className="min-w-0 flex-1 text-xs font-bold text-[color:var(--txt)]">
               {status === 'locating' && (
-                <span className="nb-chip !px-3 !py-1.5">
-                  <span aria-hidden="true" className="nb-spin h-3.5 w-3.5 rounded-full border-2 border-current border-t-transparent" />
+                <span className="inline-flex items-center gap-2">
+                  <span aria-hidden="true" className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" />
                   {t('locating')}
                 </span>
               )}
-              {status === 'denied' && <span className="nb-chip nb-chip-n !px-3 !py-1.5 normal-case">{t('locationDenied')}</span>}
+              {status === 'denied' && <span>{t('locationDenied')}</span>}
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
               {status === 'denied' && (
-                <button type="button" onClick={locate} className="nb-btn h-10 px-3 text-xs uppercase">
-                  <FiRefreshCw className="h-4 w-4" /> {t('retryLocation')}
+                <button type="button" onClick={locate} className={`${neoBtn(darkMode, false)} !min-h-10 !px-3 !py-1.5 !text-xs`}>
+                  <FiRefreshCw className="h-4 w-4" aria-hidden="true" /> {t('retryLocation')}
                 </button>
               )}
-              <a href={directionsUrl(shop, null)} target="_blank" rel="noopener noreferrer" className="nb-btn nb-btn-a h-10 px-3 text-xs uppercase">
-                <FiExternalLink className="h-4 w-4" /> {t('openInMaps')}
+              <a href={directionsUrl(shop, null)} target="_blank" rel="noopener noreferrer nofollow" className={`${neoBtn(darkMode, true)} !min-h-10 !px-3 !py-1.5 !text-xs`}>
+                <FiExternalLink className="h-4 w-4" aria-hidden="true" /> {t('openInMaps')}
               </a>
             </div>
           </div>
         </div>
-      </m.div>
+      </div>
     </div>
   );
 });
 
 const ShopDetailsModal = memo(({ shop, darkMode, onClose, onOpen, onDirections, t }) => {
+  const [leaving, close] = useExit(onClose);
   const role = getShopRole(shop);
   const caps = capabilitiesFor(role);
   const address = addressLine(shop);
   const hasRating = typeof shop.rating === 'number' && shop.rating > 0;
+  const logo = useShopLogo(shop, true);
+  const accent = darkMode ? 'text-[#39ff88]' : 'text-emerald-700';
 
-  useModalLock(true, onClose);
+  useModalLock(true, close);
 
   return (
-    <div className="fixed inset-0 z-[1100] flex items-end justify-center p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={shop.name || t('unnamedShop')}>
-      <m.div {...BACKDROP_MOTION} className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <m.div
-        {...PANEL_MOTION} style={GPU}
-        className="nb-card relative max-h-[92vh] w-full transform-gpu overflow-y-auto overscroll-contain !transition-none sm:max-w-lg"
-      >
-        <div className="nb-gray nb-line relative flex items-center gap-3 border-b-2 p-4 pe-24 sm:gap-4 sm:p-5 sm:pe-24">
-          <IsoIllustration type={isoRoleKey(role)} tone="emerald" darkMode={darkMode} onGreen={false} className="h-24 w-24 flex-shrink-0 sm:h-28 sm:w-28" />
-          <div className="min-w-0 flex-1">
-            <h2 className="line-clamp-2 text-base font-extrabold uppercase sm:text-lg">{shop.name || t('unnamedShop')}</h2>
-            <span className="nb-rule" aria-hidden="true" />
-            <div className="mt-3 flex flex-wrap items-center gap-1.5">
-              <span className="nb-chip nb-chip-a">{serviceLabel(role, t)}</span>
-              {shop.verified && (
-                <span className="nb-chip"><RiVerifiedBadgeLine className="h-3 w-3 text-sky-500" /> {t('verified')}</span>
-              )}
-              {hasRating && (
-                <span className="nb-chip"><RiStarFill className="h-3 w-3 text-amber-500" /> <span dir="ltr">{shop.rating.toFixed(1)}</span></span>
-              )}
-            </div>
-            <ShopStats shop={shop} t={t} className="mt-2" />
-          </div>
-          <div className="absolute end-3 top-3 flex items-center gap-2">
-            <button type="button" onClick={() => onDirections(shop)} aria-label={t('getDirections')} title={t('getDirections')} className="nb-btn nb-btn-a h-8 w-8">
+    <div className="fixed inset-0 z-[1100] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={shop.name || t('unnamedShop')}>
+      <div className={`absolute inset-0 bg-black/60 ${leaving ? 'hp-fade-out' : 'hp-fade-in'}`} onClick={close} />
+      <div className={`${leaving ? 'hp-modal-out' : 'hp-modal-in'} hp-sb group relative max-h-[92vh] w-full transform-gpu overflow-y-auto overscroll-contain rounded-b-none sm:max-w-lg sm:rounded-b-2xl ${neoCard(darkMode, 'lg')}`}>
+        <div className={`relative h-44 w-full flex-shrink-0 overflow-hidden border-b-[3px] border-[color:var(--ink)] sm:h-52 ${darkMode ? 'hp-media hp-media-dark bg-[#1e1e1e]' : 'bg-white'}`}>
+          <ShopImage src={logo} name={shop.name} role={role} darkMode={darkMode} eager hover={false} />
+          <div className="absolute end-3 top-3 z-10 flex items-center gap-2">
+            <button type="button" onClick={() => onDirections(shop)} aria-label={t('getDirections')} title={t('getDirections')} className={`${NEO_ICON} !h-10 !w-10`}>
               <FiNavigation className="h-4 w-4" />
             </button>
-            <button type="button" onClick={onClose} aria-label={t('close')} className="nb-btn h-8 w-8">
+            <button type="button" onClick={close} aria-label={t('close')} className={`${NEO_ICON} !h-10 !w-10 !bg-white`}>
               <FiX className="h-4 w-4" />
             </button>
           </div>
         </div>
 
-        <div className="space-y-5 p-4 sm:p-5">
+        <div className="border-b-[3px] border-[color:var(--ink)] p-4 text-[color:var(--txt)] sm:p-5">
+          <h2 className="flex items-center gap-2 text-lg font-extrabold uppercase leading-snug sm:text-xl">
+            <span className={`line-clamp-2 ${darkMode ? 'hp-hl-dark' : 'hp-hl'}`}>{shop.name || t('unnamedShop')}</span>
+            {shop.verified && <VerifiedMark label={t('verified')} darkMode={darkMode} />}
+          </h2>
+          <p className={`mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-extrabold uppercase tracking-wide ${accent}`}>
+            <span>{serviceLabel(role, t)}</span>
+            {hasRating && (
+              <span className={`inline-flex items-center gap-1 ${darkMode ? 'text-amber-300' : 'text-amber-700'}`}>
+                <RiStarFill className="h-3.5 w-3.5" aria-hidden="true" /><span dir="ltr" className="tabular-nums">{shop.rating.toFixed(1)}</span>
+              </span>
+            )}
+          </p>
+          <ShopStats shop={shop} active t={t} className="mt-2" />
+        </div>
+
+        <div className="space-y-6 p-4 text-[color:var(--txt)] sm:p-5">
           <section>
-            <h3 className="mb-2 text-xs font-extrabold uppercase"><span className="nb-ul">{t('about')}</span></h3>
-            <p className="text-sm leading-relaxed opacity-90">{shop.description || t('noDescription')}</p>
+            <h3 className="mb-2 text-sm font-extrabold uppercase"><span className={darkMode ? 'hp-hl-dark' : 'hp-hl'}>{t('about')}</span></h3>
+            <p className="text-sm font-medium leading-relaxed text-[color:var(--mut)]">{clean(shop.description, 1000) || t('noDescription')}</p>
           </section>
 
           <section>
-            <h3 className="mb-3 text-xs font-extrabold uppercase"><span className="nb-ul">{t('whatShopCanDo')}</span></h3>
+            <h3 className="mb-3 text-sm font-extrabold uppercase"><span className={darkMode ? 'hp-hl-dark' : 'hp-hl'}>{t('whatShopCanDo')}</span></h3>
             <ul className="grid gap-3">
               {caps.map(({ icon: Icon, titleKey, textKey }) => (
                 <li key={titleKey} className="flex items-start gap-3">
-                  <span className="nb-chip nb-chip-a !p-1.5"><Icon className="h-4 w-4" /></span>
+                  <span aria-hidden="true" className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border-2 border-[color:var(--ink)] bg-[color:var(--acc)] text-emerald-950"><Icon className="h-4 w-4" /></span>
                   <div className="min-w-0">
                     <p className="text-sm font-extrabold">{t(titleKey)}</p>
-                    <p className="nb-muted text-xs">{t(textKey)}</p>
+                    <p className="text-xs font-medium text-[color:var(--mut)]">{t(textKey)}</p>
                   </div>
                 </li>
               ))}
             </ul>
           </section>
 
-          <section className="nb-gray nb-line grid justify-items-start gap-2 border-2 border-dotted p-3.5">
+          <section className="grid gap-2.5 rounded-xl border-[3px] border-dashed border-[color:var(--ink)] bg-[color:var(--row)] p-3.5">
             {shop.shopType && <InfoRow icon={FiShoppingBag}>{shop.shopType}</InfoRow>}
-            <InfoRow icon={FiMapPin}>{address || <NoAddressBadge t={t} />}</InfoRow>
+            <InfoRow icon={FiMapPin}>{address || <NoAddress t={t} />}</InfoRow>
             {shop.phone && <InfoRow icon={FiPhone}><PhoneLink phone={shop.phone} /></InfoRow>}
           </section>
 
-          <div className="grid grid-cols-2 gap-3">
-            <button type="button" onClick={onClose} className="nb-btn py-2.5 text-sm uppercase">{t('close')}</button>
-            <button type="button" onClick={() => onOpen(shop.id)} className="nb-btn nb-btn-a py-2.5 text-sm uppercase"><FiExternalLink className="h-4 w-4" /> {t('visitShop')}</button>
+          <div className="grid grid-cols-2 gap-3 pb-1 pe-1">
+            <button type="button" onClick={close} className={neoBtn(darkMode, false)}>{t('close')}</button>
+            <button type="button" onClick={() => onOpen(shop.id)} className={neoBtn(darkMode, true)}><FiExternalLink className="h-4 w-4" aria-hidden="true" /> {t('visitShop')}</button>
           </div>
         </div>
-      </m.div>
+      </div>
     </div>
   );
 });
 
-const SpecialtyGrid = memo(({ shopTypes, countsByType, selected, onToggle, darkMode, title, subtitle, t }) => {
-  const top = useMemo(() => [...shopTypes].sort((a, b) => (countsByType[b] || 0) - (countsByType[a] || 0)).slice(0, 6), [shopTypes, countsByType]);
+const SpecialtyGrid = memo(({ shopTypes, countsByType, selected, onToggle, darkMode, isAr, title, subtitle, t }) => {
+  const top = useMemo(() => [...shopTypes].sort((a, b) => (countsByType[b] || 0) - (countsByType[a] || 0)).slice(0, SPECIALTY_LIMIT), [shopTypes, countsByType]);
   if (!top.length) return null;
   return (
-    <section aria-label={title} className="lk-cv py-10 sm:py-16">
+    <section aria-label={title} className={`hp-glow ${darkMode ? `hp-glow-dark ${DARK_PAGE}` : 'bg-gray-50'} py-14 sm:py-20 ${LAZY_SECTION}`}>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <SectionHead eyebrow={t('eyebrowSpecialties')} title={title} subtitle={subtitle} />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-6">
-          {top.map((type) => {
-            const active = selected.includes(type);
-            const count = countsByType[type] || 0;
-            return (
-              <button key={type} type="button" onClick={() => onToggle(type)} aria-pressed={active}
-                className={`nb-dot group relative flex flex-col items-center gap-2 p-3 text-center sm:gap-2.5 sm:p-4 ${active ? 'nb-dot-on' : ''}`}>
-                <IsoIllustration
-                  type="shop_store" darkMode={darkMode} onGreen={false}
-                  className="h-16 w-16 transition-transform duration-200 group-hover:scale-110 sm:h-20 sm:w-20"
-                />
-                <span className="line-clamp-1 w-full text-sm font-extrabold uppercase">{type}</span>
-                <span className="nb-chip"><span dir="ltr">{count}</span> {count === 1 ? t('shopSingular') : t('shopPlural')}</span>
-              </button>
-            );
-          })}
+        <SectionTitle darkMode={darkMode} isAr={isAr} label={t('eyebrowSpecialties')} title={title} subtitle={subtitle} />
+        <div className={`hp-cat ${darkMode ? 'hp-cat-dark' : ''}`}>
+          <div className="grid grid-cols-2 gap-4 pb-2 pe-2 sm:grid-cols-3 sm:gap-5 lg:grid-cols-6">
+            {top.map((type) => {
+              const active = selected.includes(type);
+              const count = countsByType[type] || 0;
+              return (
+                <button
+                  key={type} type="button" onClick={() => onToggle(type)} aria-pressed={active}
+                  className={`hp-dot group relative min-h-11 p-3 pt-6 text-center sm:gap-2.5 sm:p-4 sm:pt-7 ${active ? 'hp-dot-on' : ''}`}
+                >
+                  <IsoIllustration
+                    type="shop_store" darkMode={darkMode} onGreen={false}
+                    className="h-14 w-14 transition-transform duration-200 motion-reduce:transition-none group-hover:scale-110 sm:h-16 sm:w-16"
+                  />
+                  <span className="line-clamp-1 w-full text-sm font-extrabold uppercase">{type}</span>
+                  <span className="text-xs font-bold opacity-80"><span dir="ltr" className="tabular-nums">{count}</span> {count === 1 ? t('shopSingular') : t('shopPlural')}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
     </section>
   );
 });
 
-const FavoritesSection = memo(({ shops, darkMode, t, actions, saved }) => (
-  <section aria-label={t('customerFavorites')} className="lk-cv py-10 sm:py-16">
+const FavoritesSection = memo(({ shops, darkMode, isAr, t, actions, saved }) => (
+  <section
+    aria-label={t('customerFavorites')}
+    className={`border-y-4 py-14 sm:py-20 ${LAZY_SECTION} ${darkMode ? 'border-[#facc15]/40 bg-[#1a1708]' : 'border-amber-300 bg-white'}`}
+  >
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-      <SectionHead eyebrow={t('topRated')} title={t('customerFavorites')} subtitle={t('topRatedSubtitle')} />
-      <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+      <SectionTitle gold darkMode={darkMode} isAr={isAr} label={t('topRated')} title={t('customerFavorites')} subtitle={t('topRatedSubtitle')} />
+      <div className={FAVORITES_GRID}>
         {shops.map((s, i) => (
-          <ShopCard key={s.id} shop={s} darkMode={darkMode} index={i} variant="latest" isSaved={saved.has(s.id)} actions={actions} t={t} />
+          <ShopCell key={s.id} index={i}>
+            <ShopCard shop={s} darkMode={darkMode} gold isSaved={saved.has(s.id)} actions={actions} t={t} />
+          </ShopCell>
         ))}
       </div>
     </div>
   </section>
 ));
 
-const RoleSections = memo(({ shops, darkMode, t, actions, saved, onViewAll }) => {
+const RoleSections = memo(({ shops, darkMode, isAr, t, actions, saved, onViewAll }) => {
   const groups = useMemo(() => ROLE_SECTIONS.map((sec) => {
     const list = shops.filter((s) => getShopRole(s) === sec.role);
     list.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    return { ...sec, list, top: list.slice(0, 4) };
+    return { ...sec, list, top: list.slice(0, FEATURED_LIMIT) };
   }).filter((g) => g.list.length), [shops]);
 
   if (!groups.length) return null;
   return (
     <>
-      {groups.map(({ role, title, sub, list, top }) => (
-        <section key={role} aria-label={t(title)} className="lk-cv py-10 sm:py-16">
+      {groups.map(({ role, title, sub, list, top }, gi) => (
+        <section
+          key={role} aria-label={t(title)}
+          className={`${gi % 2 === 0 ? `hp-pattern ${darkMode ? 'hp-pattern-dark' : ''}` : `hp-glow ${darkMode ? 'hp-glow-dark' : ''}`} ${darkMode ? DARK_PAGE : 'bg-gray-50'} py-14 sm:py-20 ${LAZY_SECTION}`}
+        >
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <SectionHead
-              eyebrow={serviceLabel(role, t)} title={t(title)} count={list.length} subtitle={t(sub)}
-              action={(
-                <button type="button" onClick={() => onViewAll(role)} className="nb-btn nb-btn-a px-4 py-2 text-xs uppercase sm:text-sm">
-                  {t('viewAll')} <FiArrowRight className="nb-flip h-4 w-4" />
+            <SectionTitle darkMode={darkMode} isAr={isAr} label={serviceLabel(role, t)} title={t(title)} count={list.length} subtitle={t(sub)}>
+              <div className="pb-2 pe-2">
+                <button type="button" onClick={() => onViewAll(role)} className={neoBtn(darkMode, true)}>
+                  {t('viewAll')} <FiArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
                 </button>
-              )}
-            />
-            <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+              </div>
+            </SectionTitle>
+            <div className={SHOP_GRID}>
               {top.map((s, i) => (
-                <ShopCard key={s.id} shop={s} darkMode={darkMode} index={i} isSaved={saved.has(s.id)} actions={actions} t={t} />
+                <ShopCell key={s.id} index={i}>
+                  <ShopCard shop={s} darkMode={darkMode} isSaved={saved.has(s.id)} actions={actions} t={t} />
+                </ShopCell>
               ))}
             </div>
           </div>
@@ -814,50 +1021,57 @@ const RoleSections = memo(({ shops, darkMode, t, actions, saved, onViewAll }) =>
 const OptionRow = memo(({ type, label, count, selected, onClick }) => (
   <button
     type="button" role={type === 'check' ? 'checkbox' : 'radio'} aria-checked={selected} onClick={onClick}
-    className="flex w-full items-center gap-2.5 py-1.5 text-start text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-[color:var(--nb-accent)]"
+    className={`flex min-h-11 w-full cursor-pointer items-center gap-2.5 py-1 text-start text-sm font-bold text-[color:var(--txt)] ${FOCUS}`}
   >
-    <span className={`nb-box ${type === 'radio' ? 'rounded-full' : ''} ${selected ? 'nb-box-on' : ''}`}>
-      {selected && (type === 'check' ? <FiCheck className="h-3 w-3" strokeWidth={3} /> : <span className="h-2 w-2 rounded-full bg-[color:var(--nb-on)]" />)}
+    <span
+      className={`flex h-5 w-5 flex-shrink-0 items-center justify-center border-2 border-[color:var(--ink)] transition-colors duration-150 motion-reduce:transition-none ${type === 'radio' ? 'rounded-full' : 'rounded-md'} ${
+        selected ? 'bg-[color:var(--acc)] text-emerald-950' : 'bg-[color:var(--fld)]'
+      }`}
+    >
+      {selected && (type === 'check' ? <FiCheck className="h-3 w-3" strokeWidth={3} /> : <span className="h-2 w-2 rounded-full bg-emerald-950" />)}
     </span>
     <span className="min-w-0 flex-1 truncate">{label}</span>
-    {count !== undefined && <span className="nb-muted text-xs tabular-nums" dir="ltr">{count}</span>}
+    {count !== undefined && <span className="text-xs font-semibold tabular-nums text-[color:var(--mut)]" dir="ltr">{count}</span>}
   </button>
 ));
 
-const FilterBlock = memo(({ title, isOpen, onToggle, children }) => (
-  <section className="border-t-2 nb-line">
-    <button type="button" onClick={onToggle} aria-expanded={isOpen} className="flex w-full items-center gap-2.5 py-3 text-start">
-      <span className="min-w-0 flex-1 truncate text-[13px] font-extrabold uppercase"><span className="nb-ul">{title}</span></span>
-      <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+const FilterBlock = memo(({ num, title, isOpen, onToggle, darkMode, children }) => (
+  <section className="border-t-[3px] border-[color:var(--ink)]">
+    <button type="button" onClick={onToggle} aria-expanded={isOpen} className={`flex min-h-11 w-full cursor-pointer items-center gap-3 py-3 text-start text-[color:var(--txt)] ${FOCUS}`}>
+      <span aria-hidden="true" className={`text-xl font-black tabular-nums ${darkMode ? 'text-[#39ff88]' : 'text-emerald-600'}`}>{num}</span>
+      <span className="min-w-0 flex-1 truncate text-sm font-extrabold uppercase">{title}</span>
+      <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform duration-200 motion-reduce:transition-none ${isOpen ? 'rotate-180' : ''}`} />
     </button>
-    {isOpen && <div className="min-w-0 pb-4">{children}</div>}
+    {isOpen && <div className="hp-pop min-w-0 pb-4">{children}</div>}
   </section>
 ));
 
-const Pill = memo(({ label, active, onClick }) => (
-  <button type="button" onClick={onClick} aria-pressed={active} className={`nb-btn px-2.5 py-1 text-[11px] ${active ? 'nb-btn-on' : ''}`}>
-    {label}
-  </button>
-));
-
-const STAR = <RiStarFill className="h-3.5 w-3.5 flex-shrink-0 text-amber-500" />;
+const STAR = <RiStarFill aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 text-amber-500" />;
 
 const FilterPanel = memo((p) => {
-  const { t, flat, shopTypes, countsByType, selectedShopTypes, toggleShopType, cities, selectedCities, toggleCity,
+  const {
+    t, darkMode, onClose, shopTypes, countsByType, selectedShopTypes, toggleShopType, cities, selectedCities, toggleCity,
     roleFilter, setRoleFilter, roleCounts, minRating, setMinRating, showVerifiedOnly, setShowVerifiedOnly,
     savedOnly, setSavedOnly, ratedOnly, setRatedOnly, hasPhoneOnly, setHasPhoneOnly, hasAddressOnly, setHasAddressOnly,
-    open, setOpen, clearFilters, activeFiltersCount } = p;
+    open, setOpen, clearFilters, activeFiltersCount,
+  } = p;
   const toggle = (k) => setOpen((o) => ({ ...o, [k]: !o[k] }));
+  let n = 0;
+  const num = () => String(++n).padStart(2, '0');
   return (
-    <div className={flat ? 'w-full min-w-0 max-w-full overflow-x-hidden' : 'nb-card w-full min-w-0 max-w-full overflow-x-hidden p-3 sm:p-4'}>
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 pb-3">
-        <h3 className="flex min-w-0 items-center gap-2 text-base font-extrabold uppercase">
-          <FiSliders aria-hidden="true" className="h-4 w-4 flex-shrink-0" /> <span className="nb-ul truncate">{t('filters')}</span>
+    <div className="w-full min-w-0 text-[color:var(--txt)]">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pb-4">
+        <h3 className="flex min-w-0 items-center gap-2 text-lg font-extrabold uppercase">
+          <FiSliders aria-hidden="true" className="h-4 w-4 flex-shrink-0" />
+          <span className={`truncate ${darkMode ? 'hp-hl-dark' : 'hp-hl'}`}>{t('filters')}</span>
         </h3>
-        {activeFiltersCount > 0 && <button type="button" onClick={clearFilters} className="flex-shrink-0 text-xs font-bold underline underline-offset-4">{t('resetAll')}</button>}
+        <div className="flex flex-shrink-0 items-center gap-3">
+          {activeFiltersCount > 0 && <button type="button" onClick={clearFilters} className={TEXT_LINK}>{t('resetAll')}</button>}
+          {onClose && <button type="button" onClick={onClose} aria-label={t('closeFilters')} className={`${NEO_ICON} !h-10 !w-10`}><FiX className="h-4 w-4" /></button>}
+        </div>
       </div>
 
-      <FilterBlock title={t('serviceType')} isOpen={open.role} onToggle={() => toggle('role')}>
+      <FilterBlock num={num()} title={t('serviceType')} isOpen={open.role} onToggle={() => toggle('role')} darkMode={darkMode}>
         <div className="min-w-0 break-words" role="radiogroup" aria-label={t('serviceType')}>
           <OptionRow type="radio" label={t('allShops')} count={roleCounts.ALL} selected={roleFilter === 'ALL'} onClick={() => setRoleFilter('ALL')} />
           <OptionRow type="radio" label={t('repairServices')} count={roleCounts.REPAIRER} selected={roleFilter === 'REPAIRER'} onClick={() => setRoleFilter('REPAIRER')} />
@@ -866,23 +1080,29 @@ const FilterPanel = memo((p) => {
         </div>
       </FilterBlock>
 
-      <FilterBlock title={t('shopType')} isOpen={open.type} onToggle={() => toggle('type')}>
+      <FilterBlock num={num()} title={t('shopType')} isOpen={open.type} onToggle={() => toggle('type')} darkMode={darkMode}>
         {shopTypes.length === 0
-          ? <p className="nb-muted text-sm">{t('noTypes')}</p>
-          : <div className="max-h-44 min-w-0 overflow-y-auto overscroll-contain break-words pe-1 sm:max-h-52">
+          ? <p className="text-sm font-medium text-[color:var(--mut)]">{t('noTypes')}</p>
+          : (
+            <div className="hp-sb max-h-52 min-w-0 overflow-y-auto overscroll-contain break-words pe-2">
               {shopTypes.map((ty) => <OptionRow key={ty} type="check" label={ty} count={countsByType[ty] || 0} selected={selectedShopTypes.includes(ty)} onClick={() => toggleShopType(ty)} />)}
-            </div>}
+            </div>
+          )}
       </FilterBlock>
 
       {cities.length > 0 && (
-        <FilterBlock title={t('city')} isOpen={open.city} onToggle={() => toggle('city')}>
-          <div className="flex max-h-40 min-w-0 flex-wrap gap-2 overflow-y-auto overscroll-contain p-1">
-            {cities.map((c) => <Pill key={c} label={c} active={selectedCities.includes(c)} onClick={() => toggleCity(c)} />)}
+        <FilterBlock num={num()} title={t('city')} isOpen={open.city} onToggle={() => toggle('city')} darkMode={darkMode}>
+          <div className="hp-sb flex max-h-40 min-w-0 flex-wrap gap-2.5 overflow-y-auto overscroll-contain p-1 pe-3">
+            {cities.map((c) => (
+              <button key={c} type="button" onClick={() => toggleCity(c)} aria-pressed={selectedCities.includes(c)} className={`${neoBtn(darkMode, selectedCities.includes(c))} !min-h-9 !px-3 !py-1 !text-xs`}>
+                {c}
+              </button>
+            ))}
           </div>
         </FilterBlock>
       )}
 
-      <FilterBlock title={t('minimumRating')} isOpen={open.rating} onToggle={() => toggle('rating')}>
+      <FilterBlock num={num()} title={t('minimumRating')} isOpen={open.rating} onToggle={() => toggle('rating')} darkMode={darkMode}>
         <div className="min-w-0 break-words" role="radiogroup" aria-label={t('minimumRating')}>
           <OptionRow type="radio" label={t('anyRating')} selected={minRating === 0} onClick={() => setMinRating(0)} />
           {RATING_STEPS.map((v) => (
@@ -895,7 +1115,7 @@ const FilterPanel = memo((p) => {
         </div>
       </FilterBlock>
 
-      <FilterBlock title={t('moreFilters')} isOpen={open.more} onToggle={() => toggle('more')}>
+      <FilterBlock num={num()} title={t('moreFilters')} isOpen={open.more} onToggle={() => toggle('more')} darkMode={darkMode}>
         <div className="min-w-0 break-words">
           <OptionRow type="check" label={t('ratedOnly')} selected={ratedOnly} onClick={() => setRatedOnly((v) => !v)} />
           <OptionRow type="check" label={t('hasPhone')} selected={hasPhoneOnly} onClick={() => setHasPhoneOnly((v) => !v)} />
@@ -917,37 +1137,31 @@ const pageWindow = (cur, total) => {
   return out;
 };
 
-const PAGE_BTN = 'inline-flex h-10 min-w-[2.5rem] items-center justify-center border-2 border-[color:var(--nb-line)] bg-[color:var(--nb-card)] px-2 text-sm font-bold tabular-nums text-[color:var(--nb-ink)] shadow-[3px_3px_0_var(--nb-shadow)] transition duration-100 hover:-translate-x-px hover:-translate-y-px hover:shadow-[4px_4px_0_var(--nb-shadow)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--nb-accent)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-x-0 disabled:hover:translate-y-0 disabled:hover:shadow-[3px_3px_0_var(--nb-shadow)] motion-reduce:transition-none';
-const PAGE_BTN_ON = '!bg-[color:var(--nb-btn)] !text-[color:var(--nb-on)]';
-
-const Pagination = memo(({ page, total, onChange, t }) => {
+const Pagination = memo(({ page, total, onChange, darkMode, t }) => {
   const items = useMemo(() => pageWindow(page, total), [page, total]);
   if (total <= 1) return null;
+  const icon = `${NEO_THEME[darkMode ? 'dark' : 'light']} ${NEO_ICON}`;
   return (
-    <nav aria-label={t('pagination')}>
-      <ul className="flex flex-wrap items-center justify-center gap-2">
-        <li>
-          <button type="button" className={PAGE_BTN} disabled={page <= 1} onClick={() => onChange(page - 1)} aria-label={t('prevPage')}>
-            <FiChevronLeft aria-hidden="true" className="nb-flip h-4 w-4" />
-          </button>
-        </li>
-        {items.map((x) => (typeof x === 'number' ? (
-          <li key={x}>
-            <button type="button" onClick={() => onChange(x)} aria-label={t('pageN', { n: x })} aria-current={x === page ? 'page' : undefined}
-              className={`${PAGE_BTN} ${x === page ? PAGE_BTN_ON : ''}`}>{x}</button>
-          </li>
-        ) : <li key={x} aria-hidden="true" className="px-1 font-extrabold">…</li>))}
-        <li>
-          <button type="button" className={PAGE_BTN} disabled={page >= total} onClick={() => onChange(page + 1)} aria-label={t('nextPage')}>
-            <FiChevronRight aria-hidden="true" className="nb-flip h-4 w-4" />
-          </button>
-        </li>
-      </ul>
+    <nav aria-label={t('pagination')} className="flex flex-wrap items-center justify-center gap-3 pe-2">
+      <button type="button" className={icon} disabled={page <= 1} onClick={() => onChange(page - 1)} aria-label={t('prevPage')}>
+        <FiChevronLeft className="h-5 w-5 rtl:rotate-180" />
+      </button>
+      {items.map((x) => (typeof x === 'number' ? (
+        <button
+          key={x} type="button" onClick={() => onChange(x)} aria-label={t('pageN', { n: x })} aria-current={x === page ? 'page' : undefined}
+          className={`${neoBtn(darkMode, x === page)} !min-w-11 !px-2 tabular-nums`}
+        >
+          {x}
+        </button>
+      ) : <span key={x} aria-hidden="true" className="px-1 font-extrabold text-[color:var(--txt)]">…</span>))}
+      <button type="button" className={icon} disabled={page >= total} onClick={() => onChange(page + 1)} aria-label={t('nextPage')}>
+        <FiChevronRight className="h-5 w-5 rtl:rotate-180" />
+      </button>
     </nav>
   );
 });
 
-const InfiniteSentinel = memo(({ hasMore, shown, total, onMore, t }) => {
+const InfiniteSentinel = memo(({ hasMore, shown, total, onMore, darkMode, t }) => {
   const ref = useRef(null);
   useEffect(() => {
     const el = ref.current;
@@ -957,15 +1171,22 @@ const InfiniteSentinel = memo(({ hasMore, shown, total, onMore, t }) => {
     io.observe(el);
     return () => io.disconnect();
   }, [hasMore, shown, onMore]);
+  const dot = darkMode ? 'bg-[#39ff88]' : 'bg-emerald-500';
   return (
-    <div ref={ref} className="flex min-h-[3.5rem] items-center justify-center pt-8" role="status" aria-live="polite">
+    <div ref={ref} role="status" aria-live="polite" className="flex min-h-[4rem] items-center justify-center gap-3 pt-8">
       {hasMore ? (
-        <span className="nb-chip !px-3 !py-1.5">
-          <span aria-hidden="true" className="nb-spin h-3.5 w-3.5 rounded-full border-2 border-current border-t-transparent" />
-          {t('loadingMore')}
-        </span>
+        <>
+          <span aria-hidden="true" className="flex items-center gap-1.5">
+            <span className={`hp-load-dot h-2.5 w-2.5 rounded-full ${dot}`} />
+            <span className={`hp-load-dot h-2.5 w-2.5 rounded-full ${dot}`} />
+            <span className={`hp-load-dot h-2.5 w-2.5 rounded-full ${dot}`} />
+          </span>
+          <span className="text-xs font-bold uppercase tracking-wide text-[color:var(--txt)]">{t('loadingMore')}</span>
+        </>
       ) : total > MOBILE_BATCH ? (
-        <span className="nb-chip !px-3 !py-1.5"><FiCheck aria-hidden="true" className="h-3 w-3" />{t('endOfList')}</span>
+        <p className="hp-pop flex items-center justify-center gap-1.5 text-xs font-extrabold uppercase text-[color:var(--txt)]">
+          <FiCheck aria-hidden="true" className="h-3.5 w-3.5" />{t('endOfList')}
+        </p>
       ) : null}
     </div>
   );
@@ -975,10 +1196,10 @@ const ShopsContent = memo(({ darkMode }) => {
   const language = useAppLanguage();
   const t = useCallback((k, params) => tr(language, k, params), [language]);
   const dir = languageDirection(language);
-  const font = useLangFont(language);
   const isAr = language === 'ar';
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const uid = useId().replace(/:/g, '');
   const [, startTransition] = useTransition();
   useScrollTopOnEnter();
 
@@ -988,7 +1209,7 @@ const ShopsContent = memo(({ darkMode }) => {
   const searchPending = searchTerm !== deferredSearch;
   const [currentPage, setCurrentPage] = useState(1);
   const [visibleCount, setVisibleCount] = useState(MOBILE_BATCH);
-  const [pageSize, setPageSize] = useState(PAGE_SIZES[0]);
+  const [pageSize, setPageSize] = useState(SHOP_PAGE_SIZES[0]);
   const [viewMode, setViewMode] = useState('grid');
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [selectedShopTypes, setSelectedShopTypes] = useState([]);
@@ -1000,33 +1221,43 @@ const ShopsContent = memo(({ darkMode }) => {
   const [hasPhoneOnly, setHasPhoneOnly] = useState(false);
   const [hasAddressOnly, setHasAddressOnly] = useState(false);
   const [sortBy, setSortBy] = useState('relevance');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [sheet, setSheet] = useState('closed');
   const [detailsShop, setDetailsShop] = useState(null);
   const [directionsShop, setDirectionsShop] = useState(null);
   const [open, setOpen] = useState({ role: true, type: true, city: true, rating: true, more: true });
   const gridRef = useRef(null);
+  const sheetTimer = useRef();
   const showTop = useBackToTop();
-  const closeSidebar = useCallback(() => setIsSidebarOpen(false), []);
-  const drawerOpen = isMobile && isSidebarOpen;
-  useModalLock(drawerOpen, closeSidebar);
-  useEffect(() => { if (!isMobile) setIsSidebarOpen(false); }, [isMobile]);
 
-  useEffect(() => { ensureNbFont(); }, []);
+  const openSheet = useCallback(() => { clearTimeout(sheetTimer.current); setSheet('open'); }, []);
+  const closeSheet = useCallback(() => {
+    setSheet((s) => (s === 'open' ? 'leave' : s));
+    clearTimeout(sheetTimer.current);
+    sheetTimer.current = setTimeout(() => setSheet('closed'), EXIT_MS);
+  }, []);
+  useModalLock(sheet === 'open', closeSheet);
+  useEffect(() => () => clearTimeout(sheetTimer.current), []);
+
   useEffect(() => { document.title = t('pageTitle'); }, [t]);
+  useEffect(() => {
+    const el = document.documentElement;
+    el.dataset.hpTheme = darkMode ? 'dark' : 'light';
+    return () => { delete el.dataset.hpTheme; };
+  }, [darkMode]);
 
   const { data: shops = [], isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['shopsList'],
     queryFn: async ({ signal }) => {
       const res = await api.get('/api/users/shops/all', { signal });
       const list = res.data?.content || res.data || [];
-      return Array.isArray(list) ? list.filter(Boolean) : [];
+      return Array.isArray(list) ? list.filter((s) => s && s.id != null) : [];
     },
     staleTime: 5 * 60 * 1000,
   });
 
   const { shopTypes, cities, countsByType, roleCounts, topRated, searchIndex } = useMemo(() => {
-    const types = new Set(), citySet = new Set(), counts = {}, index = new Map();
-    let rep = 0, sell = 0, both = 0;
+    const types = new Set(); const citySet = new Set(); const counts = {}; const index = new Map();
+    let rep = 0; let sell = 0; let both = 0;
     for (const s of shops) {
       if (s.shopType) { types.add(s.shopType); counts[s.shopType] = (counts[s.shopType] || 0) + 1; }
       if (s.shopAddress?.city) citySet.add(s.shopAddress.city);
@@ -1041,7 +1272,7 @@ const ShopsContent = memo(({ darkMode }) => {
       cities: [...citySet].sort(),
       countsByType: counts,
       roleCounts: { ALL: shops.length, REPAIRER: rep, SELLER: sell, BOTH: both },
-      topRated: shops.filter((s) => s.rating > 0).sort((a, b) => b.rating - a.rating).slice(0, 4),
+      topRated: shops.filter((s) => s.rating > 0).sort((a, b) => b.rating - a.rating).slice(0, FAVORITES_LIMIT),
       searchIndex: index,
     };
   }, [shops]);
@@ -1086,7 +1317,10 @@ const ShopsContent = memo(({ darkMode }) => {
 
   const loadMore = useCallback(() => startTransition(() => setVisibleCount((c) => c + MOBILE_BATCH)), []);
   const scrollToGrid = useCallback(() => gridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), []);
-  const scrollToTop = useCallback(() => window.scrollTo({ top: 0, behavior: 'smooth' }), []);
+  const scrollToTop = useCallback(() => {
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
+  }, []);
   const goToPage = useCallback((pg) => { setCurrentPage(pg); scrollToGrid(); }, [scrollToGrid]);
   const openShop = useCallback((id) => navigate(`/shops/${encodeURIComponent(id)}`), [navigate]);
   const toggleShopType = useCallback((ty) => setSelectedShopTypes((p) => (p.includes(ty) ? p.filter((x) => x !== ty) : [...p, ty])), []);
@@ -1102,7 +1336,7 @@ const ShopsContent = memo(({ darkMode }) => {
   const openFromModal = useCallback((id) => { setDetailsShop(null); openShop(id); }, [openShop]);
   const directionsFromModal = useCallback((shop) => { setDetailsShop(null); setDirectionsShop(shop); }, []);
   const viewAllRole = useCallback((role) => {
-    setRoleFilter(role === 'BOTH' ? 'ALL' : role);
+    setRoleFilter(role);
     setSelectedShopTypes([]); setSelectedCities([]);
     scrollToGrid();
   }, [scrollToGrid]);
@@ -1125,201 +1359,194 @@ const ShopsContent = memo(({ darkMode }) => {
     { value: 'nameAZ', label: t('sortName') },
   ], [t]);
 
-  const rowOptions = useMemo(() => PAGE_SIZES.map((n) => ({ value: n, label: `${n} ${t('perPage')}` })), [t]);
+  const rowOptions = useMemo(() => SHOP_PAGE_SIZES.map((n) => ({ value: n, label: `${n} ${t('perPage')}` })), [t]);
 
-  const filterPanelProps = useMemo(() => ({
-    t, shopTypes, countsByType, selectedShopTypes, toggleShopType, cities, selectedCities, toggleCity,
+  const filterPanelProps = useMemo(() => (sheet !== 'closed' ? {
+    t, darkMode, shopTypes, countsByType, selectedShopTypes, toggleShopType, cities, selectedCities, toggleCity,
     roleFilter, setRoleFilter, roleCounts, minRating, setMinRating, showVerifiedOnly, setShowVerifiedOnly,
     savedOnly, setSavedOnly, ratedOnly, setRatedOnly, hasPhoneOnly, setHasPhoneOnly, hasAddressOnly, setHasAddressOnly,
     open, setOpen, clearFilters, activeFiltersCount,
-  }), [t, shopTypes, countsByType, selectedShopTypes, toggleShopType, cities, selectedCities, toggleCity,
+  } : null), [sheet, t, darkMode, shopTypes, countsByType, selectedShopTypes, toggleShopType, cities, selectedCities, toggleCity,
     roleFilter, roleCounts, minRating, showVerifiedOnly, savedOnly, ratedOnly, hasPhoneOnly, hasAddressOnly, open, clearFilters, activeFiltersCount]);
 
+  const k = darkMode ? 'dark' : 'light';
   const layout = isMobile ? 'grid' : viewMode;
-  const gridCols = layout === 'grid' ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-1';
+  const gridCols = layout === 'grid' ? SHOP_GRID : 'grid grid-cols-1 gap-4 pb-2 pe-2 sm:gap-6';
+  const pageBg = darkMode ? DARK_PAGE : 'bg-gray-50';
+  const chipBtn = `${neoBtn(darkMode, false)} !min-h-9 !px-3 !py-1 !text-xs`;
+  const removable = (key, label, onRemove) => (
+    <button key={key} type="button" onClick={onRemove} className={chipBtn}>
+      <span className="max-w-[10rem] truncate">{label}</span><FiX className="h-3 w-3" aria-hidden="true" />
+    </button>
+  );
 
   return (
-    <LazyMotion features={domAnimation} strict>
-      <MotionConfig reducedMotion="user">
-        <div
-          dir={dir} lang={language} style={isAr ? font.style : NB_FONT_STYLE}
-          className={`nb ${darkMode ? 'nb-dark' : ''} min-h-screen overflow-x-hidden ${isAr ? font.className : ''}`}
-        >
-          {STYLE_EL}
-          <Defs3D />
+    <div
+      dir={dir} lang={language}
+      className={`${NEO_THEME[k]} min-h-screen overflow-x-clip ${isAr ? 'font-cairo' : 'font-jakarta'} ${darkMode ? `${DARK_PAGE} text-white` : 'bg-gray-50 text-gray-900'}`}
+    >
+      {STYLE_EL}
+      <Defs3D />
 
-          <Suspense fallback={<div className="nb-gray h-[360px] w-full animate-pulse sm:h-[480px]" />}>
-            <Hero
-              variant="shops"
-              darkMode={darkMode}
-              badge={t('heroBadge')}
-              headingLine1={t('heroLine1')}
-              headingAccent={t('heroAccent')}
-              headingLine2={t('heroLine2')}
-              description={t('heroDescription')}
-              buttons={heroButtons}
-            />
-          </Suspense>
+      <Suspense fallback={<div className={`h-[360px] w-full animate-pulse motion-reduce:animate-none sm:h-[480px] ${darkMode ? 'bg-[#2a2a2a]' : 'bg-emerald-50'}`} />}>
+        <Hero
+          variant="shops"
+          darkMode={darkMode}
+          badge={t('heroBadge')}
+          headingLine1={t('heroLine1')}
+          headingAccent={t('heroAccent')}
+          headingLine2={t('heroLine2')}
+          description={t('heroDescription')}
+          buttons={heroButtons}
+        />
+      </Suspense>
 
-          <div className="nb-seq">
-            {!isLoading && (
-              <SpecialtyGrid shopTypes={shopTypes} countsByType={countsByType} selected={selectedShopTypes} onToggle={pickSpecialty}
-                darkMode={darkMode} title={t('findExpert')} subtitle={t('browseSpecialty')} t={t} />
-            )}
+      {!isLoading && (
+        <SpecialtyGrid
+          shopTypes={shopTypes} countsByType={countsByType} selected={selectedShopTypes} onToggle={pickSpecialty}
+          darkMode={darkMode} isAr={isAr} title={t('findExpert')} subtitle={t('browseSpecialty')} t={t}
+        />
+      )}
 
-            {!isLoading && topRated.length > 0 && (
-              <FavoritesSection shops={topRated} darkMode={darkMode} t={t} actions={actions} saved={saved} />
-            )}
+      {!isLoading && topRated.length > 0 && (
+        <FavoritesSection shops={topRated} darkMode={darkMode} isAr={isAr} t={t} actions={actions} saved={saved} />
+      )}
 
-            {!isLoading && !isError && (
-              <RoleSections shops={shops} darkMode={darkMode} t={t} actions={actions} saved={saved} onViewAll={viewAllRole} />
-            )}
+      {!isLoading && !isError && (
+        <RoleSections shops={shops} darkMode={darkMode} isAr={isAr} t={t} actions={actions} saved={saved} onViewAll={viewAllRole} />
+      )}
 
-            <section aria-label={t('allShopsTitle')}>
-              <div id="shop-results" ref={gridRef} className="mx-auto max-w-7xl scroll-mt-20 px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
-                <SectionHead eyebrow={t('eyebrowShops')} title={t('allShopsTitle')} subtitle={t('allShopsSubtitle')} />
+      <section aria-label={t('allShopsTitle')} className={darkMode ? DARK_PAGE : 'bg-gray-100'}>
+        <div id="shop-results" ref={gridRef} className="mx-auto max-w-7xl scroll-mt-20 px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
+          <SectionTitle darkMode={darkMode} isAr={isAr} label={t('eyebrowShops')} title={t('allShopsTitle')} subtitle={t('allShopsSubtitle')} />
 
-                <div className="flex items-stretch gap-5 lg:gap-8">
+          <div className="w-full min-w-0">
+            <div className={`relative z-20 mb-6 me-2 flex flex-col gap-4 p-4 sm:p-5 ${neoCard(darkMode, 'sm')}`}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm font-bold text-[color:var(--txt)]" aria-live="polite">
+                  <b dir="ltr" className="tabular-nums">{startItem}–{endItem}</b> / <b dir="ltr" className="tabular-nums">{filteredShops.length}</b> {t('shopsFound')}
+                </p>
+                <div className="flex flex-wrap items-center gap-3">
                   {!isMobile && (
-                    <aside className="flex w-[17rem] min-w-0 flex-shrink-0 xl:w-[19rem]">
-                      <div className="nb-card min-w-0 flex-1 p-3 sm:p-4">
-                        <div className="sticky top-20">
-                          <FilterPanel {...filterPanelProps} flat />
-                        </div>
-                      </div>
-                    </aside>
+                    <>
+                      <Dropdown id={`${uid}-rows`} ariaLabel={t('rowsPerPage')} value={pageSize} onChange={setPageSize} options={rowOptions} className="w-36 flex-shrink-0" />
+                      {VIEW_MODES.map(([mode, Icon, labelKey]) => (
+                        <button
+                          key={mode} type="button" onClick={() => setViewMode(mode)} aria-label={t(labelKey)} title={t(labelKey)} aria-pressed={viewMode === mode}
+                          className={`${neoBtn(darkMode, viewMode === mode)} !w-11 !px-0`}
+                        >
+                          <Icon className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                      ))}
+                    </>
                   )}
-
-                  <div className="w-full min-w-0 flex-1">
-                    <div className="nb-card mb-6 flex flex-col gap-3 p-3 sm:p-4">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <p className="text-sm opacity-80" aria-live="polite">
-                          <b dir="ltr">{startItem}–{endItem}</b> / <b dir="ltr">{filteredShops.length}</b> {t('shopsFound')}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {!isMobile && (
-                            <>
-                              <NbDropdown ariaLabel={t('rowsPerPage')} value={pageSize} onChange={setPageSize} options={rowOptions} align="end" className="w-36 flex-shrink-0" />
-                              {VIEW_MODES.map(([mode, Icon, labelKey]) => (
-                                <button key={mode} type="button" onClick={() => setViewMode(mode)} aria-label={t(labelKey)} title={t(labelKey)} aria-pressed={viewMode === mode}
-                                  className={`nb-btn h-10 w-10 ${viewMode === mode ? 'nb-btn-on' : ''}`}>
-                                  <Icon className="h-4 w-4" />
-                                </button>
-                              ))}
-                            </>
-                          )}
-                          {isMobile && (
-                            <button type="button" onClick={() => setIsSidebarOpen(true)} className="nb-btn nb-btn-a h-10 px-3 text-xs uppercase">
-                              <FiSliders className="h-3.5 w-3.5" /> {t('filters')}
-                              {activeFiltersCount > 0 && <span className="flex h-4 min-w-[1rem] items-center justify-center bg-white px-1 text-[10px] font-bold text-[#04261a]">{activeFiltersCount}</span>}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                        <SearchField value={searchTerm} onChange={setSearchTerm} placeholder={t('search')} ariaLabel={t('searchAria')} clearLabel={t('clearSearch')} pending={searchPending} />
-                        <NbDropdown ariaLabel={t('sortBy')} value={sortBy} onChange={setSortBy} options={sortOptions} align="end" className="w-full sm:w-52" />
-                      </div>
-                    </div>
-
-                    {activeFiltersCount > 0 && (
-                      <div className="mb-6 flex flex-wrap items-center gap-2">
-                        {roleFilter !== 'ALL' && <FilterChip label={serviceLabel(roleFilter, t)} onRemove={() => setRoleFilter('ALL')} />}
-                        {selectedShopTypes.map((ty) => <FilterChip key={ty} label={ty} onRemove={() => toggleShopType(ty)} />)}
-                        {selectedCities.map((c) => <FilterChip key={c} label={c} onRemove={() => toggleCity(c)} />)}
-                        {minRating > 0 && <FilterChip label={`${minRating}+ ${t('stars')}`} onRemove={() => setMinRating(0)} />}
-                        {showVerifiedOnly && <FilterChip label={t('verified')} onRemove={() => setShowVerifiedOnly(false)} />}
-                        {savedOnly && <FilterChip label={t('savedOnly')} onRemove={() => setSavedOnly(false)} />}
-                        {ratedOnly && <FilterChip label={t('ratedOnly')} onRemove={() => setRatedOnly(false)} />}
-                        {hasPhoneOnly && <FilterChip label={t('hasPhone')} onRemove={() => setHasPhoneOnly(false)} />}
-                        {hasAddressOnly && <FilterChip label={t('hasAddress')} onRemove={() => setHasAddressOnly(false)} />}
-                        {searchTerm && <FilterChip label={`“${searchTerm.slice(0, 20)}”`} onRemove={() => setSearchTerm('')} />}
-                        <button type="button" onClick={clearFilters} className="text-xs font-bold underline underline-offset-4">{t('clearAll')}</button>
-                      </div>
-                    )}
-
-                    {isLoading ? (
-                      <div className={`grid gap-4 sm:gap-6 ${gridCols}`} role="status" aria-label={t('loading')}>
-                        {Array.from({ length: 8 }).map((_, i) => <div key={i} className="nb-gray nb-line h-[360px] animate-pulse border-2 motion-reduce:animate-none" />)}
-                      </div>
-                    ) : isError ? (
-                      <div className="nb-card px-4 py-14 text-center sm:py-20">
-                        <IsoIllustration type="shopsEmpty" tone="emerald" darkMode={darkMode} onGreen={false} className="mx-auto mb-4 h-32 w-32" />
-                        <p className="mb-2 text-lg font-extrabold uppercase sm:text-xl">{t('loadErrorTitle')}</p>
-                        <p className="mb-6 text-sm opacity-80">{t('loadErrorText')}</p>
-                        <button type="button" onClick={() => refetch()} className="nb-btn nb-btn-a px-6 py-3 text-sm uppercase"><FiRefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} /> {t('tryAgain')}</button>
-                      </div>
-                    ) : filteredShops.length === 0 ? (
-                      <div className="nb-card px-4 py-14 text-center sm:py-24">
-                        <IsoIllustration type="shopsEmpty" tone="emerald" darkMode={darkMode} onGreen={false} className="mx-auto mb-4 h-32 w-32 sm:h-40 sm:w-40" />
-                        <p className="mb-2 text-lg font-extrabold uppercase sm:text-2xl">{shops.length ? t('noMatch') : t('noShops')}</p>
-                        <p className="mb-6 text-sm opacity-80 sm:text-base">{shops.length ? t('tryRemoveFilter') : t('newShopsSoon')}</p>
-                        {shops.length > 0 && <button type="button" onClick={clearFilters} className="nb-btn nb-btn-a px-6 py-3 text-sm uppercase sm:text-base">{t('clearFilters')}</button>}
-                      </div>
-                    ) : (
-                      <>
-                        <div className={`grid gap-4 sm:gap-6 ${gridCols}`}>
-                          {listShops.map((s, i) => (
-                            <ShopCard key={s.id} shop={s} darkMode={darkMode} index={i} layout={layout} isSaved={saved.has(s.id)} actions={actions} t={t} />
-                          ))}
-                        </div>
-                        {isMobile ? (
-                          <InfiniteSentinel hasMore={hasMore} shown={visibleCount} total={filteredShops.length} onMore={loadMore} t={t} />
-                        ) : totalPages > 1 && (
-                          <div className="flex flex-col items-center gap-3 pt-8">
-                            <Pagination page={page} total={totalPages} onChange={goToPage} t={t} />
-                            <p className="nb-muted text-xs">
-                              <span dir="ltr">{startItem}–{endItem}</span> / <span dir="ltr">{filteredShops.length}</span> {t('shopsFound')}
-                            </p>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
+                  <button type="button" onClick={openSheet} aria-haspopup="dialog" aria-expanded={sheet === 'open'} className={neoBtn(darkMode, true)}>
+                    <FiSliders className="h-4 w-4" aria-hidden="true" />
+                    <span>{t('filters')}</span>
+                    {activeFiltersCount > 0 && <span dir="ltr" className="tabular-nums">({activeFiltersCount})</span>}
+                  </button>
                 </div>
               </div>
-            </section>
-          </div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <SearchField value={searchTerm} onChange={setSearchTerm} placeholder={t('search')} ariaLabel={t('searchAria')} clearLabel={t('clearSearch')} pending={searchPending} />
+                <Dropdown id={`${uid}-sort`} ariaLabel={t('sortBy')} value={sortBy} onChange={setSortBy} options={sortOptions} className="w-full sm:w-56" />
+              </div>
+            </div>
 
-          <AnimatePresence>
-            {showTop && (
-              <m.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }} className="fixed bottom-5 end-5 z-40">
-                <button type="button" onClick={scrollToTop} aria-label={t('backToTop')} title={t('backToTop')} className="nb-btn nb-btn-a h-11 w-11"><FiArrowUp className="h-5 w-5" /></button>
-              </m.div>
-            )}
-          </AnimatePresence>
-
-          <AnimatePresence>
-            {drawerOpen && (
-              <div className="fixed inset-0 z-[1050]" role="dialog" aria-modal="true" aria-label={t('filters')}>
-                <m.div {...BACKDROP_MOTION} className="absolute inset-0 bg-black/60" onClick={closeSidebar} />
-                <m.div {...DRAWER_MOTION} style={GPU}
-                  className="nb-bg nb-line absolute inset-x-0 bottom-0 flex max-h-[88vh] min-w-0 transform-gpu flex-col border-t-2 sm:inset-y-0 sm:end-auto sm:start-0 sm:max-h-none sm:w-[22rem] sm:max-w-[90vw] sm:border-e-2 sm:border-t-0 md:w-96">
-                  <div className="flex items-center justify-between px-3 pb-2 pt-4 sm:px-4">
-                    <h3 className="text-base font-extrabold uppercase"><span className="nb-ul">{t('filters')}</span></h3>
-                    <button type="button" onClick={closeSidebar} aria-label={t('closeFilters')} className="nb-btn h-9 w-9"><FiX className="h-5 w-5" /></button>
-                  </div>
-                  <div className="min-w-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4 pe-4 sm:px-4 sm:pe-5"><FilterPanel {...filterPanelProps} /></div>
-                  <div className="nb-line border-t-2 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4">
-                    <button type="button" onClick={() => { closeSidebar(); scrollToGrid(); }} className="nb-btn nb-btn-a w-full py-3 text-sm uppercase">{t('showShops', { count: filteredShops.length })}</button>
-                  </div>
-                </m.div>
+            {activeFiltersCount > 0 && (
+              <div className="mb-6 flex flex-wrap items-center gap-3 pe-2">
+                {roleFilter !== 'ALL' && removable('role', serviceLabel(roleFilter, t), () => setRoleFilter('ALL'))}
+                {selectedShopTypes.map((ty) => removable(`ty-${ty}`, ty, () => toggleShopType(ty)))}
+                {selectedCities.map((c) => removable(`c-${c}`, c, () => toggleCity(c)))}
+                {minRating > 0 && removable('rating', `${minRating}+ ${t('stars')}`, () => setMinRating(0))}
+                {showVerifiedOnly && removable('verified', t('verified'), () => setShowVerifiedOnly(false))}
+                {savedOnly && removable('saved', t('savedOnly'), () => setSavedOnly(false))}
+                {ratedOnly && removable('rated', t('ratedOnly'), () => setRatedOnly(false))}
+                {hasPhoneOnly && removable('phone', t('hasPhone'), () => setHasPhoneOnly(false))}
+                {hasAddressOnly && removable('address', t('hasAddress'), () => setHasAddressOnly(false))}
+                {searchTerm && removable('q', `“${searchTerm.slice(0, 20)}”`, () => setSearchTerm(''))}
+                <button type="button" onClick={clearFilters} className={TEXT_LINK}>{t('clearAll')}</button>
               </div>
             )}
-          </AnimatePresence>
 
-          <AnimatePresence>
-            {detailsShop && <ShopDetailsModal key={detailsShop.id} shop={detailsShop} darkMode={darkMode} onClose={closeDetails} onOpen={openFromModal} onDirections={directionsFromModal} t={t} />}
-          </AnimatePresence>
-
-          <AnimatePresence>
-            {directionsShop && <DirectionsModal key={`dir-${directionsShop.id}`} shop={directionsShop} onClose={closeDirections} t={t} />}
-          </AnimatePresence>
+            {isLoading ? (
+              <div className={gridCols} role="status" aria-busy="true" aria-label={t('loading')}>
+                {Array.from({ length: 10 }).map((_, i) => <div key={i} className={`h-[380px] animate-pulse rounded-2xl motion-reduce:animate-none ${darkMode ? 'bg-[#2a2a2a]' : 'bg-gray-200/70'}`} />)}
+              </div>
+            ) : isError ? (
+              <div className={`me-2 items-center px-4 py-14 text-center sm:py-20 ${neoCard(darkMode, 'sm')}`}>
+                <IsoIllustration type="shopsEmpty" tone="emerald" darkMode={darkMode} onGreen={false} className="mx-auto mb-4 h-32 w-32" />
+                <p className="mb-2 text-lg font-extrabold uppercase text-[color:var(--txt)] sm:text-xl">{t('loadErrorTitle')}</p>
+                <p className="mb-6 text-sm font-medium text-[color:var(--mut)]">{t('loadErrorText')}</p>
+                <button type="button" onClick={() => refetch()} className={neoBtn(darkMode, true)}><FiRefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} aria-hidden="true" /> {t('tryAgain')}</button>
+              </div>
+            ) : filteredShops.length === 0 ? (
+              <div className={`me-2 items-center px-4 py-14 text-center sm:py-24 ${neoCard(darkMode, 'sm')}`}>
+                <IsoIllustration type="shopsEmpty" tone="emerald" darkMode={darkMode} onGreen={false} className="mx-auto mb-4 h-32 w-32 sm:h-40 sm:w-40" />
+                <p className="mb-2 text-lg font-extrabold uppercase text-[color:var(--txt)] sm:text-2xl">{shops.length ? t('noMatch') : t('noShops')}</p>
+                <p className="mb-6 text-sm font-medium text-[color:var(--mut)] sm:text-base">{shops.length ? t('tryRemoveFilter') : t('newShopsSoon')}</p>
+                {shops.length > 0 && <button type="button" onClick={clearFilters} className={neoBtn(darkMode, true)}>{t('clearFilters')}</button>}
+              </div>
+            ) : (
+              <>
+                <div className={gridCols}>
+                  {listShops.map((s, i) => (
+                    <ShopCell key={s.id} index={i}>
+                      <ShopCard shop={s} darkMode={darkMode} layout={layout} isSaved={saved.has(s.id)} actions={actions} t={t} />
+                    </ShopCell>
+                  ))}
+                </div>
+                {isMobile ? (
+                  <InfiniteSentinel hasMore={hasMore} shown={visibleCount} total={filteredShops.length} onMore={loadMore} darkMode={darkMode} t={t} />
+                ) : totalPages > 1 && (
+                  <div className="flex flex-col items-center gap-3 pt-10">
+                    <Pagination page={page} total={totalPages} onChange={goToPage} darkMode={darkMode} t={t} />
+                    <p className="text-xs font-bold text-[color:var(--mut)]">
+                      <span dir="ltr" className="tabular-nums">{startItem}–{endItem}</span> / <span dir="ltr" className="tabular-nums">{filteredShops.length}</span> {t('shopsFound')}
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
-      </MotionConfig>
-    </LazyMotion>
+      </section>
+
+      {showTop && (
+        <div className="hp-pop fixed bottom-5 end-5 z-40">
+          <button type="button" onClick={scrollToTop} aria-label={t('backToTop')} title={t('backToTop')} className={`${NEO_THEME[k]} ${NEO_ICON}`}>
+            <FiArrowUp className="h-5 w-5" />
+          </button>
+        </div>
+      )}
+
+      {sheet !== 'closed' && filterPanelProps && (
+        <div className="fixed inset-0 z-[1050]" role="dialog" aria-modal="true" aria-label={t('filters')}>
+          <div className={`absolute inset-0 bg-black/60 ${sheet === 'leave' ? 'hp-fade-out' : 'hp-fade-in'}`} onClick={closeSheet} />
+          <div
+            className={`${sheet === 'leave' ? 'hp-drawer-out' : 'hp-drawer'} ${pageBg} absolute inset-y-0 start-0 flex w-[22rem] min-w-0 max-w-[90vw] transform-gpu flex-col border-e-[3px] border-[color:var(--ink)] md:w-96`}
+          >
+            <div className="hp-sb min-w-0 flex-1 overflow-y-auto overscroll-contain p-4 pe-5">
+              <FilterPanel {...filterPanelProps} onClose={closeSheet} />
+            </div>
+            <div className="border-t-[3px] border-[color:var(--ink)] p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+              <button type="button" onClick={() => { closeSheet(); scrollToGrid(); }} className={`${neoBtn(darkMode, true)} w-full`}>{t('showShops', { count: filteredShops.length })}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {detailsShop && (
+        <ShopDetailsModal key={detailsShop.id} shop={detailsShop} darkMode={darkMode} onClose={closeDetails} onOpen={openFromModal} onDirections={directionsFromModal} t={t} />
+      )}
+
+      {directionsShop && (
+        <DirectionsModal key={`dir-${directionsShop.id}`} shop={directionsShop} darkMode={darkMode} onClose={closeDirections} t={t} />
+      )}
+    </div>
   );
 });
+
 export { queryClient };
 export default function Shops(props) {
   return (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback, memo } from 'react';
 import { createPortal } from 'react-dom';
-import { FiX, FiPlus, FiEdit3, FiUploadCloud, FiTrash2, FiAlertCircle, FiChevronDown, FiCheck } from 'react-icons/fi';
+import { FiX, FiPlus, FiEdit3, FiUploadCloud, FiTrash2, FiAlertCircle, FiChevronDown, FiCheck, FiZap, FiRotateCcw, FiLoader } from 'react-icons/fi';
 import { useEscape, useShopLocale, tpl } from '../shop/TableKit';
 import {
   CONDITIONS, CONDITION_LABELS, ALLOWED_IMAGE_TYPES, IMAGE_MAX_BYTES, PRICE_MAX, STOCK_MAX,
@@ -19,6 +19,19 @@ const TRANSLATIONS = {
     imageCurrent: 'الصورة الحالية — اختر صورة جديدة لاستبدالها',
     pickImage: 'اختيار صورة',
     removeImage: 'إزالة',
+    removeBg: 'إزالة الخلفية وتحسين الجودة',
+    restoreOriginal: 'استعادة الأصلية',
+    cancelProcessing: 'إيقاف المعالجة',
+    bgHint: 'تتم المعالجة على جهازك دون رفع الصورة — في أول مرة يتم تحميل النموذج مرة واحدة ثم يُحفظ في المتصفح',
+    bgDone: 'تمت إزالة الخلفية وتحسين الصورة',
+    bgError: 'تعذرت معالجة الصورة. حاول مرة أخرى أو استخدم الصورة الأصلية',
+    bgTooLarge: 'حجم الصورة بعد المعالجة أكبر من {mb} ميجابايت',
+    stages: {
+      prep: 'تجهيز الصورة…',
+      download: 'تحميل نموذج إزالة الخلفية (مرة واحدة فقط)…',
+      remove: 'إزالة الخلفية…',
+      enhance: 'تحسين الجودة…',
+    },
     name: 'اسم المنتج',
     description: 'الوصف',
     price: 'السعر (ج.م)',
@@ -59,6 +72,19 @@ const TRANSLATIONS = {
     imageCurrent: 'Current image — pick a new one to replace it',
     pickImage: 'Choose image',
     removeImage: 'Remove',
+    removeBg: 'Remove background & enhance',
+    restoreOriginal: 'Restore original',
+    cancelProcessing: 'Stop processing',
+    bgHint: 'Processed on your device, the image is not uploaded — the model downloads once, then stays cached in your browser',
+    bgDone: 'Background removed and image enhanced',
+    bgError: 'Could not process the image. Try again or keep the original',
+    bgTooLarge: 'Processed image is larger than {mb} MB',
+    stages: {
+      prep: 'Preparing image…',
+      download: 'Downloading background model (one time only)…',
+      remove: 'Removing background…',
+      enhance: 'Enhancing quality…',
+    },
     name: 'Product name',
     description: 'Description',
     price: 'Price (EGP)',
@@ -91,13 +117,14 @@ const TRANSLATIONS = {
 };
 
 const PM_CSS = `
-.pm{--pm-card:#ffffff;--pm-ink:#04261a;--pm-muted:#4b6b5c;--pm-line:#04261a;--pm-shadow:#04261a;--pm-gray:#e8ebe9;--pm-dot:#04261a;--pm-accent:#10b981;--pm-btn:#059669;--pm-on:#ffffff}
-.dark .pm{--pm-card:#2a2a2a;--pm-ink:#ffffff;--pm-muted:#a3a3a3;--pm-line:#000000;--pm-shadow:#000000;--pm-gray:#1e1e1e;--pm-dot:#3f3f3f;--pm-accent:#39ff88;--pm-btn:#39ff88;--pm-on:#022c22}
+.pm{--pm-card:#ffffff;--pm-ink:#04261a;--pm-muted:#4b6b5c;--pm-line:#04261a;--pm-shadow:#04261a;--pm-gray:#e8ebe9;--pm-dot:#04261a;--pm-accent:#10b981;--pm-btn:#059669;--pm-on:#ffffff;--pm-check-a:#ffffff;--pm-check-b:#d9dedb}
+.dark .pm{--pm-card:#2a2a2a;--pm-ink:#ffffff;--pm-muted:#a3a3a3;--pm-line:#000000;--pm-shadow:#000000;--pm-gray:#1e1e1e;--pm-dot:#3f3f3f;--pm-accent:#39ff88;--pm-btn:#39ff88;--pm-on:#022c22;--pm-check-a:#3a3a3a;--pm-check-b:#2a2a2a}
 .pm[dir="rtl"] *,.pm [dir="rtl"] *{letter-spacing:0!important}
 .pm-gray{background:var(--pm-gray)}
 .pm-muted{color:var(--pm-muted)}
 .pm-line{border-color:var(--pm-line)}
 .pm-card{background:var(--pm-card);color:var(--pm-ink);border:2px solid var(--pm-line);box-shadow:3px 3px 0 var(--pm-shadow)}
+.pm-checker{background-color:var(--pm-check-a);background-image:conic-gradient(var(--pm-check-b) 25%,transparent 0 50%,var(--pm-check-b) 0 75%,transparent 0);background-size:12px 12px}
 .pm-ul{text-decoration:underline;text-decoration-color:var(--pm-accent);text-decoration-thickness:3px;text-underline-offset:4px;text-decoration-skip-ink:none}
 .pm-tile{display:inline-flex;align-items:center;justify-content:center;flex:none;border:2px solid var(--pm-line);color:#04261a}
 .pm-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--pm-card);color:var(--pm-ink);border:2px solid var(--pm-line);box-shadow:2px 2px 0 var(--pm-shadow);font-weight:700;cursor:pointer;white-space:nowrap;transition:transform .12s ease,box-shadow .12s ease}
@@ -115,6 +142,10 @@ const PM_CSS = `
 .pm-drop{border:2px dashed var(--pm-line);background:var(--pm-gray);transition:background-color .12s ease}
 .pm-drop-on{background:var(--pm-card)}
 .pm-label{display:block;margin-bottom:6px;font-size:11px;font-weight:800;text-transform:uppercase;color:var(--pm-ink)}
+.pm-bar{height:8px;border:2px solid var(--pm-line);background:var(--pm-card);overflow:hidden;position:relative}
+.pm-bar>span{display:block;height:100%;background:var(--pm-accent);transition:width .2s ease}
+.pm-bar-wait>span{position:absolute;inset-block:0;width:35%;animation:pmSlide 1.1s ease-in-out infinite alternate;transition:none}
+@keyframes pmSlide{from{inset-inline-start:0}to{inset-inline-start:65%}}
 .pm-scroll{scrollbar-width:thin;scrollbar-color:var(--pm-accent) transparent}
 .pm-scroll::-webkit-scrollbar{width:6px;height:6px}
 .pm-scroll::-webkit-scrollbar-track{background:transparent}
@@ -123,7 +154,7 @@ const PM_CSS = `
 @keyframes pmIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .pm-fade{animation:pmFade .2s ease-out both}
 .pm-in{animation:pmIn .15s ease-out both}
-@media (prefers-reduced-motion:reduce){.pm-btn,.pm-drop{transition:none}.pm-fade,.pm-in{animation:none}}
+@media (prefers-reduced-motion:reduce){.pm-btn,.pm-drop,.pm-bar>span{transition:none}.pm-fade,.pm-in,.pm-bar-wait>span{animation:none}}
 `;
 const STYLE_EL = <style>{PM_CSS}</style>;
 
@@ -184,11 +215,218 @@ const MAX_MB = IMAGE_MAX_BYTES / 1024 / 1024;
 const PRICE_PLACEHOLDER_N = PRICE_MAX.toLocaleString('en-US');
 const STOCK_PLACEHOLDER_N = STOCK_MAX.toLocaleString('en-US');
 
+const BG_INPUT_MAX = 1024;
+const BG_OUTPUT_MAX = 1280;
+const BG_ALPHA_CUTOFF = 8;
+const BG_PAD_RATIO = 0.04;
+const BG_SHARPEN = 0.35;
+const BG_QUALITIES = [0.9, 0.75, 0.6];
+
+const bgDevice = () => (typeof navigator !== 'undefined' && navigator.gpu ? 'gpu' : 'cpu');
+
+const bgConfig = (device) => ({
+  device,
+  model: device === 'gpu' ? 'isnet_fp16' : 'isnet_quint8',
+  output: { format: 'image/png', quality: 1 },
+});
+
+let bgLibPromise = null;
+const bgPreloaded = {};
+
+const loadBgLib = () => {
+  if (!bgLibPromise) {
+    bgLibPromise = import('@imgly/background-removal').catch((err) => {
+      bgLibPromise = null;
+      throw err;
+    });
+  }
+  return bgLibPromise;
+};
+
+const preloadBgModel = () => {
+  const device = bgDevice();
+  if (bgPreloaded[device]) return;
+  bgPreloaded[device] = true;
+  loadBgLib()
+    .then((lib) => (typeof lib.preload === 'function' ? lib.preload(bgConfig(device)) : undefined))
+    .catch(() => { bgPreloaded[device] = false; });
+};
+
+const makeCanvas = (w, h) => {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  return c;
+};
+
+const canvasToBlob = (canvas, type, quality) =>
+  new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+
+const fitSize = (w, h, max) => {
+  const scale = Math.min(1, max / Math.max(w, h));
+  return { w: Math.max(1, Math.round(w * scale)), h: Math.max(1, Math.round(h * scale)) };
+};
+
+const downscaleInput = async (file) => {
+  const probe = await createImageBitmap(file);
+  const { w, h } = fitSize(probe.width, probe.height, BG_INPUT_MAX);
+  if (w === probe.width && h === probe.height && file.size < 1.5 * 1024 * 1024) {
+    probe.close?.();
+    return file;
+  }
+  const canvas = makeCanvas(w, h);
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(probe, 0, 0, w, h);
+  probe.close?.();
+  return (await canvasToBlob(canvas, 'image/jpeg', 0.95)) || file;
+};
+
+const alphaBounds = (data, w, h) => {
+  let minX = w;
+  let minY = h;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < h; y += 1) {
+    const row = y * w * 4;
+    for (let x = 0; x < w; x += 1) {
+      if (data[row + x * 4 + 3] > BG_ALPHA_CUTOFF) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < 0) return { x: 0, y: 0, w, h };
+  return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+};
+
+const sharpen = (imageData, amount) => {
+  const { data, width: w, height: h } = imageData;
+  const src = new Uint8ClampedArray(data);
+  const stride = w * 4;
+  for (let y = 1; y < h - 1; y += 1) {
+    for (let x = 1; x < w - 1; x += 1) {
+      const i = y * stride + x * 4;
+      if (src[i + 3] < 250) continue;
+      for (let c = 0; c < 3; c += 1) {
+        const k = i + c;
+        const around = src[k - 4] + src[k + 4] + src[k - stride] + src[k + stride];
+        data[k] = src[k] + amount * (4 * src[k] - around);
+      }
+    }
+  }
+  return imageData;
+};
+
+const encodeCanvas = async (canvas) => {
+  let smallest = null;
+  for (const q of BG_QUALITIES) {
+    const blob = await canvasToBlob(canvas, 'image/webp', q);
+    if (!blob || blob.type !== 'image/webp') break;
+    if (!smallest || blob.size < smallest.size) smallest = blob;
+    if (blob.size <= IMAGE_MAX_BYTES) return blob;
+  }
+  if (!smallest) {
+    const png = await canvasToBlob(canvas, 'image/png');
+    if (png) smallest = png;
+  }
+  return smallest;
+};
+
+const enhanceCutout = async (blob) => {
+  const bitmap = await createImageBitmap(blob);
+  const full = makeCanvas(bitmap.width, bitmap.height);
+  const fullCtx = full.getContext('2d', { willReadFrequently: true });
+  fullCtx.drawImage(bitmap, 0, 0);
+  bitmap.close?.();
+
+  const bounds = alphaBounds(fullCtx.getImageData(0, 0, full.width, full.height).data, full.width, full.height);
+  const pad = Math.round(Math.max(bounds.w, bounds.h) * BG_PAD_RATIO);
+  const sx = Math.max(0, bounds.x - pad);
+  const sy = Math.max(0, bounds.y - pad);
+  const sw = Math.min(full.width - sx, bounds.w + pad * 2);
+  const sh = Math.min(full.height - sy, bounds.h + pad * 2);
+  const { w, h } = fitSize(sw, sh, BG_OUTPUT_MAX);
+
+  const out = makeCanvas(w, h);
+  const ctx = out.getContext('2d', { willReadFrequently: true });
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.filter = 'contrast(1.05) saturate(1.08) brightness(1.02)';
+  ctx.drawImage(full, sx, sy, sw, sh, 0, 0, w, h);
+  ctx.filter = 'none';
+  ctx.putImageData(sharpen(ctx.getImageData(0, 0, w, h), BG_SHARPEN), 0, 0);
+
+  full.width = 0;
+  full.height = 0;
+  return encodeCanvas(out);
+};
+
+const processProductImage = async (file, { onStage, onProgress, isCancelled }) => {
+  onStage('prep');
+  const [input, lib] = await Promise.all([downscaleInput(file), loadBgLib()]);
+  if (isCancelled()) return null;
+
+  const attempt = (device) => {
+    const fetched = new Map();
+    onProgress(0);
+    onStage('download');
+    return lib.removeBackground(input, {
+      ...bgConfig(device),
+      progress: (key, current, total) => {
+        if (isCancelled()) return;
+        if (String(key).startsWith('fetch')) {
+          fetched.set(key, [current, total]);
+          let cur = 0;
+          let tot = 0;
+          fetched.forEach(([c, t]) => { cur += c; tot += t; });
+          const pct = tot > 0 ? Math.min(100, Math.round((cur / tot) * 100)) : 0;
+          if (pct >= 100) {
+            onStage('remove');
+            onProgress(-1);
+          } else {
+            onStage('download');
+            onProgress(pct);
+          }
+        } else {
+          onStage('remove');
+          onProgress(-1);
+        }
+      },
+    });
+  };
+
+  const device = bgDevice();
+  let cutout;
+  try {
+    cutout = await attempt(device);
+  } catch (err) {
+    if (device === 'gpu' && !isCancelled()) cutout = await attempt('cpu');
+    else throw err;
+  }
+  if (isCancelled()) return null;
+
+  onStage('enhance');
+  onProgress(-1);
+  const result = await enhanceCutout(cutout);
+  if (isCancelled() || !result) return null;
+
+  const base = file.name.replace(/\.[^.]+$/, '') || 'product';
+  const ext = result.type === 'image/webp' ? 'webp' : 'png';
+  return new File([result], `${base}-nobg.${ext}`, { type: result.type, lastModified: Date.now() });
+};
+
 const INPUT = 'pm-field h-10 px-3 text-sm font-semibold';
 const NUM_INPUT = `${INPUT} text-right tabular-nums`;
 const TEXTAREA = 'pm-field px-3 py-2 text-sm font-semibold resize-none';
 const BTN_SMALL = 'pm-btn h-8 px-3 text-[11px] uppercase';
 const BTN_SMALL_DANGER = `${BTN_SMALL} pm-btn-danger`;
+const BTN_SMALL_ACCENT = `${BTN_SMALL} pm-btn-a`;
 const BTN_FOOT = 'pm-btn flex-1 h-10 text-xs uppercase';
 const BTN_FOOT_PRIMARY = 'pm-btn pm-btn-a flex-1 h-10 text-xs uppercase';
 
@@ -379,13 +617,19 @@ const Dropdown = memo(({ id, value, options, placeholder, dir, onChange }) => {
   );
 });
 
-const ImagePicker = memo(({ image, isEdit, T, onChange, onClearError }) => {
+const ImagePicker = memo(({ image, isEdit, T, onChange, onClearError, onBusy }) => {
   const [imgError, setImgError] = useState('');
   const [dragging, setDragging] = useState(false);
   const [preview, setPreview] = useState('');
+  const [stage, setStage] = useState('');
+  const [progress, setProgress] = useState(-1);
+  const [processed, setProcessed] = useState(false);
   const fileRef = useRef(null);
+  const originalRef = useRef(null);
+  const jobRef = useRef(0);
 
   const isFile = image instanceof File;
+  const busy = stage !== '';
 
   useEffect(() => {
     if (image instanceof File) {
@@ -397,13 +641,22 @@ const ImagePicker = memo(({ image, isEdit, T, onChange, onClearError }) => {
     return undefined;
   }, [image]);
 
+  useEffect(() => { onBusy(busy); }, [busy, onBusy]);
+
+  useEffect(() => () => { jobRef.current += 1; }, []);
+
   const pickFile = useCallback(async (file) => {
     if (!file) return;
     const problem = await validateImageFile(file);
     onClearError();
     if (problem) { setImgError(problem); return; }
+    jobRef.current += 1;
+    setStage('');
     setImgError('');
+    setProcessed(false);
+    originalRef.current = file;
     onChange('image', file);
+    preloadBgModel();
   }, [onChange, onClearError]);
 
   const onDragOver = useCallback((e) => { e.preventDefault(); setDragging(true); }, []);
@@ -415,8 +668,67 @@ const ImagePicker = memo(({ image, isEdit, T, onChange, onClearError }) => {
   }, [pickFile]);
   const browse = useCallback(() => fileRef.current?.click(), []);
   const onFile = useCallback((e) => { pickFile(e.target.files?.[0]); e.target.value = ''; }, [pickFile]);
-  const clear = useCallback(() => { onChange('image', null); setImgError(''); }, [onChange]);
+  const clear = useCallback(() => {
+    jobRef.current += 1;
+    originalRef.current = null;
+    setStage('');
+    setProcessed(false);
+    onChange('image', null);
+    setImgError('');
+  }, [onChange]);
   const previewFail = useCallback(() => setPreview(''), []);
+
+  const restore = useCallback(() => {
+    if (!originalRef.current) return;
+    jobRef.current += 1;
+    setProcessed(false);
+    setImgError('');
+    onChange('image', originalRef.current);
+  }, [onChange]);
+
+  const cancelRun = useCallback(() => {
+    jobRef.current += 1;
+    setStage('');
+    setProgress(-1);
+  }, []);
+
+  const stageUpdate = useCallback((next) => setStage((prev) => (prev === next ? prev : next)), []);
+  const progressUpdate = useCallback((pct) => setProgress((prev) => (prev === pct ? prev : pct)), []);
+
+  const run = useCallback(async () => {
+    if (!(image instanceof File) || busy) return;
+    if (!originalRef.current) originalRef.current = image;
+    const job = jobRef.current + 1;
+    jobRef.current = job;
+    const isCancelled = () => jobRef.current !== job;
+    setImgError('');
+    setProgress(-1);
+    stageUpdate('prep');
+    try {
+      const result = await processProductImage(originalRef.current, {
+        onStage: (s) => { if (!isCancelled()) stageUpdate(s); },
+        onProgress: (p) => { if (!isCancelled()) progressUpdate(p); },
+        isCancelled,
+      });
+      if (isCancelled()) return;
+      if (!result) throw new Error('empty');
+      if (result.size > IMAGE_MAX_BYTES) {
+        setImgError(tpl(T.bgTooLarge, { mb: MAX_MB }));
+        return;
+      }
+      setProcessed(true);
+      onChange('image', result);
+    } catch {
+      if (!isCancelled()) setImgError(T.bgError);
+    } finally {
+      if (!isCancelled()) {
+        setStage('');
+        setProgress(-1);
+      }
+    }
+  }, [image, busy, T, onChange, stageUpdate, progressUpdate]);
+
+  const indeterminate = progress < 0;
 
   return (
     <div>
@@ -427,9 +739,9 @@ const ImagePicker = memo(({ image, isEdit, T, onChange, onClearError }) => {
         onDrop={onDrop}
         className={`pm-drop flex items-center gap-3 p-3 ${dragging ? 'pm-drop-on' : ''} ${imgError ? '!border-red-500' : ''}`}
       >
-        <span className="pm-card !shadow-none flex h-20 w-20 flex-shrink-0 items-center justify-center overflow-hidden">
+        <span className={`pm-card ${processed ? 'pm-checker' : ''} !shadow-none flex h-20 w-20 flex-shrink-0 items-center justify-center overflow-hidden`}>
           {preview
-            ? <img src={preview} alt={T.imagePreviewAlt} className="h-full w-full object-cover" onError={previewFail} />
+            ? <img src={preview} alt={T.imagePreviewAlt} decoding="async" className={`h-full w-full ${processed ? 'object-contain' : 'object-cover'}`} onError={previewFail} />
             : <FiUploadCloud size={24} aria-hidden="true" />}
         </span>
         <div className="min-w-0 flex-1 space-y-2">
@@ -437,10 +749,35 @@ const ImagePicker = memo(({ image, isEdit, T, onChange, onClearError }) => {
             {isFile ? image.name : (isEdit && preview ? T.imageCurrent : T.imageDrop)}
           </p>
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={browse} className={BTN_SMALL}>
+            <button type="button" onClick={browse} disabled={busy} className={BTN_SMALL}>
               <FiUploadCloud size={12} aria-hidden="true" /> {T.pickImage}
             </button>
-            {isFile && (
+            {isFile && !processed && (
+              <button
+                type="button"
+                onClick={run}
+                onPointerEnter={preloadBgModel}
+                onFocus={preloadBgModel}
+                disabled={busy}
+                className={BTN_SMALL_ACCENT}
+              >
+                {busy
+                  ? <FiLoader size={12} aria-hidden="true" className="animate-spin motion-reduce:animate-none" />
+                  : <FiZap size={12} aria-hidden="true" />}
+                {T.removeBg}
+              </button>
+            )}
+            {isFile && processed && (
+              <button type="button" onClick={restore} disabled={busy} className={BTN_SMALL}>
+                <FiRotateCcw size={12} aria-hidden="true" /> {T.restoreOriginal}
+              </button>
+            )}
+            {busy && (
+              <button type="button" onClick={cancelRun} className={BTN_SMALL_DANGER}>
+                <FiX size={12} aria-hidden="true" /> {T.cancelProcessing}
+              </button>
+            )}
+            {isFile && !busy && (
               <button type="button" onClick={clear} className={BTN_SMALL_DANGER}>
                 <FiTrash2 size={12} aria-hidden="true" /> {T.removeImage}
               </button>
@@ -449,7 +786,27 @@ const ImagePicker = memo(({ image, isEdit, T, onChange, onClearError }) => {
         </div>
         <input ref={fileRef} type="file" accept={ACCEPT} className="hidden" onChange={onFile} />
       </div>
+      {busy && (
+        <div className="mt-2" role="status" aria-live="polite">
+          <p className="pm-muted mb-1 text-[11px] font-bold">{T.stages[stage]}</p>
+          <div
+            className={`pm-bar ${indeterminate ? 'pm-bar-wait' : ''}`}
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={indeterminate ? undefined : progress}
+          >
+            <span style={indeterminate ? undefined : { width: `${progress}%` }} />
+          </div>
+        </div>
+      )}
+      {!busy && processed && !imgError && (
+        <p role="status" className="mt-1.5 flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-300">
+          <FiCheck size={12} aria-hidden="true" /> {T.bgDone}
+        </p>
+      )}
       <p className="pm-muted mt-1.5 text-[10px] font-semibold">{tpl(T.imageHint, { mb: MAX_MB })}</p>
+      {isFile && !processed && !busy && <p className="pm-muted mt-1 text-[10px] font-semibold">{T.bgHint}</p>}
       {imgError && <p role="alert" className="mt-1 text-[11px] font-bold text-red-500">{imgError}</p>}
     </div>
   );
@@ -497,9 +854,11 @@ const ProductModal = ({ mode, data, categories, onChange, onSubmit, onClose, bus
   const T = TRANSLATIONS[language === 'ar' ? 'ar' : 'en'];
 
   const [error, setError] = useState('');
+  const [imgBusy, setImgBusy] = useState(false);
 
   const isEdit = mode === 'edit';
   const title = isEdit ? T.titleEdit : T.titleAdd;
+  const locked = busy || imgBusy;
 
   const specsValue = asText(data.specifications);
   const discountValue = asDiscountText(data.discountValue);
@@ -530,6 +889,7 @@ const ProductModal = ({ mode, data, categories, onChange, onSubmit, onClose, bus
   const numberLocale = language === 'ar' ? 'ar-EG' : 'en-US';
 
   const clearError = useCallback(() => setError(''), []);
+  const onImgBusy = useCallback((v) => setImgBusy(v), []);
 
   const handlers = useMemo(() => {
     const mk = (field, sanitize) => (e) => {
@@ -551,7 +911,7 @@ const ProductModal = ({ mode, data, categories, onChange, onSubmit, onClose, bus
 
   const submit = (e) => {
     e.preventDefault();
-    if (busy) return;
+    if (locked) return;
     const problem = validateProduct(data, categories) || validateExtras(data, T);
     if (problem) { setError(problem); return; }
     setError('');
@@ -588,6 +948,7 @@ const ProductModal = ({ mode, data, categories, onChange, onSubmit, onClose, bus
             T={T}
             onChange={onChange}
             onClearError={clearError}
+            onBusy={onImgBusy}
           />
 
           <Field label={T.name} htmlFor="p-name">
@@ -676,7 +1037,7 @@ const ProductModal = ({ mode, data, categories, onChange, onSubmit, onClose, bus
 
         <div className="pm-gray pm-line flex flex-shrink-0 gap-2.5 border-t-2 px-5 py-4">
           <button type="button" onClick={onClose} disabled={busy} className={BTN_FOOT}>{T.cancel}</button>
-          <button type="submit" disabled={busy} className={BTN_FOOT_PRIMARY}>
+          <button type="submit" disabled={locked} className={BTN_FOOT_PRIMARY}>
             {busy ? T.saving : isEdit ? T.save : T.add}
           </button>
         </div>

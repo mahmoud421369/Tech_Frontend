@@ -5,7 +5,7 @@ import { FiMail, FiPhone, FiClock, FiX } from 'react-icons/fi';
 import { FaFacebookF, FaInstagram } from 'react-icons/fa';
 import { RiMapPin2Line, RiHome3Line, RiDeviceLine, RiTruckLine, RiStore2Line } from 'react-icons/ri';
 import logo from '../../common/images/tech-restore-logo.webp';
-import { Defs3D, Device3DStyles, DeviceScene } from './Device3D';
+import { FooterArt } from './HeroArt';
 import { useAppLanguage, languageDirection } from '../../common/utils/useAppLanguage';
 import enTranslations from '../../locales/en/translation.json';
 import arTranslations from '../../locales/ar/translation.json';
@@ -17,9 +17,6 @@ const FOOTER_PATHS = {
   name: 'brand.name',
   tagline: 'brand.tagline',
   description: 'brand.description',
-  certified: 'brand.badges.certified',
-  genuineParts: 'brand.badges.genuineParts',
-  warranty: 'brand.badges.warranty',
   followUs: 'social.title',
   facebook: 'social.facebook',
   instagram: 'social.instagram',
@@ -134,6 +131,34 @@ const LEGAL_DOCS = {
   },
 };
 
+const FT_CSS = `
+  @keyframes ftFade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes ftRise { from { opacity: 0; transform: translateY(16px) scale(.98); } to { opacity: 1; transform: none; } }
+  .ft-hl, .ft-hl-dark {
+    padding-bottom: 0.2em;
+    background-position: left bottom;
+    background-repeat: no-repeat;
+    background-size: 100% 0.3em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+  .ft-hl      { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2310b981' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
+  .ft-hl-dark { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2339ff88' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
+  .ft-fade { animation: ftFade .16s ease-out both; }
+  .ft-rise { animation: ftRise .22s cubic-bezier(.2,.8,.2,1) both; }
+  @media (prefers-reduced-motion: reduce) { .ft-fade, .ft-rise { animation: none; } }
+`;
+let ftStylesInjected = false;
+const injectFtStylesOnce = () => {
+  if (ftStylesInjected || typeof document === 'undefined') return;
+  const tag = document.createElement('style');
+  tag.setAttribute('data-footer-styles', 'true');
+  tag.textContent = FT_CSS;
+  document.head.appendChild(tag);
+  ftStylesInjected = true;
+};
+injectFtStylesOnce();
+
 const FOCUS_BASE = 'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2';
 
 const THEME = {
@@ -143,8 +168,6 @@ const THEME = {
     chip: 'border-2 border-emerald-950 bg-emerald-400 text-emerald-950 [box-shadow:calc(var(--dx)*2px)_2px_0_0_#022c22]',
     social:
       'border-2 border-emerald-950 bg-white text-emerald-950 [box-shadow:calc(var(--dx)*3px)_3px_0_0_#022c22] hover:bg-emerald-400 hover:[box-shadow:calc(var(--dx)*4px)_4px_0_0_#022c22]',
-    badge: 'border-2 border-emerald-950 bg-emerald-50 text-emerald-900',
-    bar: 'border-emerald-950 bg-emerald-400',
     divider: 'border-emerald-900/30',
     muted: 'text-gray-700',
     sub: 'text-gray-500',
@@ -152,6 +175,7 @@ const THEME = {
     link: 'text-gray-800 hover:text-emerald-600',
     linkUnderline: 'group-hover:decoration-emerald-400',
     inline: 'hover:text-emerald-600',
+    hl: 'ft-hl',
     focus: `${FOCUS_BASE} focus-visible:outline-emerald-500`,
     modal: 'border-[3px] border-emerald-950 bg-white text-emerald-950 [box-shadow:calc(var(--dx)*8px)_8px_0_0_#022c22]',
     modalRule: 'border-emerald-900/20',
@@ -164,8 +188,6 @@ const THEME = {
     chip: 'border-2 border-black bg-[#39ff88] text-black [box-shadow:calc(var(--dx)*2px)_2px_0_0_#000]',
     social:
       'border-2 border-black bg-[#2a2a2a] text-white [box-shadow:calc(var(--dx)*3px)_3px_0_0_#000] hover:bg-[#39ff88] hover:text-black hover:[box-shadow:calc(var(--dx)*4px)_4px_0_0_#000]',
-    badge: 'border-2 border-black bg-[#2a2a2a] text-[#39ff88]',
-    bar: 'border-black bg-[#39ff88]',
     divider: 'border-neutral-700',
     muted: 'text-neutral-300',
     sub: 'text-neutral-400',
@@ -173,6 +195,7 @@ const THEME = {
     link: 'text-neutral-200 hover:text-[#39ff88]',
     linkUnderline: 'group-hover:decoration-[#39ff88]',
     inline: 'hover:text-[#39ff88]',
+    hl: 'ft-hl-dark',
     focus: `${FOCUS_BASE} focus-visible:outline-[#39ff88]`,
     modal: 'border-[3px] border-black bg-[#2a2a2a] text-white [box-shadow:calc(var(--dx)*8px)_8px_0_0_#000]',
     modalRule: 'border-neutral-600',
@@ -195,10 +218,12 @@ const QUICK_LINKS = [
 
 const LEGAL_ITEMS = ['privacy', 'terms', 'cookies'];
 
+const PRESS = 'transition-[transform,box-shadow,background-color,color] duration-150 hover:-translate-y-px active:translate-y-0.5 active:[box-shadow:none] motion-reduce:transition-none';
+
 const SocialBtn = memo(({ href, Icon, label, th }) => (
   <a
     href={href} target="_blank" rel="noopener noreferrer" aria-label={label} title={label}
-    className={`flex h-11 w-11 items-center justify-center transition duration-100 hover:-translate-y-px active:translate-y-0.5 active:[box-shadow:none] motion-reduce:transition-none ${th.social} ${th.focus}`}
+    className={`flex h-11 w-11 items-center justify-center ${PRESS} ${th.social} ${th.focus}`}
   >
     <Icon className="h-[18px] w-[18px]" />
   </a>
@@ -206,7 +231,7 @@ const SocialBtn = memo(({ href, Icon, label, th }) => (
 
 const FooterLink = memo(({ to, Icon, label, th }) => (
   <li>
-    <Link to={to} className={`group flex items-center gap-3 py-1 text-sm font-semibold transition-colors ${th.link} ${th.focus}`}>
+    <Link to={to} className={`group flex min-h-11 items-center gap-3 py-1 text-sm font-semibold transition-colors duration-150 ${th.link} ${th.focus}`}>
       <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center transition-transform duration-150 group-hover:-translate-y-0.5 motion-reduce:transition-none ${th.chip}`}>
         <Icon className="h-4 w-4" />
       </span>
@@ -223,15 +248,15 @@ const ContactRow = memo(({ Icon, th, children }) => (
 ));
 
 const ColumnTitle = memo(({ th, children }) => (
-  <h3 className={`mb-5 flex items-center gap-2 text-sm font-extrabold uppercase tracking-wide rtl:tracking-normal ${th.title}`}>
-    <span aria-hidden="true" className={`inline-block h-3.5 w-9 border-2 ${th.bar}`} />{children}
+  <h3 className={`mb-5 text-sm font-extrabold uppercase tracking-wide rtl:tracking-normal ${th.title}`}>
+    <span className={th.hl}>{children}</span>
   </h3>
 ));
 
 const LegalButton = memo(({ id, label, onOpen, th }) => (
   <button
     type="button" onClick={() => onOpen(id)} aria-haspopup="dialog"
-    className={`font-semibold transition-colors hover:underline hover:underline-offset-4 ${th.muted} ${th.inline} ${th.focus}`}
+    className={`min-h-11 font-semibold transition-colors duration-150 hover:underline hover:underline-offset-4 ${th.muted} ${th.inline} ${th.focus}`}
   >
     {label}
   </button>
@@ -273,35 +298,31 @@ const LegalModal = memo(({ title, sections, email, closeLabel, language, th, onC
       dir={languageDirection(language)}
       lang={language}
       onMouseDown={onBackdrop}
-      className={`fixed inset-0 z-[1200] flex items-end justify-center bg-black/60 p-4 [--dx:1] rtl:[--dx:-1] sm:items-center ${isAr ? 'font-cairo' : 'font-jakarta'}`}
+      className={`ft-fade fixed inset-0 z-[1200] flex items-end justify-center bg-black/60 p-4 [--dx:1] rtl:[--dx:-1] sm:items-center ${isAr ? 'font-cairo' : 'font-jakarta'}`}
     >
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={`flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden ${th.modal}`}
+        className={`ft-rise flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden ${th.modal}`}
       >
         <div className={`flex items-center justify-between gap-3 border-b-2 px-5 py-4 ${th.modalRule}`}>
-          <h2 id={titleId} className="flex min-w-0 items-center gap-2 text-lg font-extrabold uppercase tracking-tight rtl:tracking-normal sm:text-xl">
-            <span aria-hidden="true" className={`inline-block h-3.5 w-9 flex-shrink-0 border-2 ${th.bar}`} />
-            <span className="truncate">{title}</span>
+          <h2 id={titleId} className="min-w-0 text-lg font-extrabold uppercase tracking-tight rtl:tracking-normal sm:text-xl">
+            <span className={`truncate ${th.hl}`}>{title}</span>
           </h2>
           <button
             ref={closeRef} type="button" onClick={onClose} aria-label={closeLabel} title={closeLabel}
-            className={`flex h-10 w-10 flex-shrink-0 items-center justify-center transition duration-100 active:translate-y-0.5 active:[box-shadow:none] motion-reduce:transition-none ${th.social} ${th.focus}`}
+            className={`flex h-11 w-11 flex-shrink-0 items-center justify-center ${PRESS} ${th.social} ${th.focus}`}
           >
             <FiX className="h-5 w-5" />
           </button>
         </div>
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-5 py-5">
-          {sections.map(([heading, text], i) => (
+          {sections.map(([heading, text]) => (
             <section key={heading}>
-              <h3 className="mb-1.5 flex items-center gap-2 text-sm font-extrabold uppercase tracking-wide rtl:tracking-normal">
-                <span aria-hidden="true" className={`inline-flex h-6 min-w-6 items-center justify-center px-1 text-[11px] tabular-nums ${th.chip}`}>{i + 1}</span>
-                {heading}
-              </h3>
+              <h3 className="mb-1.5 text-sm font-extrabold uppercase tracking-wide rtl:tracking-normal">{heading}</h3>
               <p className={`text-sm leading-relaxed ${th.muted}`}>{text.split('{{email}}').join(email)}</p>
             </section>
           ))}
@@ -310,7 +331,7 @@ const LegalModal = memo(({ title, sections, email, closeLabel, language, th, onC
         <div className={`border-t-2 px-5 py-4 ${th.modalRule}`}>
           <button
             type="button" onClick={onClose}
-            className={`inline-flex w-full items-center justify-center px-4 py-2.5 text-sm font-extrabold uppercase transition duration-100 active:translate-y-0.5 active:[box-shadow:none] motion-reduce:transition-none sm:w-auto sm:min-w-[9rem] ${th.modalBtn} ${th.focus}`}
+            className={`inline-flex min-h-11 w-full items-center justify-center px-4 py-2.5 text-sm font-extrabold uppercase transition-[transform,box-shadow] duration-150 active:translate-y-0.5 active:[box-shadow:none] motion-reduce:transition-none sm:w-auto sm:min-w-[9rem] ${th.modalBtn} ${th.focus}`}
           >
             {closeLabel}
           </button>
@@ -348,13 +369,10 @@ const Footer = ({ darkMode = false }) => {
       lang={language}
       className={`relative overflow-hidden [content-visibility:auto] [contain-intrinsic-size:auto_520px] ${isAr ? 'font-cairo' : 'font-jakarta'} ${th.root}`}
     >
-      <Defs3D />
-      <Device3DStyles />
-
       <div className="relative mx-auto max-w-7xl px-4 pb-8 pt-12 [--dx:1] rtl:[--dx:-1] sm:px-6 sm:pt-16 lg:px-8">
         <div className="mb-12 grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-3 lg:gap-12">
           <div className="relative space-y-5 sm:col-span-2 lg:col-span-1">
-            <DeviceScene compact className="pointer-events-none absolute -top-4 end-0 hidden h-24 w-28 opacity-80 sm:block lg:hidden xl:block" />
+            <FooterArt darkMode={darkMode} className="pointer-events-none absolute -top-6 end-0 hidden h-32 w-48 sm:block lg:hidden xl:block" />
             <div className="relative flex items-center gap-3">
               <img src={logo} alt={tx.name} width={48} height={48} className="h-12 w-auto p-1" loading="lazy" decoding="async" />
               <div>
@@ -372,7 +390,7 @@ const Footer = ({ darkMode = false }) => {
 
           <nav aria-label={tx.quickLinks}>
             <ColumnTitle th={th}>{tx.quickLinks}</ColumnTitle>
-            <ul className="space-y-2.5">
+            <ul className="space-y-1">
               {QUICK_LINKS.map(({ key, ...l }) => <FooterLink key={l.to} label={tx[key]} th={th} {...l} />)}
             </ul>
           </nav>
@@ -384,10 +402,10 @@ const Footer = ({ darkMode = false }) => {
                 <span className={`text-sm ${th.muted}`}>{tx.address}</span>
               </ContactRow>
               <ContactRow Icon={FiPhone} th={th}>
-                <a href={telHref} dir="ltr" className={`text-sm transition-colors hover:underline ${th.muted} ${th.inline} ${th.focus}`}>{phone}</a>
+                <a href={telHref} dir="ltr" className={`text-sm transition-colors duration-150 hover:underline ${th.muted} ${th.inline} ${th.focus}`}>{phone}</a>
               </ContactRow>
               <ContactRow Icon={FiMail} th={th}>
-                <a href={`mailto:${email}`} className={`break-all text-sm transition-colors hover:underline ${th.muted} ${th.inline} ${th.focus}`}>{email}</a>
+                <a href={`mailto:${email}`} className={`break-all text-sm transition-colors duration-150 hover:underline ${th.muted} ${th.inline} ${th.focus}`}>{email}</a>
               </ContactRow>
               <ContactRow Icon={FiClock} th={th}>
                 <p className={`text-sm ${th.muted}`}>{tx.support}</p>
@@ -401,7 +419,7 @@ const Footer = ({ darkMode = false }) => {
           <p className={`text-center ${th.muted}`}>
             {tx.copyright.replace('{{year}}', year)}
           </p>
-          <div className="flex flex-wrap justify-center gap-x-5 gap-y-2">
+          <div className="flex flex-wrap justify-center gap-x-5 gap-y-1">
             {LEGAL_ITEMS.map((id) => <LegalButton key={id} id={id} label={tx[id]} onOpen={openLegal} th={th} />)}
           </div>
         </div>

@@ -698,7 +698,7 @@ const VoicePlayer = memo(({ url, seed, duration, N }) => {
         onEnded={onEnded}
         onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
       />
-      <button type="button" onClick={toggle} aria-label={playing ? N.pause : N.play} className={`${K.btnA} h-10 w-10 shrink-0 rounded-full`}>
+      <button type="button" onClick={toggle} aria-label={playing ? N.pause : N.play} className={`${K.btnA} h-10 w-10 shrink-0 !rounded-full`}>
         {playing ? <FiPause size={16} aria-hidden="true" /> : <FiPlay size={16} className="translate-x-px" aria-hidden="true" />}
       </button>
       <div className="min-w-0 flex-1">
@@ -725,7 +725,7 @@ const VoicePlayer = memo(({ url, seed, duration, N }) => {
         <span className="mt-0.5 block text-[10px] font-bold tabular-nums opacity-80">{fmtDur(shown)}</span>
       </div>
       {playing ? (
-        <button type="button" onClick={cycleSpeed} className={`${K.btn} h-7 min-w-[42px] shrink-0 rounded-full px-2 text-[10px]`}>
+        <button type="button" onClick={cycleSpeed} className={`${K.btn} h-7 min-w-[42px] shrink-0 !rounded-full px-2 text-[10px]`}>
           {SPEEDS[speedIdx]}x
         </button>
       ) : (
@@ -735,7 +735,9 @@ const VoicePlayer = memo(({ url, seed, duration, N }) => {
   );
 });
 
-const Skeleton = () => <div className="h-40 w-56 max-w-full animate-pulse bg-black/10 dark:bg-white/10 motion-reduce:animate-none" />;
+const Skeleton = () => <div className="h-40 w-56 max-w-full animate-pulse rounded-xl bg-black/10 dark:bg-white/10 motion-reduce:animate-none" />;
+
+const MEDIA_FRAME = 'rounded-xl border-2 border-[color:var(--nc-line)]';
 
 const Attachment = memo(({ msg, N }) => {
   const a = msg.attachment;
@@ -788,11 +790,11 @@ const Attachment = memo(({ msg, N }) => {
   } else if (msg.type === 'IMAGE') {
     body = (
       <a href={url} target="_blank" rel="noopener noreferrer">
-        <img src={url} alt={a.name} decoding="async" loading="lazy" referrerPolicy="no-referrer" className="max-h-64 max-w-full object-cover" />
+        <img src={url} alt={a.name} decoding="async" loading="lazy" referrerPolicy="no-referrer" className={`max-h-64 max-w-full object-cover ${MEDIA_FRAME}`} />
       </a>
     );
   } else if (msg.type === 'VIDEO') {
-    body = <video src={url} controls preload="metadata" playsInline className="max-h-64 max-w-full" />;
+    body = <video src={url} controls preload="metadata" playsInline className={`max-h-64 max-w-full ${MEDIA_FRAME}`} />;
   } else if (msg.type === 'VOICE') {
     body = <VoicePlayer url={url} seed={msg.id} duration={a.duration} N={N} />;
   } else {
@@ -869,7 +871,7 @@ const ReplyQuote = memo(({ reply, N, onJump }) => (
   <button
     type="button"
     onClick={() => reply.id && onJump?.(reply.id)}
-    className="mb-2 block w-full border-s-4 border-current bg-black/10 px-2 py-1 text-start text-xs"
+    className="mb-2 block w-full rounded-lg border-s-4 border-current bg-black/10 px-2 py-1 text-start text-xs"
   >
     <span className="block text-[10px] font-extrabold uppercase">{reply.sentBy === 'SHOP' ? N.sideShop : N.sideUser}</span>
     <span className="block truncate opacity-90" dir="auto">
@@ -883,7 +885,7 @@ const MenuItem = ({ icon: Icon, label, onClick }) => (
     type="button"
     role="menuitem"
     onClick={onClick}
-    className="flex w-full items-center gap-2 px-3 py-2 text-start text-xs font-bold uppercase hover:bg-black/10 dark:hover:bg-white/10"
+    className="flex min-h-10 w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-xs font-extrabold uppercase hover:bg-[color:var(--nc-gray)]"
   >
     <Icon size={14} aria-hidden="true" /> {label}
   </button>
@@ -900,14 +902,14 @@ const MessageMenu = memo(({ msg, N, onReply }) => {
         aria-label={N.more}
         aria-haspopup="menu"
         aria-expanded={open}
-        className={`${K.btn} h-7 w-7 opacity-60 hover:opacity-100 focus:opacity-100`}
+        className={`${K.btn} h-8 w-8 opacity-60 hover:opacity-100 focus:opacity-100`}
       >
         <FiMoreVertical size={14} aria-hidden="true" />
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={close} aria-hidden="true" />
-          <div role="menu" className="nc-panel absolute end-0 top-full z-20 mt-1 flex min-w-[160px] flex-col p-1">
+          <div role="menu" className="nc-panel absolute end-0 top-full z-20 mt-2 flex min-w-[160px] flex-col p-1">
             <MenuItem icon={FiCornerUpLeft} label={N.reply} onClick={() => { close(); onReply(msg); }} />
           </div>
         </>
@@ -948,7 +950,7 @@ const AttachMenu = memo(({ N, onFile, onLocation, onContact, disabled }) => {
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden="true" />
-          <div role="menu" className="nc-panel absolute bottom-full start-0 z-20 mb-2 min-w-[200px] p-1">
+          <div role="menu" className="nc-panel absolute bottom-full start-0 z-20 mb-3 min-w-[210px] p-1.5">
             <MenuItem icon={FiFile} label={N.file} onClick={() => docRef.current?.click()} />
             <MenuItem icon={FiImage} label={N.gallery} onClick={() => galRef.current?.click()} />
             <MenuItem icon={FiCamera} label={N.camera} onClick={() => camRef.current?.click()} />
@@ -974,7 +976,7 @@ const ContactForm = memo(({ N, onSubmit, onCancel }) => {
         onChange={(e) => setName(cleanText(e.target.value, 80))}
         placeholder={N.name}
         aria-label={N.name}
-        className={`${K.field} min-w-0 flex-1 basis-32 px-3 py-2 text-sm font-semibold`}
+        className={`${K.field} min-w-0 flex-1 basis-32 px-3 py-2 text-sm font-semibold outline-none`}
       />
       <input
         value={phone}
@@ -984,7 +986,7 @@ const ContactForm = memo(({ N, onSubmit, onCancel }) => {
         onChange={(e) => setPhone(cleanPhone(e.target.value))}
         placeholder={N.phone}
         aria-label={N.phone}
-        className={`${K.field} min-w-0 flex-1 basis-32 px-3 py-2 text-sm font-semibold`}
+        className={`${K.field} min-w-0 flex-1 basis-32 px-3 py-2 text-sm font-semibold outline-none`}
       />
       <button type="button" disabled={!ok} onClick={() => onSubmit({ name: name.trim(), phone: phone.trim() })} className={`${K.btnA} h-10 px-3 text-xs uppercase`}>
         {N.send}
@@ -997,7 +999,7 @@ const ContactForm = memo(({ N, onSubmit, onCancel }) => {
 const ComposeBanner = memo(({ N, reply, onCancel }) => {
   if (!reply) return null;
   return (
-    <div className={`${K.gray} ${K.line} mb-3 flex items-center gap-3 border-2 border-dotted px-3 py-2`}>
+    <div className={`${K.gray} ${K.line} mb-3 flex items-center gap-3 rounded-xl border-2 border-dashed px-3 py-2`}>
       <FiCornerUpLeft size={14} className="shrink-0" aria-hidden="true" />
       <div className="min-w-0 flex-1 text-xs">
         <p className="font-extrabold uppercase">
@@ -1005,7 +1007,7 @@ const ComposeBanner = memo(({ N, reply, onCancel }) => {
         </p>
         <p dir="auto" className="truncate opacity-80">{snippetOf(reply) || N.types[reply.type] || ''}</p>
       </div>
-      <button type="button" onClick={onCancel} aria-label={N.cancel} className={`${K.btn} h-7 w-7 shrink-0`}>
+      <button type="button" onClick={onCancel} aria-label={N.cancel} className={`${K.btn} h-8 w-8 shrink-0`}>
         <FiX size={14} aria-hidden="true" />
       </button>
     </div>
@@ -1018,7 +1020,7 @@ const RecorderBar = memo(({ N, secs, onCancel, onSend }) => (
       <FiTrash2 size={18} aria-hidden="true" />
     </button>
     <div className={`${K.field} flex h-12 min-w-0 flex-1 items-center gap-3 px-4`}>
-      <span className="h-3 w-3 shrink-0 animate-pulse bg-red-500 motion-reduce:animate-none" aria-hidden="true" />
+      <span className="h-3 w-3 shrink-0 animate-pulse rounded-full bg-red-500 motion-reduce:animate-none" aria-hidden="true" />
       <span className="text-sm font-extrabold tabular-nums" dir="ltr">{fmtDur(secs)}</span>
       <span className="truncate text-xs font-bold opacity-70">{N.record}</span>
     </div>
@@ -1102,7 +1104,7 @@ const Composer = memo(
                 aria-label={ariaLabel}
                 maxLength={MAX_MSG_LEN}
                 autoComplete="off"
-                className="nc-scroll block max-h-40 w-full resize-none bg-transparent px-4 py-3.5 text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60"
+                className="nc-scroll block max-h-40 w-full resize-none bg-transparent px-4 py-3 text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60"
                 rows={1}
               />
             </div>
@@ -1184,7 +1186,7 @@ const MediaPanel = memo(({ userId, shopId, onClose, N, fmt, mapItem }) => {
   return (
     <div role="dialog" aria-label={N.media} className={`${K.surface} absolute inset-0 z-30 flex flex-col`}>
       <div className={`${K.line} flex items-center justify-between gap-3 border-b-[3px] px-4 py-4 sm:px-6`}>
-        <h3 className="text-base font-extrabold uppercase">{N.media}</h3>
+        <h3 className="text-base font-extrabold uppercase"><span className="nc-ul">{N.media}</span></h3>
         <button type="button" onClick={onClose} aria-label={N.close} className={`${K.btn} h-10 w-10`}>
           <FiX size={18} aria-hidden="true" />
         </button>
@@ -1203,7 +1205,7 @@ const MediaPanel = memo(({ userId, shopId, onClose, N, fmt, mapItem }) => {
             className="h-11 min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none"
           />
         </div>
-        <div role="tablist" className={`${K.scroll} mt-4 flex gap-3 overflow-x-auto pb-3 pe-1`}>
+        <div role="tablist" className={`${K.scroll} mt-4 flex gap-3 overflow-x-auto p-1 pb-3 pe-3`}>
           {TAB_KEYS.map((k) => (
             <button
               key={k}
@@ -1220,7 +1222,7 @@ const MediaPanel = memo(({ userId, shopId, onClose, N, fmt, mapItem }) => {
         </div>
       </div>
 
-      <div className={`${K.scroll} flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6`}>
+      <div className={`${K.scroll} flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 pe-5 sm:px-6 sm:pe-7`}>
         {items.length === 0 && !loading && <p className="py-10 text-center text-xs font-bold opacity-70">{N.empty}</p>}
         {items.map((m) => (
           <div key={m.id} className="nc-bubble nc-own p-3">
@@ -1234,8 +1236,8 @@ const MediaPanel = memo(({ userId, shopId, onClose, N, fmt, mapItem }) => {
           </div>
         )}
         {!loading && !last && (
-          <div className="flex justify-center">
-            <button type="button" onClick={() => load(page + 1)} className={`${K.btn} h-9 px-4 text-[11px] uppercase`}>{N.loadMore}</button>
+          <div className="flex justify-center pb-1">
+            <button type="button" onClick={() => load(page + 1)} className={`${K.btn} h-10 px-4 text-[11px] uppercase`}>{N.loadMore}</button>
           </div>
         )}
       </div>
@@ -1243,39 +1245,46 @@ const MediaPanel = memo(({ userId, shopId, onClose, N, fmt, mapItem }) => {
   );
 });
 
+const HL_LIGHT = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2310b981' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E\")";
+const HL_DARK = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2339ff88' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E\")";
+
 const NC_CSS = `
-.nc{--nc-dx:1;--nc-bg:#f9fafb;--nc-card:#ffffff;--nc-ink:#022c22;--nc-muted:#4b5563;--nc-line:#022c22;--nc-shadow:#022c22;--nc-gray:#f3f4f6;--nc-accent:#34d399;--nc-btn:#34d399;--nc-on:#022c22;--nc-dot:rgba(2,44,34,.18);--nc-thumb:#022c22;color:var(--nc-ink)}
+.nc{--nc-dx:1;--nc-bg:#f9fafb;--nc-card:#ffffff;--nc-ink:#022c22;--nc-muted:#4b5563;--nc-line:#022c22;--nc-shadow:#022c22;--nc-gray:#f3f4f6;--nc-accent:#34d399;--nc-btn:#34d399;--nc-on:#022c22;--nc-p1:rgba(4,38,26,.13);--nc-p2:rgba(16,185,129,.12);--nc-hl:${HL_LIGHT};color:var(--nc-ink)}
 .nc[dir=rtl]{--nc-dx:-1}
-.dark .nc,.nc.nc-dark{--nc-bg:#141414;--nc-card:#2a2a2a;--nc-ink:#ffffff;--nc-muted:#a3a3a3;--nc-line:#000;--nc-shadow:#000;--nc-gray:#1e1e1e;--nc-accent:#39ff88;--nc-btn:#39ff88;--nc-on:#04261a;--nc-dot:rgba(57,255,136,.14);--nc-thumb:#525252}
-.nc-panel{background:var(--nc-bg);border:3px solid var(--nc-line);box-shadow:calc(var(--nc-dx)*8px) 8px 0 var(--nc-shadow)}
+.dark .nc,.nc.nc-dark{--nc-bg:#141414;--nc-card:#2a2a2a;--nc-ink:#ffffff;--nc-muted:#a3a3a3;--nc-line:#000;--nc-shadow:#000;--nc-gray:#1e1e1e;--nc-accent:#39ff88;--nc-btn:#39ff88;--nc-on:#022c22;--nc-p1:rgba(57,255,136,.14);--nc-p2:rgba(57,255,136,.06);--nc-hl:${HL_DARK}}
+.nc-panel{background:var(--nc-bg);border:3px solid var(--nc-line);border-radius:1rem;box-shadow:calc(var(--nc-dx)*8px) 8px 0 var(--nc-shadow)}
 .nc-surface{background:var(--nc-card)}
 .nc-gray{background:var(--nc-gray)}
 .nc-line{border-color:var(--nc-line)}
 .nc-muted{color:var(--nc-muted)}
-.nc-bar{display:inline-block;width:48px;height:14px;background:var(--nc-accent);border:2px solid var(--nc-line)}
-.nc-ul{text-decoration:underline;text-decoration-color:var(--nc-accent);text-decoration-thickness:4px;text-underline-offset:5px;text-decoration-skip-ink:none}
-.nc-chip{display:inline-flex;align-items:center;justify-content:center;background:var(--nc-btn);color:var(--nc-on);border:2px solid var(--nc-line);font-weight:800;line-height:1.4}
-.nc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nc-card);color:var(--nc-ink);border:2px solid var(--nc-line);box-shadow:calc(var(--nc-dx)*3px) 3px 0 var(--nc-shadow);font-weight:700;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease}
-.nc-btn:hover:not(:disabled){transform:translate(calc(var(--nc-dx)*1px),1px);box-shadow:calc(var(--nc-dx)*2px) 2px 0 var(--nc-shadow)}
-.nc-btn:active:not(:disabled){transform:translate(calc(var(--nc-dx)*3px),3px);box-shadow:0 0 0 var(--nc-shadow)}
-.nc-btn:disabled{opacity:.4;cursor:not-allowed}
-.nc-btn:focus-visible,.nc-field:focus-within,.nc-row:focus-visible{outline:3px solid var(--nc-accent);outline-offset:3px}
+.nc-bar{display:inline-block;width:48px;height:14px;border-radius:9999px;background:var(--nc-accent);border:2px solid var(--nc-line)}
+.nc-ul{padding-bottom:.2em;background-image:var(--nc-hl);background-position:left bottom;background-repeat:no-repeat;background-size:100% .3em;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.nc-chip{display:inline-flex;align-items:center;justify-content:center;background:var(--nc-btn);color:var(--nc-on);border:2px solid var(--nc-line);border-radius:.75rem;font-weight:800;line-height:1.4}
+.nc-btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;background:var(--nc-card);color:var(--nc-ink);border:2px solid var(--nc-line);border-radius:.75rem;box-shadow:calc(var(--nc-dx)*3px) 3px 0 var(--nc-shadow);font-weight:800;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease}
+.nc-btn:active:not(:disabled){transform:translate(calc(var(--nc-dx)*3px),3px);box-shadow:0 0 0 0 var(--nc-shadow)}
+.nc-btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+.nc-btn:focus-visible,.nc-field:focus-within,.nc-row:focus-visible{outline:3px solid var(--nc-accent);outline-offset:2px}
 .nc-btn-a{background:var(--nc-btn);color:var(--nc-on)}
 .nc-btn-r{background:#dc2626;color:#fff}
-.nc-field{background:var(--nc-card);color:var(--nc-ink);border:3px solid var(--nc-line);box-shadow:calc(var(--nc-dx)*3px) 3px 0 var(--nc-shadow)}
-.nc-row{background:var(--nc-card);border:3px solid var(--nc-line);box-shadow:calc(var(--nc-dx)*4px) 4px 0 var(--nc-shadow);transition:transform .12s ease,box-shadow .12s ease}
-.nc-row:hover{transform:translate(calc(var(--nc-dx)*2px),2px);box-shadow:calc(var(--nc-dx)*2px) 2px 0 var(--nc-shadow)}
+.nc-field{background:var(--nc-card);color:var(--nc-ink);border:2px solid var(--nc-line);border-radius:.75rem}
+.nc-row{background:var(--nc-card);border:3px solid var(--nc-line);border-radius:1rem;box-shadow:calc(var(--nc-dx)*6px) 6px 0 var(--nc-shadow);transition:transform .2s ease,box-shadow .2s ease}
+@media (hover:hover){.nc-row:hover{transform:translateY(-4px);box-shadow:calc(var(--nc-dx)*8px) 10px 0 var(--nc-shadow)}}
+.nc-row:active{transform:translate(calc(var(--nc-dx)*2px),2px);box-shadow:calc(var(--nc-dx)*3px) 3px 0 var(--nc-shadow)}
 .nc-row-on{background:var(--nc-btn);color:var(--nc-on)}
-.nc-bubble{border:3px solid var(--nc-line);box-shadow:calc(var(--nc-dx)*4px) 4px 0 var(--nc-shadow)}
-.nc-own{background:var(--nc-card);color:var(--nc-ink)}
-.nc-shop{background:var(--nc-btn);color:var(--nc-on)}
+.nc-bubble{border:3px solid var(--nc-line);border-radius:1rem;box-shadow:calc(var(--nc-dx)*4px) 4px 0 var(--nc-shadow)}
+.nc-own{background:var(--nc-card);color:var(--nc-ink);border-end-end-radius:.375rem}
+.nc-shop{background:var(--nc-btn);color:var(--nc-on);border-end-start-radius:.375rem}
 .nc-fail{background:#fee2e2;color:#991b1b;border-color:#dc2626;box-shadow:calc(var(--nc-dx)*4px) 4px 0 #dc2626}
 .dark .nc-fail,.nc-dark .nc-fail{background:#450a0a;color:#fecaca}
-.nc-dots{background-color:var(--nc-gray);background-image:radial-gradient(circle,var(--nc-dot) 1px,transparent 1px);background-size:22px 22px}
-.nc-scroll{scrollbar-width:thin;scrollbar-color:var(--nc-thumb) transparent}
-.nc-scroll::-webkit-scrollbar{width:6px;height:6px}
-.nc-scroll::-webkit-scrollbar-thumb{background:var(--nc-thumb)}
-@media (prefers-reduced-motion:reduce){.nc-btn,.nc-row{transition:none}}
+.nc-dots{background-color:var(--nc-bg);background-image:radial-gradient(circle at 2px 2px,var(--nc-p1) 1.6px,transparent 1.8px),repeating-linear-gradient(135deg,var(--nc-p2) 0 2px,transparent 2px 18px);background-size:22px 22px,auto}
+.nc-scroll{scrollbar-width:thin;scrollbar-color:var(--nc-accent) var(--nc-gray)}
+@supports selector(::-webkit-scrollbar){
+.nc-scroll{scrollbar-width:auto;scrollbar-color:auto}
+.nc-scroll::-webkit-scrollbar{width:10px;height:10px}
+.nc-scroll::-webkit-scrollbar-track{background:var(--nc-gray)}
+.nc-scroll::-webkit-scrollbar-thumb{background:var(--nc-accent);border:3px solid var(--nc-line)}
+}
+@media (prefers-reduced-motion:reduce){.nc-btn,.nc-row{transition:none}.nc-row:hover,.nc-row:active{transform:none}}
 `;
 let ncStylesInjected = false;
 const injectNcStylesOnce = () => {
@@ -1369,7 +1378,7 @@ const EmptyHero = memo(({ variant, title, sub }) => {
   const Illustration = ILLUSTRATIONS[variant] || NoChatsIllustration;
   return (
     <div className="flex h-full flex-col items-center justify-center space-y-5 p-8 text-center sm:p-12">
-      <div className="nc-gray nc-line border-[3px] border-dotted p-4"><Illustration /></div>
+      <div className="nc-gray nc-line rounded-2xl border-[3px] border-dashed p-4"><Illustration /></div>
       <div className="space-y-3">
         <h3 className="text-xl font-extrabold uppercase tracking-tight rtl:tracking-normal sm:text-2xl"><span className="nc-ul">{title}</span></h3>
         <p className="nc-muted mx-auto max-w-[260px] text-xs font-bold leading-relaxed">{sub}</p>
@@ -1398,7 +1407,7 @@ const SessionItem = memo(({ session, isActive, onSelect, name, lang, readyLabel,
       tabIndex={0}
       aria-current={isActive ? 'true' : undefined}
       onKeyDown={handleKey}
-      className={clsx('nc-row mb-4 cursor-pointer select-none p-3 text-start [content-visibility:auto] [contain-intrinsic-size:auto_80px]', isActive && 'nc-row-on')}
+      className={clsx('nc-row mb-5 cursor-pointer select-none p-3 text-start [content-visibility:auto] [contain-intrinsic-size:auto_80px]', isActive && 'nc-row-on')}
     >
       <div className="flex items-center gap-3">
         <div className={clsx('nc-chip h-11 w-11 shrink-0 text-sm', isActive && '!bg-[color:var(--nc-card)] !text-[color:var(--nc-ink)]')}>
@@ -1411,7 +1420,7 @@ const SessionItem = memo(({ session, isActive, onSelect, name, lang, readyLabel,
               {name}
             </h4>
             {session.unreadCount > 0 && (
-              <span className={clsx('nc-chip h-5 min-w-[20px] shrink-0 px-1.5 text-[10px]', isActive && '!bg-[color:var(--nc-card)] !text-[color:var(--nc-ink)]')}>
+              <span className={clsx('nc-chip h-5 min-w-[20px] shrink-0 !rounded-full px-1.5 text-[10px]', isActive && '!bg-[color:var(--nc-card)] !text-[color:var(--nc-ink)]')}>
                 {session.unreadCount}
               </span>
             )}
@@ -1454,7 +1463,7 @@ const MessageBubble = memo(({ msg, isOwn, mobile, onRetry, onReply, onDelete, on
           ref={swipe.iconRef}
           aria-hidden="true"
           style={{ top: 'calc(50% - 16px)', opacity: 0, transform: 'scale(.6)' }}
-          className="nc-chip pointer-events-none absolute h-8 w-8 rounded-full"
+          className="nc-chip pointer-events-none absolute h-8 w-8 !rounded-full"
         >
           <FiCornerUpLeft size={14} />
         </span>
@@ -1467,7 +1476,7 @@ const MessageBubble = memo(({ msg, isOwn, mobile, onRetry, onReply, onDelete, on
         className={clsx('flex w-full items-end gap-2 will-change-transform sm:gap-3', isOwn ? 'flex-row-reverse' : 'flex-row')}
       >
         <div className="hidden shrink-0 sm:block">
-          <div aria-hidden="true" className={clsx('nc-chip h-8 w-8 text-[11px]', isOwn && '!bg-[color:var(--nc-ink)] !text-[color:var(--nc-card)]')}>
+          <div aria-hidden="true" className={clsx('nc-chip h-9 w-9 text-[11px]', isOwn && '!bg-[color:var(--nc-ink)] !text-[color:var(--nc-card)]')}>
             {initial(msg.senderName, fbInitial)}
           </div>
         </div>
@@ -1483,7 +1492,7 @@ const MessageBubble = memo(({ msg, isOwn, mobile, onRetry, onReply, onDelete, on
                   onClick={() => onDelete(msg)}
                   aria-label={N.delMe}
                   title={N.delMe}
-                  className="inline-flex h-6 w-6 items-center justify-center opacity-70 hover:opacity-100 focus-visible:opacity-100"
+                  className="inline-flex h-6 w-6 items-center justify-center rounded-md opacity-70 hover:opacity-100 focus-visible:opacity-100"
                 >
                   <FiTrash2 size={13} aria-hidden="true" />
                 </button>
@@ -2384,35 +2393,35 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
 
           <m.div
             {...PANEL_MOTION} style={PANEL_WILL_CHANGE}
-            className="nc-panel relative flex h-full w-full max-w-6xl transform-gpu overflow-hidden sm:h-[85vh]"
+            className="nc-panel relative flex h-full w-full max-w-6xl transform-gpu overflow-hidden !rounded-none sm:h-[85vh] sm:!rounded-2xl"
           >
             <aside className={clsx(
-              'nc-surface nc-line flex min-h-0 w-full shrink-0 flex-col border-e-[3px] sm:w-96',
+              'nc-dots nc-line flex min-h-0 w-full shrink-0 flex-col border-e-[3px] sm:w-96',
               !isSidebarOpen && 'hidden sm:flex'
             )}>
-              <div className="nc-line space-y-3 border-b-[3px] p-5 sm:p-6">
+              <div className="nc-surface nc-line space-y-3 border-b-[3px] p-5 sm:p-6">
                 <div className="flex items-center justify-between">
                   <p className="flex items-center gap-3 text-xs font-extrabold uppercase tracking-wide rtl:tracking-normal"><span className="nc-bar" aria-hidden="true" />{t('chat.supportHub')}</p>
                   <button type="button" onClick={onClose} aria-label={t('chat.closeMessages')} className="nc-btn h-9 w-9 sm:hidden"><FiX size={16} aria-hidden="true" /></button>
                 </div>
                 <div className="flex items-center gap-3">
-                  <h2 className="text-3xl font-extrabold uppercase leading-tight tracking-tight rtl:tracking-normal"><span className="nc-ul">{t('chat.title')}</span></h2>
-                  {totalUnread > 0 && <span className="nc-chip h-6 min-w-[24px] px-1.5 text-[11px]">{totalUnread}</span>}
+                  <h2 className="text-3xl font-extrabold uppercase leading-[1.18] tracking-[-0.04em] rtl:leading-[1.4] rtl:tracking-normal"><span className="nc-ul">{t('chat.title')}</span></h2>
+                  {totalUnread > 0 && <span className="nc-chip h-6 min-w-[24px] !rounded-full px-1.5 text-[11px]">{totalUnread}</span>}
                 </div>
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center justify-between gap-3 pe-1">
                   <p className="nc-muted text-xs font-bold">{t('chat.subtitle')}</p>
                   <button
                     type="button"
                     onClick={toggleFavOnly}
                     aria-pressed={favOnly}
-                    className={clsx('nc-btn h-8 shrink-0 px-2.5 text-[11px] uppercase', favOnly && 'nc-btn-a')}
+                    className={clsx('nc-btn h-9 shrink-0 px-3 text-[11px] uppercase', favOnly && 'nc-btn-a')}
                   >
                     <FiStar size={12} fill={favOnly ? 'currentColor' : 'none'} aria-hidden="true" /> {N.favOnly}
                   </button>
                 </div>
               </div>
 
-              <div className="nc-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 pe-5 sm:p-5 sm:pe-6">
+              <div className="nc-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 pe-6 pt-5 sm:p-5 sm:pe-7 sm:pt-6">
                 {isLoadingSessions && sessions.length === 0 ? (
                   <Spinner label={t('chat.loadingChats')} />
                 ) : visibleSessions.length === 0 ? (
@@ -2433,10 +2442,10 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
                 )}
               </div>
 
-              <div className="nc-line border-t-[3px] p-4 pe-5 sm:p-5 sm:pe-6">
-                <div className="nc-field flex items-center justify-between gap-3 p-3">
+              <div className="nc-surface nc-line border-t-[3px] p-4 pe-6 sm:p-5 sm:pe-7">
+                <div className="nc-field flex items-center justify-between gap-3 p-3 [box-shadow:calc(var(--nc-dx)*3px)_3px_0_0_var(--nc-shadow)]">
                   <div className="flex min-w-0 items-center gap-3">
-                    <span className={clsx('h-3 w-3 shrink-0 border-2 nc-line', dotCls, (isConnected || isConnecting) && 'animate-pulse motion-reduce:animate-none')} />
+                    <span className={clsx('h-3 w-3 shrink-0 rounded-full border-2 nc-line', dotCls, (isConnected || isConnecting) && 'animate-pulse motion-reduce:animate-none')} />
                     <div className="min-w-0">
                       <span className="text-[11px] font-extrabold uppercase" role="status">{t(`chat.status.${status}`, { defaultValue: status })}</span>
                       {!isConnected && reason && <p title={reason} className="mt-0.5 max-w-[200px] truncate text-[10px] font-bold text-red-600 dark:text-red-400" dir="auto">{reason}</p>}
@@ -2472,12 +2481,12 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
                       <div className="min-w-0">
                         <h3 className="truncate text-sm font-extrabold uppercase sm:text-base" dir="auto"><span className="nc-ul">{activeName}</span></h3>
                         <div className="mt-1.5 flex items-center gap-2">
-                          <span className={clsx('h-2.5 w-2.5 border-2 nc-line', isConnected ? 'bg-[color:var(--nc-accent)]' : 'bg-gray-400')} />
+                          <span className={clsx('h-2.5 w-2.5 rounded-full border-2 nc-line', isConnected ? 'bg-[color:var(--nc-accent)]' : 'bg-gray-400')} />
                           <span className="nc-muted text-[10px] font-extrabold uppercase">{isConnected ? t('chat.connected') : t('chat.offline')}</span>
                         </div>
                       </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2 pe-1">
+                    <div className="flex shrink-0 items-center gap-2 pe-1 pb-1">
                       {hasSessionRow && (
                         <>
                           <button
@@ -2486,7 +2495,7 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
                             aria-pressed={isFav}
                             aria-label={isFav ? N.unstar : N.star}
                             title={isFav ? N.unstar : N.star}
-                            className="nc-btn h-10 w-10"
+                            className={clsx('nc-btn h-10 w-10', isFav && 'nc-btn-a')}
                           >
                             <FiStar size={16} fill={isFav ? 'currentColor' : 'none'} aria-hidden="true" />
                           </button>
@@ -2511,7 +2520,7 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
                           </button>
                         </>
                       )}
-                      <button type="button" onClick={onClose} aria-label={t('chat.closeMessages')} className="nc-btn h-10 w-10 shrink-0"><FiX size={18} aria-hidden="true" /></button>
+                      <button type="button" onClick={onClose} aria-label={t('chat.closeMessages')} className="nc-btn nc-btn-a h-10 w-10 shrink-0"><FiX size={18} aria-hidden="true" /></button>
                     </div>
                   </div>
 
@@ -2521,7 +2530,7 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
                     role="log"
                     aria-live="polite"
                     aria-label={t('chat.conversation')}
-                    className="nc-dots nc-scroll min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden overscroll-contain px-2 py-6 sm:px-6 sm:py-8"
+                    className="nc-dots nc-scroll min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden overscroll-contain px-2 py-6 pe-3 sm:px-6 sm:py-8 sm:pe-7"
                   >
                     {isLoadingMessages && messages.length === 0 ? (
                       <Spinner label={t('chat.loadingMessages')} />
@@ -2535,7 +2544,7 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
                       <>
                         {hiddenCount > 0 && (
                           <div className="flex justify-center pb-4">
-                            <button type="button" onClick={showOlder} className="nc-btn h-8 px-3 text-[11px] uppercase">{N.showOlder}</button>
+                            <button type="button" onClick={showOlder} className="nc-btn h-9 px-3 text-[11px] uppercase">{N.showOlder}</button>
                           </div>
                         )}
                         {visibleMessages.map((x) => (
@@ -2601,7 +2610,9 @@ const UserChatModal = memo(({ shopId: initialShopId, shopName: initialShopName, 
                   )}
                 </>
               ) : (
-                <EmptyHero variant="select-chat" title={t('chat.selectChatTitle')} sub={t('chat.selectChatSub')} />
+                <div className="nc-dots h-full">
+                  <EmptyHero variant="select-chat" title={t('chat.selectChatTitle')} sub={t('chat.selectChatSub')} />
+                </div>
               )}
             </main>
           </m.div>

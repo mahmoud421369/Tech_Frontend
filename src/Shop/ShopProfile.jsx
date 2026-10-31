@@ -3,8 +3,8 @@ import React, {
 } from 'react';
 import {
   FiEdit3, FiMapPin, FiTrash2, FiX, FiMail, FiPhone, FiStar, FiTag, FiCheckCircle, FiShield,
-  FiLock, FiPlus, FiMinus, FiCamera, FiGlobe, FiRefreshCw, FiHash, FiHome, FiAlertCircle,
-  FiSearch, FiNavigation, FiExternalLink, FiSettings, FiSun, FiMoon,
+  FiLock, FiPlus, FiMinus, FiCamera, FiGlobe, FiRefreshCw, FiHome, FiAlertCircle,
+  FiSearch, FiNavigation, FiExternalLink, FiSettings, FiSun, FiMoon, FiImage,
 } from 'react-icons/fi';
 import { FaStore } from 'react-icons/fa';
 import api from '../common/api/api';
@@ -12,11 +12,12 @@ import useAuthStore from '../common/store/Auth';
 import { UI3D_CSS, Defs3D } from '../components/user/Ui3D';
 import { EXTRAS_CSS, Toaster, toast, EmptyState3D } from '../components/user/UiExtras';
 import {
-  BTN, BTN_MD, BTN_ICON, BTN_PRIMARY, CARD, PANEL, FIELD, LABEL, SCROLL_CSS, fmt, tpl, shortId, errText, isSafeId,
+  BTN, BTN_MD, BTN_ICON, BTN_PRIMARY, CARD, PANEL, FIELD, LABEL, SCROLL_CSS, fmt, tpl, errText, isSafeId,
   confirmDialog, useDarkMode, useEscape, useShopLocale, StatCard, Overlay, IconTile,
 } from '../components/shop/TableKit';
+import { LogoDropzone, LOGO_CSS, getLogoT, prepareLogoFile } from '../components/shop/LogoKit';
 import { ensureShopAssets, getFontStyle } from '../common/utils/shopFonts';
-import { resolveImageSrc, validateImageFile } from '../common/utils/productutils';
+import { resolveImageSrc } from '../common/utils/productutils';
 
 ensureShopAssets();
 
@@ -123,18 +124,99 @@ const MAP_CSS = `
 `;
 
 const BASE_CSS = UI3D_CSS + EXTRAS_CSS;
-const PAGE_CSS = BASE_CSS + SCROLL_CSS + MAP_CSS;
-const UPLOAD_CONFIG = { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120_000 };
+const PAGE_CSS = BASE_CSS + SCROLL_CSS + MAP_CSS + LOGO_CSS;
+const UPLOAD_CONFIG = {
+  headers: { 'Content-Type': 'multipart/form-data' },
+  transformRequest: [(data) => data],
+  timeout: 120_000,
+};
+
+const LOGO_EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 
 const readStorage = (key) => { try { return localStorage.getItem(key); } catch { return null; } };
 const writeStorage = (key, value) => { try { localStorage.setItem(key, value); } catch { } };
 
+const sniffImageType = async (blob) => {
+  try {
+    const b = new Uint8Array(await blob.slice(0, 12).arrayBuffer());
+    if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg';
+    if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return 'image/png';
+    if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) return 'image/webp';
+  } catch { }
+  return '';
+};
+
+const LOGO_MAX_DIM = 1024;
+const LOGO_MAX_BYTES = 2 * 1024 * 1024;
+const LOGO_QUALITIES = [0.9, 0.8, 0.7, 0.55, 0.4];
+
+const toWebpLogo = async (blob) => {
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(blob);
+  } catch {
+    return null;
+  }
+  const scale = Math.min(1, LOGO_MAX_DIM / Math.max(bitmap.width, bitmap.height));
+  const w = Math.max(1, Math.round(bitmap.width * scale));
+  const h = Math.max(1, Math.round(bitmap.height * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  bitmap.close?.();
+  let last = null;
+  for (const q of LOGO_QUALITIES) {
+    const out = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', q));
+    if (!out || out.type !== 'image/webp') return null;
+    last = out;
+    if (out.size <= LOGO_MAX_BYTES) break;
+  }
+  return last;
+};
+
+const normalizeLogoBlob = async (blob) => {
+  const type = await sniffImageType(blob);
+  if (!type) return null;
+  const base = String(blob.name || 'logo').replace(/\.[^.]+$/, '').replace(/[^\w-]+/g, '_').slice(0, 60) || 'logo';
+  let out = blob;
+  let outType = type;
+  if (type !== 'image/webp' || blob.size > LOGO_MAX_BYTES) {
+    const webp = await toWebpLogo(blob);
+    if (webp) {
+      out = webp;
+      outType = 'image/webp';
+    }
+  }
+  return new File([out], `${base}.${LOGO_EXT[outType]}`, { type: outType, lastModified: Date.now() });
+};
+
+const unsupportedLogoError = () => Object.assign(new Error('unsupported logo format'), { code: 'UNSUPPORTED_LOGO' });
+
 const uploadErrText = (err, u) => {
   const status = err?.response?.status;
+  if (err?.code === 'UNSUPPORTED_LOGO') return u.unsupported;
   if (status === 413) return u.tooLarge;
-  if (status === 415) return u.unsupported;
   if (err?.code === 'ECONNABORTED') return u.timeout;
   return errText(err);
+};
+
+const putShopForm = async (shopId, fields) => {
+  const fd = new FormData();
+  for (const [k, v] of Object.entries(fields)) {
+    if (v == null) continue;
+    if (v instanceof Blob) {
+      const clean = await normalizeLogoBlob(v);
+      if (!clean) throw unsupportedLogoError();
+      fd.append(k, clean, clean.name);
+    } else {
+      fd.append(k, String(v));
+    }
+  }
+  return api.put(`/api/shops/${encodeURIComponent(shopId)}`, fd, UPLOAD_CONFIG);
 };
 
 const toCoord = (v) => {
@@ -667,6 +749,60 @@ const SettingsCard = memo(({ language }) => {
   );
 });
 
+const LogoCard = memo(({ language, src, broken, onBroken, name, hasLogo, uploading, removing, onUpload, onRemove }) => {
+  const t = getLogoT(language);
+  const [file, setFile] = useState(null);
+  const busy = uploading || removing;
+  const showImg = !!src && !broken;
+
+  const save = useCallback(async () => {
+    if (!file || busy) return;
+    if (await onUpload(file)) setFile(null);
+  }, [file, busy, onUpload]);
+  const cancel = useCallback(() => setFile(null), []);
+
+  return (
+    <section id="shop-logo-card" className={`${CARD} p-5 space-y-4`} aria-busy={busy}>
+      <div>
+        <h3 className="flex items-center gap-2 text-sm font-extrabold uppercase">
+          <FiImage size={14} className="nb-ic" aria-hidden="true" /> <span className="nb-ul">{t.cardTitle}</span>
+        </h3>
+        <p className="nb-muted mt-1.5 text-[11px] font-semibold">{t.cardSub}</p>
+      </div>
+
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+        <div className="flex flex-shrink-0 flex-col items-center gap-2">
+          <div className={`${PANEL} nb-gray flex h-28 w-28 items-center justify-center overflow-hidden`}>
+            {showImg
+              ? <img src={src} alt="" width={112} height={112} decoding="async" loading="lazy" referrerPolicy="no-referrer" onError={onBroken} className="h-full w-full object-cover" />
+              : name ? <span className="nb-ic text-4xl font-extrabold">{[...name][0]}</span> : <FaStore size={34} className="nb-ic" />}
+          </div>
+          <p className="nb-muted text-[10px] font-bold uppercase">{hasLogo ? t.current : t.noLogo}</p>
+        </div>
+
+        <div className="min-w-0 flex-1 space-y-3">
+          <LogoDropzone id="sp-logo" file={file} onChange={setFile} disabled={busy} language={language} compact />
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={save} disabled={!file || busy} className={`${BTN_PRIMARY} h-9 uppercase`}>
+              {uploading ? <><FiRefreshCw size={13} className="animate-spin motion-reduce:animate-none" /> {t.saving}</> : t.save}
+            </button>
+            {file && (
+              <button type="button" onClick={cancel} disabled={busy} className={`${BTN_MD} h-9 uppercase`}>{t.cancel}</button>
+            )}
+            {hasLogo && !file && (
+              <button type="button" onClick={onRemove} disabled={busy} className={`${BTN_MD} h-9 uppercase !text-red-600 dark:!text-red-300`}>
+                {removing
+                  ? <><FiRefreshCw size={13} className="animate-spin motion-reduce:animate-none" /> {t.removing}</>
+                  : <><FiTrash2 size={13} aria-hidden="true" /> {t.remove}</>}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+});
+
 const ShopProfile = () => {
   const darkMode = useDarkMode();
   const loc = useShopLocale();
@@ -686,7 +822,7 @@ const ShopProfile = () => {
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPass, setSavingPass] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [logoVer, setLogoVer] = useState(0);
+  const [removing, setRemoving] = useState(false);
   const [logoBroken, setLogoBroken] = useState(false);
   const [addrModal, setAddrModal] = useState(null);
   const [addrSaving, setAddrSaving] = useState(false);
@@ -745,7 +881,7 @@ const ShopProfile = () => {
     if (savingProfile) return;
     setSavingProfile(true);
     try {
-      await api.put(`/api/shops/${encodeURIComponent(shopId)}`, { name, description: form.description.trim() });
+      await putShopForm(shopId, { name, description: form.description.trim() });
       toast({ icon: 'success', title: x.updated });
       fetchAll({ only: 'shop' });
     } catch (err) {
@@ -772,7 +908,7 @@ const ShopProfile = () => {
     }
     setSavingPass(true);
     try {
-      await api.put(`/api/shops/${encodeURIComponent(shopId)}`, { name: (shop?.name || form.name).trim(), description: (shop?.description || '').trim(), password: pass.next });
+      await putShopForm(shopId, { name: (shop?.name || form.name).trim(), description: (shop?.description || '').trim(), password: pass.next });
       toast({ icon: 'success', title: x.toasts.passChanged });
     } catch (err) {
       toast({ icon: 'error', title: x.toasts.passFail, text: errText(err) });
@@ -782,32 +918,71 @@ const ShopProfile = () => {
     }
   }, [pass, passProblem, savingPass, shop, form.name, shopId]);
 
-  const handleLogoUpload = useCallback(async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file || uploading) return;
+  const applyShop = useCallback((data, fallback) => {
+    setLogoBroken(false);
+    setShop((p) => ({ ...(p || {}), ...(data && typeof data === 'object' ? data : {}), ...(fallback || {}) }));
+  }, []);
+
+  const uploadLogo = useCallback(async (file) => {
+    if (uploading || removing) return false;
     const x = locRef.current.L.profile;
-    const problem = await validateImageFile(file);
-    if (problem) { toast({ icon: 'error', title: x.toasts.invalidImage, text: problem }); return; }
     setUploading(true);
     try {
-      const fd = new FormData();
-      fd.append('file', file, file.name);
-      await api.post(`/api/shops/${encodeURIComponent(shopId)}/logo`, fd, UPLOAD_CONFIG);
+      const { data } = await putShopForm(shopId, { logo: file });
       toast({ icon: 'success', title: x.toasts.logoUpdated });
-      setLogoVer(Date.now());
-      await fetchAll({ only: 'shop', resetForm: false });
+      applyShop(data);
+      if (!data?.logoUrl) await fetchAll({ only: 'shop', resetForm: false });
+      return true;
     } catch (err) {
       toast({ icon: 'error', title: x.toasts.logoFail, text: uploadErrText(err, x.upload) });
+      return false;
     } finally {
       setUploading(false);
     }
-  }, [shopId, uploading, fetchAll]);
+  }, [shopId, uploading, removing, applyShop, fetchAll]);
 
-  const logoSrc = useMemo(() => {
-    const s = resolveImageSrc(shop?.logoUrl ?? shop?.logo ?? shop?.logoPath ?? '');
-    return s && logoVer && /^https?:/i.test(s) ? `${s}${s.includes('?') ? '&' : '?'}v=${logoVer}` : s;
-  }, [shop, logoVer]);
+  const removeLogo = useCallback(async () => {
+    if (uploading || removing) return;
+    const { language: lg, L: LL } = locRef.current;
+    const lt = getLogoT(lg);
+    let isConfirmed = false;
+    try {
+      ({ isConfirmed } = await confirmDialog({
+        title: lt.confirmRemoveTitle,
+        text: lt.confirmRemoveText,
+        icon: 'warning',
+        confirmButtonText: lt.remove,
+        cancelButtonText: LL.table.cancel,
+        confirmButtonColor: '#ef4444',
+      }));
+    } catch {
+      toast({ icon: 'error', title: LL.profile.toasts.confirmFail, text: LL.profile.toasts.confirmFailText });
+      return;
+    }
+    if (!isConfirmed) return;
+    setRemoving(true);
+    try {
+      const { data } = await putShopForm(shopId, { removeLogo: true });
+      applyShop(data, { logoUrl: null, logo: null, logoPath: null });
+      toast({ icon: 'success', title: lt.removed });
+    } catch (err) {
+      toast({ icon: 'error', title: lt.removeFail, text: errText(err) });
+    } finally {
+      setRemoving(false);
+    }
+  }, [shopId, uploading, removing, applyShop]);
+
+  const handleLogoUpload = useCallback(async (e) => {
+    const picked = e.target.files?.[0];
+    e.target.value = '';
+    if (!picked || uploading || removing) return;
+    const { L: LL, language: lg } = locRef.current;
+    const res = await prepareLogoFile(picked, getLogoT(lg));
+    if (res.error) { toast({ icon: 'error', title: LL.profile.toasts.invalidImage, text: res.error }); return; }
+    uploadLogo(res.file);
+  }, [uploading, removing, uploadLogo]);
+
+  const logoSrc = useMemo(() => resolveImageSrc(shop?.logoUrl ?? shop?.logo ?? shop?.logoPath ?? ''), [shop]);
 
   const saveAddress = useCallback(async (payload) => {
     if (addrSaving) return;
@@ -882,7 +1057,6 @@ const ShopProfile = () => {
     [FiMail, t.email, shop?.email || '—', true],
     [FiPhone, t.phone, shop?.phone || t.notSet, true],
     [FiGlobe, t.joined, fmt(fm.date, shop?.createdAt), false],
-    [FiHash, t.recordId, shop?.id ? `SH-${shortId(shop.id)}` : '—', true],
   ], [shop, t, fm]);
 
   const wrapperProps = {
@@ -913,7 +1087,7 @@ const ShopProfile = () => {
             <button
               type="button"
               onClick={openLogoPicker}
-              disabled={uploading}
+              disabled={uploading || removing}
               title={t.changeLogo}
               aria-label={t.changeLogoAria}
               className="nb-btn nb-gray relative w-16 h-16 overflow-hidden flex-shrink-0 group"
@@ -961,6 +1135,19 @@ const ShopProfile = () => {
           </section>
 
           <div className="lg:col-span-2 space-y-5">
+            <LogoCard
+              language={language}
+              src={logoSrc}
+              broken={logoBroken}
+              onBroken={onLogoError}
+              name={shop?.name}
+              hasLogo={!!(shop?.logoUrl ?? shop?.logo ?? shop?.logoPath)}
+              uploading={uploading}
+              removing={removing}
+              onUpload={uploadLogo}
+              onRemove={removeLogo}
+            />
+
             <SettingsCard language={language} />
 
             <form onSubmit={saveProfile} noValidate className={`${CARD} p-5 space-y-4`}>

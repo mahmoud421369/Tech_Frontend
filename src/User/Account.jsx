@@ -9,7 +9,7 @@ import {
   FiNavigation, FiList, FiBell, FiSearch, FiClock, FiExternalLink, FiPieChart, FiTrendingUp,
   FiSend, FiAward, FiCompass, FiGlobe, FiX, FiShoppingBag, FiCopy, FiChevronDown, FiChevronLeft, FiChevronRight,
 } from 'react-icons/fi';
-import { RiLogoutBoxRLine, RiVerifiedBadgeLine } from 'react-icons/ri';
+import { RiLogoutBoxRLine } from 'react-icons/ri';
 import { jwtDecode } from 'jwt-decode';
 import api from '../common/api/api';
 import { useAppLanguage, languageDirection } from '../common/utils/useAppLanguage';
@@ -18,7 +18,7 @@ import enTranslations from '../locales/en/translation.json';
 import arTranslations from '../locales/ar/translation.json';
 import frTranslations from '../locales/fr/translation.json';
 import { UI3D_CSS, Defs3D } from '../components/user/Ui3D';
-import { LISTING_CSS, useLangFont } from '../components/user/ListingKit';
+import { LISTING_CSS } from '../components/user/ListingKit';
 import { IsoIllustration } from '../components/user/IsoIllustrations';
 
 const Hero = lazy(() => import('../components/user/Hero'));
@@ -26,73 +26,65 @@ const Hero = lazy(() => import('../components/user/Hero'));
 const MapPicker = lazy(() => import('./AccountMap'));
 const prefetchMap = () => import('./AccountMap');
 
-const NB_FONT_STYLE = { fontFamily: "'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" };
-const ensureNbFont = () => {
-  if (typeof document === 'undefined' || document.getElementById('nb-font')) return;
-  [['https://fonts.googleapis.com', false], ['https://fonts.gstatic.com', true]].forEach(([href, cors]) => {
-    const l = document.createElement('link');
-    l.rel = 'preconnect'; l.href = href; if (cors) l.crossOrigin = '';
-    document.head.appendChild(l);
-  });
-  const link = document.createElement('link');
-  link.id = 'nb-font';
-  link.rel = 'stylesheet';
-  link.href = 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap';
-  document.head.appendChild(link);
-};
-
 const NB_EXTRA_CSS = `
 .nb-dark input{color-scheme:dark}
 .nb-btn-d{background:#e11d48;color:#fff}
 .nb-btn-o{background:#ea580c;color:#fff}
-.nb-menu{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:4px 4px 0 var(--nb-shadow)}
+.nb-menu{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);border-radius:.75rem;box-shadow:4px 4px 0 var(--nb-shadow)}
 .nb-opt{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;font-size:12px;font-weight:700;text-transform:uppercase;text-align:start;cursor:pointer}
 .nb-opt-active{background:var(--nb-gray)}
 .nb-opt[aria-selected=true]{background:var(--nb-btn);color:var(--nb-on)}
 .nb-box{display:flex;align-items:center;justify-content:center;flex:none;width:20px;height:20px;border:2px solid var(--nb-line);background:var(--nb-card);color:var(--nb-on)}
+@keyframes nbPop{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:none}}
+.nb-pop{animation:nbPop .14s ease-out both;transform-origin:top}
+@media (prefers-reduced-motion:reduce){.nb-pop{animation:none}}
 `;
 
 const NB_CSS = `
-.nb{--nb-bg:#f3f4f6;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#4b6b5c;--nb-line:#04261a;--nb-shadow:#04261a;--nb-gray:#e5e7eb;--nb-accent:#10b981;--nb-btn:#059669;--nb-on:#ffffff;background:var(--nb-bg);color:var(--nb-ink)}
+.nb{--dx:1;--nb-bg:#f9fafb;--nb-card:#ffffff;--nb-ink:#022c22;--nb-muted:#4b5563;--nb-line:#022c22;--nb-shadow:#022c22;--nb-gray:#f3f4f6;--nb-accent:#059669;--nb-btn:#34d399;--nb-on:#022c22;background:var(--nb-bg);color:var(--nb-ink)}
+.nb[dir=rtl]{--dx:-1}
 .nb-dark{--nb-bg:#141414;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#1e1e1e;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-on:#022c22}
 .nb-dark .border-dotted,.nb-dark .nb-dot{border-color:#3f3f3f}
+.nb-pattern{--p1:rgba(4,38,26,.1);--p2:rgba(16,185,129,.1);background-image:radial-gradient(circle at 2px 2px,var(--p1) 1.6px,transparent 1.8px),repeating-linear-gradient(135deg,var(--p2) 0 2px,transparent 2px 18px);background-size:22px 22px,auto}
+.nb-dark.nb-pattern{--p1:rgba(57,255,136,.12);--p2:rgba(57,255,136,.05)}
 .nb-bg{background:var(--nb-bg)}
 .nb-gray{background:var(--nb-gray)}
 .nb-muted{color:var(--nb-muted)}
 .nb-ic{color:var(--nb-accent)}
 .nb-line{border-color:var(--nb-line)}
-.nb-card{background:var(--nb-card);border:2px solid var(--nb-line);box-shadow:5px 5px 0 var(--nb-shadow);transition:transform .15s ease,box-shadow .15s ease}
-.nb-lift:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--nb-shadow)}
-.nb-bar{display:inline-block;width:52px;height:16px;background:var(--nb-accent);border:2px solid var(--nb-line)}
-.nb-ul{text-decoration:underline;text-decoration-color:var(--nb-accent);text-decoration-thickness:4px;text-underline-offset:5px;text-decoration-skip-ink:none}
-.nb-squig path{stroke:var(--nb-accent)}
-.nb-chip{display:inline-flex;align-items:center;gap:4px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);padding:1px 6px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;line-height:1.5}
-.nb-chip-a{background:var(--nb-btn);color:var(--nb-on)}
-.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow);font-weight:700;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,background-color .12s ease}
-.nb-btn:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--nb-shadow)}
-.nb-btn:active:not(:disabled){transform:translate(2px,2px);box-shadow:0 0 0 var(--nb-shadow)}
+.nb-line.border-2{border-radius:.6rem}
+.nb-card{background:var(--nb-card);border:3px solid var(--nb-line);border-radius:1rem;box-shadow:calc(var(--dx)*6px) 6px 0 var(--nb-shadow);transition:transform .2s ease,box-shadow .2s ease}
+@media (hover:hover){.nb-lift:hover{transform:translateY(-4px);box-shadow:calc(var(--dx)*8px) 10px 0 var(--nb-shadow)}}
+.nb-bar{display:inline-block;width:48px;height:14px;border-radius:999px;background:var(--nb-accent);border:2px solid var(--nb-line)}
+.nb-ul{padding-bottom:.2em;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2310b981' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E") left bottom/100% .3em no-repeat;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.nb-dark .nb-ul{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2339ff88' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E")}
+.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);border-radius:.6rem;box-shadow:calc(var(--dx)*3px) 3px 0 var(--nb-shadow);font-weight:800;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease,opacity .15s ease}
+@media (hover:hover){.nb-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:calc(var(--dx)*4px) 5px 0 var(--nb-shadow)}}
+.nb-btn:active:not(:disabled){transform:translate(calc(var(--dx)*3px),3px);box-shadow:0 0 0 var(--nb-shadow)}
 .nb-btn:disabled{opacity:.45;cursor:not-allowed}
 .nb-btn-a,.nb-btn-on{background:var(--nb-btn);color:var(--nb-on)}
-.nb-btn:focus-visible,.nb-field:focus-within{outline:3px solid var(--nb-accent);outline-offset:2px}
+.nb-btn:focus-visible,.nb-field:focus-within{outline:3px solid var(--nb-btn);outline-offset:2px}
 .nb-flip{display:inline-block}
 .nb[dir=rtl] .nb-flip{transform:scaleX(-1)}
-.nb-field{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);box-shadow:3px 3px 0 var(--nb-shadow)}
-.nb-dot{background:var(--nb-card);color:var(--nb-ink);border:2px dotted var(--nb-line)}
+.nb-field{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);border-radius:.5rem;box-shadow:calc(var(--dx)*3px) 3px 0 var(--nb-shadow);transition:box-shadow .15s ease}
+.nb-dot{background:var(--nb-card);color:var(--nb-ink);border:2px dotted var(--nb-line);border-radius:1rem}
 ${NB_EXTRA_CSS}
-@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn{transition:none}.anim-fade-up{animation:none!important}}
+@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn,.nb-field{transition:none}}
 `;
 
 const MODAL_MS = 150;
 const MODAL_CSS = `
+@keyframes nbIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.nb-in{animation:nbIn .24s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*40ms)}
 @keyframes mdlFadeIn{from{opacity:0}to{opacity:1}}
 @keyframes mdlFadeOut{from{opacity:1}to{opacity:0}}
 @keyframes mdlPopIn{from{opacity:0;transform:translate3d(0,14px,0) scale(.97)}to{opacity:1;transform:none}}
 @keyframes mdlPopOut{from{opacity:1;transform:none}to{opacity:0;transform:translate3d(0,8px,0) scale(.98)}}
 .mdl-overlay{animation:mdlFadeIn 140ms ease-out both}
 .mdl-overlay.is-closing{animation:mdlFadeOut ${MODAL_MS}ms ease-in both}
-.mdl-panel{animation:mdlPopIn 180ms cubic-bezier(.16,1,.3,1) both;will-change:transform,opacity}
+.mdl-panel{animation:mdlPopIn 180ms cubic-bezier(.16,1,.3,1) both}
 .mdl-panel.is-closing{animation:mdlPopOut ${MODAL_MS}ms ease-in both}
-@media (prefers-reduced-motion: reduce){.mdl-overlay,.mdl-panel{animation:none!important}}
+@media (prefers-reduced-motion: reduce){.mdl-overlay,.mdl-panel,.nb-in{animation:none!important}}
 `;
 const STYLE_EL = <style>{`${UI3D_CSS}${LISTING_CSS}${NB_CSS}${MODAL_CSS}`}</style>;
 const REPAIRS_STYLE_EL = <style>{`${NB_EXTRA_CSS}${MODAL_CSS}`}</style>;
@@ -215,7 +207,7 @@ const TILE_TONES = {
 const BLOB = { sky: 'bg-sky-400', vi: 'bg-violet-400', am: 'bg-amber-400', ro: 'bg-rose-400', em: 'bg-emerald-400', te: 'bg-teal-400' };
 
 const IconTile = memo(({ Icon, tone = 'em', className = 'h-9 w-9', iconClassName = 'h-4 w-4' }) => (
-  <span aria-hidden="true" className={`nb-line flex flex-shrink-0 items-center justify-center border-2 ${TILE_TONES[tone] || TILE_TONES.em} ${className}`}>
+  <span aria-hidden="true" className={`nb-line flex flex-shrink-0 items-center justify-center rounded-lg border-2 ${TILE_TONES[tone] || TILE_TONES.em} ${className}`}>
     <Icon className={iconClassName} />
   </span>
 ));
@@ -233,12 +225,7 @@ const UnderlinedTitle = memo(({ text }) => {
   return (
     <>
       {head}
-      <span className="relative inline-block">
-        {tail}
-        <svg aria-hidden="true" focusable="false" viewBox="0 0 100 10" preserveAspectRatio="none" className="nb-squig pointer-events-none absolute inset-x-0 -bottom-2 h-2.5 w-full">
-          <path d="M1 6 C 20 2, 40 9, 60 5 S 90 3, 99 6" fill="none" strokeWidth="5" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-        </svg>
-      </span>
+      <span className="nb-ul">{tail}</span>
     </>
   );
 });
@@ -246,9 +233,9 @@ const UnderlinedTitle = memo(({ text }) => {
 const SectionHead = memo(({ eyebrow, title, subtitle, action }) => (
   <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
     <div className="min-w-0 max-w-2xl">
-      {eyebrow && <p className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide"><span className="nb-bar" aria-hidden="true" />{eyebrow}</p>}
-      <h1 className="mt-3 text-3xl font-extrabold leading-[1.15] tracking-tight sm:text-4xl"><UnderlinedTitle text={title} /></h1>
-      {subtitle && <p className="nb-muted mt-3 text-base">{subtitle}</p>}
+      {eyebrow && <p className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide rtl:tracking-normal"><span className="nb-bar" aria-hidden="true" />{eyebrow}</p>}
+      <h1 className="mt-3 text-3xl font-extrabold leading-[1.2] tracking-[-0.03em] [text-wrap:balance] rtl:tracking-normal sm:text-4xl lg:text-5xl"><UnderlinedTitle text={title} /></h1>
+      {subtitle && <p className="nb-muted mt-3 text-base font-medium sm:text-lg">{subtitle}</p>}
     </div>
     {action}
   </header>
@@ -256,8 +243,8 @@ const SectionHead = memo(({ eyebrow, title, subtitle, action }) => (
 
 const TabTitle = ({ icon, tone = 'em', children, right }) => (
   <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-    <h2 className="flex items-center gap-3 text-xl font-extrabold uppercase sm:text-2xl">
-      <IconTile Icon={icon} tone={tone} className="h-10 w-10" iconClassName="h-5 w-5" /> <span className="nb-ul">{children}</span>
+    <h2 className="flex min-w-0 items-center gap-3 text-xl font-extrabold uppercase sm:text-2xl">
+      <IconTile Icon={icon} tone={tone} className="h-10 w-10" iconClassName="h-5 w-5" /> <span className="nb-ul min-w-0">{children}</span>
     </h2>
     {right}
   </div>
@@ -311,15 +298,15 @@ const NbDropdown = memo(({ value, onChange, options, ariaLabel, className = '', 
         ref={btnRef} type="button" aria-label={ariaLabel} aria-haspopup="listbox" aria-expanded={isOpen} aria-controls={listId}
         aria-activedescendant={isOpen ? `${uid}-o${active}` : undefined}
         onClick={() => setIsOpen((o) => !o)} onKeyDown={onKeyDown}
-        className="nb-field flex h-10 w-full items-center justify-between gap-2 ps-3 pe-3 text-start text-xs font-bold uppercase"
+        className="nb-field flex h-10 w-full cursor-pointer items-center justify-between gap-2 ps-3 pe-3 text-start text-xs font-bold uppercase"
       >
         <span className={`truncate ${current ? '' : 'opacity-60'}`}>{current ? current.label : placeholder}</span>
-        <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform duration-150 ${isOpen ? 'rotate-180' : ''}`} />
+        <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform duration-150 motion-reduce:transition-none ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       {isOpen && (
         <ul
           ref={listRef} id={listId} role="listbox" aria-label={ariaLabel} tabIndex={-1}
-          className={`nb-menu absolute top-full z-30 mt-2 max-h-64 min-w-full overflow-y-auto overscroll-contain py-1 ${align === 'end' ? 'end-0' : 'start-0'}`}
+          className={`nb-menu nb-pop absolute top-full z-30 mt-2 max-h-64 min-w-full overflow-y-auto overscroll-contain py-1 ${align === 'end' ? 'end-0' : 'start-0'}`}
         >
           {options.map((o, i) => (
             <li
@@ -337,14 +324,15 @@ const NbDropdown = memo(({ value, onChange, options, ariaLabel, className = '', 
   );
 });
 
+// text-base on small screens avoids the iOS Safari auto-zoom on focus (inputs < 16px trigger it).
 const TextField = memo(({ label, icon: Icon, as: Tag = 'input', className = '', ...rest }) => {
   const id = useId();
   return (
     <div className={`min-w-0 ${className}`}>
       <label htmlFor={id} className="mb-1.5 block text-[11px] font-extrabold uppercase">{label}{rest.required && <span className="text-rose-500"> *</span>}</label>
       <div className="nb-field flex items-start gap-2 px-3 py-2.5">
-        {Icon && <Icon aria-hidden="true" className="nb-ic mt-0.5 h-4 w-4 flex-shrink-0" />}
-        <Tag id={id} {...rest} className="min-w-0 flex-1 resize-none bg-transparent text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60" />
+        {Icon && <Icon aria-hidden="true" className="nb-ic mt-0.5 h-4 w-4 flex-shrink-0 sm:mt-0.5" />}
+        <Tag id={id} {...rest} className="min-w-0 flex-1 resize-none bg-transparent text-base font-semibold outline-none placeholder:font-medium placeholder:opacity-60 sm:text-sm" />
       </div>
     </div>
   );
@@ -357,6 +345,15 @@ const DateField = memo(({ className = '', ...rest }) => (
   </label>
 ));
 
+const Meter = memo(({ pct, bad }) => (
+  <div className="nb-gray nb-line h-3 overflow-hidden border-2">
+    <div
+      className={`h-full w-full origin-left transition-transform duration-300 rtl:origin-right motion-reduce:transition-none ${bad ? 'bg-rose-500' : 'bg-[color:var(--nb-accent)]'}`}
+      style={{ transform: `scaleX(${pct / 100})` }}
+    />
+  </div>
+));
+
 const ProgressBar = memo(({ progress, label }) => {
   const bad = progress < 0;
   const pct = bad ? 100 : progress;
@@ -366,9 +363,7 @@ const ProgressBar = memo(({ progress, label }) => {
         <span className="truncate">{label}</span>
         {!bad && <span dir="ltr" className="tabular-nums">{pct}%</span>}
       </div>
-      <div className="nb-gray nb-line h-3 border-2">
-        <div className={`h-full transition-[width] duration-500 motion-reduce:transition-none ${bad ? 'bg-rose-500' : 'bg-[color:var(--nb-accent)]'}`} style={{ width: `${pct}%` }} />
-      </div>
+      <Meter pct={pct} bad={bad} />
     </div>
   );
 });
@@ -385,7 +380,7 @@ const EmptyState = memo(({ kind, title, subtitle }) => (
   <div className="nb-dot flex flex-col items-center gap-3 px-4 py-14 text-center">
     <IconTile Icon={EMPTY_ICONS[kind] || FiInfo} tone="em" className="h-16 w-16" iconClassName="h-8 w-8" />
     <p className="text-lg font-extrabold uppercase">{title}</p>
-    {subtitle && <p className="nb-muted max-w-sm text-sm">{subtitle}</p>}
+    {subtitle && <p className="nb-muted max-w-sm text-sm font-medium">{subtitle}</p>}
   </div>
 ));
 
@@ -418,34 +413,36 @@ const Pagination = memo(({ page, total, onChange, t }) => {
   );
 });
 
-const TONE = {
-  good: '!bg-emerald-600 !text-white', bad: '!bg-rose-600 !text-white', info: '!bg-sky-600 !text-white',
-  warn: '!bg-amber-400 !text-[#04261a]', violet: '!bg-violet-600 !text-white', teal: '!bg-teal-600 !text-white',
+const DOT_TONES = {
+  good: 'bg-emerald-500', bad: 'bg-rose-500', info: 'bg-sky-500', warn: 'bg-amber-400', violet: 'bg-violet-500', teal: 'bg-teal-500',
 };
 const TONES = {
   order: { DELIVERED: 'good', CANCELLED: 'bad', CONFIRMED: 'info', SHIPPED: 'violet', PROCESSING: 'teal', FINISHPROCESSING: 'teal' },
   repair: { DEVICE_DELIVERED: 'good', CANCELLED: 'bad', FAILED: 'bad', QUOTE_REJECTED: 'bad', QUOTE_APPROVED: 'good', QUOTE_SENT: 'violet', REPAIRING: 'teal', REPAIR_COMPLETED: 'teal', DEVICE_COLLECTED: 'info' },
 };
-const StatusBadge = memo(({ status, type = 'order', t }) => (
-  <span className={`nb-chip flex-shrink-0 ${TONE[TONES[type][status]] || TONE.warn}`}>{t(`status_${status}`)}</span>
+const StatusLabel = memo(({ status, type = 'order', t }) => (
+  <span className="inline-flex flex-shrink-0 items-center gap-1.5 text-[11px] font-extrabold uppercase">
+    <span aria-hidden="true" className={`h-2.5 w-2.5 rounded-full border-2 border-[color:var(--nb-line)] ${DOT_TONES[TONES[type][status]] || DOT_TONES.warn}`} />
+    {t(`status_${status}`)}
+  </span>
 ));
 
 const SKELETON_ROWS = [0, 1, 2];
 const SkeletonList = () => (
   <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3" aria-busy="true" role="status">
-    {SKELETON_ROWS.map((i) => <div key={i} className="nb-gray nb-line h-52 animate-pulse border-2 motion-reduce:animate-none" />)}
+    {SKELETON_ROWS.map((i) => <div key={i} className="nb-gray nb-line h-52 animate-pulse rounded-2xl border-2 motion-reduce:animate-none" />)}
   </div>
 );
 
 const CardShell = ({ index, children }) => (
-  <article style={STAGGER[Math.min(index, 8)]} className="anim-fade-up nb-card nb-lift flex h-full flex-col gap-3 p-3.5">
+  <article style={STAGGER[Math.min(index, 8)]} className="nb-in nb-card nb-lift flex h-full flex-col gap-3 p-3.5">
     {children}
   </article>
 );
 
 const Stat = memo(({ label, value, surface }) => (
   <div className={`nb-line min-w-0 border-2 px-2.5 py-1.5 ${surface === 'plain' ? 'bg-[color:var(--nb-card)]' : 'nb-gray'}`}>
-    <p className="nb-muted text-[9px] font-extrabold uppercase tracking-widest">{label}</p>
+    <p className="nb-muted text-[9px] font-extrabold uppercase tracking-widest rtl:tracking-normal">{label}</p>
     <p className="truncate text-sm font-bold">{value}</p>
   </div>
 ));
@@ -518,9 +515,9 @@ const OrderCard = memo(({ order, t, index, onDetails, onCancel }) => {
           <p className="truncate font-mono text-[11px] font-extrabold uppercase tracking-widest">ORD #{order.id.slice(0, 6)}</p>
           {!isEmpty(order.createdAt) && <p className="nb-muted flex items-center gap-1 text-[11px] font-semibold"><FiCalendar className="h-3 w-3" />{fmtShort(order.createdAt)}</p>}
         </div>
-        <StatusBadge status={order.status} t={t} />
       </div>
       <ProgressBar progress={orderProgress(order.status)} label={t(`status_${order.status}`)} />
+      <StatusLabel status={order.status} t={t} />
       <div className="grid grid-cols-2 gap-2">
         <Stat label={t('items')} value={count} />
         <Stat label={t('payment')} value={isEmpty(order.paymentMethod) ? '—' : order.paymentMethod.replace('_', ' ')} />
@@ -547,10 +544,10 @@ const RepairCard = memo(({ req, t, index, awaitingPayment, onDetails, onEdit, on
           <p className="truncate font-mono text-[11px] font-extrabold uppercase tracking-widest">REQ #{req.id.slice(0, 6)}</p>
           <p className="truncate text-sm font-bold">{req.shopName}</p>
         </div>
-        <StatusBadge status={req.status} type="repair" t={t} />
       </div>
       <ProgressBar progress={repairProgress(req.status)} label={t(`status_${req.status}`)} />
-      {awaitingPayment && <span className="nb-chip w-fit !bg-amber-400 !text-[#04261a]"><FiClock className="h-3 w-3" /> Awaiting payment</span>}
+      <StatusLabel status={req.status} type="repair" t={t} />
+      {awaitingPayment && <p className="flex items-center gap-1.5 text-xs font-extrabold uppercase text-amber-600"><FiClock className="h-3.5 w-3.5" /> Awaiting payment</p>}
       {!isEmpty(req.description) && <p className="line-clamp-2 text-xs leading-relaxed opacity-90">{req.description}</p>}
       {hasPrice && <Price value={req.price} />}
       <div className="nb-line mt-auto grid grid-cols-2 gap-2 border-t-2 pt-3">
@@ -676,7 +673,7 @@ const Sheet = ({ onClose, icon, tone = 'em', title, subtitle, size, footer, back
 );
 
 const Section = memo(({ icon, tone, title, right, children }) => (
-  <section className="nb-gray nb-line border-2 p-3.5">
+  <section className="nb-gray nb-line rounded-xl border-2 p-3.5">
     <h3 className="mb-3 flex items-center gap-2.5 text-xs font-extrabold uppercase">
       <IconTile Icon={icon} tone={tone} className="h-7 w-7" iconClassName="h-3.5 w-3.5" />
       <span className="min-w-0 flex-1 truncate">{title}</span>
@@ -702,9 +699,9 @@ const OptionTabs = memo(({ options, value, onChange, label, cols, disabled }) =>
 ));
 
 const CONFIRM_TONES = {
-  success: { icon: FiCheckCircle, tile: 'em', bar: 'bg-emerald-500', btn: undefined },
-  danger: { icon: FiTrash2, tile: 'ro', bar: 'bg-rose-500', btn: 'danger' },
-  warn: { icon: FiInfo, tile: 'am', bar: 'bg-amber-400', btn: undefined },
+  success: { icon: FiCheckCircle, tile: 'em', btn: undefined },
+  danger: { icon: FiTrash2, tile: 'ro', btn: 'danger' },
+  warn: { icon: FiInfo, tile: 'am', btn: undefined },
 };
 
 const ConfirmDialog = memo(({ dlg, onSettle, onClose }) => {
@@ -714,11 +711,10 @@ const ConfirmDialog = memo(({ dlg, onSettle, onClose }) => {
     <ModalFrame onClose={onClose} size="sm:max-w-md" label={dlg.title} role="alertdialog">
       {(close) => (
         <>
-          <div className={`nb-line h-3 w-full flex-shrink-0 border-b-2 ${m.bar}`} />
-          <div className="px-6 pb-6 pt-7 text-center">
+          <div className="px-6 pb-6 pt-8 text-center">
             <IconTile Icon={Icon} tone={m.tile} className="mx-auto h-16 w-16" iconClassName="h-7 w-7" />
             <h2 className="mt-4 text-xl font-extrabold uppercase"><span className="nb-ul">{dlg.title}</span></h2>
-            {dlg.text && <p className="nb-muted mx-auto mt-3 max-w-xs text-sm leading-relaxed">{dlg.text}</p>}
+            {dlg.text && <p className="nb-muted mx-auto mt-3 max-w-xs text-sm font-medium leading-relaxed">{dlg.text}</p>}
           </div>
           <div className="nb-gray nb-line grid grid-cols-2 gap-3 border-t-2 px-5 py-4">
             <Btn tone="soft" onClick={close} className="py-3 text-sm uppercase">{dlg.cancelText || 'Cancel'}</Btn>
@@ -741,14 +737,14 @@ const DetailCard = memo(({ icon, tone, label, value, copyable, ltr, children }) 
     } catch { toast({ icon: 'error', title: 'Could not copy', timer: 1800 }); }
   }, [value]);
   return (
-    <div className="nb-card flex items-center gap-3 p-3">
-      <IconTile Icon={icon} tone={tone} className="h-10 w-10" iconClassName="h-5 w-5" />
+    <div className="nb-card flex min-w-0 items-center gap-3 p-2.5 sm:p-3">
+      <IconTile Icon={icon} tone={tone} className="h-9 w-9 sm:h-10 sm:w-10" iconClassName="h-4 w-4 sm:h-5 sm:w-5" />
       <div className="min-w-0 flex-1">
-        <p className="nb-muted text-[10px] font-extrabold uppercase tracking-widest">{label}</p>
-        {children || <p dir={ltr ? 'ltr' : undefined} className={`truncate text-sm font-bold ${has ? '' : 'opacity-40'}`}>{has ? value : '—'}</p>}
+        <p className="nb-muted text-[10px] font-extrabold uppercase tracking-widest rtl:tracking-normal">{label}</p>
+        {children || <p dir={ltr ? 'ltr' : undefined} className={`truncate text-sm font-bold ${ltr ? 'rtl:text-end' : ''} ${has ? '' : 'opacity-40'}`}>{has ? value : '—'}</p>}
       </div>
       {copyable && has && (
-        <button type="button" onClick={copy} aria-label={`Copy ${label}`} title="Copy" className="nb-btn h-8 w-8 flex-shrink-0 !shadow-none">
+        <button type="button" onClick={copy} aria-label={`Copy ${label}`} title="Copy" className="nb-btn h-9 w-9 flex-shrink-0 !shadow-none sm:h-8 sm:w-8">
           <FiCopy className="h-4 w-4" />
         </button>
       )}
@@ -757,10 +753,10 @@ const DetailCard = memo(({ icon, tone, label, value, copyable, ltr, children }) 
 });
 
 const ProfileStat = memo(({ icon: Icon, value, label }) => (
-  <div className="nb-gray nb-line flex flex-col items-center gap-0.5 border-2 px-2 py-3 text-center">
-    <Icon className="nb-ic h-4 w-4" />
-    <p className="text-xl font-extrabold tabular-nums">{value}</p>
-    <p className="nb-muted truncate text-[10px] font-extrabold uppercase tracking-widest">{label}</p>
+  <div className="nb-gray nb-line flex min-w-0 flex-col items-center gap-0.5 border-2 px-1.5 py-2.5 text-center sm:px-2 sm:py-3">
+    <Icon aria-hidden="true" className="nb-ic h-4 w-4" />
+    <p className="text-lg font-extrabold tabular-nums sm:text-xl">{value}</p>
+    <p className="nb-muted w-full truncate text-[9px] font-extrabold uppercase tracking-wider rtl:tracking-normal sm:text-[10px] sm:tracking-widest">{label}</p>
   </div>
 ));
 
@@ -782,9 +778,9 @@ const ProfileTab = memo(({ profile, form, setForm, counts, onSave, onDelete, onL
   const cancelEdit = () => { setEditing(false); setPhoneError(''); };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 sm:space-y-5">
       <TabTitle icon={FiUser} tone="em" right={!editing && (
-        <Btn tone="soft" onClick={() => setEditing(true)} className="px-3 py-2 text-xs uppercase"><FiEdit2 className="nb-ic h-3.5 w-3.5" /> {t('editProfile')}</Btn>
+        <Btn tone="soft" onClick={() => setEditing(true)} className="min-h-10 px-3 py-2 text-xs uppercase"><FiEdit2 className="nb-ic h-3.5 w-3.5" /> {t('editProfile')}</Btn>
       )}>{editing ? t('editProfile') : t('myProfile')}</TabTitle>
 
       {editing ? (
@@ -795,34 +791,35 @@ const ProfileTab = memo(({ profile, form, setForm, counts, onSave, onDelete, onL
               <TextField label={t('lastName')} icon={FiUser} value={form.last_name} onChange={upd('last_name')} autoComplete="family-name" required />
             </div>
             <div className="space-y-1.5">
-              <TextField label={t('phoneNumber')} icon={FiPhone} type="tel" value={form.phone} onChange={updPhone} autoComplete="tel" aria-invalid={!!phoneError} required />
+              <TextField label={t('phoneNumber')} icon={FiPhone} type="tel" inputMode="tel" value={form.phone} onChange={updPhone} autoComplete="tel" aria-invalid={!!phoneError} required />
               {phoneError && <p role="alert" className="text-xs font-bold text-rose-500">{phoneError}</p>}
             </div>
-            <div className="grid grid-cols-2 gap-3 pt-1">
-              <Btn tone="soft" onClick={cancelEdit} className="py-2.5 text-sm uppercase">{t('cancel')}</Btn>
-              <Btn type="submit" className="py-2.5 text-sm uppercase"><FiCheck className="h-4 w-4" /> {t('saveChanges')}</Btn>
+            {/* Primary action first on narrow screens (thumb-friendly), side-by-side from sm up. */}
+            <div className="flex flex-col-reverse gap-3 pt-1 sm:grid sm:grid-cols-2">
+              <Btn tone="soft" onClick={cancelEdit} className="min-h-11 py-2.5 text-sm uppercase">{t('cancel')}</Btn>
+              <Btn type="submit" className="min-h-11 py-2.5 text-sm uppercase"><FiCheck className="h-4 w-4" /> {t('saveChanges')}</Btn>
             </div>
           </form>
         </section>
       ) : (
         <section className="nb-card p-4 sm:p-6">
-          <div className="flex flex-wrap items-center gap-4">
-            <span className={`nb-line flex h-20 w-20 flex-shrink-0 items-center justify-center border-2 text-3xl font-extrabold shadow-[4px_4px_0_var(--nb-shadow)] ${initials ? 'bg-emerald-500 text-white' : 'nb-gray'}`}>
-              {initials || <FiUser className="h-9 w-9 text-[color:var(--nb-ink)]" />}
+          <div className="flex flex-col items-center gap-3 text-center sm:flex-row sm:gap-4 sm:text-start">
+            <span className={`nb-line flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl border-[3px] text-2xl font-extrabold [box-shadow:calc(var(--dx)*4px)_4px_0_var(--nb-shadow)] sm:h-20 sm:w-20 sm:text-3xl ${initials ? 'bg-emerald-500 text-white' : 'nb-gray'}`}>
+              {initials || <FiUser className="h-8 w-8 text-[color:var(--nb-ink)] sm:h-9 sm:w-9" />}
             </span>
-            <div className="min-w-0 flex-1">
-              {name && <p className="truncate text-xl font-extrabold uppercase sm:text-2xl"><span className="nb-ul">{name}</span></p>}
-              {profile?.email && <p className="nb-muted mt-2 truncate text-sm font-semibold">{profile.email}</p>}
+            <div className="min-w-0 w-full flex-1">
+              {name && <p className="break-words text-lg font-extrabold uppercase leading-tight sm:text-2xl"><span className="nb-ul">{name}</span></p>}
+              {profile?.email && <p className="nb-muted mt-2 break-all text-sm font-semibold sm:break-normal sm:truncate">{profile.email}</p>}
             </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-3 gap-3">
+          <div className="mt-4 grid grid-cols-3 gap-2 sm:mt-5 sm:gap-3">
             <ProfileStat icon={FiBox} value={counts.orders} label={t('orders')} />
             <ProfileStat icon={FiTool} value={counts.repairs} label={t('repairs')} />
             <ProfileStat icon={FiMapPin} value={counts.addresses} label={t('addresses')} />
           </div>
 
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <div className="mt-4 grid gap-3 sm:mt-5 sm:grid-cols-2 sm:gap-4">
             <DetailCard icon={FiUser} tone="em" label={t('fullName', 'Full name')} value={name} />
             <DetailCard icon={FiMail} tone="sky" label={t('email', 'Email')} value={profile?.email} copyable />
             <DetailCard icon={FiPhone} tone="vi" label={t('phoneNumber')} value={profile?.phone} copyable ltr />
@@ -836,17 +833,17 @@ const ProfileTab = memo(({ profile, form, setForm, counts, onSave, onDelete, onL
         </section>
       )}
 
-      <section className="nb-card flex flex-wrap items-center justify-between gap-3 p-4">
-        <p className="flex items-center gap-2 text-sm font-extrabold uppercase"><FiGlobe className="nb-ic h-4 w-4" /> {t('language')}</p>
+      <section className="nb-card flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <p className="flex items-center gap-2 text-sm font-extrabold uppercase"><FiGlobe aria-hidden="true" className="nb-ic h-4 w-4" /> {t('language')}</p>
         <NbDropdown value={language} onChange={onChangeLanguage} options={LANG_OPTIONS} ariaLabel={t('selectLanguage')} align="end" className="w-full sm:w-52" />
       </section>
 
       <section className="nb-card !border-rose-500 !shadow-[5px_5px_0_#e11d48] p-4">
-        <h3 className="flex items-center gap-2 text-sm font-extrabold uppercase text-rose-500"><FiTrash2 className="h-4 w-4" /> {t('dangerZone')}</h3>
-        <p className="nb-muted mb-3 mt-1 text-xs">{t('dangerZoneHint')}</p>
-        <div className="flex flex-wrap gap-3">
-          <Btn tone="danger" onClick={onDelete} className="px-4 py-2 text-xs uppercase"><FiTrash2 className="h-3.5 w-3.5" /> {t('deleteAccount')}</Btn>
-          <Btn tone="soft" onClick={onLogout} className="px-4 py-2 text-xs uppercase"><RiLogoutBoxRLine className="h-3.5 w-3.5" /> {t('logout')}</Btn>
+        <h3 className="flex items-center gap-2 text-sm font-extrabold uppercase text-rose-500"><FiTrash2 aria-hidden="true" className="h-4 w-4" /> {t('dangerZone')}</h3>
+        <p className="nb-muted mb-3 mt-1 text-xs font-medium">{t('dangerZoneHint')}</p>
+        <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap">
+          <Btn tone="danger" onClick={onDelete} className="min-h-11 w-full px-4 py-2 text-xs uppercase sm:min-h-0 sm:w-auto"><FiTrash2 className="h-3.5 w-3.5" /> {t('deleteAccount')}</Btn>
+          <Btn tone="soft" onClick={onLogout} className="min-h-11 w-full px-4 py-2 text-xs uppercase sm:min-h-0 sm:w-auto"><RiLogoutBoxRLine className="h-3.5 w-3.5" /> {t('logout')}</Btn>
         </div>
       </section>
     </div>
@@ -855,7 +852,7 @@ const ProfileTab = memo(({ profile, form, setForm, counts, onSave, onDelete, onL
 
 const EMPTY_ADDR = { state: '', city: '', street: '', building: '', notes: '', isDefault: false, latitude: 0, longitude: 0 };
 const COORD_FIELDS = [['latitude', 'Latitude'], ['longitude', 'Longitude']];
-const MAP_FALLBACK_CLS = 'nb-gray nb-line h-[320px] animate-pulse border-2 motion-reduce:animate-none sm:h-[380px]';
+const MAP_FALLBACK_CLS = 'nb-gray nb-line h-[320px] animate-pulse rounded-2xl border-2 motion-reduce:animate-none sm:h-[380px]';
 
 const AddressesTab = memo(({ addresses, inUseIds, onCreate, onUpdate, onDelete, darkMode, t }) => {
   const [editingId, setEditingId] = useState(null);
@@ -909,7 +906,7 @@ const AddressesTab = memo(({ addresses, inUseIds, onCreate, onUpdate, onDelete, 
                     onChange={(e) => setForm((f) => ({ ...f, [k]: parseFloat(e.target.value) || 0 }))} />
                 ))}
               </div>
-              <p className="nb-gray nb-line flex items-start gap-2 border-2 border-dotted p-3 text-xs font-semibold"><FiInfo className="nb-ic mt-0.5 h-3.5 w-3.5 flex-shrink-0" />{t('manualAddressHint')}</p>
+              <p className="nb-gray nb-line flex items-start gap-2 rounded-xl border-2 border-dotted p-3 text-xs font-semibold"><FiInfo className="nb-ic mt-0.5 h-3.5 w-3.5 flex-shrink-0" />{t('manualAddressHint')}</p>
             </div>
           )}
 
@@ -943,10 +940,10 @@ const AddressesTab = memo(({ addresses, inUseIds, onCreate, onUpdate, onDelete, 
                   <div className="min-w-0 flex-1">
                     <h3 className="truncate text-sm font-extrabold uppercase">{a.street}, {a.building}</h3>
                     <p className="nb-muted truncate text-xs font-semibold">{a.city}, {a.state}</p>
+                    {a.isDefault && <p className="nb-ic mt-1 flex items-center gap-1 text-[11px] font-extrabold uppercase"><FiCheckCircle className="h-3 w-3" /> {t('default')}</p>}
                   </div>
-                  {a.isDefault && <span className="nb-chip nb-chip-a flex-shrink-0"><RiVerifiedBadgeLine className="h-3 w-3" /> {t('default')}</span>}
                 </div>
-                {!isEmpty(a.notes) && <p className="nb-gray line-clamp-2 px-2.5 py-1.5 text-xs italic">“{a.notes}”</p>}
+                {!isEmpty(a.notes) && <p className="nb-gray line-clamp-2 rounded-lg px-2.5 py-1.5 text-xs italic">“{a.notes}”</p>}
                 {hasCoords && (
                   <a href={directionsUrl(a.latitude, a.longitude)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase underline underline-offset-4">
                     <FiExternalLink className="nb-ic h-3 w-3" /> {t('getDirections')}
@@ -979,17 +976,17 @@ const NotificationsTab = memo(({ items, onDelete, t }) => {
 
   return (
     <>
-      <TabTitle icon={FiBell} tone="ro" right={unread > 0 && <span className="nb-chip !bg-rose-600 !text-white">{unread}</span>}>{t('notifications')}</TabTitle>
+      <TabTitle icon={FiBell} tone="ro" right={unread > 0 && <span dir="ltr" className="text-lg font-extrabold tabular-nums text-rose-500">{unread}</span>}>{t('notifications')}</TabTitle>
       {items.length === 0 ? <EmptyState kind="bell" title={t('noNotifications')} subtitle={t('notificationHint')} /> : (
         <>
           <ul className="space-y-4">
             {pageItems.map((n, i) => (
-              <li key={n.id} style={STAGGER[Math.min(i, 8)]} className="anim-fade-up nb-card flex items-start gap-3 p-3.5">
+              <li key={n.id} style={STAGGER[Math.min(i, 8)]} className="nb-in nb-card flex items-start gap-3 p-3.5">
                 <IconTile Icon={FiBell} tone="ro" className="h-9 w-9" iconClassName="h-4 w-4" />
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-2 text-sm font-extrabold uppercase">
                     <span className="truncate">{n.title || n.subject || 'Notification'}</span>
-                    {!n.read && <span className="nb-line h-2.5 w-2.5 flex-shrink-0 border-2 bg-emerald-500" aria-label="Unread" />}
+                    {!n.read && <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full border-2 border-[color:var(--nb-line)] bg-emerald-500" aria-label="Unread" />}
                   </p>
                   {!isEmpty(n.message || n.body) && <p className="mt-1 text-xs leading-relaxed opacity-90">{n.message || n.body}</p>}
                   {!isEmpty(n.createdAt) && <p className="nb-muted mt-1.5 flex items-center gap-1 text-[10px] font-bold"><FiClock className="h-3 w-3" />{fmtFull(n.createdAt)}</p>}
@@ -1030,7 +1027,7 @@ const Donut = memo(({ data, darkMode, size = 144, thickness = 22 }) => {
             return el;
           })}
       </g>
-      <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fill={darkMode ? '#ffffff' : '#04261a'} style={{ fontSize: 24, fontWeight: 800 }}>{total}</text>
+      <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fill={darkMode ? '#ffffff' : '#022c22'} style={{ fontSize: 24, fontWeight: 800 }}>{total}</text>
     </svg>
   );
 });
@@ -1041,7 +1038,7 @@ const Legend = memo(({ data }) => {
     <ul className="min-w-[150px] flex-1 space-y-1.5">
       {data.map((d) => (
         <li key={d.label} className="flex items-center gap-2 text-xs">
-          <span className="nb-line h-3 w-3 flex-shrink-0 border-2" style={{ backgroundColor: d.color }} />
+          <span className="h-3 w-3 flex-shrink-0 rounded-full border-2 border-[color:var(--nb-line)]" style={{ backgroundColor: d.color }} />
           <span className="flex-1 truncate font-bold">{d.label}</span>
           <b>{d.value}</b>
           <span className="nb-muted w-9 text-end font-semibold">{Math.round((d.value / total) * 100)}%</span>
@@ -1087,8 +1084,8 @@ const AnalyticsTab = memo(({ orders, repairs, addresses, darkMode, t }) => {
     <div className="space-y-5">
       <TabTitle icon={FiPieChart} tone="te">{t('analytics')}</TabTitle>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {stats.map(({ icon, tone, value, label }) => (
-          <div key={label} className="nb-card relative overflow-hidden p-3.5">
+        {stats.map(({ icon, tone, value, label }, i) => (
+          <div key={label} style={STAGGER[i]} className="nb-in nb-card relative overflow-hidden p-3.5">
             <span aria-hidden="true" className={`pointer-events-none absolute -end-6 -top-6 h-20 w-20 rounded-full opacity-25 ${BLOB[tone]}`} />
             <IconTile Icon={icon} tone={tone} className="mb-2 h-9 w-9" iconClassName="h-4 w-4" />
             <p className="text-xl font-extrabold tabular-nums">{value}</p>
@@ -1121,8 +1118,8 @@ const AnalyticsTab = memo(({ orders, repairs, addresses, darkMode, t }) => {
                       <span className="font-extrabold uppercase">{label}</span>
                       <span dir="ltr" className="nb-muted font-bold">{value}/{total} · {pct}%</span>
                     </div>
-                    <div className="nb-gray nb-line h-3 border-2">
-                      <div className={`h-full transition-[width] duration-500 motion-reduce:transition-none ${color}`} style={{ width: `${pct}%` }} />
+                    <div className="nb-gray nb-line h-3 overflow-hidden border-2">
+                      <div className={`h-full w-full origin-left transition-transform duration-300 rtl:origin-right motion-reduce:transition-none ${color}`} style={{ transform: `scaleX(${pct / 100})` }} />
                     </div>
                   </div>
                 );
@@ -1149,7 +1146,7 @@ const AboutTab = memo(({ darkMode, t }) => {
         <div className="nb-gray nb-line flex-shrink-0 border-2 p-2">
           <IsoIllustration type="shop_store" tone="emerald" darkMode={darkMode} onGreen={false} className="h-28 w-28" />
         </div>
-        <p className="text-sm leading-relaxed opacity-90">{t('aboutDescription')}</p>
+        <p className="text-sm font-medium leading-relaxed opacity-90">{t('aboutDescription')}</p>
       </section>
       <section className="nb-card p-4 sm:p-5">
         <h3 className="mb-4 flex items-center gap-2 text-sm font-extrabold uppercase"><FiAward className="nb-ic h-4 w-4" /> <span className="nb-ul">{t('whyChooseUs')}</span></h3>
@@ -1157,14 +1154,14 @@ const AboutTab = memo(({ darkMode, t }) => {
           {values.map(({ icon, tone, title, text }) => (
             <div key={title} className="nb-gray nb-line flex gap-3 border-2 p-3">
               <IconTile Icon={icon} tone={tone} className="h-10 w-10" iconClassName="h-5 w-5" />
-              <div className="min-w-0"><p className="text-sm font-extrabold uppercase">{title}</p><p className="nb-muted mt-0.5 text-xs">{text}</p></div>
+              <div className="min-w-0"><p className="text-sm font-extrabold uppercase">{title}</p><p className="nb-muted mt-0.5 text-xs font-medium">{text}</p></div>
             </div>
           ))}
         </div>
       </section>
       <section className="nb-card p-4 sm:p-5">
         <h3 className="mb-4 flex items-center gap-2 text-sm font-extrabold uppercase"><FiSend className="nb-ic h-4 w-4" /> <span className="nb-ul">{t('getInTouch')}</span></h3>
-        <div className="nb-gray nb-line grid gap-3 border-2 border-dotted p-3.5 sm:grid-cols-3">
+        <div className="nb-gray nb-line grid gap-3 rounded-xl border-2 border-dotted p-3.5 sm:grid-cols-3">
           <InfoRow icon={FiMail}>support@tech-restore.com</InfoRow>
           <InfoRow icon={FiPhone}><span dir="ltr">+20 100 000 0000</span></InfoRow>
           <InfoRow icon={FiMapPin}>Cairo, Egypt</InfoRow>
@@ -1182,7 +1179,7 @@ const OrderModal = memo(({ order, onClose, t }) => {
       subtitle={!isEmpty(order.createdAt) ? fmtFull(order.createdAt) : undefined}
       footer={(close) => <div className="flex justify-end"><Btn tone="soft" onClick={close} className="px-6 py-2 text-sm uppercase">{t('close')}</Btn></div>}>
       <div className="space-y-4">
-        <Section icon={FiTruck} tone="sky" title={t('status')} right={<StatusBadge status={order.status} t={t} />}>
+        <Section icon={FiTruck} tone="sky" title={t('status')} right={<StatusLabel status={order.status} t={t} />}>
           <ProgressBar progress={orderProgress(order.status)} label={t(`status_${order.status}`)} />
         </Section>
 
@@ -1194,7 +1191,7 @@ const OrderModal = memo(({ order, onClose, t }) => {
         </Section>
 
         <Section icon={FiBox} tone="am" title={t('orderItems')}>
-          <ul className="nb-line divide-y-2 divide-[color:var(--nb-line)] border-2 bg-[color:var(--nb-card)]">
+          <ul className="nb-line divide-y-2 divide-[color:var(--nb-line)] overflow-hidden border-2 bg-[color:var(--nb-card)]">
             {items.length === 0 ? <li className="nb-muted p-8 text-center text-sm">{t('noItems')}</li> : items.map((it, i) => (
               <li key={it.id ?? i} className="flex items-center justify-between gap-3 p-3">
                 <div className="min-w-0">
@@ -1205,7 +1202,7 @@ const OrderModal = memo(({ order, onClose, t }) => {
               </li>
             ))}
             <li className="nb-gray flex items-center justify-between p-3">
-              <span className="text-xs font-extrabold uppercase tracking-widest">{t('grandTotal')}</span>
+              <span className="text-xs font-extrabold uppercase tracking-widest rtl:tracking-normal">{t('grandTotal')}</span>
               <b className="text-lg tabular-nums">EGP {order.totalPrice ?? '—'}</b>
             </li>
           </ul>
@@ -1219,7 +1216,7 @@ const RepairModal = memo(({ repair, onClose, t }) => (
   <Sheet onClose={onClose} icon={FiTool} tone="vi" title={`REQ #${repair.id.slice(0, 8).toUpperCase()}`} subtitle={repair.shopName || undefined}
     footer={(close) => <div className="flex justify-end"><Btn tone="soft" onClick={close} className="px-6 py-2 text-sm uppercase">{t('close')}</Btn></div>}>
     <div className="space-y-4">
-      <Section icon={FiTruck} tone="sky" title={t('status')} right={<StatusBadge status={repair.status} type="repair" t={t} />}>
+      <Section icon={FiTruck} tone="sky" title={t('status')} right={<StatusLabel status={repair.status} type="repair" t={t} />}>
         <ProgressBar progress={repairProgress(repair.status)} label={t(`status_${repair.status}`)} />
       </Section>
       <Section icon={FiShoppingBag} tone="em" title={t('shop')}>
@@ -1319,11 +1316,11 @@ const ConfirmRepairModal = memo(({ req, addresses, token, onClose, onSuccess }) 
         <Section icon={FiShoppingBag} tone="em" title="Shop & quoted price">
           <div className="nb-line flex items-center justify-between gap-3 border-2 bg-[color:var(--nb-card)] p-3">
             <div className="min-w-0">
-              <p className="nb-muted text-[9px] font-extrabold uppercase tracking-widest">Shop</p>
+              <p className="nb-muted text-[9px] font-extrabold uppercase tracking-widest rtl:tracking-normal">Shop</p>
               <p className="truncate text-sm font-extrabold uppercase">{req.shopName || '—'}</p>
             </div>
             <div className="flex-shrink-0 text-end">
-              <p className="nb-muted text-[9px] font-extrabold uppercase tracking-widest">Price quoted</p>
+              <p className="nb-muted text-[9px] font-extrabold uppercase tracking-widest rtl:tracking-normal">Price quoted</p>
               <p className="text-2xl font-extrabold tabular-nums">{isEmpty(req.price) ? '—' : req.price} <span className="nb-muted text-xs font-bold">EGP</span></p>
             </div>
           </div>
@@ -1351,12 +1348,12 @@ const RepairPaymentModal = memo(({ pay, repair, checking, onClose, onOpenPayment
   return (
     <Sheet onClose={onClose} closeRef={closeRef} icon={failed ? FiXCircle : FiClock} tone={failed ? 'ro' : 'am'} title={failed ? 'Payment failed' : 'Complete your payment'} size="sm:max-w-md">
       <div className="space-y-4 text-center" role="status" aria-live="polite">
-        <p className="nb-muted text-sm leading-relaxed">
+        <p className="nb-muted text-sm font-medium leading-relaxed">
           {failed
             ? 'Your card was not charged and the repair order is not confirmed. You can try the payment again.'
             : 'Your repair order is confirmed only after the payment succeeds. If you closed the payment page, open it again.'}
         </p>
-        <p className={`nb-chip !text-xs ${failed ? '!bg-rose-600 !text-white' : 'nb-chip-a'}`} dir="ltr">
+        <p className={`text-xs font-extrabold uppercase tracking-wide ${failed ? 'text-rose-500' : 'nb-ic'}`} dir="ltr">
           REQ #{String(pay.orderId).slice(0, 8)}{repair?.shopName ? ` · ${repair.shopName}` : ''}
         </p>
         {failed ? (
@@ -1369,7 +1366,7 @@ const RepairPaymentModal = memo(({ pay, repair, checking, onClose, onOpenPayment
             <Btn onClick={onOpenPayment} disabled={!pay.url} className="w-full py-3 text-sm uppercase"><FiCreditCard className="h-4 w-4" /> Open payment page</Btn>
             <Btn tone="soft" onClick={onCheck} disabled={checking} aria-busy={checking} className="w-full py-3 text-sm uppercase">
               {checking
-                ? <><span className="h-4 w-4 animate-spin border-2 border-current border-t-transparent motion-reduce:animate-none" /> Checking payment…</>
+                ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" /> Checking payment…</>
                 : <><FiCheck className="h-4 w-4" /> I&apos;ve paid, check status</>}
             </Btn>
             <button type="button" onClick={closeThen(onDismiss)} className="nb-muted text-sm font-bold underline underline-offset-4">Pay later</button>
@@ -1387,7 +1384,7 @@ const TabButton = memo(({ tab, active, vertical, onSelect, onWarm }) => {
       className={`nb-btn flex-shrink-0 text-xs uppercase ${active ? 'nb-btn-on' : ''} ${vertical ? 'w-full justify-start px-3 py-2.5' : 'whitespace-nowrap px-3 py-2'}`}>
       <tab.icon aria-hidden="true" className={`h-4 w-4 flex-shrink-0 ${active ? '' : 'nb-ic'}`} />
       <span className={vertical ? 'flex-1 text-start' : ''}>{tab.label}</span>
-      {!!tab.badge && <span className="nb-chip">{tab.badge}</span>}
+      {!!tab.badge && <span dir="ltr" className="text-[11px] font-extrabold tabular-nums opacity-80">{tab.badge}</span>}
     </button>
   );
 });
@@ -1549,7 +1546,6 @@ const AccountContent = ({ darkMode = false }) => {
   const location = useLocation();
   const qc = useQueryClient();
   const language = useAppLanguage();
-  const font = useLangFont(language);
   const isAr = language === 'ar';
   const t = useCallback((k, fallback) => tr(language, k, fallback), [language]);
   const [, startTransition] = useTransition();
@@ -1569,7 +1565,6 @@ const AccountContent = ({ darkMode = false }) => {
   const mutate = useMutate();
   const { dlg: confirmDlg, ask, settle: settleConfirm, close: closeConfirm } = useConfirmDialog();
 
-  useEffect(() => { ensureNbFont(); }, []);
   useEffect(() => { document.title = 'My Account | Tech-Restore'; }, []);
   useEffect(() => () => clearTimeout(switchTimer.current), []);
 
@@ -1767,8 +1762,8 @@ const AccountContent = ({ darkMode = false }) => {
   else content = <AboutTab darkMode={darkMode} t={t} />;
 
   return (
-    <div dir={languageDirection(language)} lang={language} style={isAr ? font.style : NB_FONT_STYLE}
-      className={`nb ${darkMode ? 'nb-dark' : ''} min-h-screen overflow-x-clip ${isAr ? font.className : ''}`}>
+    <div dir={languageDirection(language)} lang={language}
+      className={`nb nb-pattern ${darkMode ? 'nb-dark' : ''} min-h-screen overflow-x-clip ${isAr ? 'font-cairo' : 'font-jakarta'}`}>
       {STYLE_EL}
       <Defs3D />
 
@@ -1804,7 +1799,7 @@ const AccountContent = ({ darkMode = false }) => {
               {tabs.map((tab) => <TabButton key={tab.id} tab={tab} active={section === tab.id} vertical={false} onSelect={go} onWarm={prefetchMap} />)}
             </nav>
 
-            <div key={section} className="anim-fade-up">{content}</div>
+            <div key={section} className="nb-in">{content}</div>
           </main>
         </div>
       </div>

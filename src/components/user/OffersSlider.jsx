@@ -16,15 +16,13 @@ const NS = {
   ar: arTranslations.offersSlider,
   fr: frTranslations.offersSlider,
 };
-/* t(language, key, { n: 2 }) – falls back to English, then to the key; replaces {{n}} placeholders */
+
 const t = (language, key, vars) => {
   let s = NS[language]?.[key] || NS.en?.[key] || key;
   if (vars) for (const k in vars) s = s.split(`{{${k}}}`).join(vars[k]);
   return s;
 };
 
-/* date / number formatting follows the app language instead of the browser language.
-   Intl formatters are expensive to build, so one of each is created per language and reused. */
 const LOCALES = { en: 'en-US', ar: 'ar-EG', fr: 'fr-FR' };
 const dateFmts = {};
 const numFmts = {};
@@ -37,10 +35,6 @@ const MAX_OFFERS = 12;
 const AUTOPLAY_MS = 5500;
 const EMPTY = [];
 
-/* Same auth handling as the Home page: the token comes from the auth store, the request only runs once a
-   token exists, the Authorization header (and token refresh) is handled by the api.js interceptor, and the
-   query key contains the user id. The old `_retry` workaround is no longer needed because the request can
-   never fire before the session (including a recovered Google session) is in the store. */
 const shouldRetry = (count, err) => count < 2 && ![400, 401, 403, 404].includes(err?.response?.status);
 
 const fetchOffers = async ({ signal }) => {
@@ -48,7 +42,6 @@ const fetchOffers = async ({ signal }) => {
   return Array.isArray(data?.content) ? data.content.filter((o) => o && typeof o === 'object') : [];
 };
 
-/* module-level, so `select` keeps a stable identity and is not re-run on every render */
 const selectLatest = (list) => {
   const ts = (o) => Date.parse(o.createdAt) || 0;
   return [...list].sort((a, b) => ts(b) - ts(a)).slice(0, MAX_OFFERS);
@@ -71,13 +64,6 @@ const formatDate = (d, language) => {
   return Number.isNaN(date.getTime()) ? t(language, 'notAvailable') : dateFmt(language).format(date);
 };
 
-/* ------------------------------------------------------------------ *
- *  Same look as the Home page (neo style: thick border + hard offset shadow).
- *  Dark  = page #141414 · card #2a2a2a · inset #1e1e1e · black border/shadow · neon #39ff88
- *  Light = gray-50 page · white card · emerald-950 border/shadow · emerald-400 accent
- *  Theme + RTL are CSS variables only (--dx flips the shadow side); `of-` prefix avoids collisions.
- *  The font comes from the page's font-jakarta / font-cairo classes (no extra font request).
- * ------------------------------------------------------------------ */
 const OF_CSS = `
 .of-root{--dx:1;--of-bg:#f9fafb;--of-card:#ffffff;--of-ink:#022c22;--of-muted:#4b5563;--of-line:#022c22;--of-shadow:#022c22;--of-gray:#f3f4f6;--of-accent:#34d399;--of-on:#022c22;background:var(--of-bg);color:var(--of-ink)}
 .of-root[dir=rtl]{--dx:-1}
@@ -85,8 +71,14 @@ const OF_CSS = `
 .of-gray{background:var(--of-gray)}
 .of-muted{color:var(--of-muted)}
 .of-line{border-color:var(--of-line)}
-.of-card{background:var(--of-card);border:3px solid var(--of-line);box-shadow:calc(var(--dx)*6px) 6px 0 var(--of-shadow);transition:transform .15s ease,box-shadow .15s ease}
-.of-card:hover{transform:translate(calc(var(--dx)*3px),3px);box-shadow:calc(var(--dx)*3px) 3px 0 var(--of-shadow)}
+.of-ticket{--stub:7rem;position:relative;display:flex;width:100%;height:100%;background:var(--of-card);border:3px solid var(--of-line);box-shadow:calc(var(--dx)*6px) 6px 0 var(--of-shadow);transition:transform .15s ease,box-shadow .15s ease}
+.of-ticket:hover{transform:translate(calc(var(--dx)*3px),3px);box-shadow:calc(var(--dx)*3px) 3px 0 var(--of-shadow)}
+@media (min-width:640px){.of-ticket{--stub:9rem}}
+.of-stub{position:relative;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:space-between;width:var(--stub);border-inline-end:3px dashed var(--of-line)}
+.of-notch{position:absolute;z-index:2;width:24px;height:24px;border-radius:50%;background:var(--of-bg);border:3px solid var(--of-line);inset-inline-start:calc(var(--stub) - 13.5px)}
+.of-notch-t{top:-15px;clip-path:inset(50% 0 0 0)}
+.of-notch-b{bottom:-15px;clip-path:inset(0 0 50% 0)}
+.of-code{flex:none;align-self:stretch;width:16px;margin:14px 12px 14px 4px;opacity:.5;background:repeating-linear-gradient(to bottom,var(--of-ink) 0 2px,transparent 2px 4px,var(--of-ink) 4px 5px,transparent 5px 9px,var(--of-ink) 9px 12px,transparent 12px 14px)}
 .of-num{display:inline-flex;align-items:center;justify-content:center;flex:none;width:28px;height:28px;background:var(--of-accent);color:var(--of-on);border:2px solid var(--of-line);box-shadow:calc(var(--dx)*2px) 2px 0 var(--of-shadow);font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
 .of-bar{display:inline-block;width:48px;height:14px;background:var(--of-accent);border:2px solid var(--of-line)}
 .of-ul{text-decoration:underline;text-decoration-color:var(--of-accent);text-decoration-thickness:4px;text-underline-offset:5px;text-decoration-skip-ink:none}
@@ -100,10 +92,9 @@ const OF_CSS = `
 .of-dark .of-pip{border-color:#525252}
 .of-pip-on{background:var(--of-accent)}
 .of-dark .of-pip-on{border-color:#000}
-@media (prefers-reduced-motion:reduce){.of-card,.of-btn,.of-pip{transition:none}}
+@media (prefers-reduced-motion:reduce){.of-ticket,.of-btn,.of-pip{transition:none}}
 `;
 
-/* gradients for the gift art are defined ONCE for the whole slider (not once per card) */
 const OfferDefs = memo(({ gid }) => (
   <svg width="0" height="0" className="absolute" aria-hidden="true" focusable="false">
     <defs>
@@ -113,7 +104,6 @@ const OfferDefs = memo(({ gid }) => (
   </svg>
 ));
 
-/* small gift + tag art used inside each offer card (static SVG – no running animation) */
 const OfferArt = memo(({ gid, className = '' }) => (
   <svg viewBox="0 0 160 120" className={className} role="presentation" aria-hidden="true" focusable="false">
     <ellipse cx="78" cy="109" rx="56" ry="7" fill="#000" opacity=".28" />
@@ -146,7 +136,6 @@ const OfferArt = memo(({ gid, className = '' }) => (
   </svg>
 ));
 
-/* heading whose last word gets the hand-drawn underline */
 const UnderlinedTitle = memo(({ text }) => {
   const s = String(text || '');
   const i = s.lastIndexOf(' ');
@@ -165,7 +154,6 @@ const UnderlinedTitle = memo(({ text }) => {
   );
 });
 
-/* Horizontal offer card: art + discount on the left, details on the right */
 const OfferCard = memo(({ offer, index, language, gid }) => {
   const isPercentage = offer.discountType === 'PERCENTAGE';
   const raw = Number(offer.discountValue);
@@ -174,13 +162,15 @@ const OfferCard = memo(({ offer, index, language, gid }) => {
   const rawStatus = clean(offer.status, 20) || 'Active';
   const statusLower = rawStatus.toLowerCase();
   const statusKey = pick(STATUS_KEYS, statusLower);
-  // known statuses are translated, unknown ones from the API are shown as-is
   const statusText = statusKey ? t(language, statusKey) : rawStatus;
   const statusCls = pick(STATUS_STYLES, statusLower) || '!bg-gray-600 !text-white';
 
   return (
-    <article className="of-card flex h-full w-full flex-row overflow-hidden">
-      <div className="of-gray of-line relative flex w-28 flex-shrink-0 flex-col items-center justify-between border-e-[3px] px-2 pb-1 pt-3 sm:w-36">
+    <article className="of-ticket">
+      <span className="of-notch of-notch-t" aria-hidden="true" />
+      <span className="of-notch of-notch-b" aria-hidden="true" />
+
+      <div className="of-stub of-gray px-2 pb-1 pt-3">
         {hasDiscount ? (
           <div className="flex flex-col items-center leading-none" dir="ltr">
             <div className="flex items-baseline gap-0.5">
@@ -196,7 +186,7 @@ const OfferCard = memo(({ offer, index, language, gid }) => {
         <OfferArt gid={gid} className="h-16 w-full" />
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col gap-2 p-3 sm:p-4">
+      <div className="flex min-w-0 flex-1 flex-col gap-2 py-3 pe-2 ps-4 sm:py-4 sm:ps-5">
         <div className="flex items-center justify-between gap-2">
           <span className="of-num">{pad(index + 1)}</span>
           <span className={`of-chip ${statusCls}`}>{statusText}</span>
@@ -207,7 +197,7 @@ const OfferCard = memo(({ offer, index, language, gid }) => {
         <p className="of-muted line-clamp-2 min-h-[2.5rem] text-xs font-medium leading-5">
           {clean(offer.description, 140) || t(language, 'defaultDescription')}
         </p>
-        <div className="of-line mt-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t-2 pt-2.5 text-[11px]">
+        <div className="of-line mt-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t-2 border-dashed pt-2.5 text-[11px]">
           <span className="flex min-w-0 items-center gap-1.5 font-bold uppercase">
             <RiStore2Line aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0" />
             <span className="truncate">{clean(offer.shopName, 60) || t(language, 'partnerShop')}</span>
@@ -218,6 +208,8 @@ const OfferCard = memo(({ offer, index, language, gid }) => {
           </span>
         </div>
       </div>
+
+      <span className="of-code" aria-hidden="true" />
     </article>
   );
 });
@@ -226,8 +218,6 @@ const SkeletonCard = memo(({ className = '' }) => (
   <div className={`of-gray h-[190px] animate-pulse ${className}`} />
 ));
 
-/* cards per view (horizontal cards need width): 1 / 2 / 3.
-   Reacts only when a breakpoint is crossed – no per-pixel resize handler. */
 const computeCount = () => {
   if (typeof window === 'undefined' || !window.matchMedia) return 1;
   return window.matchMedia('(min-width: 1280px)').matches ? 3 : window.matchMedia('(min-width: 768px)').matches ? 2 : 1;
@@ -250,16 +240,12 @@ const useVisibleCount = () => {
 const prefersReducedMotion = () =>
   typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-/**
- * Props: darkMode, standalone (true only if rendered on a page that has no <Defs3D />).
- */
 const OffersSliderContent = ({ darkMode = false, standalone = false }) => {
   const language = useAppLanguage();
   const isRtl = languageDirection(language) === 'rtl';
   const isAr = language === 'ar';
   const gid = useId().replace(/:/g, '');
 
-  /* auth: same source and same pattern as the Home page */
   const accessToken = useAuthStore((s) => s.accessToken);
   const userId = useAuthStore((s) => s.userId);
 
@@ -283,7 +269,6 @@ const OffersSliderContent = ({ darkMode = false, standalone = false }) => {
   const maxIndex = Math.max(0, offers.length - visibleCount);
   const showArrows = offers.length > visibleCount;
 
-  // keep the index valid when the viewport (cards per view) or the list changes
   useEffect(() => { setCurrentIndex((i) => Math.min(i, maxIndex)); }, [maxIndex]);
 
   const next = useCallback(() => setCurrentIndex((i) => (i >= maxIndex ? 0 : i + 1)), [maxIndex]);
@@ -292,7 +277,6 @@ const OffersSliderContent = ({ darkMode = false, standalone = false }) => {
   const setHoverOn = useCallback(() => setHovered(true), []);
   const setHoverOff = useCallback(() => setHovered(false), []);
 
-  // autoplay: only while on screen, tab visible, not hovered/focused, and motion is allowed
   useEffect(() => {
     if (isLoading || !showArrows || hovered || !onScreen || prefersReducedMotion()) return undefined;
     const id = setInterval(() => { if (!document.hidden) next(); }, AUTOPLAY_MS);
@@ -350,7 +334,6 @@ const OffersSliderContent = ({ darkMode = false, standalone = false }) => {
           </div>
         ) : (
           <>
-            {/* padding leaves room for the hard shadow and the hover shift inside the clipping box */}
             <div
               className="overflow-hidden pb-4 pt-1.5"
               role="region"
@@ -396,7 +379,6 @@ const OffersSliderContent = ({ darkMode = false, standalone = false }) => {
 
 const OffersSliderMemo = memo(OffersSliderContent);
 
-/* own provider (same shared client as Home / Navbar / Cart) so the slider also works when rendered on its own */
 const OffersSlider = (props) => (
   <QueryClientProvider client={queryClient}>
     <OffersSliderMemo {...props} />

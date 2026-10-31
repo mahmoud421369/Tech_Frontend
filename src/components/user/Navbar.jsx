@@ -33,135 +33,67 @@ import { useAppLanguage, languageDirection } from '../../common/utils/useAppLang
 const NAVBAR_TRANSLATIONS = { en: enTranslations.navbar, ar: arTranslations.navbar, fr: frTranslations.navbar };
 const getNavbarTranslation = (language, key) => NAVBAR_TRANSLATIONS[language]?.[key] || NAVBAR_TRANSLATIONS.en?.[key] || key;
 
-const NB_FONT_STYLE = { fontFamily: "'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" };
-const TOAST_STYLE_AR = { fontFamily: "'Cairo', sans-serif", fontSize: 14, borderRadius: 16 };
-const TOAST_STYLE_LTR = { fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, borderRadius: 16 };
-
-const ensureNbFont = () => {
-  if (typeof document === 'undefined' || document.getElementById('nb-font')) return;
-  [['https://fonts.googleapis.com', false], ['https://fonts.gstatic.com', true]].forEach(([href, cors]) => {
-    const l = document.createElement('link');
-    l.rel = 'preconnect'; l.href = href; if (cors) l.crossOrigin = '';
-    document.head.appendChild(l);
-  });
-  const link = document.createElement('link');
-  link.id = 'nb-font';
-  link.rel = 'stylesheet';
-  link.href =
-    'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Cairo:wght@400;600;700;800&display=swap';
-  document.head.appendChild(link);
-};
+const TOAST_STYLE = { fontFamily: 'inherit', fontSize: 14, borderRadius: 16 };
 
 const NAV_CSS = `
-  html, body { overflow-x: hidden; max-width: 100vw; }
-  .nv-root{display:contents}
-  .nv{
-    --nv-bg:#ffffff;--nv-card:#ffffff;--nv-ink:#0f2a1f;--nv-muted:#6b7f75;--nv-line:#e4e9e6;
-    --nv-gray:#ecfaf3;--nv-accent:#10b981;--nv-btn:#059669;--nv-on:#ffffff;--nv-lbl:#059669;
-    --nv-soft:#f3f5f4;--nv-soft-line:#e4e9e6;
-    --nv-shadow:0 10px 30px -8px rgba(15,42,31,.18),0 2px 6px rgba(15,42,31,.06);
-    --nv-glow:0 8px 18px -4px rgba(5,150,105,.55);
-    background:var(--nv-bg);color:var(--nv-ink)
-  }
-  .nv-dark{
-    --nv-bg:#1a1a1a;--nv-card:#262626;--nv-ink:#ffffff;--nv-muted:#a3a3a3;--nv-line:#333333;
-    --nv-gray:#2f2f2f;--nv-accent:#39ff88;--nv-btn:#2cff7a;--nv-on:#021a0c;--nv-lbl:#39ff88;
-    --nv-soft:#262626;--nv-soft-line:#333333;
-    --nv-shadow:0 10px 30px -8px rgba(0,0,0,.7),0 2px 6px rgba(0,0,0,.4);
-    --nv-glow:0 6px 20px -2px rgba(57,255,136,.55)
-  }
-  .nv-bar{border:1px solid var(--nv-line);box-shadow:var(--nv-shadow);border-radius:24px;
-    transition:margin .2s ease,padding .2s ease,transform .2s ease}
-  .nv-desk{margin:12px 16px 0;padding:10px 24px}
-  .nv-mob{margin:10px 12px 0}
-  .nv-root[data-tier=scrolled] .nv-desk{margin:8px 20px 0}
-  .nv-root[data-tier=deep] .nv-desk{margin:8px 20px 0;padding-block:6px}
-  .nv-root[data-tier=scrolled] .nv-mob,.nv-root[data-tier=deep] .nv-mob{margin:6px 12px 0}
-  .nv-root[data-tier=deep] .nv-logo-m{height:2.5rem}
-  .nv-root[data-hide=true] .nv-bar{transform:translateY(-170%)}
-  .nv-gray{background:var(--nv-gray)}
-  .nv-soft{background:var(--nv-soft)}
-  .nv-soft-line{border-color:var(--nv-soft-line)}
-  .nv-line{border-color:var(--nv-line)}
-  .nv-muted{color:var(--nv-muted)}
-  .nv-card{background:var(--nv-card);color:var(--nv-ink);border:1px solid var(--nv-line);box-shadow:var(--nv-shadow);border-radius:22px}
-  .nv-num{display:inline-flex;align-items:center;justify-content:center;flex:none;width:36px;height:36px;border-radius:9999px;background:var(--nv-btn);color:var(--nv-on)}
-  .nv-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nv-soft);color:var(--nv-ink);border:1px solid var(--nv-line);border-radius:9999px;font-weight:700;cursor:pointer;transition:transform .12s ease,background-color .12s ease,box-shadow .12s ease}
-  .nv-btn:hover{background:var(--nv-gray);transform:translateY(-1px)}
-  .nv-btn:active{transform:scale(.94)}
-  .nv-btn-danger{background:#dc2626;color:#fff;border-color:#dc2626}
-  .nv-btn-danger:hover{background:#b91c1c}
-  .nv-btn:focus-visible,.nv-link:focus-visible,.nv-tab:focus-visible,.nv-tog:focus-visible{outline:3px solid var(--nv-accent);outline-offset:2px}
-  .nv-link{color:var(--nv-ink);border-radius:9999px}
-  .nv-link:not(.nv-active):hover{background:var(--nv-card)}
-  .nv-active,.nv-active:hover{background:var(--nv-btn);color:var(--nv-on);box-shadow:var(--nv-glow)}
-  .nv-active svg,.nv-active span{color:var(--nv-on)}
-
-  .nv-dock{border:1px solid var(--nv-line);box-shadow:var(--nv-shadow);border-radius:28px;background:var(--nv-card);position:relative}
-  .nv-dock::after{content:"";position:absolute;bottom:5px;left:50%;width:84px;height:4px;margin-left:-42px;border-radius:9999px;background:var(--nv-soft-line);pointer-events:none}
-  .nv-ico{color:var(--nv-ink);transition:transform .25s cubic-bezier(.2,.8,.2,1),background-color .2s ease,box-shadow .2s ease}
-  .nv-ico-on{background:var(--nv-btn);color:var(--nv-on);transform:translateY(-10px);box-shadow:0 0 0 4px var(--nv-card),var(--nv-glow)}
-  .nv-ico-on svg{color:var(--nv-on)}
-  .nv-lbl{color:var(--nv-lbl);transform:translateY(-8px)}
-  .nv-lbl-t{transition:transform .25s cubic-bezier(.2,.8,.2,1),color .2s ease}
-
-  .nv-tog{position:relative;flex:none;display:inline-flex;align-items:center;padding:0;overflow:hidden;border-radius:9999px;
-    border:1px solid var(--nv-line);cursor:pointer;
-    background:linear-gradient(180deg,#7dd3fc 0%,#bae6fd 100%);
-    transition:transform .12s ease,background .35s ease}
-  .nv-tog:hover{transform:translateY(-1px)}
-  .nv-tog:active{transform:scale(.95)}
-  .nv-tog[aria-checked=true]{background:linear-gradient(180deg,#0f172a 0%,#312e81 100%)}
-  .nv-tog::before,.nv-tog::after{content:"";position:absolute;inset:0;pointer-events:none;transition:opacity .35s ease}
-  .nv-tog::before{
-    background:
-      radial-gradient(circle at 72% 72%,#fff 0 7px,transparent 8px),
-      radial-gradient(circle at 84% 58%,#fff 0 5px,transparent 6px),
-      radial-gradient(circle at 62% 78%,#fff 0 5px,transparent 6px);
-    opacity:.95}
-  .nv-tog::after{
-    background:
-      radial-gradient(circle at 70% 30%,#fff 0 1.3px,transparent 2.2px),
-      radial-gradient(circle at 52% 66%,#fff 0 1px,transparent 2px),
-      radial-gradient(circle at 38% 28%,#fff 0 1px,transparent 2px),
-      radial-gradient(circle at 84% 68%,#fff 0 1.2px,transparent 2px);
-    opacity:0}
-  .nv-tog[aria-checked=true]::before{opacity:0}
-  .nv-tog[aria-checked=true]::after{opacity:1}
-  .nv-tog-thumb{position:absolute;top:50%;inset-inline-start:var(--off);width:var(--sz);height:var(--sz);margin-top:calc(var(--sz) / -2);
-    display:flex;align-items:center;justify-content:center;z-index:1;
-    transition:transform .35s cubic-bezier(.2,.8,.2,1)}
-  .nv-tog[aria-checked=true] .nv-tog-thumb{transform:translateX(var(--tx))}
-  [dir=rtl] .nv-tog[aria-checked=true] .nv-tog-thumb{transform:translateX(calc(var(--tx) * -1))}
-  .nv-tog-ico{transition:transform .5s cubic-bezier(.2,.8,.2,1)}
-  .nv-sun{color:#fbbf24;filter:drop-shadow(0 0 6px rgba(251,191,36,.9))}
-  .nv-moon{color:#e2e8f0;filter:drop-shadow(0 0 5px rgba(226,232,240,.7));transform:rotate(-20deg)}
-
-  @keyframes navPop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
-  .nav-pop { animation: navPop 0.14s cubic-bezier(.2,.8,.2,1) both; }
-  .nav-scroll::-webkit-scrollbar { width: 6px; }
-  .nav-scroll::-webkit-scrollbar-thumb { background: var(--nv-soft-line); border-radius: 9999px; }
-  .nv-dark .nav-scroll::-webkit-scrollbar-thumb { background: #4a4a4a; }
-  .Toastify__toast { font-family: 'Space Grotesk', 'Cairo', sans-serif; border-radius: 16px !important; box-shadow: 0 10px 30px -8px rgba(15,42,31,.25); }
-  .Toastify__toast--dark { background: #262626; }
-  @media (prefers-reduced-motion: reduce) {
-    .nav-pop { animation: none !important; }
-    .nv-bar,.nv-btn,.nv-tog,.nv-tog-thumb,.nv-tog-ico,.nv-tog::before,.nv-tog::after,.nv-ico,.nv-lbl-t { transition: none; }
-  }
+html,body{overflow-x:hidden;max-width:100vw}
+.nv-root{display:contents}
+.nv{--dx:1;--ink:#022c22;--sh:#022c22;--acc:#34d399;--tx:#022c22;--mu:#4b5563;--sf:#ffffff;--sf2:#f3f4f6;color:var(--tx)}
+.nv[dir=rtl]{--dx:-1}
+.nv-dark{--ink:#000000;--sh:#000000;--acc:#39ff88;--tx:#ffffff;--mu:#a3a3a3;--sf:#2a2a2a;--sf2:#1e1e1e}
+.nv-bar{background:var(--sf);border:3px solid var(--ink);border-radius:20px;box-shadow:calc(var(--dx)*5px) 5px 0 0 var(--sh);transition:transform .18s cubic-bezier(.2,.8,.2,1),margin .15s ease,padding .15s ease}
+.nv-desk{margin:12px 16px 0;padding:8px 20px}
+.nv-mob{margin:10px 12px 0}
+.nv-root[data-tier=scrolled] .nv-desk{margin:8px 20px 0}
+.nv-root[data-tier=deep] .nv-desk{margin:8px 20px 0;padding-block:4px}
+.nv-root[data-tier=scrolled] .nv-mob,.nv-root[data-tier=deep] .nv-mob{margin:6px 12px 0}
+.nv-root[data-tier=deep] .nv-logo-m{height:2.5rem}
+.nv-root[data-hide=true] .nv-bar{transform:translate3d(0,-190%,0)}
+.nv-card{background:var(--sf);color:var(--tx);border:3px solid var(--ink);border-radius:16px;box-shadow:calc(var(--dx)*6px) 6px 0 0 var(--sh)}
+.nv-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;flex:none;background:var(--sf);color:var(--tx);border:2px solid var(--ink);border-radius:12px;font-weight:800;cursor:pointer;box-shadow:calc(var(--dx)*3px) 3px 0 0 var(--sh);transition:transform .1s ease,box-shadow .1s ease}
+.nv-btn:active{transform:translate3d(calc(var(--dx)*3px),3px,0);box-shadow:none}
+.nv-btn-on{background:var(--acc);color:#022c22}
+.nv-btn-danger{background:#ef4444;color:#ffffff}
+.nv-btn:focus-visible,.nv-link:focus-visible,.nv-tab:focus-visible,.nv-tog:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.nv-link{display:flex;align-items:center;gap:8px;white-space:nowrap;padding:8px 14px;font-size:13.5px;font-weight:800;color:var(--tx);border:2px solid transparent;border-radius:12px;transition:background-color .12s ease,transform .12s ease}
+.nv-link:not(.nv-active):hover{background:var(--sf2);transform:translate3d(0,-1px,0)}
+.nv-active,.nv-active:hover{background:var(--acc);color:#022c22;border-color:var(--ink);box-shadow:calc(var(--dx)*2px) 2px 0 0 var(--sh)}
+.nv-dock{background:var(--sf);border:3px solid var(--ink);border-radius:20px;box-shadow:calc(var(--dx)*5px) 5px 0 0 var(--sh)}
+.nv-ico{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border:2px solid transparent;border-radius:12px;color:var(--tx);transition:transform .18s cubic-bezier(.2,.8,.2,1),background-color .12s ease}
+.nv-ico-on{background:var(--acc);color:#022c22;border-color:var(--ink);transform:translate3d(0,-6px,0);box-shadow:calc(var(--dx)*3px) 3px 0 0 var(--sh)}
+.nv-lbl-t{transition:transform .18s cubic-bezier(.2,.8,.2,1)}
+.nv-lbl{transform:translate3d(0,-4px,0)}
+.nv-tog{position:relative;flex:none;display:inline-flex;align-items:center;padding:0;overflow:hidden;border-radius:9999px;border:2px solid var(--ink);cursor:pointer;background:linear-gradient(180deg,#7dd3fc 0%,#bae6fd 100%);box-shadow:calc(var(--dx)*3px) 3px 0 0 var(--sh);transition:transform .1s ease,background .3s ease,box-shadow .1s ease}
+.nv-tog:active{transform:translate3d(calc(var(--dx)*3px),3px,0);box-shadow:none}
+.nv-tog[aria-checked=true]{background:linear-gradient(180deg,#0f172a 0%,#312e81 100%)}
+.nv-tog::before,.nv-tog::after{content:"";position:absolute;inset:0;pointer-events:none;transition:opacity .3s ease}
+.nv-tog::before{background:radial-gradient(circle at 72% 72%,#fff 0 7px,transparent 8px),radial-gradient(circle at 84% 58%,#fff 0 5px,transparent 6px),radial-gradient(circle at 62% 78%,#fff 0 5px,transparent 6px);opacity:.95}
+.nv-tog::after{background:radial-gradient(circle at 70% 30%,#fff 0 1.3px,transparent 2.2px),radial-gradient(circle at 52% 66%,#fff 0 1px,transparent 2px),radial-gradient(circle at 38% 28%,#fff 0 1px,transparent 2px),radial-gradient(circle at 84% 68%,#fff 0 1.2px,transparent 2px);opacity:0}
+.nv-tog[aria-checked=true]::before{opacity:0}
+.nv-tog[aria-checked=true]::after{opacity:1}
+.nv-tog-thumb{position:absolute;top:50%;inset-inline-start:var(--off);width:var(--sz);height:var(--sz);margin-top:calc(var(--sz) / -2);display:flex;align-items:center;justify-content:center;z-index:1;transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+.nv-tog[aria-checked=true] .nv-tog-thumb{transform:translateX(var(--tx))}
+[dir=rtl] .nv-tog[aria-checked=true] .nv-tog-thumb{transform:translateX(calc(var(--tx) * -1))}
+.nv-sun{color:#fbbf24;filter:drop-shadow(0 0 6px rgba(251,191,36,.9))}
+.nv-moon{color:#e2e8f0;filter:drop-shadow(0 0 5px rgba(226,232,240,.7));transform:rotate(-20deg)}
+@keyframes navPop{from{opacity:0;transform:translate3d(0,-6px,0) scale(.98)}to{opacity:1;transform:none}}
+.nav-pop{animation:navPop .12s cubic-bezier(.2,.8,.2,1) both;transform-origin:top}
+.nav-scroll{scrollbar-width:thin;scrollbar-color:var(--acc) var(--sf2)}
+.Toastify__toast{border:3px solid #022c22;border-radius:16px!important;box-shadow:4px 4px 0 #022c22}
+.Toastify__toast--dark{background:#2a2a2a;border-color:#000;box-shadow:4px 4px 0 #000}
+@media (prefers-reduced-motion:reduce){.nav-pop{animation:none!important}.nv-bar,.nv-btn,.nv-link,.nv-tog,.nv-tog-thumb,.nv-tog::before,.nv-tog::after,.nv-ico,.nv-lbl-t{transition:none}}
 `;
 
-let cssInjected = false;
-const useNavCss = () => {
-  useEffect(() => {
-    ensureNbFont();
-    if (cssInjected || typeof document === 'undefined') return;
-    const tag = document.createElement('style');
-    tag.setAttribute('data-navbar-styles', 'true');
-    tag.textContent = NAV_CSS;
-    document.head.appendChild(tag);
-    cssInjected = true;
-  }, []);
+const injectNavCss = () => {
+  if (typeof document === 'undefined' || document.getElementById('navbar-styles')) return;
+  const tag = document.createElement('style');
+  tag.id = 'navbar-styles';
+  tag.textContent = NAV_CSS;
+  document.head.appendChild(tag);
 };
+injectNavCss();
+
+const FOCUS = 'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
 
 const clearAccountCache = () => {
   try { Object.keys(window.sessionStorage).filter((k) => k.startsWith('acct:')).forEach((k) => window.sessionStorage.removeItem(k)); } catch { }
@@ -205,21 +137,21 @@ const GUEST_ITEMS = [
 const notifKeyFor = (userId) => ['notifications', userId ?? 'anon'];
 
 const Logo = memo(({ darkMode, heightClass }) => (
-  <span className={`inline-flex items-center transition-all duration-200 ${darkMode ? 'px-2 py-1' : ''}`}>
+  <span className={`inline-flex items-center ${darkMode ? 'px-2 py-1' : ''}`}>
     <img
       src={logo}
       alt="Tech & Restore"
       width={168}
       height={238}
       decoding="async"
-      className={`w-auto select-none object-contain transition-[height] duration-200 ${heightClass}`}
+      className={`w-auto select-none object-contain transition-[height] duration-150 motion-reduce:transition-none ${heightClass}`}
     />
   </span>
 ));
 
 const TOGGLE_SIZES = {
-  md: { track: 'h-10 w-[84px]', icon: 26, vars: { '--sz': '28px', '--off': '4px', '--tx': '44px' } },
-  sm: { track: 'h-8 w-[66px]', icon: 20, vars: { '--sz': '22px', '--off': '3px', '--tx': '34px' } },
+  md: { track: 'h-10 w-[84px]', icon: 26, vars: { '--sz': '26px', '--off': '4px', '--tx': '44px' } },
+  sm: { track: 'h-9 w-[66px]', icon: 20, vars: { '--sz': '20px', '--off': '4px', '--tx': '30px' } },
 };
 
 const ThemeToggle = memo(({ darkMode, onToggle, label, size = 'md' }) => {
@@ -237,23 +169,22 @@ const ThemeToggle = memo(({ darkMode, onToggle, label, size = 'md' }) => {
     >
       <span className="nv-tog-thumb" aria-hidden="true">
         {darkMode
-          ? <RiMoonFill size={s.icon} className="nv-tog-ico nv-moon" />
-          : <RiSunFill size={s.icon} className="nv-tog-ico nv-sun" />}
+          ? <RiMoonFill size={s.icon} className="nv-moon" />
+          : <RiSunFill size={s.icon} className="nv-sun" />}
       </span>
     </button>
   );
 });
 
 const NotificationItem = memo(({ n, onDelete }) => (
-  <div className={`nv-line group flex items-start gap-3 border-b px-5 py-3.5 last:border-b-0 ${!n.read ? 'nv-gray' : ''}`}>
-    <span className={`mt-1.5 h-2.5 w-2.5 flex-shrink-0 rounded-full ${!n.read ? 'bg-[color:var(--nv-btn)]' : 'bg-transparent'}`} />
+  <div className={`flex items-start gap-3 border-b-2 border-dotted border-[color:var(--ink)] px-4 py-3.5 last:border-b-0 ${!n.read ? 'bg-[color:var(--sf2)] [border-inline-start:5px_solid_var(--acc)]' : ''}`}>
     <div className="min-w-0 flex-1">
-      <p className="truncate text-sm font-extrabold">{n.title}</p>
-      <p className="nv-muted mt-0.5 line-clamp-2 text-xs">{n.message}</p>
-      <p className="nv-muted mt-1.5 text-[11px] font-bold">{formatTime(n.timestamp)}</p>
+      <p className={`truncate text-sm ${!n.read ? 'font-extrabold' : 'font-bold'}`}>{n.title}</p>
+      <p className="mt-0.5 line-clamp-2 text-xs font-medium text-[color:var(--mu)]">{n.message}</p>
+      <p className="mt-1.5 text-[11px] font-bold text-[color:var(--mu)]">{formatTime(n.timestamp)}</p>
     </div>
-    <button type="button" onClick={() => onDelete(n.id)} aria-label="Remove notification" className="nv-btn h-7 w-7 flex-shrink-0">
-      <FiX size={13} />
+    <button type="button" onClick={() => onDelete(n.id)} aria-label="Remove notification" className={`nv-btn h-8 w-8 ${FOCUS}`}>
+      <FiX aria-hidden="true" size={14} />
     </button>
   </div>
 ));
@@ -263,8 +194,8 @@ const SKELETON_ROWS = [1, 2, 3];
 const NotificationList = memo(({ notifications, loading, onDelete, t }) => {
   if (loading) {
     return (
-      <div className="space-y-3 p-5">
-        {SKELETON_ROWS.map((i) => <div key={i} className="nv-gray h-14 animate-pulse rounded-2xl motion-reduce:animate-none" />)}
+      <div className="space-y-3 p-4">
+        {SKELETON_ROWS.map((i) => <div key={i} className="h-14 animate-pulse rounded-xl bg-[color:var(--sf2)] motion-reduce:animate-none" />)}
       </div>
     );
   }
@@ -280,16 +211,16 @@ const NotificationList = memo(({ notifications, loading, onDelete, t }) => {
 });
 
 const NotifHeader = memo(({ unread, onClose, t }) => (
-  <div className="nv-line flex items-center justify-between border-b px-5 py-3.5">
+  <div className="flex items-center justify-between border-b-[3px] border-[color:var(--ink)] px-4 py-3">
     <div className="flex items-center gap-3">
-      <span className="nv-num"><FiBell className="h-4 w-4" /></span>
+      <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg border-2 border-[color:var(--ink)] bg-[color:var(--acc)] text-emerald-950"><FiBell aria-hidden="true" className="h-4 w-4" /></span>
       <div>
         <p className="text-sm font-extrabold uppercase">{t('notifications')}</p>
-        {unread > 0 && <p className="text-xs font-bold"><span className="inline-block h-2 w-2 rounded-full bg-[color:var(--nv-btn)] align-middle" /> {unread} {t('unread')}</p>}
+        {unread > 0 && <p className="text-xs font-bold text-[color:var(--mu)]"><span dir="ltr" className="tabular-nums">{unread}</span> {t('unread')}</p>}
       </div>
     </div>
-    <button type="button" onClick={onClose} aria-label="Close notifications" className="nv-btn h-8 w-8">
-      <FiX size={16} />
+    <button type="button" onClick={onClose} aria-label="Close notifications" className={`nv-btn h-9 w-9 ${FOCUS}`}>
+      <FiX aria-hidden="true" size={16} />
     </button>
   </div>
 ));
@@ -297,27 +228,20 @@ const NotifHeader = memo(({ unread, onClose, t }) => (
 const NotifPanel = memo(({ className, unread, notifications, loading, onClose, onDelete, t }) => (
   <div className={`nav-pop nv-card overflow-hidden ${className}`}>
     <NotifHeader unread={unread} onClose={onClose} t={t} />
-    <div className="nav-scroll max-h-[340px] overflow-y-auto">
+    <div className="nav-scroll max-h-[340px] overflow-y-auto overscroll-contain">
       <NotificationList notifications={notifications} loading={loading} onDelete={onDelete} t={t} />
     </div>
   </div>
 ));
 
-const Badge = memo(({ count }) => (
-  <span className="absolute -end-1.5 -top-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-extrabold text-white ring-2 ring-[color:var(--nv-bg)]">
-    {count > 9 ? '9+' : count}
-  </span>
-));
-
 const DesktopLinks = memo(({ items }) => (
-  <div className="nv-soft nv-soft-line flex items-center gap-1 rounded-full border p-1">
+  <div className="flex items-center gap-1.5">
     {items.map(({ key, path, Icon, ActiveIcon, size, name }) => (
       <NavLink
         key={key}
         to={path}
         end={path === '/'}
-        className={({ isActive }) =>
-          `nv-link flex items-center gap-2 whitespace-nowrap px-4 py-2 text-[13.5px] font-bold transition-colors duration-150 ${isActive ? 'nv-active' : ''}`}
+        className={({ isActive }) => `nv-link ${isActive ? 'nv-active' : ''}`}
       >
         {({ isActive }) => {
           const Glyph = isActive ? ActiveIcon : Icon;
@@ -333,23 +257,22 @@ const DesktopLinks = memo(({ items }) => (
   </div>
 ));
 
-const MobileTabs = memo(({ items, dir, fontStyle, tone, font }) => (
+const MobileTabs = memo(({ items, dir, tone, font }) => (
   <div
     dir={dir}
-    style={fontStyle}
     className={`${tone} ${font} pointer-events-none fixed inset-x-0 bottom-0 z-50 bg-transparent px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]`}
   >
-    <div className="nv-dock pointer-events-auto flex items-end justify-around px-2 pb-4 pt-3">
+    <div className="nv-dock pointer-events-auto flex items-end justify-around px-2 pb-2.5 pt-3">
       {items.map(({ key, path, Icon, ActiveIcon, size, name }) => (
-        <NavLink key={key} to={path} end={path === '/'} className="nv-tab flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl py-0.5">
+        <NavLink key={key} to={path} end={path === '/'} className="nv-tab flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl py-0.5">
           {({ isActive }) => {
             const Glyph = isActive ? ActiveIcon : Icon;
             return (
               <>
-                <span className={`nv-ico flex h-11 w-11 items-center justify-center rounded-full ${isActive ? 'nv-ico-on' : ''}`}>
+                <span className={`nv-ico ${isActive ? 'nv-ico-on' : ''}`}>
                   <Glyph size={size + 5} aria-hidden="true" />
                 </span>
-                <span className={`nv-lbl-t max-w-full truncate text-[11px] leading-none ${isActive ? 'nv-lbl font-bold' : 'nv-muted font-semibold'}`}>{name}</span>
+                <span className={`nv-lbl-t max-w-full truncate text-[11px] leading-none ${isActive ? 'nv-lbl font-extrabold' : 'font-semibold text-[color:var(--mu)]'}`}>{name}</span>
               </>
             );
           }}
@@ -360,7 +283,6 @@ const MobileTabs = memo(({ items, dir, fontStyle, tone, font }) => (
 ));
 
 const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
-  useNavCss();
   const location = useLocation();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -479,9 +401,10 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
 
   const tone = `nv ${darkMode ? 'nv-dark' : ''}`;
   const isAr = language === 'ar';
-  const fontStyle = isAr ? undefined : NB_FONT_STYLE;
-  const font = isAr ? 'font-cairo' : '';
+  const font = isAr ? 'font-cairo' : 'font-jakarta';
   const shell = 'nv-bar fixed inset-x-0 top-0 z-50';
+  const hasUnread = unreadCount > 0;
+  const bellLabel = hasUnread ? `${t('notifications')} (${unreadCount} ${t('unread')})` : t('notifications');
 
   const panelProps = useMemo(() => ({
     unread: unreadCount,
@@ -496,7 +419,6 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
     transform: 'scaleX(0)',
     transformOrigin: isRtl ? 'right' : 'left',
     backgroundColor: darkMode ? '#39ff88' : '#10b981',
-    boxShadow: darkMode ? '0 0 12px 2px rgba(57,255,136,.7)' : undefined,
   }), [isRtl, darkMode]);
 
   return (
@@ -506,11 +428,11 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
       <ToastContainer
         position="top-right"
         theme={darkMode ? 'dark' : 'light'}
-        toastStyle={isAr ? TOAST_STYLE_AR : TOAST_STYLE_LTR}
+        toastStyle={TOAST_STYLE}
       />
 
       <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 z-[60] h-1">
-        <div ref={progressRef} className="h-full w-full rounded-full will-change-transform" style={progressStyle} />
+        <div ref={progressRef} className="h-full w-full will-change-transform" style={progressStyle} />
       </div>
 
       {isDesktop ? (
@@ -518,9 +440,8 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
           dir={dir}
           aria-label="Main"
           className={`${tone} ${font} ${shell} nv-desk flex items-center justify-between`}
-          style={fontStyle}
         >
-          <Link to="/" aria-label="Tech & Restore – home" className="flex-shrink-0 transition-transform duration-150 hover:scale-[1.03]">
+          <Link to="/" aria-label="Tech & Restore – home" className={`flex-shrink-0 rounded-lg transition-transform duration-150 hover:scale-[1.03] motion-reduce:transition-none ${FOCUS}`}>
             <Logo darkMode={darkMode} heightClass="h-14" />
           </Link>
 
@@ -530,21 +451,20 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
             {isAuthenticated && (
               <>
                 <div className="relative" ref={notifRef}>
-                  <button type="button" onClick={toggleNotifications} aria-label={t('notifications')} aria-expanded={showNotifications} className="nv-btn relative h-10 w-10">
-                    <FiBell size={19} />
-                    {unreadCount > 0 && <Badge count={unreadCount} />}
+                  <button type="button" onClick={toggleNotifications} aria-label={bellLabel} aria-expanded={showNotifications} className={`nv-btn h-10 w-10 ${showNotifications || hasUnread ? 'nv-btn-on' : ''}`}>
+                    <FiBell aria-hidden="true" size={19} fill={hasUnread ? 'currentColor' : 'none'} />
                   </button>
                   {showNotifications && <NotifPanel className="absolute end-0 mt-4 w-[380px]" {...panelProps} />}
                 </div>
                 <button type="button" onClick={onCartClick} aria-label={t('cart')} className="nv-btn h-10 w-10">
-                  <RiShoppingCartLine size={19} />
+                  <RiShoppingCartLine aria-hidden="true" size={19} />
                 </button>
               </>
             )}
             <ThemeToggle darkMode={darkMode} onToggle={toggleDarkMode} label={t('toggleTheme')} />
             {isAuthenticated && (
-              <button type="button" onClick={handleLogout} className="nv-btn nv-btn-danger h-10 px-4 text-[13px]">
-                <RiLogoutBoxRLine size={16} /><span>{t('logout')}</span>
+              <button type="button" onClick={handleLogout} className="nv-btn nv-btn-danger h-10 px-4 text-[13px] uppercase">
+                <RiLogoutBoxRLine aria-hidden="true" size={16} /><span>{t('logout')}</span>
               </button>
             )}
           </div>
@@ -556,24 +476,22 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
             dir={dir}
             aria-label="Main"
             className={`${tone} ${font} ${shell} nv-mob`}
-            style={fontStyle}
           >
-            <div className="flex items-center justify-between px-4 py-2">
-              <Link to="/" aria-label="Tech & Restore – home" className="flex-shrink-0">
+            <div className="flex items-center justify-between px-3 py-1.5">
+              <Link to="/" aria-label="Tech & Restore – home" className={`flex-shrink-0 rounded-lg ${FOCUS}`}>
                 <Logo darkMode={darkMode} heightClass="nv-logo-m h-14" />
               </Link>
               <div className="flex items-center gap-2.5">
                 {isAuthenticated && (
                   <>
-                    <button type="button" onClick={toggleNotifications} aria-label={t('notifications')} aria-expanded={showNotifications} className="nv-btn relative h-9 w-9">
-                      <FiBell size={17} />
-                      {unreadCount > 0 && <Badge count={unreadCount} />}
+                    <button type="button" onClick={toggleNotifications} aria-label={bellLabel} aria-expanded={showNotifications} className={`nv-btn h-9 w-9 ${showNotifications || hasUnread ? 'nv-btn-on' : ''}`}>
+                      <FiBell aria-hidden="true" size={17} fill={hasUnread ? 'currentColor' : 'none'} />
                     </button>
                     <button type="button" onClick={onCartClick} aria-label={t('cart')} className="nv-btn h-9 w-9">
-                      <RiShoppingCartLine size={17} />
+                      <RiShoppingCartLine aria-hidden="true" size={17} />
                     </button>
                     <button type="button" onClick={handleLogout} aria-label={t('logout')} title={t('logout')} className="nv-btn nv-btn-danger h-9 w-9">
-                      <RiLogoutBoxRLine size={17} />
+                      <RiLogoutBoxRLine aria-hidden="true" size={17} />
                     </button>
                   </>
                 )}
@@ -583,7 +501,7 @@ const NavbarContent = ({ onCartClick, darkMode, toggleDarkMode }) => {
             {showNotifications && <NotifPanel className="mx-3 mb-4" {...panelProps} />}
           </nav>
 
-          <MobileTabs items={navItems} dir={dir} fontStyle={fontStyle} tone={tone} font={font} />
+          <MobileTabs items={navItems} dir={dir} tone={tone} font={font} />
         </>
       )}
     </div>
