@@ -5,7 +5,7 @@ import { useQuery, QueryClientProvider } from '@tanstack/react-query';
 import api from '../../common/api/api';
 import queryClient from '../../common/utils/queryClient';
 import useAuthStore from '../../common/store/Auth';
-import { Defs3D, Device3DStyles, DeviceScene, useOnScreen } from './Device3D';
+import { Defs3D, Device3DStyles, useOnScreen } from './Device3D';
 import enTranslations from '../../locales/en/translation.json';
 import arTranslations from '../../locales/ar/translation.json';
 import frTranslations from '../../locales/fr/translation.json';
@@ -92,7 +92,16 @@ const OF_CSS = `
 .of-dark .of-pip{border-color:#525252}
 .of-pip-on{background:var(--of-accent)}
 .of-dark .of-pip-on{border-color:#000}
-@media (prefers-reduced-motion:reduce){.of-ticket,.of-btn,.of-pip{transition:none}}
+@keyframes ofFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes ofTwinkle{0%,100%{opacity:.35;transform:scale(.8)}50%{opacity:1;transform:scale(1.1)}}
+@keyframes ofFade{from{opacity:0}to{opacity:1}}
+.of-float{animation:ofFloat 4.2s ease-in-out infinite}
+.of-float-slow{animation:ofFloat 5.6s ease-in-out infinite;animation-delay:-1.6s}
+.of-twinkle{transform-box:fill-box;transform-origin:center;animation:ofTwinkle 2.8s ease-in-out infinite}
+.of-twinkle-b{transform-box:fill-box;transform-origin:center;animation:ofTwinkle 2.8s ease-in-out infinite;animation-delay:-1.4s}
+.of-fade-in{animation:ofFade .2s ease-out both}
+.of-empty{background-image:radial-gradient(color-mix(in srgb,var(--of-accent) 22%,transparent) 1.4px,transparent 1.4px);background-size:20px 20px}
+@media (prefers-reduced-motion:reduce){.of-ticket,.of-btn,.of-pip{transition:none}.of-float,.of-float-slow,.of-twinkle,.of-twinkle-b,.of-fade-in{animation:none}}
 `;
 
 const OfferDefs = memo(({ gid }) => (
@@ -135,6 +144,85 @@ const OfferArt = memo(({ gid, className = '' }) => (
     <path d="M0-6 1.5-1.5 6 0 1.5 1.5 0 6-1.5 1.5-6 0-1.5-1.5z" fill="#fbbf24" transform="translate(146 76) scale(.8)" />
   </svg>
 ));
+
+const Sparkle = ({ x, y, s = 1, fill, className }) => (
+  <path
+    className={className}
+    transform={`translate(${x} ${y}) scale(${s})`}
+    d="M0 -9 C1 -3 3 -1 9 0 C3 1 1 3 0 9 C-1 3 -3 1 -9 0 C-3 -1 -1 -3 0 -9 Z"
+    fill={fill}
+  />
+);
+
+const EmptyOffersArt = memo(({ darkMode }) => {
+  const p = useId().replace(/:/g, '');
+  const accent = darkMode ? '#39FF88' : '#34D399';
+  const accentDeep = darkMode ? '#17C964' : '#047857';
+  const accentSoft = darkMode ? '#39FF88' : '#6EE7B7';
+  const surface = darkMode ? '#2A2A2A' : '#FFFFFF';
+  const bg = darkMode ? '#1E1E1E' : '#F3F4F6';
+  const stroke = darkMode ? '#525252' : '#A7F3D0';
+  const ink = darkMode ? '#000000' : '#022C22';
+  const orange = darkMode ? '#FB923C' : '#F97316';
+  const gold = '#FBBF24';
+  return (
+    <svg viewBox="0 0 240 180" className="h-40 w-auto sm:h-48" role="img" aria-hidden="true" focusable="false">
+      <defs>
+        <radialGradient id={`${p}glow`} cx="50%" cy="50%" r="50%">
+          <stop offset="0" stopColor={accent} stopOpacity={darkMode ? 0.28 : 0.32} />
+          <stop offset="1" stopColor={accent} stopOpacity="0" />
+        </radialGradient>
+      </defs>
+
+      <circle cx="120" cy="92" r="88" fill={`url(#${p}glow)`} />
+      <circle cx="120" cy="92" r="72" fill="none" stroke={stroke} strokeWidth="1.5" strokeDasharray="2 7" strokeLinecap="round" />
+      <ellipse cx="120" cy="158" rx="66" ry="7" fill={darkMode ? '#000' : '#064E3B'} opacity={darkMode ? 0.45 : 0.14} />
+
+      <g className="of-float">
+        <g transform="rotate(-6 120 94)">
+          <rect x="50" y="60" width="152" height="84" rx="12" fill={ink} />
+          <rect x="44" y="52" width="152" height="84" rx="12" fill={surface} />
+          <path d="M56 52H96V136H56a12 12 0 0 1-12-12V64a12 12 0 0 1 12-12z" fill={accent} />
+          <rect x="44" y="52" width="152" height="84" rx="12" fill="none" stroke={ink} strokeWidth="3" />
+          <path d="M96 62V126" stroke={ink} strokeWidth="2.5" strokeDasharray="4 5" strokeLinecap="round" />
+          <circle cx="96" cy="52" r="9" fill={bg} />
+          <circle cx="96" cy="136" r="9" fill={bg} />
+          <path d="M87 52A9 9 0 0 0 105 52" fill="none" stroke={ink} strokeWidth="3" />
+          <path d="M87 136A9 9 0 0 1 105 136" fill="none" stroke={ink} strokeWidth="3" />
+          <circle cx="60" cy="80" r="6" fill="none" stroke={ink} strokeWidth="4" />
+          <circle cx="80" cy="108" r="6" fill="none" stroke={ink} strokeWidth="4" />
+          <path d="M82 76L58 112" stroke={ink} strokeWidth="4.5" strokeLinecap="round" />
+          <rect x="112" y="70" width="62" height="10" rx="5" fill={ink} />
+          <rect x="112" y="90" width="46" height="6" rx="3" fill={stroke} />
+          <rect x="112" y="102" width="34" height="6" rx="3" fill={stroke} />
+          <rect x="146" y="114" width="40" height="14" rx="7" fill={accent} stroke={ink} strokeWidth="2.5" />
+          <path d="M159 121h14" stroke={ink} strokeWidth="2.5" strokeLinecap="round" />
+        </g>
+      </g>
+
+      <g className="of-float-slow">
+        <circle cx="198" cy="36" r="17" fill={orange} stroke={ink} strokeWidth="3" />
+        <circle cx="192" cy="30" r="3" fill="none" stroke="#fff" strokeWidth="2.2" />
+        <circle cx="204" cy="42" r="3" fill="none" stroke="#fff" strokeWidth="2.2" />
+        <path d="M205 28L191 44" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" />
+      </g>
+
+      <g className="of-float-slow">
+        <circle cx="38" cy="136" r="11" fill={gold} stroke={ink} strokeWidth="3" />
+        <circle cx="38" cy="136" r="5.5" fill="none" stroke={ink} strokeWidth="2" opacity="0.55" />
+        <circle cx="54" cy="148" r="8" fill={gold} stroke={ink} strokeWidth="3" />
+        <circle cx="54" cy="148" r="3.5" fill="none" stroke={ink} strokeWidth="2" opacity="0.55" />
+      </g>
+
+      <Sparkle x={34} y={50} s={0.9} fill={accent} className="of-twinkle" />
+      <Sparkle x={214} y={96} s={0.65} fill={orange} className="of-twinkle-b" />
+      <Sparkle x={196} y={148} s={0.55} fill={accent} className="of-twinkle" />
+      <Sparkle x={86} y={22} s={0.5} fill={gold} className="of-twinkle-b" />
+      <circle cx="18" cy="96" r="2.5" fill={accentSoft} className="of-twinkle" />
+      <circle cx="226" cy="64" r="2.5" fill={accent} className="of-twinkle-b" />
+    </svg>
+  );
+});
 
 const UnderlinedTitle = memo(({ text }) => {
   const s = String(text || '');
@@ -327,10 +415,10 @@ const OffersSliderContent = ({ darkMode = false, standalone = false }) => {
             {[1, 2, 3].map((i) => <SkeletonCard key={i} className={i === 3 ? 'hidden xl:block' : i === 2 ? 'hidden md:block' : ''} />)}
           </div>
         ) : offers.length === 0 ? (
-          <div className="of-gray flex flex-col items-center gap-3 border-[3px] border-dashed border-[color:var(--of-accent)]/50 py-12 text-center">
-            <DeviceScene compact className="h-20 w-28" />
-            <p className="text-lg font-extrabold uppercase">{t(language, 'noOffers')}</p>
-            <p className="of-muted text-sm font-medium">{t(language, 'checkBack')}</p>
+          <div className="of-gray of-empty of-fade-in flex flex-col items-center gap-3 border-[3px] border-dashed border-[color:var(--of-accent)]/50 px-5 py-10 text-center sm:py-14">
+            <EmptyOffersArt darkMode={darkMode} />
+            <p className="max-w-md text-lg font-extrabold uppercase [text-wrap:balance] sm:text-2xl">{t(language, 'noOffers')}</p>
+            <p className="of-muted max-w-md text-sm font-medium leading-relaxed sm:text-base">{t(language, 'checkBack')}</p>
           </div>
         ) : (
           <>

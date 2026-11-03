@@ -7,69 +7,76 @@ import {
   FiUser, FiMapPin, FiBox, FiTool, FiEdit2, FiTrash2, FiMail, FiPhone, FiPlus, FiInfo, FiCalendar,
   FiDollarSign, FiHome, FiXCircle, FiZap, FiCheckCircle, FiCreditCard, FiTruck, FiCheck, FiShield,
   FiNavigation, FiList, FiBell, FiSearch, FiClock, FiExternalLink, FiPieChart, FiTrendingUp,
-  FiSend, FiAward, FiCompass, FiGlobe, FiX, FiShoppingBag, FiCopy, FiChevronDown, FiChevronLeft, FiChevronRight,
+  FiSend, FiAward, FiCompass, FiGlobe, FiX, FiShoppingBag, FiChevronDown, FiChevronLeft, FiChevronRight,
 } from 'react-icons/fi';
 import { RiLogoutBoxRLine } from 'react-icons/ri';
 import { jwtDecode } from 'jwt-decode';
 import api from '../common/api/api';
+import useAuthStore from '../common/store/Auth';
 import { useAppLanguage, languageDirection } from '../common/utils/useAppLanguage';
 import { useRepairPayment, clearPending, loadPending } from '../common/utils/paymentStatus';
+import { resolveImageSrc } from '../common/utils/productutils';
+import { markImg, isImgOk, isImgBad } from '../common/utils/imageCache';
 import enTranslations from '../locales/en/translation.json';
 import arTranslations from '../locales/ar/translation.json';
 import frTranslations from '../locales/fr/translation.json';
 import { UI3D_CSS, Defs3D } from '../components/user/Ui3D';
-import { LISTING_CSS } from '../components/user/ListingKit';
-import { IsoIllustration } from '../components/user/IsoIllustrations';
+import { LISTING_CSS, safeImageUrl } from '../components/user/ListingKit';
 
-const Hero = lazy(() => import('../components/user/Hero'));
-
+const IsoIllustration = lazy(() => import('../components/user/IsoIllustrations').then((m) => ({ default: m.IsoIllustration })));
 const MapPicker = lazy(() => import('./AccountMap'));
 const prefetchMap = () => import('./AccountMap');
 
 const NB_EXTRA_CSS = `
 .nb-dark input{color-scheme:dark}
-.nb-btn-d{background:#e11d48;color:#fff}
-.nb-btn-o{background:#ea580c;color:#fff}
-.nb-menu{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);border-radius:.75rem;box-shadow:4px 4px 0 var(--nb-shadow)}
-.nb-opt{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;font-size:12px;font-weight:700;text-transform:uppercase;text-align:start;cursor:pointer}
+.nb-btn-d{background:#e11d48;color:#fff;border-color:transparent}
+.nb-btn-o{background:#ea580c;color:#fff;border-color:transparent}
+.nb-menu{background:var(--nb-card);color:var(--nb-ink);border:1px solid var(--nb-line2);border-radius:.75rem;box-shadow:0 12px 28px rgba(0,0,0,.18)}
+.nb-opt{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;font-size:12px;font-weight:700;text-align:start;cursor:pointer}
 .nb-opt-active{background:var(--nb-gray)}
 .nb-opt[aria-selected=true]{background:var(--nb-btn);color:var(--nb-on)}
-.nb-box{display:flex;align-items:center;justify-content:center;flex:none;width:20px;height:20px;border:2px solid var(--nb-line);background:var(--nb-card);color:var(--nb-on)}
 @keyframes nbPop{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:none}}
 .nb-pop{animation:nbPop .14s ease-out both;transform-origin:top}
 @media (prefers-reduced-motion:reduce){.nb-pop{animation:none}}
 `;
 
 const NB_CSS = `
-.nb{--dx:1;--nb-bg:#f9fafb;--nb-card:#ffffff;--nb-ink:#022c22;--nb-muted:#4b5563;--nb-line:#022c22;--nb-shadow:#022c22;--nb-gray:#f3f4f6;--nb-accent:#059669;--nb-btn:#34d399;--nb-on:#022c22;background:var(--nb-bg);color:var(--nb-ink)}
-.nb[dir=rtl]{--dx:-1}
-.nb-dark{--nb-bg:#141414;--nb-card:#2a2a2a;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:#000000;--nb-shadow:#000000;--nb-gray:#1e1e1e;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-on:#022c22}
-.nb-dark .border-dotted,.nb-dark .nb-dot{border-color:#3f3f3f}
-.nb-pattern{--p1:rgba(4,38,26,.1);--p2:rgba(16,185,129,.1);background-image:radial-gradient(circle at 2px 2px,var(--p1) 1.6px,transparent 1.8px),repeating-linear-gradient(135deg,var(--p2) 0 2px,transparent 2px 18px);background-size:22px 22px,auto}
-.nb-dark.nb-pattern{--p1:rgba(57,255,136,.12);--p2:rgba(57,255,136,.05)}
+.nb{--nb-bg:#f3f4f6;--nb-card:#ffffff;--nb-ink:#111827;--nb-muted:#6b7280;--nb-line:#e5e7eb;--nb-line2:#d1d5db;--nb-shadow:rgba(17,24,39,.08);--nb-gray:#f3f4f6;--nb-accent:#059669;--nb-btn:#059669;--nb-on:#ffffff;background:var(--nb-bg);color:var(--nb-ink)}
+.nb-dark{--nb-bg:#141414;--nb-card:#1e1e1e;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:rgba(255,255,255,.12);--nb-line2:rgba(255,255,255,.22);--nb-shadow:rgba(0,0,0,.4);--nb-gray:#262626;--nb-accent:#34d399;--nb-btn:#10b981;--nb-on:#022c22}
+.nb .border-2{border-width:1px}
+.nb .border-t-2{border-top-width:1px}
+.nb .border-b-2{border-bottom-width:1px}
+.nb .divide-y-2>:not([hidden])~:not([hidden]){border-top-width:1px}
+.nb .uppercase{text-transform:none}
+.nb .uppercase[class*="text-[9px]"],.nb .uppercase[class*="text-[10px]"],.nb .uppercase[class*="text-[11px]"]{text-transform:uppercase}
 .nb-bg{background:var(--nb-bg)}
 .nb-gray{background:var(--nb-gray)}
 .nb-muted{color:var(--nb-muted)}
 .nb-ic{color:var(--nb-accent)}
 .nb-line{border-color:var(--nb-line)}
 .nb-line.border-2{border-radius:.6rem}
-.nb-card{background:var(--nb-card);border:3px solid var(--nb-line);border-radius:1rem;box-shadow:calc(var(--dx)*6px) 6px 0 var(--nb-shadow);transition:transform .2s ease,box-shadow .2s ease}
-@media (hover:hover){.nb-lift:hover{transform:translateY(-4px);box-shadow:calc(var(--dx)*8px) 10px 0 var(--nb-shadow)}}
-.nb-bar{display:inline-block;width:48px;height:14px;border-radius:999px;background:var(--nb-accent);border:2px solid var(--nb-line)}
-.nb-ul{padding-bottom:.2em;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2310b981' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E") left bottom/100% .3em no-repeat;-webkit-box-decoration-break:clone;box-decoration-break:clone}
-.nb-dark .nb-ul{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2339ff88' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E")}
-.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);border-radius:.6rem;box-shadow:calc(var(--dx)*3px) 3px 0 var(--nb-shadow);font-weight:800;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease,opacity .15s ease}
-@media (hover:hover){.nb-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:calc(var(--dx)*4px) 5px 0 var(--nb-shadow)}}
-.nb-btn:active:not(:disabled){transform:translate(calc(var(--dx)*3px),3px);box-shadow:0 0 0 var(--nb-shadow)}
+.nb-card{background:var(--nb-card);border:1px solid var(--nb-line);border-radius:.875rem;box-shadow:0 1px 2px var(--nb-shadow);transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
+@media (hover:hover){.nb-lift:hover{transform:translateY(-2px);box-shadow:0 10px 24px var(--nb-shadow);border-color:var(--nb-line2)}}
+.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nb-card);color:var(--nb-ink);border:1px solid var(--nb-line2);border-radius:.6rem;font-weight:700;cursor:pointer;transition:transform .15s ease,background-color .15s ease,filter .15s ease,opacity .15s ease}
+.nb-btn:not(.nb-btn-a):not(.nb-btn-on):not(.nb-btn-d):not(.nb-btn-o):not(.nb-tab):hover:not(:disabled){background:var(--nb-gray)}
+.nb-btn.nb-tab:not(.nb-btn-on){background:transparent;border-color:transparent}
+.nb-btn.nb-tab:not(.nb-btn-on):hover:not(:disabled){background:var(--nb-gray)}
+.nb-btn:active:not(:disabled){transform:scale(.97)}
 .nb-btn:disabled{opacity:.45;cursor:not-allowed}
-.nb-btn-a,.nb-btn-on{background:var(--nb-btn);color:var(--nb-on)}
-.nb-btn:focus-visible,.nb-field:focus-within{outline:3px solid var(--nb-btn);outline-offset:2px}
+.nb-btn-a,.nb-btn-on{background:var(--nb-btn);color:var(--nb-on);border-color:transparent}
+.nb-btn-a:hover:not(:disabled),.nb-btn-on:hover:not(:disabled),.nb-btn-d:hover:not(:disabled),.nb-btn-o:hover:not(:disabled){filter:brightness(1.07)}
+.nb-btn:focus-visible,.nb-focus:focus-visible,.nb-navitem:focus-visible{outline:3px solid var(--nb-btn);outline-offset:2px}
+.nb-field:focus-within{border-color:var(--nb-btn);box-shadow:0 0 0 3px rgba(16,185,129,.2)}
 .nb-flip{display:inline-block}
 .nb[dir=rtl] .nb-flip{transform:scaleX(-1)}
-.nb-field{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-line);border-radius:.5rem;box-shadow:calc(var(--dx)*3px) 3px 0 var(--nb-shadow);transition:box-shadow .15s ease}
-.nb-dot{background:var(--nb-card);color:var(--nb-ink);border:2px dotted var(--nb-line);border-radius:1rem}
+.nb-field{background:var(--nb-card);color:var(--nb-ink);border:1px solid var(--nb-line2);border-radius:.75rem;transition:box-shadow .15s ease,border-color .15s ease}
+.nb-dot{background:var(--nb-card);color:var(--nb-ink);border:1px dashed var(--nb-line2);border-radius:1rem}
+.nb-panel{background:var(--nb-card);border:1px solid var(--nb-line);border-radius:1.25rem}
+.nb-navitem{display:flex;width:100%;align-items:center;gap:14px;padding:12px 14px;border-radius:.75rem;font-size:14px;font-weight:700;text-align:start;cursor:pointer;color:var(--nb-ink);transition:background-color .15s ease}
+.nb-navitem:hover{background:var(--nb-gray)}
+.nb-navitem[aria-current=page]{background:color-mix(in srgb,var(--nb-accent) 14%,transparent);font-weight:800}
 ${NB_EXTRA_CSS}
-@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn,.nb-field{transition:none}}
+@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn,.nb-field,.nb-navitem{transition:none}}
 `;
 
 const MODAL_MS = 150;
@@ -90,15 +97,33 @@ const STYLE_EL = <style>{`${UI3D_CSS}${LISTING_CSS}${NB_CSS}${MODAL_CSS}`}</styl
 const REPAIRS_STYLE_EL = <style>{`${NB_EXTRA_CSS}${MODAL_CSS}`}</style>;
 
 const STAGGER = Array.from({ length: 9 }, (_, i) => ({ '--i': i }));
+const EMPTY_MAP = {};
+const enc = encodeURIComponent;
 
 const shouldRetry = (count, err) => count < 2 && ![400, 401, 403, 404].includes(err?.response?.status);
-const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false, retry: shouldRetry } } });
+const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false, refetchIntervalInBackground: false, retry: shouldRetry } } });
 const LIVE_POLL_MS = 20_000;
 const NOTIF_POLL_MS = 60_000;
 
 const ORDER_LIVE_SECTIONS = new Set(['orders', 'analytics', 'addresses']);
 const REPAIR_LIVE_SECTIONS = new Set(['repairs', 'analytics', 'addresses']);
 const VALID_SECTIONS = new Set(['profile', 'addresses', 'orders', 'repairs', 'notifications', 'analytics', 'about']);
+
+const SECTION_META = {
+  orders: ['orders', 'Orders', 'ordersSubtitle', 'Track, review and cancel your orders'],
+  repairs: ['repairs', 'Repairs', 'repairsSubtitle', 'Follow your repair requests and quotes'],
+  notifications: ['notifications', 'Notifications', 'notificationsSubtitle', 'Updates about your orders and repairs'],
+  analytics: ['analytics', 'Analytics', 'analyticsSubtitle', 'A summary of your activity and spending'],
+  profile: ['myProfile', 'Your account', 'manageAccount', 'View and update your contact details and account information'],
+  addresses: ['addresses', 'Addresses', 'addressesSubtitle', 'Manage the places you want your orders delivered to'],
+  about: ['aboutTechRestore', 'About Tech-Restore', 'aboutSubtitle', 'Who we are and how to reach us'],
+};
+const NAV_GROUPS = [
+  { id: 'activity', ids: ['orders', 'repairs', 'notifications', 'analytics'] },
+  { id: 'account', ids: ['profile', 'addresses', 'about'] },
+];
+const NAV_ICONS = { orders: FiBox, repairs: FiTool, notifications: FiBell, analytics: FiPieChart, profile: FiUser, addresses: FiMapPin, about: FiCompass };
+const AUTH_KEYS = ['authToken', 'refreshToken', 'id', 'deliveryAddressId'];
 
 const ACCOUNT_TRANSLATIONS = { en: enTranslations.account, ar: arTranslations.account, fr: frTranslations.account };
 const tr = (lang, key, fallback) => ACCOUNT_TRANSLATIONS[lang]?.[key] || ACCOUNT_TRANSLATIONS.en?.[key] || fallback || key;
@@ -108,6 +133,14 @@ const LANGUAGE_NAMES = Object.fromEntries(LANGUAGES);
 
 const isEmpty = (v) => v == null || (typeof v === 'string' && v.trim() === '') || v === 0;
 const validPrice = (v) => Number.isFinite(Number(v)) && Number(v) > 0 && !(typeof v === 'string' && v.trim() === '');
+const clampCoord = (v, max) => Math.max(-max, Math.min(max, Number(v) || 0));
+const cleanText = (v, max = 80) => String(v ?? '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, max);
+const safePaymentUrl = (u) => {
+  try {
+    const x = new URL(String(u));
+    return x.protocol === 'https:' ? x.href : null;
+  } catch { return null; }
+};
 
 const phoneValidationError = (v) => {
   const raw = String(v ?? '').trim();
@@ -115,6 +148,7 @@ const phoneValidationError = (v) => {
   const compact = raw.replace(/[\s\-()]/g, '');
   return /^\+?\d{10,15}$/.test(compact) ? '' : 'Enter a valid phone number (10–15 digits, e.g. +201001234567)';
 };
+const nameValidationError = (v) => (String(v ?? '').trim().length >= 2 ? '' : 'Please enter at least 2 characters');
 
 const friendlyError = (err, fallback) => {
   const status = err?.response?.status;
@@ -139,7 +173,7 @@ const friendlyError = (err, fallback) => {
   if (/duplicate|paymob|unprocessable/i.test(raw) || status === 422) return 'A payment for this repair is already in progress. Please check your requests before trying again.';
   if (status === 403) return 'You are not allowed to perform this action.';
   if (status >= 500 || /RUNTIME_ERROR|RT_001/i.test(`${raw} ${code}`) || !raw) return fallback || 'Something went wrong. Please try again.';
-  return raw;
+  return fallback || 'Something went wrong. Please try again.';
 };
 const unwrap = (res) => { const d = res.data?.content ?? res.data ?? []; return Array.isArray(d) ? d : []; };
 const dayOf = (v) => { const d = new Date(v); return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10); };
@@ -149,26 +183,69 @@ const FULL_FMT = new Intl.DateTimeFormat('en-EG', { month: 'short', day: 'numeri
 const formatWith = (fmt) => (v) => { const d = new Date(v); return Number.isNaN(d.getTime()) ? 'Invalid Date' : fmt.format(d); };
 const fmtShort = formatWith(SHORT_FMT);
 const fmtFull = formatWith(FULL_FMT);
-const directionsUrl = (lat, lng) => `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+const directionsUrl = (lat, lng) => `https://www.google.com/maps/dir/?api=1&destination=${Number(lat)},${Number(lng)}&travelmode=driving`;
+const round2 = (n) => Math.round(n * 100) / 100;
 
 const CACHE_PREFIX = 'acct:';
-const readCache = (k) => { try { const v = sessionStorage.getItem(CACHE_PREFIX + k); return v ? JSON.parse(v) : undefined; } catch { return undefined; } };
-const writeCache = (k, v) => { try { sessionStorage.setItem(CACHE_PREFIX + k, JSON.stringify(v)); } catch { } };
 const clearCache = () => { try { Object.keys(sessionStorage).filter((k) => k.startsWith(CACHE_PREFIX)).forEach((k) => sessionStorage.removeItem(k)); } catch { } };
 
 const useAcct = (key, path, token, { list = true, ...opts } = {}) => useQuery({
   queryKey: [key],
   queryFn: async ({ signal }) => {
     const res = await api.get(path, { headers: { Authorization: `Bearer ${token}` }, signal });
-    const data = list ? unwrap(res) : res.data;
-    writeCache(key, data);
-    return data;
+    return list ? unwrap(res) : res.data;
   },
-  initialData: () => readCache(key),
-  initialDataUpdatedAt: 0,
   enabled: !!token,
   ...opts,
 });
+
+const IMAGE_FIELDS = ['imageUrl', 'productImageUrl', 'productImage', 'image', 'thumbnailUrl', 'imagePath'];
+const ABSOLUTE_HTTP = /^https?:\/\//i;
+const isSafeSrc = (v) => ABSOLUTE_HTTP.test(v) || (v.startsWith('/') && !v.startsWith('//'));
+
+const toSafeSrc = (value) => {
+  const raw = typeof value === 'string' ? value.trim() : '';
+  if (!raw || raw.length > 2048 || raw.includes('..') || /[\u0000-\u001f]/.test(raw)) return null;
+  const direct = safeImageUrl(raw);
+  if (direct && isSafeSrc(String(direct))) return String(direct);
+  const path = ABSOLUTE_HTTP.test(raw) || raw.startsWith('/') ? raw : `/${raw}`;
+  const resolved = resolveImageSrc(path) || path;
+  return isSafeSrc(String(resolved)) ? String(resolved) : null;
+};
+
+const pickItemImage = (item) => {
+  const nested = item?.product || EMPTY_MAP;
+  const arrays = [item?.imageUrls, nested.imageUrls].find(Array.isArray) || [];
+  const candidates = [...IMAGE_FIELDS.map((k) => item?.[k]), ...IMAGE_FIELDS.map((k) => nested[k]), ...arrays];
+  for (const c of candidates) {
+    const src = toSafeSrc(c);
+    if (src) return src;
+  }
+  return null;
+};
+
+const productIdOf = (item) => {
+  const id = item?.productId ?? item?.product?.id;
+  return id == null ? '' : String(id);
+};
+
+const enrichOrder = (order, imageMap) => {
+  const items = Array.isArray(order.orderItems) ? order.orderItems : [];
+  return { ...order, orderItems: items.map((it) => ({ ...it, _img: pickItemImage(it) || imageMap[productIdOf(it)] || null })) };
+};
+
+const fetchProductImages = (token) => async ({ signal }) => {
+  const res = await api.get('/api/products', { headers: { Authorization: `Bearer ${token}` }, signal });
+  const list = res.data?.content || res.data || [];
+  const map = {};
+  if (!Array.isArray(list)) return map;
+  for (const p of list) {
+    if (!p || p.id == null) continue;
+    const src = toSafeSrc(p.imageUrl);
+    if (src) map[String(p.id)] = src;
+  }
+  return map;
+};
 
 const ORDER_STEPS = ['PENDING', 'CONFIRMED', 'PROCESSING', 'FINISHPROCESSING', 'SHIPPED', 'DELIVERED'];
 const REPAIR_STEPS = ['SUBMITTED', 'QUOTE_SENT', 'QUOTE_APPROVED', 'DEVICE_COLLECTED', 'REPAIRING', 'REPAIR_COMPLETED', 'DEVICE_DELIVERED'];
@@ -207,7 +284,7 @@ const TILE_TONES = {
 const BLOB = { sky: 'bg-sky-400', vi: 'bg-violet-400', am: 'bg-amber-400', ro: 'bg-rose-400', em: 'bg-emerald-400', te: 'bg-teal-400' };
 
 const IconTile = memo(({ Icon, tone = 'em', className = 'h-9 w-9', iconClassName = 'h-4 w-4' }) => (
-  <span aria-hidden="true" className={`nb-line flex flex-shrink-0 items-center justify-center rounded-lg border-2 ${TILE_TONES[tone] || TILE_TONES.em} ${className}`}>
+  <span aria-hidden="true" className={`flex flex-shrink-0 items-center justify-center rounded-lg ${TILE_TONES[tone] || TILE_TONES.em} ${className}`}>
     <Icon className={iconClassName} />
   </span>
 ));
@@ -217,38 +294,14 @@ const Btn = ({ tone, className = '', children, ...rest }) => (
   <button type="button" className={`nb-btn ${tone ? BTN_TONES[tone] : 'nb-btn-a'} ${className}`} {...rest}>{children}</button>
 );
 
-const UnderlinedTitle = memo(({ text }) => {
-  const s = String(text || '');
-  const i = s.lastIndexOf(' ');
-  const head = i > 0 ? s.slice(0, i + 1) : '';
-  const tail = i > 0 ? s.slice(i + 1) : s;
-  return (
-    <>
-      {head}
-      <span className="nb-ul">{tail}</span>
-    </>
-  );
-});
-
-const SectionHead = memo(({ eyebrow, title, subtitle, action }) => (
-  <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
-    <div className="min-w-0 max-w-2xl">
-      {eyebrow && <p className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide rtl:tracking-normal"><span className="nb-bar" aria-hidden="true" />{eyebrow}</p>}
-      <h1 className="mt-3 text-3xl font-extrabold leading-[1.2] tracking-[-0.03em] [text-wrap:balance] rtl:tracking-normal sm:text-4xl lg:text-5xl"><UnderlinedTitle text={title} /></h1>
-      {subtitle && <p className="nb-muted mt-3 text-base font-medium sm:text-lg">{subtitle}</p>}
-    </div>
-    {action}
+const PageHead = memo(({ title, subtitle }) => (
+  <header className="mb-6">
+    <h1 className="text-3xl font-extrabold leading-[1.2] tracking-[-0.02em] [text-wrap:balance] rtl:tracking-normal sm:text-4xl">{title}</h1>
+    {subtitle && <p className="nb-muted mt-2 text-base font-medium">{subtitle}</p>}
   </header>
 ));
 
-const TabTitle = ({ icon, tone = 'em', children, right }) => (
-  <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-    <h2 className="flex min-w-0 items-center gap-3 text-xl font-extrabold uppercase sm:text-2xl">
-      <IconTile Icon={icon} tone={tone} className="h-10 w-10" iconClassName="h-5 w-5" /> <span className="nb-ul min-w-0">{children}</span>
-    </h2>
-    {right}
-  </div>
-);
+const ActionBar = ({ children }) => (children ? <div className="mb-5 flex flex-wrap items-center justify-end gap-3">{children}</div> : null);
 
 const NbDropdown = memo(({ value, onChange, options, ariaLabel, className = '', align = 'start', placeholder }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -298,7 +351,7 @@ const NbDropdown = memo(({ value, onChange, options, ariaLabel, className = '', 
         ref={btnRef} type="button" aria-label={ariaLabel} aria-haspopup="listbox" aria-expanded={isOpen} aria-controls={listId}
         aria-activedescendant={isOpen ? `${uid}-o${active}` : undefined}
         onClick={() => setIsOpen((o) => !o)} onKeyDown={onKeyDown}
-        className="nb-field flex h-10 w-full cursor-pointer items-center justify-between gap-2 ps-3 pe-3 text-start text-xs font-bold uppercase"
+        className="nb-field flex h-10 w-full cursor-pointer items-center justify-between gap-2 ps-3 pe-3 text-start text-xs font-bold"
       >
         <span className={`truncate ${current ? '' : 'opacity-60'}`}>{current ? current.label : placeholder}</span>
         <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform duration-150 motion-reduce:transition-none ${isOpen ? 'rotate-180' : ''}`} />
@@ -324,12 +377,11 @@ const NbDropdown = memo(({ value, onChange, options, ariaLabel, className = '', 
   );
 });
 
-// text-base on small screens avoids the iOS Safari auto-zoom on focus (inputs < 16px trigger it).
 const TextField = memo(({ label, icon: Icon, as: Tag = 'input', className = '', ...rest }) => {
   const id = useId();
   return (
     <div className={`min-w-0 ${className}`}>
-      <label htmlFor={id} className="mb-1.5 block text-[11px] font-extrabold uppercase">{label}{rest.required && <span className="text-rose-500"> *</span>}</label>
+      <label htmlFor={id} className="mb-1.5 block text-xs font-bold">{label}{rest.required && <span className="text-rose-500"> *</span>}</label>
       <div className="nb-field flex items-start gap-2 px-3 py-2.5">
         {Icon && <Icon aria-hidden="true" className="nb-ic mt-0.5 h-4 w-4 flex-shrink-0 sm:mt-0.5" />}
         <Tag id={id} {...rest} className="min-w-0 flex-1 resize-none bg-transparent text-base font-semibold outline-none placeholder:font-medium placeholder:opacity-60 sm:text-sm" />
@@ -338,17 +390,34 @@ const TextField = memo(({ label, icon: Icon, as: Tag = 'input', className = '', 
   );
 });
 
+const ProfileField = memo(({ label, error, hint, readOnly, className = '', ...rest }) => {
+  const id = useId();
+  return (
+    <div className={`min-w-0 ${className}`}>
+      <label htmlFor={id} className="mb-2 block text-sm font-bold">{label}{rest.required && <span className="text-rose-500"> *</span>}</label>
+      <div className={`nb-field flex h-12 items-center px-4 ${readOnly ? '!bg-[color:var(--nb-gray)]' : ''} ${error ? '!border-rose-500' : ''}`}>
+        <input
+          id={id} readOnly={readOnly} aria-invalid={!!error} aria-describedby={error || hint ? `${id}-m` : undefined} {...rest}
+          className="min-w-0 flex-1 bg-transparent text-base font-semibold outline-none placeholder:font-medium placeholder:opacity-60 sm:text-sm"
+        />
+      </div>
+      {error ? <p id={`${id}-m`} role="alert" className="mt-1.5 text-xs font-bold text-rose-500">{error}</p>
+        : hint ? <p id={`${id}-m`} className="nb-muted mt-1.5 text-xs font-medium">{hint}</p> : null}
+    </div>
+  );
+});
+
 const DateField = memo(({ className = '', ...rest }) => (
   <label className={`nb-field flex h-10 items-center gap-2 px-3 ${className}`}>
     <FiCalendar aria-hidden="true" className="nb-ic h-4 w-4 flex-shrink-0" />
-    <input type="date" {...rest} className="min-w-0 flex-1 bg-transparent text-xs font-bold uppercase outline-none" />
+    <input type="date" {...rest} className="min-w-0 flex-1 bg-transparent text-xs font-bold outline-none" />
   </label>
 ));
 
 const Meter = memo(({ pct, bad }) => (
-  <div className="nb-gray nb-line h-3 overflow-hidden border-2">
+  <div className="nb-gray h-2 overflow-hidden rounded-full">
     <div
-      className={`h-full w-full origin-left transition-transform duration-300 rtl:origin-right motion-reduce:transition-none ${bad ? 'bg-rose-500' : 'bg-[color:var(--nb-accent)]'}`}
+      className={`h-full w-full origin-left rounded-full transition-transform duration-300 rtl:origin-right motion-reduce:transition-none ${bad ? 'bg-rose-500' : 'bg-[color:var(--nb-accent)]'}`}
       style={{ transform: `scaleX(${pct / 100})` }}
     />
   </div>
@@ -359,9 +428,9 @@ const ProgressBar = memo(({ progress, label }) => {
   const pct = bad ? 100 : progress;
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-extrabold uppercase">
+      <div className="mb-1 flex items-center justify-between gap-2 text-[11px] font-bold">
         <span className="truncate">{label}</span>
-        {!bad && <span dir="ltr" className="tabular-nums">{pct}%</span>}
+        {!bad && <span dir="ltr" className="nb-muted tabular-nums">{pct}%</span>}
       </div>
       <Meter pct={pct} bad={bad} />
     </div>
@@ -378,8 +447,8 @@ const InfoRow = memo(({ icon: Icon, children }) => (
 const EMPTY_ICONS = { box: FiBox, wrench: FiTool, pin: FiMapPin, bell: FiBell, chart: FiPieChart };
 const EmptyState = memo(({ kind, title, subtitle }) => (
   <div className="nb-dot flex flex-col items-center gap-3 px-4 py-14 text-center">
-    <IconTile Icon={EMPTY_ICONS[kind] || FiInfo} tone="em" className="h-16 w-16" iconClassName="h-8 w-8" />
-    <p className="text-lg font-extrabold uppercase">{title}</p>
+    <IconTile Icon={EMPTY_ICONS[kind] || FiInfo} tone="em" className="h-16 w-16 !rounded-full" iconClassName="h-8 w-8" />
+    <p className="text-lg font-extrabold">{title}</p>
     {subtitle && <p className="nb-muted max-w-sm text-sm font-medium">{subtitle}</p>}
   </div>
 ));
@@ -421,8 +490,8 @@ const TONES = {
   repair: { DEVICE_DELIVERED: 'good', CANCELLED: 'bad', FAILED: 'bad', QUOTE_REJECTED: 'bad', QUOTE_APPROVED: 'good', QUOTE_SENT: 'violet', REPAIRING: 'teal', REPAIR_COMPLETED: 'teal', DEVICE_COLLECTED: 'info' },
 };
 const StatusLabel = memo(({ status, type = 'order', t }) => (
-  <span className="inline-flex flex-shrink-0 items-center gap-1.5 text-[11px] font-extrabold uppercase">
-    <span aria-hidden="true" className={`h-2.5 w-2.5 rounded-full border-2 border-[color:var(--nb-line)] ${DOT_TONES[TONES[type][status]] || DOT_TONES.warn}`} />
+  <span className="nb-gray inline-flex flex-shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-extrabold">
+    <span aria-hidden="true" className={`h-2 w-2 rounded-full ${DOT_TONES[TONES[type][status]] || DOT_TONES.warn}`} />
     {t(`status_${status}`)}
   </span>
 ));
@@ -430,7 +499,7 @@ const StatusLabel = memo(({ status, type = 'order', t }) => (
 const SKELETON_ROWS = [0, 1, 2];
 const SkeletonList = () => (
   <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3" aria-busy="true" role="status">
-    {SKELETON_ROWS.map((i) => <div key={i} className="nb-gray nb-line h-52 animate-pulse rounded-2xl border-2 motion-reduce:animate-none" />)}
+    {SKELETON_ROWS.map((i) => <div key={i} className="nb-gray h-52 animate-pulse rounded-2xl motion-reduce:animate-none" />)}
   </div>
 );
 
@@ -441,8 +510,8 @@ const CardShell = ({ index, children }) => (
 );
 
 const Stat = memo(({ label, value, surface }) => (
-  <div className={`nb-line min-w-0 border-2 px-2.5 py-1.5 ${surface === 'plain' ? 'bg-[color:var(--nb-card)]' : 'nb-gray'}`}>
-    <p className="nb-muted text-[9px] font-extrabold uppercase tracking-widest rtl:tracking-normal">{label}</p>
+  <div className={`nb-line min-w-0 rounded-lg border-2 px-2.5 py-1.5 ${surface === 'plain' ? 'bg-[color:var(--nb-card)]' : 'nb-gray'}`}>
+    <p className="nb-muted text-[10px] font-extrabold uppercase tracking-wide rtl:tracking-normal">{label}</p>
     <p className="truncate text-sm font-bold">{value}</p>
   </div>
 ));
@@ -451,8 +520,64 @@ const Price = memo(({ value }) => (
   <p className="text-xl font-extrabold tabular-nums">{value} <span className="nb-muted text-xs font-bold">EGP</span></p>
 ));
 
+const ItemThumb = memo(({ src, name, ratio = 'aspect-square' }) => {
+  const imgRef = useRef(null);
+  const [failed, setFailed] = useState(() => isImgBad(src));
+  const [loaded, setLoaded] = useState(() => isImgOk(src));
+
+  useEffect(() => {
+    setFailed(isImgBad(src));
+    setLoaded(isImgOk(src));
+  }, [src]);
+
+  useEffect(() => {
+    const el = imgRef.current;
+    if (el && el.complete && el.naturalWidth > 0) {
+      markImg(src, 'ok');
+      setLoaded(true);
+    }
+  }, [src, failed]);
+
+  const handleError = useCallback(() => { markImg(src, 'bad'); setFailed(true); }, [src]);
+  const handleLoad = useCallback(() => { markImg(src, 'ok'); setLoaded(true); }, [src]);
+  const showImage = !!src && !failed;
+
+  return (
+    <div className={`relative w-full overflow-hidden bg-white [contain:layout_paint] ${ratio}`}>
+      {showImage ? (
+        <>
+          {!loaded && <div aria-hidden="true" className="absolute inset-0 animate-pulse bg-black/5 motion-reduce:animate-none" />}
+          <img
+            ref={imgRef} src={src} alt={name || ''} width={400} height={300}
+            loading="lazy" decoding="async" fetchPriority="low" referrerPolicy="no-referrer"
+            onLoad={handleLoad} onError={handleError}
+            className={`absolute inset-0 h-full w-full bg-white object-contain p-1.5 transition-opacity duration-300 motion-reduce:transition-none ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          />
+        </>
+      ) : (
+        <div aria-hidden="true" className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600">
+          <FiBox className="h-1/3 w-1/3" />
+        </div>
+      )}
+    </div>
+  );
+});
+
+const ItemThumbButton = memo(({ item, onPreview, className = '', children }) => {
+  const open = useCallback(() => onPreview(item), [onPreview, item]);
+  return (
+    <button
+      type="button" onClick={open} aria-label={`Preview image: ${item.productName || ''}`}
+      className={`nb-focus relative flex-shrink-0 cursor-zoom-in overflow-hidden rounded-lg border border-[color:var(--nb-line)] bg-white ${className}`}
+    >
+      <ItemThumb src={item._img} name={item.productName} />
+      {children}
+    </button>
+  );
+});
+
 const CARDS_PER_PAGE = 6;
-const CARDS_GRID_CLS = 'grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3';
+const CARDS_GRID_CLS = 'grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3';
 
 const useListView = (items, { match, price, ipp = 6 }) => {
   const [status, setStatus] = useState('');
@@ -496,36 +621,50 @@ const FilterBar = memo(({ view, statuses, t }) => {
         <NbDropdown value={status} onChange={setStatus} options={statusOptions} ariaLabel={t('allStatuses')} className="w-full sm:w-48" />
         <NbDropdown value={sort} onChange={setSort} options={sortOptions} ariaLabel={t('sortBy')} className="w-full sm:w-48" />
         <DateField value={date} onChange={(e) => setDate(e.target.value)} aria-label="Date" className="w-full sm:w-44" />
-        {active && <Btn tone="soft" onClick={reset} className="h-10 px-3 text-xs uppercase"><FiX className="h-3.5 w-3.5" /> {t('clear')}</Btn>}
+        {active && <Btn tone="soft" onClick={reset} className="h-10 px-3 text-xs"><FiX className="h-3.5 w-3.5" /> {t('clear')}</Btn>}
       </div>
       <p className="nb-muted text-[11px] font-bold" aria-live="polite">{filtered.length} result{filtered.length === 1 ? '' : 's'}</p>
     </div>
   );
 });
 
-const OrderCard = memo(({ order, t, index, onDetails, onCancel }) => {
+const OrderCard = memo(({ order, t, index, onDetails, onCancel, onPreview }) => {
   const items = order.orderItems || [];
+  const first = items[0];
+  const extra = items.length - 1;
   const count = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0) || items.length;
   const canCancel = !isDone(order.status);
+  const payment = isEmpty(order.paymentMethod) ? '—' : String(order.paymentMethod).replace('_', ' ');
   return (
     <CardShell index={index}>
-      <div className="flex items-center gap-2.5">
-        <IconTile Icon={FiBox} tone="am" className="h-11 w-11" iconClassName="h-5 w-5" />
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-mono text-[11px] font-extrabold uppercase tracking-widest">ORD #{order.id.slice(0, 6)}</p>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate font-mono text-[11px] font-extrabold tracking-wide">ORD #{String(order.id).slice(0, 6)}</p>
           {!isEmpty(order.createdAt) && <p className="nb-muted flex items-center gap-1 text-[11px] font-semibold"><FiCalendar className="h-3 w-3" />{fmtShort(order.createdAt)}</p>}
         </div>
+        <StatusLabel status={order.status} t={t} />
       </div>
+
+      <div className="flex gap-3">
+        {first ? (
+          <ItemThumbButton item={first} onPreview={onPreview} className="w-20 sm:w-24">
+            {extra > 0 && <span dir="ltr" className="absolute bottom-1 end-1 rounded-full bg-black/70 px-1.5 py-0.5 text-[10px] font-extrabold text-white">+{extra}</span>}
+          </ItemThumbButton>
+        ) : (
+          <IconTile Icon={FiBox} tone="am" className="h-20 w-20 sm:h-24 sm:w-24" iconClassName="h-8 w-8" />
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="line-clamp-2 text-sm font-bold leading-snug">{first?.productName || '—'}</p>
+          {first?.shopName && <p className="nb-muted mt-0.5 truncate text-xs font-semibold">{first.shopName}</p>}
+          <p className="nb-muted mt-1.5 text-xs font-semibold"><span dir="ltr">{count}</span> {t('items')} · {payment}</p>
+        </div>
+      </div>
+
       <ProgressBar progress={orderProgress(order.status)} label={t(`status_${order.status}`)} />
-      <StatusLabel status={order.status} t={t} />
-      <div className="grid grid-cols-2 gap-2">
-        <Stat label={t('items')} value={count} />
-        <Stat label={t('payment')} value={isEmpty(order.paymentMethod) ? '—' : order.paymentMethod.replace('_', ' ')} />
-      </div>
       {!isEmpty(order.totalPrice) && <Price value={order.totalPrice} />}
       <div className={`nb-line mt-auto grid gap-2 border-t-2 pt-3 ${canCancel ? 'grid-cols-2' : 'grid-cols-1'}`}>
-        <Btn tone="soft" onClick={() => onDetails(order)} className="py-2 text-xs uppercase"><FiInfo className="h-3.5 w-3.5" /> {t('details')}</Btn>
-        {canCancel && <Btn tone="danger" onClick={() => onCancel(order.id)} className="py-2 text-xs uppercase"><FiXCircle className="h-3.5 w-3.5" /> {t('cancelOrder')}</Btn>}
+        <Btn tone="soft" onClick={() => onDetails(order)} className="py-2 text-xs"><FiInfo className="h-3.5 w-3.5" /> {t('details')}</Btn>
+        {canCancel && <Btn tone="danger" onClick={() => onCancel(order.id)} className="py-2 text-xs"><FiXCircle className="h-3.5 w-3.5" /> {t('cancelOrder')}</Btn>}
       </div>
     </CardShell>
   );
@@ -541,40 +680,39 @@ const RepairCard = memo(({ req, t, index, awaitingPayment, onDetails, onEdit, on
       <div className="flex items-center gap-2.5">
         <IconTile Icon={FiTool} tone="vi" className="h-11 w-11" iconClassName="h-5 w-5" />
         <div className="min-w-0 flex-1">
-          <p className="truncate font-mono text-[11px] font-extrabold uppercase tracking-widest">REQ #{req.id.slice(0, 6)}</p>
+          <p className="truncate font-mono text-[11px] font-extrabold tracking-wide">REQ #{String(req.id).slice(0, 6)}</p>
           <p className="truncate text-sm font-bold">{req.shopName}</p>
         </div>
+        <StatusLabel status={req.status} type="repair" t={t} />
       </div>
       <ProgressBar progress={repairProgress(req.status)} label={t(`status_${req.status}`)} />
-      <StatusLabel status={req.status} type="repair" t={t} />
-      {awaitingPayment && <p className="flex items-center gap-1.5 text-xs font-extrabold uppercase text-amber-600"><FiClock className="h-3.5 w-3.5" /> Awaiting payment</p>}
+      {awaitingPayment && <p className="flex items-center gap-1.5 text-xs font-extrabold text-amber-600"><FiClock className="h-3.5 w-3.5" /> Awaiting payment</p>}
       {!isEmpty(req.description) && <p className="line-clamp-2 text-xs leading-relaxed opacity-90">{req.description}</p>}
       {hasPrice && <Price value={req.price} />}
       <div className="nb-line mt-auto grid grid-cols-2 gap-2 border-t-2 pt-3">
-        <Btn tone="soft" onClick={() => onDetails(req.id)} className="py-2 text-xs uppercase"><FiInfo className="h-3.5 w-3.5" /> {t('details')}</Btn>
-        <Btn tone="soft" onClick={() => onEdit(req)} className="py-2 text-xs uppercase"><FiEdit2 className="h-3.5 w-3.5" /> {t('edit')}</Btn>
-        {awaitingPayment && <Btn onClick={onPay} className="col-span-2 py-2 text-xs uppercase"><FiCreditCard className="h-3.5 w-3.5" /> Complete payment</Btn>}
-        {req.status === 'QUOTE_SENT' && canAccept && <Btn onClick={() => onAccept(req)} className="col-span-2 py-2 text-xs uppercase"><FiCheckCircle className="h-3.5 w-3.5" /> {t('acceptQuote')}</Btn>}
-        {needsConfirm && <Btn tone="orange" onClick={() => onConfirm(req)} className="col-span-2 py-2 text-xs uppercase"><FiCheckCircle className="h-3.5 w-3.5" /> Confirm repair</Btn>}
-        {canCancel && <Btn tone="danger" onClick={() => onCancel(req.id)} className="col-span-2 py-2 text-xs uppercase"><FiXCircle className="h-3.5 w-3.5" /> {t('cancelRequest')}</Btn>}
+        <Btn tone="soft" onClick={() => onDetails(req.id)} className="py-2 text-xs"><FiInfo className="h-3.5 w-3.5" /> {t('details')}</Btn>
+        <Btn tone="soft" onClick={() => onEdit(req)} className="py-2 text-xs"><FiEdit2 className="h-3.5 w-3.5" /> {t('edit')}</Btn>
+        {awaitingPayment && <Btn onClick={onPay} className="col-span-2 py-2 text-xs"><FiCreditCard className="h-3.5 w-3.5" /> Complete payment</Btn>}
+        {req.status === 'QUOTE_SENT' && canAccept && <Btn onClick={() => onAccept(req)} className="col-span-2 py-2 text-xs"><FiCheckCircle className="h-3.5 w-3.5" /> {t('acceptQuote')}</Btn>}
+        {needsConfirm && <Btn tone="orange" onClick={() => onConfirm(req)} className="col-span-2 py-2 text-xs"><FiCheckCircle className="h-3.5 w-3.5" /> Confirm repair</Btn>}
+        {canCancel && <Btn tone="danger" onClick={() => onCancel(req.id)} className="col-span-2 py-2 text-xs"><FiXCircle className="h-3.5 w-3.5" /> {t('cancelRequest')}</Btn>}
       </div>
     </CardShell>
   );
 });
 
-const OrdersTab = memo(({ orders, onDetails, onCancel, t }) => {
-  const match = useCallback((o, term) => o.id?.toLowerCase().includes(term), []);
+const OrdersTab = memo(({ orders, onDetails, onCancel, onPreview, t }) => {
+  const match = useCallback((o, term) => String(o.id || '').toLowerCase().includes(term) || (o.orderItems || []).some((i) => String(i.productName || '').toLowerCase().includes(term)), []);
   const view = useListView(orders, { match, price: 'totalPrice', ipp: CARDS_PER_PAGE });
   return (
     <>
-      <TabTitle icon={FiBox} tone="am">{t('orders')}</TabTitle>
       <FilterBar view={view} statuses={ORDER_STATUSES} t={t} />
       {view.filtered.length === 0 ? (
         <EmptyState kind="box" title={t('noOrders')} subtitle={t('ordersHint')} />
       ) : (
         <>
           <div className={CARDS_GRID_CLS}>
-            {view.pageItems.map((o, i) => <OrderCard key={o.id} order={o} index={i} t={t} onDetails={onDetails} onCancel={onCancel} />)}
+            {view.pageItems.map((o, i) => <OrderCard key={o.id} order={o} index={i} t={t} onDetails={onDetails} onCancel={onCancel} onPreview={onPreview} />)}
           </div>
           <Pagination page={view.page} total={view.total} onChange={view.setPage} t={t} />
         </>
@@ -588,7 +726,6 @@ const RepairsTab = memo(({ repairs, payingId, onDetails, onEdit, onAccept, onCon
   const view = useListView(repairs, { match, price: 'price', ipp: CARDS_PER_PAGE });
   return (
     <>
-      <TabTitle icon={FiTool} tone="vi">{t('repairs')}</TabTitle>
       <FilterBar view={view} statuses={REPAIR_STATUSES} t={t} />
       {view.filtered.length === 0 ? (
         <EmptyState kind="wrench" title={t('noRepairs')} subtitle={t('repairsHint')} />
@@ -640,7 +777,7 @@ const ModalFrame = ({ onClose, size = 'sm:max-w-lg', label, role = 'dialog', bac
     <div className="fixed inset-0 z-[1000] flex items-end justify-center p-0 sm:items-center sm:p-4">
       <div className={`mdl-overlay ${closing ? 'is-closing' : ''} absolute inset-0 bg-black/60`} onClick={backdropClose ? close : undefined} aria-hidden="true" />
       <div ref={panelRef} tabIndex={-1} role={role} aria-modal="true" aria-label={label}
-        className={`nb-card mdl-panel ${closing ? 'is-closing' : ''} relative flex max-h-[92vh] w-full flex-col overflow-hidden outline-none ${size}`}>
+        className={`nb-card mdl-panel ${closing ? 'is-closing' : ''} relative flex max-h-[92vh] w-full flex-col overflow-hidden !rounded-b-none shadow-2xl outline-none sm:!rounded-2xl ${size}`}>
         {typeof children === 'function' ? children(close) : children}
       </div>
     </div>
@@ -652,18 +789,18 @@ const Sheet = ({ onClose, icon, tone = 'em', title, subtitle, size, footer, back
     {(close) => (
       <>
         <header className="nb-gray nb-line flex flex-shrink-0 items-center gap-3 border-b-2 px-4 py-3.5 sm:px-5">
-          <IconTile Icon={icon} tone={tone} className="h-10 w-10" iconClassName="h-5 w-5" />
+          <IconTile Icon={icon} tone={tone} className="h-10 w-10 !rounded-full" iconClassName="h-5 w-5" />
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-base font-extrabold uppercase"><span className="nb-ul">{title}</span></h2>
-            {subtitle && <p className="nb-muted mt-1 truncate text-[11px] font-bold">{subtitle}</p>}
+            <h2 className="truncate text-base font-extrabold">{title}</h2>
+            {subtitle && <p className="nb-muted mt-0.5 truncate text-[11px] font-bold">{subtitle}</p>}
           </div>
-          <button type="button" onClick={close} aria-label="Close" className="nb-btn h-9 w-9 flex-shrink-0"><FiX className="h-4 w-4" /></button>
+          <button type="button" onClick={close} aria-label="Close" className="nb-btn h-9 w-9 flex-shrink-0 !rounded-full"><FiX className="h-4 w-4" /></button>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
           {typeof children === 'function' ? children(close) : children}
         </div>
         {footer && (
-          <footer className="nb-line nb-gray flex-shrink-0 border-t-2 px-4 py-3.5 sm:px-5">
+          <footer className="nb-line flex-shrink-0 border-t-2 px-4 py-3.5 sm:px-5">
             {typeof footer === 'function' ? footer(close) : footer}
           </footer>
         )}
@@ -674,8 +811,8 @@ const Sheet = ({ onClose, icon, tone = 'em', title, subtitle, size, footer, back
 
 const Section = memo(({ icon, tone, title, right, children }) => (
   <section className="nb-gray nb-line rounded-xl border-2 p-3.5">
-    <h3 className="mb-3 flex items-center gap-2.5 text-xs font-extrabold uppercase">
-      <IconTile Icon={icon} tone={tone} className="h-7 w-7" iconClassName="h-3.5 w-3.5" />
+    <h3 className="mb-3 flex items-center gap-2.5 text-xs font-extrabold">
+      <IconTile Icon={icon} tone={tone} className="h-7 w-7 !rounded-full" iconClassName="h-3.5 w-3.5" />
       <span className="min-w-0 flex-1 truncate">{title}</span>
       {right}
     </h3>
@@ -690,7 +827,7 @@ const OptionTabs = memo(({ options, value, onChange, label, cols, disabled }) =>
       const Icon = o.icon;
       return (
         <button key={o.value} type="button" role="radio" aria-checked={on} disabled={disabled} onClick={() => onChange(o.value)}
-          className={`nb-btn flex-col gap-1 px-2 py-2.5 text-xs uppercase ${on ? 'nb-btn-on' : ''}`}>
+          className={`nb-btn flex-col gap-1 px-2 py-2.5 text-xs ${on ? 'nb-btn-on' : ''}`}>
           <Icon className="h-4 w-4" /> {o.label}
         </button>
       );
@@ -712,13 +849,13 @@ const ConfirmDialog = memo(({ dlg, onSettle, onClose }) => {
       {(close) => (
         <>
           <div className="px-6 pb-6 pt-8 text-center">
-            <IconTile Icon={Icon} tone={m.tile} className="mx-auto h-16 w-16" iconClassName="h-7 w-7" />
-            <h2 className="mt-4 text-xl font-extrabold uppercase"><span className="nb-ul">{dlg.title}</span></h2>
+            <IconTile Icon={Icon} tone={m.tile} className="mx-auto h-16 w-16 !rounded-full" iconClassName="h-7 w-7" />
+            <h2 className="mt-4 text-xl font-extrabold">{dlg.title}</h2>
             {dlg.text && <p className="nb-muted mx-auto mt-3 max-w-xs text-sm font-medium leading-relaxed">{dlg.text}</p>}
           </div>
           <div className="nb-gray nb-line grid grid-cols-2 gap-3 border-t-2 px-5 py-4">
-            <Btn tone="soft" onClick={close} className="py-3 text-sm uppercase">{dlg.cancelText || 'Cancel'}</Btn>
-            <Btn tone={m.btn} onClick={() => { onSettle(true); close(); }} className="py-3 text-sm uppercase">{dlg.confirmText || 'Confirm'}</Btn>
+            <Btn tone="soft" onClick={close} className="py-3 text-sm">{dlg.cancelText || 'Cancel'}</Btn>
+            <Btn tone={m.btn} onClick={() => { onSettle(true); close(); }} className="py-3 text-sm">{dlg.confirmText || 'Confirm'}</Btn>
           </div>
         </>
       )}
@@ -726,145 +863,108 @@ const ConfirmDialog = memo(({ dlg, onSettle, onClose }) => {
   );
 });
 
-const initialsOf = (first, last) => `${(first || '').trim().charAt(0)}${(last || '').trim().charAt(0)}`.toUpperCase();
+const FORM_FIELDS = ['first_name', 'last_name', 'phone'];
+const FIELD_MAX = { first_name: 50, last_name: 50, phone: 20 };
 
-const DetailCard = memo(({ icon, tone, label, value, copyable, ltr, children }) => {
-  const has = !isEmpty(value);
-  const copy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(String(value));
-      toast({ icon: 'success', title: 'Copied', text: String(value), timer: 1800 });
-    } catch { toast({ icon: 'error', title: 'Could not copy', timer: 1800 }); }
-  }, [value]);
-  return (
-    <div className="nb-card flex min-w-0 items-center gap-3 p-2.5 sm:p-3">
-      <IconTile Icon={icon} tone={tone} className="h-9 w-9 sm:h-10 sm:w-10" iconClassName="h-4 w-4 sm:h-5 sm:w-5" />
-      <div className="min-w-0 flex-1">
-        <p className="nb-muted text-[10px] font-extrabold uppercase tracking-widest rtl:tracking-normal">{label}</p>
-        {children || <p dir={ltr ? 'ltr' : undefined} className={`truncate text-sm font-bold ${ltr ? 'rtl:text-end' : ''} ${has ? '' : 'opacity-40'}`}>{has ? value : '—'}</p>}
-      </div>
-      {copyable && has && (
-        <button type="button" onClick={copy} aria-label={`Copy ${label}`} title="Copy" className="nb-btn h-9 w-9 flex-shrink-0 !shadow-none sm:h-8 sm:w-8">
-          <FiCopy className="h-4 w-4" />
-        </button>
-      )}
-    </div>
-  );
-});
+const ProfileTab = memo(({ profile, form, setForm, active, onSave, onDelete, language, onChangeLanguage, t }) => {
+  const [errors, setErrors] = useState({ first_name: '', last_name: '', phone: '' });
+  const [saving, setSaving] = useState(false);
+  const dirty = FORM_FIELDS.some((k) => String(form[k] ?? '').trim() !== String(profile?.[k] ?? '').trim());
+  const validators = { first_name: nameValidationError, last_name: nameValidationError, phone: phoneValidationError };
 
-const ProfileStat = memo(({ icon: Icon, value, label }) => (
-  <div className="nb-gray nb-line flex min-w-0 flex-col items-center gap-0.5 border-2 px-1.5 py-2.5 text-center sm:px-2 sm:py-3">
-    <Icon aria-hidden="true" className="nb-ic h-4 w-4" />
-    <p className="text-lg font-extrabold tabular-nums sm:text-xl">{value}</p>
-    <p className="nb-muted w-full truncate text-[9px] font-extrabold uppercase tracking-wider rtl:tracking-normal sm:text-[10px] sm:tracking-widest">{label}</p>
-  </div>
-));
+  const upd = (k) => (e) => {
+    const v = e.target.value.slice(0, FIELD_MAX[k]);
+    setForm((f) => ({ ...f, [k]: v }));
+    setErrors((er) => (er[k] ? { ...er, [k]: validators[k](v) } : er));
+  };
 
-const ProfileTab = memo(({ profile, form, setForm, counts, onSave, onDelete, onLogout, language, onChangeLanguage, t }) => {
-  const [editing, setEditing] = useState(false);
-  const [phoneError, setPhoneError] = useState('');
-  const name = `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim();
-  const initials = initialsOf(profile?.first_name, profile?.last_name);
-  const active = !!profile?.activate;
   const submit = async (e) => {
     e.preventDefault();
-    const phoneErr = phoneValidationError(form.phone);
-    if (phoneErr) { setPhoneError(phoneErr); return; }
-    setEditing(false);
-    if (!(await onSave())) setEditing(true);
+    if (saving) return;
+    const next = {};
+    FORM_FIELDS.forEach((k) => { next[k] = validators[k](form[k]); });
+    setErrors(next);
+    if (FORM_FIELDS.some((k) => next[k])) return;
+    setSaving(true);
+    try { await onSave(); } finally { setSaving(false); }
   };
-  const upd = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
-  const updPhone = (e) => { upd('phone')(e); setPhoneError(phoneValidationError(e.target.value)); };
-  const cancelEdit = () => { setEditing(false); setPhoneError(''); };
 
   return (
-    <div className="space-y-4 sm:space-y-5">
-      <TabTitle icon={FiUser} tone="em" right={!editing && (
-        <Btn tone="soft" onClick={() => setEditing(true)} className="min-h-10 px-3 py-2 text-xs uppercase"><FiEdit2 className="nb-ic h-3.5 w-3.5" /> {t('editProfile')}</Btn>
-      )}>{editing ? t('editProfile') : t('myProfile')}</TabTitle>
-
-      {editing ? (
-        <section className="nb-card p-4 sm:p-5">
-          <form onSubmit={submit} noValidate className="mx-auto max-w-xl space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <TextField label={t('firstName')} icon={FiUser} value={form.first_name} onChange={upd('first_name')} autoComplete="given-name" required />
-              <TextField label={t('lastName')} icon={FiUser} value={form.last_name} onChange={upd('last_name')} autoComplete="family-name" required />
-            </div>
-            <div className="space-y-1.5">
-              <TextField label={t('phoneNumber')} icon={FiPhone} type="tel" inputMode="tel" value={form.phone} onChange={updPhone} autoComplete="tel" aria-invalid={!!phoneError} required />
-              {phoneError && <p role="alert" className="text-xs font-bold text-rose-500">{phoneError}</p>}
-            </div>
-            {/* Primary action first on narrow screens (thumb-friendly), side-by-side from sm up. */}
-            <div className="flex flex-col-reverse gap-3 pt-1 sm:grid sm:grid-cols-2">
-              <Btn tone="soft" onClick={cancelEdit} className="min-h-11 py-2.5 text-sm uppercase">{t('cancel')}</Btn>
-              <Btn type="submit" className="min-h-11 py-2.5 text-sm uppercase"><FiCheck className="h-4 w-4" /> {t('saveChanges')}</Btn>
-            </div>
-          </form>
-        </section>
-      ) : (
-        <section className="nb-card p-4 sm:p-6">
-          <div className="flex flex-col items-center gap-3 text-center sm:flex-row sm:gap-4 sm:text-start">
-            <span className={`nb-line flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl border-[3px] text-2xl font-extrabold [box-shadow:calc(var(--dx)*4px)_4px_0_var(--nb-shadow)] sm:h-20 sm:w-20 sm:text-3xl ${initials ? 'bg-emerald-500 text-white' : 'nb-gray'}`}>
-              {initials || <FiUser className="h-8 w-8 text-[color:var(--nb-ink)] sm:h-9 sm:w-9" />}
+    <div className="space-y-6">
+      <form onSubmit={submit} noValidate className="space-y-6">
+        <section className="nb-panel p-5 sm:p-8">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-extrabold sm:text-xl">{t('contactInfo', 'Contact information')}</h2>
+            <span className={`nb-gray inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-extrabold ${active ? 'text-emerald-500' : 'text-rose-500'}`}>
+              {active ? <FiCheckCircle aria-hidden="true" className="h-3.5 w-3.5" /> : <FiXCircle aria-hidden="true" className="h-3.5 w-3.5" />}
+              {active ? t('active') : t('inactive')}
             </span>
-            <div className="min-w-0 w-full flex-1">
-              {name && <p className="break-words text-lg font-extrabold uppercase leading-tight sm:text-2xl"><span className="nb-ul">{name}</span></p>}
-              {profile?.email && <p className="nb-muted mt-2 break-all text-sm font-semibold sm:break-normal sm:truncate">{profile.email}</p>}
-            </div>
           </div>
-
-          <div className="mt-4 grid grid-cols-3 gap-2 sm:mt-5 sm:gap-3">
-            <ProfileStat icon={FiBox} value={counts.orders} label={t('orders')} />
-            <ProfileStat icon={FiTool} value={counts.repairs} label={t('repairs')} />
-            <ProfileStat icon={FiMapPin} value={counts.addresses} label={t('addresses')} />
-          </div>
-
-          <div className="mt-4 grid gap-3 sm:mt-5 sm:grid-cols-2 sm:gap-4">
-            <DetailCard icon={FiUser} tone="em" label={t('fullName', 'Full name')} value={name} />
-            <DetailCard icon={FiMail} tone="sky" label={t('email', 'Email')} value={profile?.email} copyable />
-            <DetailCard icon={FiPhone} tone="vi" label={t('phoneNumber')} value={profile?.phone} copyable ltr />
-            <DetailCard icon={FiShield} tone={active ? 'te' : 'ro'} label={t('accountStatus')}>
-              <p className={`flex items-center gap-1.5 text-sm font-bold ${active ? 'text-emerald-500' : 'text-rose-500'}`}>
-                {active ? <FiCheckCircle className="h-4 w-4" /> : <FiXCircle className="h-4 w-4" />}
-                {active ? t('active') : t('inactive')}
-              </p>
-            </DetailCard>
+          <div className="grid gap-6 sm:grid-cols-2">
+            <ProfileField label={t('email', 'Email')} type="email" value={profile?.email || ''} readOnly autoComplete="email" dir="ltr" />
+            <ProfileField label={t('phoneNumber')} type="tel" inputMode="tel" autoComplete="tel" dir="ltr" required value={form.phone} onChange={upd('phone')}
+              error={errors.phone} hint={t('phoneHint', 'Used for delivery and repair updates')} placeholder="+201001234567" maxLength={FIELD_MAX.phone} />
           </div>
         </section>
-      )}
 
-      <section className="nb-card flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <p className="flex items-center gap-2 text-sm font-extrabold uppercase"><FiGlobe aria-hidden="true" className="nb-ic h-4 w-4" /> {t('language')}</p>
+        <section className="nb-panel p-5 sm:p-8">
+          <h2 className="mb-6 text-lg font-extrabold sm:text-xl">{t('personalInfo', 'Personal information')}</h2>
+          <div className="grid gap-6 sm:grid-cols-2">
+            <ProfileField label={t('firstName')} autoComplete="given-name" required value={form.first_name} onChange={upd('first_name')} error={errors.first_name} maxLength={FIELD_MAX.first_name} />
+            <ProfileField label={t('lastName')} autoComplete="family-name" required value={form.last_name} onChange={upd('last_name')} error={errors.last_name} maxLength={FIELD_MAX.last_name} />
+          </div>
+          <div className="mt-8 flex justify-end">
+            <Btn type="submit" disabled={!dirty || saving} aria-busy={saving} className="min-h-11 w-full px-8 py-2.5 text-sm sm:w-auto">
+              {saving ? t('saving', 'Saving…') : <><FiCheck className="h-4 w-4" /> {t('saveChanges')}</>}
+            </Btn>
+          </div>
+        </section>
+      </form>
+
+      <section className="nb-panel flex flex-col gap-3 p-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:p-6">
+        <p className="flex items-center gap-2 text-sm font-extrabold"><FiGlobe aria-hidden="true" className="nb-ic h-4 w-4" /> {t('language')}</p>
         <NbDropdown value={language} onChange={onChangeLanguage} options={LANG_OPTIONS} ariaLabel={t('selectLanguage')} align="end" className="w-full sm:w-52" />
       </section>
 
-      <section className="nb-card !border-rose-500 !shadow-[5px_5px_0_#e11d48] p-4">
-        <h3 className="flex items-center gap-2 text-sm font-extrabold uppercase text-rose-500"><FiTrash2 aria-hidden="true" className="h-4 w-4" /> {t('dangerZone')}</h3>
+      <section className="nb-panel !border-rose-300 p-5 sm:p-6">
+        <h3 className="flex items-center gap-2 text-sm font-extrabold text-rose-500"><FiTrash2 aria-hidden="true" className="h-4 w-4" /> {t('dangerZone')}</h3>
         <p className="nb-muted mb-3 mt-1 text-xs font-medium">{t('dangerZoneHint')}</p>
-        <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap">
-          <Btn tone="danger" onClick={onDelete} className="min-h-11 w-full px-4 py-2 text-xs uppercase sm:min-h-0 sm:w-auto"><FiTrash2 className="h-3.5 w-3.5" /> {t('deleteAccount')}</Btn>
-          <Btn tone="soft" onClick={onLogout} className="min-h-11 w-full px-4 py-2 text-xs uppercase sm:min-h-0 sm:w-auto"><RiLogoutBoxRLine className="h-3.5 w-3.5" /> {t('logout')}</Btn>
-        </div>
+        <Btn tone="danger" onClick={onDelete} className="min-h-11 w-full px-4 py-2 text-xs sm:min-h-0 sm:w-auto"><FiTrash2 className="h-3.5 w-3.5" /> {t('deleteAccount')}</Btn>
       </section>
     </div>
   );
 });
 
 const EMPTY_ADDR = { state: '', city: '', street: '', building: '', notes: '', isDefault: false, latitude: 0, longitude: 0 };
-const COORD_FIELDS = [['latitude', 'Latitude'], ['longitude', 'Longitude']];
-const MAP_FALLBACK_CLS = 'nb-gray nb-line h-[320px] animate-pulse rounded-2xl border-2 motion-reduce:animate-none sm:h-[380px]';
+const REQUIRED_ADDR = ['state', 'city', 'street', 'building'];
+const COORD_FIELDS = [['latitude', 'Latitude', 90], ['longitude', 'Longitude', 180]];
+const MAP_FALLBACK_CLS = 'nb-gray h-[320px] animate-pulse rounded-2xl motion-reduce:animate-none sm:h-[380px]';
 
 const AddressesTab = memo(({ addresses, inUseIds, onCreate, onUpdate, onDelete, darkMode, t }) => {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(EMPTY_ADDR);
   const [mode, setMode] = useState('manual');
   const formOpen = editingId !== null;
+  const isValid = REQUIRED_ADDR.every((k) => cleanText(form[k]).length > 0);
   const close = () => { setEditingId(null); setForm(EMPTY_ADDR); setMode('manual'); };
   const upd = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
-  const onMap = useCallback((lat, lng) => setForm((f) => ({ ...f, latitude: lat, longitude: lng })), []);
+  const onMap = useCallback((lat, lng) => setForm((f) => ({ ...f, latitude: clampCoord(lat, 90), longitude: clampCoord(lng, 180) })), []);
+  const onMapAddress = useCallback((d) => setForm((f) => ({
+    ...f,
+    state: cleanText(d?.state) || f.state,
+    city: cleanText(d?.city) || f.city,
+    street: cleanText(d?.street) || f.street,
+    building: cleanText(d?.building) || f.building,
+  })), []);
   const submit = (e) => {
     e.preventDefault();
-    const payload = { ...form, latitude: form.latitude || 0, longitude: form.longitude || 0 };
+    if (!isValid) return;
+    const payload = {
+      ...form,
+      state: cleanText(form.state), city: cleanText(form.city), street: cleanText(form.street), building: cleanText(form.building), notes: cleanText(form.notes, 300),
+      isDefault: !!form.isDefault,
+      latitude: clampCoord(form.latitude, 90), longitude: clampCoord(form.longitude, 180),
+    };
     if (editingId === 'new') onCreate(payload); else onUpdate(editingId, payload);
     close();
   };
@@ -875,85 +975,90 @@ const AddressesTab = memo(({ addresses, inUseIds, onCreate, onUpdate, onDelete, 
 
   if (formOpen) {
     const fields = [['state', t('stateGovernorate'), FiGlobe], ['city', t('city'), FiNavigation], ['street', t('street'), FiMapPin], ['building', t('buildingApartment'), FiHome]];
+    const addressFields = (
+      <div className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          {fields.map(([k, label, Icon]) => <TextField key={k} label={label} icon={Icon} value={form[k]} onChange={upd(k)} maxLength={80} required />)}
+        </div>
+        <TextField as="textarea" rows={3} label={t('additionalNotes')} value={form.notes} onChange={upd('notes')} maxLength={300} />
+      </div>
+    );
     return (
-      <>
-        <TabTitle icon={FiMapPin} tone="sky">{editingId === 'new' ? t('addAddress') : t('editAddress')}</TabTitle>
-        <form onSubmit={submit} className="nb-card space-y-5 p-4 sm:p-5">
-          <div className="grid grid-cols-2 gap-2.5" role="tablist">
-            {[['manual', FiList, t('addressInformation')], ['map', FiNavigation, t('pickOnMap')]].map(([m, Icon, label]) => (
-              <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => setMode(m)}
-                className={`nb-btn px-2 py-2.5 text-xs uppercase ${mode === m ? 'nb-btn-on' : ''}`}>
-                <Icon className="h-3.5 w-3.5" /> {label}
-              </button>
-            ))}
-          </div>
+      <form onSubmit={submit} className="nb-panel space-y-5 p-5 sm:p-8">
+        <h2 className="text-lg font-extrabold sm:text-xl">{editingId === 'new' ? t('addAddress') : t('editAddress')}</h2>
+        <div className="grid grid-cols-2 gap-2.5" role="tablist">
+          {[['manual', FiList, t('addressInformation')], ['map', FiNavigation, t('pickOnMap')]].map(([m, Icon, label]) => (
+            <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => setMode(m)}
+              className={`nb-btn px-2 py-2.5 text-xs ${mode === m ? 'nb-btn-on' : ''}`}>
+              <Icon className="h-3.5 w-3.5" /> {label}
+            </button>
+          ))}
+        </div>
 
-          {mode === 'manual' ? (
-            <div className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                {fields.map(([k, label, Icon]) => <TextField key={k} label={label} icon={Icon} value={form[k]} onChange={upd(k)} required />)}
-              </div>
-              <TextField as="textarea" rows={3} label={t('additionalNotes')} value={form.notes} onChange={upd('notes')} />
+        {mode === 'manual' ? addressFields : (
+          <div className="space-y-4">
+            <Suspense fallback={<div className={MAP_FALLBACK_CLS} />}>
+              <MapPicker latitude={form.latitude} longitude={form.longitude} onChange={onMap} onAddress={onMapAddress} darkMode={darkMode} />
+            </Suspense>
+            <div className="grid grid-cols-2 gap-4">
+              {COORD_FIELDS.map(([k, label, max]) => (
+                <TextField key={k} label={label} icon={FiCompass} type="number" step="any" min={-max} max={max} value={form[k] || ''}
+                  onChange={(e) => setForm((f) => ({ ...f, [k]: clampCoord(parseFloat(e.target.value), max) }))} />
+              ))}
             </div>
-          ) : (
-            <div className="space-y-4">
-              <Suspense fallback={<div className={MAP_FALLBACK_CLS} />}>
-                <MapPicker latitude={form.latitude} longitude={form.longitude} onChange={onMap} darkMode={darkMode} />
-              </Suspense>
-              <div className="grid grid-cols-2 gap-4">
-                {COORD_FIELDS.map(([k, label]) => (
-                  <TextField key={k} label={label} icon={FiCompass} type="number" step="any" value={form[k] || ''}
-                    onChange={(e) => setForm((f) => ({ ...f, [k]: parseFloat(e.target.value) || 0 }))} />
-                ))}
-              </div>
-              <p className="nb-gray nb-line flex items-start gap-2 rounded-xl border-2 border-dotted p-3 text-xs font-semibold"><FiInfo className="nb-ic mt-0.5 h-3.5 w-3.5 flex-shrink-0" />{t('manualAddressHint')}</p>
-            </div>
-          )}
-
-          <label className="flex cursor-pointer items-center gap-2.5">
-            <input type="checkbox" className="h-4 w-4 accent-emerald-500" checked={form.isDefault} onChange={(e) => setForm((f) => ({ ...f, isDefault: e.target.checked }))} />
-            <span className="text-sm font-bold">{t('setDefaultAddress')}</span>
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <Btn tone="soft" onClick={close} className="py-2.5 text-sm uppercase">{t('cancel')}</Btn>
-            <Btn type="submit" className="py-2.5 text-sm uppercase"><FiCheck className="h-4 w-4" /> {editingId === 'new' ? t('save') : t('update')}</Btn>
+            <p className="nb-gray nb-line flex items-start gap-2 rounded-xl border-2 border-dotted p-3 text-xs font-semibold"><FiInfo className="nb-ic mt-0.5 h-3.5 w-3.5 flex-shrink-0" />{t('manualAddressHint')}</p>
+            {addressFields}
           </div>
-        </form>
-      </>
+        )}
+
+        <label className="flex cursor-pointer items-center gap-2.5">
+          <input type="checkbox" className="h-4 w-4 accent-emerald-500" checked={form.isDefault} onChange={(e) => setForm((f) => ({ ...f, isDefault: e.target.checked }))} />
+          <span className="text-sm font-bold">{t('setDefaultAddress')}</span>
+        </label>
+        {!isValid && (
+          <p role="status" className="flex items-center gap-1.5 text-xs font-bold text-amber-500">
+            <FiInfo aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0" /> {t('fillRequiredFields', 'Fill in all required fields (*) to save')}
+          </p>
+        )}
+        <div className="grid grid-cols-2 gap-3">
+          <Btn tone="soft" onClick={close} className="py-2.5 text-sm">{t('cancel')}</Btn>
+          <Btn type="submit" disabled={!isValid} className="py-2.5 text-sm"><FiCheck className="h-4 w-4" /> {editingId === 'new' ? t('save') : t('update')}</Btn>
+        </div>
+      </form>
     );
   }
 
   return (
     <>
-      <TabTitle icon={FiMapPin} tone="sky" right={<Btn onClick={() => setEditingId('new')} className="px-3 py-2 text-xs uppercase"><FiPlus className="h-3.5 w-3.5" /> {t('addAddress')}</Btn>}>{t('addresses')}</TabTitle>
+      <ActionBar><Btn onClick={() => setEditingId('new')} className="px-3 py-2 text-xs"><FiPlus className="h-3.5 w-3.5" /> {t('addAddress')}</Btn></ActionBar>
       {addresses.length === 0 ? (
         <EmptyState kind="pin" title={t('noAddresses')} subtitle={t('addressHint')} />
       ) : (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className={CARDS_GRID_CLS}>
           {addresses.map((a, i) => {
             const inUse = inUseIds.has(String(a.id));
             const hasCoords = !!a.latitude && !!a.longitude;
             return (
               <CardShell key={a.id} index={i}>
                 <div className="flex items-start gap-2.5">
-                  <IconTile Icon={FiMapPin} tone="sky" className="h-11 w-11" iconClassName="h-5 w-5" />
+                  <IconTile Icon={FiMapPin} tone="sky" className="h-11 w-11 !rounded-full" iconClassName="h-5 w-5" />
                   <div className="min-w-0 flex-1">
-                    <h3 className="truncate text-sm font-extrabold uppercase">{a.street}, {a.building}</h3>
+                    <h3 className="truncate text-sm font-extrabold">{a.street}, {a.building}</h3>
                     <p className="nb-muted truncate text-xs font-semibold">{a.city}, {a.state}</p>
-                    {a.isDefault && <p className="nb-ic mt-1 flex items-center gap-1 text-[11px] font-extrabold uppercase"><FiCheckCircle className="h-3 w-3" /> {t('default')}</p>}
+                    {a.isDefault && <p className="nb-ic mt-1 flex items-center gap-1 text-[11px] font-extrabold"><FiCheckCircle className="h-3 w-3" /> {t('default')}</p>}
                   </div>
                 </div>
                 {!isEmpty(a.notes) && <p className="nb-gray line-clamp-2 rounded-lg px-2.5 py-1.5 text-xs italic">“{a.notes}”</p>}
                 {hasCoords && (
-                  <a href={directionsUrl(a.latitude, a.longitude)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase underline underline-offset-4">
+                  <a href={directionsUrl(a.latitude, a.longitude)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-[11px] font-extrabold underline underline-offset-4">
                     <FiExternalLink className="nb-ic h-3 w-3" /> {t('getDirections')}
                     <span dir="ltr" className="nb-muted ms-auto font-mono font-normal normal-case">{Number(a.latitude).toFixed(4)}, {Number(a.longitude).toFixed(4)}</span>
                   </a>
                 )}
                 <div className="nb-line mt-auto border-t-2 pt-3">
                   <div className="grid grid-cols-2 gap-2">
-                    <Btn tone="soft" disabled={inUse} onClick={() => startEdit(a)} className="py-2 text-xs uppercase"><FiEdit2 className="h-3.5 w-3.5" /> {inUse ? t('inUse') : t('edit')}</Btn>
-                    <Btn tone="danger" disabled={inUse} onClick={() => onDelete(a.id)} className="py-2 text-xs uppercase" aria-label={t('delete')}><FiTrash2 className="h-3.5 w-3.5" /> {t('delete')}</Btn>
+                    <Btn tone="soft" disabled={inUse} onClick={() => startEdit(a)} className="py-2 text-xs"><FiEdit2 className="h-3.5 w-3.5" /> {inUse ? t('inUse') : t('edit')}</Btn>
+                    <Btn tone="danger" disabled={inUse} onClick={() => onDelete(a.id)} className="py-2 text-xs" aria-label={t('delete')}><FiTrash2 className="h-3.5 w-3.5" /> {t('delete')}</Btn>
                   </div>
                   {inUse && <p className="mt-2 flex items-center gap-1 text-[11px] font-bold text-amber-500"><FiInfo className="h-3 w-3" /> {t('usedInActiveOrderRepair')}</p>}
                 </div>
@@ -972,21 +1077,19 @@ const NotificationsTab = memo(({ items, onDelete, t }) => {
   const total = Math.max(1, Math.ceil(items.length / ipp));
   const current = Math.min(page, total);
   const pageItems = useMemo(() => items.slice((current - 1) * ipp, current * ipp), [items, current]);
-  const unread = useMemo(() => items.filter((n) => !n.read).length, [items]);
 
   return (
     <>
-      <TabTitle icon={FiBell} tone="ro" right={unread > 0 && <span dir="ltr" className="text-lg font-extrabold tabular-nums text-rose-500">{unread}</span>}>{t('notifications')}</TabTitle>
       {items.length === 0 ? <EmptyState kind="bell" title={t('noNotifications')} subtitle={t('notificationHint')} /> : (
         <>
-          <ul className="space-y-4">
+          <ul className="space-y-3">
             {pageItems.map((n, i) => (
               <li key={n.id} style={STAGGER[Math.min(i, 8)]} className="nb-in nb-card flex items-start gap-3 p-3.5">
-                <IconTile Icon={FiBell} tone="ro" className="h-9 w-9" iconClassName="h-4 w-4" />
+                <IconTile Icon={FiBell} tone="ro" className="h-9 w-9 !rounded-full" iconClassName="h-4 w-4" />
                 <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-2 text-sm font-extrabold uppercase">
+                  <p className="flex items-center gap-2 text-sm font-extrabold">
                     <span className="truncate">{n.title || n.subject || 'Notification'}</span>
-                    {!n.read && <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full border-2 border-[color:var(--nb-line)] bg-emerald-500" aria-label="Unread" />}
+                    {!n.read && <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full bg-emerald-500" aria-label="Unread" />}
                   </p>
                   {!isEmpty(n.message || n.body) && <p className="mt-1 text-xs leading-relaxed opacity-90">{n.message || n.body}</p>}
                   {!isEmpty(n.createdAt) && <p className="nb-muted mt-1.5 flex items-center gap-1 text-[10px] font-bold"><FiClock className="h-3 w-3" />{fmtFull(n.createdAt)}</p>}
@@ -1018,7 +1121,7 @@ const Donut = memo(({ data, darkMode, size = 144, thickness = 22 }) => {
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`${total} total`}>
       <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
-        {total === 0 ? <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={darkMode ? '#1e1e1e' : '#e5e7eb'} strokeWidth={thickness} />
+        {total === 0 ? <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={darkMode ? '#262626' : '#e5e7eb'} strokeWidth={thickness} />
           : data.map((d, i) => {
             const frac = d.value / total;
             const len = Math.max(0, frac * c - gap);
@@ -1027,7 +1130,7 @@ const Donut = memo(({ data, darkMode, size = 144, thickness = 22 }) => {
             return el;
           })}
       </g>
-      <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fill={darkMode ? '#ffffff' : '#022c22'} style={{ fontSize: 24, fontWeight: 800 }}>{total}</text>
+      <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fill={darkMode ? '#ffffff' : '#111827'} style={{ fontSize: 24, fontWeight: 800 }}>{total}</text>
     </svg>
   );
 });
@@ -1038,7 +1141,7 @@ const Legend = memo(({ data }) => {
     <ul className="min-w-[150px] flex-1 space-y-1.5">
       {data.map((d) => (
         <li key={d.label} className="flex items-center gap-2 text-xs">
-          <span className="h-3 w-3 flex-shrink-0 rounded-full border-2 border-[color:var(--nb-line)]" style={{ backgroundColor: d.color }} />
+          <span className="h-3 w-3 flex-shrink-0 rounded-full" style={{ backgroundColor: d.color }} />
           <span className="flex-1 truncate font-bold">{d.label}</span>
           <b>{d.value}</b>
           <span className="nb-muted w-9 text-end font-semibold">{Math.round((d.value / total) * 100)}%</span>
@@ -1078,18 +1181,17 @@ const AnalyticsTab = memo(({ orders, repairs, addresses, darkMode, t }) => {
     [t('repairsCancelledFailed'), n.failed, repairs.length, 'bg-amber-400'],
   ];
   const panel = 'nb-card p-4 sm:p-5';
-  const h = 'mb-4 flex items-center gap-2 text-sm font-extrabold uppercase';
+  const h = 'mb-4 flex items-center gap-2 text-sm font-extrabold';
 
   return (
     <div className="space-y-5">
-      <TabTitle icon={FiPieChart} tone="te">{t('analytics')}</TabTitle>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {stats.map(({ icon, tone, value, label }, i) => (
           <div key={label} style={STAGGER[i]} className="nb-in nb-card relative overflow-hidden p-3.5">
             <span aria-hidden="true" className={`pointer-events-none absolute -end-6 -top-6 h-20 w-20 rounded-full opacity-25 ${BLOB[tone]}`} />
-            <IconTile Icon={icon} tone={tone} className="mb-2 h-9 w-9" iconClassName="h-4 w-4" />
+            <IconTile Icon={icon} tone={tone} className="mb-2 h-9 w-9 !rounded-full" iconClassName="h-4 w-4" />
             <p className="text-xl font-extrabold tabular-nums">{value}</p>
-            <p className="nb-muted text-[11px] font-extrabold uppercase">{label}</p>
+            <p className="nb-muted text-[11px] font-bold">{label}</p>
           </div>
         ))}
       </div>
@@ -1115,11 +1217,11 @@ const AnalyticsTab = memo(({ orders, repairs, addresses, darkMode, t }) => {
                 return (
                   <div key={label}>
                     <div className="mb-1 flex justify-between text-xs">
-                      <span className="font-extrabold uppercase">{label}</span>
+                      <span className="font-extrabold">{label}</span>
                       <span dir="ltr" className="nb-muted font-bold">{value}/{total} · {pct}%</span>
                     </div>
-                    <div className="nb-gray nb-line h-3 overflow-hidden border-2">
-                      <div className={`h-full w-full origin-left transition-transform duration-300 rtl:origin-right motion-reduce:transition-none ${color}`} style={{ transform: `scaleX(${pct / 100})` }} />
+                    <div className="nb-gray h-2.5 overflow-hidden rounded-full">
+                      <div className={`h-full w-full origin-left rounded-full transition-transform duration-300 rtl:origin-right motion-reduce:transition-none ${color}`} style={{ transform: `scaleX(${pct / 100})` }} />
                     </div>
                   </div>
                 );
@@ -1141,27 +1243,28 @@ const AboutTab = memo(({ darkMode, t }) => {
   ];
   return (
     <div className="space-y-5">
-      <TabTitle icon={FiCompass} tone="sky">{t('aboutTechRestore')}</TabTitle>
-      <section className="nb-card flex flex-col items-center gap-4 p-5 sm:flex-row">
-        <div className="nb-gray nb-line flex-shrink-0 border-2 p-2">
-          <IsoIllustration type="shop_store" tone="emerald" darkMode={darkMode} onGreen={false} className="h-28 w-28" />
+      <section className="nb-panel flex flex-col items-center gap-4 p-5 sm:flex-row sm:p-6">
+        <div className="nb-gray h-32 w-32 flex-shrink-0 rounded-2xl p-2">
+          <Suspense fallback={<div className="h-full w-full animate-pulse rounded-xl bg-black/5 motion-reduce:animate-none" />}>
+            <IsoIllustration type="shop_store" tone="emerald" darkMode={darkMode} onGreen={false} className="h-28 w-28" />
+          </Suspense>
         </div>
         <p className="text-sm font-medium leading-relaxed opacity-90">{t('aboutDescription')}</p>
       </section>
-      <section className="nb-card p-4 sm:p-5">
-        <h3 className="mb-4 flex items-center gap-2 text-sm font-extrabold uppercase"><FiAward className="nb-ic h-4 w-4" /> <span className="nb-ul">{t('whyChooseUs')}</span></h3>
+      <section className="nb-panel p-5 sm:p-6">
+        <h3 className="mb-4 flex items-center gap-2 text-sm font-extrabold"><FiAward className="nb-ic h-4 w-4" /> <span>{t('whyChooseUs')}</span></h3>
         <div className="grid gap-4 sm:grid-cols-2">
           {values.map(({ icon, tone, title, text }) => (
-            <div key={title} className="nb-gray nb-line flex gap-3 border-2 p-3">
-              <IconTile Icon={icon} tone={tone} className="h-10 w-10" iconClassName="h-5 w-5" />
-              <div className="min-w-0"><p className="text-sm font-extrabold uppercase">{title}</p><p className="nb-muted mt-0.5 text-xs font-medium">{text}</p></div>
+            <div key={title} className="nb-gray flex gap-3 rounded-xl p-3">
+              <IconTile Icon={icon} tone={tone} className="h-10 w-10 !rounded-full" iconClassName="h-5 w-5" />
+              <div className="min-w-0"><p className="text-sm font-extrabold">{title}</p><p className="nb-muted mt-0.5 text-xs font-medium">{text}</p></div>
             </div>
           ))}
         </div>
       </section>
-      <section className="nb-card p-4 sm:p-5">
-        <h3 className="mb-4 flex items-center gap-2 text-sm font-extrabold uppercase"><FiSend className="nb-ic h-4 w-4" /> <span className="nb-ul">{t('getInTouch')}</span></h3>
-        <div className="nb-gray nb-line grid gap-3 rounded-xl border-2 border-dotted p-3.5 sm:grid-cols-3">
+      <section className="nb-panel p-5 sm:p-6">
+        <h3 className="mb-4 flex items-center gap-2 text-sm font-extrabold"><FiSend className="nb-ic h-4 w-4" /> <span>{t('getInTouch')}</span></h3>
+        <div className="nb-gray grid gap-3 rounded-xl p-3.5 sm:grid-cols-3">
           <InfoRow icon={FiMail}>support@tech-restore.com</InfoRow>
           <InfoRow icon={FiPhone}><span dir="ltr">+20 100 000 0000</span></InfoRow>
           <InfoRow icon={FiMapPin}>Cairo, Egypt</InfoRow>
@@ -1171,13 +1274,23 @@ const AboutTab = memo(({ darkMode, t }) => {
   );
 });
 
-const OrderModal = memo(({ order, onClose, t }) => {
+const ItemPreview = memo(({ item, onClose, t }) => (
+  <Sheet onClose={onClose} icon={FiBox} tone="am" size="sm:max-w-lg" title={item.productName || '—'}
+    subtitle={`${item.quantity ?? 1} × EGP ${Number(item.priceAtCheckout || 0).toFixed(2)}`}
+    footer={(close) => <div className="flex justify-end"><Btn tone="soft" onClick={close} className="px-6 py-2 text-sm">{t('close')}</Btn></div>}>
+    <div className="overflow-hidden rounded-xl border border-[color:var(--nb-line)]">
+      <ItemThumb src={item._img} name={item.productName} ratio="aspect-[4/3]" />
+    </div>
+  </Sheet>
+));
+
+const OrderModal = memo(({ order, onClose, onPreview, t }) => {
   const items = order.orderItems || [];
   return (
     <Sheet onClose={onClose} icon={FiBox} tone="am" size="sm:max-w-2xl"
-      title={`ORD #${order.id.slice(0, 8).toUpperCase()}`}
+      title={`ORD #${String(order.id).slice(0, 8).toUpperCase()}`}
       subtitle={!isEmpty(order.createdAt) ? fmtFull(order.createdAt) : undefined}
-      footer={(close) => <div className="flex justify-end"><Btn tone="soft" onClick={close} className="px-6 py-2 text-sm uppercase">{t('close')}</Btn></div>}>
+      footer={(close) => <div className="flex justify-end"><Btn tone="soft" onClick={close} className="px-6 py-2 text-sm">{t('close')}</Btn></div>}>
       <div className="space-y-4">
         <Section icon={FiTruck} tone="sky" title={t('status')} right={<StatusLabel status={order.status} t={t} />}>
           <ProgressBar progress={orderProgress(order.status)} label={t(`status_${order.status}`)} />
@@ -1186,24 +1299,25 @@ const OrderModal = memo(({ order, onClose, t }) => {
         <Section icon={FiInfo} tone="vi" title="Order info">
           <div className="grid grid-cols-2 gap-2">
             {!isEmpty(order.createdAt) && <Stat surface="plain" label={t('orderDate')} value={fmtFull(order.createdAt)} />}
-            {!isEmpty(order.paymentMethod) && <Stat surface="plain" label={t('paymentMethod')} value={order.paymentMethod.replace('_', ' ')} />}
+            {!isEmpty(order.paymentMethod) && <Stat surface="plain" label={t('paymentMethod')} value={String(order.paymentMethod).replace('_', ' ')} />}
           </div>
         </Section>
 
         <Section icon={FiBox} tone="am" title={t('orderItems')}>
-          <ul className="nb-line divide-y-2 divide-[color:var(--nb-line)] overflow-hidden border-2 bg-[color:var(--nb-card)]">
+          <ul className="nb-line divide-y-2 divide-[color:var(--nb-line)] overflow-hidden rounded-lg border-2 bg-[color:var(--nb-card)]">
             {items.length === 0 ? <li className="nb-muted p-8 text-center text-sm">{t('noItems')}</li> : items.map((it, i) => (
-              <li key={it.id ?? i} className="flex items-center justify-between gap-3 p-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-extrabold uppercase">{it.productName || '—'}</p>
-                  <p className="nb-muted truncate text-xs font-semibold">{it.shopName || '—'} · {it.quantity} × EGP {Number(it.priceAtCheckout || 0).toFixed(2)}</p>
+              <li key={it.id ?? i} className="flex items-center gap-3 p-3">
+                <ItemThumbButton item={it} onPreview={onPreview} className="w-16" />
+                <div className="min-w-0 flex-1">
+                  <p className="line-clamp-2 text-sm font-bold leading-snug">{it.productName || '—'}</p>
+                  <p className="nb-muted truncate text-xs font-semibold">{it.shopName || '—'} · <span dir="ltr">{it.quantity} × EGP {Number(it.priceAtCheckout || 0).toFixed(2)}</span></p>
                 </div>
-                <b className="flex-shrink-0 text-sm tabular-nums">EGP {((Number(it.priceAtCheckout) || 0) * (Number(it.quantity) || 0)).toFixed(2)}</b>
+                <b dir="ltr" className="flex-shrink-0 text-sm tabular-nums">EGP {round2((Number(it.priceAtCheckout) || 0) * (Number(it.quantity) || 0)).toFixed(2)}</b>
               </li>
             ))}
             <li className="nb-gray flex items-center justify-between p-3">
-              <span className="text-xs font-extrabold uppercase tracking-widest rtl:tracking-normal">{t('grandTotal')}</span>
-              <b className="text-lg tabular-nums">EGP {order.totalPrice ?? '—'}</b>
+              <span className="text-xs font-extrabold">{t('grandTotal')}</span>
+              <b dir="ltr" className="text-lg tabular-nums">EGP {order.totalPrice ?? '—'}</b>
             </li>
           </ul>
         </Section>
@@ -1213,8 +1327,8 @@ const OrderModal = memo(({ order, onClose, t }) => {
 });
 
 const RepairModal = memo(({ repair, onClose, t }) => (
-  <Sheet onClose={onClose} icon={FiTool} tone="vi" title={`REQ #${repair.id.slice(0, 8).toUpperCase()}`} subtitle={repair.shopName || undefined}
-    footer={(close) => <div className="flex justify-end"><Btn tone="soft" onClick={close} className="px-6 py-2 text-sm uppercase">{t('close')}</Btn></div>}>
+  <Sheet onClose={onClose} icon={FiTool} tone="vi" title={`REQ #${String(repair.id).slice(0, 8).toUpperCase()}`} subtitle={repair.shopName || undefined}
+    footer={(close) => <div className="flex justify-end"><Btn tone="soft" onClick={close} className="px-6 py-2 text-sm">{t('close')}</Btn></div>}>
     <div className="space-y-4">
       <Section icon={FiTruck} tone="sky" title={t('status')} right={<StatusLabel status={repair.status} type="repair" t={t} />}>
         <ProgressBar progress={repairProgress(repair.status)} label={t(`status_${repair.status}`)} />
@@ -1254,11 +1368,11 @@ const EditRepairModal = memo(({ repair, categories, onClose, onSubmit }) => {
     closeRef.current?.();
   };
   return (
-    <Sheet onClose={onClose} closeRef={closeRef} icon={FiEdit2} tone="am" title="Edit repair" subtitle={`REQ #${repair.id.slice(0, 8).toUpperCase()}`} size="sm:max-w-md"
+    <Sheet onClose={onClose} closeRef={closeRef} icon={FiEdit2} tone="am" title="Edit repair" subtitle={`REQ #${String(repair.id).slice(0, 8).toUpperCase()}`} size="sm:max-w-md"
       footer={(close) => (
         <div className="grid grid-cols-2 gap-3">
-          <Btn tone="soft" onClick={close} className="py-2.5 text-sm uppercase">Cancel</Btn>
-          <Btn onClick={submit} className="py-2.5 text-sm uppercase"><FiCheck className="h-4 w-4" /> Save</Btn>
+          <Btn tone="soft" onClick={close} className="py-2.5 text-sm">Cancel</Btn>
+          <Btn onClick={submit} className="py-2.5 text-sm"><FiCheck className="h-4 w-4" /> Save</Btn>
         </div>
       )}>
       <form onSubmit={submit} noValidate className="space-y-4">
@@ -1267,7 +1381,7 @@ const EditRepairModal = memo(({ repair, categories, onClose, onSubmit }) => {
           {errors.cat && <p role="alert" className="mt-2 text-xs font-bold text-rose-500">{errors.cat}</p>}
         </Section>
         <Section icon={FiEdit2} tone="am" title="Description">
-          <TextField as="textarea" rows={5} label="Description" required aria-invalid={!!errors.desc} value={desc} onChange={(e) => { setDesc(e.target.value); setErrors((er) => ({ ...er, desc: '' })); }} />
+          <TextField as="textarea" rows={5} label="Description" required maxLength={1000} aria-invalid={!!errors.desc} value={desc} onChange={(e) => { setDesc(e.target.value); setErrors((er) => ({ ...er, desc: '' })); }} />
           {errors.desc && <p role="alert" className="mt-2 text-xs font-bold text-rose-500">{errors.desc}</p>}
         </Section>
       </form>
@@ -1296,7 +1410,7 @@ const ConfirmRepairModal = memo(({ req, addresses, token, onClose, onSuccess }) 
     submittingRef.current = true;
     setBusy(true);
     try {
-      await api.post(`/api/users/repair-request/repairs/${req.id}/confirm`, { deliveryAddress: addrId, deliveryMethod: delivery, paymentMethod: 'CASH' }, { headers: { Authorization: `Bearer ${token}` } });
+      await api.post(`/api/users/repair-request/repairs/${enc(req.id)}/confirm`, { deliveryAddress: addrId, deliveryMethod: delivery, paymentMethod: 'CASH' }, { headers: { Authorization: `Bearer ${token}` } });
       closeRef.current?.();
       toast({ icon: 'success', title: 'Repair confirmed', text: 'Your repair order has been placed.', timer: 3500 });
       onSuccess();
@@ -1305,22 +1419,22 @@ const ConfirmRepairModal = memo(({ req, addresses, token, onClose, onSuccess }) 
   };
 
   return (
-    <Sheet onClose={onClose} closeRef={closeRef} icon={FiCheckCircle} tone="em" title="Confirm repair order" subtitle={`REQ #${req.id.slice(0, 8).toUpperCase()}`} size="sm:max-w-lg" backdropClose={false}
+    <Sheet onClose={onClose} closeRef={closeRef} icon={FiCheckCircle} tone="em" title="Confirm repair order" subtitle={`REQ #${String(req.id).slice(0, 8).toUpperCase()}`} size="sm:max-w-lg" backdropClose={false}
       footer={(close) => (
         <div className="grid grid-cols-2 gap-3">
-          <Btn tone="soft" onClick={close} disabled={busy} className="py-2.5 text-sm uppercase">Cancel</Btn>
-          <Btn onClick={submit} disabled={busy || addresses.length === 0 || !priceOk} className="py-2.5 text-sm uppercase">{busy ? 'Processing…' : <><FiCheckCircle className="h-4 w-4" /> Confirm</>}</Btn>
+          <Btn tone="soft" onClick={close} disabled={busy} className="py-2.5 text-sm">Cancel</Btn>
+          <Btn onClick={submit} disabled={busy || addresses.length === 0 || !priceOk} className="py-2.5 text-sm">{busy ? 'Processing…' : <><FiCheckCircle className="h-4 w-4" /> Confirm</>}</Btn>
         </div>
       )}>
       <form onSubmit={submit} className="space-y-4">
         <Section icon={FiShoppingBag} tone="em" title="Shop & quoted price">
-          <div className="nb-line flex items-center justify-between gap-3 border-2 bg-[color:var(--nb-card)] p-3">
+          <div className="nb-line flex items-center justify-between gap-3 rounded-lg border-2 bg-[color:var(--nb-card)] p-3">
             <div className="min-w-0">
-              <p className="nb-muted text-[9px] font-extrabold uppercase tracking-widest rtl:tracking-normal">Shop</p>
-              <p className="truncate text-sm font-extrabold uppercase">{req.shopName || '—'}</p>
+              <p className="nb-muted text-[10px] font-extrabold uppercase tracking-wide rtl:tracking-normal">Shop</p>
+              <p className="truncate text-sm font-extrabold">{req.shopName || '—'}</p>
             </div>
             <div className="flex-shrink-0 text-end">
-              <p className="nb-muted text-[9px] font-extrabold uppercase tracking-widest rtl:tracking-normal">Price quoted</p>
+              <p className="nb-muted text-[10px] font-extrabold uppercase tracking-wide rtl:tracking-normal">Price quoted</p>
               <p className="text-2xl font-extrabold tabular-nums">{isEmpty(req.price) ? '—' : req.price} <span className="nb-muted text-xs font-bold">EGP</span></p>
             </div>
           </div>
@@ -1353,18 +1467,18 @@ const RepairPaymentModal = memo(({ pay, repair, checking, onClose, onOpenPayment
             ? 'Your card was not charged and the repair order is not confirmed. You can try the payment again.'
             : 'Your repair order is confirmed only after the payment succeeds. If you closed the payment page, open it again.'}
         </p>
-        <p className={`text-xs font-extrabold uppercase tracking-wide ${failed ? 'text-rose-500' : 'nb-ic'}`} dir="ltr">
+        <p className={`text-xs font-extrabold tracking-wide ${failed ? 'text-rose-500' : 'nb-ic'}`} dir="ltr">
           REQ #{String(pay.orderId).slice(0, 8)}{repair?.shopName ? ` · ${repair.shopName}` : ''}
         </p>
         {failed ? (
           <div className="grid grid-cols-2 gap-3">
-            <Btn tone="soft" onClick={closeThen(onDismiss)} className="py-2.5 text-sm uppercase">Close</Btn>
-            <Btn onClick={closeThen(onRetry)} className="py-2.5 text-sm uppercase"><FiCreditCard className="h-4 w-4" /> Try again</Btn>
+            <Btn tone="soft" onClick={closeThen(onDismiss)} className="py-2.5 text-sm">Close</Btn>
+            <Btn onClick={closeThen(onRetry)} className="py-2.5 text-sm"><FiCreditCard className="h-4 w-4" /> Try again</Btn>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            <Btn onClick={onOpenPayment} disabled={!pay.url} className="w-full py-3 text-sm uppercase"><FiCreditCard className="h-4 w-4" /> Open payment page</Btn>
-            <Btn tone="soft" onClick={onCheck} disabled={checking} aria-busy={checking} className="w-full py-3 text-sm uppercase">
+            <Btn onClick={onOpenPayment} disabled={!safePaymentUrl(pay.url)} className="w-full py-3 text-sm"><FiCreditCard className="h-4 w-4" /> Open payment page</Btn>
+            <Btn tone="soft" onClick={onCheck} disabled={checking} aria-busy={checking} className="w-full py-3 text-sm">
               {checking
                 ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" /> Checking payment…</>
                 : <><FiCheck className="h-4 w-4" /> I&apos;ve paid, check status</>}
@@ -1377,17 +1491,42 @@ const RepairPaymentModal = memo(({ pay, repair, checking, onClose, onOpenPayment
   );
 });
 
-const TabButton = memo(({ tab, active, vertical, onSelect, onWarm }) => {
+const NavItem = memo(({ tab, active, onSelect, onWarm }) => {
   const warm = tab.id === 'addresses' ? onWarm : undefined;
+  const select = useCallback(() => onSelect(tab.id), [onSelect, tab.id]);
   return (
-    <button type="button" onClick={() => onSelect(tab.id)} onPointerEnter={warm} onFocus={warm} aria-current={active ? 'page' : undefined}
-      className={`nb-btn flex-shrink-0 text-xs uppercase ${active ? 'nb-btn-on' : ''} ${vertical ? 'w-full justify-start px-3 py-2.5' : 'whitespace-nowrap px-3 py-2'}`}>
+    <button type="button" onClick={select} onPointerEnter={warm} onFocus={warm} aria-current={active ? 'page' : undefined} className="nb-navitem">
+      <tab.icon aria-hidden="true" className="nb-ic h-5 w-5 flex-shrink-0" />
+      <span className="min-w-0 flex-1 truncate">{tab.label}</span>
+      {!!tab.badge && <span dir="ltr" className="nb-gray rounded-full px-2 py-0.5 text-[11px] font-extrabold tabular-nums">{tab.badge}</span>}
+    </button>
+  );
+});
+
+const PillTab = memo(({ tab, active, onSelect, onWarm }) => {
+  const warm = tab.id === 'addresses' ? onWarm : undefined;
+  const select = useCallback(() => onSelect(tab.id), [onSelect, tab.id]);
+  return (
+    <button type="button" onClick={select} onPointerEnter={warm} onFocus={warm} aria-current={active ? 'page' : undefined}
+      className={`nb-btn nb-tab flex-shrink-0 whitespace-nowrap !rounded-full px-3.5 py-2 text-xs ${active ? 'nb-btn-on' : ''}`}>
       <tab.icon aria-hidden="true" className={`h-4 w-4 flex-shrink-0 ${active ? '' : 'nb-ic'}`} />
-      <span className={vertical ? 'flex-1 text-start' : ''}>{tab.label}</span>
+      <span>{tab.label}</span>
       {!!tab.badge && <span dir="ltr" className="text-[11px] font-extrabold tabular-nums opacity-80">{tab.badge}</span>}
     </button>
   );
 });
+
+const GreetingCard = memo(({ name, email, pct, t }) => (
+  <div className="nb-panel p-5">
+    <p className="text-xl font-extrabold">{t('hello', 'Hello')}{name ? `, ${name}` : ''}</p>
+    {email && <p className="nb-muted mt-1 break-all text-sm font-medium" dir="ltr">{email}</p>}
+    <div className="mt-4 flex items-center justify-between gap-2 text-xs font-extrabold">
+      <span>{t('personalizeExperience', 'Complete your profile')}</span>
+      <span dir="ltr" className="nb-gray rounded-full px-2.5 py-0.5 tabular-nums">{pct}%</span>
+    </div>
+    <div className="mt-2"><Meter pct={pct} bad={false} /></div>
+  </div>
+));
 
 const useMutate = () => {
   const qc = useQueryClient();
@@ -1432,13 +1571,13 @@ const useRepairActions = ({ cfg, ask, mutate }) => {
   const [confirmReq, setConfirmReq] = useState(null);
 
   const viewRepair = useCallback(async (id) => {
-    try { setSelectedRepair((await api.get(`/api/users/repair-request/${id}`, cfg)).data); }
+    try { setSelectedRepair((await api.get(`/api/users/repair-request/${enc(id)}`, cfg)).data); }
     catch { toast({ icon: 'error', title: 'Failed to load repair' }); }
   }, [cfg]);
 
   const submitRepairEdit = useCallback((repair, description, deviceCategory) => {
     mutate(['repairs'], (o = []) => o.map((r) => (r.id === repair.id ? { ...r, description, deviceCategory } : r)),
-      () => api.put(`/api/users/repair-request/${repair.shopId}/${repair.id}`, { description, deviceCategory }, cfg), { ok: { title: 'Repair updated', text: 'The shop will see your changes.' }, fail: 'Failed to update repair' });
+      () => api.put(`/api/users/repair-request/${enc(repair.shopId)}/${enc(repair.id)}`, { description, deviceCategory }, cfg), { ok: { title: 'Repair updated', text: 'The shop will see your changes.' }, fail: 'Failed to update repair' });
   }, [mutate, cfg]);
 
   const acceptQuote = useCallback(async (req) => {
@@ -1446,7 +1585,7 @@ const useRepairActions = ({ cfg, ask, mutate }) => {
     const ok = await ask({ tone: 'success', icon: FiCheckCircle, title: 'Accept quote?', text: `Accept ${req.price} EGP from ${req.shopName}?`, confirmText: 'Yes, accept', cancelText: 'Not now' });
     if (!ok) return;
     const res = await mutate(['repairs'], (o = []) => o.map((r) => (r.id === req.id ? { ...r, status: 'QUOTE_APPROVED' } : r)),
-      () => api.put(`/api/users/repair-request/${req.id}/status`, { status: 'QUOTE_APPROVED' }, cfg), { ok: { title: 'Quote accepted', text: 'Choose delivery to finish.' }, fail: 'Failed to accept quote', wait: true });
+      () => api.put(`/api/users/repair-request/${enc(req.id)}/status`, { status: 'QUOTE_APPROVED' }, cfg), { ok: { title: 'Quote accepted', text: 'Choose delivery to finish.' }, fail: 'Failed to accept quote', wait: true });
     if (res) setConfirmReq(req);
   }, [ask, mutate, cfg]);
 
@@ -1454,7 +1593,7 @@ const useRepairActions = ({ cfg, ask, mutate }) => {
 
   const cancelRepair = useCallback(async (id) => {
     const ok = await ask({ tone: 'danger', icon: FiXCircle, title: 'Cancel request?', text: 'The repair request will be cancelled.', confirmText: 'Yes, cancel', cancelText: 'Keep request' });
-    if (ok) mutate(['repairs'], (o = []) => o.map((r) => (r.id === id ? { ...r, status: 'CANCELLED' } : r)), () => api.delete(`/api/users/repair-request/${id}/cancel`, cfg),
+    if (ok) mutate(['repairs'], (o = []) => o.map((r) => (r.id === id ? { ...r, status: 'CANCELLED' } : r)), () => api.delete(`/api/users/repair-request/${enc(id)}/cancel`, cfg),
       { ok: { title: 'Request cancelled' }, fail: 'Failed to cancel request', failText: "We couldn't cancel this request right now. Its status has not changed. Please try again.", wait: true });
   }, [ask, mutate, cfg]);
 
@@ -1517,10 +1656,9 @@ const LatestRepairs = memo(({ token, limit = LATEST_LIMIT }) => {
       {REPAIRS_STYLE_EL}
       <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <p className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide rtl:tracking-normal"><span className="nb-bar" aria-hidden="true" />{t('repairs')}</p>
-          <h2 className="mt-3 text-2xl font-extrabold uppercase leading-tight sm:text-3xl"><span className="nb-ul">{t('latestRepairs', 'Latest repairs')}</span></h2>
+          <h2 className="text-2xl font-extrabold leading-tight sm:text-3xl">{t('latestRepairs', 'Latest repairs')}</h2>
         </div>
-        <Btn tone="soft" onClick={goAccount} className="px-3 py-2 text-xs uppercase">
+        <Btn tone="soft" onClick={goAccount} className="px-3 py-2 text-xs">
           {t('viewAll', 'View all')} <FiChevronRight className="nb-flip h-3.5 w-3.5" />
         </Btn>
       </header>
@@ -1550,14 +1688,17 @@ const AccountContent = ({ darkMode = false }) => {
   const t = useCallback((k, fallback) => tr(language, k, fallback), [language]);
   const [, startTransition] = useTransition();
 
-  const [token, setToken] = useState(() => localStorage.getItem('authToken'));
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const storeToken = useAuthStore((s) => s.accessToken);
+  const clearAuth = useAuthStore((s) => s.clearAuth);
+
+  const [token, setToken] = useState(() => storeToken || localStorage.getItem('authToken'));
   const [section, setSection] = useState(() => (VALID_SECTIONS.has(location.state?.section) ? location.state.section : 'profile'));
   const [switching, setSwitching] = useState(false);
   const switchTimer = useRef(null);
   const cancellingRef = useRef(new Set());
   const [profileForm, setProfileForm] = useState({ first_name: '', last_name: '', phone: '' });
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [previewItem, setPreviewItem] = useState(null);
   const [pendingPay, setPendingPay] = useState(() => loadPending('repair'));
   const [payModalOpen, setPayModalOpen] = useState(() => !!pendingPay);
   const [payChecking, setPayChecking] = useState(false);
@@ -1565,16 +1706,29 @@ const AccountContent = ({ darkMode = false }) => {
   const mutate = useMutate();
   const { dlg: confirmDlg, ask, settle: settleConfirm, close: closeConfirm } = useConfirmDialog();
 
-  useEffect(() => { document.title = 'My Account | Tech-Restore'; }, []);
+  const endSession = useCallback(() => {
+    try { clearAuth?.(); } catch { }
+    try { AUTH_KEYS.forEach((k) => localStorage.removeItem(k)); } catch { }
+    clearCache();
+    qc.clear();
+    setToken(null);
+  }, [clearAuth, qc]);
+
+  useEffect(() => { document.title = 'My Account | Tech-Restore'; clearCache(); }, []);
   useEffect(() => () => clearTimeout(switchTimer.current), []);
 
   useEffect(() => {
-    const tk = localStorage.getItem('authToken');
+    const target = location.state?.section;
+    if (VALID_SECTIONS.has(target)) setSection(target);
+  }, [location.key, location.state]);
+
+  useEffect(() => {
+    const tk = storeToken || localStorage.getItem('authToken');
     let ok = false;
     try { const d = tk && jwtDecode(tk); ok = !!(d && d.exp && d.exp > Date.now() / 1000); } catch { ok = false; }
-    if (!ok) { localStorage.removeItem('authToken'); clearCache(); setIsAuthenticated(false); navigate('/login'); }
-    else { setToken(tk); setIsAuthenticated(true); }
-  }, [location.pathname, navigate]);
+    if (!ok) { endSession(); navigate('/login', { replace: true }); }
+    else setToken(tk);
+  }, [location.pathname, storeToken, navigate, endSession]);
 
   const cfg = useMemo(() => ({ headers: { Authorization: `Bearer ${token}` } }), [token]);
   const repairActions = useRepairActions({ cfg, ask, mutate });
@@ -1587,6 +1741,20 @@ const AccountContent = ({ darkMode = false }) => {
   const { data: orders = [], isLoading: ordersLoading } = useAcct('orders', '/api/users/orders', token, { refetchInterval: pollOrders });
   const { data: repairs = [], isLoading: repairsLoading } = useAcct('repairs', '/api/users/repair-request', token, { refetchInterval: pollRepairs, refetchOnMount: 'always' });
   const { data: notifications = [], isLoading: notificationsLoading } = useAcct('notifications', '/api/notifications/users', token, { refetchInterval: NOTIF_POLL_MS });
+
+  const wantImages = (section === 'orders' || !!selectedOrder) && orders.length > 0;
+  const { data: imageMap = EMPTY_MAP } = useQuery({
+    queryKey: ['productImages'],
+    queryFn: fetchProductImages(token),
+    enabled: !!token && wantImages,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  const ordersView = useMemo(() => (wantImages ? orders.map((o) => enrichOrder(o, imageMap)) : orders), [wantImages, orders, imageMap]);
+  const orderModalData = useMemo(
+    () => (selectedOrder ? ordersView.find((o) => o.id === selectedOrder.id) || selectedOrder : null),
+    [selectedOrder, ordersView],
+  );
 
   const { data: payState, refetch: refetchPay } = useRepairPayment(pendingPay?.orderId, token, !!pendingPay && !pendingPay.failed);
 
@@ -1630,13 +1798,22 @@ const AccountContent = ({ darkMode = false }) => {
     return s;
   }, [orders, repairs]);
 
-  const profileCounts = useMemo(() => ({ orders: orders.length, repairs: repairs.length, addresses: addresses.length }), [orders.length, repairs.length, addresses.length]);
+  const completeness = useMemo(() => {
+    const filled = [profile?.first_name, profile?.last_name, profile?.phone, profile?.email].filter((v) => !isEmpty(v)).length + (addresses.length > 0 ? 1 : 0);
+    return Math.round((filled / 5) * 100);
+  }, [profile, addresses.length]);
+
   const payingRepair = useMemo(() => (pendingPay ? repairs.find((r) => r.id === pendingPay.orderId) : undefined), [repairs, pendingPay]);
 
   const saveProfile = useCallback(async () => {
-    const phoneErr = phoneValidationError(profileForm.phone);
+    const payload = {
+      first_name: profileForm.first_name.trim(),
+      last_name: profileForm.last_name.trim(),
+      phone: profileForm.phone.replace(/[\s\-()]/g, ''),
+    };
+    const phoneErr = phoneValidationError(payload.phone);
     if (phoneErr) { toast({ icon: 'warning', title: 'Invalid phone number', text: phoneErr }); return false; }
-    const res = await mutate(['profile'], (o) => ({ ...o, ...profileForm }), () => api.put('/api/users/profile', profileForm, cfg),
+    const res = await mutate(['profile'], (o) => ({ ...o, ...payload }), () => api.put('/api/users/profile', payload, cfg),
       { ok: { title: 'Profile updated', text: 'Your changes have been saved.' }, fail: 'Update failed' });
     return !!res;
   }, [mutate, profileForm, cfg]);
@@ -1644,9 +1821,9 @@ const AccountContent = ({ darkMode = false }) => {
   const deleteAccount = useCallback(async () => {
     const ok = await ask({ tone: 'danger', icon: FiTrash2, title: 'Delete account?', text: 'This action is irreversible. All your data will be permanently deleted.', confirmText: 'Yes, delete my account', cancelText: 'Keep my account' });
     if (!ok) return;
-    try { await api.delete('/api/users/profile', cfg); localStorage.removeItem('authToken'); clearCache(); qc.clear(); navigate('/'); }
+    try { await api.delete('/api/users/profile', cfg); endSession(); navigate('/', { replace: true }); }
     catch { toast({ icon: 'error', title: 'Failed to delete account' }); }
-  }, [ask, cfg, navigate, qc]);
+  }, [ask, cfg, navigate, endSession]);
 
   const logout = useCallback(async () => {
     const refreshToken = localStorage.getItem('refreshToken');
@@ -1654,12 +1831,12 @@ const AccountContent = ({ darkMode = false }) => {
     try {
       if (currentToken) await api.post('/api/auth/logout', refreshToken ? { refreshToken } : {}, { headers: { Authorization: `Bearer ${currentToken}` } });
     } catch { }
-    localStorage.clear(); clearCache(); qc.clear(); setToken(null); setIsAuthenticated(false);
+    endSession();
     navigate('/login', { replace: true });
-  }, [token, navigate, qc]);
+  }, [token, navigate, endSession]);
 
   const changeLanguage = useCallback((lang) => {
-    if (!lang || lang === language) return;
+    if (!lang || lang === language || !LANGUAGE_NAMES[lang]) return;
     setSwitching(true);
     clearTimeout(switchTimer.current);
     switchTimer.current = setTimeout(() => {
@@ -1680,11 +1857,11 @@ const AccountContent = ({ darkMode = false }) => {
       { ok: { title: 'Address added', text: 'You can now use it for orders and repairs.' }, fail: 'Failed to add address' });
     if (res?.data?.id) qc.setQueryData(['addresses'], (o = []) => o.map((a) => (a.id === tempId ? res.data : a)));
   }, [mutate, cfg, qc]);
-  const updateAddress = useCallback((id, form) => mutate(['addresses'], (o = []) => o.map((a) => (a.id === id ? { ...a, ...form, id } : a)), () => api.put(`/api/users/addresses/${id}`, { ...form, id }, cfg),
+  const updateAddress = useCallback((id, form) => mutate(['addresses'], (o = []) => o.map((a) => (a.id === id ? { ...a, ...form, id } : a)), () => api.put(`/api/users/addresses/${enc(id)}`, { ...form, id }, cfg),
     { ok: { title: 'Address updated' }, fail: 'Failed to update address' }), [mutate, cfg]);
   const deleteAddress = useCallback(async (id) => {
     const ok = await ask({ tone: 'danger', icon: FiTrash2, title: 'Delete address?', text: 'This saved address will be removed from your account.', confirmText: 'Yes, delete', cancelText: 'Keep it' });
-    if (ok) mutate(['addresses'], (o = []) => o.filter((a) => a.id !== id), () => api.delete(`/api/users/addresses/${id}`, cfg), { ok: { title: 'Address deleted' }, fail: 'Failed to delete address' });
+    if (ok) mutate(['addresses'], (o = []) => o.filter((a) => a.id !== id), () => api.delete(`/api/users/addresses/${enc(id)}`, cfg), { ok: { title: 'Address deleted' }, fail: 'Failed to delete address' });
   }, [ask, mutate, cfg]);
 
   const cancelOrder = useCallback(async (id) => {
@@ -1692,13 +1869,13 @@ const AccountContent = ({ darkMode = false }) => {
     cancellingRef.current.add(id);
     try {
       const ok = await ask({ tone: 'danger', icon: FiXCircle, title: 'Cancel order?', text: 'The order will be cancelled and this cannot be undone.', confirmText: 'Yes, cancel order', cancelText: 'Keep order' });
-      if (ok) await mutate(['orders'], (o = []) => o.map((x) => (x.id === id ? { ...x, status: 'CANCELLED' } : x)), () => api.delete(`/api/users/orders/${id}/cancel`, cfg),
+      if (ok) await mutate(['orders'], (o = []) => o.map((x) => (x.id === id ? { ...x, status: 'CANCELLED' } : x)), () => api.delete(`/api/users/orders/${enc(id)}/cancel`, cfg),
         { ok: { title: 'Order cancelled' }, fail: 'Failed to cancel order', failText: "We couldn't cancel this order right now. Its status has not changed. Please try again.", wait: true });
     } finally { cancellingRef.current.delete(id); }
   }, [ask, mutate, cfg]);
 
   const deleteNotification = useCallback((id) => mutate(['notifications'], (o = []) => o.filter((n) => n.id !== id),
-    () => api.delete(`/api/notifications/users/${id}`, cfg), { ok: { title: 'Notification deleted' }, fail: 'Failed to delete notification' }), [mutate, cfg]);
+    () => api.delete(`/api/notifications/users/${enc(id)}`, cfg), { ok: { title: 'Notification deleted' }, fail: 'Failed to delete notification' }), [mutate, cfg]);
 
   const openPayModal = useCallback(() => setPayModalOpen(true), []);
   const hidePayModal = useCallback(() => setPayModalOpen(false), []);
@@ -1710,7 +1887,8 @@ const AccountContent = ({ darkMode = false }) => {
   }, []);
 
   const openPaymentPage = useCallback(() => {
-    if (pendingPay?.url) window.location.assign(pendingPay.url);
+    const url = safePaymentUrl(pendingPay?.url);
+    if (url) window.location.assign(url);
     else toast({ icon: 'warning', title: 'Payment page unavailable', text: 'Please try again or pay later from your repair requests.' });
   }, [pendingPay]);
 
@@ -1731,17 +1909,20 @@ const AccountContent = ({ darkMode = false }) => {
   }, [payChecking, refetchPay]);
 
   const closeOrder = useCallback(() => setSelectedOrder(null), []);
+  const openPreview = useCallback((item) => setPreviewItem(item), []);
+  const closePreview = useCallback(() => setPreviewItem(null), []);
   const refreshRepairs = useCallback(() => qc.invalidateQueries({ queryKey: ['repairs'] }), [qc]);
 
-  const tabs = useMemo(() => [
-    { id: 'profile', label: t('profile'), icon: FiUser },
-    { id: 'addresses', label: t('addresses'), icon: FiMapPin, badge: addresses.length },
-    { id: 'orders', label: t('orders'), icon: FiBox, badge: orders.length },
-    { id: 'repairs', label: t('repairs'), icon: FiTool, badge: repairs.length },
-    { id: 'notifications', label: t('notifications'), icon: FiBell, badge: unread },
-    { id: 'analytics', label: t('analytics'), icon: FiPieChart },
-    { id: 'about', label: t('aboutUs'), icon: FiCompass },
-  ], [t, addresses.length, orders.length, repairs.length, unread]);
+  const badges = useMemo(() => ({ addresses: addresses.length, orders: orders.length, repairs: repairs.length, notifications: unread }), [addresses.length, orders.length, repairs.length, unread]);
+  const tabsById = useMemo(() => {
+    const out = {};
+    Object.keys(SECTION_META).forEach((id) => {
+      out[id] = { id, icon: NAV_ICONS[id], label: t(SECTION_META[id][0], SECTION_META[id][1]), badge: badges[id] };
+    });
+    return out;
+  }, [t, badges]);
+  const groups = useMemo(() => NAV_GROUPS.map((g) => ({ id: g.id, tabs: g.ids.map((id) => tabsById[id]) })), [tabsById]);
+  const allTabs = useMemo(() => groups.flatMap((g) => g.tabs), [groups]);
 
   const loading = {
     profile: profileLoading, addresses: addressesLoading, orders: ordersLoading, repairs: repairsLoading,
@@ -1750,12 +1931,13 @@ const AccountContent = ({ darkMode = false }) => {
   const go = useCallback((id) => startTransition(() => setSection(id)), []);
   const name = profile?.first_name;
   const payingId = pendingPay && !pendingPay.failed ? pendingPay.orderId : null;
+  const meta = SECTION_META[section];
 
   let content;
   if (loading) content = <SkeletonList />;
-  else if (section === 'profile') content = <ProfileTab profile={profile} form={profileForm} setForm={setProfileForm} counts={profileCounts} onSave={saveProfile} onDelete={deleteAccount} onLogout={logout} language={language} onChangeLanguage={changeLanguage} t={t} />;
+  else if (section === 'profile') content = <ProfileTab profile={profile} form={profileForm} setForm={setProfileForm} active={!!profile?.activate} onSave={saveProfile} onDelete={deleteAccount} language={language} onChangeLanguage={changeLanguage} t={t} />;
   else if (section === 'addresses') content = <AddressesTab addresses={addresses} inUseIds={inUseIds} onCreate={createAddress} onUpdate={updateAddress} onDelete={deleteAddress} darkMode={darkMode} t={t} />;
-  else if (section === 'orders') content = <OrdersTab orders={orders} onDetails={setSelectedOrder} onCancel={cancelOrder} t={t} />;
+  else if (section === 'orders') content = <OrdersTab orders={ordersView} onDetails={setSelectedOrder} onCancel={cancelOrder} onPreview={openPreview} t={t} />;
   else if (section === 'repairs') content = <RepairsTab repairs={repairs} payingId={payingId} onDetails={repairActions.viewRepair} onEdit={repairActions.setEditingRepair} onAccept={repairActions.acceptQuote} onConfirm={repairActions.openConfirm} onCancel={repairActions.cancelRepair} onPay={openPayModal} t={t} />;
   else if (section === 'notifications') content = <NotificationsTab items={notifications} onDelete={deleteNotification} t={t} />;
   else if (section === 'analytics') content = <AnalyticsTab orders={orders} repairs={repairs} addresses={addresses} darkMode={darkMode} t={t} />;
@@ -1763,40 +1945,34 @@ const AccountContent = ({ darkMode = false }) => {
 
   return (
     <div dir={languageDirection(language)} lang={language}
-      className={`nb nb-pattern ${darkMode ? 'nb-dark' : ''} min-h-screen overflow-x-clip ${isAr ? 'font-cairo' : 'font-jakarta'}`}>
+      className={`nb ${darkMode ? 'nb-dark' : ''} min-h-screen overflow-x-clip ${isAr ? 'font-cairo' : 'font-jakarta'}`}>
       {STYLE_EL}
       <Defs3D />
 
-      <Suspense fallback={<div className="nb-gray h-[260px] w-full animate-pulse motion-reduce:animate-none sm:h-[320px]" />}>
-        <Hero variant="account" darkMode={darkMode} />
-      </Suspense>
+      <div className={`mx-auto max-w-7xl px-4 pb-24 pt-40 transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none sm:px-6 md:pb-14 md:pt-36 lg:px-8 ${switching ? 'translate-y-1 opacity-0' : ''}`}>
+        <div className="flex items-start gap-6 lg:gap-8">
 
-      <div className={`mx-auto max-w-7xl px-4 py-8 transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none sm:px-6 sm:py-12 lg:px-8 ${switching ? 'translate-y-1 opacity-0' : ''}`}>
-        <div className="flex items-start gap-5 lg:gap-8">
-
-          <aside className="sticky top-20 hidden max-h-[calc(100vh-5rem)] w-[17rem] min-w-0 flex-shrink-0 self-start overflow-y-auto overscroll-contain pb-2 pe-2 lg:block xl:w-[19rem]">
-            <div className="nb-card flex flex-col gap-4 p-3 sm:p-4">
-              <div className="nb-gray nb-line flex items-center gap-3 border-2 p-3">
-                <IconTile Icon={FiUser} tone="em" className="h-11 w-11" iconClassName="h-5 w-5" />
-                <div className="min-w-0 flex-1">
-                  {name && <p className="truncate text-sm font-extrabold uppercase">{name} {profile?.last_name}</p>}
-                  {profile?.email && <p className="nb-muted truncate text-xs font-semibold">{profile.email}</p>}
-                </div>
-                {isAuthenticated && (
-                  <button type="button" onClick={logout} title={t('logout')} aria-label={t('logout')} className="nb-btn h-8 w-8 flex-shrink-0"><RiLogoutBoxRLine className="h-4 w-4 text-rose-500" /></button>
+          <aside className="sticky top-28 hidden max-h-[calc(100vh-8rem)] w-[17rem] min-w-0 flex-shrink-0 space-y-4 self-start overflow-y-auto overscroll-contain pb-2 lg:block xl:w-[19rem]">
+            <GreetingCard name={name} email={profile?.email} pct={completeness} t={t} />
+            {groups.map((g) => (
+              <nav key={g.id} className="nb-panel p-2.5" aria-label={g.id === 'activity' ? t('activity', 'Activity') : t('yourAccount', 'Your account')}>
+                {g.id === 'account' && <p className="nb-muted px-3.5 pb-1 pt-2 text-xs font-extrabold">{t('yourAccount', 'Your account')}</p>}
+                {g.tabs.map((tab) => <NavItem key={tab.id} tab={tab} active={section === tab.id} onSelect={go} onWarm={prefetchMap} />)}
+                {g.id === 'account' && (
+                  <button type="button" onClick={logout} className="nb-navitem !text-rose-500">
+                    <RiLogoutBoxRLine aria-hidden="true" className="h-5 w-5 flex-shrink-0" />
+                    <span className="min-w-0 flex-1 truncate">{t('logout')}</span>
+                  </button>
                 )}
-              </div>
-              <nav className="flex flex-col gap-2.5" aria-label="Account sections">
-                {tabs.map((tab) => <TabButton key={tab.id} tab={tab} active={section === tab.id} vertical onSelect={go} onWarm={prefetchMap} />)}
               </nav>
-            </div>
+            ))}
           </aside>
 
           <main className="min-w-0 flex-1">
-            <SectionHead eyebrow="Tech-Restore" title={`${t('welcomeBack')}${name ? `, ${name}` : ''}`} subtitle={t('manageAccount')} />
+            <PageHead title={t(meta[0], meta[1])} subtitle={t(meta[2], meta[3])} />
 
-            <nav className="hide-scrollbar -mx-1 mb-6 flex gap-3 overflow-x-auto px-1 pb-3 pe-3 lg:hidden" aria-label="Account sections">
-              {tabs.map((tab) => <TabButton key={tab.id} tab={tab} active={section === tab.id} vertical={false} onSelect={go} onWarm={prefetchMap} />)}
+            <nav className="hide-scrollbar -mx-1 mb-6 flex gap-2 overflow-x-auto px-1 pb-3 pe-3 lg:hidden" aria-label="Account sections">
+              {allTabs.map((tab) => <PillTab key={tab.id} tab={tab} active={section === tab.id} onSelect={go} onWarm={prefetchMap} />)}
             </nav>
 
             <div key={section} className="nb-in">{content}</div>
@@ -1804,7 +1980,8 @@ const AccountContent = ({ darkMode = false }) => {
         </div>
       </div>
 
-      {selectedOrder && <OrderModal order={selectedOrder} onClose={closeOrder} t={t} />}
+      {orderModalData && <OrderModal order={orderModalData} onClose={closeOrder} onPreview={openPreview} t={t} />}
+      {previewItem && <ItemPreview item={previewItem} onClose={closePreview} t={t} />}
       <RepairOverlays actions={repairActions} token={token} cfg={cfg} addresses={addresses} onConfirmed={refreshRepairs} t={t} />
       {payModalOpen && pendingPay && (
         <RepairPaymentModal pay={pendingPay} repair={payingRepair} checking={payChecking}

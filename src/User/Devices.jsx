@@ -13,6 +13,7 @@ import enTranslations from '../locales/en/translation.json';
 import arTranslations from '../locales/ar/translation.json';
 import frTranslations from '../locales/fr/translation.json';
 import { useAppLanguage, languageDirection } from '../common/utils/useAppLanguage';
+import { markImg, isImgOk, isImgBad, warmImages } from '../common/utils/imageCache';
 import { UI3D_CSS, Defs3D, Glyph3D } from '../components/user/Ui3D';
 import { EXTRAS_CSS, Toaster, toast } from '../components/user/UiExtras';
 import {
@@ -531,17 +532,17 @@ const PriceBlock = memo(({ product, t }) => {
 
 const ProductCard = memo(({ product, darkMode, onAddToCart, onSave, isSaved, layout, t }) => {
   const src = useMemo(() => safeImageUrl(product.imageUrl), [product.imageUrl]);
-  const [failed, setFailed] = useState(!src);
-  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(() => !src || isImgBad(src));
+  const [loaded, setLoaded] = useState(() => isImgOk(src));
   const [btn, setBtn] = useState('idle');
   const imgRef = useRef(null);
   const timer = useRef();
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; clearTimeout(timer.current); }; }, []);
-  useEffect(() => { setFailed(!src); setLoaded(false); }, [src]);
+  useEffect(() => { setFailed(!src || isImgBad(src)); setLoaded(isImgOk(src)); }, [src]);
   useEffect(() => {
     const el = imgRef.current;
-    if (el && el.complete && el.naturalWidth > 0) setLoaded(true);
+    if (el && el.complete && el.naturalWidth > 0) { markImg(src, 'ok'); setLoaded(true); }
   }, [src, failed]);
 
   const id = safeId(product.id);
@@ -551,8 +552,8 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, onSave, isSaved, lay
   const ink = 'text-[color:var(--txt)]';
   const muted = 'text-[color:var(--mut)]';
 
-  const handleLoad = useCallback(() => setLoaded(true), []);
-  const handleError = useCallback(() => setFailed(true), []);
+  const handleLoad = useCallback(() => { markImg(src, 'ok'); setLoaded(true); }, [src]);
+  const handleError = useCallback(() => { markImg(src, 'bad'); setFailed(true); }, [src]);
   const handleSave = useCallback(() => onSave(product.id), [onSave, product.id]);
   const handleCart = useCallback(async () => {
     if (out || btn === 'adding') return;
@@ -1120,6 +1121,13 @@ const ProductsContent = memo(({ darkMode }) => {
   const endItem = isMobile ? infiniteProducts.length : Math.min(pageOffset + pageSize, filteredProducts.length);
 
   const loadMore = useCallback(() => startTransition(() => setVisibleCount((c) => c + MOBILE_BATCH)), []);
+
+  useEffect(() => {
+    const urls = [];
+    for (const p of latestProducts) { const u = safeImageUrl(p.imageUrl); if (u) urls.push(u); }
+    for (const p of listProducts) { const u = safeImageUrl(p.imageUrl); if (u) urls.push(u); }
+    return warmImages(urls);
+  }, [latestProducts, listProducts]);
 
   const scrollToGrid = useCallback(() => gridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), []);
   const scrollToTop = useCallback(() => {

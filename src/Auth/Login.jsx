@@ -8,12 +8,11 @@ import api from '../common/api/api';
 import queryClient from '../common/utils/queryClient';
 import logo from '../common/images/tech-restore-logo.webp';
 import useAuthStore from '../common/store/Auth';
-import { redirectFor, SHOP_ROLES } from '../common/utils/authSession';
+import { redirectFor, canAccessArea, SHOP_ROLES } from '../common/utils/authSession';
 import {
   markGoogleSignIn, recoverGoogleSession, hasGoogleMark, clearGoogleMark, applySession,
 } from '../common/utils/googleSession';
 import { useModalLock } from '../components/user/ListingKit';
-import { IsoIllustration } from '../components/user/IsoIllustrations';
 import { EXTRAS_CSS, Toaster, toast } from '../components/user/UiExtras';
 import enTranslations from '../locales/en/translation.json';
 import arTranslations from '../locales/ar/translation.json';
@@ -21,7 +20,7 @@ import frTranslations from '../locales/fr/translation.json';
 import { useAppLanguage, languageDirection } from '../common/utils/useAppLanguage';
 
 const AUTH_CSS = `
-.au-root{--dx:1}
+.au-root{font-family:'Poppins','Cairo',ui-sans-serif,system-ui,sans-serif;--dx:1}
 .au-root[dir=rtl]{--dx:-1}
 .au-root select option{background:var(--card);color:var(--txt)}
 .au-pattern{--p1:rgba(4,38,26,.1);--p2:rgba(16,185,129,.1);background-image:radial-gradient(circle at 2px 2px,var(--p1) 1.6px,transparent 1.8px),repeating-linear-gradient(135deg,var(--p2) 0 2px,transparent 2px 18px);background-size:22px 22px,auto}
@@ -41,7 +40,9 @@ const AUTH_CSS = `
 .au-shake{animation:auShake .28s ease-in-out}
 @keyframes auErr{0%{opacity:0;transform:translateX(-6px)}30%{opacity:1;transform:translateX(5px)}55%{transform:translateX(-3px)}80%{transform:translateX(2px)}100%{opacity:1;transform:none}}
 .au-err{animation:auErr .3s ease-out both}
-@media (prefers-reduced-motion:reduce){.au-in,.au-pop,.au-fade,.au-sheet,.au-shake,.au-err{animation:none}}
+@keyframes auFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+.au-float{animation:auFloat 5s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.au-in,.au-pop,.au-fade,.au-sheet,.au-shake,.au-err,.au-float{animation:none}}
 `;
 
 const injectOnce = (key, css) => {
@@ -52,6 +53,21 @@ const injectOnce = (key, css) => {
   document.head.appendChild(tag);
 };
 injectOnce('auth-styles', `${EXTRAS_CSS}\n${AUTH_CSS}`);
+
+if (typeof document !== 'undefined' && !document.querySelector('link[data-poppins]')) {
+  const pre1 = document.createElement('link');
+  pre1.rel = 'preconnect';
+  pre1.href = 'https://fonts.googleapis.com';
+  const pre2 = document.createElement('link');
+  pre2.rel = 'preconnect';
+  pre2.href = 'https://fonts.gstatic.com';
+  pre2.crossOrigin = 'anonymous';
+  const font = document.createElement('link');
+  font.rel = 'stylesheet';
+  font.href = 'https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&display=swap';
+  font.setAttribute('data-poppins', '');
+  document.head.append(pre1, pre2, font);
+}
 
 const THEME = {
   light: '[--ink:#022c22] [--sh:#022c22] [--acc:#34d399] [--icon:#059669] [--card:#ffffff] [--field:#ffffff] [--txt:#022c22] [--mut:#4b5563] [--soft:#f3f4f6] [--page:#f9fafb] [--err:#e11d48]',
@@ -65,22 +81,29 @@ const PRIMARY = `${BTN} bg-[color:var(--acc)] text-emerald-950`;
 const SECONDARY = `${BTN} bg-[color:var(--card)] text-[color:var(--txt)]`;
 const ICON_BTN = `inline-flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-lg border-2 border-[color:var(--ink)] bg-[color:var(--card)] text-[color:var(--txt)] [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)] transition-[transform,box-shadow] duration-150 active:translate-y-[3px] active:translate-x-[calc(var(--dx)*3px)] active:[box-shadow:0_0_0_0_var(--sh)] ${FOCUS}`;
 const ICON_TILE = 'inline-flex flex-shrink-0 items-center justify-center rounded-xl border-2 border-[color:var(--ink)] bg-[color:var(--acc)] text-emerald-950 [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)]';
-const FIELD = `flex h-12 items-center gap-2 rounded-lg border-2 bg-[color:var(--field)] text-[color:var(--txt)] ps-3 transition-[box-shadow,border-color,opacity] duration-150 focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-[color:var(--acc)]`;
+const FIELD = 'flex h-12 items-center gap-2 rounded-lg border-2 bg-[color:var(--field)] text-[color:var(--txt)] ps-3 transition-[box-shadow,border-color,opacity] duration-150 focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-[color:var(--acc)]';
 const OTP_BOX = `h-12 w-10 rounded-lg border-2 border-[color:var(--ink)] bg-[color:var(--field)] px-0 text-center text-lg font-extrabold text-[color:var(--txt)] outline-none [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)] transition-[box-shadow] duration-150 sm:w-11 ${FOCUS}`;
 const LINK = `inline-flex min-h-9 cursor-pointer items-center gap-1 font-bold text-[color:var(--txt)] underline decoration-[color:var(--acc)] decoration-2 underline-offset-4 disabled:no-underline disabled:opacity-50 ${FOCUS}`;
 const PANEL = 'rounded-xl border-2 border-dotted border-[color:var(--ink)] bg-[color:var(--soft)]';
 
 const NS = { en: enTranslations.login, ar: arTranslations.login, fr: frTranslations.login };
-const T_CACHE = {};
-const getT = (language) => (T_CACHE[language] ||= (key, vars) => {
-  let s = NS[language]?.[key] || NS.en?.[key] || key;
-  if (vars) for (const k in vars) s = s.split(`{{${k}}}`).join(vars[k]);
-  return s;
-});
+const NS_SIGNUP = { en: enTranslations.signup, ar: arTranslations.signup, fr: frTranslations.signup };
+const makeT = (ns) => {
+  const cache = {};
+  return (language) => (cache[language] ||= (key, vars) => {
+    let s = ns[language]?.[key] || ns.en?.[key] || key;
+    if (vars) for (const k in vars) s = s.split(`{{${k}}}`).join(vars[k]);
+    return s;
+  });
+};
+const getT = makeT(NS);
+const getSignupT = makeT(NS_SIGNUP);
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MIN_PASSWORD_LENGTH = 6;
+const MIN_RESET_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_BYTES = 72;
+const MAX_SERVER_MSG = 200;
+const REQUEST_TIMEOUT_MS = 30_000;
 const encoder = new TextEncoder();
 const byteLength = (s) => encoder.encode(s || '').length;
 const PRICE_PER_MONTH = 1000;
@@ -89,6 +112,7 @@ const GOOGLE_AUTH_URL = `${API_BASE}/oauth2/authorization/google`;
 const SUCCESS_DELAY_MS = 1500;
 
 const isCanceled = (err) => err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError' || err?.name === 'AbortError';
+const normalizeEmail = (v) => String(v || '').trim().toLowerCase();
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_SECONDS = 30;
@@ -102,7 +126,7 @@ const readThrottle = () => {
 const writeThrottle = (v) => { try { localStorage.setItem(THROTTLE_KEY, JSON.stringify(v)); } catch { } };
 const clearThrottle = () => { try { localStorage.removeItem(THROTTLE_KEY); } catch { } };
 
-const sanitize = (s) => String(s ?? '').replace(/[<>"'`]/g, '');
+const sanitize = (s) => String(s ?? '').replace(/[<>"'`]/g, '').slice(0, MAX_SERVER_MSG);
 
 const FRIENDLY_ENTRIES = [
   ['bad credentials', 'errBadCredentials'],
@@ -119,7 +143,7 @@ const WRONG_CREDS_KEYS = new Set(['errBadCredentials', 'errUserNotFound']);
 const EXPIRED_KEYS = ['subscription is expired', 'subscription expired', 'subscription has expired', 'your subscription'];
 
 function parseError(raw, t) {
-  const lower = (raw || '').toLowerCase().trim();
+  const lower = String(raw || '').toLowerCase().trim();
   if (EXPIRED_KEYS.some((k) => lower.includes(k))) {
     return { key: 'errSubscriptionExpired', message: t('errSubscriptionExpired'), isExpired: true };
   }
@@ -147,6 +171,17 @@ const renewalError = (err, fallback, t) => {
 
 const safeHttpsUrl = (raw) => {
   try { const u = new URL(String(raw)); return u.protocol === 'https:' ? u.href : null; } catch { return null; }
+};
+
+const resetPasswordError = (v, st) => {
+  if (v.length < MIN_RESET_PASSWORD_LENGTH) return st('errPasswordMin', { min: MIN_RESET_PASSWORD_LENGTH });
+  if (byteLength(v) > MAX_PASSWORD_BYTES) return st('errPasswordMax', { max: MAX_PASSWORD_BYTES });
+  if (/\s/.test(v)) return st('errNoSpaces');
+  if (!/[a-z]/.test(v)) return st('errLower');
+  if (!/[A-Z]/.test(v)) return st('errUpper');
+  if (!/\d/.test(v)) return st('errNumber');
+  if (!/[^A-Za-z0-9]/.test(v)) return st('errSymbol');
+  return '';
 };
 
 const PAID = ['PAID', 'ACTIVE', 'SETTLED', 'COMPLETED', 'SUCCESS', 'APPROVED', 'CONFIRMED', 'SUCCESSFUL'];
@@ -180,6 +215,74 @@ const readGoogleError = () => {
 };
 
 const Spinner = () => <span aria-hidden="true" className="inline-block h-4 w-4 flex-shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" />;
+
+const LoginIllustration = memo(() => (
+  <svg viewBox="0 0 480 480" aria-hidden="true" focusable="false" className="aspect-square w-full">
+    <circle cx="240" cy="250" r="205" className="fill-[color:var(--acc)] opacity-15" />
+    <circle cx="240" cy="250" r="160" className="fill-none stroke-[color:var(--ink)] opacity-25" strokeWidth="2" strokeDasharray="3 11" strokeLinecap="round" />
+
+    <g className="au-float">
+      <rect x="100" y="86" width="290" height="330" rx="28" className="fill-[color:var(--ink)]" />
+      <rect x="90" y="76" width="290" height="330" rx="28" className="fill-[color:var(--card)] stroke-[color:var(--ink)]" strokeWidth="4" />
+
+      <circle cx="122" cy="106" r="6" className="fill-[color:var(--acc)] stroke-[color:var(--ink)]" strokeWidth="2" />
+      <circle cx="142" cy="106" r="6" className="fill-[color:var(--soft)] stroke-[color:var(--ink)]" strokeWidth="2" />
+      <circle cx="162" cy="106" r="6" className="fill-[color:var(--soft)] stroke-[color:var(--ink)]" strokeWidth="2" />
+      <path d="M90 128H380" className="stroke-[color:var(--ink)]" strokeWidth="3" />
+
+      <circle cx="235" cy="186" r="36" className="fill-[color:var(--acc)] stroke-[color:var(--ink)]" strokeWidth="3" />
+      <circle cx="235" cy="177" r="11" className="fill-[color:var(--card)] stroke-[color:var(--ink)]" strokeWidth="3" />
+      <path d="M213 210C217 191 253 191 257 210" className="fill-[color:var(--card)] stroke-[color:var(--ink)]" strokeWidth="3" strokeLinecap="round" />
+
+      <rect x="118" y="240" width="234" height="40" rx="12" className="fill-[color:var(--field)] stroke-[color:var(--ink)]" strokeWidth="3" />
+      <rect x="132" y="252" width="20" height="16" rx="3" className="fill-none stroke-[color:var(--ink)]" strokeWidth="2.5" />
+      <path d="M133 254L142 262L151 254" className="fill-none stroke-[color:var(--ink)]" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="166" y="257" width="100" height="6" rx="3" className="fill-[color:var(--ink)] opacity-25" />
+
+      <rect x="118" y="292" width="234" height="40" rx="12" className="fill-[color:var(--field)] stroke-[color:var(--ink)]" strokeWidth="3" />
+      <rect x="133" y="309" width="18" height="13" rx="3" className="fill-[color:var(--acc)] stroke-[color:var(--ink)]" strokeWidth="2.5" />
+      <path d="M137 309V305a5 5 0 0 1 10 0V309" className="fill-none stroke-[color:var(--ink)]" strokeWidth="2.5" strokeLinecap="round" />
+      {[172, 188, 204, 220, 236].map((cx) => <circle key={cx} cx={cx} cy="312" r="3.5" className="fill-[color:var(--ink)]" />)}
+
+      <rect x="118" y="348" width="234" height="44" rx="14" className="fill-[color:var(--acc)] stroke-[color:var(--ink)]" strokeWidth="3" />
+      <rect x="193" y="366" width="84" height="8" rx="4" className="fill-[color:var(--ink)] opacity-80" />
+    </g>
+
+    <g transform="translate(396 112)">
+      <g className="au-float" style={{ animationDelay: '-1.4s' }}>
+        <path d="M0 -40L34 -26V6C34 27 17 40 0 47C-17 40 -34 27 -34 6V-26Z" transform="translate(6 6)" className="fill-[color:var(--ink)]" />
+        <path d="M0 -40L34 -26V6C34 27 17 40 0 47C-17 40 -34 27 -34 6V-26Z" className="fill-[color:var(--acc)] stroke-[color:var(--ink)]" strokeWidth="4" strokeLinejoin="round" />
+        <path d="M-13 4L-4 14L14 -9" className="fill-none stroke-[color:var(--ink)]" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+    </g>
+
+    <g transform="translate(78 378)">
+      <g className="au-float" style={{ animationDelay: '-2.6s' }}>
+        <circle cx="5" cy="5" r="36" className="fill-[color:var(--ink)]" />
+        <circle r="36" className="fill-[color:var(--card)] stroke-[color:var(--ink)]" strokeWidth="4" />
+        <circle r="15" className="fill-none stroke-[color:var(--ink)]" strokeWidth="8" strokeDasharray="7.85 7.85" />
+        <circle r="10" className="fill-[color:var(--acc)] stroke-[color:var(--ink)]" strokeWidth="3" />
+      </g>
+    </g>
+
+    <g transform="translate(412 340)">
+      <g className="au-float" style={{ animationDelay: '-3.6s' }}>
+        <rect x="-23" y="-43" width="56" height="96" rx="13" className="fill-[color:var(--ink)]" />
+        <rect x="-28" y="-48" width="56" height="96" rx="13" className="fill-[color:var(--card)] stroke-[color:var(--ink)]" strokeWidth="4" />
+        <rect x="-20" y="-36" width="40" height="62" rx="7" className="fill-[color:var(--soft)]" />
+        <circle cx="0" cy="-8" r="13" className="fill-[color:var(--acc)] stroke-[color:var(--ink)]" strokeWidth="3" />
+        <path d="M-6 -8L-2 -4L6 -13" className="fill-none stroke-[color:var(--ink)]" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+        <rect x="-8" y="35" width="16" height="4" rx="2" className="fill-[color:var(--ink)]" />
+      </g>
+    </g>
+
+    {[[58, 150], [432, 232], [140, 452]].map(([x, y]) => (
+      <path key={`${x}-${y}`} d={`M${x} ${y - 9}V${y + 9}M${x - 9} ${y}H${x + 9}`} className="fill-none stroke-[color:var(--ink)]" strokeWidth="3" strokeLinecap="round" />
+    ))}
+    <circle cx="70" cy="300" r="6" className="fill-[color:var(--acc)] stroke-[color:var(--ink)]" strokeWidth="2.5" />
+    <circle cx="438" cy="440" r="5" className="fill-[color:var(--acc)] stroke-[color:var(--ink)]" strokeWidth="2.5" />
+  </svg>
+));
 
 const InlineError = memo(({ message, hint }) => (
   <div role="alert" className="au-err flex items-start gap-2 text-[color:var(--err)]">
@@ -259,7 +362,7 @@ const NbModal = memo(({ onClose, icon: Icon, title, size = 'sm:max-w-md', childr
 const OTP_LEN = 6;
 const EMPTY_OTP = Array(OTP_LEN).fill('');
 
-const ForgotPasswordModal = memo(({ onClose, t }) => {
+const ForgotPasswordModal = memo(({ onClose, t, st }) => {
   const [step, setStep] = useState('email');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState(EMPTY_OTP);
@@ -283,10 +386,10 @@ const ForgotPasswordModal = memo(({ onClose, t }) => {
     return () => clearTimeout(id);
   }, [countdown]);
 
-  const nextSignal = useCallback(() => {
+  const nextConfig = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = new AbortController();
-    return abortRef.current.signal;
+    return { signal: abortRef.current.signal, timeout: REQUEST_TIMEOUT_MS };
   }, []);
 
   const fail = useCallback((err) => {
@@ -296,12 +399,15 @@ const ForgotPasswordModal = memo(({ onClose, t }) => {
 
   const sendCode = useCallback(async () => {
     if (busyRef.current) return;
-    if (!EMAIL_REGEX.test(email)) { setError(t('errEmailInvalid')); return; }
+    const clean = normalizeEmail(email);
+    if (!EMAIL_REGEX.test(clean)) { setError(t('errEmailInvalid')); return; }
     busyRef.current = true;
     setLoading(true); setError('');
-    try { await api.post('/api/auth/forgot-password', { email }, { signal: nextSignal() }); setStep('otp'); setCountdown(60); }
-    catch (err) { fail(err); } finally { busyRef.current = false; setLoading(false); }
-  }, [email, fail, nextSignal, t]);
+    try {
+      await api.post('/api/auth/forgot-password', { email: clean }, nextConfig());
+      setEmail(clean); setStep('otp'); setCountdown(60);
+    } catch (err) { fail(err); } finally { busyRef.current = false; setLoading(false); }
+  }, [email, fail, nextConfig, t]);
 
   const changeOtp = useCallback((i, v) => {
     if (!/^\d*$/.test(v)) return;
@@ -333,24 +439,25 @@ const ForgotPasswordModal = memo(({ onClose, t }) => {
     busyRef.current = true;
     setLoading(true);
     try {
-      await api.get('/api/auth/get-code', { params: { email }, signal: nextSignal() });
+      await api.get('/api/auth/get-code', { params: { email }, ...nextConfig() });
       setCountdown(60); setOtp(EMPTY_OTP); setError('');
       inputsRef.current[0]?.focus();
     } catch (err) { fail(err); } finally { busyRef.current = false; setLoading(false); }
-  }, [email, countdown, fail, nextSignal]);
+  }, [email, countdown, fail, nextConfig]);
 
   const resetPassword = useCallback(async () => {
     if (busyRef.current) return;
-    if (newPassword.length < MIN_PASSWORD_LENGTH) { setError(t('errPasswordMin', { min: MIN_PASSWORD_LENGTH })); return; }
-    if (byteLength(newPassword) > MAX_PASSWORD_BYTES) { setError(t('errPasswordMax', { max: MAX_PASSWORD_BYTES })); return; }
+    const pwErr = resetPasswordError(newPassword, st);
+    if (pwErr) { setError(pwErr); return; }
     if (newPassword !== confirmPw) { setError(t('errPasswordMismatch')); return; }
     busyRef.current = true;
     setLoading(true); setError('');
     try {
-      await api.post('/api/auth/reset-password', { email, otp: otpCode, newPassword, confirmPassword: confirmPw }, { signal: nextSignal() });
+      await api.post('/api/auth/reset-password', { email, otp: otpCode, newPassword, confirmPassword: confirmPw }, nextConfig());
+      setNewPassword(''); setConfirmPw('');
       setStep('done');
     } catch (err) { fail(err); } finally { busyRef.current = false; setLoading(false); }
-  }, [email, otpCode, newPassword, confirmPw, fail, nextSignal, t]);
+  }, [email, otpCode, newPassword, confirmPw, fail, nextConfig, t, st]);
 
   const onEmailChange = useCallback((e) => { setEmail(e.target.value); setError(''); }, []);
   const onEmailKeyDown = useCallback((e) => { if (e.key === 'Enter') sendCode(); }, [sendCode]);
@@ -374,7 +481,7 @@ const ForgotPasswordModal = memo(({ onClose, t }) => {
           <>
             <p className="text-sm font-medium text-[color:var(--mut)]">{t('fpEmailHelp')}</p>
             <AuthInput id="fp-email" type="email" icon={FiMail} value={email} placeholder="you@example.com" autoComplete="email"
-              autoCapitalize="none" spellCheck={false} dir="ltr" onChange={onEmailChange} onKeyDown={onEmailKeyDown} />
+              autoCapitalize="none" spellCheck={false} maxLength={254} dir="ltr" onChange={onEmailChange} onKeyDown={onEmailKeyDown} />
             <button type="button" onClick={sendCode} disabled={loading} className={`${PRIMARY} w-full justify-center px-4 py-3 text-sm uppercase`}>
               {loading ? <><Spinner /> {t('sending')}</> : t('sendCode')}
             </button>
@@ -404,9 +511,9 @@ const ForgotPasswordModal = memo(({ onClose, t }) => {
           <>
             <p className="text-sm font-medium text-[color:var(--mut)]">{t('fpNewHelp')}</p>
             <AuthInput id="fp-new" type={showPw ? 'text' : 'password'} icon={FiLock} value={newPassword} placeholder={t('newPasswordPlaceholder')} autoComplete="new-password"
-              onChange={onNewPwChange} trailing={pwToggle} />
+              maxLength={128} onChange={onNewPwChange} trailing={pwToggle} />
             <AuthInput id="fp-confirm" type={showPw ? 'text' : 'password'} icon={FiLock} value={confirmPw} placeholder={t('confirmPasswordPlaceholder')} autoComplete="new-password"
-              onChange={onConfirmChange} />
+              maxLength={128} onChange={onConfirmChange} />
             <button type="button" onClick={resetPassword} disabled={loading} className={`${PRIMARY} w-full justify-center px-4 py-3 text-sm uppercase`}>
               {loading ? <><Spinner /> {t('resetting')}</> : t('resetPassword')}
             </button>
@@ -454,7 +561,11 @@ const RenewalModal = memo(({ shopEmail, isPending, onClose, t }) => {
     let leaving = false;
     try {
       abortRef.current = new AbortController();
-      const res = await api.post(`/api/subscriptions/renew/card/${encodeURIComponent(shopEmail)}`, { months, type: 'COMMISSION' }, { signal: abortRef.current.signal });
+      const res = await api.post(
+        `/api/subscriptions/renew/card/${encodeURIComponent(shopEmail)}`,
+        { months, type: 'COMMISSION' },
+        { signal: abortRef.current.signal, timeout: REQUEST_TIMEOUT_MS },
+      );
       const payUrl = safeHttpsUrl(res.data?.paymentURL);
       if (payUrl) { leaving = true; setView('redirect'); window.location.href = payUrl; }
       else if (res.data?.paymentURL) setError(t('rnInsecureLink'));
@@ -470,7 +581,11 @@ const RenewalModal = memo(({ shopEmail, isPending, onClose, t }) => {
     setLoading(true); setError('');
     try {
       abortRef.current = new AbortController();
-      await api.post(`/api/subscriptions/renew/cash/${encodeURIComponent(shopEmail)}`, { months, type: 'COMMISSION' }, { signal: abortRef.current.signal });
+      await api.post(
+        `/api/subscriptions/renew/cash/${encodeURIComponent(shopEmail)}`,
+        { months, type: 'COMMISSION' },
+        { signal: abortRef.current.signal, timeout: REQUEST_TIMEOUT_MS },
+      );
       setView('pending');
     } catch (err) { if (!isCanceled(err)) setError(renewalError(err, t('rnCashFailed'), t)); }
     finally { submittingRef.current = false; setLoading(false); }
@@ -551,14 +666,15 @@ const RenewalModal = memo(({ shopEmail, isPending, onClose, t }) => {
   );
 });
 
-const validateEmail = (v, t) => (!v.trim() ? t('errEmailRequired') : !EMAIL_REGEX.test(v) ? t('errEmailInvalid') : '');
-const validatePassword = (v, t) => (!v ? t('errPasswordRequired') : v.length < MIN_PASSWORD_LENGTH ? t('errPasswordMin', { min: MIN_PASSWORD_LENGTH }) : '');
+const validateEmail = (v, t) => (!v.trim() ? t('errEmailRequired') : !EMAIL_REGEX.test(v.trim()) ? t('errEmailInvalid') : '');
+const validatePassword = (v, t) => (!v ? t('errPasswordRequired') : '');
 const VALIDATORS = { email: validateEmail, password: validatePassword };
 const NO_ERRORS = { email: '', password: '', general: '', generalKey: '' };
 
 function Login({ darkMode = false }) {
   const language = useAppLanguage();
   const t = getT(language);
+  const st = getSignupT(language);
   const isAr = language === 'ar';
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -606,10 +722,9 @@ function Login({ darkMode = false }) {
 
   const checkSubscription = useCallback(async (email, signal) => {
     try {
-      const { data } = await api.get(`/api/subscriptions/renew/status/${encodeURIComponent(email)}`, { signal });
+      const { data } = await api.get(`/api/subscriptions/renew/status/${encodeURIComponent(email)}`, { signal, timeout: REQUEST_TIMEOUT_MS });
       return checkLatestSubscription(data ? [data] : []);
-    } catch (err) {
-      if (!isCanceled(err)) console.warn('Subscription check failed:', err?.response?.status, err?.response?.data);
+    } catch {
       return { expired: true, shopId: null };
     }
   }, []);
@@ -625,8 +740,10 @@ function Login({ darkMode = false }) {
     }
   }, []);
 
+  const clearPassword = useCallback(() => setFormData((p) => (p.password ? { ...p, password: '' } : p)), []);
+
   const afterLogin = useCallback(async (session, shopId, signal) => {
-    const redirectPath = redirectFor(session.roles, '/dashboard');
+    const redirectPath = canAccessArea(session.roles, 'admin') ? '/admin/dashboard' : redirectFor(session.roles, '/dashboard');
 
     if (session.email && session.roles.some((r) => SHOP_ROLES.has(r))) {
       const sub = await checkSubscription(session.email, signal);
@@ -676,6 +793,8 @@ function Login({ darkMode = false }) {
     const pe = validatePassword(formData.password, t);
     if (ee || pe) { setErrors({ ...NO_ERRORS, email: ee, password: pe }); return; }
 
+    const email = normalizeEmail(formData.email);
+
     submittingRef.current = true;
     abortRef.current = new AbortController();
     const { signal } = abortRef.current;
@@ -683,13 +802,14 @@ function Login({ darkMode = false }) {
     setErrors(NO_ERRORS);
 
     try {
-      const res = await api.post('/api/auth/login', { email: formData.email.trim(), password: formData.password }, { signal });
+      const res = await api.post('/api/auth/login', { email, password: formData.password }, { signal, timeout: REQUEST_TIMEOUT_MS });
       if (!res.data?.access_token) throw new Error('Missing access token');
 
-      const session = applySession({ ...res.data, email: res.data.email ?? formData.email.trim() });
+      const session = applySession({ ...res.data, email: res.data.email ?? email });
       if (!session) throw new Error('Invalid token');
 
       clearThrottle();
+      clearPassword();
       await afterLogin(session, res.data.shopId || res.data.shop?.id, signal);
     } catch (err) {
       if (isCanceled(err)) return;
@@ -699,9 +819,9 @@ function Login({ darkMode = false }) {
       if (isExpired) {
         const shopId = err.response?.data?.shopId || err.response?.data?.shop?.id || err.response?.data?.id || null;
         const accessToken = err.response?.data?.access_token || null;
-        const checkEmail = formData.email?.trim();
-        const isPending = checkEmail ? (await checkSubscription(checkEmail, signal)).isPending : false;
-        setRenewalData({ shopId, shopEmail: checkEmail, accessToken, redirectPath: '/shop/dashboard', isPending });
+        const isPending = email ? (await checkSubscription(email, signal)).isPending : false;
+        clearPassword();
+        setRenewalData({ shopId, shopEmail: email, accessToken, redirectPath: '/shop/dashboard', isPending });
         return;
       }
 
@@ -713,7 +833,7 @@ function Login({ darkMode = false }) {
       submittingRef.current = false;
       setLoading(false);
     }
-  }, [formData, afterLogin, checkSubscription, registerFailedAttempt, t]);
+  }, [formData, afterLogin, checkSubscription, registerFailedAttempt, clearPassword, t]);
 
   const closeForgot = useCallback(() => setShowForgot(false), []);
   const openForgot = useCallback(() => setShowForgot(true), []);
@@ -733,11 +853,11 @@ function Login({ darkMode = false }) {
   return (
     <div
       dir={languageDirection(language)} lang={language}
-      className={`au-root au-pattern ${darkMode ? 'au-pattern-dark' : ''} ${THEME[darkMode ? 'dark' : 'light']} relative min-h-screen overflow-x-hidden bg-[color:var(--page)] text-[color:var(--txt)] ${isAr ? 'font-cairo' : 'font-jakarta'}`}
+      className={`au-root au-pattern ${darkMode ? 'au-pattern-dark' : ''} ${THEME[darkMode ? 'dark' : 'light']} relative min-h-screen overflow-x-hidden bg-[color:var(--page)] text-[color:var(--txt)]`}
     >
       <Toaster darkMode={darkMode} />
 
-      <header className="fixed inset-x-0 top-0 z-40 border-b-[3px] border-[color:var(--ink)] bg-[color:var(--page)]">
+      <header className="fixed inset-x-0 top-0 z-40 bg-[color:var(--page)]">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           <Link to="/" aria-label="Tech Restore" className={`flex-shrink-0 rounded-md ${FOCUS}`}>
             <img src={logo} alt="Tech Restore" className="h-9 w-auto" width={120} height={36} decoding="async" />
@@ -752,7 +872,7 @@ function Login({ darkMode = false }) {
       <main className="mx-auto grid min-h-screen max-w-6xl items-center gap-8 px-4 pb-10 pt-24 sm:px-6 md:grid-cols-2 lg:gap-14 lg:px-8">
         <div className="au-in hidden md:block">
           <div className="mx-auto max-w-lg p-6">
-            <IsoIllustration type="account" tone="emerald" onGreen={false} darkMode={darkMode} className="aspect-square w-full" />
+            <LoginIllustration />
           </div>
         </div>
 
@@ -768,12 +888,12 @@ function Login({ darkMode = false }) {
             <form onSubmit={handleSubmit} className="space-y-4" noValidate aria-busy={loading}>
               <AuthInput id="login-email" label={t('emailLabel')} type="email" name="email" icon={FiMail}
                 autoComplete="email" autoCapitalize="none" spellCheck={false} required placeholder="you@example.com" disabled={loading} dir="ltr"
-                value={formData.email} onChange={handleChange} onBlur={handleBlur}
+                maxLength={254} value={formData.email} onChange={handleChange} onBlur={handleBlur}
                 error={touched.email ? errors.email : ''} />
 
               <AuthInput id="login-password" label={t('passwordLabel')} type={showPassword ? 'text' : 'password'} name="password" icon={FiLock}
                 autoComplete="current-password" required placeholder={t('passwordPlaceholder')} disabled={loading}
-                value={formData.password} onChange={handleChange} onBlur={handleBlur}
+                maxLength={128} value={formData.password} onChange={handleChange} onBlur={handleBlur}
                 error={touched.password ? errors.password : ''} trailing={passwordToggle} />
 
               <div className="text-end">
@@ -807,12 +927,11 @@ function Login({ darkMode = false }) {
         </div>
       </main>
 
-      {showForgot && <ForgotPasswordModal onClose={closeForgot} t={t} />}
+      {showForgot && <ForgotPasswordModal onClose={closeForgot} t={t} st={st} />}
       {renewalData && <RenewalModal shopEmail={renewalData.shopEmail} isPending={renewalData.isPending} onClose={closeRenewal} t={t} />}
     </div>
   );
 }
-
 
 export { queryClient };
 export default memo(Login);

@@ -3,19 +3,19 @@ import { Link } from 'react-router-dom';
 import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   FiPackage, FiCheckCircle, FiTruck, FiXCircle, FiClock, FiBox, FiShoppingBag, FiLock, FiCheck, FiChevronDown, FiChevronRight,
-  FiCreditCard, FiMapPin, FiCalendar, FiHeadphones, FiMessageCircle, FiShield, FiRefreshCw,
+  FiCreditCard, FiMapPin, FiCalendar, FiHeadphones, FiMessageCircle, FiShield, FiRefreshCw, FiAlertCircle,
 } from 'react-icons/fi';
 import api from '../common/api/api';
 import { useAppLanguage, languageDirection } from '../common/utils/useAppLanguage';
 import enTranslations from '../locales/en/translation.json';
 import arTranslations from '../locales/ar/translation.json';
 import frTranslations from '../locales/fr/translation.json';
-import { Hero } from '../components';
-import { HeroArt } from '../components/user/HeroArt';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { refetchOnWindowFocus: false, gcTime: 10 * 60 * 1000 } } });
 
 const shouldRetry = (count, err) => count < 2 && ![400, 401, 403, 404].includes(err?.response?.status);
+
+const EMPTY_LIST = [];
 
 const TRACK_TRANSLATIONS = {
   en: enTranslations.track,
@@ -23,7 +23,25 @@ const TRACK_TRANSLATIONS = {
   fr: frTranslations.track || frTranslations.hero?.track,
 };
 
-const tr = (lang, key) => TRACK_TRANSLATIONS[lang]?.[key] || TRACK_TRANSLATIONS.en?.[key] || key;
+const EXTRA_TEXT = {
+  en: {
+    trackOrder: 'Track your order', breadcrumbHome: 'Home', arrivingBy: 'Arriving by', trackingDetails: 'Tracking details',
+    shipmentItems: 'Items in this order', shipmentDetails: 'Shipment details', orderSummary: 'Order summary', quantity: 'Qty',
+    cancelledNote: 'This order has been cancelled. Contact support if you have any questions.',
+  },
+  ar: {
+    trackOrder: 'تتبع طلبك', breadcrumbHome: 'الرئيسية', arrivingBy: 'يصل بحلول', trackingDetails: 'تفاصيل التتبع',
+    shipmentItems: 'المنتجات في هذا الطلب', shipmentDetails: 'تفاصيل الشحنة', orderSummary: 'ملخص الطلب', quantity: 'الكمية',
+    cancelledNote: 'تم إلغاء هذا الطلب. تواصل مع الدعم إذا كان لديك أي استفسار.',
+  },
+  fr: {
+    trackOrder: 'Suivre votre commande', breadcrumbHome: 'Accueil', arrivingBy: 'Livraison prévue le', trackingDetails: 'Détails du suivi',
+    shipmentItems: 'Articles de cette commande', shipmentDetails: "Détails de l'expédition", orderSummary: 'Récapitulatif', quantity: 'Qté',
+    cancelledNote: "Cette commande a été annulée. Contactez le support si vous avez des questions.",
+  },
+};
+
+const tr = (lang, key) => TRACK_TRANSLATIONS[lang]?.[key] || EXTRA_TEXT[lang]?.[key] || TRACK_TRANSLATIONS.en?.[key] || EXTRA_TEXT.en[key] || key;
 
 const LOCALES = { en: 'en-GB', ar: 'ar-EG', fr: 'fr-FR' };
 
@@ -37,6 +55,26 @@ const STATUS_STEPS = [
   { key: 'CANCELLED', labelKey: 'cancelled', subKey: 'orderCancelled', icon: FiXCircle },
 ];
 const STEP_INDEX = Object.fromEntries(STATUS_STEPS.map((s, i) => [s.key, i]));
+
+const STAGES = [
+  { key: 'placed', icon: FiClock, labelKey: 'orderPlaced', statuses: ['PENDING', 'CONFIRMED'] },
+  { key: 'processing', icon: FiPackage, labelKey: 'processing', statuses: ['PROCESSING', 'FINISHPROCESSING'] },
+  { key: 'shipped', icon: FiTruck, labelKey: 'outForDelivery', statuses: ['SHIPPED'] },
+  { key: 'delivered', icon: FiCheckCircle, labelKey: 'delivered', statuses: ['DELIVERED'] },
+];
+
+const THEME = {
+  light: {
+    page: 'bg-gray-50 text-emerald-950', card: 'bg-white border-gray-200', soft: 'bg-gray-50', ink: 'text-emerald-950', muted: 'text-gray-600',
+    line: 'border-gray-200', accent: 'text-emerald-600', accentBg: 'bg-emerald-500', iconBg: 'bg-emerald-600', track: 'bg-gray-200', hover: 'hover:bg-emerald-50',
+    warn: 'text-amber-700', sk: 'bg-gray-200/80',
+  },
+  dark: {
+    page: 'bg-[#141414] text-white', card: 'bg-[#2a2a2a] border-[#3d3d3d]', soft: 'bg-[#1e1e1e]', ink: 'text-white', muted: 'text-neutral-400',
+    line: 'border-[#3d3d3d]', accent: 'text-[#39ff88]', accentBg: 'bg-[#39ff88]', iconBg: 'bg-emerald-600', track: 'bg-neutral-700', hover: 'hover:bg-white/10',
+    warn: 'text-amber-300', sk: 'bg-white/10',
+  },
+};
 
 const DATE_OPTS = { month: 'short', day: 'numeric', year: 'numeric' };
 const DATETIME_OPTS = { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' };
@@ -62,6 +100,10 @@ const fmtMoney = (v, loc, currency) =>
 const addDays = (v, n) => { const d = v ? new Date(v) : new Date(); d.setDate(d.getDate() + n); return d; };
 const shortId = (o) => o.id?.slice(0, 8);
 
+const getEta = (o, loc) => (o.status === 'DELIVERED'
+  ? fmtDate(o.deliveredAt ?? o.updatedAt, loc)
+  : fmtDate(o.estimatedDelivery, loc) ?? fmtDate(addDays(o.createdAt, 5), loc));
+
 const stepTimestamp = (order, key, loc) => {
   const h = order?.statusHistory?.find((x) => x.status === key);
   if (h?.timestamp) return fmtDateTime(h.timestamp, loc);
@@ -69,10 +111,12 @@ const stepTimestamp = (order, key, loc) => {
   return null;
 };
 
-const statusTone = (status, darkMode) => {
-  if (status === 'DELIVERED') return darkMode ? 'text-[#39ff88]' : 'text-emerald-600';
-  if (status === 'CANCELLED') return darkMode ? 'text-rose-400' : 'text-rose-600';
-  return darkMode ? 'text-amber-300' : 'text-amber-700';
+const stageTimestamp = (order, statuses, loc) => {
+  for (let i = statuses.length - 1; i >= 0; i -= 1) {
+    const v = stepTimestamp(order, statuses[i], loc);
+    if (v) return v;
+  }
+  return null;
 };
 
 const buildMeta = (o, t, loc) => [
@@ -88,9 +132,7 @@ const buildDetails = (o, t, loc) => {
   const payment = o.paymentMethod ?? o.payment_method ?? null;
   const address = o.shippingAddress ?? o.address ?? null;
   const delivered = o.status === 'DELIVERED';
-  const eta = delivered
-    ? fmtDate(o.deliveredAt ?? o.updatedAt, loc)
-    : fmtDate(o.estimatedDelivery, loc) ?? fmtDate(addDays(o.createdAt, 5), loc);
+  const eta = getEta(o, loc);
   return [
     count !== null && { icon: FiPackage, label: t('items'), value: `${count} ${count === 1 ? t('item') : t('items')}` },
     total && { icon: FiCreditCard, label: t('orderTotal'), value: total },
@@ -100,33 +142,35 @@ const buildDetails = (o, t, loc) => {
   ].filter(Boolean);
 };
 
+const IMG_OK = /^(https?:\/\/|\/)/i;
+const buildItems = (o, loc, currency) => {
+  const list = Array.isArray(o.items) ? o.items : Array.isArray(o.orderItems) ? o.orderItems : EMPTY_LIST;
+  const out = [];
+  for (let i = 0; i < list.length && out.length < 30; i += 1) {
+    const it = list[i];
+    const p = it?.product || {};
+    const img = it?.imageUrl ?? p.imageUrl ?? '';
+    const pid = it?.productId ?? p.id ?? null;
+    const name = String(it?.productName ?? it?.name ?? p.name ?? '').slice(0, 160);
+    if (!name) continue;
+    out.push({
+      key: `${it?.id ?? pid ?? 'i'}-${i}`,
+      name,
+      qty: Math.max(1, Number(it?.quantity) || 1),
+      price: fmtMoney(it?.price ?? it?.unitPrice ?? p.price, loc, currency),
+      img: typeof img === 'string' && IMG_OK.test(img) ? img : '',
+      href: pid != null ? `/device/${encodeURIComponent(pid)}` : null,
+    });
+  }
+  return out;
+};
+
 const PAGE_CSS = `
-  .hp-hl, .hp-hl-dark {
-    padding-bottom: 0.2em;
-    background-position: left bottom;
-    background-repeat: no-repeat;
-    background-size: 100% 0.3em;
-    -webkit-box-decoration-break: clone;
-    box-decoration-break: clone;
-  }
-  .hp-hl      { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2310b981' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
-  .hp-hl-dark { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2339ff88' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
-  @keyframes hpRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-  .hp-rise { animation: hpRise 0.28s cubic-bezier(.2,.8,.2,1) both; }
-  @keyframes hpPop { from { opacity: 0; transform: translateY(-6px) scale(.98); } to { opacity: 1; transform: none; } }
-  .hp-pop { animation: hpPop 0.14s ease-out both; transform-origin: top; }
-  .hp-pattern {
-    --p1: rgba(4, 38, 26, .13);
-    --p2: rgba(16, 185, 129, .12);
-    background-image:
-      radial-gradient(circle at 2px 2px, var(--p1) 1.6px, transparent 1.8px),
-      repeating-linear-gradient(135deg, var(--p2) 0 2px, transparent 2px 18px);
-    background-size: 22px 22px, auto;
-  }
-  .hp-pattern-dark { --p1: rgba(57, 255, 136, .14); --p2: rgba(57, 255, 136, .06); }
-  @media (prefers-reduced-motion: reduce) {
-    .hp-rise, .hp-pop { animation: none; }
-  }
+  @keyframes hpRise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  .hp-rise { animation: hpRise 0.24s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes hpPop { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: none; } }
+  .hp-pop { animation: hpPop 0.12s ease-out both; transform-origin: top; }
+  @media (prefers-reduced-motion: reduce) { .hp-rise, .hp-pop { animation: none; } }
 `;
 let stylesInjected = false;
 const injectStylesOnce = () => {
@@ -139,39 +183,14 @@ const injectStylesOnce = () => {
 };
 injectStylesOnce();
 
-const DARK_PAGE = 'bg-[#141414]';
+const BTN_BASE =
+  'inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold transition-colors motion-reduce:transition-none ' +
+  'disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-emerald-400';
+const btn = (th, primary) => (primary
+  ? `${BTN_BASE} ${th.iconBg} text-white hover:bg-emerald-700`
+  : `${BTN_BASE} border ${th.card} ${th.ink} ${th.hover}`);
 
-const NEO_THEME = {
-  light: '[--dx:1] rtl:[--dx:-1] [--ink:#022c22] [--sh:#022c22] [--acc:#34d399]',
-  dark: '[--dx:1] rtl:[--dx:-1] [--ink:#000] [--sh:#000] [--acc:#39ff88]',
-};
-const NEO_SURFACE = { light: 'bg-white', dark: 'bg-[#2a2a2a]' };
-const NEO_BOX = {
-  lg: 'flex flex-col rounded-2xl border-[3px] border-[color:var(--ink)] [box-shadow:calc(var(--dx)*8px)_8px_0_0_var(--sh)]',
-  sm: 'flex flex-col rounded-2xl border-[3px] border-[color:var(--ink)] [box-shadow:calc(var(--dx)*6px)_6px_0_0_var(--sh)]',
-};
-const neoCard = (darkMode, size = 'lg') => {
-  const k = darkMode ? 'dark' : 'light';
-  return `${NEO_THEME[k]} ${NEO_BOX[size]} ${NEO_SURFACE[k]}`;
-};
-
-const NEO_BTN =
-  'inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border-[3px] border-[color:var(--ink)] px-4 py-2.5 text-sm font-extrabold uppercase ' +
-  '[box-shadow:calc(var(--dx)*4px)_4px_0_0_var(--sh)] transition-[transform,box-shadow] duration-150 motion-reduce:transition-none ' +
-  'active:translate-y-[4px] active:translate-x-[calc(var(--dx)*4px)] active:[box-shadow:0_0_0_0_var(--sh)] ' +
-  'disabled:cursor-not-allowed disabled:opacity-40 ' +
-  'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
-const neoBtn = (darkMode, active) => {
-  const k = darkMode ? 'dark' : 'light';
-  const tone = active ? 'bg-[color:var(--acc)] text-emerald-950' : `${NEO_SURFACE[k]} ${darkMode ? 'text-white' : 'text-emerald-950'}`;
-  return `${NEO_THEME[k]} ${NEO_BTN} ${tone}`;
-};
-
-const ICON_BOX =
-  'inline-flex flex-shrink-0 items-center justify-center rounded-lg border-2 border-[color:var(--ink)] bg-[color:var(--acc)] text-emerald-950 [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)]';
-const ROW_BOX = 'rounded-xl border-2 border-dotted border-[color:var(--ink)]';
-
-const Dropdown = memo(({ value, onChange, options, ariaLabel, darkMode }) => {
+const Dropdown = memo(({ value, onChange, options, ariaLabel, th }) => {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const rootRef = useRef(null);
@@ -218,9 +237,6 @@ const Dropdown = memo(({ value, onChange, options, ariaLabel, darkMode }) => {
     }
   };
 
-  const surface = darkMode ? 'bg-[#1e1e1e] text-white' : 'bg-white text-emerald-950';
-  const hover = darkMode ? 'bg-white/10' : 'bg-emerald-100';
-
   return (
     <div ref={rootRef} className={`relative ${open ? 'z-30' : ''}`}>
       <button
@@ -234,7 +250,7 @@ const Dropdown = memo(({ value, onChange, options, ariaLabel, darkMode }) => {
         aria-activedescendant={open ? `${uid}-o${active}` : undefined}
         onClick={() => setOpen((o) => !o)}
         onKeyDown={onKeyDown}
-        className={`flex min-h-11 w-full cursor-pointer items-center justify-between gap-2 rounded-lg border-2 border-[color:var(--ink)] px-3 text-start text-sm font-semibold outline-none focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)] ${surface}`}
+        className={`flex min-h-11 w-full cursor-pointer items-center justify-between gap-2 rounded-lg border px-3 text-start text-sm font-semibold outline-none focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${th.card} ${th.ink}`}
       >
         <span className="truncate">{current?.label}</span>
         <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform duration-150 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
@@ -246,7 +262,7 @@ const Dropdown = memo(({ value, onChange, options, ariaLabel, darkMode }) => {
           role="listbox"
           aria-label={ariaLabel}
           tabIndex={-1}
-          className={`hp-pop absolute start-0 top-full z-30 mt-2 max-h-64 min-w-full overflow-y-auto overscroll-contain rounded-xl border-[3px] border-[color:var(--ink)] py-1 [box-shadow:calc(var(--dx)*4px)_4px_0_0_var(--sh)] ${surface}`}
+          className={`hp-pop absolute start-0 top-full z-30 mt-2 max-h-64 min-w-full overflow-y-auto overscroll-contain rounded-xl border py-1 shadow-xl ${th.card} ${th.ink}`}
         >
           {options.map((o, i) => {
             const selected = o.value === value;
@@ -258,8 +274,8 @@ const Dropdown = memo(({ value, onChange, options, ariaLabel, darkMode }) => {
                 aria-selected={selected}
                 onPointerEnter={() => setActive(i)}
                 onClick={() => choose(i)}
-                className={`flex min-h-11 cursor-pointer items-center justify-between gap-2 whitespace-nowrap px-3 py-2 text-sm font-bold ${
-                  selected ? 'bg-[color:var(--acc)] text-emerald-950' : i === active ? hover : ''
+                className={`flex min-h-11 cursor-pointer items-center justify-between gap-2 whitespace-nowrap px-3 py-2 text-sm font-semibold ${
+                  selected ? `bg-emerald-500/15 ${th.accent}` : i === active ? th.soft : ''
                 }`}
               >
                 <span className="truncate">{o.label}</span>
@@ -273,43 +289,85 @@ const Dropdown = memo(({ value, onChange, options, ariaLabel, darkMode }) => {
   );
 });
 
-const MetaTile = memo(({ icon: Icon, label, value, darkMode }) => (
-  <div className={`min-w-0 p-3 ${ROW_BOX} ${darkMode ? 'bg-[#1e1e1e]' : 'bg-gray-50'}`}>
-    <p className={`flex items-center gap-1.5 text-[11px] font-extrabold uppercase ${darkMode ? 'text-neutral-400' : 'text-gray-600'}`}>
-      <Icon aria-hidden="true" className={`h-3.5 w-3.5 flex-shrink-0 ${darkMode ? 'text-[#39ff88]' : 'text-emerald-600'}`} /><span className="truncate">{label}</span>
-    </p>
-    <p className={`mt-1 truncate text-sm font-extrabold ${darkMode ? 'text-white' : 'text-emerald-950'}`}>{value}</p>
-  </div>
+const StatusPill = memo(({ status, text, th }) => {
+  const Icon = STATUS_STEPS[STEP_INDEX[status]]?.icon || FiBox;
+  const tone = status === 'DELIVERED'
+    ? `bg-emerald-500/15 ${th.accent}`
+    : status === 'CANCELLED'
+      ? 'bg-rose-500/15 text-rose-500'
+      : `bg-amber-500/15 ${th.warn}`;
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${tone}`}>
+      <Icon aria-hidden="true" className="h-4 w-4" />{text}
+    </span>
+  );
+});
+
+const Stepper = memo(({ stages, stageIdx, th, label }) => (
+  <ol className="mt-8 flex" aria-label={label}>
+    {stages.map((s, i) => {
+      const done = i <= stageIdx;
+      const current = i === stageIdx;
+      const Icon = s.icon;
+      return (
+        <li key={s.key} aria-current={current ? 'step' : undefined} className="relative flex min-w-0 flex-1 flex-col items-center px-1 text-center">
+          {i > 0 && <span aria-hidden="true" className={`absolute start-[-50%] top-[18px] h-1 w-full rounded-full ${done ? th.accentBg : th.track}`} />}
+          <span
+            className={`relative z-10 flex h-10 w-10 items-center justify-center rounded-full border-2 ${
+              done ? `${th.iconBg} border-transparent text-white` : `${th.card} ${th.muted}`
+            } ${current ? 'ring-4 ring-emerald-500/25' : ''}`}
+          >
+            <Icon aria-hidden="true" className="h-[18px] w-[18px]" />
+          </span>
+          <span className={`mt-2 text-xs font-bold sm:text-sm ${done ? th.ink : th.muted}`}>{s.label}</span>
+          {done && s.ts && <span className={`mt-0.5 text-[11px] leading-tight ${th.muted}`}>{s.ts}</span>}
+        </li>
+      );
+    })}
+  </ol>
 ));
 
-const StepRow = memo(({ step, isCompleted, isCurrent, isCancelledStep, isLast, timestamp, darkMode, t }) => {
+const SummaryCard = memo(({ order, headline, subText, stages, stageIdx, isCancelled, statusText, th, t }) => (
+  <section aria-label={t('orderNumber')} className={`hp-rise rounded-2xl border p-5 sm:p-7 ${th.card}`}>
+    <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="min-w-0">
+        <p className={`text-sm ${th.muted}`}>{t('orderNumber')} <span dir="ltr" className={`font-bold ${th.ink}`}>#{shortId(order)}</span></p>
+        <h2 className={`mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl ${isCancelled ? 'text-rose-500' : th.ink}`}>{headline}</h2>
+        {subText && <p className={`mt-1 text-sm ${th.muted}`}>{subText}</p>}
+      </div>
+      <StatusPill status={order.status} text={statusText} th={th} />
+    </div>
+    {isCancelled ? (
+      <p className="mt-6 flex items-start gap-3 rounded-xl bg-rose-500/10 p-4 text-sm font-medium text-rose-500">
+        <FiXCircle aria-hidden="true" className="mt-0.5 h-5 w-5 flex-shrink-0" />{t('cancelledNote')}
+      </p>
+    ) : (
+      <Stepper stages={stages} stageIdx={stageIdx} th={th} label={t('overallProgress')} />
+    )}
+  </section>
+));
+
+const StepRow = memo(({ step, done, current, cancelledStep, last, timestamp, th, t }) => {
   const Icon = step.icon;
-  const active = isCompleted || isCancelledStep;
-  const muted = darkMode ? 'text-neutral-400' : 'text-gray-600';
-  const box = isCancelledStep
-    ? 'bg-rose-500 text-white [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)]'
-    : isCompleted
-      ? 'bg-[color:var(--acc)] text-emerald-950 [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)]'
-      : `${darkMode ? 'bg-[#1e1e1e] text-neutral-500' : 'bg-gray-100 text-gray-500'}`;
+  const circle = cancelledStep
+    ? 'border-transparent bg-rose-500 text-white'
+    : done
+      ? `border-transparent ${th.iconBg} text-white`
+      : `${th.soft} ${th.line} ${th.muted}`;
   return (
-    <li className={`relative flex gap-4 ${isLast ? '' : 'pb-6'}`} aria-current={isCurrent && !isCancelledStep ? 'step' : undefined}>
-      {!isLast && (
-        <span
-          aria-hidden="true"
-          className={`absolute start-[18px] top-10 bottom-0 w-1 rounded-full ${isCompleted && !isCurrent ? 'bg-[color:var(--acc)]' : darkMode ? 'bg-neutral-700' : 'bg-gray-200'}`}
-        />
-      )}
-      <span className={`relative z-10 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border-2 border-[color:var(--ink)] ${box}`}>
-        <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+    <li className={`relative flex gap-4 ${last ? '' : 'pb-6'}`} aria-current={current && !cancelledStep ? 'step' : undefined}>
+      {!last && <span aria-hidden="true" className={`absolute bottom-0 start-[17px] top-9 w-0.5 ${done && !current ? th.accentBg : th.track}`} />}
+      <span className={`relative z-10 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border ${circle}`}>
+        <Icon className="h-4 w-4" aria-hidden="true" />
       </span>
-      <div className="min-w-0 flex-1 pt-0.5">
+      <div className="min-w-0 flex-1 pt-1">
         <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-          <p className={`text-sm font-extrabold uppercase leading-snug ${isCancelledStep ? 'text-rose-500' : active ? (darkMode ? 'text-white' : 'text-emerald-950') : muted}`}>{step.label}</p>
-          {timestamp && active && <span className={`text-xs font-bold ${muted}`}>{timestamp}</span>}
+          <p className={`text-sm font-bold ${cancelledStep ? 'text-rose-500' : done ? th.ink : th.muted}`}>{step.label}</p>
+          {timestamp && (done || cancelledStep) && <span className={`text-xs ${th.muted}`}>{timestamp}</span>}
         </div>
-        <p className={`mt-0.5 text-xs font-medium ${muted}`}>{step.sub}</p>
-        {isCurrent && !isCancelledStep && (
-          <p className={`mt-1.5 flex items-center gap-1.5 text-xs font-extrabold uppercase ${darkMode ? 'text-[#39ff88]' : 'text-emerald-600'}`}>
+        <p className={`mt-0.5 text-xs ${th.muted}`}>{step.sub}</p>
+        {current && !cancelledStep && (
+          <p className={`mt-1.5 flex items-center gap-1 text-xs font-bold ${th.accent}`}>
             <FiChevronRight aria-hidden="true" className="h-3.5 w-3.5 rtl:rotate-180" />{t('currentStatus')}
           </p>
         )}
@@ -318,142 +376,142 @@ const StepRow = memo(({ step, isCompleted, isCurrent, isCancelledStep, isLast, t
   );
 });
 
-const StatusStrip = memo(({ order, options, onSelect, progressPct, isCancelled, statusText, darkMode, isAr, t }) => {
-  const StatusIcon = STATUS_STEPS[STEP_INDEX[order.status]]?.icon || FiBox;
-  const ink = darkMode ? 'text-white' : 'text-emerald-950';
-  const muted = darkMode ? 'text-neutral-300' : 'text-gray-700';
-  return (
-    <div className={`relative z-20 mb-10 mr-2 p-5 sm:p-6 rtl:mr-0 rtl:ml-2 ${neoCard(darkMode, 'lg')}`}>
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-end lg:gap-10">
-        <div>
-          <p className={`mb-2 text-xs font-extrabold uppercase ${isAr ? 'tracking-normal' : 'tracking-wide'} ${ink}`}>{t('selectOrder')}</p>
-          <Dropdown ariaLabel={t('selectOrder')} value={order.id} onChange={onSelect} options={options} darkMode={darkMode} />
-        </div>
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-            <h2 className={`text-2xl font-extrabold uppercase sm:text-3xl ${isAr ? 'tracking-normal' : 'tracking-[-0.02em]'} ${ink}`}>
-              {t('orderNumber')} <span className={darkMode ? 'hp-hl-dark' : 'hp-hl'} dir="ltr">#{shortId(order)}</span>
-            </h2>
-            <p className={`flex items-center gap-2 text-sm font-extrabold uppercase ${statusTone(order.status, darkMode)}`}>
-              <StatusIcon aria-hidden="true" className="h-5 w-5" />{statusText}
-            </p>
-          </div>
-          {!isCancelled && (
-            <div className="mt-4">
-              <div className="mb-2 flex items-center justify-between">
-                <p className={`text-xs font-extrabold uppercase ${muted}`}>{t('overallProgress')}</p>
-                <p className={`text-xs font-extrabold tabular-nums ${ink}`} dir="ltr">{progressPct}%</p>
-              </div>
-              <div
-                className={`h-4 overflow-hidden rounded-full border-2 border-[color:var(--ink)] ${darkMode ? 'bg-[#1e1e1e]' : 'bg-gray-100'}`}
-                role="progressbar" aria-label={t('overallProgress')} aria-valuenow={progressPct} aria-valuemin={0} aria-valuemax={100}
-              >
-                <div
-                  className="h-full origin-left rounded-full bg-[color:var(--acc)] transition-transform duration-500 ease-out rtl:origin-right motion-reduce:transition-none"
-                  style={{ transform: `scaleX(${progressPct / 100})` }}
-                />
-              </div>
+const ItemsCard = memo(({ items, th, t }) => (
+  <section aria-label={t('shipmentItems')} className={`rounded-2xl border p-5 sm:p-6 ${th.card}`}>
+    <h3 className={`mb-4 text-lg font-bold ${th.ink}`}>{t('shipmentItems')}</h3>
+    <ul className={`divide-y ${th.line}`}>
+      {items.map((it) => {
+        const thumb = (
+          <span className={`flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border ${th.line} ${th.soft}`}>
+            {it.img
+              ? <img src={it.img} alt="" width={64} height={64} loading="lazy" decoding="async" referrerPolicy="no-referrer" className="h-full w-full object-contain p-1" />
+              : <FiBox aria-hidden="true" className={`h-6 w-6 ${th.accent}`} />}
+          </span>
+        );
+        const name = <span className={`line-clamp-2 text-sm font-semibold ${th.ink}`}>{it.name}</span>;
+        return (
+          <li key={it.key} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
+            {it.href ? <Link to={it.href} tabIndex={-1} aria-hidden="true">{thumb}</Link> : thumb}
+            <div className="min-w-0 flex-1">
+              {it.href ? <Link to={it.href} className="hover:underline">{name}</Link> : name}
+              <p className={`mt-1 text-xs ${th.muted}`}>{t('quantity')}: <span dir="ltr" className="font-bold tabular-nums">{it.qty}</span></p>
             </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-});
-
-const InfoPanel = memo(({ rows, status, statusText, darkMode, t }) => {
-  const ink = darkMode ? 'text-white' : 'text-emerald-950';
-  const muted = darkMode ? 'text-neutral-400' : 'text-gray-600';
-  return (
-    <aside className={`h-fit gap-5 p-5 lg:sticky lg:top-24 ${neoCard(darkMode, 'sm')}`}>
-      <div className={`flex items-center gap-3 p-3 ${ROW_BOX} ${darkMode ? 'bg-[#1e1e1e]' : 'bg-gray-50'}`}>
-        <span aria-hidden="true" className={`${ICON_BOX} h-12 w-12`}><FiBox className="h-6 w-6" /></span>
-        <div className="min-w-0">
-          <p className={`text-[11px] font-extrabold uppercase ${muted}`}>{t('liveTracking')}</p>
-          <p className={`mt-0.5 truncate text-sm font-extrabold uppercase ${statusTone(status, darkMode)}`}>{statusText}</p>
-        </div>
-      </div>
-
-      {rows.length > 0 && (
-        <div>
-          <h3 className={`mb-3 text-base font-extrabold uppercase ${ink}`}><span className={darkMode ? 'hp-hl-dark' : 'hp-hl'}>{t('orderDetails')}</span></h3>
-          <ul className="space-y-3">
-            {rows.map(({ icon: Icon, label, value }) => (
-              <li key={label + value} className="flex items-start gap-3">
-                <span aria-hidden="true" className={`${ICON_BOX} h-9 w-9`}><Icon className="h-4 w-4" /></span>
-                <div className="min-w-0">
-                  <p className={`text-[11px] font-bold uppercase ${muted}`}>{label}</p>
-                  <p className={`truncate text-sm font-extrabold ${ink}`}>{value}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <div className={`flex items-start gap-2.5 p-3 text-xs ${ROW_BOX} ${darkMode ? 'bg-[#1e1e1e] text-neutral-300' : 'bg-gray-50 text-gray-700'}`}>
-        <FiShield aria-hidden="true" className={`mt-0.5 h-4 w-4 flex-shrink-0 ${darkMode ? 'text-[#39ff88]' : 'text-emerald-600'}`} />
-        <p className="font-medium leading-relaxed"><span className={`font-extrabold ${ink}`}>{t('trackingHelp')}</span> {t('trackingHelpText')}</p>
-      </div>
-    </aside>
-  );
-});
-
-export const CantFindCard = memo(({ t, darkMode = false }) => (
-  <div className={`items-start gap-4 p-5 sm:flex-row sm:items-center ${neoCard(darkMode, 'sm')}`}>
-    <span aria-hidden="true" className={`${ICON_BOX} h-11 w-11`}><FiHeadphones className="h-5 w-5" /></span>
-    <div className="min-w-0 flex-1">
-      <p className={`text-base font-extrabold uppercase ${darkMode ? 'text-white' : 'text-emerald-950'}`}>{t('cantFindTitle')}</p>
-      <p className={`mt-1 text-sm font-medium ${darkMode ? 'text-neutral-300' : 'text-gray-700'}`}>{t('cantFindText')}</p>
-    </div>
-    <div className="flex w-full flex-wrap gap-3 pb-1 pe-1 sm:w-auto">
-      <Link to="/support" className={`${neoBtn(darkMode, false)} flex-1 sm:flex-none`}><FiHeadphones aria-hidden="true" className="h-4 w-4" />{t('support')}</Link>
-      <Link to="/chat" className={`${neoBtn(darkMode, true)} flex-1 sm:flex-none`}><FiMessageCircle aria-hidden="true" className="h-4 w-4" />{t('liveChat')}</Link>
-    </div>
-  </div>
+            {it.price && <p className={`flex-shrink-0 text-sm font-extrabold tabular-nums ${th.ink}`} dir="ltr">{it.price}</p>}
+          </li>
+        );
+      })}
+    </ul>
+  </section>
 ));
 
-const StateCard = memo(({ icon: Icon, title, text, darkMode, children }) => (
-  <div className={`mx-auto max-w-md items-center px-6 py-10 text-center ${neoCard(darkMode, 'lg')}`}>
-    {Icon ? (
-      <span aria-hidden="true" className={`${ICON_BOX} mb-4 h-16 w-16 !rounded-xl`}><Icon className="h-8 w-8" /></span>
-    ) : (
-      <div aria-hidden="true" className="mb-3 h-40 w-40">
-        <HeroArt type="track" darkMode={darkMode} />
-      </div>
-    )}
-    <h2 className={`text-xl font-extrabold uppercase ${darkMode ? 'text-white' : 'text-emerald-950'}`}><span className={darkMode ? 'hp-hl-dark' : 'hp-hl'}>{title}</span></h2>
-    {text && <p className={`mt-4 mb-6 text-sm font-medium ${darkMode ? 'text-neutral-300' : 'text-gray-700'}`}>{text}</p>}
-    <div className="pb-1 pe-1">{children}</div>
-  </div>
-));
-
-const SKELETON_W = [[60, 40], [72, 52], [50, 34], [66, 46]];
-const TrackSkeleton = memo(({ darkMode }) => {
-  const bar = darkMode ? 'bg-[#2a2a2a]' : 'bg-gray-200/70';
-  return (
-    <div className="space-y-5" role="status" aria-busy="true">
-      <div className={`h-12 animate-pulse rounded-2xl motion-reduce:animate-none ${bar}`} />
-      {SKELETON_W.map(([a, b], i) => (
-        <div key={i} className="flex items-center gap-4">
-          <div className={`h-10 w-10 flex-shrink-0 animate-pulse rounded-lg motion-reduce:animate-none ${bar}`} />
-          <div className="flex-1 space-y-2">
-            <div className={`h-4 animate-pulse rounded motion-reduce:animate-none ${bar}`} style={{ width: `${a}%` }} />
-            <div className={`h-3 animate-pulse rounded motion-reduce:animate-none ${bar}`} style={{ width: `${b}%` }} />
+const DetailCard = memo(({ title, rows, th }) => (rows.length ? (
+  <section aria-label={title} className={`rounded-2xl border p-5 ${th.card}`}>
+    <h3 className={`mb-4 text-base font-bold ${th.ink}`}>{title}</h3>
+    <dl className="space-y-3.5">
+      {rows.map(({ icon: Icon, label, value }) => (
+        <div key={label} className="flex items-start gap-3">
+          <Icon aria-hidden="true" className={`mt-0.5 h-4 w-4 flex-shrink-0 ${th.accent}`} />
+          <div className="min-w-0">
+            <dt className={`text-xs ${th.muted}`}>{label}</dt>
+            <dd className={`break-words text-sm font-semibold ${th.ink}`}>{value}</dd>
           </div>
         </div>
       ))}
+    </dl>
+  </section>
+) : null));
+
+const HelpNote = memo(({ th, t }) => (
+  <div className={`flex items-start gap-2.5 rounded-2xl border p-4 text-xs ${th.card} ${th.muted}`}>
+    <FiShield aria-hidden="true" className={`mt-0.5 h-4 w-4 flex-shrink-0 ${th.accent}`} />
+    <p className="leading-relaxed"><span className={`font-bold ${th.ink}`}>{t('trackingHelp')}</span> {t('trackingHelpText')}</p>
+  </div>
+));
+
+export const CantFindCard = memo(({ t, darkMode = false }) => {
+  const th = darkMode ? THEME.dark : THEME.light;
+  return (
+    <div className={`flex flex-col items-start gap-4 rounded-2xl border p-5 sm:flex-row sm:items-center ${th.card}`}>
+      <span aria-hidden="true" className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full ${th.iconBg} text-white`}><FiHeadphones className="h-5 w-5" /></span>
+      <div className="min-w-0 flex-1">
+        <p className={`text-base font-bold ${th.ink}`}>{t('cantFindTitle')}</p>
+        <p className={`mt-1 text-sm ${th.muted}`}>{t('cantFindText')}</p>
+      </div>
+      <div className="flex w-full flex-wrap gap-3 sm:w-auto">
+        <Link to="/support" className={`${btn(th, false)} flex-1 sm:flex-none`}><FiHeadphones aria-hidden="true" className="h-4 w-4" />{t('support')}</Link>
+        <Link to="/chat" className={`${btn(th, true)} flex-1 sm:flex-none`}><FiMessageCircle aria-hidden="true" className="h-4 w-4" />{t('liveChat')}</Link>
+      </div>
     </div>
   );
 });
 
-const EMPTY_LIST = [];
+const StateCard = memo(({ icon: Icon = FiAlertCircle, title, text, th, children }) => (
+  <div className={`mx-auto flex max-w-md flex-col items-center rounded-2xl border px-6 py-10 text-center ${th.card}`}>
+    <span aria-hidden="true" className={`mb-4 flex h-16 w-16 items-center justify-center rounded-full ${th.iconBg} text-white`}><Icon className="h-8 w-8" /></span>
+    <h2 className={`text-xl font-extrabold ${th.ink}`}>{title}</h2>
+    {text && <p className={`mb-6 mt-3 text-sm ${th.muted}`}>{text}</p>}
+    <div>{children}</div>
+  </div>
+));
+
+const SK_STAGES = [0, 1, 2, 3];
+const SK_ROWS = [0, 1, 2, 3, 4];
+const TrackSkeleton = memo(({ th }) => {
+  const bar = `animate-pulse rounded motion-reduce:animate-none ${th.sk}`;
+  return (
+    <div role="status" aria-busy="true" className="space-y-6">
+      <div className={`rounded-2xl border p-5 sm:p-7 ${th.card}`}>
+        <div className="space-y-3">
+          <div className={`${bar} h-4 w-32`} />
+          <div className={`${bar} h-8 w-72 max-w-full`} />
+          <div className={`${bar} h-4 w-48`} />
+        </div>
+        <div className="mt-8 flex">
+          {SK_STAGES.map((i) => (
+            <div key={i} className="flex flex-1 flex-col items-center gap-2">
+              <div className={`${bar} h-10 w-10 !rounded-full`} />
+              <div className={`${bar} h-3 w-16`} />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_21rem]">
+        <div className={`space-y-6 rounded-2xl border p-5 sm:p-6 ${th.card}`}>
+          <div className={`${bar} h-6 w-40`} />
+          {SK_ROWS.map((i) => (
+            <div key={i} className="flex items-center gap-4">
+              <div className={`${bar} h-9 w-9 flex-shrink-0 !rounded-full`} />
+              <div className="flex-1 space-y-2">
+                <div className={`${bar} h-4 w-1/2`} />
+                <div className={`${bar} h-3 w-1/3`} />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="space-y-6">
+          <div className={`space-y-3 rounded-2xl border p-5 ${th.card}`}>
+            <div className={`${bar} h-5 w-32`} />
+            <div className={`${bar} h-10 w-full`} />
+            <div className={`${bar} h-10 w-full`} />
+            <div className={`${bar} h-10 w-full`} />
+          </div>
+          <div className={`space-y-3 rounded-2xl border p-5 ${th.card}`}>
+            <div className={`${bar} h-5 w-32`} />
+            <div className={`${bar} h-10 w-full`} />
+            <div className={`${bar} h-10 w-full`} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
 
 const TrackContent = memo(({ darkMode }) => {
   const language = useAppLanguage();
   const t = useCallback((k) => tr(language, k), [language]);
   const loc = LOCALES[language] || 'en-GB';
   const isAr = language === 'ar';
+  const th = darkMode ? THEME.dark : THEME.light;
   const [token] = useState(() => (typeof window !== 'undefined' ? localStorage.getItem('authToken') : null));
   const [selectedId, setSelectedId] = useState(null);
 
@@ -474,7 +532,7 @@ const TrackContent = memo(({ darkMode }) => {
   const order = useMemo(() => orders.find((o) => o.id === selectedId) || orders[0] || null, [orders, selectedId]);
   const isCancelled = order?.status === 'CANCELLED';
   const currentIdx = useMemo(() => STEP_INDEX[order?.status] ?? -1, [order?.status]);
-  const progressPct = isCancelled || currentIdx < 0 ? 0 : Math.min(100, Math.round((currentIdx / (STATUS_STEPS.length - 2)) * 100));
+  const stageIdx = useMemo(() => STAGES.findIndex((s) => s.statuses.includes(order?.status)), [order?.status]);
 
   const statusLabel = useCallback((status) => {
     const s = STATUS_STEPS[STEP_INDEX[status]];
@@ -488,98 +546,125 @@ const TrackContent = memo(({ darkMode }) => {
     [isCancelled, t],
   );
 
+  const stages = useMemo(
+    () => STAGES.map((s) => ({ ...s, label: t(s.labelKey), ts: order ? stageTimestamp(order, s.statuses, loc) : null })),
+    [order, t, loc],
+  );
+
   const timestamps = useMemo(() => (order ? steps.map((s) => stepTimestamp(order, s.key, loc)) : EMPTY_LIST), [order, steps, loc]);
   const meta = useMemo(() => (order ? buildMeta(order, t, loc) : EMPTY_LIST), [order, t, loc]);
   const rows = useMemo(() => (order ? buildDetails(order, t, loc) : EMPTY_LIST), [order, t, loc]);
+  const items = useMemo(() => (order ? buildItems(order, loc, t('currency')) : EMPTY_LIST), [order, loc, t]);
   const orderOptions = useMemo(
     () => orders.map((o) => ({ value: o.id, label: `${t('orderNumber')} #${shortId(o)} · ${statusLabel(o.status)}` })),
     [orders, t, statusLabel],
   );
 
-  const ready = !!token && !isLoading && !isError && !!order;
-  const ink = darkMode ? 'text-white' : 'text-emerald-950';
+  const headline = useMemo(() => {
+    if (!order) return '';
+    if (isCancelled) return t('cancelled');
+    const eta = getEta(order, loc);
+    if (order.status === 'DELIVERED') return eta ? `${t('deliveredOn')} ${eta}` : t('delivered');
+    return eta ? `${t('arrivingBy')} ${eta}` : statusLabel(order.status);
+  }, [order, isCancelled, loc, t, statusLabel]);
+
+  const subText = order ? t(STATUS_STEPS[STEP_INDEX[order.status]]?.subKey || 'orderReceived') : '';
 
   let body;
   if (!token) {
     body = (
-      <StateCard icon={FiLock} title={t('loginRequired')} text={t('loginTrack')} darkMode={darkMode}>
-        <Link to="/login" className={neoBtn(darkMode, true)}><FiLock aria-hidden="true" className="h-4 w-4" />{t('goToLogin')}</Link>
+      <StateCard icon={FiLock} title={t('loginRequired')} text={t('loginTrack')} th={th}>
+        <Link to="/login" className={btn(th, true)}><FiLock aria-hidden="true" className="h-4 w-4" />{t('goToLogin')}</Link>
       </StateCard>
     );
   } else if (isLoading) {
-    body = <TrackSkeleton darkMode={darkMode} />;
+    body = <TrackSkeleton th={th} />;
   } else if (isError) {
     body = (
-      <StateCard title={t('loadErrorTitle')} text={t('loadErrorText')} darkMode={darkMode}>
-        <button type="button" onClick={() => refetch()} className={neoBtn(darkMode, true)}>
+      <StateCard title={t('loadErrorTitle')} text={t('loadErrorText')} th={th}>
+        <button type="button" onClick={() => refetch()} className={btn(th, true)}>
           <FiRefreshCw aria-hidden="true" className={`h-4 w-4 ${isFetching ? 'animate-spin motion-reduce:animate-none' : ''}`} />{t('tryAgain')}
         </button>
       </StateCard>
     );
   } else if (!order) {
     body = (
-      <StateCard icon={FiShoppingBag} title={t('noOrders')} text={t('startShopping')} darkMode={darkMode}>
-        <Link to="/devices" className={neoBtn(darkMode, true)}><FiShoppingBag aria-hidden="true" className="h-4 w-4" />{t('startShoppingButton')}</Link>
+      <StateCard icon={FiShoppingBag} title={t('noOrders')} text={t('startShopping')} th={th}>
+        <Link to="/devices" className={btn(th, true)}><FiShoppingBag aria-hidden="true" className="h-4 w-4" />{t('startShoppingButton')}</Link>
       </StateCard>
     );
   } else {
     body = (
-      <div className="space-y-8">
-        <div className="grid items-start gap-6 pb-2 pe-2 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-8">
-          <section aria-label={t('orderNumber')} className={`hp-rise min-w-0 gap-8 p-5 sm:p-8 ${neoCard(darkMode, 'lg')}`}>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {meta.map((m) => <MetaTile key={m.label} {...m} darkMode={darkMode} />)}
-            </div>
+      <div className="space-y-6">
+        <SummaryCard
+          order={order} headline={headline} subText={subText} stages={stages} stageIdx={stageIdx}
+          isCancelled={isCancelled} statusText={statusLabel(order.status)} th={th} t={t}
+        />
 
-            <ol>
-              {steps.map((step, i) => {
-                const idx = STEP_INDEX[step.key];
-                return (
-                  <StepRow
-                    key={step.key} step={step} darkMode={darkMode} t={t}
-                    isLast={i === steps.length - 1}
-                    isCompleted={!isCancelled && idx <= currentIdx}
-                    isCurrent={idx === currentIdx}
-                    isCancelledStep={isCancelled && step.key === 'CANCELLED'}
-                    timestamp={timestamps[i]}
-                  />
-                );
-              })}
-            </ol>
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_21rem]">
+          <div className="min-w-0 space-y-6">
+            <section aria-label={t('trackingDetails')} className={`rounded-2xl border p-5 sm:p-6 ${th.card}`}>
+              <h3 className={`mb-5 text-lg font-bold ${th.ink}`}>{t('trackingDetails')}</h3>
+              <ol>
+                {steps.map((step, i) => {
+                  const idx = STEP_INDEX[step.key];
+                  return (
+                    <StepRow
+                      key={step.key} step={step} th={th} t={t}
+                      last={i === steps.length - 1}
+                      done={!isCancelled && idx <= currentIdx}
+                      current={idx === currentIdx}
+                      cancelledStep={isCancelled && step.key === 'CANCELLED'}
+                      timestamp={timestamps[i]}
+                    />
+                  );
+                })}
+              </ol>
+            </section>
 
-            <div className="flex justify-center pb-1 pe-1">
-              <Link to="/devices" className={neoBtn(darkMode, true)}><FiShoppingBag aria-hidden="true" className="h-4 w-4" />{t('exploreDevices')}</Link>
-            </div>
-          </section>
+            {items.length > 0 && <ItemsCard items={items} th={th} t={t} />}
+          </div>
 
-          <InfoPanel rows={rows} status={order.status} statusText={statusLabel(order.status)} darkMode={darkMode} t={t} />
+          <aside className="space-y-6 lg:sticky lg:top-32">
+            <DetailCard title={t('shipmentDetails')} rows={meta} th={th} />
+            <DetailCard title={t('orderSummary')} rows={rows} th={th} />
+            <HelpNote th={th} t={t} />
+          </aside>
         </div>
 
-       
+        <div className="flex justify-center">
+          <Link to="/devices" className={btn(th, false)}><FiShoppingBag aria-hidden="true" className="h-4 w-4" />{t('exploreDevices')}</Link>
+        </div>
       </div>
     );
   }
+
+  const showSelector = !!token && !isLoading && !isError && orders.length > 1 && !!order;
 
   return (
     <div
       dir={languageDirection(language)}
       lang={language}
-      className={`min-h-screen overflow-x-hidden ${isAr ? 'font-cairo' : 'font-jakarta'} ${darkMode ? `${DARK_PAGE} ${ink}` : 'bg-gray-50 text-gray-900'}`}
+      className={`min-h-screen [overflow-x:clip] ${isAr ? 'font-cairo' : 'font-jakarta'} ${th.page}`}
     >
-      <Hero variant="track" darkMode={darkMode} />
+      <div className="mx-auto max-w-6xl px-4 pb-16 pt-36 sm:px-6 sm:pt-44 lg:px-8">
+        <nav aria-label={t('trackOrder')} className="flex items-center gap-1.5 text-xs font-semibold sm:text-sm">
+          <Link to="/" className="hover:underline">{t('breadcrumbHome')}</Link>
+          <FiChevronRight aria-hidden="true" className={`h-3 w-3 flex-shrink-0 rtl:rotate-180 ${th.muted}`} />
+          <span className={th.muted} aria-current="page">{t('trackOrder')}</span>
+        </nav>
 
-      <section className={`hp-pattern ${darkMode ? 'hp-pattern-dark' : ''} py-10 sm:py-14 ${darkMode ? DARK_PAGE : 'bg-gray-50'}`}>
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          {ready && (
-            <StatusStrip
-              order={order} options={orderOptions} onSelect={setSelectedId}
-              progressPct={progressPct} isCancelled={isCancelled} statusText={statusLabel(order.status)}
-              darkMode={darkMode} isAr={isAr} t={t}
-            />
+        <div className="mb-6 mt-4 flex flex-wrap items-end justify-between gap-4">
+          <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{t('trackOrder')}</h1>
+          {showSelector && (
+            <div className="w-full sm:w-80">
+              <Dropdown ariaLabel={t('selectOrder')} value={order.id} onChange={setSelectedId} options={orderOptions} th={th} />
+            </div>
           )}
-          {body}
         </div>
-      </section>
+
+        {body}
+      </div>
     </div>
   );
 });

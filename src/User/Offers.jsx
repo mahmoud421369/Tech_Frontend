@@ -1,17 +1,17 @@
 import React, {
-  useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, memo, useTransition,
+  useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, useId, memo, useTransition, useDeferredValue, useSyncExternalStore,
 } from 'react';
-import { Link, useNavigate, useNavigationType } from 'react-router-dom';
+import { Link, useNavigate, useNavigationType, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
-  FiX, FiCalendar, FiClock, FiTag, FiZap, FiArrowRight, FiChevronLeft, FiChevronRight, FiRefreshCw,
+  FiX, FiCalendar, FiClock, FiTag, FiChevronLeft, FiChevronRight, FiRefreshCw, FiSearch, FiSliders, FiCheck,
+  FiPercent, FiChevronDown,
 } from 'react-icons/fi';
 import { RiStoreLine } from 'react-icons/ri';
 import api from '../common/api/api';
 import { useModalLock, clean, safeImageUrl } from '../components/user/ListingKit';
 import { EXTRAS_CSS, Toaster, toast } from '../components/user/UiExtras';
 import { IsoIllustration } from '../components/user/IsoIllustrations';
-import { Defs3D, Device3DStyles } from '../components/user/Device3D';
 import { authHeaders, expireSession, isUnauthorized, useAuthGuard } from '../common/utils/auth';
 import enTranslations from '../locales/en/translation.json';
 import arTranslations from '../locales/ar/translation.json';
@@ -33,31 +33,43 @@ const LOCAL_TEXT = {
     crumbHome: 'Home', crumbOffers: 'Offers', breadcrumb: 'Breadcrumb',
     filterAll: 'All offers', filterPercent: 'Percentage', filterFixed: 'Fixed amount', filterSoon: 'Ending soon',
     filterLabel: 'Filter offers', tryAgain: 'Try again', loadFail: "We couldn't load offers right now.",
-    noMatch: 'No offers in this filter', bestDeal: 'Best deal right now', viewOffer: 'View offer',
+    noMatch: 'No offers match your filters', viewOffer: 'View offer',
     offerFailed: 'Failed to load offer', pagination: 'Pagination', prevPage: 'Previous page', nextPage: 'Next page',
     page: 'Page', loading: 'Loading',
-    limitedOffer: 'Limited offer', newArrival: 'Just landed', shopNow: 'Shop now',
-    prevSlide: 'Previous slide', nextSlide: 'Next slide', goToSlide: 'Go to slide',
+    shopNow: 'Shop now', search: 'Search offers', sortBy: 'Sort by',
+    sortBest: 'Highest discount', sortEnding: 'Ending soonest', sortName: 'Name A–Z',
+    discountType: 'Discount type', shops: 'Shops', allShops: 'All shops', filters: 'Filters',
+    clearAll: 'Clear filters', results: 'results', newArrivals: 'New arrivals', newArrivalsHint: 'Fresh in stock at Tech-Restore',
+    showResults: 'Show results',
+    pageSub: 'Exclusive discounts from trusted repair and device shops. New offers land all the time.',
   },
   ar: {
     crumbHome: 'الرئيسية', crumbOffers: 'العروض', breadcrumb: 'مسار التنقل',
     filterAll: 'كل العروض', filterPercent: 'نسبة مئوية', filterFixed: 'مبلغ ثابت', filterSoon: 'تنتهي قريبًا',
     filterLabel: 'تصفية العروض', tryAgain: 'حاول مرة أخرى', loadFail: 'تعذّر تحميل العروض حاليًا.',
-    noMatch: 'لا توجد عروض في هذا التصنيف', bestDeal: 'أفضل عرض الآن', viewOffer: 'عرض التفاصيل',
+    noMatch: 'لا توجد عروض مطابقة', viewOffer: 'عرض التفاصيل',
     offerFailed: 'تعذّر تحميل العرض', pagination: 'الصفحات', prevPage: 'الصفحة السابقة', nextPage: 'الصفحة التالية',
     page: 'صفحة', loading: 'جارٍ التحميل',
-    limitedOffer: 'عرض محدود', newArrival: 'وصل حديثًا', shopNow: 'تسوّق الآن',
-    prevSlide: 'الشريحة السابقة', nextSlide: 'الشريحة التالية', goToSlide: 'اذهب إلى الشريحة',
+    shopNow: 'تسوّق الآن', search: 'ابحث في العروض', sortBy: 'ترتيب حسب',
+    sortBest: 'أعلى خصم', sortEnding: 'الأقرب انتهاءً', sortName: 'الاسم أ–ي',
+    discountType: 'نوع الخصم', shops: 'المتاجر', allShops: 'كل المتاجر', filters: 'التصفية',
+    clearAll: 'مسح التصفية', results: 'نتيجة', newArrivals: 'وصل حديثًا', newArrivalsHint: 'جديد في المخزون',
+    showResults: 'عرض النتائج',
+    pageSub: 'خصومات حصرية من متاجر صيانة وأجهزة موثوقة، وعروض جديدة طوال الوقت.',
   },
   fr: {
     crumbHome: 'Accueil', crumbOffers: 'Offres', breadcrumb: "Fil d'Ariane",
     filterAll: 'Toutes les offres', filterPercent: 'Pourcentage', filterFixed: 'Montant fixe', filterSoon: 'Bientôt terminées',
     filterLabel: 'Filtrer les offres', tryAgain: 'Réessayer', loadFail: 'Impossible de charger les offres pour le moment.',
-    noMatch: 'Aucune offre dans ce filtre', bestDeal: 'Meilleure offre du moment', viewOffer: "Voir l'offre",
+    noMatch: 'Aucune offre ne correspond', viewOffer: "Voir l'offre",
     offerFailed: "Échec du chargement de l'offre", pagination: 'Pagination', prevPage: 'Page précédente', nextPage: 'Page suivante',
     page: 'Page', loading: 'Chargement',
-    limitedOffer: 'Offre limitée', newArrival: 'Vient d’arriver', shopNow: 'Acheter',
-    prevSlide: 'Diapositive précédente', nextSlide: 'Diapositive suivante', goToSlide: 'Aller à la diapositive',
+    shopNow: 'Acheter', search: 'Rechercher une offre', sortBy: 'Trier par',
+    sortBest: 'Meilleure remise', sortEnding: 'Fin la plus proche', sortName: 'Nom A–Z',
+    discountType: 'Type de remise', shops: 'Boutiques', allShops: 'Toutes les boutiques', filters: 'Filtres',
+    clearAll: 'Effacer les filtres', results: 'résultats', newArrivals: 'Nouveautés', newArrivalsHint: 'Tout juste en stock',
+    showResults: 'Voir les résultats',
+    pageSub: 'Remises exclusives de boutiques de réparation et d’appareils de confiance. De nouvelles offres arrivent sans cesse.',
   },
 };
 
@@ -68,201 +80,146 @@ const tr = (language, key) =>
   LOCAL_TEXT.en[key] ||
   key;
 
-const PAGE_CSS = `
-  .hp-hl, .hp-hl-dark, .hp-hl-on {
-    padding-bottom: 0.2em;
-    background-position: left bottom;
-    background-repeat: no-repeat;
-    background-size: 100% 0.3em;
-    -webkit-box-decoration-break: clone;
-    box-decoration-break: clone;
-  }
-  .hp-hl      { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2310b981' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
-  .hp-hl-dark { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2339ff88' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
-  .hp-hl-on   { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%23facc15' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
-  @keyframes hpFloat { 0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); } 50% { transform: translateY(-14px) rotate(var(--r, 0deg)); } }
-  .hp-float { animation: hpFloat 6s ease-in-out infinite; }
-  @keyframes hpDrift { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(18px, -22px); } }
-  .hp-drift { animation: hpDrift 11s ease-in-out infinite; }
-  @keyframes hpRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-  .hp-rise { animation: hpRise 0.28s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 28ms); }
-  @keyframes hpFade { from { opacity: 0; } to { opacity: 1; } }
-  .hp-fade { animation: hpFade 0.16s ease-out both; }
-  @keyframes hpModal { from { opacity: 0; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: none; } }
-  .hp-modal { animation: hpModal 0.2s cubic-bezier(.2,.8,.2,1) both; }
-  .hp-pattern {
-    --p1: rgba(4, 38, 26, .13);
-    --p2: rgba(16, 185, 129, .12);
-    background-image:
-      radial-gradient(circle at 2px 2px, var(--p1) 1.6px, transparent 1.8px),
-      repeating-linear-gradient(135deg, var(--p2) 0 2px, transparent 2px 18px);
-    background-size: 22px 22px, auto;
-  }
-  .hp-pattern-dark { --p1: rgba(57, 255, 136, .14); --p2: rgba(57, 255, 136, .06); }
-  .hp-media {
-    background-image: radial-gradient(circle at 1px 1px, rgba(4, 38, 26, .16) 1px, transparent 1.4px);
-    background-size: 14px 14px;
-  }
-  .hs-root { contain: paint; }
-  .hs-slide {
-    opacity: 0; visibility: hidden; will-change: opacity;
-    transition: opacity .38s cubic-bezier(.4,0,.2,1), visibility 0s linear .38s;
-  }
-  .hs-on { opacity: 1; visibility: visible; transition: opacity .38s cubic-bezier(.4,0,.2,1), visibility 0s; }
-  .hs-bg { background: linear-gradient(135deg, var(--tb) 0%, var(--tc) 100%); }
-  .hs-dots { background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,.14) 1px, transparent 1.4px); background-size: 18px 18px; }
-  .hs-blob { background: var(--ta); opacity: .22; filter: blur(80px); will-change: transform; }
-  .hs-a { opacity: 0; transform: translate3d(0, 22px, 0); transition: opacity .2s ease, transform .2s ease; }
-  .hs-on .hs-a {
-    opacity: 1; transform: none;
-    transition: opacity .4s ease calc(var(--d, 0) * 50ms + 60ms), transform .55s cubic-bezier(.16,1,.3,1) calc(var(--d, 0) * 50ms + 60ms);
-  }
-  .hs-v { opacity: 0; transform: translate3d(0, 10px, 0) scale(.9) rotate(-3deg); transition: opacity .2s ease, transform .2s ease; }
-  .hs-on .hs-v { opacity: 1; transform: none; transition: opacity .45s ease .08s, transform .7s cubic-bezier(.16,1,.3,1) .08s; }
-  .hs-bar { transform: scaleX(0); animation: hsBar linear forwards; }
-  @keyframes hsBar { to { transform: scaleX(1); } }
-  @media (prefers-reduced-motion: reduce) {
-    .hp-rise, .hp-fade, .hp-modal, .hp-float, .hp-drift { animation: none; }
-    .hs-a, .hs-v, .hs-on .hs-a, .hs-on .hs-v { transform: none; transition: opacity .2s ease; }
-    .hs-bar { animation: none; transform: scaleX(1); }
-  }
+const NB_CSS = `
+.nb{--nb-bg:#f3f6f4;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#5b7468;--nb-line:#e3e9e6;--nb-line2:#cfdad4;--nb-shadow:rgba(4,38,26,.1);--nb-gray:#eef3f0;--nb-media:#ffffff;--nb-accent:#059669;--nb-btn:#047857;--nb-on:#ffffff;--nb-glow:rgba(16,185,129,.12);--nb-ring:rgba(16,185,129,.5);--nb-scrim:rgba(4,38,26,.55);background-color:var(--nb-bg);background-image:radial-gradient(52rem 22rem at 90% -6rem,var(--nb-glow),transparent 68%),radial-gradient(40rem 20rem at -8% 28rem,var(--nb-glow),transparent 70%);background-repeat:no-repeat;color:var(--nb-ink);color-scheme:light;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.nb-dark{--nb-bg:#06261b;--nb-card:#0b3427;--nb-ink:#ecfdf5;--nb-muted:#8fb8a6;--nb-line:rgba(167,243,208,.14);--nb-line2:rgba(167,243,208,.26);--nb-shadow:rgba(2,20,14,.45);--nb-gray:#104534;--nb-media:#0f4231;--nb-accent:#34d399;--nb-btn:#10b981;--nb-on:#022c22;--nb-glow:rgba(52,211,153,.09);--nb-ring:rgba(52,211,153,.55);--nb-scrim:rgba(3,30,21,.72);color-scheme:dark}
+.nb[lang=ar] *{letter-spacing:0!important}
+.nb button,.nb input{font-family:inherit}
+.nb-gray{background:var(--nb-gray)}
+.nb-media{background:var(--nb-media)}
+.nb-muted{color:var(--nb-muted)}
+.nb-ic{color:var(--nb-accent)}
+.nb-line{border-color:var(--nb-line)}
+.nb-card{background:var(--nb-card);border:1px solid var(--nb-line);border-radius:1.25rem;box-shadow:0 1px 2px var(--nb-shadow);transition:transform .25s cubic-bezier(.2,.8,.2,1),box-shadow .25s ease,border-color .25s ease}
+@media (hover:hover){.nb-lift:hover{transform:translate3d(0,-3px,0);box-shadow:0 16px 32px -16px var(--nb-shadow);border-color:var(--nb-accent)}}
+.nb-bar{display:inline-block;width:28px;height:6px;border-radius:999px;background:linear-gradient(90deg,var(--nb-accent),#059669)}
+.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--nb-card);color:var(--nb-ink);border:1px solid var(--nb-line2);border-radius:999px;font-weight:700;cursor:pointer;transition:transform .18s cubic-bezier(.2,.8,.2,1),background-color .18s ease,border-color .18s ease,filter .18s ease,box-shadow .18s ease,opacity .18s ease}
+.nb-btn:not(.nb-btn-a):not(.nb-btn-on):hover:not(:disabled){background:var(--nb-gray);border-color:var(--nb-accent)}
+@media (hover:hover){.nb-btn:hover:not(:disabled){transform:translate3d(0,-1px,0)}}
+.nb-btn:active:not(:disabled){transform:scale(.97)}
+.nb-btn:disabled{opacity:.45;cursor:not-allowed}
+.nb-btn-a,.nb-btn-on{position:relative;overflow:hidden;isolation:isolate;background:linear-gradient(135deg,#10b981 0%,#059669 50%,#047857 100%);color:#ffffff;border-color:transparent;box-shadow:0 12px 24px -12px rgba(4,120,87,.85),inset 0 1px 0 rgba(255,255,255,.28)}
+.nb-btn-a::after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.34) 50%,transparent 70%);transform:translate3d(-130%,0,0);transition:transform .7s cubic-bezier(.2,.8,.2,1)}
+.nb-btn-a:hover:not(:disabled)::after,.nb-zoom:hover .nb-btn-a::after{transform:translate3d(130%,0,0)}
+.nb-btn-a:hover:not(:disabled),.nb-btn-on:hover:not(:disabled){filter:brightness(1.07);border-color:transparent;box-shadow:0 16px 28px -12px rgba(4,120,87,.95),inset 0 1px 0 rgba(255,255,255,.32)}
+.nb-btn:focus-visible,.nb-focus:focus-visible{outline:3px solid var(--nb-ring);outline-offset:2px}
+.nb-field{background:var(--nb-card);color:var(--nb-ink);border:1px solid var(--nb-line2);border-radius:999px;transition:box-shadow .18s ease,border-color .18s ease}
+.nb-field:focus-within,.nb-field:hover{border-color:var(--nb-accent)}
+.nb-field:focus-within{box-shadow:0 0 0 3px var(--nb-ring)}
+.nb-field::placeholder,.nb-field input::placeholder{color:var(--nb-muted)}
+.nb-flip{display:inline-block}
+.nb[dir=rtl] .nb-flip{transform:scaleX(-1)}
+.nb-dot{background:var(--nb-card);color:var(--nb-ink);border:1px dashed var(--nb-line2);border-radius:1.5rem}
+.nb-sk{background:linear-gradient(90deg,var(--nb-gray) 25%,color-mix(in srgb,var(--nb-gray) 45%,var(--nb-card)) 50%,var(--nb-gray) 75%);background-size:220% 100%;border-radius:.75rem;animation:nbShimmer 1.5s linear infinite}
+@keyframes nbShimmer{from{background-position:120% 0}to{background-position:-120% 0}}
+.nb-opt{transition:background-color .15s ease,color .15s ease,transform .15s ease}
+.nb-opt:active:not(:disabled){transform:scale(.98)}
+@media (hover:hover){.nb-zoom img{transition:transform .6s cubic-bezier(.22,.8,.2,1)}.nb-zoom:hover img{transform:scale3d(1.06,1.06,1)}}
+@keyframes nbIn{from{opacity:0;transform:translate3d(0,10px,0)}to{opacity:1;transform:none}}
+.nb-in{animation:nbIn .3s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*40ms)}
+@keyframes nbRise{from{opacity:0;transform:translate3d(0,16px,0)}to{opacity:1;transform:none}}
+.nb-rise{animation:nbRise .55s cubic-bezier(.16,.84,.24,1) both;animation-delay:calc(var(--d,0)*70ms)}
+@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn,.nb-btn-a::after,.nb-field,.nb-opt,.nb-zoom img{transition:none}.nb-lift:hover,.nb-btn:hover:not(:disabled),.nb-zoom:hover img{transform:none}.nb-in,.nb-rise,.nb-sk{animation:none!important}}
 `;
-let stylesInjected = false;
-const injectStylesOnce = () => {
-  if (stylesInjected || typeof document === 'undefined') return;
+
+const PAGE_CSS = `
+  ${EXTRAS_CSS}
+  @keyframes ofFade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes ofFadeOut { from { opacity: 1; } to { opacity: 0; } }
+  .of-fade { animation: ofFade .18s ease-out both; }
+  .of-fade-out { animation: ofFadeOut .18s ease-in both; }
+  @keyframes ofModal { from { opacity: 0; transform: translate3d(0, 24px, 0) scale(.98); } to { opacity: 1; transform: none; } }
+  @keyframes ofModalOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translate3d(0, 24px, 0) scale(.98); } }
+  .of-modal { animation: ofModal .24s cubic-bezier(.2,.8,.2,1) both; }
+  .of-modal-out { animation: ofModalOut .18s ease-in both; }
+  @keyframes ofDrawer { from { transform: translate3d(calc(var(--dx, 1) * -100%), 0, 0); } to { transform: none; } }
+  @keyframes ofDrawerOut { from { transform: none; } to { transform: translate3d(calc(var(--dx, 1) * -100%), 0, 0); } }
+  .of-drawer { animation: ofDrawer .26s cubic-bezier(.2,.8,.2,1) both; }
+  .of-drawer-out { animation: ofDrawerOut .18s ease-in both; }
+  @keyframes ofPop { from { opacity: 0; transform: translate3d(0, -6px, 0) scale(.98); } to { opacity: 1; transform: none; } }
+  .of-pop { animation: ofPop .16s cubic-bezier(.2,.8,.2,1) both; transform-origin: top; }
+  .of-grid { content-visibility: auto; contain-intrinsic-size: auto 600px; }
+  @media (prefers-reduced-motion: reduce) { .of-fade, .of-fade-out, .of-modal, .of-modal-out, .of-drawer, .of-drawer-out, .of-pop { animation: none; } }
+  ${NB_CSS}
+`;
+if (typeof document !== 'undefined' && !document.querySelector('style[data-offers-styles]')) {
   const tag = document.createElement('style');
   tag.setAttribute('data-offers-styles', 'true');
   tag.textContent = PAGE_CSS;
   document.head.appendChild(tag);
-  stylesInjected = true;
-};
-injectStylesOnce();
+}
 
-const DARK_PAGE = 'bg-[#141414]';
-const LAZY_SECTION = '[content-visibility:auto] [contain-intrinsic-size:auto_760px]';
-
-const NEO_THEME = {
-  light: '[--dx:1] rtl:[--dx:-1] [--ink:#022c22] [--sh:#022c22] [--acc:#34d399]',
-  dark: '[--dx:1] rtl:[--dx:-1] [--ink:#000] [--sh:#000] [--acc:#39ff88]',
-};
-const NEO_SURFACE = { light: 'bg-white', dark: 'bg-[#2a2a2a]' };
-const NEO_BOX = {
-  lg: 'flex flex-col rounded-2xl border-[3px] border-[color:var(--ink)] [box-shadow:calc(var(--dx)*8px)_8px_0_0_var(--sh)]',
-  sm: 'flex flex-col rounded-2xl border-[3px] border-[color:var(--ink)] [box-shadow:calc(var(--dx)*6px)_6px_0_0_var(--sh)]',
-};
-const NEO_PRESS =
-  'transition-[transform,box-shadow] duration-150 motion-reduce:transition-none ' +
-  '[@media(hover:hover)]:hover:-translate-y-1 [@media(hover:hover)]:hover:[box-shadow:calc(var(--dx)*8px)_10px_0_0_var(--sh)] ' +
-  'active:translate-y-[2px] active:translate-x-[calc(var(--dx)*2px)] active:[box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)] ' +
-  'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-[color:var(--acc)]';
-const neoCard = (darkMode, size = 'lg', press = false) => {
-  const k = darkMode ? 'dark' : 'light';
-  return `${NEO_THEME[k]} ${NEO_BOX[size]} ${NEO_SURFACE[k]}${press ? ` ${NEO_PRESS}` : ''}`;
-};
-
-const NEO_ICON =
-  'inline-flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-lg border-2 border-[color:var(--ink)] bg-[color:var(--acc)] text-emerald-950 ' +
-  '[box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)] transition-[transform,box-shadow] duration-150 ' +
-  'active:translate-y-[3px] active:translate-x-[calc(var(--dx)*3px)] active:[box-shadow:0_0_0_0_var(--sh)] ' +
-  'disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
-const neoIcon = (darkMode) => `${NEO_THEME[darkMode ? 'dark' : 'light']} ${NEO_ICON}`;
-
-const NEO_BTN =
-  'inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border-[3px] border-[color:var(--ink)] px-4 py-2.5 text-sm font-extrabold uppercase ' +
-  '[box-shadow:calc(var(--dx)*4px)_4px_0_0_var(--sh)] transition-[transform,box-shadow] duration-150 motion-reduce:transition-none ' +
-  'active:translate-y-[4px] active:translate-x-[calc(var(--dx)*4px)] active:[box-shadow:0_0_0_0_var(--sh)] ' +
-  'disabled:cursor-not-allowed disabled:opacity-40 ' +
-  'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
-const neoBtn = (darkMode, active) => {
-  const k = darkMode ? 'dark' : 'light';
-  const tone = active ? 'bg-[color:var(--acc)] text-emerald-950' : `${NEO_SURFACE[k]} ${darkMode ? 'text-white' : 'text-emerald-950'}`;
-  return `${NEO_THEME[k]} ${NEO_BTN} ${tone}`;
-};
-
-const HERO_BTN =
-  'inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border-[3px] border-black px-5 py-3 text-sm font-extrabold uppercase ' +
-  '[box-shadow:calc(var(--dx)*5px)_5px_0_0_#000] transition-[transform,box-shadow] duration-150 motion-reduce:transition-none ' +
-  '[@media(hover:hover)]:hover:-translate-y-0.5 active:translate-y-[5px] active:translate-x-[calc(var(--dx)*5px)] active:[box-shadow:0_0_0_0_#000] ' +
-  'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-white';
-const HERO_ARROW =
-  'inline-flex h-11 w-11 flex-shrink-0 cursor-pointer items-center justify-center rounded-xl border-[3px] border-black bg-white text-black ' +
-  '[box-shadow:calc(var(--dx)*3px)_3px_0_0_#000] transition-[transform,box-shadow] duration-100 motion-reduce:transition-none ' +
-  'active:translate-y-[3px] active:translate-x-[calc(var(--dx)*3px)] active:[box-shadow:0_0_0_0_#000] ' +
-  'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-white';
-const HERO_H = 'h-[max(44rem,92svh)] lg:h-[max(46rem,94svh)]';
-
-const THEMES = [
-  { a: '#34d399', b: '#04261a', c: '#0b4a35', ink: '#022c22' },
-  { a: '#fbbf24', b: '#2a1403', c: '#6b3b06', ink: '#422006' },
-  { a: '#a78bfa', b: '#150f3a', c: '#33277d', ink: '#1e1b4b' },
-  { a: '#fb7185', b: '#3b0a17', c: '#7a1530', ink: '#4c0519' },
-  { a: '#38bdf8', b: '#06263d', c: '#0c4c75', ink: '#082f49' },
-];
-const themeVars = (th) => ({ '--ta': th.a, '--tb': th.b, '--tc': th.c, '--ti': th.ink });
-
-const splitHeading = (text) => {
-  const str = String(text ?? '');
-  if (str.includes('**')) return str.split('**').map((part, i) => ({ part, hl: i % 2 === 1 }));
-  const m = str.match(/^(.*[,،]\s*)([^,،]+)$/);
-  if (m) return [{ part: m[1], hl: false }, { part: m[2], hl: true }];
-  const words = str.split(' ');
-  if (words.length < 2) return [{ part: str, hl: true }];
-  const n = words.length <= 3 ? 1 : 2;
-  return [{ part: `${words.slice(0, -n).join(' ')} `, hl: false }, { part: words.slice(-n).join(' '), hl: true }];
-};
-
-const SectionTitle = memo(({ label, title, subtitle, darkMode, isAr, level: H = 'h2' }) => {
-  const parts = useMemo(() => splitHeading(title), [title]);
-  const ink = darkMode ? 'text-white' : 'text-emerald-950';
-  const bar = darkMode ? 'border-[#39ff88] bg-[#39ff88]' : 'border-emerald-950 bg-emerald-400';
-  const sub = darkMode ? 'text-neutral-300' : 'text-gray-800';
-  return (
-    <div className="min-w-0 max-w-3xl">
-      {label && (
-        <div className="mb-5 flex items-center gap-3">
-          <span aria-hidden="true" className={`h-3.5 w-12 rounded-full border-2 ${bar}`} />
-          <span className={`text-sm font-bold uppercase ${isAr ? 'tracking-normal' : 'tracking-wide'} ${ink}`}>{label}</span>
-        </div>
-      )}
-      <H
-        className={`text-3xl font-extrabold [text-wrap:balance] sm:text-5xl ${
-          isAr ? 'leading-[1.4] tracking-normal' : 'leading-[1.18] tracking-[-0.04em]'
-        } ${ink}`}
-      >
-        {parts.map(({ part, hl }, i) => (hl ? <span key={i} className={darkMode ? 'hp-hl-dark' : 'hp-hl'}>{part}</span> : part))}
-      </H>
-      {subtitle && (
-        <p className={`mt-5 max-w-2xl text-base font-medium leading-relaxed sm:text-lg ${sub}`}>{subtitle}</p>
-      )}
-    </div>
-  );
-});
-
-const CardFooter = memo(({ label, darkMode, isAr }) => (
-  <div className="mt-auto flex items-center justify-between gap-3 border-t-2 border-[color:var(--ink)] pt-3">
-    <span className={`truncate text-sm font-extrabold uppercase ${isAr ? 'tracking-normal' : 'tracking-wide'} ${darkMode ? 'text-white' : 'text-emerald-950'}`}>{label}</span>
-    <span aria-hidden="true" className={NEO_ICON}><FiArrowRight className="h-4 w-4 rtl:rotate-180" /></span>
-  </div>
-));
-
-const useScrollTopOnEnter = () => {
-  const navType = useNavigationType();
-  useLayoutEffect(() => {
-    if (navType === 'POP') return;
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-  }, [navType]);
-};
-
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 12;
 const SOON_DAYS = 3;
-const OFFER_SLIDES = 4;
 const LATEST_LIMIT = 4;
-const HERO_MS = 6000;
-const SWIPE_PX = 48;
-const STAGGER = Array.from({ length: PAGE_SIZE }, (_, i) => ({ '--i': i }));
-const DELAY = Array.from({ length: 8 }, (_, i) => ({ '--d': i }));
-const GRID = 'grid grid-cols-1 gap-6 pb-2 pe-2 md:grid-cols-2 lg:grid-cols-3 lg:gap-8';
+const OFFERS_CAP = 500;
+const QUERY_MAX = 80;
+const PAGE_MAX = 10000;
+const LEAVE_MS = 180;
+const ID_RE = /^[\w-]{1,64}$/;
+const DESKTOP_Q = '(min-width: 1024px)';
+const REDUCED_Q = '(prefers-reduced-motion: reduce)';
 const LOCALES = { en: 'en-GB', ar: 'ar-EG', fr: 'fr-FR' };
+const EMPTY_LIST = [];
+const EMPTY_OFFER = { discountType: '', discountValue: 0, status: 'INACTIVE' };
+const DEFAULTS = { type: 'all', sort: 'best', page: '1' };
+const SORTS = [['best', 'sortBest'], ['ending', 'sortEnding'], ['name', 'sortName']];
+const GRID = 'grid grid-cols-1 gap-5 min-[720px]:grid-cols-2';
+const RISE = Array.from({ length: 6 }, (_, i) => ({ '--d': i }));
+const STAGGER = Array.from({ length: 12 }, (_, i) => ({ '--i': i }));
+const BTN_CLS = 'nb-btn min-h-11 px-4 text-sm';
+const SK_OFFERS = [0, 1, 2, 3, 4, 5];
+const SK_LATEST = [0, 1, 2, 3];
+const SK_ROWS = [0, 1, 2, 3];
+
+const TILE_TONES = {
+  em: 'bg-emerald-500 text-white', sky: 'bg-sky-500 text-white', vi: 'bg-violet-500 text-white',
+  am: 'bg-amber-400 text-emerald-950', ro: 'bg-rose-500 text-white', te: 'bg-teal-500 text-white',
+};
+
+const prefersReduced = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(REDUCED_Q).matches;
+
+const subscribeDesktop = (cb) => {
+  const m = window.matchMedia(DESKTOP_Q);
+  m.addEventListener('change', cb);
+  return () => m.removeEventListener('change', cb);
+};
+const getDesktop = () => window.matchMedia(DESKTOP_Q).matches;
+const getDesktopServer = () => false;
+const useIsDesktop = () => useSyncExternalStore(subscribeDesktop, getDesktop, getDesktopServer);
+
+const useIdleFlag = (active) => {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    if (!active || on) return undefined;
+    if (typeof window.requestIdleCallback === 'function') {
+      const h = window.requestIdleCallback(() => setOn(true), { timeout: 1200 });
+      return () => window.cancelIdleCallback(h);
+    }
+    const h = setTimeout(() => setOn(true), 300);
+    return () => clearTimeout(h);
+  }, [active, on]);
+  return on;
+};
+
+const useLeave = (onClose) => {
+  const [leaving, setLeaving] = useState(false);
+  const timer = useRef(0);
+  const request = useCallback(() => {
+    if (timer.current) return;
+    if (prefersReduced()) { onClose(); return; }
+    setLeaving(true);
+    timer.current = window.setTimeout(onClose, LEAVE_MS);
+  }, [onClose]);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  return [leaving, request];
+};
+
+const IconTile = memo(({ Icon, tone = 'em', className = 'h-9 w-9', iconClassName = 'h-4 w-4' }) => (
+  <span aria-hidden="true" className={`flex flex-shrink-0 items-center justify-center rounded-full ${TILE_TONES[tone] || TILE_TONES.em} ${className}`}>
+    <Icon className={iconClassName} />
+  </span>
+));
 
 const numCache = {};
 const money = (n, language) => {
@@ -349,7 +306,6 @@ const normalizeLatest = (p) => {
   return {
     id: String(p.id),
     name: clean(String(p.name ?? ''), 120),
-    description: clean(String(p.description ?? ''), 160),
     categoryName: clean(String(p.categoryName ?? ''), 60),
     price,
     finalPrice,
@@ -363,15 +319,9 @@ const normalizeLatest = (p) => {
 
 const shopPath = (id) => `/shops/${encodeURIComponent(id)}`;
 const findInList = (qc, id) => (qc.getQueryData(['offers']) || []).find((o) => o.id === id);
+const safeParam = (v) => (v && ID_RE.test(v) ? v : '');
 
-const EMPTY_OFFER = { discountType: '', discountValue: 0, status: 'INACTIVE' };
-const EMPTY_LIST = [];
-
-const isSoon = (o) => {
-  if (o.status !== 'ACTIVE') return false;
-  const d = daysLeftNum(o.endDate);
-  return d !== null && d <= SOON_DAYS;
-};
+const isSoon = (o) => o.status === 'ACTIVE' && o.days !== null && o.days <= SOON_DAYS;
 
 const FILTERS = [
   ['all', 'filterAll', () => true],
@@ -382,6 +332,14 @@ const FILTERS = [
 const FILTER_FN = Object.fromEntries(FILTERS.map(([key, , fn]) => [key, fn]));
 
 const offerScore = (o) => (o.discountType === 'PERCENTAGE' ? o.discountValue : 0);
+
+const sortOffers = (list, sort, language) => {
+  const out = list.slice();
+  if (sort === 'ending') out.sort((a, b) => (a.days ?? 1e9) - (b.days ?? 1e9));
+  else if (sort === 'name') out.sort((a, b) => a.name.localeCompare(b.name, language));
+  else out.sort((a, b) => offerScore(b) - offerScore(a) || b.discountValue - a.discountValue);
+  return out;
+};
 
 const useOfferMeta = (offer, language) =>
   useMemo(() => {
@@ -399,328 +357,251 @@ const useOfferMeta = (offer, language) =>
     };
   }, [offer, language]);
 
+const useScrollTopOnEnter = () => {
+  const navType = useNavigationType();
+  useLayoutEffect(() => {
+    if (navType === 'POP') return;
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [navType]);
+};
+
+const AccentTitle = memo(({ text }) => {
+  const s = String(text || '');
+  const i = s.lastIndexOf(' ');
+  const head = i > 0 ? s.slice(0, i + 1) : '';
+  const tail = i > 0 ? s.slice(i + 1) : s;
+  return (
+    <>
+      {head}
+      <span className="nb-ic">{tail}</span>
+    </>
+  );
+});
+
 const Crumbs = memo(({ t }) => (
-  <nav aria-label={t('breadcrumb')} className="flex flex-wrap items-center gap-2 text-sm font-bold text-white/80">
-    <Link to="/" className="underline decoration-[color:var(--ta)] decoration-2 underline-offset-4 hover:no-underline">{t('crumbHome')}</Link>
+  <nav aria-label={t('breadcrumb')} className="nb-muted flex flex-wrap items-center gap-2 text-sm font-medium">
+    <Link to="/" className="nb-focus rounded transition-colors hover:text-[color:var(--nb-ink)] hover:underline">{t('crumbHome')}</Link>
     <FiChevronRight aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 rtl:rotate-180" />
-    <span aria-current="page" className="text-white">{t('crumbOffers')}</span>
+    <span aria-current="page" className="text-[color:var(--nb-ink)]">{t('crumbOffers')}</span>
   </nav>
 ));
 
-const MetaRow = memo(({ icon: Icon, children, className = '', iconClass }) => (
-  <p className={`flex min-w-0 items-center gap-2 text-xs font-semibold ${className}`}>
-    <Icon aria-hidden="true" className={`h-3.5 w-3.5 flex-shrink-0 ${iconClass}`} />
-    <span className="min-w-0 flex-1 truncate">{children}</span>
-  </p>
+const Sk = ({ className = '' }) => <div aria-hidden="true" className={`nb-sk ${className}`} />;
+
+const TicketCut = memo(() => (
+  <div aria-hidden="true" className="relative h-0">
+    <span className="nb-line absolute -start-3 -top-3 h-6 w-6 rounded-full border bg-[color:var(--nb-bg)]" />
+    <span className="nb-line absolute -end-3 -top-3 h-6 w-6 rounded-full border bg-[color:var(--nb-bg)]" />
+    <span className="nb-line absolute inset-x-5 -top-px border-t border-dashed" />
+  </div>
 ));
 
-const HeroImg = memo(({ src, alt, eager }) => {
-  const [failed, setFailed] = useState(false);
-  useEffect(() => { setFailed(false); }, [src]);
-  const onError = useCallback(() => setFailed(true), []);
-  if (!src || failed) return <IsoIllustration type="offers" tone="emerald" onGreen={false} darkMode={false} className="h-3/4 w-3/4" />;
-  return (
-    <img
-      src={src} alt={alt} width={720} height={720} decoding="async" referrerPolicy="no-referrer"
-      loading={eager ? 'eager' : 'lazy'} fetchPriority={eager ? 'high' : 'low'} onError={onError}
-      className="h-full w-full object-contain p-6 sm:p-10"
-    />
-  );
-});
+const plainNums = {};
+const plainNum = (n, language) => {
+  const loc = LOCALES[language] || 'en-GB';
+  plainNums[loc] ||= new Intl.NumberFormat(loc, { maximumFractionDigits: 2 });
+  return plainNums[loc].format(n);
+};
+const pad = (n) => String(n).padStart(2, '0');
 
-const HeroSlide = memo(({ slide, on, first, language, onOffer, onProduct, t }) => {
-  const { kind, data, theme } = slide;
-  const isOffer = kind === 'offer';
-  const meta = useOfferMeta(isOffer ? data : EMPTY_OFFER, language);
-  const open = useCallback(() => (isOffer ? onOffer(data.id) : onProduct(data.id)), [isOffer, onOffer, onProduct, data.id]);
-  const bigNum = isOffer ? (meta.isPct ? `${data.discountValue}%` : String(data.discountValue)) : '';
-  const desc = isOffer ? data.description || t('descriptionFallback') : data.description || data.categoryName;
-  return (
-    <div className={`hs-slide absolute inset-0 ${on ? 'hs-on' : ''}`} style={themeVars(theme)} role="group" aria-roledescription="slide" aria-hidden={!on}>
-      <div className="hs-bg absolute inset-0" />
-      <span aria-hidden="true" className="hs-blob hp-drift pointer-events-none absolute -end-24 top-10 h-[28rem] w-[28rem] rounded-full" />
-      <span aria-hidden="true" className="hs-blob pointer-events-none absolute -bottom-40 -start-24 h-[24rem] w-[24rem] rounded-full" style={{ opacity: 0.14 }} />
-      <div aria-hidden="true" className="hs-dots absolute inset-0" />
-      <span
-        aria-hidden="true" dir="ltr"
-        className="pointer-events-none absolute -bottom-10 end-2 select-none text-[11rem] font-black leading-none text-[color:var(--ta)] opacity-[.09] sm:text-[22rem]"
-      >
-        {isOffer ? bigNum : 'NEW'}
-      </span>
+const OfferDefs = memo(({ gid }) => (
+  <svg width="0" height="0" className="absolute" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id={`${gid}front`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#34d399" /><stop offset="1" stopColor="#047857" /></linearGradient>
+      <linearGradient id={`${gid}tag`} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#fde68a" /><stop offset="1" stopColor="#f59e0b" /></linearGradient>
+    </defs>
+  </svg>
+));
 
-      <div className="relative mx-auto grid h-full max-w-7xl items-center gap-6 px-4 pb-36 pt-32 sm:px-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,.9fr)] lg:gap-12 lg:px-8 lg:pb-40 lg:pt-36">
-        <div className="order-2 min-w-0 lg:order-1">
-          <div className="hs-a flex flex-wrap items-center gap-2" style={DELAY[0]}>
-            <span className="inline-flex items-center gap-1.5 rounded-lg border-[3px] border-black bg-[color:var(--ta)] px-3 py-1 text-xs font-black uppercase text-[color:var(--ti)]">
-              {isOffer ? <FiTag aria-hidden="true" className="h-3.5 w-3.5" /> : <FiZap aria-hidden="true" className="h-3.5 w-3.5" />}
-              {isOffer ? t('limitedOffer') : t('newArrival')}
-            </span>
-            {isOffer && meta.remaining && (
-              <span className="inline-flex items-center gap-1.5 rounded-lg border-2 border-white/30 px-3 py-1 text-xs font-bold text-white/90">
-                <FiClock aria-hidden="true" className="h-3.5 w-3.5" />{meta.remaining}
-              </span>
-            )}
-            {!isOffer && data.categoryName && (
-              <span className="inline-flex max-w-[12rem] items-center gap-1.5 rounded-lg border-2 border-white/30 px-3 py-1 text-xs font-bold text-white/90">
-                <FiTag aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0" /><span className="truncate">{data.categoryName}</span>
-              </span>
-            )}
-          </div>
+const OfferArt = memo(({ gid, className = '' }) => (
+  <svg viewBox="0 0 160 120" className={className} role="presentation" aria-hidden="true" focusable="false">
+    <ellipse cx="78" cy="109" rx="56" ry="7" fill="#04261a" opacity=".18" />
+    <polygon points="26,62 56,50 118,50 88,62" fill="#a7f3d0" />
+    <rect x="26" y="62" width="62" height="44" rx="3" fill={`url(#${gid}front)`} />
+    <polygon points="88,62 118,50 118,94 88,106" fill="#065f46" />
+    <rect x="51" y="62" width="12" height="44" fill="#fbbf24" />
+    <polygon points="51,62 63,62 93,50 81,50" fill="#fde68a" />
+    <polygon points="88,78 118,66 118,74 88,86" fill="#d97706" />
+    <path d="M72 52c-10-14-26-10-22-3 3 5 14 5 22 3zM72 52c10-14 26-10 22-3-3 5-14 5-22 3z" fill="#f59e0b" />
+    <circle cx="72" cy="52" r="4" fill="#fbbf24" />
+    <rect x="26" y="62" width="10" height="44" rx="3" fill="#fff" opacity=".16" />
+    <g transform="translate(96 8) rotate(12)">
+      <rect x="2" y="4" width="54" height="40" rx="9" fill="#b45309" opacity=".35" />
+      <rect x="0" y="0" width="54" height="40" rx="9" fill={`url(#${gid}tag)`} />
+      <rect x="0" y="0" width="54" height="12" rx="9" fill="#fff" opacity=".25" />
+      <circle cx="8" cy="20" r="3.5" fill="#fff" opacity=".9" />
+      <circle cx="25" cy="15" r="4.5" fill="none" stroke="#fff" strokeWidth="3" />
+      <circle cx="41" cy="28" r="4.5" fill="none" stroke="#fff" strokeWidth="3" />
+      <line x1="43" y1="11" x2="24" y2="32" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" />
+    </g>
+    <path d="M0-6 1.5-1.5 6 0 1.5 1.5 0 6-1.5 1.5-6 0-1.5-1.5z" fill="#34d399" transform="translate(16 36)" />
+    <path d="M0-6 1.5-1.5 6 0 1.5 1.5 0 6-1.5 1.5-6 0-1.5-1.5z" fill="#fbbf24" transform="translate(146 76) scale(.8)" />
+  </svg>
+));
 
-          <h2
-            className="hs-a mt-5 line-clamp-3 break-words text-4xl font-black leading-[1.08] tracking-[-0.03em] [text-wrap:balance] rtl:leading-[1.35] rtl:tracking-normal sm:text-6xl lg:text-7xl"
-            style={DELAY[1]}
-          >
-            {data.name}
-          </h2>
-
-          {desc && <p className="hs-a mt-5 line-clamp-3 max-w-xl text-base font-medium leading-relaxed text-white/80 sm:text-lg" style={DELAY[2]}>{desc}</p>}
-
-          <div className="hs-a mt-6 flex flex-wrap items-end gap-x-5 gap-y-2" style={DELAY[3]} dir="ltr">
-            {isOffer ? (
-              <>
-                <span className="text-4xl font-black tabular-nums text-[color:var(--ta)] sm:text-5xl">{meta.amount}</span>
-                <span className="pb-1 text-sm font-extrabold uppercase text-white/80">{t('off')}</span>
-                {meta.range && <span className="pb-1 text-xs font-semibold text-white/70">{meta.range}</span>}
-              </>
-            ) : (
-              <>
-                <span className="text-4xl font-black tabular-nums text-[color:var(--ta)] sm:text-5xl">{money(data.finalPrice, language)}</span>
-                {data.saving > 0 && (
-                  <>
-                    <span className="pb-1 text-base font-semibold tabular-nums text-white/60 line-through">{money(data.price, language)}</span>
-                    <span className="mb-1 rounded-md border-2 border-black bg-white px-2 py-0.5 text-xs font-black tabular-nums text-black">-{data.pct}%</span>
-                  </>
-                )}
-              </>
-            )}
-          </div>
-
-          <div className="hs-a mt-8 flex flex-wrap gap-4 pb-1 pe-1" style={DELAY[4]}>
-            <button type="button" onClick={open} tabIndex={on ? 0 : -1} className={`${HERO_BTN} bg-[color:var(--ta)] text-[color:var(--ti)]`}>
-              {isOffer ? t('viewOffer') : t('shopNow')}<FiArrowRight aria-hidden="true" className="h-4 w-4 rtl:rotate-180" />
-            </button>
-            {isOffer && data.shopId && (
-              <Link to={shopPath(data.shopId)} tabIndex={on ? 0 : -1} className={`${HERO_BTN} bg-white text-black`}>
-                <RiStoreLine aria-hidden="true" className="h-4 w-4" /><span className="max-w-[12rem] truncate">{data.shopName || t('visitShop')}</span>
-              </Link>
-            )}
-          </div>
-        </div>
-
-        <div className="order-1 flex justify-center lg:order-2">
-          <div className="hs-v relative h-44 w-44 sm:h-64 sm:w-64 lg:h-[28rem] lg:w-[28rem]">
-            <div className="hp-float h-full w-full [--r:0deg]">
-              {isOffer ? (
-                <>
-                  <div className="absolute inset-0 flex -rotate-3 flex-col items-center justify-center rounded-[2rem] border-[3px] border-black bg-[color:var(--ta)] text-[color:var(--ti)] [box-shadow:calc(var(--dx)*12px)_12px_0_0_#000]">
-                    <span dir="ltr" className="text-[4.5rem] font-black leading-none tabular-nums sm:text-[7rem] lg:text-[10rem]">{bigNum}</span>
-                    <span className="mt-1 text-sm font-extrabold uppercase sm:text-xl lg:text-3xl">{meta.isFixed ? 'EGP ' : ''}{t('off')}</span>
-                  </div>
-                  <IsoIllustration type="offers" tone="emerald" onGreen={false} darkMode className="pointer-events-none absolute -bottom-6 -start-8 h-24 w-24 sm:h-36 sm:w-36 lg:-bottom-10 lg:-start-14 lg:h-52 lg:w-52" />
-                </>
-              ) : (
-                <>
-                  <div className="absolute inset-0 flex rotate-3 items-center justify-center overflow-hidden rounded-[2rem] border-[3px] border-black bg-white [box-shadow:calc(var(--dx)*12px)_12px_0_0_var(--ta)]">
-                    <HeroImg src={data.img} alt={data.name} eager={first} />
-                  </div>
-                  {data.pct > 0 && (
-                    <span className="absolute -bottom-3 end-2 rounded-xl border-[3px] border-black bg-[color:var(--ta)] px-3 py-1.5 text-sm font-black tabular-nums text-[color:var(--ti)] sm:text-xl" dir="ltr">-{data.pct}%</span>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-});
-
-const HeroSlider = memo(({ slides, loading, language, onOffer, onProduct, t }) => {
-  const [index, setIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const startX = useRef(null);
-  const isRTL = languageDirection(language) === 'rtl';
-  const count = slides.length;
-  const safe = count ? Math.min(index, count - 1) : 0;
-
-  useEffect(() => { if (count && index >= count) setIndex(0); }, [count, index]);
-
-  const go = useCallback((i) => setIndex(i), []);
-  const step = useCallback((d) => setIndex((i) => (count ? (i + d + count) % count : 0)), [count]);
-  const next = useCallback(() => step(1), [step]);
-  const prev = useCallback(() => step(-1), [step]);
-
-  const onPointerDown = useCallback((e) => { startX.current = e.clientX; }, []);
-  const onPointerUp = useCallback((e) => {
-    if (startX.current == null) return;
-    const dx = e.clientX - startX.current;
-    startX.current = null;
-    if (Math.abs(dx) < SWIPE_PX) return;
-    step((isRTL ? dx > 0 : dx < 0) ? 1 : -1);
-  }, [isRTL, step]);
-  const onPointerCancel = useCallback(() => { startX.current = null; }, []);
-  const onKeyDown = useCallback((e) => {
-    if (e.key === 'ArrowRight') { e.preventDefault(); step(isRTL ? -1 : 1); }
-    else if (e.key === 'ArrowLeft') { e.preventDefault(); step(isRTL ? 1 : -1); }
-  }, [isRTL, step]);
-  const pause = useCallback(() => setPaused(true), []);
-  const resume = useCallback(() => setPaused(false), []);
-  const onFocus = useCallback((e) => { if (e.target.matches?.(':focus-visible')) setPaused(true); }, []);
-
-  if (loading) {
-    return (
-      <div className={`relative overflow-hidden bg-[#04261a] ${HERO_H}`} role="status" aria-label={t('loading')}>
-        <div className="mx-auto grid h-full max-w-7xl items-center gap-10 px-4 pt-32 sm:px-6 lg:grid-cols-2 lg:px-8">
-          <div className="space-y-5">
-            <div className="h-7 w-40 animate-pulse rounded-lg bg-white/10 motion-reduce:animate-none" />
-            <div className="h-16 w-full max-w-xl animate-pulse rounded-xl bg-white/10 motion-reduce:animate-none" />
-            <div className="h-5 w-full max-w-md animate-pulse rounded bg-white/10 motion-reduce:animate-none" />
-            <div className="h-12 w-44 animate-pulse rounded-xl bg-white/10 motion-reduce:animate-none" />
-          </div>
-          <div className="hidden h-[26rem] animate-pulse rounded-[2rem] bg-white/10 motion-reduce:animate-none lg:block" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!count) {
-    return (
-      <section aria-label={t('activeOffers')} className={`relative isolate overflow-hidden text-white ${HERO_H}`} style={themeVars(THEMES[0])}>
-        <div className="hs-bg absolute inset-0" />
-        <div aria-hidden="true" className="hs-dots absolute inset-0" />
-        <div className="relative mx-auto flex h-full max-w-7xl flex-col justify-center gap-6 px-4 pt-28 sm:px-6 lg:px-8">
-          <Crumbs t={t} />
-          <h2 className="max-w-2xl text-4xl font-black leading-[1.1] tracking-[-0.03em] rtl:leading-[1.35] rtl:tracking-normal sm:text-6xl">{t('activeOffers')}</h2>
-          <p className="max-w-xl text-base font-medium text-white/80 sm:text-lg">{t('checkBack')}</p>
-        </div>
-        <IsoIllustration type="offers" tone="emerald" onGreen={false} darkMode className="hp-float pointer-events-none absolute bottom-24 end-10 hidden h-72 w-72 lg:block" />
-      </section>
-    );
-  }
-
-  const active = slides[safe];
-
-  return (
-    <section
-      aria-roledescription="carousel" aria-label={t('activeOffers')}
-      onPointerDown={onPointerDown} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onKeyDown={onKeyDown}
-      onMouseEnter={pause} onMouseLeave={resume} onFocus={onFocus} onBlur={resume}
-      className={`hs-root relative isolate touch-pan-y overflow-hidden text-white [--dx:1] rtl:[--dx:-1] ${HERO_H}`}
-    >
-      <div className="absolute inset-0" aria-live={paused ? 'polite' : 'off'}>
-        {slides.map((s, i) => (
-          <HeroSlide key={s.key} slide={s} on={i === safe} first={i === 0} language={language} onOffer={onOffer} onProduct={onProduct} t={t} />
-        ))}
-      </div>
-
-      <div className="absolute inset-x-0 top-24 z-20 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8" style={themeVars(active.theme)}>
-        <Crumbs t={t} />
-      </div>
-
-      {count > 1 && (
-        <div className="absolute inset-x-0 bottom-0 z-20" style={themeVars(active.theme)}>
-          <div className="mx-auto flex max-w-7xl items-end gap-4 px-4 pb-6 sm:px-6 lg:px-8">
-            <div role="tablist" className="grid min-w-0 flex-1 gap-2 sm:gap-3" style={{ gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` }}>
-              {slides.map((s, i) => (
-                <button
-                  key={s.key} type="button" role="tab" aria-selected={i === safe} aria-label={`${t('goToSlide')} ${i + 1}`}
-                  onClick={() => go(i)}
-                  className="group min-w-0 rounded-md pt-3 text-start focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-white"
-                >
-                  <span className="relative block h-1.5 overflow-hidden rounded-full bg-white/25">
-                    {i < safe && <span className="absolute inset-0 rounded-full bg-white/70" />}
-                    {i === safe && (
-                      <span
-                        key={safe}
-                        onAnimationEnd={next}
-                        className="hs-bar absolute inset-0 origin-left rounded-full bg-[color:var(--ta)] rtl:origin-right"
-                        style={{ animationDuration: `${HERO_MS}ms`, animationPlayState: paused ? 'paused' : 'running' }}
-                      />
-                    )}
-                  </span>
-                  <span className={`mt-2 hidden truncate text-xs font-bold transition-colors duration-200 md:block ${i === safe ? 'text-white' : 'text-white/55 group-hover:text-white/80'}`}>
-                    {s.data.name}
-                  </span>
-                </button>
-              ))}
-            </div>
-            <span dir="ltr" className="hidden flex-shrink-0 pb-1 text-sm font-black tabular-nums text-white/80 sm:block">
-              {String(safe + 1).padStart(2, '0')} / {String(count).padStart(2, '0')}
-            </span>
-            <div className="flex flex-shrink-0 gap-3 pb-1 pe-1">
-              <button type="button" onClick={prev} aria-label={t('prevSlide')} className={HERO_ARROW}><FiChevronLeft aria-hidden="true" className="h-5 w-5 rtl:rotate-180" /></button>
-              <button type="button" onClick={next} aria-label={t('nextSlide')} className={HERO_ARROW}><FiChevronRight aria-hidden="true" className="h-5 w-5 rtl:rotate-180" /></button>
-            </div>
-          </div>
-        </div>
-      )}
-    </section>
-  );
-});
-
-const OfferCard = memo(({ offer, index, darkMode, language, onViewDetail, t }) => {
+const OfferCard = memo(({ offer, index, gid, language, onViewDetail, t }) => {
   const meta = useOfferMeta(offer, language);
   const open = useCallback(() => onViewDetail(offer.id), [onViewDetail, offer.id]);
-  const handleKey = useCallback((e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open(); }, [open]);
-  const isAr = language === 'ar';
-  const ink = darkMode ? 'text-white' : 'text-emerald-950';
-  const body = darkMode ? 'text-neutral-300' : 'text-gray-700';
-  const neon = darkMode ? 'text-[#39ff88]' : 'text-emerald-600';
-  const media = meta.isPct
-    ? (darkMode ? 'bg-[#facc15] text-black' : 'bg-amber-300 text-amber-950')
-    : 'bg-[color:var(--acc)] text-emerald-950';
+  const onButton = useCallback((e) => { e.stopPropagation(); onViewDetail(offer.id); }, [onViewDetail, offer.id]);
+  const stop = useCallback((e) => e.stopPropagation(), []);
+  const hasDiscount = offer.discountValue > 0;
   return (
-    <div className="hp-rise min-w-0" style={STAGGER[index % PAGE_SIZE]}>
-      <article
-        onClick={open}
-        onKeyDown={handleKey}
-        tabIndex={0}
-        aria-label={offer.name}
-        className={`group relative h-full cursor-pointer overflow-hidden ${neoCard(darkMode, 'sm', true)}`}
-      >
-        <div className={`hp-media flex h-28 items-baseline justify-center gap-2 border-b-[3px] border-[color:var(--ink)] pt-7 ${media}`}>
-          <span dir="ltr" className="text-5xl font-black leading-none tabular-nums">{meta.isPct ? `${offer.discountValue}%` : offer.discountValue}</span>
-          <span className="text-xs font-extrabold uppercase">{meta.isFixed ? 'EGP ' : ''}{t('off')}</span>
-        </div>
-        <div className="flex min-w-0 flex-1 flex-col p-3.5">
-          <div className="flex flex-1 flex-col gap-1.5 pb-3">
-            <h3 className={`line-clamp-1 text-sm font-extrabold uppercase leading-snug ${isAr ? 'tracking-normal' : 'tracking-[-0.01em]'} ${ink}`}>{offer.name}</h3>
-            <p className={`line-clamp-2 min-h-[2.5rem] text-xs font-medium leading-relaxed ${body}`}>{offer.description || t('descriptionFallback')}</p>
-            {meta.range && <MetaRow icon={FiCalendar} className={body} iconClass={neon}><span dir="ltr">{meta.range}</span></MetaRow>}
-            {meta.remaining && (
-              <MetaRow icon={FiClock} className={meta.urgent ? (darkMode ? 'text-orange-300' : 'text-orange-700') : body} iconClass={meta.urgent ? '' : neon}>{meta.remaining}</MetaRow>
-            )}
-            {!meta.isActive && <MetaRow icon={FiX} className={body} iconClass="text-rose-500">{t('inactive')}</MetaRow>}
-            {offer.shopName && offer.shopId && (
-              <Link to={shopPath(offer.shopId)} onClick={(e) => e.stopPropagation()} className={`flex min-h-6 w-fit max-w-full items-center gap-2 text-xs font-bold underline decoration-[color:var(--acc)] decoration-2 underline-offset-4 ${ink}`}>
-                <RiStoreLine aria-hidden="true" className={`h-3.5 w-3.5 flex-shrink-0 ${neon}`} /><span className="truncate">{offer.shopName}</span>
-              </Link>
-            )}
+    <article
+      aria-label={offer.name}
+      onClick={open}
+      style={STAGGER[Math.min(index % PAGE_SIZE, 11)]}
+      className={`nb-in nb-card nb-lift relative flex h-full cursor-pointer ${meta.isActive ? '' : 'opacity-80'}`}
+    >
+      <div className="nb-gray nb-line relative flex w-28 flex-none flex-col items-center justify-between rounded-s-[1.2rem] border-e border-dashed px-2 pb-1 pt-3 sm:w-36">
+        <span aria-hidden="true" className="nb-line absolute -end-[0.7rem] -top-[0.8rem] z-10 h-5 w-5 rounded-full border bg-[color:var(--nb-bg)] [clip-path:inset(50%_0_0_0)]" />
+        <span aria-hidden="true" className="nb-line absolute -bottom-[0.8rem] -end-[0.7rem] z-10 h-5 w-5 rounded-full border bg-[color:var(--nb-bg)] [clip-path:inset(0_0_50%_0)]" />
+        {hasDiscount ? (
+          <div className="flex flex-col items-center leading-none" dir="ltr">
+            <div className="flex items-baseline gap-0.5">
+              {meta.isFixed && <span className="text-xs font-extrabold">EGP</span>}
+              <span className="text-3xl font-black tabular-nums tracking-tight">{plainNum(offer.discountValue, language)}</span>
+              {meta.isPct && <FiPercent aria-hidden="true" className="h-5 w-5 self-center" strokeWidth={3} />}
+            </div>
+            <span className="nb-ic mt-1 text-[10px] font-extrabold uppercase tracking-widest">{t('off')}</span>
           </div>
-          <CardFooter label={t('offerDetails')} darkMode={darkMode} isAr={isAr} />
+        ) : (
+          <IconTile Icon={FiTag} tone="em" className="h-10 w-10" iconClassName="h-5 w-5" />
+        )}
+        <OfferArt gid={gid} className="h-16 w-full" />
+      </div>
+
+      <div className="flex min-w-0 flex-1 flex-col gap-2 p-3.5 sm:p-4">
+        <div className="flex items-center justify-between gap-2">
+          <span dir="ltr" className="nb-gray rounded-full px-2.5 py-0.5 text-xs font-extrabold tabular-nums">{pad(index + 1)}</span>
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-extrabold text-white ${meta.isActive ? 'bg-emerald-600' : 'bg-rose-600'}`}>
+            {meta.isActive ? t('active') : t('inactive')}
+          </span>
         </div>
-      </article>
-    </div>
+        <h3 className="line-clamp-2 text-sm font-extrabold leading-snug">{offer.name}</h3>
+        <p className="nb-muted line-clamp-2 min-h-[2.5rem] text-xs font-medium leading-5">
+          {offer.description || t('descriptionFallback')}
+        </p>
+        <div className="nb-line flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t pt-2.5 text-[11px]">
+          {offer.shopName && offer.shopId ? (
+            <Link to={shopPath(offer.shopId)} onClick={stop} className="nb-focus flex min-w-0 items-center gap-1.5 rounded font-bold hover:underline">
+              <RiStoreLine aria-hidden="true" className="nb-ic h-3.5 w-3.5 flex-shrink-0" />
+              <span className="truncate">{offer.shopName}</span>
+            </Link>
+          ) : offer.shopName ? (
+            <span className="flex min-w-0 items-center gap-1.5 font-bold">
+              <RiStoreLine aria-hidden="true" className="nb-ic h-3.5 w-3.5 flex-shrink-0" />
+              <span className="truncate">{offer.shopName}</span>
+            </span>
+          ) : <span />}
+          {meta.remaining && (
+            <span className={`flex items-center gap-1 font-semibold ${meta.urgent && meta.isActive ? 'text-orange-500' : 'nb-muted'}`}>
+              <FiClock aria-hidden="true" className="h-3 w-3 flex-shrink-0" />{meta.remaining}
+            </span>
+          )}
+        </div>
+        <button type="button" onClick={onButton} className="nb-btn nb-btn-a mt-auto min-h-10 w-full px-3 text-xs">
+          {t('viewOffer')}
+        </button>
+      </div>
+    </article>
   );
 });
 
-const Skeletons = memo(({ darkMode, count }) => (
-  <div className={GRID} role="status" aria-busy="true">
-    {Array.from({ length: count }).map((_, i) => (
-      <div key={i} className={`h-[340px] animate-pulse rounded-2xl motion-reduce:animate-none ${darkMode ? 'bg-[#2a2a2a]' : 'bg-gray-200/70'}`} />
+const ProductCard = memo(({ product, darkMode, language, t }) => {
+  const [failed, setFailed] = useState(false);
+  const onError = useCallback(() => setFailed(true), []);
+  return (
+    <Link
+      to={`/device/${encodeURIComponent(product.id)}`}
+      className="nb-card nb-lift nb-zoom nb-focus group relative flex min-w-0 flex-col overflow-hidden"
+    >
+      <div className="nb-media relative flex aspect-square items-center justify-center overflow-hidden">
+        {product.img && !failed ? (
+          <img
+            src={product.img} alt={product.name} width={320} height={320} loading="lazy" decoding="async"
+            referrerPolicy="no-referrer" onError={onError} className="h-full w-full object-contain p-4"
+          />
+        ) : (
+          <IsoIllustration type="offers" tone="emerald" onGreen={false} darkMode={darkMode} className="h-1/2 w-1/2" />
+        )}
+        {product.pct > 0 && (
+          <span dir="ltr" className="absolute start-3 top-3 rounded-full bg-[color:var(--nb-btn)] px-2.5 py-1 text-xs font-extrabold tabular-nums text-[color:var(--nb-on)]">-{product.pct}%</span>
+        )}
+      </div>
+      <div className="flex flex-col gap-1 p-3 pb-4">
+        {product.categoryName && <span className="nb-muted truncate text-xs font-medium">{product.categoryName}</span>}
+        <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-5">{product.name}</h3>
+      </div>
+      <TicketCut />
+      <div className="flex flex-1 flex-col gap-2 p-3 pt-4">
+        <div dir="ltr" className="flex flex-wrap items-baseline gap-x-2">
+          <span className="nb-ic text-base font-extrabold tabular-nums">{money(product.finalPrice, language)}</span>
+          {product.saving > 0 && <span className="nb-muted text-xs tabular-nums line-through">{money(product.price, language)}</span>}
+        </div>
+        <span className="nb-btn nb-btn-a mt-auto min-h-10 px-4 text-sm">{t('shopNow')}</span>
+      </div>
+    </Link>
+  );
+});
+
+const OfferSkeleton = memo(() => (
+  <div className="nb-card flex h-[216px]">
+    <div className="nb-line flex w-28 flex-none flex-col items-center justify-between border-e border-dashed px-2 py-4 sm:w-36">
+      <Sk className="h-8 w-16" />
+      <Sk className="h-14 w-full" />
+    </div>
+    <div className="flex min-w-0 flex-1 flex-col gap-2.5 p-4">
+      <div className="flex justify-between"><Sk className="h-5 w-10 !rounded-full" /><Sk className="h-5 w-16 !rounded-full" /></div>
+      <Sk className="h-4 w-4/5" />
+      <Sk className="h-3 w-full" />
+      <Sk className="h-3 w-2/3" />
+      <Sk className="mt-auto h-10 w-full !rounded-full" />
+    </div>
+  </div>
+));
+
+const Skeletons = memo(({ label }) => (
+  <div className={GRID} role="status" aria-busy="true" aria-label={label}>
+    {SK_OFFERS.map((i) => <OfferSkeleton key={i} />)}
+  </div>
+));
+
+const ToolbarSkeleton = memo(() => (
+  <div aria-hidden="true" className="mb-5 flex flex-wrap items-center gap-3">
+    <Sk className="h-11 min-w-0 flex-1 basis-60 !rounded-full" />
+    <Sk className="h-11 w-40 !rounded-full" />
+  </div>
+));
+
+const FilterSkeleton = memo(() => (
+  <div aria-hidden="true" className="nb-card space-y-6 self-start p-4">
+    {[0, 1].map((g) => (
+      <div key={g} className="space-y-2">
+        <Sk className="h-4 w-24" />
+        {SK_ROWS.map((r) => <Sk key={r} className="h-10 w-full !rounded-xl" />)}
+      </div>
+    ))}
+  </div>
+));
+
+const LatestSkeleton = memo(() => (
+  <div aria-hidden="true" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    {SK_LATEST.map((i) => (
+      <div key={i} className="nb-card overflow-hidden">
+        <Sk className="aspect-square w-full !rounded-none" />
+        <div className="space-y-2 p-3"><Sk className="h-3 w-1/3" /><Sk className="h-4 w-full" /><Sk className="h-5 w-1/2" /><Sk className="h-10 w-full !rounded-full" /></div>
+      </div>
     ))}
   </div>
 ));
 
 const StateBox = memo(({ darkMode, label, hint, onRetry, fetching, retryLabel }) => (
-  <div className={`flex flex-col items-center rounded-2xl border-[3px] border-dashed py-12 text-center ${darkMode ? 'border-[#39ff88]/40 bg-[#1e1e1e]' : 'border-emerald-300 bg-white/60'}`}>
-    <IsoIllustration type="offers" tone="emerald" darkMode={darkMode} onGreen={false} className="mb-3 h-32 w-32" />
-    <p className={`text-base font-extrabold uppercase ${darkMode ? 'text-white' : 'text-emerald-950'}`}>{label}</p>
-    {hint && <p className={`mt-2 text-sm font-medium ${darkMode ? 'text-neutral-300' : 'text-gray-700'}`}>{hint}</p>}
+  <div className="nb-dot nb-in flex flex-col items-center px-4 py-14 text-center">
+    <IsoIllustration type="offers" tone="emerald" darkMode={darkMode} onGreen={false} className="mb-3 h-28 w-28" />
+    <p className="text-base font-extrabold">{label}</p>
+    {hint && <p className="nb-muted mt-1 text-sm font-medium">{hint}</p>}
     {onRetry && (
-      <button type="button" onClick={() => onRetry()} className={`mt-5 ${neoBtn(darkMode, true)}`}>
+      <button type="button" onClick={() => onRetry()} className={`mt-5 nb-btn-a ${BTN_CLS}`}>
         <FiRefreshCw aria-hidden="true" className={`h-4 w-4 ${fetching ? 'animate-spin' : ''}`} />{retryLabel}
       </button>
     )}
@@ -738,48 +619,199 @@ const pageWindow = (cur, total) => {
   return out;
 };
 
-const Pager = memo(({ page, totalPages, onChange, pending, darkMode, t }) => {
+const Pager = memo(({ page, totalPages, onChange, pending, t }) => {
   if (totalPages <= 1) return null;
-  const arrow = `${neoBtn(darkMode, false)} !w-11 !px-0`;
   return (
-    <nav aria-label={t('pagination')} aria-busy={pending} className="mt-10 flex flex-wrap items-center justify-center gap-3 pe-2">
-      <button type="button" className={arrow} disabled={page <= 1} onClick={() => onChange(page - 1)} aria-label={t('prevPage')}>
-        <FiChevronLeft aria-hidden="true" className="h-4 w-4 rtl:rotate-180" />
+    <nav aria-label={t('pagination')} aria-busy={pending} className="flex flex-wrap items-center justify-center gap-2 pt-8">
+      <button type="button" className="nb-btn h-10 w-10" disabled={page <= 1} onClick={() => onChange(page - 1)} aria-label={t('prevPage')}>
+        <FiChevronLeft aria-hidden="true" className="nb-flip h-4 w-4" />
       </button>
       {pageWindow(page, totalPages).map((x) => (typeof x === 'number' ? (
         <button
           key={x} type="button" onClick={() => onChange(x)}
           aria-label={`${t('page')} ${x}`} aria-current={x === page ? 'page' : undefined}
-          className={`${neoBtn(darkMode, x === page)} !min-w-11 !px-2 tabular-nums`}
+          className={`nb-btn h-10 min-w-[2.5rem] px-2 text-sm tabular-nums ${x === page ? 'nb-btn-on' : ''}`}
         >
           <span dir="ltr">{x}</span>
         </button>
-      ) : <span key={x} aria-hidden="true" className={`px-1 font-extrabold ${darkMode ? 'text-white' : 'text-emerald-950'}`}>…</span>))}
-      <button type="button" className={arrow} disabled={page >= totalPages} onClick={() => onChange(page + 1)} aria-label={t('nextPage')}>
-        <FiChevronRight aria-hidden="true" className="h-4 w-4 rtl:rotate-180" />
+      ) : <span key={x} aria-hidden="true" className="nb-muted px-1 font-extrabold">…</span>))}
+      <button type="button" className="nb-btn h-10 w-10" disabled={page >= totalPages} onClick={() => onChange(page + 1)} aria-label={t('nextPage')}>
+        <FiChevronRight aria-hidden="true" className="nb-flip h-4 w-4" />
       </button>
     </nav>
   );
 });
 
-const InfoRow = ({ Icon, label, value, darkMode, children }) => (
-  <div className={`flex items-center gap-3 rounded-xl border-2 border-dotted border-[color:var(--ink)] p-3 ${darkMode ? 'bg-[#1e1e1e]' : 'bg-gray-50'}`}>
-    <span aria-hidden="true" className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border-2 border-[color:var(--ink)] bg-[color:var(--acc)] text-emerald-950">
-      <Icon className="h-4 w-4" />
-    </span>
-    <div className="min-w-0 flex-1">
-      <p className={`text-[11px] font-extrabold uppercase ${darkMode ? 'text-neutral-400' : 'text-gray-600'}`}>{label}</p>
-      <p className={`truncate text-sm font-bold ${darkMode ? 'text-white' : 'text-emerald-950'}`}>{value}</p>
-    </div>
-    {children}
-  </div>
-);
+const FilterGroup = memo(({ title, children }) => (
+  <fieldset className="nb-line border-b py-4 first:pt-0 last:border-b-0 last:pb-0">
+    <legend className="mb-2 text-sm font-extrabold">{title}</legend>
+    <div className="flex flex-col gap-1">{children}</div>
+  </fieldset>
+));
 
-const OfferDetailModal = memo(({ offerId, darkMode, language, onClose, t }) => {
+const FilterOption = memo(({ active, label, count, onClick }) => {
+  const disabled = count === 0 && !active;
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      disabled={disabled}
+      onClick={onClick}
+      className={`nb-opt nb-focus flex min-h-10 w-full cursor-pointer items-center gap-2 rounded-xl px-3 text-start text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${
+        active ? 'bg-[color:var(--nb-btn)] text-[color:var(--nb-on)]' : 'hover:bg-[color:var(--nb-gray)]'
+      }`}
+    >
+      <span aria-hidden="true" className={`nb-line inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border ${active ? '!border-current' : ''}`}>
+        {active && <FiCheck className="h-3 w-3" strokeWidth={3} />}
+      </span>
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      <span dir="ltr" className={`text-xs tabular-nums ${active ? 'opacity-80' : 'nb-muted'}`}>{count}</span>
+    </button>
+  );
+});
+
+const FilterPanel = memo(({ type, typeCounts, onType, shop, shops, onShop, t }) => (
+  <div>
+    <FilterGroup title={t('discountType')}>
+      {FILTERS.map(([key, labelKey]) => (
+        <FilterOption key={key} active={type === key} label={t(labelKey)} count={typeCounts[key]} onClick={() => onType(key)} />
+      ))}
+    </FilterGroup>
+    {shops.length > 0 && (
+      <FilterGroup title={t('shops')}>
+        <FilterOption active={!shop} label={t('allShops')} count={shops.reduce((n, s) => n + s.count, 0)} onClick={() => onShop('')} />
+        {shops.map((s) => (
+          <FilterOption key={s.id} active={shop === s.id} label={s.name} count={s.count} onClick={() => onShop(s.id)} />
+        ))}
+      </FilterGroup>
+    )}
+  </div>
+));
+
+const FilterDrawer = memo(({ onClose, t, total, onClear, hasFilters, children }) => {
+  const [leaving, requestClose] = useLeave(onClose);
+  useModalLock(true, requestClose);
+  return (
+    <div className="fixed inset-0 z-[1100] [--dx:1] rtl:[--dx:-1]" role="dialog" aria-modal="true" aria-label={t('filters')}>
+      <div className={`${leaving ? 'of-fade-out' : 'of-fade'} absolute inset-0 bg-[color:var(--nb-scrim)] backdrop-blur-[2px]`} onClick={requestClose} aria-hidden="true" />
+      <div className={`nb-card ${leaving ? 'of-drawer-out' : 'of-drawer'} absolute inset-y-0 start-0 flex w-[min(20rem,88vw)] flex-col !rounded-none`}>
+        <div className="nb-gray nb-line flex items-center justify-between border-b p-4">
+          <h2 className="text-base font-extrabold">{t('filters')}</h2>
+          <button type="button" onClick={requestClose} aria-label={t('close')} className="nb-btn h-9 w-9">
+            <FiX aria-hidden="true" className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4">{children}</div>
+        <div className="nb-line flex gap-2 border-t p-4">
+          {hasFilters && (
+            <button type="button" onClick={onClear} className="nb-btn min-h-11 flex-1 text-sm">{t('clearAll')}</button>
+          )}
+          <button type="button" onClick={requestClose} className="nb-btn nb-btn-a min-h-11 flex-[2] text-sm">
+            {t('showResults')} (<span dir="ltr" className="tabular-nums">{total}</span>)
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const SortDropdown = memo(({ value, onChange, options, label }) => {
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const rootRef = useRef(null);
+  const btnRef = useRef(null);
+  const listRef = useRef(null);
+  const id = useId().replace(/:/g, '');
+  const selected = Math.max(0, options.findIndex(([k]) => k === value));
+  const current = options[selected]?.[1] || '';
+
+  const close = useCallback((refocus) => {
+    setOpen(false);
+    if (refocus) btnRef.current?.focus();
+  }, []);
+
+  const openAt = useCallback((i) => { setActive(i); setOpen(true); }, []);
+  const toggle = useCallback(() => { if (open) close(false); else openAt(selected); }, [open, close, openAt, selected]);
+  const choose = useCallback((i) => { onChange(options[i][0]); close(true); }, [onChange, options, close]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    listRef.current?.focus();
+    const onDown = (e) => { if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [open]);
+
+  const onButtonKey = useCallback((e) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); openAt(selected); }
+  }, [openAt, selected]);
+
+  const onListKey = useCallback((e) => {
+    const last = options.length - 1;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActive((i) => (i >= last ? 0 : i + 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((i) => (i <= 0 ? last : i - 1)); }
+    else if (e.key === 'Home') { e.preventDefault(); setActive(0); }
+    else if (e.key === 'End') { e.preventDefault(); setActive(last); }
+    else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(active); }
+    else if (e.key === 'Escape') { e.preventDefault(); close(true); }
+    else if (e.key === 'Tab') setOpen(false);
+  }, [options.length, active, choose, close]);
+
+  return (
+    <div ref={rootRef} className={`relative ${open ? 'z-30' : ''}`}>
+      <button
+        ref={btnRef} type="button" onClick={toggle} onKeyDown={onButtonKey}
+        aria-haspopup="listbox" aria-expanded={open} aria-controls={`${id}-list`} aria-label={`${label}: ${current}`}
+        className="nb-field nb-focus flex h-11 min-w-[9rem] cursor-pointer items-center justify-between gap-2 px-4 text-sm font-semibold"
+      >
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="nb-muted hidden sm:inline">{label}:</span>
+          <span className="truncate">{current}</span>
+        </span>
+        <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform duration-200 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <ul
+          ref={listRef} id={`${id}-list`} role="listbox" tabIndex={-1} aria-label={label}
+          aria-activedescendant={`${id}-opt-${active}`} onKeyDown={onListKey}
+          className="nb-card of-pop absolute end-0 z-30 mt-2 w-56 max-w-[calc(100vw-2rem)] overflow-hidden !rounded-2xl p-1.5 shadow-xl outline-none"
+        >
+          {options.map(([k, text], i) => {
+            const isSel = k === value;
+            return (
+              <li
+                key={k} id={`${id}-opt-${i}`} role="option" aria-selected={isSel}
+                onMouseEnter={() => setActive(i)} onClick={() => choose(i)}
+                className={`nb-opt flex min-h-10 cursor-pointer items-center gap-2 rounded-xl px-3 text-sm ${i === active ? 'nb-gray' : ''} ${isSel ? 'font-extrabold' : 'font-medium'}`}
+              >
+                <span className="min-w-0 flex-1 truncate">{text}</span>
+                {isSel && <FiCheck aria-hidden="true" className="nb-ic h-4 w-4 flex-shrink-0" strokeWidth={3} />}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+});
+
+const InfoRow = memo(({ Icon, tone, label, value }) => (
+  <div className="nb-gray flex items-center gap-3 rounded-2xl p-3">
+    <IconTile Icon={Icon} tone={tone} className="h-9 w-9" iconClassName="h-4 w-4" />
+    <div className="min-w-0 flex-1">
+      <p className="nb-muted text-xs font-semibold">{label}</p>
+      <p className="truncate text-sm font-bold">{value}</p>
+    </div>
+  </div>
+));
+
+const OfferDetailModal = memo(({ offerId, language, onClose, t }) => {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  useModalLock(true, onClose);
+  const [leaving, requestClose] = useLeave(onClose);
+  useModalLock(true, requestClose);
 
+  const validId = ID_RE.test(offerId);
   const { data: offer, isLoading, isError, error } = useQuery({
     queryKey: ['offerDetail', offerId],
     queryFn: async ({ signal }) => {
@@ -795,7 +827,7 @@ const OfferDetailModal = memo(({ offerId, darkMode, language, onClose, t }) => {
         throw err;
       }
     },
-    enabled: !!offerId,
+    enabled: validId,
     staleTime: 60 * 1000,
     placeholderData: () => findInList(qc, offerId),
   });
@@ -807,99 +839,110 @@ const OfferDetailModal = memo(({ offerId, darkMode, language, onClose, t }) => {
   }, [isError, error, navigate, language]);
 
   const meta = useOfferMeta(offer || EMPTY_OFFER, language);
-  const ink = darkMode ? 'text-white' : 'text-emerald-950';
   const shopLink = offer?.shopId ? shopPath(offer.shopId) : null;
 
   return (
     <div className="fixed inset-0 z-[1100] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={offer?.name || t('offerDetails')}>
-      <div className="hp-fade absolute inset-0 bg-black/70" onClick={onClose} />
-      <div className={`hp-modal relative max-h-[92vh] w-full overflow-y-auto overscroll-contain sm:max-w-md ${neoCard(darkMode, 'lg')}`}>
-        <div className={`relative border-b-[3px] border-[color:var(--ink)] p-5 pe-16 ${darkMode ? 'bg-[#1e1e1e]' : 'bg-emerald-50'}`}>
-          <h2 className={`line-clamp-2 text-lg font-extrabold uppercase ${ink}`}>
-            <span className={darkMode ? 'hp-hl-dark' : 'hp-hl'}>{offer?.name || t('offerDetails')}</span>
-          </h2>
-          <button type="button" onClick={onClose} aria-label={t('close')} className={`${neoIcon(darkMode)} absolute end-4 top-4`}>
+      <div className={`${leaving ? 'of-fade-out' : 'of-fade'} absolute inset-0 bg-[color:var(--nb-scrim)] backdrop-blur-[2px]`} onClick={requestClose} aria-hidden="true" />
+      <div className={`nb-card ${leaving ? 'of-modal-out' : 'of-modal'} relative flex max-h-[92vh] w-full flex-col overflow-hidden !rounded-b-none shadow-2xl sm:max-w-md sm:!rounded-3xl`}>
+        <header className="nb-gray nb-line flex flex-shrink-0 items-center gap-3 border-b px-4 py-3.5 sm:px-5">
+          <IconTile Icon={FiTag} tone="em" className="h-10 w-10" iconClassName="h-5 w-5" />
+          <h2 className="line-clamp-2 min-w-0 flex-1 text-base font-extrabold">{offer?.name || t('offerDetails')}</h2>
+          <button type="button" onClick={requestClose} aria-label={t('close')} className="nb-btn h-9 w-9 flex-shrink-0">
             <FiX aria-hidden="true" className="h-4 w-4" />
           </button>
-        </div>
+        </header>
 
-        <div className="space-y-3 p-5">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-4 sm:p-5">
           {isLoading ? (
-            <div className="flex justify-center py-12" role="status" aria-label={t('loading')}>
-              <span className="h-9 w-9 animate-spin rounded-full border-4 border-[color:var(--acc)] border-t-transparent motion-reduce:animate-none" />
+            <div className="space-y-3" role="status" aria-label={t('loading')}>
+              <Sk className="h-4 w-full" />
+              <Sk className="h-4 w-4/5" />
+              <Sk className="h-16 w-full !rounded-2xl" />
+              <Sk className="h-16 w-full !rounded-2xl" />
             </div>
           ) : offer ? (
             <>
-              {offer.description && <p className={`text-sm font-medium leading-relaxed ${darkMode ? 'text-neutral-200' : 'text-gray-800'}`}>{offer.description}</p>}
-              <InfoRow Icon={FiTag} label={t('youSave')} value={meta.amount} darkMode={darkMode} />
-              {meta.range && <InfoRow Icon={FiCalendar} label={t('validPeriod')} value={<span dir="ltr">{meta.range}</span>} darkMode={darkMode} />}
-              {meta.remaining && <InfoRow Icon={FiClock} label={meta.isActive ? t('active') : t('inactive')} value={meta.remaining} darkMode={darkMode} />}
-              {offer.shopName && (
-                <InfoRow Icon={RiStoreLine} label={t('shop')} value={offer.shopName} darkMode={darkMode} />
-              )}
+              {offer.description && <p className="nb-muted text-sm leading-relaxed">{offer.description}</p>}
+              <InfoRow Icon={FiTag} tone="em" label={t('youSave')} value={meta.amount} />
+              {meta.range && <InfoRow Icon={FiCalendar} tone="sky" label={t('validPeriod')} value={<span dir="ltr">{meta.range}</span>} />}
+              {meta.remaining && <InfoRow Icon={FiClock} tone="am" label={meta.isActive ? t('active') : t('inactive')} value={meta.remaining} />}
+              {offer.shopName && <InfoRow Icon={RiStoreLine} tone="vi" label={t('shop')} value={offer.shopName} />}
             </>
           ) : (
-            <p className={`py-10 text-center text-sm font-bold uppercase ${darkMode ? 'text-neutral-300' : 'text-gray-700'}`}>{t('notFound')}</p>
+            <p className="nb-muted py-10 text-center text-sm font-bold">{t('notFound')}</p>
           )}
-
-          <div className={`grid gap-3 pb-1 pe-1 pt-2 ${shopLink ? 'grid-cols-2' : 'grid-cols-1'}`}>
-            <button type="button" onClick={onClose} className={neoBtn(darkMode, false)}>{t('close')}</button>
-            {shopLink && (
-              <Link to={shopLink} onClick={onClose} className={neoBtn(darkMode, true)}>
-                <RiStoreLine aria-hidden="true" className="h-4 w-4" />{t('visitShop')}
-              </Link>
-            )}
-          </div>
         </div>
+
+        <footer className={`nb-line grid flex-shrink-0 gap-3 border-t px-4 py-3.5 sm:px-5 ${shopLink ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          <button type="button" onClick={requestClose} className={BTN_CLS}>{t('close')}</button>
+          {shopLink && (
+            <Link to={shopLink} onClick={onClose} className={`nb-btn-a ${BTN_CLS}`}>
+              <RiStoreLine aria-hidden="true" className="h-4 w-4" />{t('visitShop')}
+            </Link>
+          )}
+        </footer>
       </div>
     </div>
   );
 });
 
-const FilterBar = memo(({ filter, counts, onChange, darkMode, t }) => (
-  <div role="group" aria-label={t('filterLabel')} className="mb-10 flex flex-wrap gap-3 pb-2 pe-2">
-    {FILTERS.map(([key, labelKey]) => (
-      <button
-        key={key}
-        type="button"
-        aria-pressed={filter === key}
-        onClick={() => onChange(key)}
-        className={neoBtn(darkMode, filter === key)}
-      >
-        <span>{t(labelKey)}</span>
-        <span dir="ltr" className="tabular-nums">({counts[key]})</span>
-      </button>
-    ))}
-  </div>
-));
-
 const OffersContent = memo(({ darkMode }) => {
   const language = useAppLanguage();
   const navigate = useNavigate();
   const t = useCallback((key) => tr(language, key), [language]);
-  const isAr = language === 'ar';
   const token = useAuthGuard();
+  const isDesktop = useIsDesktop();
   useScrollTopOnEnter();
 
-  const [page, setPage] = useState(1);
-  const [filter, setFilter] = useState('all');
+  const [params, setParams] = useSearchParams();
+  const [query, setQuery] = useState('');
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [detailId, setDetailId] = useState(null);
   const [isPending, startTransition] = useTransition();
+  const listRef = useRef(null);
+  const gid = useId().replace(/:/g, '');
+  const deferredQuery = useDeferredValue(query.trim().toLowerCase());
+
+  const typeParam = params.get('type');
+  const type = FILTER_FN[typeParam] ? typeParam : DEFAULTS.type;
+  const sortParam = params.get('sort');
+  const sort = SORTS.some(([k]) => k === sortParam) ? sortParam : DEFAULTS.sort;
+  const shop = safeParam(params.get('shop'));
+  const page = Math.min(PAGE_MAX, Math.max(1, parseInt(params.get('page'), 10) || 1));
 
   useEffect(() => { document.title = 'Exclusive Offers | Tech-Restore'; }, []);
+  useEffect(() => { if (isDesktop) setDrawerOpen(false); }, [isDesktop]);
 
-  const { data: offers = EMPTY_LIST, isLoading, isError, isFetching, error, refetch } = useQuery({
+  const update = useCallback((patch) => {
+    startTransition(() => {
+      setParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (!('page' in patch)) next.delete('page');
+        for (const [k, v] of Object.entries(patch)) {
+          if (v == null || v === '' || DEFAULTS[k] === String(v)) next.delete(k);
+          else next.set(k, String(v));
+        }
+        return next;
+      }, { replace: true });
+    });
+  }, [setParams]);
+
+  const { data: offers = EMPTY_LIST, isPending: offersPending, isError, isFetching, error, refetch } = useQuery({
     queryKey: ['offers'],
     queryFn: async ({ signal }) => {
       const res = await api.get('/api/users/offers', { headers: authHeaders(), signal });
       const raw = res.data?.content || res.data || [];
-      return (Array.isArray(raw) ? raw : []).filter((o) => o && o.id != null).map(normalizeOffer);
+      return (Array.isArray(raw) ? raw : []).filter((o) => o && o.id != null).slice(0, OFFERS_CAP).map(normalizeOffer);
     },
     enabled: !!token,
     staleTime: 2 * 60 * 1000,
   });
 
-  const { data: latest = EMPTY_LIST, isLoading: latestLoading } = useQuery({
+  const loading = !token || offersPending;
+  const idle = useIdleFlag(!loading);
+
+  const { data: latest = EMPTY_LIST, isPending: latestPending } = useQuery({
     queryKey: ['latestProducts'],
     queryFn: async ({ signal }) => {
       const res = await api.get('/api/products', { signal });
@@ -910,6 +953,7 @@ const OffersContent = memo(({ darkMode }) => {
       out.sort((a, b) => b.ts - a.ts || b.num - a.num);
       return out.slice(0, LATEST_LIMIT);
     },
+    enabled: idle,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -917,93 +961,200 @@ const OffersContent = memo(({ darkMode }) => {
     if (isError && isUnauthorized(error)) expireSession(navigate);
   }, [isError, error, navigate]);
 
-  const counts = useMemo(() => {
+  const prepared = useMemo(
+    () => offers.map((o) => ({ ...o, days: daysLeftNum(o.endDate), hay: `${o.name} ${o.description} ${o.shopName}`.toLowerCase() })),
+    [offers],
+  );
+
+  const searched = useMemo(
+    () => (deferredQuery ? prepared.filter((o) => o.hay.includes(deferredQuery)) : prepared),
+    [prepared, deferredQuery],
+  );
+
+  const typeCounts = useMemo(() => {
+    const src = shop ? searched.filter((o) => o.shopId === shop) : searched;
     const out = {};
-    for (const [key, , fn] of FILTERS) out[key] = offers.reduce((n, o) => n + (fn(o) ? 1 : 0), 0);
+    for (const [key, , fn] of FILTERS) out[key] = src.reduce((n, o) => n + (fn(o) ? 1 : 0), 0);
     return out;
-  }, [offers]);
+  }, [searched, shop]);
 
-  const slides = useMemo(() => {
-    const deals = offers.filter((o) => o.status === 'ACTIVE').sort((a, b) => offerScore(b) - offerScore(a)).slice(0, OFFER_SLIDES);
-    const out = [];
-    const n = Math.max(deals.length, latest.length);
-    for (let i = 0; i < n; i++) {
-      if (deals[i]) out.push({ kind: 'offer', key: `o${deals[i].id}`, data: deals[i] });
-      if (latest[i]) out.push({ kind: 'product', key: `p${latest[i].id}`, data: latest[i] });
+  const shopOptions = useMemo(() => {
+    const map = new Map();
+    const fn = FILTER_FN[type];
+    for (const o of searched) {
+      if (!o.shopId || !o.shopName || !fn(o)) continue;
+      const cur = map.get(o.shopId);
+      if (cur) cur.count += 1;
+      else map.set(o.shopId, { id: o.shopId, name: o.shopName, count: 1 });
     }
-    return out.map((s, i) => ({ ...s, theme: THEMES[i % THEMES.length] }));
-  }, [offers, latest]);
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, language));
+  }, [searched, type, language]);
 
-  const heroLoading = (isLoading || latestLoading) && slides.length === 0;
+  const filtered = useMemo(() => {
+    let list = searched.filter(FILTER_FN[type]);
+    if (shop) list = list.filter((o) => o.shopId === shop);
+    return sortOffers(list, sort, language);
+  }, [searched, type, shop, sort, language]);
 
-  const filtered = useMemo(() => offers.filter(FILTER_FN[filter]), [offers, filter]);
+  const soonCount = useMemo(() => prepared.reduce((n, o) => n + (isSoon(o) ? 1 : 0), 0), [prepared]);
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const paged = useMemo(() => filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE), [filtered, safePage]);
 
-  const changePage = useCallback((p) => startTransition(() => setPage(Math.min(Math.max(1, p), totalPages))), [totalPages]);
-  const changeFilter = useCallback((f) => startTransition(() => { setFilter(f); setPage(1); }), []);
+  const hasFilters = type !== DEFAULTS.type || !!shop || !!query;
+  const activeCount = (type !== DEFAULTS.type ? 1 : 0) + (shop ? 1 : 0);
+
+  const changePage = useCallback((p) => {
+    update({ page: Math.min(Math.max(1, p), totalPages) });
+    listRef.current?.scrollIntoView({ block: 'start', behavior: prefersReduced() ? 'auto' : 'smooth' });
+  }, [update, totalPages]);
+  const changeType = useCallback((v) => update({ type: v, shop, sort }), [update, shop, sort]);
+  const changeShop = useCallback((v) => update({ shop: v, type, sort }), [update, type, sort]);
+  const changeSort = useCallback((v) => update({ sort: v, type, shop }), [update, type, shop]);
+  const sortOptions = useMemo(() => SORTS.map(([k, labelKey]) => [k, t(labelKey)]), [t]);
+  const onQuery = useCallback((e) => {
+    setQuery(e.target.value.slice(0, QUERY_MAX));
+    setParams((prev) => { const n = new URLSearchParams(prev); n.delete('page'); return n; }, { replace: true });
+  }, [setParams]);
+  const clearAll = useCallback(() => { setQuery(''); startTransition(() => setParams({}, { replace: true })); }, [setParams]);
   const openDetail = useCallback((id) => setDetailId(id), []);
   const closeDetail = useCallback(() => setDetailId(null), []);
-  const openProduct = useCallback((id) => navigate(`/device/${encodeURIComponent(id)}`), [navigate]);
+  const openDrawer = useCallback(() => setDrawerOpen(true), []);
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
   const showError = isError && !isUnauthorized(error);
+  const hasOffers = offers.length > 0;
+  const showTools = !loading && !showError && hasOffers;
+  const showSidebar = isDesktop && (loading || (!showError && hasOffers));
+  const showFilterButton = !isDesktop && showTools;
+  const showLatest = latest.length > 0 || (idle && latestPending);
+
+  const panel = (
+    <FilterPanel
+      type={type} typeCounts={typeCounts} onType={changeType}
+      shop={shop} shops={shopOptions} onShop={changeShop} t={t}
+    />
+  );
 
   return (
     <div
       dir={languageDirection(language)}
       lang={language}
-      className={`min-h-screen overflow-x-hidden ${isAr ? 'font-cairo' : 'font-jakarta'} ${darkMode ? `${DARK_PAGE} text-white` : 'bg-gray-50 text-gray-900'}`}
+      className={`nb ${darkMode ? 'nb-dark' : ''} min-h-screen overflow-x-clip [--dx:1] rtl:[--dx:-1] ${language === 'ar' ? 'font-cairo' : 'font-jakarta'}`}
     >
-      <Device3DStyles />
-      <style>{EXTRAS_CSS}</style>
-      <Defs3D />
       <Toaster darkMode={darkMode} />
+      <OfferDefs gid={gid} />
 
-      <h1 className="sr-only">{t('activeOffers')}</h1>
-      <HeroSlider slides={slides} loading={heroLoading} language={language} onOffer={openDetail} onProduct={openProduct} t={t} />
-
-      <section
-        aria-busy={isPending}
-        className={`hp-pattern ${darkMode ? 'hp-pattern-dark' : ''} py-14 sm:py-20 ${LAZY_SECTION} ${darkMode ? DARK_PAGE : 'bg-gray-50'}`}
-      >
-        <div className={`mx-auto max-w-7xl px-4 transition-opacity duration-150 sm:px-6 lg:px-8 ${isPending ? 'opacity-70' : ''}`}>
-          <div className="mb-10">
-            <SectionTitle
-              darkMode={darkMode}
-              isAr={isAr}
-              label={isLoading ? t('activeOffers') : `${offers.length} ${t('available')}`}
-              title={t('activeOffers')}
-              subtitle={t('checkBack')}
-            />
+      <main className="mx-auto max-w-[88rem] px-4 pb-14 pt-32 sm:px-6 lg:px-8" aria-busy={loading || isPending}>
+        <header className="nb-rise mb-8" style={RISE[0]}>
+          <Crumbs t={t} />
+          <div className="mt-4 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+            <div className="min-w-0 max-w-2xl">
+              <h1 className="text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">{t('activeOffers')}</h1>
+              <p className="nb-muted mt-2 text-sm font-medium leading-relaxed sm:text-base">{t('pageSub')}</p>
+            </div>
+            {!loading && hasOffers && (
+              <div className="nb-in flex flex-wrap gap-2 text-xs font-bold">
+                <span className="nb-gray rounded-full px-3 py-1.5"><span dir="ltr" className="tabular-nums">{offers.length}</span> {t('available')}</span>
+                {soonCount > 0 && (
+                  <span className="rounded-full bg-emerald-600 px-3 py-1.5 text-white"><span dir="ltr" className="tabular-nums">{soonCount}</span> {t('filterSoon')}</span>
+                )}
+              </div>
+            )}
           </div>
+        </header>
 
-          {!isLoading && !showError && offers.length > 0 && (
-            <FilterBar filter={filter} counts={counts} onChange={changeFilter} darkMode={darkMode} t={t} />
+        <div className={`nb-rise grid gap-8 ${showSidebar ? 'lg:grid-cols-[16rem_minmax(0,1fr)]' : ''}`} style={RISE[1]}>
+          {showSidebar && (
+            <aside className="self-start lg:sticky lg:top-28" aria-label={t('filterLabel')}>
+              {loading ? <FilterSkeleton /> : <div className="nb-card nb-in p-4">{panel}</div>}
+            </aside>
           )}
 
-          {isLoading ? (
-            <Skeletons darkMode={darkMode} count={6} />
-          ) : showError ? (
-            <StateBox darkMode={darkMode} label={t('loadFail')} onRetry={refetch} fetching={isFetching} retryLabel={t('tryAgain')} />
-          ) : offers.length === 0 ? (
-            <StateBox darkMode={darkMode} label={t('noActive')} hint={t('checkBack')} />
-          ) : paged.length === 0 ? (
-            <StateBox darkMode={darkMode} label={t('noMatch')} />
-          ) : (
-            <>
-              <div className={GRID}>
-                {paged.map((o, i) => (
-                  <OfferCard key={o.id} offer={o} index={i} darkMode={darkMode} language={language} onViewDetail={openDetail} t={t} />
+          <section ref={listRef} className="min-w-0 scroll-mt-28" aria-label={t('activeOffers')}>
+            {loading && <ToolbarSkeleton />}
+            {showTools && (
+              <div className="nb-in mb-5 flex flex-wrap items-center gap-3">
+                <div className="nb-field relative flex h-11 min-w-0 flex-1 basis-60 items-center gap-2 px-4">
+                  <FiSearch aria-hidden="true" className="nb-ic h-4 w-4 flex-shrink-0" />
+                  <input
+                    type="search" value={query} onChange={onQuery} placeholder={t('search')} aria-label={t('search')}
+                    maxLength={QUERY_MAX} autoComplete="off" spellCheck={false} enterKeyHint="search"
+                    className="min-w-0 flex-1 bg-transparent text-base font-semibold outline-none placeholder:font-medium placeholder:opacity-60 sm:text-sm"
+                  />
+                </div>
+                <SortDropdown value={sort} onChange={changeSort} options={sortOptions} label={t('sortBy')} />
+                {showFilterButton && (
+                  <button type="button" onClick={openDrawer} aria-haspopup="dialog" className="nb-btn h-11 gap-2 px-4 text-sm">
+                    <FiSliders aria-hidden="true" className="h-4 w-4" />{t('filters')}
+                    {activeCount > 0 && (
+                      <span dir="ltr" className="of-pop inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[color:var(--nb-btn)] px-1 text-[11px] font-extrabold tabular-nums text-[color:var(--nb-on)]">{activeCount}</span>
+                    )}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {showTools && (
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <p role="status" className="nb-muted text-sm font-medium">
+                  <span dir="ltr" className="font-extrabold tabular-nums text-[color:var(--nb-ink)]">{filtered.length}</span> {t('results')}
+                </p>
+                {hasFilters && (
+                  <button type="button" onClick={clearAll} className="nb-ic nb-focus rounded text-sm font-bold underline underline-offset-4 transition-opacity hover:opacity-80">{t('clearAll')}</button>
+                )}
+              </div>
+            )}
+
+            <div className={`transition-opacity duration-200 ${isPending ? 'opacity-60' : ''}`}>
+              {loading ? (
+                <Skeletons label={t('loading')} />
+              ) : showError ? (
+                <StateBox darkMode={darkMode} label={t('loadFail')} onRetry={refetch} fetching={isFetching} retryLabel={t('tryAgain')} />
+              ) : !hasOffers ? (
+                <StateBox darkMode={darkMode} label={t('noActive')} hint={t('checkBack')} />
+              ) : paged.length === 0 ? (
+                <StateBox darkMode={darkMode} label={t('noMatch')} onRetry={clearAll} retryLabel={t('clearAll')} />
+              ) : (
+                <>
+                  <div className={`${GRID} of-grid`}>
+                    {paged.map((o, i) => (
+                      <OfferCard key={o.id} offer={o} index={(safePage - 1) * PAGE_SIZE + i} gid={gid} language={language} onViewDetail={openDetail} t={t} />
+                    ))}
+                  </div>
+                  <Pager page={safePage} totalPages={totalPages} onChange={changePage} pending={isPending} t={t} />
+                </>
+              )}
+            </div>
+          </section>
+        </div>
+
+        {showLatest && (
+          <section className="mt-14 [content-visibility:auto] [contain-intrinsic-size:auto_480px]" aria-label={t('newArrivals')}>
+            <header className="mb-5">
+              <p className="flex items-center gap-2 text-xs font-extrabold tracking-wide rtl:tracking-normal">
+                <span className="nb-bar" aria-hidden="true" />{t('newArrivalsHint')}
+              </p>
+              <h2 className="mt-3 text-2xl font-extrabold leading-tight sm:text-3xl"><AccentTitle text={t('newArrivals')} /></h2>
+            </header>
+            {latest.length === 0 ? <LatestSkeleton /> : (
+              <div className="nb-in grid grid-cols-2 gap-4 lg:grid-cols-4">
+                {latest.map((p) => (
+                  <ProductCard key={p.id} product={p} darkMode={darkMode} language={language} t={t} />
                 ))}
               </div>
-              <Pager page={safePage} totalPages={totalPages} onChange={changePage} pending={isPending} darkMode={darkMode} t={t} />
-            </>
-          )}
-        </div>
-      </section>
+            )}
+          </section>
+        )}
+      </main>
 
-      {detailId && <OfferDetailModal key={detailId} offerId={detailId} darkMode={darkMode} language={language} onClose={closeDetail} t={t} />}
+      {drawerOpen && !isDesktop && (
+        <FilterDrawer onClose={closeDrawer} t={t} total={filtered.length} onClear={clearAll} hasFilters={hasFilters}>
+          {panel}
+        </FilterDrawer>
+      )}
+      {detailId && <OfferDetailModal key={detailId} offerId={detailId} language={language} onClose={closeDetail} t={t} />}
     </div>
   );
 });

@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider
 import {
   FiTool, FiInfo, FiX, FiMail, FiPhone, FiCalendar, FiMapPin, FiCheck, FiCheckCircle, FiFileText,
   FiTag, FiXCircle, FiPackage, FiTruck, FiSlash, FiShield, FiChevronLeft, FiChevronRight, FiArrowRight,
-  FiRefreshCw,
+  FiRefreshCw, FiSmartphone,
 } from 'react-icons/fi';
 import { RiStoreLine, RiStarFill, RiVerifiedBadgeLine } from 'react-icons/ri';
 import api from '../common/api/api';
@@ -42,8 +42,10 @@ const LOCAL_TEXT = {
     sendFailTitle: 'Failed to send', sendFailText: 'Something went wrong.', verifiedLabel: 'Verified',
     pagination: 'Pagination', prevPage: 'Previous page', nextPage: 'Next page', page: 'Page',
     suggestions: 'Quick suggestions',
-    prevSlide: 'Previous slide', nextSlide: 'Next slide', goToSlide: 'Go to slide', loading: 'Loading',
+    loading: 'Loading',
     s1: 'Screen cracked', s2: 'Battery issue', s3: 'Not charging', s4: 'Overheating', s5: 'Software crash', s6: 'Water damage',
+    pageTitle: 'Book a repair',
+    pageSub: 'Trusted repair shops, clear prices, and live tracking from pickup to delivery.',
   },
   ar: {
     crumbHome: 'الرئيسية', crumbRepair: 'إصلاح', breadcrumb: 'مسار التنقل', progress: 'التقدم',
@@ -56,8 +58,10 @@ const LOCAL_TEXT = {
     sendFailTitle: 'تعذّر الإرسال', sendFailText: 'حدث خطأ ما.', verifiedLabel: 'موثّق',
     pagination: 'الصفحات', prevPage: 'الصفحة السابقة', nextPage: 'الصفحة التالية', page: 'صفحة',
     suggestions: 'اقتراحات سريعة',
-    prevSlide: 'الشريحة السابقة', nextSlide: 'الشريحة التالية', goToSlide: 'اذهب إلى الشريحة', loading: 'جارٍ التحميل',
+    loading: 'جارٍ التحميل',
     s1: 'الشاشة مكسورة', s2: 'مشكلة في البطارية', s3: 'لا يشحن', s4: 'ارتفاع الحرارة', s5: 'تعطل البرنامج', s6: 'تلف بالماء',
+    pageTitle: 'احجز إصلاحًا',
+    pageSub: 'متاجر صيانة موثوقة، أسعار واضحة، وتتبّع مباشر من الاستلام حتى التسليم.',
   },
   fr: {
     crumbHome: 'Accueil', crumbRepair: 'Réparation', breadcrumb: "Fil d'Ariane", progress: 'Progression',
@@ -70,8 +74,10 @@ const LOCAL_TEXT = {
     sendFailTitle: "Échec de l'envoi", sendFailText: "Une erreur s'est produite.", verifiedLabel: 'Vérifié',
     pagination: 'Pagination', prevPage: 'Page précédente', nextPage: 'Page suivante', page: 'Page',
     suggestions: 'Suggestions rapides',
-    prevSlide: 'Diapositive précédente', nextSlide: 'Diapositive suivante', goToSlide: 'Aller à la diapositive', loading: 'Chargement',
+    loading: 'Chargement',
     s1: 'Écran cassé', s2: 'Problème de batterie', s3: 'Ne charge pas', s4: 'Surchauffe', s5: 'Plantage logiciel', s6: 'Dégât des eaux',
+    pageTitle: 'Réserver une réparation',
+    pageSub: 'Ateliers de confiance, prix clairs et suivi en direct de la collecte à la livraison.',
   },
 };
 
@@ -82,214 +88,159 @@ const tr = (language, key) =>
   LOCAL_TEXT.en[key] ||
   key;
 
-const PAGE_CSS = `
-  .hp-hl, .hp-hl-dark, .hp-hl-on {
-    padding-bottom: 0.2em;
-    background-position: left bottom;
-    background-repeat: no-repeat;
-    background-size: 100% 0.3em;
-    -webkit-box-decoration-break: clone;
-    box-decoration-break: clone;
-  }
-  .hp-hl      { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2310b981' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
-  .hp-hl-dark { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2339ff88' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
-  .hp-hl-on   { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%23facc15' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
-  @keyframes hpFloat { 0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); } 50% { transform: translateY(-14px) rotate(var(--r, 0deg)); } }
-  .hp-float { animation: hpFloat 6s ease-in-out infinite; will-change: transform; }
-  @keyframes hpDrift { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(18px, -22px); } }
-  .hp-drift { animation: hpDrift 11s ease-in-out infinite; }
-  @keyframes hpRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-  .hp-rise { animation: hpRise 0.28s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 28ms); }
-  @keyframes hpStep { from { opacity: 0; transform: translateX(calc(var(--dx, 1) * 14px)); } to { opacity: 1; transform: none; } }
-  .hp-step { animation: hpStep 0.2s cubic-bezier(.2,.8,.2,1) both; }
-  @keyframes hpFade { from { opacity: 0; } to { opacity: 1; } }
-  .hp-fade { animation: hpFade 0.16s ease-out both; }
-  @keyframes hpModal { from { opacity: 0; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: none; } }
-  .hp-modal { animation: hpModal 0.2s cubic-bezier(.2,.8,.2,1) both; }
-  .hp-pattern {
-    --p1: rgba(4, 38, 26, .13);
-    --p2: rgba(16, 185, 129, .12);
-    background-image:
-      radial-gradient(circle at 2px 2px, var(--p1) 1.6px, transparent 1.8px),
-      repeating-linear-gradient(135deg, var(--p2) 0 2px, transparent 2px 18px);
-    background-size: 22px 22px, auto;
-  }
-  .hp-pattern-dark { --p1: rgba(57, 255, 136, .14); --p2: rgba(57, 255, 136, .06); }
-  .hp-cat { --dx: 1; --c-card: #ffffff; --c-ink: #04261a; --c-line: #04261a; --c-acc: #10b981; --c-on: #04261a; }
-  [dir="rtl"] .hp-cat { --dx: -1; }
-  .hp-cat-dark { --c-card: #2a2a2a; --c-ink: #ffffff; --c-line: #000000; --c-acc: #39ff88; --c-on: #022c22; }
-  .hp-dot {
-    display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
-    background: var(--c-card); color: var(--c-ink); cursor: pointer;
-    border: 3px solid var(--c-line); border-radius: 1rem;
-    box-shadow: calc(var(--dx) * 5px) 5px 0 0 var(--c-line);
-    transition: transform .15s ease, box-shadow .15s ease, background-color .15s ease, color .15s ease;
-  }
-  .hp-dot-on { background: var(--c-acc); color: var(--c-on); transform: translateY(-2px); box-shadow: calc(var(--dx) * 7px) 7px 0 0 var(--c-line); }
-  @media (hover: hover) {
-    .hp-dot:hover {
-      background: var(--c-acc); color: var(--c-on);
-      transform: translateY(-4px);
-      box-shadow: calc(var(--dx) * 7px) 9px 0 0 var(--c-line);
-    }
-  }
-  .hp-dot:active { transform: translateY(2px); box-shadow: calc(var(--dx) * 2px) 2px 0 0 var(--c-line); }
-  .hp-dot:focus-visible { outline: 3px solid var(--c-acc); outline-offset: 4px; }
-  .hs-root { contain: paint; }
-  .hs-slide {
-    opacity: 0; visibility: hidden; will-change: opacity;
-    transition: opacity .38s cubic-bezier(.4,0,.2,1), visibility 0s linear .38s;
-  }
-  .hs-on { opacity: 1; visibility: visible; transition: opacity .38s cubic-bezier(.4,0,.2,1), visibility 0s; }
-  .hs-bg { background: linear-gradient(135deg, var(--tb) 0%, var(--tc) 100%); }
-  .hs-dots { background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,.14) 1px, transparent 1.4px); background-size: 18px 18px; }
-  /* Radial gradient instead of filter: blur(80px) - same soft glow, far cheaper to paint. */
-  .hs-blob { background: radial-gradient(closest-side, var(--ta) 0%, transparent 100%); opacity: .3; will-change: transform; }
-  /* Only the visible slide animates. */
-  .hs-slide:not(.hs-on) .hp-float,
-  .hs-slide:not(.hs-on) .hp-drift { animation-play-state: paused; }
-  .hs-a { opacity: 0; transform: translate3d(0, 22px, 0); transition: opacity .2s ease, transform .2s ease; }
-  .hs-on .hs-a {
-    opacity: 1; transform: none;
-    transition: opacity .4s ease calc(var(--d, 0) * 50ms + 60ms), transform .55s cubic-bezier(.16,1,.3,1) calc(var(--d, 0) * 50ms + 60ms);
-  }
-  .hs-v { opacity: 0; transform: translate3d(0, 10px, 0) scale(.9) rotate(-3deg); transition: opacity .2s ease, transform .2s ease; }
-  .hs-on .hs-v { opacity: 1; transform: none; transition: opacity .45s ease .08s, transform .7s cubic-bezier(.16,1,.3,1) .08s; }
-  .hs-bar { transform: scaleX(0); animation: hsBar linear forwards; }
-  @keyframes hsBar { to { transform: scaleX(1); } }
-  @media (prefers-reduced-motion: reduce) {
-    .hp-rise, .hp-step, .hp-fade, .hp-modal, .hp-float, .hp-drift { animation: none; }
-    .hp-dot { transition: none; }
-    .hp-dot:hover, .hp-dot:active, .hp-dot-on { transform: none; }
-    .hs-a, .hs-v, .hs-on .hs-a, .hs-on .hs-v { transform: none; transition: opacity .2s ease; }
-    .hs-bar { animation: none; transform: scaleX(1); }
-  }
+const NB_CSS = `
+.nb{--nb-bg:#f3f6f4;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#5b7468;--nb-line:#e3e9e6;--nb-line2:#cfdad4;--nb-shadow:rgba(4,38,26,.1);--nb-gray:#eef3f0;--nb-accent:#059669;--nb-btn:#047857;--nb-on:#ffffff;--nb-glow:rgba(16,185,129,.12);--nb-ring:rgba(16,185,129,.5);--nb-scrim:rgba(4,38,26,.55);background-color:var(--nb-bg);background-image:radial-gradient(52rem 22rem at 90% -6rem,var(--nb-glow),transparent 68%),radial-gradient(40rem 20rem at -8% 28rem,var(--nb-glow),transparent 70%);background-repeat:no-repeat;color:var(--nb-ink);color-scheme:light;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.nb-dark{--nb-bg:#06261b;--nb-card:#0b3427;--nb-ink:#ecfdf5;--nb-muted:#8fb8a6;--nb-line:rgba(167,243,208,.14);--nb-line2:rgba(167,243,208,.26);--nb-shadow:rgba(2,20,14,.45);--nb-gray:#104534;--nb-accent:#34d399;--nb-btn:#10b981;--nb-on:#022c22;--nb-glow:rgba(52,211,153,.09);--nb-ring:rgba(52,211,153,.55);--nb-scrim:rgba(3,30,21,.72);color-scheme:dark}
+.nb[lang=ar] *{letter-spacing:0!important}
+.nb button,.nb input,.nb textarea{font-family:inherit}
+.nb-gray{background:var(--nb-gray)}
+.nb-muted{color:var(--nb-muted)}
+.nb-ic{color:var(--nb-accent)}
+.nb-line{border-color:var(--nb-line)}
+.nb-card{background:var(--nb-card);border:1px solid var(--nb-line);border-radius:1.25rem;box-shadow:0 1px 2px var(--nb-shadow);transition:transform .25s cubic-bezier(.2,.8,.2,1),box-shadow .25s ease,border-color .25s ease}
+@media (hover:hover){.nb-lift:hover{transform:translate3d(0,-3px,0);box-shadow:0 16px 32px -16px var(--nb-shadow);border-color:var(--nb-accent)}}
+.nb-pick,.nb-pick:hover{border-color:var(--nb-btn);box-shadow:0 0 0 2px var(--nb-btn),0 14px 28px -16px var(--nb-shadow)}
+.nb-bar{display:inline-block;width:28px;height:6px;border-radius:999px;background:linear-gradient(90deg,var(--nb-accent),#059669)}
+.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--nb-card);color:var(--nb-ink);border:1px solid var(--nb-line2);border-radius:999px;font-weight:700;cursor:pointer;transition:transform .18s cubic-bezier(.2,.8,.2,1),background-color .18s ease,border-color .18s ease,filter .18s ease,box-shadow .18s ease,opacity .18s ease}
+.nb-btn:not(.nb-btn-a):not(.nb-btn-on):hover:not(:disabled){background:var(--nb-gray);border-color:var(--nb-accent)}
+@media (hover:hover){.nb-btn:hover:not(:disabled){transform:translate3d(0,-1px,0)}}
+.nb-btn:active:not(:disabled){transform:scale(.97)}
+.nb-btn:disabled{opacity:.45;cursor:not-allowed}
+.nb-btn-a,.nb-btn-on{position:relative;overflow:hidden;isolation:isolate;background:linear-gradient(135deg,#10b981 0%,#059669 50%,#047857 100%);color:#ffffff;border-color:transparent;box-shadow:0 12px 24px -12px rgba(4,120,87,.85),inset 0 1px 0 rgba(255,255,255,.28)}
+.nb-btn-a::after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.34) 50%,transparent 70%);transform:translate3d(-130%,0,0);transition:transform .7s cubic-bezier(.2,.8,.2,1)}
+.nb-btn-a:hover:not(:disabled)::after{transform:translate3d(130%,0,0)}
+.nb-btn-a:hover:not(:disabled),.nb-btn-on:hover:not(:disabled){filter:brightness(1.07);border-color:transparent;box-shadow:0 16px 28px -12px rgba(4,120,87,.95),inset 0 1px 0 rgba(255,255,255,.32)}
+.nb-btn:focus-visible,.nb-focus:focus-visible{outline:3px solid var(--nb-ring);outline-offset:2px}
+.nb-field{background:var(--nb-card);color:var(--nb-ink);border:1px solid var(--nb-line2);border-radius:1.25rem;transition:box-shadow .18s ease,border-color .18s ease}
+.nb-field:hover{border-color:var(--nb-accent)}
+.nb-field:focus-within{border-color:var(--nb-accent);box-shadow:0 0 0 3px var(--nb-ring)}
+.nb-flip{display:inline-block}
+.nb[dir=rtl] .nb-flip{transform:scaleX(-1)}
+.nb-dot{background:var(--nb-card);color:var(--nb-ink);border:1px dashed var(--nb-line2);border-radius:1.5rem}
+.nb-sk{background:linear-gradient(90deg,var(--nb-gray) 25%,color-mix(in srgb,var(--nb-gray) 45%,var(--nb-card)) 50%,var(--nb-gray) 75%);background-size:220% 100%;border-radius:.75rem;animation:nbShimmer 1.5s linear infinite}
+@keyframes nbShimmer{from{background-position:120% 0}to{background-position:-120% 0}}
+@keyframes nbIn{from{opacity:0;transform:translate3d(0,10px,0)}to{opacity:1;transform:none}}
+.nb-in{animation:nbIn .3s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*40ms)}
+@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn,.nb-btn-a::after,.nb-field{transition:none}.nb-lift:hover,.nb-btn:hover:not(:disabled){transform:none}.nb-in,.nb-sk{animation:none!important}}
 `;
-let stylesInjected = false;
-const injectStylesOnce = () => {
-  if (stylesInjected || typeof document === 'undefined') return;
+
+const PAGE_CSS = `
+  ${EXTRAS_CSS}
+  @keyframes hpRise { from { opacity: 0; transform: translate3d(0, 16px, 0); } to { opacity: 1; transform: none; } }
+  .hp-rise { animation: hpRise .5s cubic-bezier(.16,.84,.24,1) both; animation-delay: calc(var(--i, 0) * 60ms); }
+  @keyframes hpStep { from { opacity: 0; transform: translate3d(calc(var(--dx, 1) * var(--dir, 1) * 18px), 0, 0); } to { opacity: 1; transform: none; } }
+  .hp-step { animation: hpStep .3s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes hpFade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes hpFadeOut { from { opacity: 1; } to { opacity: 0; } }
+  .hp-fade { animation: hpFade .18s ease-out both; }
+  .hp-fade-out { animation: hpFadeOut .18s ease-in both; }
+  @keyframes hpModal { from { opacity: 0; transform: translate3d(0, 24px, 0) scale(.98); } to { opacity: 1; transform: none; } }
+  @keyframes hpModalOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translate3d(0, 24px, 0) scale(.98); } }
+  .hp-modal { animation: hpModal .24s cubic-bezier(.2,.8,.2,1) both; }
+  .hp-modal-out { animation: hpModalOut .18s ease-in both; }
+  @keyframes hpPop { 0% { transform: scale(.5); opacity: 0; } 60% { transform: scale(1.12); opacity: 1; } 100% { transform: scale(1); } }
+  .hp-pop { animation: hpPop .4s cubic-bezier(.2,.9,.3,1.3) both; animation-delay: .1s; }
+  @media (prefers-reduced-motion: reduce) {
+    .hp-rise, .hp-step, .hp-fade, .hp-fade-out, .hp-modal, .hp-modal-out, .hp-pop { animation: none; }
+  }
+  ${NB_CSS}
+`;
+if (typeof document !== 'undefined' && !document.querySelector('style[data-repair-styles]')) {
   const tag = document.createElement('style');
   tag.setAttribute('data-repair-styles', 'true');
   tag.textContent = PAGE_CSS;
   document.head.appendChild(tag);
-  stylesInjected = true;
-};
-injectStylesOnce();
+}
 
-const DARK_PAGE = 'bg-[#141414]';
 const LAZY_SECTION = '[content-visibility:auto] [contain-intrinsic-size:auto_760px]';
+const REDUCED_Q = '(prefers-reduced-motion: reduce)';
+const LEAVE_MS = 180;
+const ID_RE = /^[\w-]{1,64}$/;
 
-const NEO_THEME = {
-  light: '[--dx:1] rtl:[--dx:-1] [--ink:#022c22] [--sh:#022c22] [--acc:#34d399]',
-  dark: '[--dx:1] rtl:[--dx:-1] [--ink:#000] [--sh:#000] [--acc:#39ff88]',
-};
-const NEO_SURFACE = { light: 'bg-white', dark: 'bg-[#2a2a2a]' };
-const NEO_BOX = {
-  lg: 'flex flex-col rounded-2xl border-[3px] border-[color:var(--ink)] [box-shadow:calc(var(--dx)*8px)_8px_0_0_var(--sh)]',
-  sm: 'flex flex-col rounded-2xl border-[3px] border-[color:var(--ink)] [box-shadow:calc(var(--dx)*6px)_6px_0_0_var(--sh)]',
-};
-const NEO_PRESS =
-  'transition-[transform,box-shadow] duration-150 motion-reduce:transition-none ' +
-  '[@media(hover:hover)]:hover:-translate-y-1 [@media(hover:hover)]:hover:[box-shadow:calc(var(--dx)*8px)_10px_0_0_var(--sh)] ' +
-  'active:translate-y-[2px] active:translate-x-[calc(var(--dx)*2px)] active:[box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)] ' +
-  'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-[color:var(--acc)]';
-const neoCard = (darkMode, size = 'lg', press = false) => {
-  const k = darkMode ? 'dark' : 'light';
-  return `${NEO_THEME[k]} ${NEO_BOX[size]} ${NEO_SURFACE[k]}${press ? ` ${NEO_PRESS}` : ''}`;
+const TILE_TONES = {
+  em: 'bg-emerald-500 text-white', sky: 'bg-sky-500 text-white', vi: 'bg-violet-500 text-white',
+  am: 'bg-amber-400 text-emerald-950', ro: 'bg-rose-500 text-white', te: 'bg-teal-500 text-white',
 };
 
-const NEO_ICON =
-  'inline-flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-lg border-2 border-[color:var(--ink)] bg-[color:var(--acc)] text-emerald-950 ' +
-  '[box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)] transition-[transform,box-shadow] duration-150 ' +
-  'active:translate-y-[3px] active:translate-x-[calc(var(--dx)*3px)] active:[box-shadow:0_0_0_0_var(--sh)] ' +
-  'disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
-const neoIcon = (darkMode) => `${NEO_THEME[darkMode ? 'dark' : 'light']} ${NEO_ICON}`;
+const IconTile = memo(({ Icon, tone = 'em', className = 'h-9 w-9', iconClassName = 'h-4 w-4' }) => (
+  <span aria-hidden="true" className={`flex flex-shrink-0 items-center justify-center rounded-full ${TILE_TONES[tone] || TILE_TONES.em} ${className}`}>
+    <Icon className={iconClassName} />
+  </span>
+));
 
-const NEO_BTN =
-  'inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border-[3px] border-[color:var(--ink)] px-4 py-2.5 text-sm font-extrabold uppercase ' +
-  '[box-shadow:calc(var(--dx)*4px)_4px_0_0_var(--sh)] transition-[transform,box-shadow] duration-150 motion-reduce:transition-none ' +
-  'active:translate-y-[4px] active:translate-x-[calc(var(--dx)*4px)] active:[box-shadow:0_0_0_0_var(--sh)] ' +
-  'disabled:cursor-not-allowed disabled:opacity-40 ' +
-  'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
-const neoBtn = (darkMode, active) => {
-  const k = darkMode ? 'dark' : 'light';
-  const tone = active ? 'bg-[color:var(--acc)] text-emerald-950' : `${NEO_SURFACE[k]} ${darkMode ? 'text-white' : 'text-emerald-950'}`;
-  return `${NEO_THEME[k]} ${NEO_BTN} ${tone}`;
-};
-const SMALL_BTN = '!min-h-9 !px-3 !py-1 !text-xs !normal-case';
+const BTN_BASE = 'nb-btn min-h-11 px-4 py-2.5 text-sm';
+const btnCls = (primary) => `${BTN_BASE} ${primary ? 'nb-btn-a' : ''}`;
+const SMALL_BTN = '!min-h-9 !px-3 !py-1 !text-xs';
 
-const NEO_ROW = 'rounded-xl border-2 border-dotted border-[color:var(--ink)]';
+const prefersReduced = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(REDUCED_Q).matches;
 
-const HERO_BTN =
-  'inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border-[3px] border-black px-5 py-3 text-sm font-extrabold uppercase ' +
-  '[box-shadow:calc(var(--dx)*5px)_5px_0_0_#000] transition-[transform,box-shadow] duration-150 motion-reduce:transition-none ' +
-  '[@media(hover:hover)]:hover:-translate-y-0.5 active:translate-y-[5px] active:translate-x-[calc(var(--dx)*5px)] active:[box-shadow:0_0_0_0_#000] ' +
-  'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-white';
-const HERO_ARROW =
-  'inline-flex h-11 w-11 flex-shrink-0 cursor-pointer items-center justify-center rounded-xl border-[3px] border-black bg-white text-black ' +
-  '[box-shadow:calc(var(--dx)*3px)_3px_0_0_#000] transition-[transform,box-shadow] duration-100 motion-reduce:transition-none ' +
-  'active:translate-y-[3px] active:translate-x-[calc(var(--dx)*3px)] active:[box-shadow:0_0_0_0_#000] ' +
-  'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-white';
-const HERO_H = 'h-[max(42rem,88svh)] lg:h-[max(46rem,94svh)]';
-const HERO_MS = 6000;
-const SWIPE_PX = 48;
-const DELAY = Array.from({ length: 8 }, (_, i) => ({ '--d': i }));
-
-/*
- * Each theme carries a `hue` - the CSS hue-rotate (in degrees) that shifts the
- * illustration's base green (#39ff88, hue ~146deg) to the theme's accent colour.
- * It is precomputed here, so no per-render colour maths is needed.
- */
-const THEMES = [
-  { a: '#34d399', b: '#04261a', c: '#0b4a35', ink: '#022c22', hue: 0 },    // emerald (native colour)
-  { a: '#fbbf24', b: '#2a1403', c: '#6b3b06', ink: '#422006', hue: -103 }, // amber
-  { a: '#a78bfa', b: '#150f3a', c: '#33277d', ink: '#1e1b4b', hue: 109 },  // violet
-  { a: '#38bdf8', b: '#06263d', c: '#0c4c75', ink: '#082f49', hue: 53 },   // sky
-];
-const themeVars = (th) => ({ '--ta': th.a, '--tb': th.b, '--tc': th.c, '--ti': th.ink });
-
-// Static per-theme style objects (stable references, so memoised slides never re-render because of them).
-const ILLUSTRATION_STYLES = THEMES.map((th) => ({
-  filter: `${th.hue ? `hue-rotate(${th.hue}deg) ` : ''}drop-shadow(0 18px 30px rgba(0,0,0,0.35))`,
-}));
-
-const splitHeading = (text) => {
-  const str = String(text ?? '');
-  if (str.includes('**')) return str.split('**').map((part, i) => ({ part, hl: i % 2 === 1 }));
-  const m = str.match(/^(.*[,،]\s*)([^,،]+)$/);
-  if (m) return [{ part: m[1], hl: false }, { part: m[2], hl: true }];
-  const words = str.split(' ');
-  if (words.length < 2) return [{ part: str, hl: true }];
-  const n = words.length <= 3 ? 1 : 2;
-  return [{ part: `${words.slice(0, -n).join(' ')} `, hl: false }, { part: words.slice(-n).join(' '), hl: true }];
+const useLeave = (onClose) => {
+  const [leaving, setLeaving] = useState(false);
+  const timer = useRef(0);
+  const request = useCallback(() => {
+    if (timer.current) return;
+    if (prefersReduced()) { onClose(); return; }
+    setLeaving(true);
+    timer.current = window.setTimeout(onClose, LEAVE_MS);
+  }, [onClose]);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  return [leaving, request];
 };
 
-const SectionTitle = memo(({ label, title, subtitle, darkMode, isAr, level: H = 'h2' }) => {
-  const parts = useMemo(() => splitHeading(title), [title]);
-  const ink = darkMode ? 'text-white' : 'text-emerald-950';
-  const bar = darkMode ? 'border-[#39ff88] bg-[#39ff88]' : 'border-emerald-950 bg-emerald-400';
-  const sub = darkMode ? 'text-neutral-300' : 'text-gray-800';
+const useInView = (margin = '400px') => {
+  const [el, setEl] = useState(null);
+  const [seen, setSeen] = useState(() => typeof IntersectionObserver === 'undefined');
+  useEffect(() => {
+    if (seen || !el) return undefined;
+    const io = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) { setSeen(true); io.disconnect(); }
+    }, { rootMargin: margin });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [el, seen, margin]);
+  return [setEl, seen];
+};
+
+const useIdleFlag = (active) => {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    if (!active || on) return undefined;
+    if (typeof window.requestIdleCallback === 'function') {
+      const h = window.requestIdleCallback(() => setOn(true), { timeout: 1200 });
+      return () => window.cancelIdleCallback(h);
+    }
+    const h = setTimeout(() => setOn(true), 300);
+    return () => clearTimeout(h);
+  }, [active, on]);
+  return on;
+};
+
+const AccentTitle = memo(({ text }) => {
+  const s = String(text || '');
+  const i = s.lastIndexOf(' ');
+  const head = i > 0 ? s.slice(0, i + 1) : '';
+  const tail = i > 0 ? s.slice(i + 1) : s;
   return (
-    <div className="min-w-0 max-w-3xl">
-      {label && (
-        <div className="mb-5 flex items-center gap-3">
-          <span aria-hidden="true" className={`h-3.5 w-12 rounded-full border-2 ${bar}`} />
-          <span className={`text-sm font-bold uppercase ${isAr ? 'tracking-normal' : 'tracking-wide'} ${ink}`}>{label}</span>
-        </div>
-      )}
-      <H
-        className={`text-3xl font-extrabold [text-wrap:balance] sm:text-5xl ${
-          isAr ? 'leading-[1.4] tracking-normal' : 'leading-[1.18] tracking-[-0.04em]'
-        } ${ink}`}
-      >
-        {parts.map(({ part, hl }, i) => (hl ? <span key={i} className={darkMode ? 'hp-hl-dark' : 'hp-hl'}>{part}</span> : part))}
-      </H>
-      {subtitle && (
-        <p className={`mt-5 max-w-2xl text-base font-medium leading-relaxed sm:text-lg ${sub}`}>{subtitle}</p>
-      )}
-    </div>
+    <>
+      {head}
+      <span className="nb-ic">{tail}</span>
+    </>
   );
 });
+
+const SectionHead = memo(({ eyebrow, title, subtitle, level: H = 'h2' }) => (
+  <header className="min-w-0 max-w-2xl">
+    {eyebrow && (
+      <p className="flex items-center gap-2 text-xs font-extrabold tracking-wide rtl:tracking-normal">
+        <span className="nb-bar" aria-hidden="true" />{eyebrow}
+      </p>
+    )}
+    <H className="mt-3 text-3xl font-extrabold leading-[1.2] tracking-[-0.02em] [text-wrap:balance] rtl:tracking-normal sm:text-4xl">
+      <AccentTitle text={title} />
+    </H>
+    {subtitle && <p className="nb-muted mt-2 text-base font-medium sm:text-lg">{subtitle}</p>}
+  </header>
+));
 
 const useScrollTopOnEnter = () => {
   const navType = useNavigationType();
@@ -332,6 +283,8 @@ const SHOP_PAGE_SIZE = 4;
 const SUGGESTION_KEYS = ['s1', 's2', 's3', 's4', 's5', 's6'];
 const EMPTY_LIST = [];
 const STAGGER = Array.from({ length: 12 }, (_, i) => ({ '--i': i }));
+const SK_CATEGORIES = [0, 1, 2, 3, 4, 5];
+const SK_SHOPS = [0, 1, 2, 3];
 
 const STEP_DEFS = [
   { labelKey: 'describe', hintKey: 'describeHint' },
@@ -341,26 +294,24 @@ const STEP_DEFS = [
 ];
 
 const STEP_HEAD = [
-  { title: 'describeProblem', subtitle: 'specificHelp', infoTitle: 'detailsTitle', infoBody: 'detailsBody' },
-  { title: 'deviceType', subtitle: 'categorySubtitle', infoTitle: 'categoryTitle', infoBody: 'categoryBody' },
-  { title: 'chooseShopTitle', subtitle: 'chooseShopSubtitle', infoTitle: 'shopTitle', infoBody: 'shopBody' },
-  { title: 'doneTitle', subtitle: 'doneBody', infoTitle: 'doneTitle', infoBody: 'doneBody' },
+  { title: 'describeProblem', subtitle: 'specificHelp', infoTitle: 'detailsTitle', infoBody: 'detailsBody', icon: FiFileText, tone: 'am' },
+  { title: 'deviceType', subtitle: 'categorySubtitle', infoTitle: 'categoryTitle', infoBody: 'categoryBody', icon: FiSmartphone, tone: 'sky' },
+  { title: 'chooseShopTitle', subtitle: 'chooseShopSubtitle', infoTitle: 'shopTitle', infoBody: 'shopBody', icon: RiStoreLine, tone: 'vi' },
+  { title: 'doneTitle', subtitle: 'doneBody', infoTitle: 'doneTitle', infoBody: 'doneBody', icon: FiCheckCircle, tone: 'em' },
 ];
 
 const INFO_SCENES = ['repairCard', 'devices', 'shop', 'track'];
 
-const HERO_SLIDES = INFO_SCENES.map((scene, i) => ({ key: scene, scene, i, theme: THEMES[i % THEMES.length], illoStyle: ILLUSTRATION_STYLES[i % THEMES.length] }));
-
 const STATUS_JOURNEY = [
-  { key: 'SUBMITTED', labelKey: 'submitted', descKey: 'submittedDesc', Icon: FiFileText },
-  { key: 'QUOTE_SENT', labelKey: 'setPrice', descKey: 'setPriceDesc', Icon: FiTag },
-  { key: 'QUOTE_APPROVED', labelKey: 'priceAccepted', descKey: 'priceAcceptedDesc', Icon: FiCheckCircle },
-  { key: 'QUOTE_REJECTED', labelKey: 'priceRejected', descKey: 'priceRejectedDesc', Icon: FiXCircle, danger: true },
-  { key: 'DEVICE_COLLECTED', labelKey: 'devicePickedUp', descKey: 'devicePickedUpDesc', Icon: FiPackage },
-  { key: 'REPAIRING', labelKey: 'repairing', descKey: 'repairingDesc', Icon: FiTool },
-  { key: 'REPAIR_COMPLETED', labelKey: 'repairCompleted', descKey: 'repairCompletedDesc', Icon: FiShield },
-  { key: 'DEVICE_DELIVERED', labelKey: 'deviceDelivered', descKey: 'deviceDeliveredDesc', Icon: FiTruck },
-  { key: 'CANCELLED', labelKey: 'cancelled', descKey: 'cancelledDesc', Icon: FiSlash, danger: true },
+  { key: 'SUBMITTED', labelKey: 'submitted', descKey: 'submittedDesc', Icon: FiFileText, tone: 'sky' },
+  { key: 'QUOTE_SENT', labelKey: 'setPrice', descKey: 'setPriceDesc', Icon: FiTag, tone: 'vi' },
+  { key: 'QUOTE_APPROVED', labelKey: 'priceAccepted', descKey: 'priceAcceptedDesc', Icon: FiCheckCircle, tone: 'te' },
+  { key: 'QUOTE_REJECTED', labelKey: 'priceRejected', descKey: 'priceRejectedDesc', Icon: FiXCircle, tone: 'ro', danger: true },
+  { key: 'DEVICE_COLLECTED', labelKey: 'devicePickedUp', descKey: 'devicePickedUpDesc', Icon: FiPackage, tone: 'am' },
+  { key: 'REPAIRING', labelKey: 'repairing', descKey: 'repairingDesc', Icon: FiTool, tone: 'vi' },
+  { key: 'REPAIR_COMPLETED', labelKey: 'repairCompleted', descKey: 'repairCompletedDesc', Icon: FiShield, tone: 'te' },
+  { key: 'DEVICE_DELIVERED', labelKey: 'deviceDelivered', descKey: 'deviceDeliveredDesc', Icon: FiTruck, tone: 'em' },
+  { key: 'CANCELLED', labelKey: 'cancelled', descKey: 'cancelledDesc', Icon: FiSlash, tone: 'ro', danger: true },
 ];
 
 const toList = (res) => {
@@ -391,221 +342,35 @@ const shopAddressLine = (shop, withState) => {
 };
 
 const Crumbs = memo(({ t }) => (
-  <nav aria-label={t('breadcrumb')} className="flex flex-wrap items-center gap-2 text-sm font-bold text-white/80">
-    <Link to="/" className="underline decoration-[color:var(--ta)] decoration-2 underline-offset-4 hover:no-underline">{t('crumbHome')}</Link>
+  <nav aria-label={t('breadcrumb')} className="nb-muted flex flex-wrap items-center gap-2 text-sm font-medium">
+    <Link to="/" className="nb-focus rounded transition-colors hover:text-[color:var(--nb-ink)] hover:underline">{t('crumbHome')}</Link>
     <FiChevronRight aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 rtl:rotate-180" />
-    <span aria-current="page" className="text-white">{t('crumbRepair')}</span>
+    <span aria-current="page" className="text-[color:var(--nb-ink)]">{t('crumbRepair')}</span>
   </nav>
 ));
 
-const HeroSlider = memo(({ slides, loading, language, label, crumbs, renderSlide, t }) => {
-  const [index, setIndex] = useState(0);
-  const [hover, setHover] = useState(false);
-  const [inView, setInView] = useState(true);
-  const [tabVisible, setTabVisible] = useState(true);
-  const rootRef = useRef(null);
-  const startX = useRef(null);
-  const isRTL = languageDirection(language) === 'rtl';
-  const count = slides.length;
-  const safe = count ? Math.min(index, count - 1) : 0;
-  const paused = hover || !inView || !tabVisible;
+const Sk = ({ className = '' }) => <div aria-hidden="true" className={`nb-sk ${className}`} />;
 
-  useEffect(() => {
-    const el = rootRef.current;
-    if (!el || typeof IntersectionObserver === 'undefined') return undefined;
-    const io = new IntersectionObserver(([e]) => setInView(e.isIntersecting), { threshold: 0.2 });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [loading, count]);
-
-  useEffect(() => {
-    const on = () => setTabVisible(document.visibilityState !== 'hidden');
-    document.addEventListener('visibilitychange', on);
-    return () => document.removeEventListener('visibilitychange', on);
-  }, []);
-
-  const go = useCallback((i) => setIndex(i), []);
-  const step = useCallback((d) => setIndex((i) => (count ? (i + d + count) % count : 0)), [count]);
-  const next = useCallback(() => step(1), [step]);
-  const prev = useCallback(() => step(-1), [step]);
-  const onPointerDown = useCallback((e) => { startX.current = e.clientX; }, []);
-  const onPointerUp = useCallback((e) => {
-    if (startX.current == null) return;
-    const dx = e.clientX - startX.current;
-    startX.current = null;
-    if (Math.abs(dx) < SWIPE_PX) return;
-    step((isRTL ? dx > 0 : dx < 0) ? 1 : -1);
-  }, [isRTL, step]);
-  const onPointerCancel = useCallback(() => { startX.current = null; }, []);
-  const onKeyDown = useCallback((e) => {
-    if (e.key === 'ArrowRight') { e.preventDefault(); step(isRTL ? -1 : 1); }
-    else if (e.key === 'ArrowLeft') { e.preventDefault(); step(isRTL ? 1 : -1); }
-  }, [isRTL, step]);
-  const pause = useCallback(() => setHover(true), []);
-  const resume = useCallback(() => setHover(false), []);
-  const onFocus = useCallback((e) => { if (e.target.matches?.(':focus-visible')) setHover(true); }, []);
-
-  if (loading || !count) {
-    return (
-      <div className={`relative overflow-hidden bg-[#04261a] ${HERO_H}`} role="status" aria-label={t('loading')}>
-        <div className="mx-auto grid h-full max-w-7xl items-center gap-10 px-4 pt-44 sm:px-6 lg:grid-cols-2 lg:px-8">
-          <div className="space-y-5">
-            <div className="h-7 w-40 animate-pulse rounded-lg bg-white/10 motion-reduce:animate-none" />
-            <div className="h-16 w-full max-w-xl animate-pulse rounded-xl bg-white/10 motion-reduce:animate-none" />
-            <div className="h-5 w-full max-w-md animate-pulse rounded bg-white/10 motion-reduce:animate-none" />
-            <div className="h-12 w-44 animate-pulse rounded-xl bg-white/10 motion-reduce:animate-none" />
-          </div>
-          <div className="hidden h-[26rem] animate-pulse rounded-[2rem] bg-white/10 motion-reduce:animate-none lg:block" />
-        </div>
-      </div>
-    );
-  }
-
-  const active = slides[safe];
-
-  return (
-    <section
-      ref={rootRef}
-      aria-roledescription="carousel" aria-label={label}
-      onPointerDown={onPointerDown} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onKeyDown={onKeyDown}
-      onMouseEnter={pause} onMouseLeave={resume} onFocus={onFocus} onBlur={resume}
-      className={`hs-root relative isolate touch-pan-y overflow-hidden text-white [--dx:1] rtl:[--dx:-1] ${HERO_H}`}
-    >
-      <div className="absolute inset-0" aria-live={paused ? 'polite' : 'off'}>
-        {slides.map((s, i) => renderSlide(s, i === safe, i === 0))}
-      </div>
-
-      <div className="absolute inset-x-0 top-32 z-20 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8" style={themeVars(active.theme)}>
-        {crumbs}
-      </div>
-
-      {count > 1 && (
-        <div className="absolute inset-x-0 bottom-0 z-20" style={themeVars(active.theme)}>
-          <div className="mx-auto flex max-w-7xl items-end gap-4 px-4 pb-6 sm:px-6 lg:px-8">
-            <div role="tablist" className="grid min-w-0 flex-1 gap-2 sm:gap-3" style={{ gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` }}>
-              {slides.map((s, i) => (
-                <button
-                  key={s.key} type="button" role="tab" aria-selected={i === safe} aria-label={`${t('goToSlide')} ${i + 1}`}
-                  onClick={() => go(i)}
-                  className="group min-w-0 rounded-md pt-3 text-start focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-white"
-                >
-                  <span className="relative block h-1.5 overflow-hidden rounded-full bg-white/25">
-                    {i < safe && <span className="absolute inset-0 rounded-full bg-white/70" />}
-                    {i === safe && (
-                      <span
-                        key={safe}
-                        onAnimationEnd={next}
-                        className="hs-bar absolute inset-0 origin-left rounded-full bg-[color:var(--ta)] rtl:origin-right"
-                        style={{ animationDuration: `${HERO_MS}ms`, animationPlayState: paused ? 'paused' : 'running' }}
-                      />
-                    )}
-                  </span>
-                  <span className={`mt-2 hidden truncate text-xs font-bold transition-colors duration-200 md:block ${i === safe ? 'text-white' : 'text-white/55 group-hover:text-white/80'}`}>
-                    {t(STEP_HEAD[s.i].infoTitle)}
-                  </span>
-                </button>
-              ))}
-            </div>
-            <span dir="ltr" className="hidden flex-shrink-0 pb-1 text-sm font-black tabular-nums text-white/80 sm:block">
-              {pad2('en', safe + 1)} / {pad2('en', count)}
-            </span>
-            <div className="flex flex-shrink-0 gap-3 pb-1 pe-1">
-              <button type="button" onClick={prev} aria-label={t('prevSlide')} className={HERO_ARROW}><FiChevronLeft aria-hidden="true" className="h-5 w-5 rtl:rotate-180" /></button>
-              <button type="button" onClick={next} aria-label={t('nextSlide')} className={HERO_ARROW}><FiChevronRight aria-hidden="true" className="h-5 w-5 rtl:rotate-180" /></button>
-            </div>
-          </div>
-        </div>
-      )}
-    </section>
-  );
-});
-
-const RepairSlide = memo(({ slide, on, t, onStart }) => {
-  const { i, scene, theme, illoStyle } = slide;
-  const head = STEP_HEAD[i];
-  const num = pad2('en', i + 1);
-
-  // Mount the (SVG-heavy) illustration lazily: the first time its slide becomes active.
-  // It then stays mounted so the cross-fade out of the slide is not cut short.
-  const seen = useRef(on);
-  if (on) seen.current = true;
-
-  return (
-    <div className={`hs-slide absolute inset-0 ${on ? 'hs-on' : ''}`} style={themeVars(theme)} role="group" aria-roledescription="slide" aria-hidden={!on}>
-      <div className="hs-bg absolute inset-0" />
-      <span aria-hidden="true" className="hs-blob hp-drift pointer-events-none absolute -end-24 top-10 h-[28rem] w-[28rem] rounded-full" />
-      <span aria-hidden="true" className="hs-blob pointer-events-none absolute -bottom-40 -start-24 h-[24rem] w-[24rem] rounded-full" style={{ opacity: 0.18 }} />
-      <div aria-hidden="true" className="hs-dots absolute inset-0" />
-      <span
-        aria-hidden="true" dir="ltr"
-        className="pointer-events-none absolute -bottom-10 end-2 select-none text-[11rem] font-black leading-none text-[color:var(--ta)] opacity-[.09] sm:text-[22rem]"
-      >
-        {num}
-      </span>
-
-      <div className="relative mx-auto grid h-full max-w-7xl items-center gap-6 px-4 pb-36 pt-44 sm:px-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,.9fr)] lg:gap-12 lg:px-8 lg:pb-40 lg:pt-52">
-        <div className="order-2 min-w-0 lg:order-1">
-          <div className="hs-a flex flex-wrap items-center gap-2" style={DELAY[0]}>
-            <span className="inline-flex items-center gap-1.5 rounded-lg border-[3px] border-black bg-[color:var(--ta)] px-3 py-1 text-xs font-black uppercase text-[color:var(--ti)]">
-              <FiTool aria-hidden="true" className="h-3.5 w-3.5" />
-              <span>{t('step')} </span><span dir="ltr" className="tabular-nums">{num}</span>
-            </span>
-            <span className="inline-flex max-w-[14rem] items-center gap-1.5 rounded-lg border-2 border-white/30 px-3 py-1 text-xs font-bold text-white/90">
-              <span className="truncate">{t(STEP_DEFS[i].hintKey)}</span>
-            </span>
-          </div>
-
-          <h2
-            className="hs-a mt-5 line-clamp-3 break-words text-4xl font-black leading-[1.08] tracking-[-0.03em] [text-wrap:balance] rtl:leading-[1.35] rtl:tracking-normal sm:text-6xl lg:text-7xl"
-            style={DELAY[1]}
-          >
-            {t(head.infoTitle)}
-          </h2>
-
-          <p className="hs-a mt-5 line-clamp-3 max-w-xl text-base font-medium leading-relaxed text-white/80 sm:text-lg" style={DELAY[2]}>{t(head.infoBody)}</p>
-
-          <div className="hs-a mt-8 flex flex-wrap gap-4 pb-1 pe-1" style={DELAY[3]}>
-            <button type="button" onClick={onStart} tabIndex={on ? 0 : -1} className={`${HERO_BTN} bg-[color:var(--ta)] text-[color:var(--ti)]`}>
-              {t('continue')}<FiArrowRight aria-hidden="true" className="h-4 w-4 rtl:rotate-180" />
-            </button>
-          </div>
-        </div>
-
-        <div className="order-1 flex justify-center lg:order-2">
-          <div className="hs-v relative h-44 w-44 sm:h-64 sm:w-64 lg:h-[26rem] lg:w-[26rem]">
-            <div className="hp-float h-full w-full [--r:0deg]">
-              <div className="absolute inset-0 flex items-center justify-center">
-                {seen.current && (
-                  // hue-rotate recolours the illustration to this slide's theme accent
-                  // (emerald / amber / violet / sky) without touching the illustration source.
-                  <IsoIllustration
-                    type={scene} tone="emerald" onGreen={false} darkMode
-                    className="h-full w-full"
-                    style={illoStyle}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-});
-
-const VerifiedMark = memo(({ label, darkMode }) => (
+const VerifiedMark = memo(({ label }) => (
   <span className="inline-flex flex-shrink-0" title={label}>
-    <RiVerifiedBadgeLine aria-hidden="true" className={`h-4 w-4 ${darkMode ? 'text-[#39ff88]' : 'text-emerald-600'}`} />
+    <RiVerifiedBadgeLine aria-hidden="true" className="nb-ic h-4 w-4" />
     <span className="sr-only">{label}</span>
   </span>
 ));
 
-const ProgressSteps = memo(({ step, darkMode, t }) => {
+const Meter = memo(({ pct }) => (
+  <div className="nb-gray h-2 overflow-hidden rounded-full" aria-hidden="true">
+    <div
+      className="h-full w-full origin-left rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-transform duration-500 ease-out rtl:origin-right rtl:bg-gradient-to-l motion-reduce:transition-none"
+      style={{ transform: `scaleX(${pct / 100})` }}
+    />
+  </div>
+));
+
+const ProgressSteps = memo(({ step, t }) => {
   const total = STEP_DEFS.length;
-  const ink = darkMode ? 'text-white' : 'text-emerald-950';
-  const muted = darkMode ? 'text-neutral-400' : 'text-gray-600';
   return (
-    <div className={`p-4 sm:p-5 ${neoCard(darkMode, 'sm')}`}>
+    <div className="nb-card p-4 sm:p-5">
       <p className="sr-only">{t('step')} {step} {t('of')} {total}</p>
       <ol aria-label={t('progress')} className="grid grid-cols-4 gap-2">
         {STEP_DEFS.map(({ labelKey, hintKey }, i) => {
@@ -615,38 +380,35 @@ const ProgressSteps = memo(({ step, darkMode, t }) => {
           return (
             <li key={labelKey} aria-current={active ? 'step' : undefined} className="flex min-w-0 flex-col items-center gap-2 text-center">
               <span
-                className={`flex h-11 w-11 items-center justify-center rounded-xl border-[3px] border-[color:var(--ink)] text-base font-black tabular-nums transition-[background-color,box-shadow] duration-200 motion-reduce:transition-none ${
-                  reached ? 'bg-[color:var(--acc)] text-emerald-950' : `${NEO_SURFACE[darkMode ? 'dark' : 'light']} ${ink}`
-                } ${active ? '[box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)]' : ''}`}
+                className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-extrabold tabular-nums transition-[background-color,box-shadow,transform] duration-300 motion-reduce:transition-none ${
+                  reached ? 'bg-[color:var(--nb-btn)] text-[color:var(--nb-on)]' : 'nb-gray'
+                } ${active ? 'scale-110 ring-4 ring-emerald-500/25' : ''}`}
               >
                 {step > n ? <FiCheck aria-hidden="true" className="h-5 w-5" strokeWidth={3} /> : <span dir="ltr">{pad2('en', n)}</span>}
               </span>
               <div className="min-w-0 max-w-full px-0.5">
-                <p className={`truncate text-[11px] font-extrabold uppercase sm:text-xs ${reached ? ink : muted}`}>{t(labelKey)}</p>
-                <p className={`mt-0.5 hidden truncate text-[11px] font-medium sm:block ${muted}`}>{t(hintKey)}</p>
+                <p className={`truncate text-[11px] font-extrabold transition-colors duration-300 sm:text-xs ${reached ? '' : 'nb-muted'}`}>{t(labelKey)}</p>
+                <p className="nb-muted mt-0.5 hidden truncate text-[11px] font-medium sm:block">{t(hintKey)}</p>
               </div>
             </li>
           );
         })}
       </ol>
-      <div aria-hidden="true" className={`mt-4 h-2.5 overflow-hidden rounded-full border-2 border-[color:var(--ink)] ${darkMode ? 'bg-[#1e1e1e]' : 'bg-gray-100'}`}>
-        <div
-          className="h-full origin-left rounded-full bg-[color:var(--acc)] transition-transform duration-300 ease-out rtl:origin-right motion-reduce:transition-none"
-          style={{ transform: `scaleX(${step / total})` }}
-        />
+      <div className="mt-4">
+        <Meter pct={(step / total) * 100} />
       </div>
     </div>
   );
 });
 
-const NavButtons = memo(({ onBack, onNext, nextLabel, nextDisabled, isLoading, showBack = true, darkMode, t }) => (
-  <div className={`mt-8 flex flex-wrap gap-3 pb-1 pe-1 ${showBack ? 'justify-between' : 'justify-end'}`}>
+const NavButtons = memo(({ onBack, onNext, nextLabel, nextDisabled, isLoading, showBack = true, t }) => (
+  <div className={`nb-line mt-8 flex flex-wrap gap-3 border-t pt-5 ${showBack ? 'justify-between' : 'justify-end'}`}>
     {showBack && (
-      <button type="button" className={neoBtn(darkMode, false)} onClick={onBack} disabled={isLoading}>
+      <button type="button" className={btnCls(false)} onClick={onBack} disabled={isLoading}>
         <FiChevronLeft aria-hidden="true" className="h-4 w-4 rtl:rotate-180" />{t('back')}
       </button>
     )}
-    <button type="button" className={`${neoBtn(darkMode, true)} flex-1 sm:flex-none sm:px-8`} onClick={onNext} disabled={nextDisabled || isLoading} aria-busy={isLoading}>
+    <button type="button" className={`${btnCls(true)} flex-1 sm:flex-none sm:px-8`} onClick={onNext} disabled={nextDisabled || isLoading} aria-busy={isLoading}>
       {isLoading && <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" />}
       <span>{isLoading ? t('sending') : nextLabel || t('continue')}</span>
       {!isLoading && <FiArrowRight aria-hidden="true" className="h-4 w-4 rtl:rotate-180" />}
@@ -654,20 +416,43 @@ const NavButtons = memo(({ onBack, onNext, nextLabel, nextDisabled, isLoading, s
   </div>
 ));
 
-const Skeletons = memo(({ count, className, itemClassName, darkMode }) => (
-  <div className={className} role="status" aria-busy="true">
-    {Array.from({ length: count }).map((_, i) => (
-      <div key={i} className={`animate-pulse rounded-2xl motion-reduce:animate-none ${darkMode ? 'bg-[#2a2a2a]' : 'bg-gray-200/70'} ${itemClassName}`} />
-    ))}
+const CategorySkeleton = memo(() => (
+  <div className="nb-card flex flex-col items-center gap-2.5 p-3 sm:p-4">
+    <Sk className="h-[4.5rem] w-full !rounded-xl sm:h-20" />
+    <Sk className="h-4 w-2/3" />
+  </div>
+));
+
+const ShopSkeleton = memo(() => (
+  <div className="nb-card flex h-44 flex-col gap-3 p-4">
+    <div className="flex items-start gap-3">
+      <Sk className="h-10 w-10 flex-none !rounded-full" />
+      <div className="min-w-0 flex-1 space-y-2"><Sk className="h-4 w-3/4" /><Sk className="h-3 w-1/4" /></div>
+      <Sk className="h-9 w-9 flex-none !rounded-full" />
+    </div>
+    <Sk className="h-3 w-2/3" />
+    <Sk className="mt-auto h-4 w-1/3" />
+  </div>
+));
+
+const CategoriesSkeleton = memo(({ label }) => (
+  <div className="grid grid-cols-2 gap-4 p-1 sm:grid-cols-3 sm:gap-5" role="status" aria-busy="true" aria-label={label}>
+    {SK_CATEGORIES.map((i) => <CategorySkeleton key={i} />)}
+  </div>
+));
+
+const ShopsSkeleton = memo(({ label }) => (
+  <div className="grid grid-cols-1 gap-5 p-1 sm:grid-cols-2 sm:gap-6" role="status" aria-busy="true" aria-label={label}>
+    {SK_SHOPS.map((i) => <ShopSkeleton key={i} />)}
   </div>
 ));
 
 const StateBox = memo(({ darkMode, label, onRetry, retryLabel }) => (
-  <div className={`flex flex-col items-center rounded-2xl border-[3px] border-dashed py-10 text-center ${darkMode ? 'border-[#39ff88]/40 bg-[#1e1e1e]' : 'border-emerald-300 bg-white/60'}`}>
+  <div className="nb-dot nb-in flex flex-col items-center px-4 py-10 text-center">
     <IsoIllustration type="shop" tone="emerald" onGreen={false} darkMode={darkMode} className="mb-3 h-32 w-32" />
-    <p className={`text-base font-extrabold uppercase ${darkMode ? 'text-white' : 'text-emerald-950'}`}>{label}</p>
+    <p className="text-base font-extrabold">{label}</p>
     {onRetry && (
-      <button type="button" onClick={() => onRetry()} className={`mt-5 ${neoBtn(darkMode, true)}`}>
+      <button type="button" onClick={() => onRetry()} className={`mt-5 ${btnCls(true)}`}>
         <FiRefreshCw aria-hidden="true" className="h-4 w-4" />{retryLabel}
       </button>
     )}
@@ -685,69 +470,62 @@ const pageWindow = (cur, total) => {
   return out;
 };
 
-const Pager = memo(({ page, totalPages, onChange, pending, darkMode, t }) => {
+const Pager = memo(({ page, totalPages, onChange, pending, t }) => {
   if (totalPages <= 1) return null;
-  const arrow = `${neoBtn(darkMode, false)} !w-11 !px-0`;
   return (
-    <nav aria-label={t('pagination')} aria-busy={pending} className="mt-8 flex flex-wrap items-center justify-center gap-3 pe-1">
-      <button type="button" className={arrow} disabled={page <= 1} onClick={() => onChange(page - 1)} aria-label={t('prevPage')}>
-        <FiChevronLeft aria-hidden="true" className="h-4 w-4 rtl:rotate-180" />
+    <nav aria-label={t('pagination')} aria-busy={pending} className="flex flex-wrap items-center justify-center gap-2 pt-8">
+      <button type="button" className="nb-btn h-10 w-10" disabled={page <= 1} onClick={() => onChange(page - 1)} aria-label={t('prevPage')}>
+        <FiChevronLeft aria-hidden="true" className="nb-flip h-4 w-4" />
       </button>
       {pageWindow(page, totalPages).map((x) => (typeof x === 'number' ? (
         <button
           key={x} type="button" onClick={() => onChange(x)}
           aria-label={`${t('page')} ${x}`} aria-current={x === page ? 'page' : undefined}
-          className={`${neoBtn(darkMode, x === page)} !min-w-11 !px-2 tabular-nums`}
+          className={`nb-btn h-10 min-w-[2.5rem] px-2 text-sm tabular-nums ${x === page ? 'nb-btn-on' : ''}`}
         >
           <span dir="ltr">{x}</span>
         </button>
-      ) : <span key={x} aria-hidden="true" className={`px-1 font-extrabold ${darkMode ? 'text-white' : 'text-emerald-950'}`}>…</span>))}
-      <button type="button" className={arrow} disabled={page >= totalPages} onClick={() => onChange(page + 1)} aria-label={t('nextPage')}>
-        <FiChevronRight aria-hidden="true" className="h-4 w-4 rtl:rotate-180" />
+      ) : <span key={x} aria-hidden="true" className="nb-muted px-1 font-extrabold">…</span>))}
+      <button type="button" className="nb-btn h-10 w-10" disabled={page >= totalPages} onClick={() => onChange(page + 1)} aria-label={t('nextPage')}>
+        <FiChevronRight aria-hidden="true" className="nb-flip h-4 w-4" />
       </button>
     </nav>
   );
 });
 
-const DescribeStep = memo(({ initial, onChange, darkMode, t }) => {
+const DescribeStep = memo(({ initial, onChange, t }) => {
   const [value, setValue] = useState(initial);
-  const update = useCallback((v) => { setValue(v); onChange(v); }, [onChange]);
+  const update = useCallback((v) => { const next = v.slice(0, MAX_DESC); setValue(next); onChange(next); }, [onChange]);
   const handleChange = useCallback((e) => update(e.target.value), [update]);
   const addSuggestion = useCallback(
-    (s) => update((value ? `${value}, ${s.toLowerCase()}` : s).slice(0, MAX_DESC)),
+    (s) => update(value ? `${value}, ${s.toLowerCase()}` : s),
     [update, value],
   );
   const blank = value.length > 0 && !value.trim();
-  const ink = darkMode ? 'text-white' : 'text-emerald-950';
-  const muted = darkMode ? 'text-neutral-400' : 'text-gray-600';
   return (
     <div className="max-w-3xl">
       <label htmlFor="repair-description" className="sr-only">{t('describeProblem')}</label>
-      <div
-        className={`overflow-hidden rounded-xl border-[3px] [box-shadow:calc(var(--dx)*4px)_4px_0_0_var(--sh)] focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-[color:var(--acc)] ${
-          blank ? 'border-rose-500' : 'border-[color:var(--ink)]'
-        } ${darkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}
-      >
+      <div className={`nb-field overflow-hidden ${blank ? '!border-rose-500' : ''}`}>
         <textarea
           id="repair-description" value={value} onChange={handleChange}
-          maxLength={MAX_DESC} placeholder={t('issuePlaceholder')} aria-required="true"
+          maxLength={MAX_DESC} placeholder={t('issuePlaceholder')} aria-required="true" autoComplete="off"
           aria-invalid={blank} aria-describedby={blank ? 'repair-description-error' : undefined}
-          className={`min-h-[170px] w-full resize-none bg-transparent px-4 py-4 text-base font-medium outline-none placeholder:opacity-60 sm:min-h-[200px] sm:px-5 ${ink}`}
+          className="min-h-[170px] w-full resize-none bg-transparent px-4 py-4 text-base font-semibold outline-none placeholder:font-medium placeholder:opacity-60 sm:min-h-[200px] sm:px-5 sm:text-sm"
         />
-        <div className={`flex items-center justify-between gap-3 border-t-2 border-[color:var(--ink)] px-4 py-2.5 text-xs font-bold sm:px-5 ${muted}`}>
+        <div className="nb-line nb-muted flex items-center justify-between gap-3 border-t px-4 py-2.5 text-xs font-bold sm:px-5">
           <span className="min-w-0 truncate">{t('tip')}</span>
-          <span dir="ltr" className={`flex-shrink-0 tabular-nums ${value.length > 900 ? 'text-orange-500' : ''}`}>{value.length} / {MAX_DESC}</span>
+          <span dir="ltr" className={`flex-shrink-0 tabular-nums transition-colors ${value.length > 900 ? 'text-orange-500' : ''}`}>{value.length} / {MAX_DESC}</span>
         </div>
       </div>
       {blank && (
-        <p id="repair-description-error" role="alert" className="mt-3 flex items-center gap-1.5 text-sm font-bold text-rose-500">
+        <p id="repair-description-error" role="alert" className="nb-in mt-3 flex items-center gap-1.5 text-sm font-bold text-rose-500">
           <FiXCircle aria-hidden="true" className="h-4 w-4 flex-shrink-0" />{t('descBlank')}
         </p>
       )}
-      <div role="group" aria-label={t('suggestions')} className="mt-5 flex flex-wrap gap-3 pb-1 pe-1">
+      <div role="group" aria-label={t('suggestions')} className="mt-5 flex flex-wrap gap-2.5">
         {SUGGESTION_KEYS.map((k) => {
           const s = t(k);
-          return <button key={k} type="button" onClick={() => addSuggestion(s)} className={`${neoBtn(darkMode, false)} ${SMALL_BTN}`}>+ {s}</button>;
+          return <button key={k} type="button" onClick={() => addSuggestion(s)} className={`nb-btn ${SMALL_BTN}`}>+ {s}</button>;
         })}
       </div>
     </div>
@@ -760,56 +538,60 @@ const CategoryTile = memo(({ cat, active, onSelect, darkMode }) => {
   return (
     <button
       type="button" aria-pressed={active} onClick={select}
-      className={`hp-dot min-h-11 w-full p-3 pt-6 text-center sm:gap-2.5 sm:p-4 sm:pt-7 ${active ? 'hp-dot-on' : ''}`}
+      className={`nb-card nb-lift nb-focus relative flex min-h-11 w-full cursor-pointer flex-col items-center gap-2.5 p-3 text-center sm:p-4 ${active ? 'nb-pick' : ''}`}
     >
-      <IsoIllustration type={catKey} darkMode={darkMode} onGreen={false} className="h-14 w-14 sm:h-16 sm:w-16" />
-      <span className="line-clamp-1 w-full text-sm font-extrabold uppercase">{cat.name}</span>
-      {active && <FiCheck aria-hidden="true" className="absolute end-3 top-3 h-5 w-5" strokeWidth={3} />}
+      <span className="nb-gray flex w-full items-center justify-center rounded-xl py-2">
+        <IsoIllustration type={catKey} darkMode={darkMode} onGreen={false} className="h-14 w-14 sm:h-16 sm:w-16" />
+      </span>
+      <span className="line-clamp-1 w-full text-sm font-extrabold">{cat.name}</span>
+      {active && (
+        <span aria-hidden="true" className="hp-pop absolute end-2.5 top-2.5 flex h-6 w-6 items-center justify-center rounded-full bg-[color:var(--nb-btn)] text-[color:var(--nb-on)]">
+          <FiCheck className="h-3.5 w-3.5" strokeWidth={3} />
+        </span>
+      )}
     </button>
   );
 });
 
-const ShopOption = memo(({ shop, active, onSelect, onInfo, darkMode, language, t }) => {
+const ShopOption = memo(({ shop, active, onSelect, onInfo, t }) => {
   const select = useCallback(() => { if (shop.activate) onSelect(shop); }, [shop, onSelect]);
   const info = useCallback((e) => { e.stopPropagation(); onInfo(shop); }, [onInfo, shop]);
+  const onKey = useCallback((e) => {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); select(); }
+  }, [select]);
   const address = shopAddressLine(shop, false);
-  const k = darkMode ? 'dark' : 'light';
-  const isAr = language === 'ar';
-  const ink = active ? 'text-emerald-950' : darkMode ? 'text-white' : 'text-emerald-950';
-  const body = active ? 'text-emerald-950' : darkMode ? 'text-neutral-300' : 'text-gray-700';
-  const surface = active ? 'bg-[color:var(--acc)]' : NEO_SURFACE[k];
-  const mode = shop.activate ? `cursor-pointer ${NEO_PRESS}` : 'cursor-not-allowed opacity-50 grayscale';
+  const mode = shop.activate ? 'nb-lift cursor-pointer' : 'cursor-not-allowed opacity-50 grayscale';
   return (
     <div
       role="radio" aria-checked={active} aria-disabled={!shop.activate} tabIndex={shop.activate ? 0 : -1}
-      onClick={select}
-      onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); select(); } }}
-      className={`relative h-full gap-3 p-4 ${NEO_THEME[k]} ${NEO_BOX.sm} ${surface} ${ink} ${mode}`}
+      onClick={select} onKeyDown={onKey}
+      className={`nb-card nb-focus relative flex h-full flex-col gap-3 p-4 ${mode} ${active ? 'nb-pick' : ''}`}
     >
       <div className="flex items-start gap-3">
+        <IconTile Icon={RiStoreLine} tone={active ? 'em' : 'vi'} className="h-10 w-10" iconClassName="h-5 w-5" />
         <div className="min-w-0 flex-1">
-          <h3 className={`flex min-w-0 items-center gap-1.5 text-sm font-extrabold uppercase leading-snug ${isAr ? 'tracking-normal' : 'tracking-[-0.01em]'}`}>
+          <h3 className="flex min-w-0 items-center gap-1.5 text-sm font-extrabold leading-snug">
             <span className="line-clamp-2 min-w-0">{shop.name}</span>
-            {shop.verified && <VerifiedMark label={t('verifiedLabel')} darkMode={darkMode && !active} />}
+            {shop.verified && <VerifiedMark label={t('verifiedLabel')} />}
           </h3>
-          <p className="mt-1.5 flex items-center gap-1 text-xs font-extrabold">
+          <p className="mt-1 flex items-center gap-1 text-xs font-extrabold">
             <RiStarFill aria-hidden="true" className="h-3.5 w-3.5 text-amber-500" />
             <span dir="ltr" className="tabular-nums">{shop.rating ? shop.rating.toFixed(1) : t('newRating')}</span>
           </p>
         </div>
-        <button type="button" onClick={info} aria-label={t('shopDetailsAria')} className={neoIcon(darkMode)}>
+        <button type="button" onClick={info} aria-label={t('shopDetailsAria')} className="nb-btn h-9 w-9 flex-shrink-0">
           <FiInfo aria-hidden="true" className="h-4 w-4" />
         </button>
       </div>
       {address && (
-        <p className={`flex items-center gap-1.5 text-xs font-medium ${body}`}>
-          <FiMapPin aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0" /><span className="line-clamp-1">{address}</span>
+        <p className="nb-muted flex items-center gap-1.5 text-xs font-semibold">
+          <FiMapPin aria-hidden="true" className="nb-ic h-3.5 w-3.5 flex-shrink-0" /><span className="line-clamp-1">{address}</span>
         </p>
       )}
-      <div className="mt-auto flex items-center justify-between gap-2 border-t-2 border-[color:var(--ink)] pt-3 text-xs font-extrabold uppercase">
-        <span className="flex min-w-0 items-center gap-1.5"><RiStoreLine aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0" /><span className="truncate">{shop.shopType || t('generalType')}</span></span>
+      <div className="nb-line mt-auto flex items-center justify-between gap-2 border-t pt-3 text-xs font-extrabold">
+        <span className="nb-muted flex min-w-0 items-center gap-1.5"><span className="truncate">{shop.shopType || t('generalType')}</span></span>
         {active ? (
-          <span className="flex flex-shrink-0 items-center gap-1"><FiCheck aria-hidden="true" className="h-4 w-4" strokeWidth={3} />{t('selected')}</span>
+          <span className="nb-ic flex flex-shrink-0 items-center gap-1"><FiCheck aria-hidden="true" className="h-4 w-4" strokeWidth={3} />{t('selected')}</span>
         ) : !shop.activate ? (
           <span className="flex-shrink-0">{t('inactive')}</span>
         ) : null}
@@ -818,54 +600,57 @@ const ShopOption = memo(({ shop, active, onSelect, onInfo, darkMode, language, t
   );
 });
 
-const ShopDetailModal = memo(({ shop, darkMode, language, onClose, t }) => {
-  useModalLock(true, onClose);
+const ShopDetailModal = memo(({ shop, language, onClose, t }) => {
+  const [leaving, requestClose] = useLeave(onClose);
+  useModalLock(true, requestClose);
   const rows = [
-    { Icon: FiMail, label: t('email'), value: shop.email },
-    { Icon: FiPhone, label: t('phone'), value: shop.phone, ltr: true },
-    { Icon: RiStoreLine, label: t('type'), value: shop.shopType },
-    { Icon: FiMapPin, label: t('address'), value: shopAddressLine(shop, true) },
-    { Icon: FiCalendar, label: t('joined'), value: formatDate(shop.createdAt, language) },
+    { Icon: FiMail, tone: 'sky', label: t('email'), value: shop.email },
+    { Icon: FiPhone, tone: 'vi', label: t('phone'), value: shop.phone, ltr: true },
+    { Icon: RiStoreLine, tone: 'em', label: t('type'), value: shop.shopType },
+    { Icon: FiMapPin, tone: 'ro', label: t('address'), value: shopAddressLine(shop, true) },
+    { Icon: FiCalendar, tone: 'am', label: t('joined'), value: formatDate(shop.createdAt, language) },
   ].filter((r) => r.value);
   const tel = telHref(shop.phone);
-  const ink = darkMode ? 'text-white' : 'text-emerald-950';
 
   return (
     <div className="fixed inset-0 z-[1100] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={shop.name}>
-      <div className="hp-fade absolute inset-0 bg-black/70" onClick={onClose} />
-      <div className={`hp-modal relative max-h-[92vh] w-full overflow-y-auto overscroll-contain sm:max-w-md ${neoCard(darkMode, 'lg')}`}>
-        <div className={`relative border-b-[3px] border-[color:var(--ink)] p-5 pe-16 ${darkMode ? 'bg-[#1e1e1e]' : 'bg-emerald-50'}`}>
-          <h2 className={`line-clamp-2 flex items-center gap-2 text-lg font-extrabold uppercase ${ink}`}>
-            <span className={darkMode ? 'hp-hl-dark' : 'hp-hl'}>{shop.name}</span>
-            {shop.verified && <VerifiedMark label={t('verifiedLabel')} darkMode={darkMode} />}
-          </h2>
-          <p className={`mt-2 flex items-center gap-1 text-sm font-extrabold ${ink}`}>
-            <RiStarFill aria-hidden="true" className="h-4 w-4 text-amber-500" />
-            <span dir="ltr" className="tabular-nums">{shop.rating ? shop.rating.toFixed(1) : t('newRating')}</span>
-          </p>
-          <button type="button" onClick={onClose} aria-label={t('close') || 'Close'} className={`${neoIcon(darkMode)} absolute end-4 top-4`}>
+      <div className={`${leaving ? 'hp-fade-out' : 'hp-fade'} absolute inset-0 bg-[color:var(--nb-scrim)] backdrop-blur-[2px]`} onClick={requestClose} aria-hidden="true" />
+      <div className={`nb-card ${leaving ? 'hp-modal-out' : 'hp-modal'} relative flex max-h-[92vh] w-full flex-col overflow-hidden !rounded-b-none shadow-2xl sm:max-w-md sm:!rounded-3xl`}>
+        <header className="nb-gray nb-line flex flex-shrink-0 items-center gap-3 border-b px-4 py-3.5 sm:px-5">
+          <IconTile Icon={RiStoreLine} tone="vi" className="h-10 w-10" iconClassName="h-5 w-5" />
+          <div className="min-w-0 flex-1">
+            <h2 className="flex items-center gap-1.5 text-base font-extrabold">
+              <span className="truncate">{shop.name}</span>
+              {shop.verified && <VerifiedMark label={t('verifiedLabel')} />}
+            </h2>
+            <p className="mt-0.5 flex items-center gap-1 text-xs font-extrabold">
+              <RiStarFill aria-hidden="true" className="h-3.5 w-3.5 text-amber-500" />
+              <span dir="ltr" className="tabular-nums">{shop.rating ? shop.rating.toFixed(1) : t('newRating')}</span>
+            </p>
+          </div>
+          <button type="button" onClick={requestClose} aria-label={t('close') || 'Close'} className="nb-btn h-9 w-9 flex-shrink-0">
             <FiX aria-hidden="true" className="h-4 w-4" />
           </button>
-        </div>
-        <div className="space-y-4 p-5">
-          {shop.description && <p className={`text-sm font-medium leading-relaxed ${darkMode ? 'text-neutral-200' : 'text-gray-800'}`}>{shop.description}</p>}
+        </header>
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4 sm:p-5">
+          {shop.description && <p className="text-sm font-medium leading-relaxed opacity-90">{shop.description}</p>}
           <ul className="space-y-2.5">
-            {rows.map(({ Icon, label, value, ltr }) => (
-              <li key={label} className={`flex items-center gap-3 p-3 ${NEO_ROW} ${darkMode ? 'bg-[#1e1e1e]' : 'bg-gray-50'}`}>
-                <span aria-hidden="true" className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border-2 border-[color:var(--ink)] bg-[color:var(--acc)] text-emerald-950">
-                  <Icon className="h-4 w-4" />
-                </span>
+            {rows.map(({ Icon, tone, label, value, ltr }) => (
+              <li key={label} className="nb-gray flex items-center gap-3 rounded-2xl p-3">
+                <IconTile Icon={Icon} tone={tone} className="h-9 w-9" iconClassName="h-4 w-4" />
                 <div className="min-w-0">
-                  <p className={`text-[11px] font-extrabold uppercase ${darkMode ? 'text-neutral-400' : 'text-gray-600'}`}>{label}</p>
-                  <p className={`truncate text-sm font-bold ${ink}`} dir={ltr ? 'ltr' : undefined}>{value}</p>
+                  <p className="nb-muted text-[11px] font-extrabold">{label}</p>
+                  <p className="truncate text-sm font-bold" dir={ltr ? 'ltr' : undefined}>{value}</p>
                 </div>
               </li>
             ))}
           </ul>
-          <div className="pb-1 pe-1">
-            {tel && <a href={tel} className={`${neoBtn(darkMode, true)} w-full`}><FiPhone aria-hidden="true" className="h-4 w-4" />{t('phone')}</a>}
-          </div>
         </div>
+        {tel && (
+          <footer className="nb-line flex-shrink-0 border-t px-4 py-3.5 sm:px-5">
+            <a href={tel} className={`${btnCls(true)} w-full`}><FiPhone aria-hidden="true" className="h-4 w-4" />{t('phone')}</a>
+          </footer>
+        )}
       </div>
     </div>
   );
@@ -874,33 +659,37 @@ const ShopDetailModal = memo(({ shop, darkMode, language, onClose, t }) => {
 const InfoPanel = memo(({ step, darkMode, t }) => {
   const head = STEP_HEAD[step - 1];
   return (
-    <div className={`overflow-hidden ${neoCard(darkMode, 'sm')}`}>
-      <div className={`border-b-[3px] border-[color:var(--ink)] p-4 ${darkMode ? 'bg-[#1e1e1e]' : 'bg-emerald-50'}`}>
+    <div key={step} className="nb-card hp-fade overflow-hidden">
+      <div className="nb-gray nb-line border-b p-4">
         <IsoIllustration type={INFO_SCENES[step - 1]} tone="emerald" onGreen={false} darkMode={darkMode} className="mx-auto h-40 w-40" />
       </div>
       <div className="p-5">
-        <h3 className={`text-base font-extrabold uppercase ${darkMode ? 'text-white' : 'text-emerald-950'}`}><span className={darkMode ? 'hp-hl-dark' : 'hp-hl'}>{t(head.infoTitle)}</span></h3>
-        <p className={`mt-3 text-sm font-medium leading-relaxed ${darkMode ? 'text-neutral-300' : 'text-gray-700'}`}>{t(head.infoBody)}</p>
+        <h3 className="flex items-center gap-2.5 text-base font-extrabold">
+          <IconTile Icon={head.icon} tone={head.tone} className="h-8 w-8" iconClassName="h-4 w-4" />
+          <span className="min-w-0">{t(head.infoTitle)}</span>
+        </h3>
+        <p className="nb-muted mt-3 text-sm font-medium leading-relaxed">{t(head.infoBody)}</p>
       </div>
     </div>
   );
 });
 
-const SummaryPanel = memo(({ category, shop, darkMode, t }) => {
-  const ink = darkMode ? 'text-white' : 'text-emerald-950';
-  const muted = darkMode ? 'text-neutral-400' : 'text-gray-600';
+const SummaryPanel = memo(({ category, shop, t }) => {
   const rows = [
-    [t('category'), category?.name],
-    [t('shop'), shop?.name],
+    [t('category'), category?.name, FiSmartphone, 'sky'],
+    [t('shop'), shop?.name, RiStoreLine, 'vi'],
   ];
   return (
-    <div className={`p-5 ${neoCard(darkMode, 'sm')}`}>
-      <h3 className={`text-base font-extrabold uppercase ${ink}`}>{t('yourRequest')}</h3>
+    <div className="nb-card p-5">
+      <h3 className="text-base font-extrabold">{t('yourRequest')}</h3>
       <dl className="mt-4 space-y-2.5">
-        {rows.map(([label, value]) => (
-          <div key={label} className={`p-3 ${NEO_ROW} ${darkMode ? 'bg-[#1e1e1e]' : 'bg-gray-50'}`}>
-            <dt className={`text-[11px] font-extrabold uppercase ${muted}`}>{label}</dt>
-            <dd className={`mt-0.5 truncate text-sm font-bold ${value ? ink : muted}`}>{value || t('notSelected')}</dd>
+        {rows.map(([label, value, Icon, tone]) => (
+          <div key={label} className="nb-gray flex items-center gap-3 rounded-2xl p-3">
+            <IconTile Icon={Icon} tone={tone} className="h-9 w-9" iconClassName="h-4 w-4" />
+            <div className="min-w-0">
+              <dt className="nb-muted text-[11px] font-extrabold">{label}</dt>
+              <dd className={`mt-0.5 truncate text-sm font-bold ${value ? '' : 'nb-muted'}`}>{value || t('notSelected')}</dd>
+            </div>
           </div>
         ))}
       </dl>
@@ -908,37 +697,27 @@ const SummaryPanel = memo(({ category, shop, darkMode, t }) => {
   );
 });
 
-const JourneySection = memo(({ darkMode, language, t }) => {
-  const isAr = language === 'ar';
-  return (
-    <section className={`hp-pattern ${darkMode ? 'hp-pattern-dark' : ''} py-14 sm:py-20 ${LAZY_SECTION} ${darkMode ? DARK_PAGE : 'bg-gray-50'}`}>
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="mb-10 sm:mb-14">
-          <SectionTitle darkMode={darkMode} isAr={isAr} label={t('step')} title={t('repairJourney')} subtitle={t('journeySub')} />
-        </div>
-        <ol className="grid grid-cols-1 gap-6 pb-2 pe-2 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8">
-          {STATUS_JOURNEY.map(({ key, labelKey, descKey, Icon, danger }, i) => (
-            <li key={key} className={`min-w-0 gap-3 p-5 ${neoCard(darkMode, 'sm')}`}>
-              <div className="flex items-center gap-3">
-                <span aria-hidden="true" className={`text-3xl font-black tabular-nums ${danger ? 'text-rose-500' : darkMode ? 'text-[#39ff88]' : 'text-emerald-600'}`}>{pad2(language, i + 1)}</span>
-                <span
-                  aria-hidden="true"
-                  className={`ms-auto inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border-2 border-[color:var(--ink)] [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)] ${danger ? 'bg-rose-500 text-white' : 'bg-[color:var(--acc)] text-emerald-950'}`}
-                >
-                  <Icon className="h-5 w-5" />
-                </span>
-              </div>
-              <p className={`text-base font-extrabold uppercase ${isAr ? 'tracking-normal' : 'tracking-[-0.01em]'} ${darkMode ? 'text-white' : 'text-emerald-950'}`}>{t(labelKey)}</p>
-              <p className={`text-sm font-medium leading-relaxed ${darkMode ? 'text-neutral-300' : 'text-gray-700'}`}>{t(descKey)}</p>
-            </li>
-          ))}
-        </ol>
-      </div>
-    </section>
-  );
-});
+const JourneySection = memo(({ language, t }) => (
+  <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <div className="mb-8 sm:mb-10">
+      <SectionHead eyebrow={t('step')} title={t('repairJourney')} subtitle={t('journeySub')} />
+    </div>
+    <ol className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {STATUS_JOURNEY.map(({ key, labelKey, descKey, Icon, tone, danger }, i) => (
+        <li key={key} style={STAGGER[Math.min(i, 11)]} className="nb-in nb-card nb-lift flex min-w-0 flex-col gap-3 p-5">
+          <div className="flex items-center gap-3">
+            <IconTile Icon={Icon} tone={tone} className="h-11 w-11" iconClassName="h-5 w-5" />
+            <span aria-hidden="true" className={`ms-auto text-2xl font-extrabold tabular-nums ${danger ? 'text-rose-500' : 'nb-ic'}`}>{pad2(language, i + 1)}</span>
+          </div>
+          <p className="text-base font-extrabold">{t(labelKey)}</p>
+          <p className="nb-muted text-sm font-medium leading-relaxed">{t(descKey)}</p>
+        </li>
+      ))}
+    </ol>
+  </div>
+));
 
-function RepairRequestContent({ darkMode }) {
+const RepairRequestContent = memo(({ darkMode }) => {
   const language = useAppLanguage();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -948,8 +727,13 @@ function RepairRequestContent({ darkMode }) {
   useScrollTopOnEnter();
 
   const [step, setStep] = useState(1);
+  const [dir, setDir] = useState(1);
+  const stepRef = useRef(1);
+  stepRef.current = step;
   const descRef = useRef('');
+  const submitLock = useRef(false);
   const [hasDesc, setHasDesc] = useState(false);
+  const [descSeed, setDescSeed] = useState(0);
   const [category, setCategory] = useState(null);
   const [shop, setShop] = useState(null);
   const [submittedShop, setSubmittedShop] = useState(null);
@@ -957,6 +741,8 @@ function RepairRequestContent({ darkMode }) {
   const [categoryPage, setCategoryPage] = useState(1);
   const [shopPage, setShopPage] = useState(1);
   const [isPending, startTransition] = useTransition();
+  const [journeyRef, journeyNear] = useInView('500px');
+  const idle = useIdleFlag(!!token);
 
   useEffect(() => { document.title = 'Book Repair | Tech-Restore'; }, []);
 
@@ -969,7 +755,7 @@ function RepairRequestContent({ darkMode }) {
   const categoriesQ = useQuery({
     queryKey: ['categories'],
     queryFn: async ({ signal }) => toList(await api.get('/api/categories', { headers: authHeaders(), signal })).filter((c) => c && c.id != null).map(normalizeCategory),
-    enabled: !!token,
+    enabled: !!token && (idle || step >= 2),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -980,7 +766,7 @@ function RepairRequestContent({ darkMode }) {
         .filter((s) => s && s.id != null)
         .map(normalizeShop)
         .filter((s) => s.shopType === 'BOTH' || s.shopType === 'REPAIRER'),
-    enabled: step === 3 && !!category && !!token,
+    enabled: step >= 2 && !!category && !!token,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -1005,6 +791,7 @@ function RepairRequestContent({ darkMode }) {
       dropRepairsCache();
       qc.invalidateQueries({ queryKey: ['repairs'] });
       setSubmittedShop(vars.shop);
+      setDir(1);
       setStep(4);
       toast({
         icon: 'success', title: t('sentTitle'),
@@ -1013,19 +800,18 @@ function RepairRequestContent({ darkMode }) {
     },
     onError: (err) => {
       if (isUnauthorized(err)) return expireSession(navigate);
-      return toast({ icon: 'error', title: t('sendFailTitle'), text: err.response?.data?.message || t('sendFailText'), timer: 3500 });
+      return toast({ icon: 'error', title: t('sendFailTitle'), text: clean(String(err.response?.data?.message || ''), 120) || t('sendFailText'), timer: 3500 });
     },
+    onSettled: () => { submitLock.current = false; },
   });
 
-  const goTo = useCallback((n) => startTransition(() => setStep(n)), []);
+  const goTo = useCallback((n) => startTransition(() => {
+    setDir(n > stepRef.current ? 1 : -1);
+    setStep(n);
+  }), []);
   const toStep1 = useCallback(() => goTo(1), [goTo]);
   const toStep2 = useCallback(() => goTo(2), [goTo]);
   const toAccount = useCallback(() => navigate('/account'), [navigate]);
-
-  const scrollToForm = useCallback(() => {
-    const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    document.getElementById('repair-form')?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
-  }, []);
 
   const handleNext = useCallback(() => {
     if (step === 1) {
@@ -1040,15 +826,19 @@ function RepairRequestContent({ darkMode }) {
   }, [step, category, goTo, t]);
 
   const handleSend = useCallback(() => {
-    if (!shop || !category || submit.isPending) return;
+    if (!shop || !category || submit.isPending || submitLock.current) return;
+    if (!shop.activate || !ID_RE.test(shop.id) || !ID_RE.test(category.id)) return;
     const text = cleanText(descRef.current, MAX_DESC);
     if (!text) return;
+    submitLock.current = true;
     submit.mutate({ shopId: shop.id, text, categoryId: category.id, shop });
   }, [shop, category, submit]);
 
   const reset = useCallback(() => {
     descRef.current = '';
     setHasDesc(false);
+    setDescSeed((n) => n + 1);
+    setDir(-1);
     setStep(1); setCategory(null); setShop(null); setSubmittedShop(null); setCategoryPage(1); setShopPage(1); setInfoShop(null); submit.reset();
   }, [submit]);
 
@@ -1057,124 +847,109 @@ function RepairRequestContent({ darkMode }) {
   const changeCatPage = useCallback((p) => startTransition(() => setCategoryPage(p)), []);
   const changeShopPage = useCallback((p) => startTransition(() => setShopPage(p)), []);
 
-  const renderSlide = useCallback(
-    (s, on) => <RepairSlide key={s.key} slide={s} on={on} t={t} onStart={scrollToForm} />,
-    [t, scrollToForm],
-  );
-  const crumbs = useMemo(() => <Crumbs t={t} />, [t]);
-
   const head = STEP_HEAD[step - 1];
-  const ink = darkMode ? 'text-white' : 'text-emerald-950';
-  const muted = darkMode ? 'text-neutral-300' : 'text-gray-700';
+  const stepStyle = useMemo(() => ({ '--dir': dir }), [dir]);
 
   return (
     <div
       dir={languageDirection(language)}
       lang={language}
-      className={`min-h-screen overflow-x-hidden ${isAr ? 'font-cairo' : 'font-jakarta'} ${darkMode ? `${DARK_PAGE} text-white` : 'bg-gray-50 text-gray-900'}`}
+      className={`nb ${darkMode ? 'nb-dark' : ''} min-h-screen overflow-x-clip [--dx:1] rtl:[--dx:-1] ${isAr ? 'font-cairo' : 'font-jakarta'}`}
     >
       <Device3DStyles />
-      <style>{EXTRAS_CSS}</style>
       <Defs3D />
       <Toaster darkMode={darkMode} />
 
-      <h1 className="sr-only">{t('crumbRepair')}</h1>
-      <HeroSlider
-        slides={HERO_SLIDES} loading={false} language={language} label={t('crumbRepair')}
-        crumbs={crumbs} renderSlide={renderSlide} t={t}
-      />
+      <main className="mx-auto max-w-7xl px-4 pb-12 pt-32 sm:px-6 lg:px-8">
+     
 
-      <section className={`hp-pattern ${darkMode ? 'hp-pattern-dark' : ''} py-10 sm:py-14 ${darkMode ? DARK_PAGE : 'bg-gray-50'}`}>
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div id="repair-form" className="mb-8 scroll-mt-24 sm:mb-10">
-            <SectionTitle
-              key={step}
-              darkMode={darkMode}
-              isAr={isAr}
-              label={`${t('step')} ${step} ${t('of')} ${STEP_DEFS.length}`}
-              title={t(head.title)}
-              subtitle={t(head.subtitle)}
-            />
+        <section aria-label={t('pageTitle')}>
+          <div id="repair-form" className="mb-6 scroll-mt-28 sm:mb-8">
+            <div key={step} className="hp-step" style={stepStyle}>
+              <SectionHead
+                eyebrow={`${t('step')} ${step} ${t('of')} ${STEP_DEFS.length}`}
+                title={t(head.title)}
+                subtitle={t(head.subtitle)}
+              />
+            </div>
           </div>
 
-          <div className="mb-8 pb-2 pe-2">
-            <ProgressSteps step={step} darkMode={darkMode} t={t} />
+          <div className="hp-rise mb-6 sm:mb-8" style={STAGGER[1]}>
+            <ProgressSteps step={step} t={t} />
           </div>
 
-          <div className="grid items-start gap-6 pb-2 pe-2 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-8">
-            <div aria-busy={isPending} className={`p-5 transition-opacity duration-150 sm:p-8 ${neoCard(darkMode, 'lg')} ${isPending ? 'opacity-70' : ''}`}>
-              <div key={step} className="hp-step">
+          <div className="hp-rise grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-8" style={STAGGER[2]}>
+            <div aria-busy={isPending} className={`nb-card p-4 transition-opacity duration-200 sm:p-6 ${isPending ? 'opacity-70' : ''}`}>
+              <div key={step} className="hp-step" style={stepStyle}>
                 {step === 1 && (
                   <>
-                    <DescribeStep initial={descRef.current} onChange={onDescChange} darkMode={darkMode} t={t} />
-                    <NavButtons showBack={false} onNext={handleNext} nextDisabled={!hasDesc} darkMode={darkMode} t={t} />
+                    <DescribeStep key={descSeed} initial={descRef.current} onChange={onDescChange} t={t} />
+                    <NavButtons showBack={false} onNext={handleNext} nextDisabled={!hasDesc} t={t} />
                   </>
                 )}
 
                 {step === 2 && (
                   <>
-                    {categoriesQ.isLoading ? (
-                      <Skeletons darkMode={darkMode} count={6} className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5" itemClassName="h-[150px]" />
+                    {categoriesQ.isPending ? (
+                      <CategoriesSkeleton label={t('loading')} />
                     ) : categoriesQ.isError ? (
                       <StateBox darkMode={darkMode} label={t('loadCategoriesFail')} onRetry={categoriesQ.refetch} retryLabel={t('tryAgain')} />
                     ) : categories.length === 0 ? (
                       <StateBox darkMode={darkMode} label={t('noCategories')} />
                     ) : (
                       <>
-                        <div className={`hp-cat ${darkMode ? 'hp-cat-dark' : ''}`}>
-                          <div role="group" aria-label={t('deviceType')} className="grid grid-cols-2 gap-4 pb-2 pe-2 sm:grid-cols-3 sm:gap-5">
-                            {pagedCategories.map((c, i) => (
-                              <div key={c.id} className="hp-rise relative min-w-0" style={STAGGER[i]}>
-                                <CategoryTile cat={c} active={category?.id === c.id} onSelect={setCategory} darkMode={darkMode} />
-                              </div>
-                            ))}
-                          </div>
+                        <div role="group" aria-label={t('deviceType')} className="grid grid-cols-2 gap-4 p-1 sm:grid-cols-3 sm:gap-5">
+                          {pagedCategories.map((c, i) => (
+                            <div key={c.id} className="hp-rise relative min-w-0" style={STAGGER[i]}>
+                              <CategoryTile cat={c} active={category?.id === c.id} onSelect={setCategory} darkMode={darkMode} />
+                            </div>
+                          ))}
                         </div>
-                        <Pager page={safeCatPage} totalPages={categoryPages} onChange={changeCatPage} pending={isPending} darkMode={darkMode} t={t} />
-                        {!category && <p role="status" className={`mt-6 text-sm font-bold ${muted}`}>{t('selectCategoryPrompt')}</p>}
+                        <Pager page={safeCatPage} totalPages={categoryPages} onChange={changeCatPage} pending={isPending} t={t} />
+                        {!category && <p role="status" className="nb-muted mt-6 text-sm font-bold">{t('selectCategoryPrompt')}</p>}
                       </>
                     )}
-                    <NavButtons onBack={toStep1} onNext={handleNext} nextDisabled={!category} darkMode={darkMode} t={t} />
+                    <NavButtons onBack={toStep1} onNext={handleNext} nextDisabled={!category} t={t} />
                   </>
                 )}
 
                 {step === 3 && (
                   <>
-                    {shopsQ.isLoading ? (
-                      <Skeletons darkMode={darkMode} count={4} className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6" itemClassName="h-44" />
+                    {shopsQ.isPending ? (
+                      <ShopsSkeleton label={t('loading')} />
                     ) : shopsQ.isError ? (
                       <StateBox darkMode={darkMode} label={t('loadShopsFail')} onRetry={shopsQ.refetch} retryLabel={t('tryAgain')} />
                     ) : shops.length === 0 ? (
                       <StateBox darkMode={darkMode} label={t('noShops')} />
                     ) : (
                       <>
-                        <div role="radiogroup" aria-label={t('chooseShopTitle')} className="grid grid-cols-1 gap-5 pb-2 pe-2 sm:grid-cols-2 sm:gap-6">
+                        <div role="radiogroup" aria-label={t('chooseShopTitle')} className="grid grid-cols-1 gap-5 p-1 sm:grid-cols-2 sm:gap-6">
                           {pagedShops.map((s, i) => (
                             <div key={s.id} className="hp-rise flex min-w-0 flex-col" style={STAGGER[i]}>
-                              <ShopOption shop={s} active={shop?.id === s.id} onSelect={setShop} onInfo={openInfo} darkMode={darkMode} language={language} t={t} />
+                              <ShopOption shop={s} active={shop?.id === s.id} onSelect={setShop} onInfo={openInfo} t={t} />
                             </div>
                           ))}
                         </div>
-                        <Pager page={safeShopPage} totalPages={shopPages} onChange={changeShopPage} pending={isPending} darkMode={darkMode} t={t} />
+                        <Pager page={safeShopPage} totalPages={shopPages} onChange={changeShopPage} pending={isPending} t={t} />
                       </>
                     )}
-                    <NavButtons onBack={toStep2} onNext={handleSend} nextLabel={t('sendRepairRequest')} nextDisabled={!shop} isLoading={submit.isPending} darkMode={darkMode} t={t} />
+                    <NavButtons onBack={toStep2} onNext={handleSend} nextLabel={t('sendRepairRequest')} nextDisabled={!shop} isLoading={submit.isPending} t={t} />
                   </>
                 )}
 
                 {step === 4 && (
                   <div className="flex flex-col items-center py-4 text-center" role="status">
                     <IsoIllustration type="marketplace" tone="emerald" onGreen={false} darkMode={darkMode} className="h-40 w-40" />
-                    <span aria-hidden="true" className={`${neoIcon(darkMode)} -mt-2 !h-14 !w-14 !rounded-xl`}><FiCheck className="h-7 w-7" strokeWidth={3} /></span>
-                    <h2 className={`mt-5 text-2xl font-extrabold uppercase sm:text-3xl ${ink}`}><span className={darkMode ? 'hp-hl-dark' : 'hp-hl'}>{t('requestSent')}</span></h2>
-                    <p className={`mt-5 text-sm font-medium ${muted}`}>{t('requestSentTo')}</p>
-                    <p className={`mt-1 text-lg font-extrabold uppercase ${ink}`}>{submittedShop?.name || t('defaultShopName')}</p>
-                    <p className={`text-sm font-medium ${muted}`}>
+                    <span className="hp-pop -mt-2 inline-flex"><IconTile Icon={FiCheck} tone="em" className="h-14 w-14" iconClassName="h-7 w-7" /></span>
+                    <h2 className="mt-5 text-2xl font-extrabold sm:text-3xl"><AccentTitle text={t('requestSent')} /></h2>
+                    <p className="nb-muted mt-4 text-sm font-medium">{t('requestSentTo')}</p>
+                    <p className="mt-1 text-lg font-extrabold">{submittedShop?.name || t('defaultShopName')}</p>
+                    <p className="nb-muted text-sm font-medium">
                       {submittedShop?.shopAddress?.city || t('defaultCity')}{submittedShop?.shopAddress?.state ? `, ${submittedShop.shopAddress.state}` : ''}
                     </p>
-                    <div className="mt-8 flex w-full max-w-md flex-col gap-3 pe-1 pb-1 sm:flex-row">
-                      <button type="button" onClick={reset} className={`${neoBtn(darkMode, false)} flex-1`}>{t('newRequest')}</button>
-                      <button type="button" onClick={toAccount} className={`${neoBtn(darkMode, true)} flex-1`}>
+                    <div className="mt-8 flex w-full max-w-md flex-col gap-3 sm:flex-row">
+                      <button type="button" onClick={reset} className={`${btnCls(false)} flex-1`}>{t('newRequest')}</button>
+                      <button type="button" onClick={toAccount} className={`${btnCls(true)} flex-1`}>
                         {t('viewMyRequests')}<FiArrowRight aria-hidden="true" className="h-4 w-4 rtl:rotate-180" />
                       </button>
                     </div>
@@ -1183,20 +958,22 @@ function RepairRequestContent({ darkMode }) {
               </div>
             </div>
 
-            <aside className="hidden space-y-6 lg:sticky lg:top-24 lg:block">
+            <aside className="hidden space-y-5 lg:sticky lg:top-28 lg:block">
               <InfoPanel step={step} darkMode={darkMode} t={t} />
-              <SummaryPanel category={category} shop={shop} darkMode={darkMode} t={t} />
+              <SummaryPanel category={category} shop={shop} t={t} />
             </aside>
           </div>
-        </div>
+        </section>
+      </main>
+
+      <section ref={journeyRef} aria-label={t('repairJourney')} className={`py-12 sm:py-16 ${LAZY_SECTION}`} style={journeyNear ? undefined : { minHeight: 640 }}>
+        {journeyNear && <JourneySection language={language} t={t} />}
       </section>
 
-      <JourneySection darkMode={darkMode} language={language} t={t} />
-
-      {infoShop && <ShopDetailModal key={infoShop.id} shop={infoShop} darkMode={darkMode} language={language} onClose={closeInfo} t={t} />}
+      {infoShop && <ShopDetailModal key={infoShop.id} shop={infoShop} language={language} onClose={closeInfo} t={t} />}
     </div>
   );
-}
+});
 
 export { queryClient };
 export default function RepairRequest(props) {

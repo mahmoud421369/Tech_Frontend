@@ -3,10 +3,12 @@ import React, {
 } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
-  FiArrowRight, FiChevronLeft, FiChevronRight, FiMapPin, FiPhone,
-  FiPlus, FiCheck, FiArrowUp, FiAlertCircle, FiPackage, FiTool,
+  FiArrowRight, FiMapPin, FiPhone, FiPlus, FiCheck, FiArrowUp, FiAlertCircle,
+  FiPackage, FiTool, FiShield, FiTag, FiHeart, FiAlertTriangle, FiRefreshCw, FiWifiOff,
+  FiSmartphone, FiTablet, FiWatch, FiHeadphones, FiCamera, FiTv, FiMonitor, FiSpeaker,
+  FiPrinter, FiHardDrive, FiWifi, FiCpu, FiBattery, FiMic, FiBox,
 } from 'react-icons/fi';
-import { RiStarFill, RiCookieLine } from 'react-icons/ri';
+import { RiStarFill, RiCookieLine, RiMacbookLine, RiGamepadLine } from 'react-icons/ri';
 import { useQuery, QueryClientProvider } from '@tanstack/react-query';
 import '../common/styles/style.css';
 import api from '../common/api/api';
@@ -15,24 +17,26 @@ import queryClient from '../common/utils/queryClient';
 import useAuthStore from '../common/store/Auth';
 import { recoverGoogleSession } from '../common/utils/googleSession';
 import { redirectFor } from '../common/utils/authSession';
+import {
+  markImg, isImgOk, isImgBad, warmImages, readLogoEntry, writeLogo, LOGO_STALE_MS,
+} from '../common/utils/imageCache';
 import { Hero } from '../components';
 import {
-  Defs3D, Device3DStyles, DeviceScene, Btn3D, useOnScreen, money,
+  Defs3D, Device3DStyles, Btn3D, useOnScreen, money,
 } from '../components/user/Device3D';
 import {
-  safeImageUrl, StorefrontIllustration, loadSwal, clean, useBackToTop, kindOfCategory,
+  safeImageUrl, StorefrontIllustration, loadSwal, clean, useBackToTop,
 } from '../components/user/ListingKit';
 import { EXTRAS_CSS, Toaster, toast } from '../components/user/UiExtras';
-import { IsoIllustration, isoCatKey } from '../components/user/IsoIllustrations';
+import { IsoIllustration } from '../components/user/IsoIllustrations';
 import enTranslations from '../locales/en/translation.json';
 import arTranslations from '../locales/ar/translation.json';
 import frTranslations from '../locales/fr/translation.json';
 import { useAppLanguage, languageDirection } from '../common/utils/useAppLanguage';
 
-const loadService = () => import('./Service');
+const loadService = () => import('../components/user/Service');
 const loadComponents = () => import('../components');
-const Service = lazy(loadService);
-const OffersSlider = lazy(() => loadComponents().then((m) => ({ default: m.OffersSlider })));
+const makeOffersSlider = () => lazy(() => loadComponents().then((m) => ({ default: m.OffersSlider })));
 
 const HOMEPAGE_TRANSLATIONS = {
   en: enTranslations.homepage,
@@ -43,33 +47,84 @@ const HOMEPAGE_TRANSLATIONS = {
 const LOCAL_TEXT = {
   en: {
     noAddress: 'No address',
-    youSave: 'Save {{value}}', originalPrice: 'Original price', discountedPrice: 'Price after discount', discountValue: 'Discount',
+    youSave: 'Save {{value}}', originalPrice: 'Original price', discountedPrice: 'Price after discount',
     onlyLeft: 'Only {{count}} left in stock',
-    homeCategoriesLabel: 'Categories', homeCategoriesTitle: 'Shop by category', homeCategoriesSub: 'Pick a category to see every device in it',
-    homeCategoryCta: 'View devices', homeItemSingular: 'item', homeItemPlural: 'items',
-    topRatedLabel: 'Top rated', topRatedTitle: 'Our top rated shops', topRatedSub: 'The shops customers rate highest, ranked by rating',
+    save: 'Save product', saved: 'Saved', noProductDescription: 'No description available',
+    homeCategoriesTitle: 'Shop by category', homeCategoriesSub: 'Pick a category to see every device in it',
+    homeItemSingular: 'item', homeItemPlural: 'items',
+    topRatedTitle: 'Our top rated shops', topRatedSub: 'The shops customers rate highest, ranked by rating',
     reviewsCount: '{{count}} reviews', outOf: '/ 5', rankLabel: 'Rank {{n}}',
     statOrders: 'Orders', statRepairs: 'Repairs', viewAllShops: 'View all shops',
+    dealsTitle: 'Hot deals', dealsSub: 'Devices with the biggest discounts right now',
+    viewAllDevices: 'View all devices', viewAll: 'View all',
+    tabsTitle: 'Latest devices', tabsSub: 'Fresh listings and customer favorites in one place',
+    shopsTrustTitle: 'Shops we work with', shopsTrustSub: 'Verified shops you can buy from and repair with',
+    condNew: 'New', condUsed: 'Used', condRefurb: 'Refurbished',
+    trustShopsTitle: 'Rated shops', trustShopsText: 'Ranked by real customer ratings',
+    trustRepairTitle: 'Easy repairs', trustRepairText: 'Book and follow it step by step',
+    trustOffersTitle: 'Fresh offers', trustOffersText: 'New deals added regularly',
+    trustNearbyTitle: 'Nearby shops', trustNearbyText: 'Find a shop close to you',
+    emptyProductsText: 'New devices are on the way. Check back soon or browse the full catalog.',
+    emptyShopsText: 'Shops are joining every day. Explore the shops page to see who is available.',
+    exploreDevices: 'Browse devices', exploreShops: 'Explore shops',
+    retry: 'Try again', loadFailedTitle: 'We could not load this section',
+    loadFailedText: 'Something went wrong on our side. Please try again in a moment.',
+    offlineTitle: 'You are offline', offlineText: 'Check your connection. We will refresh as soon as you are back online.',
+    backOnline: 'Back online',
   },
   ar: {
     noAddress: 'لا يوجد عنوان',
-    youSave: 'وفّر {{value}}', originalPrice: 'السعر الأصلي', discountedPrice: 'السعر بعد الخصم', discountValue: 'الخصم',
+    youSave: 'وفّر {{value}}', originalPrice: 'السعر الأصلي', discountedPrice: 'السعر بعد الخصم',
     onlyLeft: 'متبقي {{count}} فقط في المخزون',
-    homeCategoriesLabel: 'التصنيفات', homeCategoriesTitle: 'تسوّق حسب التصنيف', homeCategoriesSub: 'اختر تصنيفًا لعرض كل الأجهزة فيه',
-    homeCategoryCta: 'عرض الأجهزة', homeItemSingular: 'منتج', homeItemPlural: 'منتجات',
-    topRatedLabel: 'الأعلى تقييمًا', topRatedTitle: 'متاجرنا الأعلى تقييمًا', topRatedSub: 'المتاجر التي يقيّمها العملاء الأعلى، مرتبة حسب التقييم',
+    save: 'حفظ المنتج', saved: 'تم الحفظ', noProductDescription: 'لا يوجد وصف متاح',
+    homeCategoriesTitle: 'تسوّق حسب التصنيف', homeCategoriesSub: 'اختر تصنيفًا لعرض كل الأجهزة فيه',
+    homeItemSingular: 'منتج', homeItemPlural: 'منتجات',
+    topRatedTitle: 'متاجرنا الأعلى تقييمًا', topRatedSub: 'المتاجر التي يقيّمها العملاء الأعلى، مرتبة حسب التقييم',
     reviewsCount: '{{count}} تقييم', outOf: '/ 5', rankLabel: 'المركز {{n}}',
     statOrders: 'الطلبات', statRepairs: 'الإصلاحات', viewAllShops: 'عرض كل المتاجر',
+    dealsTitle: 'أقوى العروض', dealsSub: 'الأجهزة ذات أكبر الخصومات الآن',
+    viewAllDevices: 'عرض كل الأجهزة', viewAll: 'عرض الكل',
+    tabsTitle: 'أحدث الأجهزة', tabsSub: 'أحدث المنتجات وأكثرها تفضيلًا في مكان واحد',
+    shopsTrustTitle: 'متاجر نتعامل معها', shopsTrustSub: 'متاجر موثّقة يمكنك الشراء والإصلاح منها',
+    condNew: 'جديد', condUsed: 'مستعمل', condRefurb: 'مجدّد',
+    trustShopsTitle: 'متاجر مقيَّمة', trustShopsText: 'مرتبة حسب تقييمات العملاء',
+    trustRepairTitle: 'إصلاح سهل', trustRepairText: 'احجز وتابع خطوة بخطوة',
+    trustOffersTitle: 'عروض جديدة', trustOffersText: 'عروض تُضاف باستمرار',
+    trustNearbyTitle: 'متاجر قريبة', trustNearbyText: 'اعثر على متجر قريب منك',
+    emptyProductsText: 'أجهزة جديدة في الطريق. عاود الزيارة قريبًا أو تصفّح الكتالوج كاملًا.',
+    emptyShopsText: 'متاجر جديدة تنضم كل يوم. افتح صفحة المتاجر لتعرف من المتاح الآن.',
+    exploreDevices: 'تصفّح الأجهزة', exploreShops: 'استكشف المتاجر',
+    retry: 'حاول مرة أخرى', loadFailedTitle: 'تعذّر تحميل هذا القسم',
+    loadFailedText: 'حدث خطأ من جانبنا. حاول مرة أخرى بعد قليل.',
+    offlineTitle: 'لا يوجد اتصال بالإنترنت', offlineText: 'تحقق من اتصالك. سنحدّث الصفحة تلقائيًا فور عودة الاتصال.',
+    backOnline: 'عاد الاتصال',
   },
   fr: {
     noAddress: 'Aucune adresse',
-    youSave: 'Économisez {{value}}', originalPrice: "Prix d'origine", discountedPrice: 'Prix après remise', discountValue: 'Remise',
+    youSave: 'Économisez {{value}}', originalPrice: "Prix d'origine", discountedPrice: 'Prix après remise',
     onlyLeft: 'Plus que {{count}} en stock',
-    homeCategoriesLabel: 'Catégories', homeCategoriesTitle: 'Acheter par catégorie', homeCategoriesSub: 'Choisissez une catégorie pour voir tous ses appareils',
-    homeCategoryCta: 'Voir les appareils', homeItemSingular: 'article', homeItemPlural: 'articles',
-    topRatedLabel: 'Mieux notées', topRatedTitle: 'Nos boutiques les mieux notées', topRatedSub: 'Les boutiques les plus appréciées, classées par note',
+    save: 'Enregistrer le produit', saved: 'Enregistré', noProductDescription: 'Aucune description disponible',
+    homeCategoriesTitle: 'Acheter par catégorie', homeCategoriesSub: 'Choisissez une catégorie pour voir tous ses appareils',
+    homeItemSingular: 'article', homeItemPlural: 'articles',
+    topRatedTitle: 'Nos boutiques les mieux notées', topRatedSub: 'Les boutiques les plus appréciées, classées par note',
     reviewsCount: '{{count}} avis', outOf: '/ 5', rankLabel: 'Rang {{n}}',
     statOrders: 'Commandes', statRepairs: 'Réparations', viewAllShops: 'Voir toutes les boutiques',
+    dealsTitle: 'Bonnes affaires', dealsSub: 'Les appareils les plus remisés du moment',
+    viewAllDevices: 'Voir tous les appareils', viewAll: 'Voir tout',
+    tabsTitle: 'Derniers appareils', tabsSub: 'Nouveautés et coups de cœur des clients au même endroit',
+    shopsTrustTitle: 'Boutiques partenaires', shopsTrustSub: 'Boutiques vérifiées pour acheter et réparer',
+    condNew: 'Neuf', condUsed: 'Occasion', condRefurb: 'Reconditionné',
+    trustShopsTitle: 'Boutiques notées', trustShopsText: 'Classées par avis clients',
+    trustRepairTitle: 'Réparation simple', trustRepairText: 'Réservez et suivez étape par étape',
+    trustOffersTitle: 'Offres fraîches', trustOffersText: 'Nouvelles offres régulièrement',
+    trustNearbyTitle: 'Boutiques proches', trustNearbyText: 'Trouvez une boutique près de chez vous',
+    emptyProductsText: 'De nouveaux appareils arrivent bientôt. Revenez vite ou parcourez tout le catalogue.',
+    emptyShopsText: 'De nouvelles boutiques nous rejoignent chaque jour. Découvrez celles disponibles.',
+    exploreDevices: 'Parcourir les appareils', exploreShops: 'Découvrir les boutiques',
+    retry: 'Réessayer', loadFailedTitle: 'Impossible de charger cette section',
+    loadFailedText: 'Un problème est survenu de notre côté. Veuillez réessayer dans un instant.',
+    offlineTitle: 'Vous êtes hors ligne', offlineText: 'Vérifiez votre connexion. Nous actualiserons dès votre retour en ligne.',
+    backOnline: 'De retour en ligne',
   },
 };
 
@@ -88,47 +143,26 @@ const COOKIE_TEXT = {
   en: {
     title: 'We value your privacy',
     text: 'We use cookies to keep the site working, remember your preferences and understand how it is used. You can accept all, reject the optional ones, or choose what to allow.',
-    acceptAll: 'Accept all',
-    rejectAll: 'Reject optional',
-    customize: 'Customize',
-    back: 'Back',
-    save: 'Save choices',
-    necessary: 'Necessary',
-    necessaryDesc: 'Required for sign-in, your cart and security. Always on.',
-    analytics: 'Analytics',
-    analyticsDesc: 'Helps us understand how the site is used so we can improve it.',
-    marketing: 'Marketing',
-    marketingDesc: 'Used to show you offers and content that match your interests.',
+    acceptAll: 'Accept all', rejectAll: 'Reject optional', customize: 'Customize', back: 'Back', save: 'Save choices',
+    necessary: 'Necessary', necessaryDesc: 'Required for sign-in, your cart and security. Always on.',
+    analytics: 'Analytics', analyticsDesc: 'Helps us understand how the site is used so we can improve it.',
+    marketing: 'Marketing', marketingDesc: 'Used to show you offers and content that match your interests.',
   },
   ar: {
     title: 'خصوصيتك تهمنا',
     text: 'نستخدم ملفات تعريف الارتباط لتشغيل الموقع وتذكّر تفضيلاتك وفهم كيفية استخدامه. يمكنك قبول الكل أو رفض الاختيارية أو تحديد ما تسمح به.',
-    acceptAll: 'قبول الكل',
-    rejectAll: 'رفض الاختيارية',
-    customize: 'تخصيص',
-    back: 'رجوع',
-    save: 'حفظ الاختيارات',
-    necessary: 'الضرورية',
-    necessaryDesc: 'مطلوبة لتسجيل الدخول والسلة والأمان. مفعّلة دائمًا.',
-    analytics: 'التحليلات',
-    analyticsDesc: 'تساعدنا على فهم استخدام الموقع لتحسينه.',
-    marketing: 'التسويق',
-    marketingDesc: 'تُستخدم لعرض عروض ومحتوى يناسب اهتماماتك.',
+    acceptAll: 'قبول الكل', rejectAll: 'رفض الاختيارية', customize: 'تخصيص', back: 'رجوع', save: 'حفظ الاختيارات',
+    necessary: 'الضرورية', necessaryDesc: 'مطلوبة لتسجيل الدخول والسلة والأمان. مفعّلة دائمًا.',
+    analytics: 'التحليلات', analyticsDesc: 'تساعدنا على فهم استخدام الموقع لتحسينه.',
+    marketing: 'التسويق', marketingDesc: 'تُستخدم لعرض عروض ومحتوى يناسب اهتماماتك.',
   },
   fr: {
     title: 'Votre vie privée compte',
     text: "Nous utilisons des cookies pour faire fonctionner le site, mémoriser vos préférences et comprendre son utilisation. Vous pouvez tout accepter, refuser les cookies facultatifs ou choisir.",
-    acceptAll: 'Tout accepter',
-    rejectAll: 'Refuser les facultatifs',
-    customize: 'Personnaliser',
-    back: 'Retour',
-    save: 'Enregistrer mes choix',
-    necessary: 'Nécessaires',
-    necessaryDesc: 'Indispensables à la connexion, au panier et à la sécurité. Toujours actifs.',
-    analytics: 'Statistiques',
-    analyticsDesc: "Nous aident à comprendre l'utilisation du site pour l'améliorer.",
-    marketing: 'Marketing',
-    marketingDesc: 'Servent à vous proposer des offres et contenus adaptés à vos intérêts.',
+    acceptAll: 'Tout accepter', rejectAll: 'Refuser les facultatifs', customize: 'Personnaliser', back: 'Retour', save: 'Enregistrer mes choix',
+    necessary: 'Nécessaires', necessaryDesc: 'Indispensables à la connexion, au panier et à la sécurité. Toujours actifs.',
+    analytics: 'Statistiques', analyticsDesc: "Nous aident à comprendre l'utilisation du site pour l'améliorer.",
+    marketing: 'Marketing', marketingDesc: 'Servent à vous proposer des offres et contenus adaptés à vos intérêts.',
   },
 };
 
@@ -205,10 +239,10 @@ export const getCookieConsent = () => {
 };
 
 const NUMBER_LOCALE = { en: 'en', fr: 'fr', ar: 'ar-EG' };
-const padFormats = {};
-const pad2 = (language, n) => {
+const numFormats = {};
+const num = (language, n) => {
   const locale = NUMBER_LOCALE[language] || 'en';
-  const fmt = (padFormats[locale] ||= new Intl.NumberFormat(locale, { minimumIntegerDigits: 2, useGrouping: false }));
+  const fmt = (numFormats[locale] ||= new Intl.NumberFormat(locale));
   return fmt.format(n);
 };
 
@@ -242,18 +276,60 @@ const safeId = (id) => {
   return s && s.length <= 128 ? encodeURIComponent(s) : null;
 };
 
+const SAVED_KEY = 'nb_saved_products';
+const SAVED_MAX = 500;
+
+const readSaved = () => {
+  try {
+    const v = JSON.parse(window.localStorage.getItem(SAVED_KEY) || '[]');
+    if (!Array.isArray(v)) return [];
+    return v.filter((x) => (typeof x === 'string' && x.length <= 64) || Number.isFinite(x)).slice(-SAVED_MAX);
+  } catch {
+    return [];
+  }
+};
+
+const useSavedProducts = () => {
+  const [ids, setIds] = useState(readSaved);
+  const toggle = useCallback((id) => {
+    if ((typeof id !== 'string' || id.length > 64) && !Number.isFinite(id)) return;
+    setIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id].slice(-SAVED_MAX);
+      try { window.localStorage.setItem(SAVED_KEY, JSON.stringify(next)); } catch { }
+      return next;
+    });
+  }, []);
+  const set = useMemo(() => new Set(ids), [ids]);
+  return [set, toggle];
+};
+
+const useOnline = () => {
+  const [online, setOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine !== false);
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+  }, []);
+  return online;
+};
+
 const RAIL_LIMIT = 8;
-const CATEGORY_LIMIT = 6;
+const CATEGORY_LIMIT = 10;
 const LOW_STOCK_LIMIT = 5;
 const TOP_LIMIT = 4;
 const LATEST_SHOPS_LIMIT = 8;
+const DEAL_LIMIT = 4;
 const SHOPS_FETCH_SIZE = 100;
 const STATS_STALE = 5 * 60 * 1000;
+const WARM_LIMIT = 8;
 const EMPTY_LIST = [];
 const EMPTY_OBJECT = {};
-const STAGGER = Array.from({ length: LATEST_SHOPS_LIMIT }, (_, i) => ({ '--i': i }));
 const COUNT_FORMAT = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
 const round2 = (n) => Math.round(n * 100) / 100;
+const stagger = (i, step = 60, max = 5) => Math.min(i, max) * step;
+const retryPolicy = (count, err) => count < 2 && ![400, 401, 403, 404].includes(err?.response?.status);
 
 const STATS_SOURCES = {
   orders: ['/api/users/orders'],
@@ -262,10 +338,8 @@ const STATS_SOURCES = {
 const STATS_DONE = { orders: 'DELIVERED', repairs: 'DEVICE_DELIVERED' };
 const STATS_PAGE_SIZE = 1000;
 
-const SHOP_ROW =
-  'hide-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 pe-2 pt-1 ' +
-  'sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-2 sm:pt-0 lg:grid-cols-4 lg:gap-5';
-const SHOP_ITEM = 'w-[85%] min-w-0 flex-shrink-0 snap-start sm:w-auto';
+const GRID = 'grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-5';
+const SHOP_GRID = 'grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-4 lg:gap-5';
 
 const toCount = (v) => {
   if (v == null || v === '') return null;
@@ -290,8 +364,8 @@ const normalizeProduct = (p) => {
   else if (discountValue > 0 && apiType) finalPrice = computeFinal(price, apiType, discountValue);
   else if (legacy) finalPrice = round2(price * (1 - legacy / 100));
   const saving = round2(Math.max(0, price - finalPrice));
-  const rating = Number(p.rating ?? p.averageRating) || 0;
-  const reviews = Number(p.reviewCount ?? p.ratingCount ?? p.reviewsCount) || 0;
+  const rating = Math.min(Math.max(Number(p.rating ?? p.averageRating) || 0, 0), 5);
+  const reviews = Math.max(0, Number(p.reviewCount ?? p.ratingCount ?? p.reviewsCount) || 0);
   return {
     ...p,
     price,
@@ -304,21 +378,24 @@ const normalizeProduct = (p) => {
     discountValue: saving > 0 && discountValue > 0 ? discountValue : 0,
     imageUrl: safeImageUrl(p.imageUrl),
     _ts: Date.parse(p.createdAt || p.created_at) || 0,
-    _text: fold(`${p.name || ''} ${p.description || ''}`),
+    _cond: String(p.condition ?? p.productCondition ?? '').trim().toUpperCase(),
+    _snippet: snippet(p.description, 140),
   };
 };
 
-const latestOf = (catalog) => {
-  const timed = catalog.some((p) => p._ts > 0);
-  const ordered = timed ? [...catalog].sort((a, b) => b._ts - a._ts) : [...catalog].reverse();
-  return ordered.slice(0, RAIL_LIMIT);
+const newestFirst = (list, limit) => {
+  const timed = list.some((p) => p._ts > 0);
+  return (timed ? [...list].sort((a, b) => b._ts - a._ts) : [...list].reverse()).slice(0, limit);
 };
 
-const latestShopsOf = (shops) => {
-  const timed = shops.some((s) => s._ts > 0);
-  const ordered = timed ? [...shops].sort((a, b) => b._ts - a._ts) : [...shops].reverse();
-  return ordered.slice(0, LATEST_SHOPS_LIMIT);
-};
+const latestOf = (catalog) => newestFirst(catalog, RAIL_LIMIT);
+const latestShopsOf = (shops) => newestFirst(shops, LATEST_SHOPS_LIMIT);
+
+const dealsOf = (catalog) =>
+  catalog
+    .filter((p) => p.saving > 0 && p.stock !== 0)
+    .sort((a, b) => b.discount - a.discount || a.finalPrice - b.finalPrice)
+    .slice(0, DEAL_LIMIT);
 
 const topShopsOf = (shops) =>
   shops
@@ -399,51 +476,149 @@ const fetchShopStats = async (signal) => {
   };
 };
 
-let sharedIO;
-const seenCallbacks = new WeakMap();
-const observeOnce = (el, cb) => {
-  if (typeof IntersectionObserver === 'undefined') { cb(); return undefined; }
-  sharedIO ||= new IntersectionObserver((entries) => {
-    entries.forEach((e) => {
-      if (!e.isIntersecting) return;
-      const fn = seenCallbacks.get(e.target);
-      sharedIO.unobserve(e.target);
-      seenCallbacks.delete(e.target);
-      fn?.();
-    });
-  }, { rootMargin: '200px' });
-  seenCallbacks.set(el, cb);
-  sharedIO.observe(el);
-  return () => { sharedIO.unobserve(el); seenCallbacks.delete(el); };
+const CATEGORY_RULES = [
+  [/laptop|notebook|macbook|ordinateur|computer|\bpc\b|لابتوب|حاسوب|كمبيوتر/, RiMacbookLine, 'indigo'],
+  [/tablet|ipad|tablette|تابلت|لوحي|ايباد/, FiTablet, 'violet'],
+  [/watch|wearable|smartband|montre|ساعه|ساعة|سوار/, FiWatch, 'rose'],
+  [/speaker|haut-parleur|مكبر|سبيكر/, FiSpeaker, 'orange'],
+  [/head|earbud|earphone|airpod|buds|audio|casque|ecouteur|سماع|صوتي/, FiHeadphones, 'teal'],
+  [/microphone|\bmic\b|ميكروفون/, FiMic, 'rose'],
+  [/camera|photo|lens|drone|appareil photo|كاميرا|تصوير/, FiCamera, 'amber'],
+  [/television|\btv\b|smart tv|\btele\b|تلفزيون|تلفاز/, FiTv, 'sky'],
+  [/monitor|screen|display|ecran|شاشه|شاشة|شاشات/, FiMonitor, 'cyan'],
+  [/gam|console|playstation|xbox|nintendo|joystick|controller|jeux|jeu\b|العاب/, RiGamepadLine, 'violet'],
+  [/print|scanner|طابع|imprim/, FiPrinter, 'slate'],
+  [/router|network|wifi|wi-fi|modem|routeur|reseau|راوتر|شبكه|شبكة/, FiWifi, 'cyan'],
+  [/storage|drive|\bssd\b|\bhdd\b|\busb\b|flash|memory|disk|stockage|disque|memoire|ذاكره|ذاكرة|تخزين/, FiHardDrive, 'slate'],
+  [/charger|cable|power|battery|adapter|chargeur|batterie|شاحن|كابل|بطاريه|بطارية|باور/, FiBattery, 'amber'],
+  [/cpu|gpu|processor|motherboard|\bram\b|component|composant|معالج|قطع/, FiCpu, 'indigo'],
+  [/accessor|case|cover|housse|coque|اكسسوار|ملحقات|جراب|حافظه|حافظة/, FiBox, 'orange'],
+  [/phone|mobile|smartphone|iphone|android|galaxy|telephone|portable|هاتف|جوال|موبايل|محمول|تليفون/, FiSmartphone, 'emerald'],
+];
+
+const CATEGORY_DEFAULT = [FiBox, 'emerald'];
+const categoryIconCache = new Map();
+const categoryIconFor = (name) => {
+  const key = fold(name);
+  if (categoryIconCache.has(key)) return categoryIconCache.get(key);
+  const hit = CATEGORY_RULES.find(([re]) => re.test(key));
+  const out = hit ? [hit[1], hit[2]] : CATEGORY_DEFAULT;
+  categoryIconCache.set(key, out);
+  return out;
 };
 
-const useSeen = () => {
+const TILE_TONES = {
+  emerald: {
+    light: 'from-emerald-50 to-emerald-100 text-emerald-600 border-emerald-200 group-hover:border-emerald-500',
+    dark: 'from-emerald-400/20 to-emerald-400/5 text-emerald-300 border-white/10 group-hover:border-emerald-300',
+  },
+  sky: {
+    light: 'from-sky-50 to-sky-100 text-sky-600 border-sky-200 group-hover:border-sky-500',
+    dark: 'from-sky-400/20 to-sky-400/5 text-sky-300 border-white/10 group-hover:border-sky-300',
+  },
+  violet: {
+    light: 'from-violet-50 to-violet-100 text-violet-600 border-violet-200 group-hover:border-violet-500',
+    dark: 'from-violet-400/20 to-violet-400/5 text-violet-300 border-white/10 group-hover:border-violet-300',
+  },
+  amber: {
+    light: 'from-amber-50 to-amber-100 text-amber-600 border-amber-200 group-hover:border-amber-500',
+    dark: 'from-amber-400/20 to-amber-400/5 text-amber-300 border-white/10 group-hover:border-amber-300',
+  },
+  rose: {
+    light: 'from-rose-50 to-rose-100 text-rose-600 border-rose-200 group-hover:border-rose-500',
+    dark: 'from-rose-400/20 to-rose-400/5 text-rose-300 border-white/10 group-hover:border-rose-300',
+  },
+  teal: {
+    light: 'from-teal-50 to-teal-100 text-teal-600 border-teal-200 group-hover:border-teal-500',
+    dark: 'from-teal-400/20 to-teal-400/5 text-teal-300 border-white/10 group-hover:border-teal-300',
+  },
+  indigo: {
+    light: 'from-indigo-50 to-indigo-100 text-indigo-600 border-indigo-200 group-hover:border-indigo-500',
+    dark: 'from-indigo-400/20 to-indigo-400/5 text-indigo-300 border-white/10 group-hover:border-indigo-300',
+  },
+  orange: {
+    light: 'from-orange-50 to-orange-100 text-orange-600 border-orange-200 group-hover:border-orange-500',
+    dark: 'from-orange-400/20 to-orange-400/5 text-orange-300 border-white/10 group-hover:border-orange-300',
+  },
+  cyan: {
+    light: 'from-cyan-50 to-cyan-100 text-cyan-600 border-cyan-200 group-hover:border-cyan-500',
+    dark: 'from-cyan-400/20 to-cyan-400/5 text-cyan-300 border-white/10 group-hover:border-cyan-300',
+  },
+  slate: {
+    light: 'from-slate-50 to-slate-200 text-slate-600 border-slate-200 group-hover:border-slate-500',
+    dark: 'from-slate-400/20 to-slate-400/5 text-slate-300 border-white/10 group-hover:border-slate-300',
+  },
+};
+
+const makeObserveOnce = (options) => {
+  let io;
+  const callbacks = new WeakMap();
+  return (el, cb) => {
+    if (typeof IntersectionObserver === 'undefined') { cb(); return undefined; }
+    io ||= new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        const fn = callbacks.get(e.target);
+        io.unobserve(e.target);
+        callbacks.delete(e.target);
+        fn?.();
+      }
+    }, options);
+    callbacks.set(el, cb);
+    io.observe(el);
+    return () => { io.unobserve(el); callbacks.delete(el); };
+  };
+};
+
+const observeOnce = makeObserveOnce({ rootMargin: '200px' });
+const observeNear = makeObserveOnce({ rootMargin: '600px 0px' });
+const observeReveal = makeObserveOnce({ rootMargin: '0px 0px -8% 0px', threshold: 0.01 });
+
+const useInView = (observe) => {
   const ref = useRef(null);
   const [seen, setSeen] = useState(false);
   useEffect(() => {
     if (seen || !ref.current) return undefined;
-    return observeOnce(ref.current, () => setSeen(true));
-  }, [seen]);
+    return observe(ref.current, () => setSeen(true));
+  }, [seen, observe]);
   return [ref, seen];
 };
+
+const useSeen = () => useInView(observeOnce);
+
+const Reveal = memo(({ as: Tag = 'div', variant = 'up', delay = 0, className = '', children, ...rest }) => {
+  const [ref, shown] = useInView(observeReveal);
+  return (
+    <Tag
+      ref={ref}
+      data-rv={variant}
+      data-shown={shown ? '1' : '0'}
+      style={delay ? { '--d': `${delay}ms` } : undefined}
+      className={`hp-rv ${className}`}
+      {...rest}
+    >
+      {children}
+    </Tag>
+  );
+});
 
 const useShopLogo = (shop) => {
   const [ref, seen] = useSeen();
   const id = shop.id;
   const listLogo = shop._logo;
+  const entry = listLogo ? undefined : readLogoEntry(id);
   const q = useQuery({
     queryKey: ['shop', id],
     queryFn: async ({ signal }) => {
-      try {
-        return (await api.get(`/api/shops/${encodeURIComponent(id)}`, { signal })).data;
-      } catch (e) {
-        if (signal?.aborted) throw e;
-        return null;
-      }
+      const res = await api.get(`/api/shops/${encodeURIComponent(id)}`, { signal });
+      const src = shopLogoSrc(res.data);
+      writeLogo(id, src);
+      return src;
     },
-    select: shopLogoSrc,
+    initialData: entry ? entry.u : undefined,
+    initialDataUpdatedAt: entry ? entry.t : undefined,
     enabled: seen && !listLogo && id != null,
-    staleTime: STATS_STALE,
+    staleTime: LOGO_STALE_MS,
     retry: false,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
@@ -451,89 +626,100 @@ const useShopLogo = (shop) => {
   return [ref, listLogo || q.data || null];
 };
 
-const LAZY_SECTION = '[content-visibility:auto] [contain-intrinsic-size:auto_760px]';
+const LAZY_SECTION =
+  '[content-visibility:auto] [contain-intrinsic-size:auto_640px] transition-colors duration-500 motion-reduce:transition-none';
 
 const DARK_PAGE = 'bg-[#141414]';
+const DARK_ALT = 'bg-[#1a1a1a]';
+const bgOf = (d, alt) => (d ? (alt ? DARK_ALT : DARK_PAGE) : alt ? 'bg-white' : 'bg-gray-50');
 
 const HP_CSS = `
-  .hp-hl, .hp-hl-dark, .hp-hl-gold, .hp-hl-gold-dark {
-    padding-bottom: 0.2em;
-    background-position: left bottom;
-    background-repeat: no-repeat;
-    background-size: 100% 0.3em;
-    -webkit-box-decoration-break: clone;
-    box-decoration-break: clone;
+  html[data-hp-theme] { --hp-ease: cubic-bezier(.22, 1, .36, 1); }
+  .hp-rv {
+    transition:
+      opacity .5s var(--hp-ease, cubic-bezier(.22, 1, .36, 1)) var(--d, 0ms),
+      transform .5s var(--hp-ease, cubic-bezier(.22, 1, .36, 1)) var(--d, 0ms);
   }
-  .hp-hl      { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2310b981' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
-  .hp-hl-dark { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2339ff88' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
-  .hp-hl-gold { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%23f59e0b' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
-  .hp-hl-gold-dark { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%23facc15' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
-  @keyframes hpConsentIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
-  .hp-consent-in { animation: hpConsentIn 0.22s cubic-bezier(.2,.8,.2,1) both; }
-  @keyframes hpRise { from { opacity: 0; transform: translateY(22px) scale(.97); } to { opacity: 1; transform: none; } }
-  .hp-rise { animation: hpRise 0.42s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 35ms); }
-  .hp-glow {
-    background-image:
-      radial-gradient(circle at 6% 0%, rgba(52, 211, 153, .2), transparent 38%),
-      radial-gradient(circle at 96% 100%, rgba(249, 115, 22, .1), transparent 36%);
+  .hp-rv[data-shown="0"] { opacity: 0; transform: translate3d(0, 20px, 0); will-change: opacity, transform; }
+  .hp-rv[data-shown="0"][data-rv="fade"]  { transform: translate3d(0, 12px, 0); }
+  .hp-rv[data-shown="0"][data-rv="scale"] { transform: translate3d(0, 18px, 0) scale(.95); }
+  .hp-rv[data-shown="0"][data-rv="start"] { transform: translate3d(-28px, 0, 0); }
+  .hp-rv[data-shown="0"][data-rv="end"]   { transform: translate3d(28px, 0, 0); }
+  [dir="rtl"] .hp-rv[data-shown="0"][data-rv="start"] { transform: translate3d(28px, 0, 0); }
+  [dir="rtl"] .hp-rv[data-shown="0"][data-rv="end"]   { transform: translate3d(-28px, 0, 0); }
+  .hp-rv[data-shown="1"] { opacity: 1; transform: none; }
+
+  @keyframes hpHero { from { opacity: 0; transform: translate3d(0, 14px, 0); } to { opacity: 1; transform: none; } }
+  .hp-hero-in { animation: hpHero .55s var(--hp-ease, cubic-bezier(.22, 1, .36, 1)) backwards; }
+  .hp-tile { animation: hpHero .5s var(--hp-ease, cubic-bezier(.22, 1, .36, 1)) backwards; animation-delay: calc(var(--i, 0) * 45ms); }
+  @keyframes hpFade { from { opacity: 0; } to { opacity: 1; } }
+  .hp-fade-in { animation: hpFade .35s ease-out both; }
+  @keyframes hpConsentIn { from { opacity: 0; transform: translateY(16px) scale(.98); } to { opacity: 1; transform: none; } }
+  .hp-consent-in { animation: hpConsentIn 0.32s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes hpBanner { from { opacity: 0; transform: translate(-50%, -12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+  .hp-banner-in { animation: hpBanner .3s var(--hp-ease, cubic-bezier(.22, 1, .36, 1)) both; }
+
+  @keyframes hpFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+  @keyframes hpTwinkle { 0%, 100% { opacity: .35; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.1); } }
+  .hp-float { animation: hpFloat 4.2s ease-in-out infinite; }
+  .hp-float-slow { animation: hpFloat 5.6s ease-in-out infinite; animation-delay: -1.6s; }
+  .hp-twinkle { transform-box: fill-box; transform-origin: center; animation: hpTwinkle 2.8s ease-in-out infinite; }
+  .hp-twinkle-b { transform-box: fill-box; transform-origin: center; animation: hpTwinkle 2.8s ease-in-out infinite; animation-delay: -1.4s; }
+
+  .hp-progress {
+    display: none; position: fixed; inset-block-start: 0; inset-inline: 0; height: 3px; z-index: 1000;
+    background: var(--sb-thumb, #34d399); transform: scaleX(0); transform-origin: 0 50%; pointer-events: none;
   }
-  .hp-glow-dark {
-    background-image:
-      radial-gradient(circle at 6% 0%, rgba(57, 255, 136, .09), transparent 38%),
-      radial-gradient(circle at 96% 100%, rgba(249, 115, 22, .07), transparent 36%);
+  [dir="rtl"] .hp-progress { transform-origin: 100% 50%; }
+  @keyframes hpProgress { to { transform: scaleX(1); } }
+  @supports (animation-timeline: scroll()) {
+    .hp-progress { display: block; animation: hpProgress linear both; animation-timeline: scroll(root block); }
   }
-  .hp-pattern {
-    --p1: rgba(4, 38, 26, .13);
-    --p2: rgba(16, 185, 129, .12);
-    background-image:
-      radial-gradient(circle at 2px 2px, var(--p1) 1.6px, transparent 1.8px),
-      repeating-linear-gradient(135deg, var(--p2) 0 2px, transparent 2px 18px);
-    background-size: 22px 22px, auto;
+  @media (prefers-reduced-motion: no-preference) {
+    html[data-hp-theme] { scroll-behavior: smooth; }
   }
-  .hp-pattern-dark { --p1: rgba(57, 255, 136, .14); --p2: rgba(57, 255, 136, .06); }
-  .hp-media {
-    --m-dot: rgba(4, 38, 26, .14);
-    background-image: radial-gradient(circle at 1px 1px, var(--m-dot) 1px, transparent 1.4px);
-    background-size: 14px 14px;
+
+  html[data-hp-theme] { --sb-thumb: #34d399; --sb-thumb-hover: #6ee7b7; --sb-track: #e8ebe9; color-scheme: light; }
+  html[data-hp-theme="dark"] { --sb-thumb: #39ff88; --sb-thumb-hover: #86ffb4; --sb-track: #1e1e1e; color-scheme: dark; }
+  @supports (scrollbar-color: auto) {
+    html[data-hp-theme], .hp-sb { scrollbar-width: thin; scrollbar-color: var(--sb-thumb) var(--sb-track); }
   }
-  .hp-media-dark { --m-dot: rgba(57, 255, 136, .16); }
-  .hp-cat { --dx: 1; --c-card: #ffffff; --c-ink: #04261a; --c-line: #04261a; --c-acc: #10b981; --c-on: #04261a; }
-  [dir="rtl"] .hp-cat { --dx: -1; }
-  .hp-cat-dark { --c-card: #2a2a2a; --c-ink: #ffffff; --c-line: #000000; --c-acc: #39ff88; --c-on: #022c22; }
-  .hp-dot {
-    display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
-    background: var(--c-card); color: var(--c-ink); cursor: pointer;
-    border: 3px solid var(--c-line); border-radius: 1rem;
-    box-shadow: calc(var(--dx) * 5px) 5px 0 0 var(--c-line);
-    transition: transform .2s ease, box-shadow .2s ease, background-color .2s ease, color .2s ease;
+  html[data-hp-theme]::-webkit-scrollbar { width: 12px; height: 12px; }
+  .hp-sb::-webkit-scrollbar { width: 8px; height: 8px; }
+  html[data-hp-theme]::-webkit-scrollbar-track, .hp-sb::-webkit-scrollbar-track { background: var(--sb-track); }
+  html[data-hp-theme]::-webkit-scrollbar-corner, .hp-sb::-webkit-scrollbar-corner { background: var(--sb-track); }
+  html[data-hp-theme]::-webkit-scrollbar-thumb, .hp-sb::-webkit-scrollbar-thumb {
+    background: var(--sb-thumb); border-radius: 9999px; border: 2px solid var(--sb-track);
+  }
+  html[data-hp-theme]::-webkit-scrollbar-thumb:hover, .hp-sb::-webkit-scrollbar-thumb:hover { background: var(--sb-thumb-hover); }
+  .hp-shine, .hp-shine-g { position: relative; overflow: hidden; isolation: isolate; }
+  .hp-shine::after, .hp-shine-g::after {
+    content: ''; position: absolute; inset-block: 0; inset-inline-start: -70%; width: 45%; pointer-events: none;
+    background: linear-gradient(100deg, transparent, rgba(255,255,255,.38), transparent);
+    transform: skewX(-20deg) translateX(0);
+    transition: transform .65s var(--hp-ease, cubic-bezier(.22, 1, .36, 1));
   }
   @media (hover: hover) {
-    .hp-dot:hover {
-      background: var(--c-acc); color: var(--c-on);
-      transform: translateY(-4px);
-      box-shadow: calc(var(--dx) * 7px) 9px 0 0 var(--c-line);
-    }
+    .hp-shine:hover:not(:disabled)::after, .group:hover .hp-shine-g::after { transform: skewX(-20deg) translateX(480%); }
+    [dir="rtl"] .hp-shine:hover:not(:disabled)::after, [dir="rtl"] .group:hover .hp-shine-g::after { transform: skewX(20deg) translateX(-480%); }
   }
-  .hp-dot:active { transform: translateY(2px); box-shadow: calc(var(--dx) * 2px) 2px 0 0 var(--c-line); }
-  .hp-dot:focus-visible { outline: 3px solid var(--c-acc); outline-offset: 4px; }
-  html[data-hp-theme] { --sb-thumb: #34d399; --sb-thumb-hover: #6ee7b7; --sb-track: #e8ebe9; --sb-ink: #022c22; }
-  html[data-hp-theme="dark"] { --sb-thumb: #39ff88; --sb-thumb-hover: #86ffb4; --sb-track: #1e1e1e; --sb-ink: #000000; }
-  html[data-hp-theme], .hp-sb { scrollbar-width: thin; scrollbar-color: var(--sb-thumb) var(--sb-track); }
-  @supports selector(::-webkit-scrollbar) {
-    html[data-hp-theme], .hp-sb { scrollbar-width: auto; scrollbar-color: auto; }
-    html[data-hp-theme]::-webkit-scrollbar { width: 14px; height: 14px; }
-    .hp-sb::-webkit-scrollbar { width: 10px; height: 10px; }
-    html[data-hp-theme]::-webkit-scrollbar-track, .hp-sb::-webkit-scrollbar-track { background: var(--sb-track); }
-    html[data-hp-theme]::-webkit-scrollbar-track:vertical, .hp-sb::-webkit-scrollbar-track:vertical { border-left: 3px solid var(--sb-ink); }
-    html[data-hp-theme]::-webkit-scrollbar-track:horizontal, .hp-sb::-webkit-scrollbar-track:horizontal { border-top: 3px solid var(--sb-ink); }
-    html[data-hp-theme]::-webkit-scrollbar-thumb, .hp-sb::-webkit-scrollbar-thumb { background: var(--sb-thumb); border: 3px solid var(--sb-ink); }
-    html[data-hp-theme]::-webkit-scrollbar-thumb:hover, .hp-sb::-webkit-scrollbar-thumb:hover { background: var(--sb-thumb-hover); }
-    html[data-hp-theme]::-webkit-scrollbar-corner, .hp-sb::-webkit-scrollbar-corner { background: var(--sb-track); }
+  @keyframes hpPop { 0% { transform: scale(.3); opacity: 0; } 60% { transform: scale(1.25); opacity: 1; } 100% { transform: scale(1); } }
+  .hp-pop { animation: hpPop .35s cubic-bezier(.34, 1.56, .64, 1) both; }
+  @keyframes hpHeart { 0% { transform: scale(1); } 40% { transform: scale(1.35); } 100% { transform: scale(1); } }
+  .hp-heart { animation: hpHeart .3s ease-out; }
+  @keyframes hpShimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+  .hp-shimmer {
+    background-image: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.22) 50%, transparent 100%);
+    background-size: 200% 100%; animation: hpShimmer 1.3s linear infinite;
   }
   @media (prefers-reduced-motion: reduce) {
-    .hp-consent-in, .hp-rise { animation: none; }
-    .hp-dot { transition: none; }
-    .hp-dot:hover, .hp-dot:active { transform: none; }
+    .hp-pop, .hp-shimmer, .hp-heart { animation: none; }
+    .hp-float, .hp-float-slow, .hp-twinkle, .hp-twinkle-b { animation: none; }
+    .hp-shine::after, .hp-shine-g::after { transition: none; }
+    .hp-consent-in, .hp-hero-in, .hp-fade-in, .hp-progress, .hp-tile, .hp-banner-in { animation: none; }
+    .hp-progress { display: none; }
+    .hp-rv { transition: none; }
+    .hp-rv[data-shown="0"] { opacity: 1; transform: none; will-change: auto; }
   }
 `;
 let hpStylesInjected = false;
@@ -547,146 +733,236 @@ const injectHpStylesOnce = () => {
 };
 injectHpStylesOnce();
 
-const NEO_THEME = {
-  light: '[--dx:1] rtl:[--dx:-1] [--ink:#022c22] [--sh:#022c22] [--acc:#34d399]',
-  dark: '[--dx:1] rtl:[--dx:-1] [--ink:#000] [--sh:#000] [--acc:#39ff88]',
-};
-const NEO_SURFACE = { light: 'bg-white', dark: 'bg-[#2a2a2a]' };
-const NEO_BOX = {
-  lg: 'flex flex-col rounded-2xl border-[3px] border-[color:var(--ink)] [box-shadow:calc(var(--dx)*8px)_8px_0_0_var(--sh)]',
-  sm: 'flex flex-col rounded-2xl border-[3px] border-[color:var(--ink)] [box-shadow:calc(var(--dx)*6px)_6px_0_0_var(--sh)]',
-};
-const NEO_PRESS =
-  'transition-[transform,box-shadow] duration-200 motion-reduce:transition-none ' +
-  '[@media(hover:hover)]:hover:-translate-y-1 [@media(hover:hover)]:hover:[box-shadow:calc(var(--dx)*8px)_10px_0_0_var(--sh)] ' +
-  'active:translate-y-[2px] active:translate-x-[calc(var(--dx)*2px)] active:[box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)] ' +
-  'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-[color:var(--acc)]';
-const neoCard = (darkMode, size = 'lg', press = false) => {
-  const k = darkMode ? 'dark' : 'light';
-  return `${NEO_THEME[k]} ${NEO_BOX[size]} ${NEO_SURFACE[k]}${press ? ` ${NEO_PRESS}` : ''}`;
+const THEME_VARS = {
+  light: '[--acc:#10b981] [--acc-ink:#022c22]',
+  dark: '[--acc:#39ff88] [--acc-ink:#022c22]',
 };
 
-const GOLD_THEME = {
-  light: '[--dx:1] rtl:[--dx:-1] [--ink:#422006] [--sh:#422006] [--acc:#fbbf24]',
-  dark: '[--dx:1] rtl:[--dx:-1] [--ink:#000] [--sh:#000] [--acc:#facc15]',
-};
-const GOLD_SURFACE = { light: 'bg-amber-50', dark: 'bg-[#2a2a2a]' };
-const goldCard = (darkMode, press = false) => {
-  const k = darkMode ? 'dark' : 'light';
-  return `${GOLD_THEME[k]} ${NEO_BOX.sm} ${GOLD_SURFACE[k]}${press ? ` ${NEO_PRESS}` : ''}`;
-};
+const FOCUS = 'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
+const BTN =
+  `hp-shine inline-flex min-h-11 cursor-pointer select-none items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-extrabold tracking-[0.01em] ` +
+  `transition-[transform,box-shadow,background-color,border-color,color,filter] duration-200 ease-[cubic-bezier(.22,1,.36,1)] ` +
+  `[@media(hover:hover)]:hover:-translate-y-0.5 active:translate-y-0 active:scale-[.96] motion-reduce:transition-none motion-reduce:transform-none ` +
+  `disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none ${FOCUS}`;
+const BTN_PRIMARY = `${BTN} bg-[color:var(--acc)] text-[color:var(--acc-ink)] shadow-[0_6px_16px_-8px_var(--acc)] [@media(hover:hover)]:hover:shadow-[0_12px_24px_-10px_var(--acc)] hover:brightness-105`;
+const btnGhost = (d) => `${BTN} border-2 ${d ? 'border-white/20 text-white hover:border-[#39ff88] hover:bg-white/5' : 'border-gray-300 text-emerald-950 hover:border-emerald-500 hover:bg-emerald-50'}`;
 
-const NEO_ICON =
-  'inline-flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-lg border-2 border-[color:var(--ink)] bg-[color:var(--acc)] text-emerald-950 ' +
-  '[box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)] transition-[transform,box-shadow] duration-150 ' +
-  'active:translate-y-[3px] active:translate-x-[calc(var(--dx)*3px)] active:[box-shadow:0_0_0_0_var(--sh)] ' +
-  'disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
-const neoIcon = (darkMode) => `${NEO_THEME[darkMode ? 'dark' : 'light']} ${NEO_ICON}`;
+const ICON_BTN =
+  `inline-flex flex-shrink-0 cursor-pointer items-center justify-center rounded-full transition-[transform,background-color] duration-200 ease-[cubic-bezier(.22,1,.36,1)] ` +
+  `active:scale-90 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-40 ${FOCUS}`;
 
-const COOKIE_BTN =
-  'inline-flex min-h-11 w-full cursor-pointer items-center justify-center rounded-xl border-[3px] border-[color:var(--ink)] px-4 py-3 text-sm font-extrabold uppercase ' +
-  '[box-shadow:calc(var(--dx)*4px)_4px_0_0_var(--sh)] transition-[transform,box-shadow] duration-150 ' +
-  'active:translate-y-[4px] active:translate-x-[calc(var(--dx)*4px)] active:[box-shadow:0_0_0_0_var(--sh)] ' +
-  'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
+const lineOf = (d) => (d ? 'border-white/10' : 'border-gray-200');
+const inkOf = (d) => (d ? 'text-white' : 'text-emerald-950');
+const mutedOf = (d) => (d ? 'text-neutral-400' : 'text-gray-600');
+const bodyOf = (d) => (d ? 'text-neutral-300' : 'text-gray-700');
+const skBase = (d) => (d ? 'bg-[#2a2a2a]' : 'bg-gray-200/70');
 
-const NEO_BTN =
-  'inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border-[3px] border-[color:var(--ink)] px-4 py-2.5 text-sm font-extrabold uppercase ' +
-  '[box-shadow:calc(var(--dx)*4px)_4px_0_0_var(--sh)] transition-[transform,box-shadow] duration-150 motion-reduce:transition-none ' +
-  'active:translate-y-[4px] active:translate-x-[calc(var(--dx)*4px)] active:[box-shadow:0_0_0_0_var(--sh)] ' +
-  'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
-const neoBtn = (darkMode, active) => {
-  const k = darkMode ? 'dark' : 'light';
-  const tone = active ? 'bg-[color:var(--acc)] text-emerald-950' : `${NEO_SURFACE[k]} ${darkMode ? 'text-white' : 'text-emerald-950'}`;
-  return `${NEO_THEME[k]} ${NEO_BTN} ${tone}`;
-};
+const cardCls = (d) =>
+  'group relative flex h-full min-w-0 flex-col overflow-hidden rounded-xl border ' +
+  'transition-[transform,box-shadow,border-color] duration-200 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none ' +
+  '[@media(hover:hover)]:hover:-translate-y-1 [@media(hover:hover)]:hover:shadow-xl ' +
+  (d ? 'border-white/10 bg-[#1e1e1e] hover:border-[#39ff88]' : 'border-gray-200 bg-white hover:border-emerald-500');
 
-const PRODUCT_IMG_W = 400;
-const PRODUCT_IMG_H = 320;
-const mediaBg = (darkMode) => (darkMode ? 'bg-[#1e1e1e]' : 'bg-white');
-const productMediaBg = (darkMode) => (darkMode ? 'hp-media hp-media-dark bg-[#1e1e1e]' : 'bg-white');
+const productCardCls = (d) =>
+  'group relative flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border ' +
+  'transition-[transform,border-color,background-color,box-shadow] duration-300 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none ' +
+  'active:scale-[.98] [@media(hover:hover)]:hover:-translate-y-1 [@media(hover:hover)]:hover:shadow-xl [@media(hover:hover)]:hover:shadow-black/10 ' +
+  (d
+    ? 'border-white/10 bg-[#1e1e1e] text-white [@media(hover:hover)]:hover:border-[#39ff88]'
+    : 'border-gray-200 bg-white text-emerald-950 [@media(hover:hover)]:hover:border-emerald-500/60 [@media(hover:hover)]:hover:bg-emerald-50/40');
 
-const PRODUCT_MEDIA =
-  'relative aspect-[5/4] w-full flex-shrink-0 overflow-hidden border-b-[3px] border-[color:var(--ink)] [contain:layout_paint]';
-const PRODUCT_ADD_BTN =
-  'relative z-10 inline-flex h-11 w-11 flex-shrink-0 cursor-pointer items-center justify-center rounded-xl border-2 border-[color:var(--ink)] bg-[color:var(--acc)] text-emerald-950 ' +
-  '[box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)] transition-[transform,box-shadow] duration-150 motion-reduce:transition-none ' +
-  'active:translate-y-[3px] active:translate-x-[calc(var(--dx)*3px)] active:[box-shadow:0_0_0_0_var(--sh)] ' +
-  'disabled:cursor-not-allowed disabled:opacity-40 disabled:[box-shadow:none] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
+const PRODUCT_IMG_W = 480;
+const PRODUCT_IMG_H = 384;
+const PRODUCT_MEDIA = 'relative aspect-[5/4] w-full flex-shrink-0 overflow-hidden bg-white [contain:layout_paint]';
 const PRODUCT_LINK =
   'outline-none after:absolute after:inset-0 after:z-[1] focus-visible:after:outline focus-visible:after:outline-[3px] ' +
   'focus-visible:after:-outline-offset-4 focus-visible:after:outline-[color:var(--acc)]';
 
-const splitHeading = (text) => {
-  const str = String(text ?? '');
-  if (str.includes('**')) return str.split('**').map((part, i) => ({ part, hl: i % 2 === 1 }));
-  const m = str.match(/^(.*[,،]\s*)([^,،]+)$/);
-  if (m) return [{ part: m[1], hl: false }, { part: m[2], hl: true }];
-  const words = str.split(' ');
-  if (words.length < 2) return [{ part: str, hl: true }];
-  const n = words.length <= 3 ? 1 : 2;
-  return [{ part: `${words.slice(0, -n).join(' ')} `, hl: false }, { part: words.slice(-n).join(' '), hl: true }];
-};
+const Sk = memo(({ darkMode, className = '' }) => (
+  <div aria-hidden="true" className={`hp-shimmer ${skBase(darkMode)} ${className}`} />
+));
 
-const SectionTitle = memo(({ title, subtitle, darkMode, isAr, gold, children }) => {
-  const hl = gold ? (darkMode ? 'hp-hl-gold-dark' : 'hp-hl-gold') : (darkMode ? 'hp-hl-dark' : 'hp-hl');
-  const ink = darkMode ? 'text-white' : gold ? 'text-amber-950' : 'text-emerald-950';
-  const parts = useMemo(() => splitHeading(title), [title]);
-  return (
-    <div className="mb-10 flex flex-wrap items-end justify-between gap-x-8 gap-y-4 sm:mb-14">
-      <div className="min-w-0 max-w-3xl">
-        <h2
-          className={`text-3xl font-extrabold [text-wrap:balance] sm:text-5xl lg:text-6xl ${
-            isAr ? 'leading-[1.4] tracking-normal' : 'leading-[1.18] tracking-[-0.04em]'
-          } ${ink}`}
-        >
-          {parts.map(({ part, hl: on }, i) => (on ? <span key={i} className={hl}>{part}</span> : part))}
-        </h2>
-        {subtitle && (
-          <p className={`mt-5 max-w-2xl text-base font-medium leading-relaxed sm:text-lg ${darkMode ? 'text-neutral-300' : 'text-gray-800'}`}>{subtitle}</p>
-        )}
+const ProductCardSkeleton = memo(({ darkMode }) => (
+  <div aria-hidden="true" className={`flex h-full flex-col overflow-hidden rounded-2xl border ${lineOf(darkMode)} ${darkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
+    <Sk darkMode={darkMode} className="aspect-[5/4] w-full" />
+    <div className="flex flex-col gap-2.5 p-3.5">
+      <Sk darkMode={darkMode} className="h-5 w-1/3 rounded" />
+      <Sk darkMode={darkMode} className="h-3.5 w-full rounded" />
+      <Sk darkMode={darkMode} className="h-3.5 w-3/4 rounded" />
+      <Sk darkMode={darkMode} className="h-3 w-1/2 rounded" />
+    </div>
+  </div>
+));
+
+const ShopCardSkeleton = memo(({ darkMode }) => (
+  <div aria-hidden="true" className={`flex h-full flex-col overflow-hidden rounded-xl border ${lineOf(darkMode)} ${darkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
+    <Sk darkMode={darkMode} className="h-40 w-full sm:h-44" />
+    <div className="flex flex-col gap-3 p-4">
+      <Sk darkMode={darkMode} className="h-4 w-2/3 rounded" />
+      <Sk darkMode={darkMode} className="h-3 w-4/5 rounded" />
+      <Sk darkMode={darkMode} className="h-3 w-full rounded" />
+      <div className="grid grid-cols-2 gap-2 pt-1">
+        <Sk darkMode={darkMode} className="h-8 rounded-lg" />
+        <Sk darkMode={darkMode} className="h-8 rounded-lg" />
       </div>
-      {children}
+      <Sk darkMode={darkMode} className="h-6 w-full rounded" />
+    </div>
+  </div>
+));
+
+const TileSkeleton = memo(({ darkMode, round = 'rounded-3xl' }) => (
+  <div aria-hidden="true" className="flex w-28 shrink-0 flex-col items-center gap-2 p-2 sm:w-32 lg:w-auto lg:min-w-0 lg:flex-1">
+    <Sk darkMode={darkMode} className={`h-20 w-20 sm:h-24 sm:w-24 ${round}`} />
+    <Sk darkMode={darkMode} className="h-3.5 w-4/5 rounded" />
+  </div>
+));
+
+const SkeletonGrid = memo(({ darkMode, count, variant = 'product', grid = GRID }) => {
+  const Card = variant === 'shop' ? ShopCardSkeleton : ProductCardSkeleton;
+  return (
+    <div className={grid} role="status" aria-busy="true">
+      {Array.from({ length: count }, (_, i) => <Card key={i} darkMode={darkMode} />)}
     </div>
   );
 });
 
-const CardFooter = memo(({ label, darkMode, isAr, gold }) => (
-  <div className="mt-auto flex items-center justify-between gap-3 border-t-2 border-[color:var(--ink)] pt-3">
-    <span className={`truncate text-sm font-extrabold uppercase ${isAr ? 'tracking-normal' : 'tracking-wide'} ${darkMode ? 'text-white' : gold ? 'text-amber-950' : 'text-emerald-950'}`}>{label}</span>
-    <span aria-hidden="true" className={`${NEO_ICON} ${gold ? '!text-amber-950' : ''}`}><FiArrowRight className="h-4 w-4 rtl:rotate-180" /></span>
+const TileRowSkeleton = memo(({ darkMode, round }) => (
+  <div className="flex gap-2 overflow-hidden" role="status" aria-busy="true">
+    {Array.from({ length: 8 }, (_, i) => <TileSkeleton key={i} darkMode={darkMode} round={round} />)}
   </div>
 ));
 
-const useRail = (dep) => {
-  const ref = useRef(null);
-  const [edge, setEdge] = useState({ back: false, forward: false });
+const Band = memo(({ darkMode, alt, sectionRef, visible, label, className = '', children }) => (
+  <section
+    ref={sectionRef}
+    aria-label={label}
+    className={`py-10 sm:py-14 ${LAZY_SECTION} ${visible === false ? 'anim-paused' : ''} ${bgOf(darkMode, alt)} ${className}`}
+  >
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">{children}</div>
+  </section>
+));
+
+const StoreHead = memo(({ title, subtitle, to, ctaLabel, darkMode, isAr }) => (
+  <Reveal className="mb-6 sm:mb-8">
+    <div className="flex items-center gap-3">
+      <span aria-hidden="true" className="h-8 w-1.5 shrink-0 rounded-full bg-[color:var(--acc)]" />
+      <h2 className={`min-w-0 text-xl font-extrabold [text-wrap:balance] sm:text-3xl ${isAr ? 'leading-[1.4]' : 'tracking-[-0.02em]'} ${inkOf(darkMode)}`}>{title}</h2>
+      <span aria-hidden="true" className={`hidden h-px flex-1 border-t sm:block ${lineOf(darkMode)}`} />
+      {to && (
+        <Link to={to} className={`ms-auto inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-extrabold transition-[background-color,border-color,color,transform] duration-200 active:scale-95 motion-reduce:transition-none sm:ms-0 ${FOCUS} ${darkMode ? 'border-[#39ff88]/40 text-[#39ff88] hover:bg-[#39ff88] hover:text-[#022c22]' : 'border-emerald-300 text-emerald-700 hover:bg-emerald-600 hover:text-white'}`}>
+          {ctaLabel}<FiArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+        </Link>
+      )}
+    </div>
+    {subtitle && <p className={`mt-2 ps-[18px] text-sm font-medium sm:text-base ${mutedOf(darkMode)}`}>{subtitle}</p>}
+  </Reveal>
+));
+
+const ErrorState = memo(({ darkMode, language, onRetry, retrying, compact }) => {
+  const online = useOnline();
+  const Icon = online ? FiAlertTriangle : FiWifiOff;
+  return (
+    <div
+      role="alert"
+      className={`hp-fade-in flex flex-col items-center gap-3 rounded-2xl border px-5 text-center ${compact ? 'py-6' : 'py-10 sm:py-12'} ${
+        darkMode ? 'border-rose-400/30 bg-[#1e1e1e]' : 'border-rose-200 bg-white'
+      }`}
+    >
+      <span aria-hidden="true" className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-rose-500 to-orange-500 text-white shadow-lg shadow-rose-500/25">
+        <Icon className="h-7 w-7" />
+      </span>
+      <h3 className={`max-w-md text-lg font-extrabold [text-wrap:balance] ${inkOf(darkMode)}`}>{tr(language, online ? 'loadFailedTitle' : 'offlineTitle')}</h3>
+      <p className={`max-w-md text-sm font-medium leading-relaxed ${mutedOf(darkMode)}`}>{tr(language, online ? 'loadFailedText' : 'offlineText')}</p>
+      {onRetry && (
+        <button type="button" onClick={onRetry} disabled={retrying} aria-busy={retrying} className={`${BTN_PRIMARY} mt-1`}>
+          <FiRefreshCw aria-hidden="true" className={`h-4 w-4 ${retrying ? 'animate-spin motion-reduce:animate-none' : ''}`} />
+          {tr(language, 'retry')}
+        </button>
+      )}
+    </div>
+  );
+});
+
+class SectionBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { failed: false };
+    this.reset = this.reset.bind(this);
+  }
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  reset() {
+    if (this.props.onRetry) this.props.onRetry();
+    this.setState({ failed: false });
+  }
+
+  render() {
+    if (!this.state.failed) return this.props.children;
+    if (this.props.silent) return null;
+    const { darkMode, language, alt } = this.props;
+    return (
+      <Band darkMode={darkMode} alt={alt} className="!py-8">
+        <ErrorState darkMode={darkMode} language={language} onRetry={this.reset} compact />
+      </Band>
+    );
+  }
+}
+
+const LazyMount = memo(({ children, darkMode, alt, minHeight = 360, onShow }) => {
+  const [ref, seen] = useInView(observeNear);
+  useEffect(() => { if (seen) onShow?.(); }, [seen, onShow]);
+  return (
+    <div ref={ref} className={seen ? undefined : bgOf(darkMode, alt)} style={seen ? undefined : { minHeight }}>
+      {seen ? <div className="hp-fade-in">{children}</div> : null}
+    </div>
+  );
+});
+
+const ConnectionBanner = memo(({ darkMode, language }) => {
+  const online = useOnline();
+  const [showBack, setShowBack] = useState(false);
+  const wasOffline = useRef(false);
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return undefined;
-    let raf;
-    const check = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        const offset = Math.abs(el.scrollLeft);
-        const back = offset > 2;
-        const forward = offset + el.clientWidth < el.scrollWidth - 5;
-        setEdge((s) => (s.back === back && s.forward === forward ? s : { back, forward }));
-      });
-    };
-    check();
-    el.addEventListener('scroll', check, { passive: true });
-    window.addEventListener('resize', check, { passive: true });
-    return () => { el.removeEventListener('scroll', check); window.removeEventListener('resize', check); cancelAnimationFrame(raf); };
-  }, [dep]);
-  const scroll = useCallback((dir) => {
-    const el = ref.current;
-    if (!el) return;
-    const rtl = window.getComputedStyle(el).direction === 'rtl';
-    const sign = (dir === 'forward' ? 1 : -1) * (rtl ? -1 : 1);
-    el.scrollBy({ left: sign * el.clientWidth * 0.75, behavior: 'smooth' });
-  }, []);
-  return { ref, ...edge, scroll };
-};
+    if (!online) { wasOffline.current = true; setShowBack(false); return undefined; }
+    if (!wasOffline.current) return undefined;
+    wasOffline.current = false;
+    setShowBack(true);
+    const id = setTimeout(() => setShowBack(false), 2600);
+    return () => clearTimeout(id);
+  }, [online]);
+  if (online && !showBack) return null;
+  const Icon = online ? FiCheck : FiWifiOff;
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className={`hp-banner-in fixed start-1/2 top-[max(0.75rem,env(safe-area-inset-top))] z-[1090] flex max-w-[92vw] items-center gap-2.5 rounded-full border px-4 py-2.5 text-sm font-extrabold shadow-xl ${
+        online
+          ? 'border-emerald-400/40 bg-emerald-600 text-white'
+          : darkMode ? 'border-white/15 bg-[#262626] text-white' : 'border-gray-200 bg-white text-emerald-950'
+      }`}
+      style={{ transform: 'translateX(-50%)' }}
+    >
+      <Icon aria-hidden="true" className={`h-4 w-4 flex-shrink-0 ${online ? '' : 'text-rose-500'}`} />
+      <span className="truncate">{tr(language, online ? 'backOnline' : 'offlineTitle')}</span>
+    </div>
+  );
+});
+
+const CardFooter = memo(({ label, darkMode }) => (
+  <div className={`mt-auto flex items-center justify-between gap-3 border-t pt-3 ${lineOf(darkMode)}`}>
+    <span className={`truncate text-sm font-extrabold ${inkOf(darkMode)}`}>{label}</span>
+    <span
+      aria-hidden="true"
+      className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[color:var(--acc)] text-[color:var(--acc-ink)] shadow-[0_4px_12px_-4px_var(--acc)] transition-transform duration-200 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none [@media(hover:hover)]:group-hover:translate-x-1 rtl:[@media(hover:hover)]:group-hover:-translate-x-1"
+    >
+      <FiArrowRight className="h-4 w-4 rtl:rotate-180" />
+    </span>
+  </div>
+));
 
 const ART_COLORS = {
   light: { bd: ['#FFFFFF', '#D1D5DB'], sd: ['#34D399', '#047857'], sc: ['#6EE7B7', '#059669'] },
@@ -700,7 +976,6 @@ const ArtDefs = ({ p, darkMode }) => {
       <linearGradient id={`${p}bd`} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor={c.bd[0]} /><stop offset="1" stopColor={c.bd[1]} /></linearGradient>
       <linearGradient id={`${p}sd`} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor={c.sd[0]} /><stop offset="1" stopColor={c.sd[1]} /></linearGradient>
       <linearGradient id={`${p}sc`} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor={c.sc[0]} /><stop offset="1" stopColor={c.sc[1]} /></linearGradient>
-      <linearGradient id={`${p}am`} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#FDE68A" /><stop offset="1" stopColor="#F59E0B" /></linearGradient>
     </defs>
   );
 };
@@ -722,147 +997,236 @@ const ProductFallbackArt = memo(({ name, categoryName, label, darkMode }) => {
     <svg viewBox="0 0 200 150" className="h-full w-full p-3" role="img" aria-label={name || label} focusable="false">
       <ArtDefs p={p} darkMode={darkMode} />
       <ellipse cx="100" cy="132" rx="62" ry="8" fill={darkMode ? '#000' : '#064E3B'} opacity={darkMode ? 0.4 : 0.16} />
-      <g>
-        {kind === 'phone' && (
-          <g transform="translate(70 14)">
-            <rect x="6" y="7" width="60" height="108" rx="13" fill={side} />
-            <rect width="60" height="108" rx="13" fill={body} />
-            <rect x="4" y="4" width="52" height="100" rx="10" fill={screen} />
-            <path d="M4 60V14a10 10 0 0110-10h26z" fill="#fff" opacity="0.28" />
-            <rect x="22" y="8" width="16" height="4" rx="2" fill="#022C22" />
-            <rect x="12" y="24" width="36" height="7" rx="3.5" fill={darkMode ? neon : '#fff'} opacity="0.9" />
-            <rect x="12" y="36" width="22" height="5" rx="2.5" fill="#fff" opacity="0.55" />
-            <rect x="12" y="62" width="36" height="28" rx="8" fill="#fff" opacity="0.25" />
-          </g>
-        )}
-        {kind === 'laptop' && (
-          <g transform="translate(34 24)">
-            <rect x="5" y="6" width="126" height="78" rx="9" fill={side} />
-            <rect width="126" height="78" rx="9" fill={body} />
-            <rect x="5" y="5" width="116" height="68" rx="6" fill={screen} />
-            <path d="M5 44V11a6 6 0 016-6h50z" fill="#fff" opacity="0.28" />
-            <rect x="14" y="14" width="46" height="7" rx="3.5" fill={darkMode ? neon : '#fff'} opacity="0.9" />
-            <rect x="14" y="48" width="30" height="18" rx="5" fill="#fff" opacity="0.25" />
-            <rect x="48" y="48" width="30" height="18" rx="5" fill="#fff" opacity="0.25" />
-            <rect x="-10" y="88" width="146" height="12" rx="6" fill={side} />
-            <rect x="-10" y="84" width="146" height="12" rx="6" fill={body} />
-            <rect x="52" y="84" width="22" height="4" rx="2" fill={darkMode ? neon : '#6EE7B7'} />
-          </g>
-        )}
-        {kind === 'tablet' && (
-          <g transform="translate(46 18)">
-            <rect x="6" y="6" width="100" height="100" rx="14" fill={side} />
-            <rect width="100" height="100" rx="14" fill={body} />
-            <rect x="5" y="5" width="90" height="90" rx="10" fill={screen} />
-            <path d="M5 55V15A10 10 0 0115 5h44z" fill="#fff" opacity="0.28" />
-            <rect x="16" y="18" width="40" height="8" rx="4" fill={darkMode ? neon : '#fff'} opacity="0.9" />
-            <rect x="16" y="56" width="26" height="24" rx="6" fill="#fff" opacity="0.25" />
-            <rect x="48" y="56" width="26" height="24" rx="6" fill="#fff" opacity="0.25" />
-          </g>
-        )}
-        {kind === 'watch' && (
-          <g transform="translate(70 6)">
-            <rect x="14" y="0" width="32" height="30" rx="6" fill={side} />
-            <rect x="14" y="94" width="32" height="30" rx="6" fill={side} />
-            <rect x="4" y="6" width="56" height="62" rx="18" fill={side} />
-            <rect y="0" width="56" height="62" rx="18" fill={body} />
-            <rect x="5" y="5" width="46" height="52" rx="13" fill={screen} />
-            <circle cx="28" cy="31" r="13" fill="none" stroke={darkMode ? neon : '#fff'} strokeWidth="3" opacity="0.9" />
-            <path d="M28 23v8l6 4" stroke={darkMode ? neon : '#fff'} strokeWidth="3" strokeLinecap="round" fill="none" />
-          </g>
-        )}
-        {kind === 'audio' && (
-          <g transform="translate(40 14)">
-            <path d="M12 70V52a48 48 0 0196 0v18" fill="none" stroke={side} strokeWidth="11" strokeLinecap="round" />
-            <path d="M12 66V50a48 48 0 0196 0v16" fill="none" stroke={body} strokeWidth="8" strokeLinecap="round" />
-            <rect x="0" y="62" width="26" height="46" rx="12" fill={side} />
-            <rect x="-3" y="58" width="26" height="46" rx="12" fill={body} />
-            <rect x="3" y="70" width="14" height="30" rx="7" fill={screen} />
-            <rect x="94" y="62" width="26" height="46" rx="12" fill={side} />
-            <rect x="97" y="58" width="26" height="46" rx="12" fill={body} />
-            <rect x="103" y="70" width="14" height="30" rx="7" fill={screen} />
-          </g>
-        )}
-      </g>
-      <path d="M30 28l2.4-6 2.4 6 6 2.4-6 2.4-2.4 6-2.4-6-6-2.4z" fill={neon} opacity="0.8" />
-      <circle cx="170" cy="40" r="3" fill="#FBBF24" opacity="0.85" />
+      {kind === 'phone' && (
+        <g transform="translate(70 14)">
+          <rect x="6" y="7" width="60" height="108" rx="13" fill={side} />
+          <rect width="60" height="108" rx="13" fill={body} />
+          <rect x="4" y="4" width="52" height="100" rx="10" fill={screen} />
+          <rect x="22" y="8" width="16" height="4" rx="2" fill="#022C22" />
+          <rect x="12" y="24" width="36" height="7" rx="3.5" fill={darkMode ? neon : '#fff'} opacity="0.9" />
+          <rect x="12" y="62" width="36" height="28" rx="8" fill="#fff" opacity="0.25" />
+        </g>
+      )}
+      {kind === 'laptop' && (
+        <g transform="translate(34 24)">
+          <rect x="5" y="6" width="126" height="78" rx="9" fill={side} />
+          <rect width="126" height="78" rx="9" fill={body} />
+          <rect x="5" y="5" width="116" height="68" rx="6" fill={screen} />
+          <rect x="14" y="14" width="46" height="7" rx="3.5" fill={darkMode ? neon : '#fff'} opacity="0.9" />
+          <rect x="-10" y="84" width="146" height="12" rx="6" fill={body} />
+          <rect x="52" y="84" width="22" height="4" rx="2" fill={darkMode ? neon : '#6EE7B7'} />
+        </g>
+      )}
+      {kind === 'tablet' && (
+        <g transform="translate(46 18)">
+          <rect x="6" y="6" width="100" height="100" rx="14" fill={side} />
+          <rect width="100" height="100" rx="14" fill={body} />
+          <rect x="5" y="5" width="90" height="90" rx="10" fill={screen} />
+          <rect x="16" y="18" width="40" height="8" rx="4" fill={darkMode ? neon : '#fff'} opacity="0.9" />
+          <rect x="16" y="56" width="26" height="24" rx="6" fill="#fff" opacity="0.25" />
+        </g>
+      )}
+      {kind === 'watch' && (
+        <g transform="translate(70 6)">
+          <rect x="14" y="0" width="32" height="30" rx="6" fill={side} />
+          <rect x="14" y="94" width="32" height="30" rx="6" fill={side} />
+          <rect y="0" width="56" height="62" rx="18" fill={body} />
+          <rect x="5" y="5" width="46" height="52" rx="13" fill={screen} />
+          <circle cx="28" cy="31" r="13" fill="none" stroke={darkMode ? neon : '#fff'} strokeWidth="3" opacity="0.9" />
+        </g>
+      )}
+      {kind === 'audio' && (
+        <g transform="translate(40 14)">
+          <path d="M12 66V50a48 48 0 0196 0v16" fill="none" stroke={body} strokeWidth="8" strokeLinecap="round" />
+          <rect x="-3" y="58" width="26" height="46" rx="12" fill={body} />
+          <rect x="3" y="70" width="14" height="30" rx="7" fill={screen} />
+          <rect x="97" y="58" width="26" height="46" rx="12" fill={body} />
+          <rect x="103" y="70" width="14" height="30" rx="7" fill={screen} />
+        </g>
+      )}
     </svg>
   );
 });
 
-const AWNING_STRIPES = [0, 1, 2, 3, 4];
+const Sparkle = ({ x, y, s = 1, fill, className }) => (
+  <path
+    className={className}
+    transform={`translate(${x} ${y}) scale(${s})`}
+    d="M0 -9 C1 -3 3 -1 9 0 C3 1 1 3 0 9 C-1 3 -3 1 -9 0 C-3 -1 -1 -3 0 -9 Z"
+    fill={fill}
+  />
+);
 
-const TopShopArt = memo(({ darkMode }) => {
-  const ink = darkMode ? '#000000' : '#422006';
-  const wall = darkMode ? '#3f3f3f' : '#FEF3C7';
-  const glass = darkMode ? '#FDE047' : '#FCD34D';
+const EmptyArt = memo(({ kind, darkMode }) => {
+  const p = useId().replace(/:/g, '');
+  const accent = darkMode ? '#39FF88' : '#10B981';
+  const accentDeep = darkMode ? '#17C964' : '#047857';
+  const accentSoft = darkMode ? '#39FF88' : '#6EE7B7';
+  const surface = darkMode ? '#2E2E2E' : '#FFFFFF';
+  const surfaceLow = darkMode ? '#1E1E1E' : '#ECFDF5';
+  const stroke = darkMode ? '#4B4B4B' : '#A7F3D0';
+  const ink = '#022C22';
+  const orange = darkMode ? '#FB923C' : '#F97316';
   return (
-    <svg viewBox="0 0 200 150" className="h-full w-full p-3" aria-hidden="true" focusable="false">
-      <ellipse cx="100" cy="138" rx="76" ry="8" fill={darkMode ? '#000' : '#78350F'} opacity={darkMode ? 0.45 : 0.2} />
-      <rect x="38" y="62" width="124" height="74" fill={wall} stroke={ink} strokeWidth="3" />
-      {AWNING_STRIPES.map((i) => (
-        <rect key={i} x={30 + i * 28} y="36" width="28" height="28" fill={i % 2 ? '#FFFFFF' : '#FBBF24'} stroke={ink} strokeWidth="3" />
-      ))}
-      <rect x="48" y="78" width="32" height="28" fill={glass} stroke={ink} strokeWidth="3" />
-      <rect x="120" y="78" width="32" height="28" fill={glass} stroke={ink} strokeWidth="3" />
-      <rect x="88" y="90" width="24" height="46" fill="#F59E0B" stroke={ink} strokeWidth="3" />
-      <circle cx="106" cy="114" r="2.5" fill={ink} />
-      <path d="M100 8l4.4 11 11.6 1-8.8 7.6 2.8 11.4L100 33l-10 6 2.8-11.4L84 20l11.6-1z" fill="#FBBF24" stroke={ink} strokeWidth="2.5" strokeLinejoin="round" />
+    <svg viewBox="0 0 240 180" className="h-40 w-auto sm:h-48" role="img" aria-hidden="true" focusable="false">
+      <defs>
+        <radialGradient id={`${p}glow`} cx="50%" cy="50%" r="50%">
+          <stop offset="0" stopColor={accent} stopOpacity={darkMode ? 0.28 : 0.3} />
+          <stop offset="1" stopColor={accent} stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id={`${p}body`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor={surface} />
+          <stop offset="1" stopColor={surfaceLow} />
+        </linearGradient>
+        <linearGradient id={`${p}acc`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor={accentSoft} />
+          <stop offset="1" stopColor={accentDeep} />
+        </linearGradient>
+      </defs>
+
+      <circle cx="120" cy="88" r="86" fill={`url(#${p}glow)`} />
+      <circle cx="120" cy="88" r="70" fill="none" stroke={stroke} strokeWidth="1.5" strokeDasharray="2 7" strokeLinecap="round" />
+      <ellipse cx="120" cy="156" rx="64" ry="7" fill={darkMode ? '#000' : '#064E3B'} opacity={darkMode ? 0.45 : 0.14} />
+
+      {kind === 'shops' ? (
+        <g>
+          <g className="hp-float">
+            <rect x="58" y="42" width="124" height="14" rx="7" fill={`url(#${p}acc)`} />
+            <rect x="62" y="54" width="116" height="26" fill={accent} />
+            <rect x="91" y="54" width="29" height="26" fill={surface} />
+            <rect x="149" y="54" width="29" height="26" fill={surface} />
+            <circle cx="76.5" cy="80" r="14.5" fill={accent} />
+            <circle cx="105.5" cy="80" r="14.5" fill={surface} />
+            <circle cx="134.5" cy="80" r="14.5" fill={accent} />
+            <circle cx="163.5" cy="80" r="14.5" fill={surface} />
+            <rect x="66" y="82" width="108" height="64" rx="8" fill={`url(#${p}body)`} stroke={stroke} strokeWidth="2" />
+            <path d="M66 94h108" stroke={stroke} strokeWidth="2" />
+            <rect x="108" y="102" width="24" height="44" rx="5" fill={`url(#${p}acc)`} />
+            <circle cx="127" cy="125" r="1.8" fill={ink} />
+            <rect x="76" y="102" width="24" height="22" rx="5" fill={accentSoft} opacity={darkMode ? 0.25 : 0.55} stroke={stroke} strokeWidth="1.5" />
+            <rect x="140" y="102" width="24" height="22" rx="5" fill={accentSoft} opacity={darkMode ? 0.25 : 0.55} stroke={stroke} strokeWidth="1.5" />
+            <path d="M81 110l9-3M81 117l12-4" stroke="#fff" strokeWidth="2" strokeLinecap="round" opacity="0.7" />
+          </g>
+          <g className="hp-float-slow">
+            <rect x="150" y="14" width="46" height="26" rx="13" fill={surface} stroke={stroke} strokeWidth="2" />
+            <path d="M166 40l-2 8 9-8z" fill={surface} stroke={stroke} strokeWidth="2" strokeLinejoin="round" />
+            <path d="M169 27.5c0-2.2-1.7-3.5-3.4-3.5-1.4 0-2.4.8-2.8 1.6-.4-.8-1.4-1.6-2.8-1.6-1.7 0-3.4 1.3-3.4 3.5 0 3 6.2 6.5 6.2 6.5s6.2-3.5 6.2-6.5z" transform="translate(7 0)" fill={orange} />
+          </g>
+          <g className="hp-float-slow">
+            <rect x="34" y="104" width="22" height="42" rx="6" fill="none" />
+            <path d="M44 146v-18" stroke={accentDeep} strokeWidth="3" strokeLinecap="round" />
+            <path d="M44 132c-10-1-14-8-13-16 9 0 14 6 13 16z" fill={accent} />
+            <path d="M44 128c8-1 13-7 12-14-8 0-13 5-12 14z" fill={accentDeep} />
+            <path d="M36 146h16l-2 10H38z" fill={orange} />
+          </g>
+        </g>
+      ) : (
+        <g>
+          <g className="hp-float-slow">
+            <g transform="rotate(-9 78 100)">
+              <rect x="48" y="70" width="64" height="62" rx="10" fill={`url(#${p}body)`} stroke={stroke} strokeWidth="2" />
+              <rect x="56" y="78" width="48" height="26" rx="6" fill={accentSoft} opacity={darkMode ? 0.22 : 0.6} />
+              <circle cx="70" cy="91" r="6" fill={accent} />
+              <path d="M62 102l10-8 8 6 9-9 7 11z" fill={accentDeep} opacity="0.55" />
+              <rect x="56" y="110" width="34" height="5" rx="2.5" fill={stroke} />
+              <rect x="56" y="119" width="22" height="5" rx="2.5" fill={stroke} />
+            </g>
+          </g>
+          <g className="hp-float">
+            <rect x="92" y="22" width="64" height="116" rx="15" fill={`url(#${p}acc)`} />
+            <rect x="89" y="18" width="64" height="116" rx="15" fill={`url(#${p}body)`} stroke={ink} strokeWidth="2.5" />
+            <rect x="95" y="25" width="52" height="102" rx="10" fill={darkMode ? '#141414' : '#F0FDF4'} />
+            <rect x="109" y="29" width="24" height="5" rx="2.5" fill={ink} />
+            <rect x="101" y="42" width="40" height="8" rx="4" fill={accent} />
+            <rect x="101" y="56" width="26" height="5" rx="2.5" fill={stroke} />
+            <rect x="101" y="70" width="18" height="18" rx="5" fill={accentSoft} opacity={darkMode ? 0.4 : 0.7} />
+            <rect x="123" y="70" width="18" height="18" rx="5" fill={accent} opacity="0.85" />
+            <rect x="101" y="94" width="40" height="22" rx="7" fill={accent} opacity={darkMode ? 0.18 : 0.14} stroke={accent} strokeWidth="1.5" strokeDasharray="3 4" />
+            <path d="M121 99v12M115 105h12" stroke={accentDeep} strokeWidth="2.5" strokeLinecap="round" />
+          </g>
+          <g className="hp-float">
+            <circle cx="168" cy="112" r="17" fill={surface} fillOpacity={darkMode ? 0.92 : 0.85} stroke={ink} strokeWidth="2.5" />
+            <circle cx="168" cy="112" r="11" fill="none" stroke={accent} strokeWidth="2" opacity="0.6" />
+            <path d="M180 124l12 12" stroke={ink} strokeWidth="5" strokeLinecap="round" />
+            <path d="M180 124l12 12" stroke={accent} strokeWidth="2" strokeLinecap="round" />
+            <path d="M163 112h10" stroke={accentDeep} strokeWidth="2.5" strokeLinecap="round" />
+          </g>
+        </g>
+      )}
+
+      <Sparkle x={36} y={52} s={0.9} fill={accent} className="hp-twinkle" />
+      <Sparkle x={204} y={78} s={0.7} fill={orange} className="hp-twinkle-b" />
+      <Sparkle x={196} y={142} s={0.55} fill={accent} className="hp-twinkle" />
+      <Sparkle x={52} y={156} s={0.5} fill={orange} className="hp-twinkle-b" />
+      <circle cx="212" cy="40" r="3" fill={accentSoft} className="hp-twinkle" />
+      <circle cx="26" cy="96" r="2.5" fill={accent} className="hp-twinkle-b" />
     </svg>
   );
 });
 
-const Stars = memo(({ value, darkMode }) => (
-  <span className="inline-flex" aria-hidden="true">
-    {[1, 2, 3, 4, 5].map((i) => (
-      <RiStarFill key={i} className={`h-4 w-4 ${value >= i - 0.5 ? 'text-amber-500' : darkMode ? 'text-neutral-600' : 'text-amber-200'}`} />
-    ))}
+const EMPTY_DOTS = {
+  light: { backgroundImage: 'radial-gradient(rgba(16,185,129,.18) 1.4px, transparent 1.4px)', backgroundSize: '20px 20px' },
+  dark: { backgroundImage: 'radial-gradient(rgba(57,255,136,.12) 1.4px, transparent 1.4px)', backgroundSize: '20px 20px' },
+};
+
+const EmptyState = memo(({ kind, title, text, ctaLabel, to, darkMode }) => (
+  <div
+    style={EMPTY_DOTS[darkMode ? 'dark' : 'light']}
+    className={`hp-fade-in flex flex-col items-center gap-3 rounded-2xl border border-dashed px-5 py-10 text-center sm:py-14 ${
+      darkMode ? 'border-[#39ff88]/40 bg-[#1e1e1e]' : 'border-emerald-300 bg-white/70'
+    }`}
+  >
+    <EmptyArt kind={kind} darkMode={darkMode} />
+    <h3 className={`max-w-md text-lg font-extrabold [text-wrap:balance] sm:text-2xl ${inkOf(darkMode)}`}>{title}</h3>
+    <p className={`max-w-md text-sm font-medium leading-relaxed sm:text-base ${mutedOf(darkMode)}`}>{text}</p>
+    {to && (
+      <Link to={to} className={`${BTN_PRIMARY} mt-2`}>
+        {ctaLabel}
+        <FiArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+      </Link>
+    )}
+  </div>
+));
+
+const RankBadge = memo(({ rank, language }) => (
+  <span
+    aria-hidden="true"
+    className="absolute start-0 top-0 z-[2] flex h-8 min-w-[2rem] items-center justify-center rounded-ee-xl bg-[color:var(--acc)] px-2 text-sm font-black leading-none tabular-nums text-[color:var(--acc-ink)]"
+  >
+    <span dir="ltr">#{num(language, rank)}</span>
   </span>
 ));
 
-const RailArrows = ({ rail, darkMode, language }) => {
-  if (!rail.back && !rail.forward) return null;
-  const rtl = languageDirection(language) === 'rtl';
-  const cls = neoIcon(darkMode);
-  const btn = (dir, disabled) => {
-    const left = (dir === 'back') !== rtl;
-    return (
-      <button
-        type="button"
-        onClick={() => rail.scroll(dir)}
-        disabled={disabled}
-        aria-label={tr(language, left ? 'scrollLeft' : 'scrollRight')}
-        className={`${cls} !h-11 !w-11`}
-      >
-        {left ? <FiChevronLeft className="h-5 w-5" /> : <FiChevronRight className="h-5 w-5" />}
-      </button>
-    );
-  };
-  return <div className="flex gap-3 pb-2 pe-2">{btn('back', !rail.back)}{btn('forward', !rail.forward)}</div>;
-};
+const BENEFITS = [
+  [FiShield, 'trustShops'],
+  [FiTool, 'trustRepair'],
+  [FiTag, 'trustOffers'],
+  [FiMapPin, 'trustNearby'],
+];
 
-const EmptyRail = memo(({ label, darkMode }) => (
-  <div className={`flex flex-col items-center gap-3 rounded-2xl border-[3px] border-dashed py-12 text-center ${darkMode ? 'border-[#39ff88]/40 bg-[#1e1e1e]' : 'border-emerald-300 bg-white/60'}`}>
-    <DeviceScene compact className="h-24 w-32" />
-    <p className={`text-sm font-semibold sm:text-base ${darkMode ? 'text-neutral-300' : 'text-gray-600'}`}>{label}</p>
-  </div>
-));
-
-const RailSkeleton = memo(({ w, h, darkMode }) => (
-  <div className="flex gap-5 overflow-hidden pb-4">
-    {Array.from({ length: 4 }).map((_, i) => <div key={i} className={`flex-shrink-0 animate-pulse rounded-2xl motion-reduce:animate-none ${w} ${h} ${darkMode ? 'bg-[#2a2a2a]' : 'bg-gray-200/70'}`} />)}
-  </div>
-));
-
-const ShopSkeleton = memo(({ darkMode, gold, count }) => (
-  <div className={`${SHOP_ROW} overflow-hidden`} role="status" aria-busy="true">
-    {Array.from({ length: count }).map((_, i) => (
-      <div
-        key={i}
-        className={`h-[430px] animate-pulse rounded-2xl motion-reduce:animate-none ${SHOP_ITEM} ${darkMode ? 'bg-[#2a2a2a]' : gold ? 'bg-amber-200/60' : 'bg-gray-200/70'}`}
-      />
-    ))}
-  </div>
+const BenefitsBar = memo(({ darkMode, language }) => (
+  <section className={`${darkMode ? DARK_PAGE : 'bg-gray-50'} pt-6 sm:pt-8 ${LAZY_SECTION}`}>
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <Reveal>
+        <ul className={`grid grid-cols-2 overflow-hidden rounded-xl border lg:grid-cols-4 ${lineOf(darkMode)} ${darkMode ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
+          {BENEFITS.map(([Icon, key], i) => (
+            <li
+              key={key}
+              className={`flex items-center gap-3 p-3.5 sm:p-4 ${lineOf(darkMode)} ${i % 2 === 0 ? 'border-e' : ''} ${i < 2 ? 'border-b lg:border-b-0' : ''} ${i === 1 ? 'lg:border-e' : ''}`}
+            >
+              <span aria-hidden="true" className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[color:var(--acc)] text-[color:var(--acc-ink)]">
+                <Icon className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <h3 className={`truncate text-sm font-extrabold ${inkOf(darkMode)}`}>{tr(language, `${key}Title`)}</h3>
+                <p className={`line-clamp-2 text-xs font-medium ${mutedOf(darkMode)}`}>{tr(language, `${key}Text`)}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </Reveal>
+    </div>
+  </section>
 ));
 
 const CookieSwitch = memo(({ checked, onChange, disabled, label, darkMode }) => (
@@ -873,14 +1237,14 @@ const CookieSwitch = memo(({ checked, onChange, disabled, label, darkMode }) => 
     aria-label={label}
     disabled={disabled}
     onClick={onChange}
-    className={`relative h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-[color:var(--ink)] transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)] ${
-      checked ? 'bg-[color:var(--acc)]' : darkMode ? 'bg-[#1e1e1e]' : 'bg-gray-200'
+    className={`relative h-6 w-11 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-60 ${FOCUS} ${
+      checked ? 'bg-[color:var(--acc)]' : darkMode ? 'bg-neutral-600' : 'bg-gray-300'
     }`}
   >
     <span
       aria-hidden="true"
-      className={`absolute start-0.5 top-0.5 h-4 w-4 rounded-full border-2 border-[color:var(--ink)] bg-white transition-transform duration-150 motion-reduce:transition-none ${
-        checked ? '[transform:translateX(calc(var(--dx)*20px))]' : ''
+      className={`absolute start-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none ${
+        checked ? 'ltr:translate-x-5 rtl:-translate-x-5' : ''
       }`}
     />
   </button>
@@ -903,7 +1267,6 @@ const CookieConsent = memo(({ darkMode, language }) => {
   const primaryRef = useRef(null);
   const titleId = useId();
   const descId = useId();
-  const isAr = language === 'ar';
 
   useEffect(() => {
     if (!identity || readConsent(identity)) {
@@ -955,31 +1318,26 @@ const CookieConsent = memo(({ darkMode, language }) => {
 
   if (!open) return null;
 
-  const ink = darkMode ? 'text-white' : 'text-emerald-950';
-  const muted = darkMode ? 'text-neutral-300' : 'text-gray-700';
-  const surface = darkMode ? 'bg-[#2a2a2a] text-white' : 'bg-white text-emerald-950';
-  const primary = `${COOKIE_BTN} bg-[color:var(--acc)] text-emerald-950`;
-  const secondary = `${COOKIE_BTN} ${surface}`;
-  const track = isAr ? 'tracking-normal' : 'tracking-wide';
-  const linkBtn = `min-h-11 cursor-pointer text-center text-sm font-extrabold underline decoration-[color:var(--acc)] decoration-2 underline-offset-4 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)] ${ink}`;
+  const ink = inkOf(darkMode);
+  const muted = bodyOf(darkMode);
+  const panel = darkMode ? 'border-white/10 bg-[#1e1e1e] text-white' : 'border-gray-200 bg-white text-emerald-950';
+  const linkBtn = `min-h-11 cursor-pointer text-center text-sm font-extrabold underline decoration-[color:var(--acc)] decoration-2 underline-offset-4 ${FOCUS} ${ink}`;
 
   return (
-    <div className="fixed inset-0 z-[1100] flex items-end justify-center bg-black/60 p-4 sm:items-center">
+    <div className={`hp-fade-in fixed inset-0 z-[1100] flex items-end justify-center bg-black/60 p-4 sm:items-center ${THEME_VARS[darkMode ? 'dark' : 'light']}`}>
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descId}
-        className={`hp-consent-in hp-sb max-h-[90vh] w-full max-w-lg overflow-y-auto overscroll-contain p-5 sm:p-6 ${neoCard(darkMode, 'lg')}`}
+        className={`hp-consent-in hp-sb max-h-[90vh] w-full max-w-lg overflow-y-auto overscroll-contain rounded-2xl border p-5 shadow-2xl sm:p-6 ${panel}`}
       >
         <div className="flex items-center gap-3">
-          <span aria-hidden="true" className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border-2 border-[color:var(--ink)] bg-[color:var(--acc)] text-emerald-950 [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)]">
+          <span aria-hidden="true" className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-[color:var(--acc)] text-[color:var(--acc-ink)]">
             <RiCookieLine className="h-6 w-6" />
           </span>
-          <h2 id={titleId} className={`text-xl font-extrabold uppercase sm:text-2xl ${isAr ? 'tracking-normal' : 'tracking-[-0.02em]'} ${ink}`}>
-            <span className={darkMode ? 'hp-hl-dark' : 'hp-hl'}>{ctr(language, 'title')}</span>
-          </h2>
+          <h2 id={titleId} className={`text-xl font-extrabold sm:text-2xl ${ink}`}>{ctr(language, 'title')}</h2>
         </div>
 
         <p id={descId} className={`mt-4 text-sm font-medium leading-relaxed sm:text-base ${muted}`}>{ctr(language, 'text')}</p>
@@ -987,9 +1345,9 @@ const CookieConsent = memo(({ darkMode, language }) => {
         {custom && (
           <ul className="mt-5 space-y-3">
             {COOKIE_OPTIONS.map(([key, labelKey, descKey, locked]) => (
-              <li key={key} className={`flex items-start justify-between gap-4 rounded-xl border-2 border-[color:var(--ink)] p-3 ${darkMode ? 'bg-[#1e1e1e]' : 'bg-gray-50'}`}>
+              <li key={key} className={`hp-fade-in flex items-start justify-between gap-4 rounded-xl border p-3 ${lineOf(darkMode)} ${darkMode ? 'bg-[#141414]' : 'bg-gray-50'}`}>
                 <div className="min-w-0">
-                  <p className={`text-sm font-extrabold uppercase ${track} ${ink}`}>{ctr(language, labelKey)}</p>
+                  <p className={`text-sm font-extrabold ${ink}`}>{ctr(language, labelKey)}</p>
                   <p className={`mt-1 text-xs font-medium leading-relaxed ${muted}`}>{ctr(language, descKey)}</p>
                 </div>
                 <CookieSwitch
@@ -1004,17 +1362,17 @@ const CookieConsent = memo(({ darkMode, language }) => {
           </ul>
         )}
 
-        <div className="mt-6 grid gap-3 pe-1">
+        <div className="mt-6 grid gap-3">
           {custom ? (
             <>
-              <button ref={primaryRef} type="button" onClick={saveChoices} className={primary}>{ctr(language, 'save')}</button>
-              <button type="button" onClick={rejectAll} className={secondary}>{ctr(language, 'rejectAll')}</button>
+              <button ref={primaryRef} type="button" onClick={saveChoices} className={BTN_PRIMARY}>{ctr(language, 'save')}</button>
+              <button type="button" onClick={rejectAll} className={btnGhost(darkMode)}>{ctr(language, 'rejectAll')}</button>
               <button type="button" onClick={toggleCustom} className={linkBtn}>{ctr(language, 'back')}</button>
             </>
           ) : (
             <>
-              <button ref={primaryRef} type="button" onClick={acceptAll} className={primary}>{ctr(language, 'acceptAll')}</button>
-              <button type="button" onClick={rejectAll} className={secondary}>{ctr(language, 'rejectAll')}</button>
+              <button ref={primaryRef} type="button" onClick={acceptAll} className={BTN_PRIMARY}>{ctr(language, 'acceptAll')}</button>
+              <button type="button" onClick={rejectAll} className={btnGhost(darkMode)}>{ctr(language, 'rejectAll')}</button>
               <button type="button" onClick={toggleCustom} className={linkBtn}>{ctr(language, 'customize')}</button>
             </>
           )}
@@ -1024,170 +1382,267 @@ const CookieConsent = memo(({ darkMode, language }) => {
   );
 });
 
-const ActionCard = memo(({ darkMode, language, index, title, description, to, ctaLabel, scene }) => (
-  <Link to={to} className={`group h-full p-5 sm:p-6 ${neoCard(darkMode, 'lg', true)}`}>
-    <div className="flex items-center gap-3">
-      <span aria-hidden="true" className={`text-3xl font-black tabular-nums sm:text-4xl ${darkMode ? 'text-[#39ff88]' : 'text-emerald-600'}`}>
-        {pad2(language, index)}
-      </span>
-      <h3 className={`text-xl font-extrabold uppercase sm:text-2xl ${language === 'ar' ? 'tracking-normal' : 'tracking-[-0.02em]'} ${darkMode ? 'text-white' : 'text-emerald-950'}`}>
-        <span className={darkMode ? 'hp-hl-dark' : 'hp-hl'}>{title}</span>
-      </h3>
-    </div>
-
-    <p className={`mt-4 text-base font-medium leading-relaxed sm:text-lg ${darkMode ? 'text-neutral-200' : 'text-gray-800'}`}>{description}</p>
-
-    <div aria-hidden="true" className="my-6 aspect-[3/2] w-full">
-      <IsoIllustration type={scene} onGreen={false} darkMode={darkMode} className="h-full w-full" />
-    </div>
-
-    <CardFooter label={ctaLabel} darkMode={darkMode} isAr={language === 'ar'} />
-  </Link>
-));
-
-const ActionSection = memo(({ darkMode, language }) => (
-  <section className={`hp-glow ${darkMode ? `hp-glow-dark ${DARK_PAGE}` : 'bg-gray-50'} py-14 sm:py-20 ${LAZY_SECTION}`}>
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-      <SectionTitle
-        title={tr(language, 'todayPrompt')}
-        subtitle={tr(language, 'getStarted')}
-        darkMode={darkMode}
-        isAr={language === 'ar'}
-      />
-
-      <div className="grid grid-cols-1 gap-8 pb-2 pe-2 md:grid-cols-2 lg:gap-10">
-        <ActionCard
-          darkMode={darkMode} language={language} index={1} scene="repairCard"
-          title={tr(language, 'repairDevice')}
-          description={tr(language, 'repairDescription')}
-          to="/repair" ctaLabel={tr(language, 'bookRepair')}
-        />
-        <ActionCard
-          darkMode={darkMode} language={language} index={2} scene="offersCard"
-          title={tr(language, 'latestOffers')}
-          description={tr(language, 'offersDescription')}
-          to="/offers" ctaLabel={tr(language, 'viewOffers')}
-        />
-      </div>
-    </div>
-  </section>
-));
-
-const CategoryCard = memo(({ category, count, showCount, darkMode, language }) => {
+const CategoryTile = memo(({ category, count, showCount, index, darkMode, language }) => {
   const id = safeId(category.id);
-  const catKey = useMemo(() => isoCatKey(kindOfCategory(category.name)), [category.name]);
+  const [Icon, tone] = useMemo(() => categoryIconFor(category.name), [category.name]);
   if (!id) return null;
+  const toneCls = TILE_TONES[tone][darkMode ? 'dark' : 'light'];
   return (
-    <Link
-      to={`/products/category/${id}`}
-      aria-label={category.name}
-      className="hp-dot group relative min-h-11 p-3 pt-6 text-center sm:gap-2.5 sm:p-4 sm:pt-7"
+    <div
+      style={{ '--i': Math.min(index, 8) }}
+      className="hp-tile w-28 shrink-0 snap-start sm:w-32 lg:w-auto lg:min-w-0 lg:flex-1"
     >
-      <IsoIllustration
-        type={catKey} darkMode={darkMode} onGreen={false}
-        className="h-14 w-14 transition-transform duration-200 motion-reduce:transition-none group-hover:scale-110 sm:h-16 sm:w-16"
-      />
-      <span className="line-clamp-1 w-full text-sm font-extrabold uppercase">{category.name}</span>
-      {showCount && (
-        <span className="text-xs font-bold opacity-80">
-          <span dir="ltr" className="tabular-nums">{count}</span> {tr(language, count === 1 ? 'homeItemSingular' : 'homeItemPlural')}
+      <Link
+        to={`/products/category/${id}`}
+        aria-label={category.name}
+        className={`group flex w-full flex-col items-center gap-2 rounded-2xl p-2 text-center ${FOCUS}`}
+      >
+        <span
+          className={`relative grid h-20 w-20 place-items-center rounded-3xl border bg-gradient-to-br shadow-sm transition-[transform,border-color,box-shadow] duration-300 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none sm:h-24 sm:w-24 [@media(hover:hover)]:group-hover:-translate-y-1.5 [@media(hover:hover)]:group-hover:shadow-lg ${toneCls}`}
+        >
+          <Icon aria-hidden="true" className="h-9 w-9 transition-transform duration-300 ease-[cubic-bezier(.34,1.56,.64,1)] motion-reduce:transition-none sm:h-10 sm:w-10 [@media(hover:hover)]:group-hover:scale-110 [@media(hover:hover)]:group-hover:-rotate-6" />
         </span>
-      )}
-    </Link>
+        <span className={`line-clamp-1 w-full text-sm font-extrabold ${inkOf(darkMode)}`}>{category.name}</span>
+        {showCount && (
+          <span className={`text-xs font-semibold ${mutedOf(darkMode)}`}>
+            <span dir="ltr" className="tabular-nums">{count}</span> {tr(language, count === 1 ? 'homeItemSingular' : 'homeItemPlural')}
+          </span>
+        )}
+      </Link>
+    </div>
   );
 });
 
-const CategorySection = memo(({ categories, counts, showCount, loading, darkMode, language }) => {
+const CategorySection = memo(({ categories, counts, showCount, loading, failed, onRetry, retrying, darkMode, language }) => {
   const top = useMemo(
     () => [...categories].sort((a, b) => (counts[String(b.id)] || 0) - (counts[String(a.id)] || 0)).slice(0, CATEGORY_LIMIT),
     [categories, counts],
   );
-  if (!loading && top.length === 0) return null;
-  const grid = 'grid grid-cols-2 gap-4 pb-2 pe-2 sm:grid-cols-3 sm:gap-5 lg:grid-cols-6';
+  if (!loading && !failed && top.length === 0) return null;
   return (
-    <section
-      aria-label={tr(language, 'homeCategoriesTitle')}
-      className={`hp-glow ${darkMode ? `hp-glow-dark ${DARK_PAGE}` : 'bg-gray-50'} py-14 sm:py-20 ${LAZY_SECTION}`}
-    >
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <SectionTitle
-          darkMode={darkMode} isAr={language === 'ar'}
-          title={tr(language, 'homeCategoriesTitle')}
-          subtitle={tr(language, 'homeCategoriesSub')}
-        />
-        <div className={`hp-cat ${darkMode ? 'hp-cat-dark' : ''}`}>
-          {loading ? (
-            <div className={grid} role="status" aria-busy="true">
-              {Array.from({ length: 6 }).map((_, i) => <div key={i} className={`h-[150px] animate-pulse rounded-2xl motion-reduce:animate-none ${darkMode ? 'bg-[#2a2a2a]' : 'bg-gray-200/70'}`} />)}
-            </div>
-          ) : (
-            <div className={grid}>
-              {top.map((c) => (
-                <CategoryCard key={c.id} category={c} count={counts[String(c.id)] || 0} showCount={showCount} darkMode={darkMode} language={language} />
-              ))}
-            </div>
-          )}
+    <Band darkMode={darkMode} label={tr(language, 'homeCategoriesTitle')}>
+      <StoreHead darkMode={darkMode} isAr={language === 'ar'} title={tr(language, 'homeCategoriesTitle')} subtitle={tr(language, 'homeCategoriesSub')} />
+      {loading ? (
+        <TileRowSkeleton darkMode={darkMode} />
+      ) : failed && top.length === 0 ? (
+        <ErrorState darkMode={darkMode} language={language} onRetry={onRetry} retrying={retrying} compact />
+      ) : (
+        <div className="hp-sb -mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-3 sm:-mx-6 sm:px-6 lg:mx-0 lg:overflow-visible lg:px-0">
+          {top.map((c, i) => (
+            <CategoryTile key={c.id} category={c} index={i} count={counts[String(c.id)] || 0} showCount={showCount} darkMode={darkMode} language={language} />
+          ))}
         </div>
-      </div>
-    </section>
+      )}
+    </Band>
   );
 });
 
-const ProductCard = memo(({ product, darkMode, language, onAddToCart }) => {
-  const [failed, setFailed] = useState(false);
+const PROMO_PATTERNS = {
+  light: {
+    green: {
+      backgroundImage:
+        'radial-gradient(rgba(16,185,129,.28) 1.5px, transparent 1.5px), linear-gradient(135deg, rgba(16,185,129,.10) 0%, rgba(16,185,129,0) 55%)',
+      backgroundSize: '18px 18px, 100% 100%',
+    },
+    orange: {
+      backgroundImage:
+        'radial-gradient(rgba(249,115,22,.28) 1.5px, transparent 1.5px), linear-gradient(135deg, rgba(249,115,22,.10) 0%, rgba(249,115,22,0) 55%)',
+      backgroundSize: '18px 18px, 100% 100%',
+    },
+  },
+  dark: {
+    green: {
+      backgroundImage:
+        'radial-gradient(rgba(57,255,136,.16) 1.5px, transparent 1.5px), linear-gradient(135deg, rgba(57,255,136,.10) 0%, rgba(57,255,136,0) 55%)',
+      backgroundSize: '18px 18px, 100% 100%',
+    },
+    orange: {
+      backgroundImage:
+        'radial-gradient(rgba(251,146,60,.18) 1.5px, transparent 1.5px), linear-gradient(135deg, rgba(251,146,60,.12) 0%, rgba(251,146,60,0) 55%)',
+      backgroundSize: '18px 18px, 100% 100%',
+    },
+  },
+};
+
+const PROMO_SURFACE = {
+  light: 'bg-white',
+  dark: 'bg-[#1e1e1e]',
+};
+
+const PROMO_TONES = {
+  green: {
+    light: { ring: 'border-emerald-200 hover:border-emerald-500', btn: 'bg-emerald-600 group-hover:bg-emerald-700' },
+    dark: { ring: 'border-white/10 hover:border-[#39ff88]', btn: 'bg-emerald-600 group-hover:bg-emerald-500' },
+  },
+  orange: {
+    light: { ring: 'border-orange-200 hover:border-orange-500', btn: 'bg-orange-600 group-hover:bg-orange-700' },
+    dark: { ring: 'border-white/10 hover:border-orange-400', btn: 'bg-orange-600 group-hover:bg-orange-500' },
+  },
+};
+
+const PromoBanner = memo(({ to, title, text, cta, scene, tone, variant, delay, darkMode }) => {
+  const mode = darkMode ? 'dark' : 'light';
+  const t = PROMO_TONES[tone][mode];
+  return (
+    <Reveal variant={variant} delay={delay} className="h-full">
+      <Link
+        to={to}
+        style={PROMO_PATTERNS[mode][tone]}
+        className={`group relative flex h-full min-h-[200px] items-center justify-between gap-4 overflow-hidden rounded-2xl border p-6 shadow-sm transition-[box-shadow,border-color] duration-300 motion-reduce:transition-none sm:min-h-[230px] sm:p-8 [@media(hover:hover)]:hover:shadow-xl ${PROMO_SURFACE[mode]} ${t.ring} ${FOCUS}`}
+      >
+        <div className="relative z-[1] min-w-0 max-w-[62%]">
+          <h3 className={`text-2xl font-extrabold leading-tight [text-wrap:balance] sm:text-3xl ${darkMode ? 'text-white' : 'text-gray-900'}`}>{title}</h3>
+          <p className={`mt-2 line-clamp-3 text-sm font-medium sm:text-base ${darkMode ? 'text-neutral-300' : 'text-gray-600'}`}>{text}</p>
+          <span className={`hp-shine-g mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl px-5 text-sm font-extrabold !text-white shadow-lg transition-[transform,background-color,box-shadow] duration-200 [@media(hover:hover)]:group-hover:translate-x-1 rtl:[@media(hover:hover)]:group-hover:-translate-x-1 ${t.btn}`}>
+            <span className="text-white">{cta}</span>
+          </span>
+        </div>
+        <div aria-hidden="true" className="relative z-[1] w-[38%] max-w-[220px] shrink-0 transition-transform duration-500 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none [@media(hover:hover)]:group-hover:scale-105">
+          <IsoIllustration type={scene} onGreen={false} darkMode={darkMode} className="h-full w-full" />
+        </div>
+      </Link>
+    </Reveal>
+  );
+});
+
+const BannerSection = memo(({ darkMode, language }) => (
+  <Band darkMode={darkMode} label={tr(language, 'todayPrompt')} className="!py-6 sm:!py-8">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:gap-6">
+      <PromoBanner
+        to="/repair" scene="repairCard" tone="green" variant="start" delay={0} darkMode={darkMode}
+        title={tr(language, 'repairDevice')} text={tr(language, 'repairDescription')} cta={tr(language, 'bookRepair')}
+      />
+      <PromoBanner
+        to="/offers" scene="offersCard" tone="orange" variant="end" delay={120} darkMode={darkMode}
+        title={tr(language, 'latestOffers')} text={tr(language, 'offersDescription')} cta={tr(language, 'viewOffers')}
+      />
+    </div>
+  </Band>
+));
+
+const ProductCard = memo(({ product, darkMode, language, isSaved, onSave, onAddToCart }) => {
+  const imgRef = useRef(null);
+  const [failed, setFailed] = useState(() => isImgBad(product.imageUrl));
+  const [loaded, setLoaded] = useState(() => isImgOk(product.imageUrl));
   const [btn, setBtn] = useState('idle');
   const timer = useRef();
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; clearTimeout(timer.current); }; }, []);
-  useEffect(() => { setFailed(false); }, [product.imageUrl]);
+  useEffect(() => {
+    setFailed(isImgBad(product.imageUrl));
+    setLoaded(isImgOk(product.imageUrl));
+  }, [product.imageUrl]);
+  useEffect(() => {
+    const el = imgRef.current;
+    if (el && el.complete && el.naturalWidth > 0) {
+      markImg(product.imageUrl, 'ok');
+      setLoaded(true);
+    }
+  }, [product.imageUrl, failed]);
 
   const id = safeId(product.id);
-  const out = product.stock === 0;
+  const name = clean(product.name, 120) || tr(language, 'product');
+  const out = typeof product.stock === 'number' && product.stock <= 0;
   const low = typeof product.stock === 'number' && product.stock > 0 && product.stock <= LOW_STOCK_LIMIT;
   const hasDiscount = product.saving > 0;
   const hasRating = product.rating > 0;
   const showImage = !!product.imageUrl && !failed;
 
-  const handleError = useCallback(() => setFailed(true), []);
+  const handleError = useCallback(() => { markImg(product.imageUrl, 'bad'); setFailed(true); }, [product.imageUrl]);
+  const handleLoad = useCallback(() => { markImg(product.imageUrl, 'ok'); setLoaded(true); }, [product.imageUrl]);
+  const handleSave = useCallback(() => onSave(product.id), [onSave, product.id]);
   const handleCart = useCallback(async () => {
     if (out || btn === 'adding') return;
     setBtn('adding');
     const ok = await onAddToCart(product);
     if (!mounted.current) return;
     setBtn(ok ? 'added' : 'idle');
-    if (ok) timer.current = setTimeout(() => mounted.current && setBtn('idle'), 1400);
+    if (ok) {
+      clearTimeout(timer.current);
+      timer.current = setTimeout(() => mounted.current && setBtn('idle'), 1400);
+    }
   }, [out, btn, onAddToCart, product]);
 
-  const ink = darkMode ? 'text-white' : 'text-emerald-950';
-  const muted = darkMode ? 'text-neutral-400' : 'text-gray-600';
+  const ink = inkOf(darkMode);
+  const muted = mutedOf(darkMode);
   const deal = darkMode ? 'text-orange-400' : 'text-orange-700';
   const alert = darkMode ? 'text-rose-400' : 'text-rose-600';
+  const saveLabel = tr(language, isSaved ? 'saved' : 'save');
 
   return (
-    <article aria-label={product.name} className={`group relative h-full overflow-hidden ${neoCard(darkMode, 'sm', true)}`}>
-      <div className={`${PRODUCT_MEDIA} ${productMediaBg(darkMode)}`}>
+    <article aria-label={name} className={productCardCls(darkMode)}>
+      <div className={PRODUCT_MEDIA}>
         {showImage ? (
-          <img
-            src={product.imageUrl} alt={product.name} width={PRODUCT_IMG_W} height={PRODUCT_IMG_H}
-            loading="lazy" decoding="async" fetchPriority="low" referrerPolicy="no-referrer"
-            onError={handleError}
-            className={`h-full w-full bg-white object-contain p-4 transition-transform duration-300 motion-reduce:transition-none [@media(hover:hover)]:group-hover:scale-105 ${darkMode ? 'bg-transparent drop-shadow-[0_6px_6px_rgba(0,0,0,0.18)]' : ''} ${out ? 'opacity-50' : ''}`}
-          />
+          <>
+            {!loaded && <div aria-hidden="true" className="hp-shimmer absolute inset-0 bg-black/5" />}
+            <img
+              ref={imgRef}
+              src={product.imageUrl} alt={name} width={PRODUCT_IMG_W} height={PRODUCT_IMG_H}
+              loading="lazy" decoding="async" fetchPriority="low" referrerPolicy="no-referrer"
+              onLoad={handleLoad}
+              onError={handleError}
+              className={`absolute inset-0 h-full w-full object-contain p-4 transition-[opacity,transform] duration-500 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none [@media(hover:hover)]:group-hover:scale-105 ${loaded ? 'opacity-100' : 'opacity-0'} ${out ? 'grayscale' : ''}`}
+            />
+          </>
         ) : (
-          <ProductFallbackArt name={product.name} categoryName={product.categoryName} label={tr(language, 'deviceLabel')} darkMode={darkMode} />
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-emerald-100">
+            <ProductFallbackArt name={name} categoryName={product.categoryName} label={tr(language, 'deviceLabel')} darkMode={false} />
+          </div>
         )}
+
+        {hasDiscount && product.discount >= 1 && (
+          <span dir="ltr" className="absolute start-2.5 top-2.5 z-10 rounded-full bg-orange-600 px-2.5 py-1 text-[11px] font-extrabold tabular-nums text-white">
+            -{Math.round(product.discount)}%
+          </span>
+        )}
+
+        <button
+          type="button"
+          onClick={handleSave}
+          aria-pressed={isSaved}
+          aria-label={saveLabel}
+          title={saveLabel}
+          className={`${ICON_BTN} absolute end-2.5 top-2.5 z-10 h-9 w-9 bg-white text-emerald-950 shadow-md shadow-black/10 hover:bg-emerald-50`}
+        >
+          <FiHeart key={String(isSaved)} aria-hidden="true" className={`h-4 w-4 ${isSaved ? 'hp-heart text-rose-500' : ''}`} fill={isSaved ? 'currentColor' : 'none'} />
+        </button>
+
+        <button
+          type="button"
+          onClick={handleCart}
+          disabled={out || btn === 'adding'}
+          aria-label={tr(language, 'addToCart')}
+          title={tr(language, 'addToCart')}
+          className={`${ICON_BTN} absolute bottom-2.5 end-2.5 z-10 h-10 w-10 bg-emerald-600 text-white shadow-lg shadow-black/25 hover:bg-emerald-500`}
+        >
+          {btn === 'adding' ? <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" />
+            : btn === 'added' ? <FiCheck aria-hidden="true" className="hp-pop h-5 w-5" /> : <FiPlus aria-hidden="true" className="h-5 w-5" />}
+        </button>
       </div>
 
-      <div className="flex flex-1 flex-col gap-1.5 p-3.5">
-        <h3 className={`line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-snug ${ink}`} title={product.name}>
-          {id ? <Link to={`/device/${id}`} className={PRODUCT_LINK}>{product.name}</Link> : product.name}
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5 p-3 sm:p-3.5">
+        <div className="min-w-0" dir="ltr">
+          {hasDiscount && (
+            <p className={`text-[11px] tabular-nums line-through ${muted}`}>
+              <span className="sr-only">{tr(language, 'originalPrice')}: </span>{money(product.price)}
+            </p>
+          )}
+          <p className={`truncate text-base font-extrabold leading-tight tabular-nums sm:text-lg ${hasDiscount ? deal : ink}`}>
+            <span className="sr-only">{hasDiscount ? `${tr(language, 'discountedPrice')}: ` : ''}</span>{money(product.finalPrice)}
+          </p>
+        </div>
+
+        <h3 className={`line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-snug ${ink}`} title={name}>
+          {id ? <Link to={`/device/${id}`} className={PRODUCT_LINK}>{name}</Link> : name}
         </h3>
 
+        <p className={`line-clamp-1 text-xs leading-5 ${muted}`}>{product._snippet || tr(language, 'noProductDescription')}</p>
+
         {hasRating && (
-          <p className={`flex items-center gap-1 text-xs font-bold ${ink}`}>
+          <p className={`flex items-center gap-1 text-xs font-bold ${ink}`} dir="ltr">
             <RiStarFill className="h-3.5 w-3.5 text-amber-500" aria-hidden="true" />
-            <span dir="ltr" className="tabular-nums">{product.rating.toFixed(1)}</span>
-            {product.reviews > 0 && <span dir="ltr" className={`font-medium tabular-nums ${muted}`}>({COUNT_FORMAT.format(product.reviews)})</span>}
+            <span className="tabular-nums">{product.rating.toFixed(1)}</span>
+            {product.reviews > 0 && <span className={`font-medium tabular-nums ${muted}`}>({COUNT_FORMAT.format(product.reviews)})</span>}
           </p>
         )}
 
@@ -1197,70 +1652,45 @@ const ProductCard = memo(({ product, darkMode, language, onAddToCart }) => {
             <span>{tr(language, 'outOfStock')}</span>
           </p>
         ) : low ? (
-          <p className={`flex items-center gap-1.5 text-xs font-medium ${darkMode ? 'text-neutral-300' : 'text-gray-700'}`}>
+          <p className={`flex items-center gap-1.5 text-xs font-medium ${bodyOf(darkMode)}`}>
             <FiAlertCircle className="h-3.5 w-3.5 flex-shrink-0 text-orange-500" aria-hidden="true" />
             <span>{tr(language, 'onlyLeft', { count: product.stock })}</span>
           </p>
         ) : null}
-
-        <div className="mt-auto flex items-end justify-between gap-2 border-t-2 border-dotted border-[color:var(--ink)] pt-2.5">
-          <div className="min-w-0">
-            {hasDiscount && (
-              <p className={`text-[11px] tabular-nums line-through ${muted}`}>
-                <span className="sr-only">{tr(language, 'originalPrice')}: </span>{money(product.price)}
-              </p>
-            )}
-            <p className={`truncate text-lg font-extrabold leading-tight tabular-nums ${hasDiscount ? deal : ink}`}>
-              <span className="sr-only">{hasDiscount ? `${tr(language, 'discountedPrice')}: ` : ''}</span>{money(product.finalPrice)}
-            </p>
-            {hasDiscount && (
-              <p className={`truncate text-[11px] font-bold ${deal}`}>
-                {tr(language, 'youSave', { value: money(product.saving) })}
-              </p>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={handleCart}
-            disabled={out || btn === 'adding'}
-            aria-label={tr(language, 'addToCart')}
-            className={PRODUCT_ADD_BTN}
-          >
-            {btn === 'adding' ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" />
-              : btn === 'added' ? <FiCheck className="h-5 w-5" /> : <FiPlus className="h-5 w-5" />}
-          </button>
-        </div>
       </div>
     </article>
   );
 });
 
-const SHOP_MEDIA = 'relative h-40 w-full flex-shrink-0 overflow-hidden border-b-[3px] border-[color:var(--ink)] [contain:layout_paint] sm:h-44';
-const ShopMedia = memo(({ shop, darkMode, gold }) => {
-  const [failed, setFailed] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+const SHOP_MEDIA = 'relative h-40 w-full flex-shrink-0 overflow-hidden [contain:layout_paint] sm:h-44';
+const ShopMedia = memo(({ shop, darkMode }) => {
   const imgRef = useRef(null);
   const [mediaRef, logo] = useShopLogo(shop);
+  const [failed, setFailed] = useState(() => isImgBad(logo));
+  const [loaded, setLoaded] = useState(() => isImgOk(logo));
 
   useEffect(() => {
-    setFailed(false);
-    setLoaded(false);
+    setFailed(isImgBad(logo));
+    setLoaded(isImgOk(logo));
   }, [logo]);
 
   useEffect(() => {
     const el = imgRef.current;
-    if (el && el.complete && el.naturalWidth > 0) setLoaded(true);
+    if (el && el.complete && el.naturalWidth > 0) {
+      markImg(logo, 'ok');
+      setLoaded(true);
+    }
   }, [logo, failed]);
 
-  const handleError = useCallback(() => setFailed(true), []);
-  const handleLoad = useCallback(() => setLoaded(true), []);
+  const handleError = useCallback(() => { markImg(logo, 'bad'); setFailed(true); }, [logo]);
+  const handleLoad = useCallback(() => { markImg(logo, 'ok'); setLoaded(true); }, [logo]);
   const showLogo = !!logo && !failed;
-  const bg = showLogo ? 'bg-white' : gold ? (darkMode ? 'bg-[#1e1e1e]' : 'bg-amber-100') : mediaBg(darkMode);
+  const bg = showLogo ? 'bg-white' : darkMode ? 'bg-[#262626]' : 'bg-gray-100';
   return (
     <div ref={mediaRef} className={`${SHOP_MEDIA} ${bg}`}>
       {showLogo ? (
         <>
-          {!loaded && <div aria-hidden="true" className="absolute inset-0 animate-pulse bg-black/5 motion-reduce:animate-none" />}
+          {!loaded && <div aria-hidden="true" className="hp-shimmer absolute inset-0 bg-black/5" />}
           <img
             ref={imgRef}
             src={logo}
@@ -1273,16 +1703,12 @@ const ShopMedia = memo(({ shop, darkMode, gold }) => {
             referrerPolicy="no-referrer"
             onLoad={handleLoad}
             onError={handleError}
-            className={`absolute inset-0 h-full w-full object-contain p-4 transition-[opacity,transform] duration-300 motion-reduce:transition-none [@media(hover:hover)]:group-hover:scale-105 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+            className={`absolute inset-0 h-full w-full object-contain p-4 transition-[opacity,transform] duration-300 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none [@media(hover:hover)]:group-hover:scale-105 ${loaded ? 'opacity-100' : 'opacity-0'}`}
           />
         </>
       ) : (
         <div className="flex h-full w-full items-end justify-center px-4 pt-4">
-          {gold ? (
-            <TopShopArt darkMode={darkMode} />
-          ) : (
-            <StorefrontIllustration className="pointer-events-none h-full w-auto max-w-full transition-transform duration-200 motion-reduce:transition-none group-hover:scale-105" />
-          )}
+          <StorefrontIllustration className="pointer-events-none h-full w-auto max-w-full transition-transform duration-300 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none group-hover:scale-105" />
         </div>
       )}
     </div>
@@ -1294,24 +1720,24 @@ const STAT_ITEMS = [
   [FiTool, 'statRepairs', 'repairs'],
 ];
 
-const ShopStats = memo(({ orders, repairs, loading, darkMode, language, gold }) => {
+const formatStat = (value) => (value > 0 ? `${COUNT_FORMAT.format(value)}+` : COUNT_FORMAT.format(value));
+
+const ShopStats = memo(({ orders, repairs, loading, darkMode, language }) => {
   const values = { orders, repairs };
-  const surface = darkMode ? 'bg-[#1e1e1e]' : gold ? 'bg-white' : 'bg-gray-50';
-  const label = darkMode ? 'text-neutral-300' : 'text-gray-700';
-  const icon = darkMode ? (gold ? 'text-[#facc15]' : 'text-[#39ff88]') : gold ? 'text-amber-600' : 'text-emerald-600';
-  const ink = darkMode ? 'text-white' : gold ? 'text-amber-950' : 'text-emerald-950';
+  const surface = darkMode ? 'bg-[#141414]' : 'bg-gray-50';
+  const icon = darkMode ? 'text-[#39ff88]' : 'text-emerald-600';
   return (
-    <dl className="mb-3 grid grid-cols-2 gap-2">
+    <dl className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-1 lg:grid-cols-2">
       {STAT_ITEMS.map(([Icon, key, field]) => {
         const value = values[field];
         return (
-          <div key={key} className={`flex min-w-0 items-center gap-1.5 rounded-lg border-2 border-[color:var(--ink)] px-2 py-1.5 ${surface}`}>
+          <div key={key} className={`flex min-w-0 items-center gap-1.5 rounded-lg border px-2 py-1.5 ${lineOf(darkMode)} ${surface}`}>
             <Icon className={`h-3.5 w-3.5 flex-shrink-0 ${icon}`} aria-hidden="true" />
-            <dt className={`min-w-0 flex-1 truncate text-[10px] font-extrabold uppercase ${label}`}>{tr(language, key)}</dt>
-            <dd dir="ltr" className={`flex-shrink-0 text-sm font-black leading-none tabular-nums ${ink}`}>
+            <dt className={`min-w-0 flex-1 truncate text-[11px] font-bold ${bodyOf(darkMode)}`}>{tr(language, key)}</dt>
+            <dd dir="ltr" className={`flex-shrink-0 text-sm font-black leading-none tabular-nums ${inkOf(darkMode)}`}>
               {value == null && loading
-                ? <span className={`inline-block h-3.5 w-6 animate-pulse rounded motion-reduce:animate-none ${darkMode ? 'bg-white/15' : 'bg-black/10'}`} />
-                : value == null ? '—' : COUNT_FORMAT.format(value)}
+                ? <span className={`hp-shimmer inline-block h-3.5 w-6 rounded ${darkMode ? 'bg-white/15' : 'bg-black/10'}`} />
+                : value == null ? '—' : <span className="hp-fade-in">{formatStat(value)}</span>}
             </dd>
           </div>
         );
@@ -1327,34 +1753,35 @@ const statOf = (shop, stats, key) => {
   return map[`i:${shop.id}`] ?? map[nameKey(shop.name)] ?? 0;
 };
 
-const ShopCard = memo(({ shop, stats, statsLoading, darkMode, language, onOpen }) => {
+const ShopCard = memo(({ shop, rank, stats, statsLoading, darkMode, language, onOpen }) => {
   const open = useCallback(() => onOpen(shop), [onOpen, shop]);
   const handleKey = useCallback((e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open(); }, [open]);
   const hasRating = shop.rating > 0;
   const tel = phoneHref(shop.phone);
-  const isAr = language === 'ar';
   const neonText = darkMode ? 'text-[#39ff88]' : 'text-emerald-600';
   const amber = darkMode ? 'text-amber-300' : 'text-amber-700';
-  const body = darkMode ? 'text-neutral-300' : 'text-gray-700';
+  const body = bodyOf(darkMode);
   return (
     <article
       onClick={open}
       onKeyDown={handleKey}
       tabIndex={0}
-      aria-label={shop.name}
-      className={`group relative h-full cursor-pointer overflow-hidden ${neoCard(darkMode, 'sm', true)}`}
+      aria-label={rank ? `${tr(language, 'rankLabel', { n: rank })}: ${shop.name || ''}` : shop.name}
+      className={`cursor-pointer ${FOCUS} ${cardCls(darkMode)}`}
     >
+      {rank ? <RankBadge rank={rank} language={language} /> : null}
       <ShopMedia shop={shop} darkMode={darkMode} />
 
-      <div className="flex min-w-0 flex-1 flex-col p-4">
+      <div className={`flex min-w-0 flex-1 flex-col border-t p-4 ${lineOf(darkMode)}`}>
         <div className="flex flex-1 flex-col gap-2.5 pb-3">
           <div className="flex items-start justify-between gap-2">
-            <h3 className={`min-w-0 text-base font-extrabold uppercase leading-snug ${isAr ? 'tracking-normal' : 'tracking-[-0.01em]'} ${darkMode ? 'text-white' : 'text-emerald-950'}`}>
+            <h3 className={`min-w-0 text-base font-extrabold leading-snug ${inkOf(darkMode)}`}>
               <span className="line-clamp-1">{shop.name || tr(language, 'unnamedShop')}</span>
             </h3>
             {hasRating && (
               <span className={`flex flex-shrink-0 items-center gap-1 text-sm font-extrabold ${amber}`}>
                 <RiStarFill className="h-4 w-4" aria-hidden="true" /><span dir="ltr" className="tabular-nums">{shop.rating.toFixed(1)}</span>
+                {shop.reviews > 0 && <span dir="ltr" className={`text-xs font-medium tabular-nums ${body}`}>({COUNT_FORMAT.format(shop.reviews)})</span>}
               </span>
             )}
           </div>
@@ -1369,7 +1796,7 @@ const ShopCard = memo(({ shop, stats, statsLoading, darkMode, language, onOpen }
             </p>
           )}
           {tel && (
-            <a href={tel} onClick={(e) => e.stopPropagation()} className={`flex min-h-6 min-w-0 items-center gap-1.5 text-xs font-bold ${darkMode ? 'text-neutral-200 hover:text-[#39ff88]' : 'text-gray-800 hover:text-emerald-600'}`}>
+            <a href={tel} onClick={(e) => e.stopPropagation()} className={`flex min-h-6 min-w-0 items-center gap-1.5 text-xs font-bold transition-colors duration-200 ${darkMode ? 'text-neutral-200 hover:text-[#39ff88]' : 'text-gray-800 hover:text-emerald-600'}`}>
               <FiPhone className={`h-3.5 w-3.5 flex-shrink-0 ${neonText}`} aria-hidden="true" /><span className="truncate" dir="ltr">{shop.phone}</span>
             </a>
           )}
@@ -1379,140 +1806,173 @@ const ShopCard = memo(({ shop, stats, statsLoading, darkMode, language, onOpen }
           orders={statOf(shop, stats, 'orders')} repairs={statOf(shop, stats, 'repairs')}
           loading={statsLoading} darkMode={darkMode} language={language}
         />
-        <CardFooter label={tr(language, 'visitShop')} darkMode={darkMode} isAr={isAr} />
+        <CardFooter label={tr(language, 'visitShop')} darkMode={darkMode} />
       </div>
     </article>
   );
 });
 
-const GoldRow = memo(({ icon: Icon, children, className = '' }) => (
-  <p className={`flex min-w-0 items-center gap-2 text-xs font-semibold ${className}`}>
-    <Icon aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 text-amber-600" />
-    <span className="min-w-0 flex-1">{children}</span>
-  </p>
-));
-
-const TopShopCard = memo(({ shop, rank, stats, statsLoading, darkMode, language, onOpen }) => {
-  const open = useCallback(() => onOpen(shop), [onOpen, shop]);
-  const handleKey = useCallback((e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open(); }, [open]);
-  const tel = phoneHref(shop.phone);
-  const isAr = language === 'ar';
-  const ink = darkMode ? 'text-white' : 'text-amber-950';
-  const body = darkMode ? 'text-neutral-100' : 'text-gray-900';
+const ShopBadge = memo(({ shop, index, darkMode }) => {
+  const [ref, logo] = useShopLogo(shop);
+  const [bad, setBad] = useState(false);
+  useEffect(() => { setBad(false); }, [logo]);
+  const id = safeId(shop.id);
+  if (!id) return null;
+  const initial = String(shop.name || '?').trim().charAt(0).toUpperCase();
   return (
-    <article
-      onClick={open}
-      onKeyDown={handleKey}
-      tabIndex={0}
-      aria-label={`${tr(language, 'rankLabel', { n: rank })}: ${shop.name || ''}`}
-      className={`group relative h-full cursor-pointer overflow-hidden ${goldCard(darkMode, true)}`}
+    <div
+      style={{ '--i': Math.min(index, 8) }}
+      className="hp-tile w-28 shrink-0 snap-start sm:w-32 lg:w-auto lg:min-w-0 lg:flex-1"
     >
-      <ShopMedia shop={shop} darkMode={darkMode} gold />
-
-      <div className="flex min-w-0 flex-1 flex-col p-4">
-        <div className="flex flex-1 flex-col gap-2.5 pb-3">
-          <h3 className={`flex min-w-0 items-center gap-2 text-base font-extrabold uppercase leading-snug ${isAr ? 'tracking-normal' : 'tracking-[-0.01em]'} ${ink}`}>
-            <span aria-hidden="true" className={`flex-shrink-0 text-2xl font-black tabular-nums ${darkMode ? 'text-[#facc15]' : 'text-amber-600'}`}>{pad2(language, rank)}</span>
-            <span className="min-w-0 flex-1 truncate">{shop.name || tr(language, 'unnamedShop')}</span>
-          </h3>
-
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-            <span className={`inline-flex items-center gap-1 text-lg font-black ${ink}`}>
-              <RiStarFill className="h-4 w-4 text-amber-500" aria-hidden="true" />
-              <span dir="ltr" className="tabular-nums">{shop.rating.toFixed(1)}</span>
-              <span dir="ltr" className="text-[10px] font-bold opacity-70">{tr(language, 'outOf')}</span>
-            </span>
-            <Stars value={shop.rating} darkMode={darkMode} />
-            {shop.reviews > 0 && (
-              <span className={`text-xs font-bold ${body}`}>{tr(language, 'reviewsCount', { count: COUNT_FORMAT.format(shop.reviews) })}</span>
-            )}
-          </div>
-
-          {shop._address && <GoldRow icon={FiMapPin} className={body}><span className="line-clamp-1">{shop._address}</span></GoldRow>}
-          {tel && (
-            <GoldRow icon={FiPhone} className={body}>
-              <a href={tel} onClick={(e) => e.stopPropagation()} dir="ltr" className="truncate underline decoration-[color:var(--acc)] decoration-2 underline-offset-4">{shop.phone}</a>
-            </GoldRow>
+      <Link
+        ref={ref}
+        to={`/shops/${id}`}
+        aria-label={shop.name}
+        className={`group flex w-full flex-col items-center gap-2 rounded-xl p-2 text-center ${FOCUS}`}
+      >
+        <span className={`grid h-20 w-20 place-items-center overflow-hidden rounded-full border-2 bg-white transition-[transform,border-color] duration-300 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none sm:h-24 sm:w-24 ${darkMode ? 'border-white/10 group-hover:border-[#39ff88]' : 'border-gray-200 group-hover:border-emerald-500'} [@media(hover:hover)]:group-hover:-translate-y-1`}>
+          {logo && !bad ? (
+            <img src={logo} alt="" width={96} height={96} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={() => setBad(true)} className="h-full w-full object-contain p-2" />
+          ) : (
+            <span aria-hidden="true" className="text-3xl font-black text-emerald-700">{initial}</span>
           )}
-          <p className={`line-clamp-2 min-h-[2.25rem] text-xs font-medium leading-relaxed ${darkMode ? 'text-neutral-300' : 'text-gray-800'}`}>{shop._snippet || tr(language, 'shopDescription')}</p>
+        </span>
+        <span className={`line-clamp-1 w-full text-xs font-extrabold sm:text-sm ${inkOf(darkMode)}`}>{shop.name}</span>
+      </Link>
+    </div>
+  );
+});
+
+const ShopsTrustSection = memo(({ shops, loading, failed, darkMode, language }) => {
+  if (failed || (!loading && shops.length === 0)) return null;
+  return (
+    <Band darkMode={darkMode} label={tr(language, 'shopsTrustTitle')}>
+      <StoreHead
+        darkMode={darkMode} isAr={language === 'ar'}
+        title={tr(language, 'shopsTrustTitle')} subtitle={tr(language, 'shopsTrustSub')}
+        to="/shops" ctaLabel={tr(language, 'viewAllShops')}
+      />
+      {loading ? (
+        <TileRowSkeleton darkMode={darkMode} round="rounded-full" />
+      ) : (
+        <div className="hp-sb -mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-3 sm:-mx-6 sm:px-6 lg:mx-0 lg:overflow-visible lg:px-0">
+          {shops.map((s, i) => <ShopBadge key={s.id} shop={s} index={i} darkMode={darkMode} />)}
         </div>
-        <ShopStats
-          orders={statOf(shop, stats, 'orders')} repairs={statOf(shop, stats, 'repairs')}
-          loading={statsLoading} darkMode={darkMode} language={language} gold
-        />
-        <CardFooter label={tr(language, 'visitShop')} darkMode={darkMode} isAr={isAr} gold />
-      </div>
-    </article>
+      )}
+    </Band>
   );
 });
 
-const TopRatedSection = memo(({ shops, stats, statsLoading, loading, darkMode, language, onOpen, sectionRef, visible }) => {
-  if (!loading && shops.length === 0) return null;
+const TopRatedSection = memo(({ shops, stats, statsLoading, loading, failed, darkMode, language, onOpen }) => {
+  const [sectionRef, visible] = useOnScreen();
+  if (failed || (!loading && shops.length === 0)) return null;
   return (
-    <section
-      ref={sectionRef}
-      aria-label={tr(language, 'topRatedTitle')}
-      className={`border-y-4 py-14 sm:py-20 ${LAZY_SECTION} ${visible ? '' : 'anim-paused'} ${
-        darkMode ? 'border-[#facc15]/40 bg-[#1a1708]' : 'border-amber-300 bg-white'
-      }`}
-    >
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <SectionTitle
-          gold darkMode={darkMode} isAr={language === 'ar'}
-          title={tr(language, 'topRatedTitle')}
-          subtitle={tr(language, 'topRatedSub')}
-        />
-        {loading ? <ShopSkeleton darkMode={darkMode} gold count={TOP_LIMIT} /> : (
-          <ol className={SHOP_ROW}>
+    <Band darkMode={darkMode} alt sectionRef={sectionRef} visible={visible} label={tr(language, 'topRatedTitle')}>
+      <StoreHead darkMode={darkMode} isAr={language === 'ar'} title={tr(language, 'topRatedTitle')} subtitle={tr(language, 'topRatedSub')} />
+      {loading ? <SkeletonGrid darkMode={darkMode} count={TOP_LIMIT} variant="shop" grid={SHOP_GRID} /> : (
+        <ol className={SHOP_GRID}>
+          {shops.map((s, i) => (
+            <Reveal as="li" key={s.id} delay={stagger(i, 60)} className="h-full min-w-0">
+              <ShopCard
+                shop={s} rank={i + 1} stats={stats} statsLoading={statsLoading}
+                darkMode={darkMode} language={language} onOpen={onOpen}
+              />
+            </Reveal>
+          ))}
+        </ol>
+      )}
+    </Band>
+  );
+});
+
+const ShopsSection = memo(({ shops, stats, statsLoading, loading, failed, onRetry, retrying, darkMode, language, onOpen }) => {
+  const [sectionRef, visible] = useOnScreen();
+  return (
+    <Band darkMode={darkMode} sectionRef={sectionRef} visible={visible} label={tr(language, 'topShops')}>
+      <StoreHead
+        darkMode={darkMode} isAr={language === 'ar'}
+        title={tr(language, 'topShops')} subtitle={tr(language, 'shopsSubtitle')}
+        to="/shops" ctaLabel={tr(language, 'viewAllShops')}
+      />
+      {loading ? <SkeletonGrid darkMode={darkMode} count={LATEST_SHOPS_LIMIT} variant="shop" grid={SHOP_GRID} />
+        : failed ? <ErrorState darkMode={darkMode} language={language} onRetry={onRetry} retrying={retrying} />
+        : shops.length === 0 ? (
+          <EmptyState
+            kind="shops" darkMode={darkMode}
+            title={tr(language, 'noShops')} text={tr(language, 'emptyShopsText')}
+            to="/shops" ctaLabel={tr(language, 'exploreShops')}
+          />
+        )
+        : (
+          <div className={SHOP_GRID}>
             {shops.map((s, i) => (
-              <li key={s.id} className={SHOP_ITEM}>
-                <TopShopCard
-                  shop={s} rank={i + 1} stats={stats} statsLoading={statsLoading}
-                  darkMode={darkMode} language={language} onOpen={onOpen}
-                />
-              </li>
+              <Reveal key={s.id} delay={stagger(i % 4, 50)} className="h-full min-w-0">
+                <ShopCard shop={s} stats={stats} statsLoading={statsLoading} darkMode={darkMode} language={language} onOpen={onOpen} />
+              </Reveal>
             ))}
-          </ol>
+          </div>
         )}
-      </div>
-    </section>
+    </Band>
   );
 });
 
-const ShopsSection = memo(({ shops, stats, statsLoading, loading, darkMode, language, onOpen, sectionRef, visible }) => {
-  const isAr = language === 'ar';
+const ProductSection = memo(({
+  title, subtitle, products, loading, failed, errorHost, onRetry, retrying, cta, alt, emptyLabel, skeletonCount = 4,
+  darkMode, language, saved, onSave, onAddToCart,
+}) => {
+  const [secRef, visible] = useOnScreen();
+  if (failed && products.length === 0) {
+    if (!errorHost) return null;
+    return (
+      <Band darkMode={darkMode} alt={alt} sectionRef={secRef} visible={visible} label={title}>
+        <StoreHead darkMode={darkMode} isAr={language === 'ar'} title={title} subtitle={subtitle} to={cta?.to} ctaLabel={cta?.label} />
+        <ErrorState darkMode={darkMode} language={language} onRetry={onRetry} retrying={retrying} />
+      </Band>
+    );
+  }
+  if (!loading && products.length === 0 && !emptyLabel) return null;
   return (
-    <section
-      ref={sectionRef}
-      className={`hp-pattern ${darkMode ? 'hp-pattern-dark' : ''} py-14 sm:py-20 ${LAZY_SECTION} ${visible ? '' : 'anim-paused'} ${darkMode ? DARK_PAGE : 'bg-gray-50'}`}
-    >
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <SectionTitle
-          darkMode={darkMode} isAr={isAr}
-          title={tr(language, 'topShops')}
-          subtitle={tr(language, 'shopsSubtitle')}
-        >
-          <div className="pb-2 pe-2">
-            <Link to="/shops" className={neoBtn(darkMode, true)}>
-              <span>{tr(language, 'viewAllShops')}</span>
-              <FiArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
-            </Link>
-          </div>
-        </SectionTitle>
+    <Band darkMode={darkMode} alt={alt} sectionRef={secRef} visible={visible} label={title}>
+      <StoreHead
+        darkMode={darkMode} isAr={language === 'ar'} title={title} subtitle={subtitle}
+        to={cta?.to} ctaLabel={cta?.label}
+      />
+      {loading ? <SkeletonGrid darkMode={darkMode} count={skeletonCount} />
+        : products.length === 0 ? (
+          <EmptyState
+            kind="products" darkMode={darkMode}
+            title={emptyLabel} text={tr(language, 'emptyProductsText')}
+            to="/devices" ctaLabel={tr(language, 'exploreDevices')}
+          />
+        )
+        : (
+          <ul className={GRID}>
+            {products.map((p, i) => (
+              <Reveal as="li" key={p.id} delay={stagger(i % 4, 50)} className="h-full min-w-0">
+                <ProductCard
+                  product={p} darkMode={darkMode} language={language}
+                  isSaved={saved.has(p.id)} onSave={onSave} onAddToCart={onAddToCart}
+                />
+              </Reveal>
+            ))}
+          </ul>
+        )}
+    </Band>
+  );
+});
 
-        {loading ? <ShopSkeleton darkMode={darkMode} count={LATEST_SHOPS_LIMIT} />
-          : shops.length === 0 ? <EmptyRail label={tr(language, 'noShops')} darkMode={darkMode} />
-          : (
-            <div className={SHOP_ROW}>
-              {shops.map((s, i) => (
-                <div key={s.id} className={`hp-rise ${SHOP_ITEM}`} style={STAGGER[i % LATEST_SHOPS_LIMIT]}>
-                  <ShopCard shop={s} stats={stats} statsLoading={statsLoading} darkMode={darkMode} language={language} onOpen={onOpen} />
-                </div>
-              ))}
-            </div>
-          )}
-      </div>
-    </section>
+const OffersLoader = memo(({ darkMode, language }) => {
+  const [attempt, setAttempt] = useState(0);
+  const Offers = useMemo(() => makeOffersSlider(), [attempt]);
+  const retry = useCallback(() => setAttempt((a) => a + 1), []);
+  return (
+    <SectionBoundary key={attempt} darkMode={darkMode} language={language} onRetry={retry}>
+      <Suspense fallback={<div aria-hidden="true" className={`hp-shimmer h-64 w-full ${skBase(darkMode)}`} />}>
+        <Reveal variant="fade">
+          <Offers darkMode={darkMode} />
+        </Reveal>
+      </Suspense>
+    </SectionBoundary>
   );
 });
 
@@ -1523,6 +1983,9 @@ const HomepageContent = memo(({ darkMode }) => {
 
   const accessToken = useAuthStore((s) => s.accessToken);
   const userId = useAuthStore((s) => s.userId);
+  const [saved, toggleSaved] = useSavedProducts();
+  const [lowerSeen, setLowerSeen] = useState(false);
+  const markLowerSeen = useCallback(() => setLowerSeen(true), []);
 
   useEffect(() => { document.title = tr(language, 'pageTitle'); }, [language]);
 
@@ -1533,7 +1996,7 @@ const HomepageContent = memo(({ darkMode }) => {
   }, [darkMode]);
 
   useEffect(() => {
-    const warm = () => { loadService(); loadComponents(); };
+    const warm = () => { loadService().catch(() => { }); loadComponents().catch(() => { }); };
     if (typeof window.requestIdleCallback === 'function') {
       const id = window.requestIdleCallback(warm, { timeout: 3000 });
       return () => window.cancelIdleCallback(id);
@@ -1550,37 +2013,48 @@ const HomepageContent = memo(({ darkMode }) => {
       if (!session) return;
       const to = redirectFor(session.roles, '/');
       if (to !== '/') navigate(to, { replace: true });
-    });
+    }).catch(() => { });
   }, [navigate]);
 
-  const { data, isLoading: queryLoading } = useQuery({
+  const {
+    data, isLoading: queryLoading, isError: homeError, isFetching: homeFetching, refetch: refetchHome,
+  } = useQuery({
     queryKey: ['homeData', userId ?? 'anon'],
     enabled: !!accessToken,
     queryFn: async ({ signal }) => {
-      const [shopRes, productRes] = await Promise.all([
+      const [shopRes, productRes] = await Promise.allSettled([
         api.get('/api/users/shops/all', { params: { page: 0, size: SHOPS_FETCH_SIZE }, signal }),
-        api.get('/api/products', { signal }).catch((e) => {
-          if (signal?.aborted) throw e;
-          return { data: { content: [] } };
-        }),
+        api.get('/api/products', { signal }),
       ]);
-      const list = productRes.data?.content || productRes.data || [];
+      const shopsFailed = shopRes.status === 'rejected';
+      const productsFailed = productRes.status === 'rejected';
+      if (shopsFailed && productsFailed) throw shopRes.reason;
+      const list = productsFailed ? [] : (productRes.value.data?.content || productRes.value.data || []);
       const catalog = (Array.isArray(list) ? list : []).filter((p) => p && !p.deleted).map(normalizeProduct);
-      const rawShops = shopRes.data?.content || (Array.isArray(shopRes.data) ? shopRes.data : []);
+      const rawShops = shopsFailed ? [] : (shopRes.value.data?.content || (Array.isArray(shopRes.value.data) ? shopRes.value.data : []));
       const shops = rawShops.filter(Boolean).map(normalizeShop);
+      const counts = {};
+      for (const p of catalog) if (p.categoryId != null) counts[String(p.categoryId)] = (counts[String(p.categoryId)] || 0) + 1;
       return {
-        catalog,
+        counts,
+        productsFailed,
+        shopsFailed,
         latestProducts: latestOf(catalog),
+        dealProducts: dealsOf(catalog),
         topShops: topShopsOf(shops),
         latestShops: latestShopsOf(shops),
       };
     },
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
+    retry: retryPolicy,
   });
   const isLoading = !!accessToken && queryLoading;
 
-  const { data: categories = EMPTY_LIST, isLoading: categoriesLoading } = useQuery({
+  const {
+    data: categories = EMPTY_LIST, isLoading: categoriesLoading, isError: categoriesError,
+    isFetching: categoriesFetching, refetch: refetchCategories,
+  } = useQuery({
     queryKey: ['homeCategories'],
     queryFn: async ({ signal }) => {
       const res = await api.get('/api/categories', { signal });
@@ -1595,13 +2069,24 @@ const HomepageContent = memo(({ darkMode }) => {
     },
     staleTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
-    retry: false,
+    retry: retryPolicy,
   });
 
-  const catalog = data?.catalog || EMPTY_LIST;
+  const categoryCounts = data?.counts || EMPTY_OBJECT;
   const products = data?.latestProducts || EMPTY_LIST;
+  const deals = data?.dealProducts || EMPTY_LIST;
   const topShops = data?.topShops || EMPTY_LIST;
   const latestShops = data?.latestShops || EMPTY_LIST;
+  const productsFailed = homeError || !!data?.productsFailed;
+  const shopsFailed = homeError || !!data?.shopsFailed;
+
+  useEffect(() => {
+    const urls = [];
+    for (const p of deals) if (p.imageUrl) urls.push(p.imageUrl);
+    for (const p of products) if (p.imageUrl) urls.push(p.imageUrl);
+    if (!urls.length) return undefined;
+    return warmImages([...new Set(urls)].slice(0, WARM_LIMIT));
+  }, [products, deals]);
 
   const needsStats = useMemo(
     () => topShops.some((s) => s._orders == null || s._repairs == null) || latestShops.some((s) => s._orders == null || s._repairs == null),
@@ -1610,24 +2095,13 @@ const HomepageContent = memo(({ darkMode }) => {
 
   const { data: shopStats = EMPTY_OBJECT, isLoading: statsQueryLoading } = useQuery({
     queryKey: ['homeShopStats', userId ?? 'anon'],
-    enabled: !!accessToken && needsStats,
+    enabled: !!accessToken && needsStats && lowerSeen,
     queryFn: ({ signal }) => fetchShopStats(signal),
-    staleTime: 5 * 60 * 1000,
+    staleTime: STATS_STALE,
     refetchOnWindowFocus: false,
     retry: false,
   });
-  const statsLoading = needsStats && statsQueryLoading;
-
-  const prodRail = useRail(products);
-  const [prodSecRef, prodVisible] = useOnScreen();
-  const [topSecRef, topVisible] = useOnScreen();
-  const [shopSecRef, shopVisible] = useOnScreen();
-
-  const categoryCounts = useMemo(() => {
-    const map = {};
-    for (const p of catalog) if (p.categoryId != null) map[String(p.categoryId)] = (map[String(p.categoryId)] || 0) + 1;
-    return map;
-  }, [catalog]);
+  const statsLoading = needsStats && lowerSeen && statsQueryLoading;
 
   const showTop = useBackToTop();
   const scrollToTop = useCallback(() => {
@@ -1635,7 +2109,11 @@ const HomepageContent = memo(({ darkMode }) => {
     window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
   }, []);
 
+  const retryHome = useCallback(() => { refetchHome(); }, [refetchHome]);
+  const retryCategories = useCallback(() => { refetchCategories(); }, [refetchCategories]);
+
   const handleAddToCart = useCallback(async (product) => {
+    if (product?.id == null) return false;
     if (!useAuthStore.getState().accessToken) {
       const Swal = await loadSwal();
       const r = await Swal.fire({
@@ -1655,7 +2133,8 @@ const HomepageContent = memo(({ darkMode }) => {
       });
       return true;
     } catch (err) {
-      toast({ icon: 'error', title: tr(language, 'errorTitle'), text: err?.response?.data?.message || tr(language, 'addToCartFailed'), timer: 3500 });
+      const serverMsg = clean(err?.response?.data?.message, 120);
+      toast({ icon: 'error', title: tr(language, 'errorTitle'), text: serverMsg || tr(language, 'addToCartFailed'), timer: 3500 });
       return false;
     }
   }, [navigate, language]);
@@ -1665,82 +2144,96 @@ const HomepageContent = memo(({ darkMode }) => {
     if (id) navigate(`/shops/${id}`);
   }, [navigate]);
 
-  const RAIL = 'hide-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-5 pt-1 sm:gap-6 motion-reduce:scroll-auto';
-  const sectionBg = darkMode ? DARK_PAGE : 'bg-gray-50';
+  const guard = { darkMode, language };
 
   return (
     <div
       dir={languageDirection(language)}
-      className={`min-h-screen ${isAr ? 'font-cairo' : 'font-jakarta'} ${darkMode ? `${DARK_PAGE} text-white` : 'bg-gray-50 text-gray-900'}`}
+      className={`min-h-screen transition-colors duration-500 motion-reduce:transition-none ${THEME_VARS[darkMode ? 'dark' : 'light']} ${isAr ? 'font-cairo' : 'font-jakarta'} ${darkMode ? `${DARK_PAGE} text-white` : 'bg-gray-50 text-gray-900'}`}
     >
       <Device3DStyles />
       <style>{EXTRAS_CSS}</style>
       <Defs3D />
       <Toaster darkMode={darkMode} />
+      <ConnectionBanner darkMode={darkMode} language={language} />
 
-      <Hero variant="home" darkMode={darkMode} />
+      <div aria-hidden="true" className="hp-progress" />
 
-      <ActionSection darkMode={darkMode} language={language} />
+      <div className="hp-hero-in">
+        <SectionBoundary silent {...guard}>
+          <Hero variant="home" darkMode={darkMode} />
+        </SectionBoundary>
+      </div>
 
-      <Suspense fallback={<div className={`h-[420px] w-full animate-pulse motion-reduce:animate-none ${darkMode ? DARK_PAGE : 'bg-emerald-50'}`} />}>
-        <Service darkMode={darkMode} />
-      </Suspense>
+      <SectionBoundary {...guard}>
+        <CategorySection
+          categories={categories} counts={categoryCounts} showCount={!!data}
+          loading={categoriesLoading} failed={categoriesError} onRetry={retryCategories} retrying={categoriesFetching}
+          darkMode={darkMode} language={language}
+        />
+      </SectionBoundary>
 
-      <CategorySection
-        categories={categories} counts={categoryCounts} showCount={!!data}
-        loading={categoriesLoading} darkMode={darkMode} language={language}
-      />
+      <SectionBoundary {...guard}>
+        <BannerSection darkMode={darkMode} language={language} />
+      </SectionBoundary>
 
-      <section
-        ref={prodSecRef}
-        className={`hp-pattern ${darkMode ? 'hp-pattern-dark' : ''} py-14 sm:py-20 ${LAZY_SECTION} ${prodVisible ? '' : 'anim-paused'} ${sectionBg}`}
+      <SectionBoundary {...guard}>
+        <ProductSection
+          skeletonCount={DEAL_LIMIT}
+          title={tr(language, 'dealsTitle')} subtitle={tr(language, 'dealsSub')}
+          products={deals} loading={isLoading} failed={productsFailed} errorHost onRetry={retryHome} retrying={homeFetching}
+          cta={{ to: '/offers', label: tr(language, 'viewOffers') }}
+          darkMode={darkMode} language={language} saved={saved} onSave={toggleSaved} onAddToCart={handleAddToCart}
+        />
+      </SectionBoundary>
+
+      <SectionBoundary alt {...guard}>
+        <ProductSection
+          alt skeletonCount={RAIL_LIMIT}
+          title={tr(language, 'tabsTitle')} subtitle={tr(language, 'tabsSub')}
+          products={products} loading={isLoading} failed={productsFailed} emptyLabel={tr(language, 'noProducts')}
+          darkMode={darkMode} language={language} saved={saved} onSave={toggleSaved} onAddToCart={handleAddToCart}
+        />
+      </SectionBoundary>
+
+      <LazyMount darkMode={darkMode} minHeight={320}>
+        <SectionBoundary {...guard}>
+          <ShopsTrustSection shops={latestShops} loading={isLoading} failed={shopsFailed} darkMode={darkMode} language={language} />
+        </SectionBoundary>
+      </LazyMount>
+
+      <LazyMount darkMode={darkMode} alt minHeight={520} onShow={markLowerSeen}>
+        <SectionBoundary alt {...guard}>
+          <TopRatedSection
+            shops={topShops} stats={shopStats} statsLoading={statsLoading}
+            loading={isLoading} failed={shopsFailed} darkMode={darkMode} language={language} onOpen={openShop}
+          />
+        </SectionBoundary>
+      </LazyMount>
+
+      <LazyMount darkMode={darkMode} minHeight={520}>
+        <SectionBoundary {...guard}>
+          <ShopsSection
+            shops={latestShops} stats={shopStats} statsLoading={statsLoading}
+            loading={isLoading} failed={shopsFailed} onRetry={retryHome} retrying={homeFetching}
+            darkMode={darkMode} language={language} onOpen={openShop}
+          />
+        </SectionBoundary>
+      </LazyMount>
+
+      <LazyMount darkMode={darkMode} minHeight={260}>
+        <OffersLoader darkMode={darkMode} language={language} />
+      </LazyMount>
+
+      <div
+        className={`fixed bottom-5 end-5 z-40 transition-[opacity,transform,visibility] duration-300 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none ${
+          showTop ? 'visible translate-y-0 scale-100 opacity-100' : 'invisible translate-y-4 scale-90 opacity-0'
+        }`}
       >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <SectionTitle
-            darkMode={darkMode} isAr={isAr}
-            title={tr(language, 'featuredProducts')}
-            subtitle={tr(language, 'featuredSubtitle')}
-          >
-            <RailArrows rail={prodRail} darkMode={darkMode} language={language} />
-          </SectionTitle>
-
-          {isLoading ? <RailSkeleton w="w-[210px] sm:w-[230px]" h="h-[380px]" darkMode={darkMode} />
-            : products.length === 0 ? <EmptyRail label={tr(language, 'noProducts')} darkMode={darkMode} />
-            : (
-              <div ref={prodRail.ref} className={RAIL}>
-                {products.map((p) => (
-                  <div key={p.id} className="w-[210px] flex-shrink-0 snap-start pb-2 pe-2 sm:w-[230px]">
-                    <ProductCard product={p} darkMode={darkMode} language={language} onAddToCart={handleAddToCart} />
-                  </div>
-                ))}
-              </div>
-            )}
-        </div>
-      </section>
-
-      <TopRatedSection
-        shops={topShops} stats={shopStats} statsLoading={statsLoading}
-        loading={isLoading} darkMode={darkMode} language={language}
-        onOpen={openShop} sectionRef={topSecRef} visible={topVisible}
-      />
-
-      <ShopsSection
-        shops={latestShops} stats={shopStats} statsLoading={statsLoading}
-        loading={isLoading} darkMode={darkMode} language={language}
-        onOpen={openShop} sectionRef={shopSecRef} visible={shopVisible}
-      />
-
-      <Suspense fallback={<div className={`h-64 w-full animate-pulse motion-reduce:animate-none ${darkMode ? DARK_PAGE : 'bg-white'}`} />}>
-        <OffersSlider darkMode={darkMode} />
-      </Suspense>
-
-      {showTop && (
-        <div className="fixed bottom-5 end-5 z-40">
-          <Btn3D onClick={scrollToTop} aria-label={tr(language, 'backToTop')} className="h-11 w-11">
-            <FiArrowUp className="h-5 w-5" />
-          </Btn3D>
-        </div>
-      )}
+        <Btn3D onClick={scrollToTop} aria-label={tr(language, 'backToTop')} className="h-11 w-11">
+          <FiArrowUp className="h-5 w-5" />
+        </Btn3D>
+      </div>
 
       <CookieConsent darkMode={darkMode} language={language} />
     </div>

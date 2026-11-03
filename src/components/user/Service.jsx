@@ -1,9 +1,9 @@
 import React, { memo, useMemo } from 'react';
-import { useAppLanguage, languageDirection } from '../common/utils/useAppLanguage';
-import { IsoIllustration } from '../components/user/IsoIllustrations';
-import enTranslations from '../locales/en/translation.json';
-import arTranslations from '../locales/ar/translation.json';
-import frTranslations from '../locales/fr/translation.json';
+import { useAppLanguage, languageDirection } from '../../common/utils/useAppLanguage';
+import { IsoIllustration } from './IsoIllustrations';
+import enTranslations from '../../locales/en/translation.json';
+import arTranslations from '../../locales/ar/translation.json';
+import frTranslations from '../../locales/fr/translation.json';
 
 const SERVICE_TRANSLATIONS = {
   en: enTranslations.service,

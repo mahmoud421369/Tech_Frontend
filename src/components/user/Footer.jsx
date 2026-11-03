@@ -1,17 +1,19 @@
 import React, { memo, useMemo, useState, useEffect, useRef, useCallback, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { FiMail, FiPhone, FiClock, FiX } from 'react-icons/fi';
-import { FaFacebookF, FaInstagram } from 'react-icons/fa';
-import { RiMapPin2Line, RiHome3Line, RiDeviceLine, RiTruckLine, RiStore2Line } from 'react-icons/ri';
+import { FiX } from 'react-icons/fi';
+import { FaFacebookF, FaInstagram, FaWhatsapp } from 'react-icons/fa';
+import {
+  RiHome3Line, RiDeviceLine, RiTruckLine, RiStore2Line,
+} from 'react-icons/ri';
 import logo from '../../common/images/tech-restore-logo.webp';
-import { FooterArt } from './HeroArt';
 import { useAppLanguage, languageDirection } from '../../common/utils/useAppLanguage';
 import enTranslations from '../../locales/en/translation.json';
 import arTranslations from '../../locales/ar/translation.json';
 import frTranslations from '../../locales/fr/translation.json';
 
 const FOOTER_TRANSLATIONS = { en: enTranslations.footer, ar: arTranslations.footer, fr: frTranslations.footer };
+
 
 const FOOTER_PATHS = {
   name: 'brand.name',
@@ -25,12 +27,7 @@ const FOOTER_PATHS = {
   devices: 'quickLinks.devices',
   trackOrder: 'quickLinks.trackOrder',
   shops: 'quickLinks.shops',
-  contactUs: 'contact.title',
-  address: 'contact.address',
-  phone: 'contact.phone',
   email: 'contact.email',
-  support: 'contact.hoursTitle',
-  alwaysHelp: 'contact.hoursSubtitle',
   copyright: 'bottomBar.copyright',
   privacy: 'bottomBar.privacyPolicy',
   terms: 'bottomBar.termsOfService',
@@ -39,22 +36,37 @@ const FOOTER_PATHS = {
 };
 
 const LOCAL_FOOTER = {
-  en: { close: 'Close' },
-  ar: { close: 'إغلاق' },
-  fr: { close: 'Fermer' },
+  en: { close: 'Close', customerService: 'Customer service', whatsapp: 'WhatsApp' },
+  ar: { close: 'إغلاق', customerService: 'خدمة العملاء', whatsapp: 'واتساب' },
+  fr: { close: 'Fermer', customerService: 'Service client', whatsapp: 'WhatsApp' },
 };
+
+const FOOTER_KEYS = Array.from(new Set([...Object.keys(FOOTER_PATHS), ...Object.keys(LOCAL_FOOTER.en)]));
 
 const readPath = (obj, path) => path.split('.').reduce((o, k) => (o == null ? o : o[k]), obj);
 const asString = (v) => (typeof v === 'string' && v ? v : '');
 
 const getFooterTranslation = (language, key) => {
-  const path = FOOTER_PATHS[key] || key;
-  return asString(readPath(FOOTER_TRANSLATIONS[language], path))
-    || asString(readPath(FOOTER_TRANSLATIONS.en, path))
-    || LOCAL_FOOTER[language]?.[key]
-    || LOCAL_FOOTER.en[key]
-    || key;
+  const path = FOOTER_PATHS[key];
+  const remote = path
+    ? asString(readPath(FOOTER_TRANSLATIONS[language], path)) || asString(readPath(FOOTER_TRANSLATIONS.en, path))
+    : '';
+  return remote || LOCAL_FOOTER[language]?.[key] || LOCAL_FOOTER.en[key] || key;
 };
+
+
+const TX_CACHE = {};
+const getTx = (language) => {
+  if (!TX_CACHE[language]) {
+    const out = {};
+    FOOTER_KEYS.forEach((k) => { out[k] = getFooterTranslation(language, k); });
+    TX_CACHE[language] = out;
+  }
+  return TX_CACHE[language];
+};
+
+const WHATSAPP_DISPLAY = '01228172702';
+const WHATSAPP_HREF = 'https://wa.me/201228172702';
 
 const LEGAL_DOCS = {
   en: {
@@ -142,6 +154,7 @@ const FT_CSS = `
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
   }
+  [dir="rtl"] .ft-hl, [dir="rtl"] .ft-hl-dark { background-position: right bottom; }
   .ft-hl      { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2310b981' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
   .ft-hl-dark { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2339ff88' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
   .ft-fade { animation: ftFade .16s ease-out both; }
@@ -164,6 +177,7 @@ const FOCUS_BASE = 'focus-visible:outline focus-visible:outline-[3px] focus-visi
 const THEME = {
   light: {
     root: 'border-t-[3px] border-emerald-950 bg-white text-emerald-950',
+    bar: 'border-t-[3px] border-emerald-950 bg-emerald-50',
     title: 'text-emerald-950',
     chip: 'border-2 border-emerald-950 bg-emerald-400 text-emerald-950 [box-shadow:calc(var(--dx)*2px)_2px_0_0_#022c22]',
     social:
@@ -184,6 +198,7 @@ const THEME = {
   },
   dark: {
     root: 'border-t-[3px] border-black bg-[#141414] text-white',
+    bar: 'border-t-[3px] border-black bg-[#0e0e0e]',
     title: 'text-white',
     chip: 'border-2 border-black bg-[#39ff88] text-black [box-shadow:calc(var(--dx)*2px)_2px_0_0_#000]',
     social:
@@ -205,6 +220,7 @@ const THEME = {
 };
 
 const SOCIALS = [
+  { id: 'whatsapp', href: WHATSAPP_HREF, Icon: FaWhatsapp },
   { id: 'instagram', href: 'https://www.instagram.com/tech_restoree?xtok=MWlwYjdhbGhzNHE3cw==', Icon: FaInstagram },
   { id: 'facebook', href: 'https://www.facebook.com/profile.php?id=61595846460089', Icon: FaFacebookF },
 ];
@@ -220,12 +236,13 @@ const LEGAL_ITEMS = ['privacy', 'terms', 'cookies'];
 
 const PRESS = 'transition-[transform,box-shadow,background-color,color] duration-150 hover:-translate-y-px active:translate-y-0.5 active:[box-shadow:none] motion-reduce:transition-none';
 
-const SocialBtn = memo(({ href, Icon, label, th }) => (
+const SocialBtn = memo(({ href, Icon, label, text, th }) => (
   <a
-    href={href} target="_blank" rel="noopener noreferrer" aria-label={label} title={label}
-    className={`flex h-11 w-11 items-center justify-center ${PRESS} ${th.social} ${th.focus}`}
+    href={href} target="_blank" rel="noopener noreferrer" aria-label={text ? `${label} ${text}` : label} title={text ? `${label} ${text}` : label}
+    className={`flex h-11 items-center justify-center ${text ? 'gap-2 px-3' : 'w-11'} ${PRESS} ${th.social} ${th.focus}`}
   >
-    <Icon className="h-[18px] w-[18px]" />
+    <Icon className="h-[18px] w-[18px] flex-shrink-0" />
+    {text && <span dir="ltr" className="text-sm font-bold tabular-nums">{text}</span>}
   </a>
 ));
 
@@ -240,23 +257,16 @@ const FooterLink = memo(({ to, Icon, label, th }) => (
   </li>
 ));
 
-const ContactRow = memo(({ Icon, th, children }) => (
-  <li className="flex items-start gap-3">
-    <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center ${th.chip}`}><Icon className="h-4 w-4" /></span>
-    <div className="min-w-0 pt-1">{children}</div>
-  </li>
-));
-
 const ColumnTitle = memo(({ th, children }) => (
   <h3 className={`mb-5 text-sm font-extrabold uppercase tracking-wide rtl:tracking-normal ${th.title}`}>
     <span className={th.hl}>{children}</span>
   </h3>
 ));
 
-const LegalButton = memo(({ id, label, onOpen, th }) => (
+const LegalButton = memo(({ id, label, onOpen, th, block }) => (
   <button
     type="button" onClick={() => onOpen(id)} aria-haspopup="dialog"
-    className={`min-h-11 font-semibold transition-colors duration-150 hover:underline hover:underline-offset-4 ${th.muted} ${th.inline} ${th.focus}`}
+    className={`min-h-11 text-start font-semibold transition-colors duration-150 hover:underline hover:underline-offset-4 ${block ? 'flex w-full items-center text-sm' : ''} ${th.muted} ${th.inline} ${th.focus}`}
   >
     {label}
   </button>
@@ -348,18 +358,11 @@ const Footer = ({ darkMode = false }) => {
   const th = darkMode ? THEME.dark : THEME.light;
   const [openDoc, setOpenDoc] = useState(null);
 
-  const tx = useMemo(() => {
-    const out = {};
-    Object.keys(FOOTER_PATHS).forEach((k) => { out[k] = getFooterTranslation(language, k); });
-    return out;
-  }, [language]);
+  const tx = useMemo(() => getTx(language), [language]);
 
   const openLegal = useCallback((id) => setOpenDoc(id), []);
   const closeLegal = useCallback(() => setOpenDoc(null), []);
 
-  const phone = tx.phone;
-  const email = tx.email;
-  const telHref = `tel:${phone.replace(/[^\d+]/g, '').slice(0, 20)}`;
   const year = useMemo(() => new Date().getFullYear(), []);
   const sections = openDoc ? (LEGAL_DOCS[language]?.[openDoc] || LEGAL_DOCS.en[openDoc]) : null;
 
@@ -367,13 +370,12 @@ const Footer = ({ darkMode = false }) => {
     <footer
       dir={languageDirection(language)}
       lang={language}
-      className={`relative overflow-hidden [content-visibility:auto] [contain-intrinsic-size:auto_520px] ${isAr ? 'font-cairo' : 'font-jakarta'} ${th.root}`}
+      className={`relative overflow-hidden [content-visibility:auto] [contain-intrinsic-size:auto_480px] ${isAr ? 'font-cairo' : 'font-jakarta'} ${th.root}`}
     >
-      <div className="relative mx-auto max-w-7xl px-4 pb-8 pt-12 [--dx:1] rtl:[--dx:-1] sm:px-6 sm:pt-16 lg:px-8">
-        <div className="mb-12 grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-3 lg:gap-12">
-          <div className="relative space-y-5 sm:col-span-2 lg:col-span-1">
-            <FooterArt darkMode={darkMode} className="pointer-events-none absolute -top-6 end-0 hidden h-32 w-48 sm:block lg:hidden xl:block" />
-            <div className="relative flex items-center gap-3">
+      <div className="relative mx-auto max-w-7xl px-4 pb-10 pt-12 [--dx:1] rtl:[--dx:-1] sm:px-6 sm:pt-14 lg:px-8">
+        <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-3 lg:gap-12">
+          <div className="space-y-5 sm:col-span-2 lg:col-span-1">
+            <div className="flex items-center gap-3">
               <img src={logo} alt={tx.name} width={48} height={48} className="h-12 w-auto p-1" loading="lazy" decoding="async" />
               <div>
                 <p className={`text-lg font-extrabold uppercase leading-tight ${th.title}`}>{tx.name}</p>
@@ -381,10 +383,13 @@ const Footer = ({ darkMode = false }) => {
               </div>
             </div>
 
-            <p className={`relative max-w-xs text-sm leading-relaxed ${th.muted}`}>{tx.description}</p>
+            <p className={`max-w-xs text-sm leading-relaxed ${th.muted}`}>{tx.description}</p>
 
-            <div role="group" aria-label={tx.followUs} className="relative flex gap-3 pt-1 pe-1">
-              {SOCIALS.map(({ id, ...s }) => <SocialBtn key={id} label={tx[id]} th={th} {...s} />)}
+            <div>
+              <p className={`mb-3 text-xs font-extrabold uppercase tracking-wide rtl:tracking-normal ${th.sub}`}>{tx.followUs}</p>
+              <div role="group" aria-label={tx.followUs} className="flex flex-wrap gap-3 pe-1">
+                {SOCIALS.map(({ id, ...s }) => <SocialBtn key={id} label={tx[id]} th={th} {...s} />)}
+              </div>
             </div>
           </div>
 
@@ -396,38 +401,25 @@ const Footer = ({ darkMode = false }) => {
           </nav>
 
           <div>
-            <ColumnTitle th={th}>{tx.contactUs}</ColumnTitle>
-            <ul className="space-y-4">
-              <ContactRow Icon={RiMapPin2Line} th={th}>
-                <span className={`text-sm ${th.muted}`}>{tx.address}</span>
-              </ContactRow>
-              <ContactRow Icon={FiPhone} th={th}>
-                <a href={telHref} dir="ltr" className={`text-sm transition-colors duration-150 hover:underline ${th.muted} ${th.inline} ${th.focus}`}>{phone}</a>
-              </ContactRow>
-              <ContactRow Icon={FiMail} th={th}>
-                <a href={`mailto:${email}`} className={`break-all text-sm transition-colors duration-150 hover:underline ${th.muted} ${th.inline} ${th.focus}`}>{email}</a>
-              </ContactRow>
-              <ContactRow Icon={FiClock} th={th}>
-                <p className={`text-sm ${th.muted}`}>{tx.support}</p>
-                <p className={`mt-0.5 text-xs ${th.sub}`}>{tx.alwaysHelp}</p>
-              </ContactRow>
+            <ColumnTitle th={th}>{tx.customerService}</ColumnTitle>
+            <ul className="space-y-1">
+              {LEGAL_ITEMS.map((id) => (
+                <li key={id}><LegalButton id={id} label={tx[id]} onOpen={openLegal} th={th} block /></li>
+              ))}
             </ul>
           </div>
         </div>
+      </div>
 
-        <div className={`flex flex-col items-center justify-between gap-4 border-t-2 border-dotted pt-6 text-sm sm:flex-row ${th.divider}`}>
-          <p className={`text-center ${th.muted}`}>
-            {tx.copyright.replace('{{year}}', year)}
-          </p>
-          <div className="flex flex-wrap justify-center gap-x-5 gap-y-1">
-            {LEGAL_ITEMS.map((id) => <LegalButton key={id} id={id} label={tx[id]} onOpen={openLegal} th={th} />)}
-          </div>
+      <div className={th.bar}>
+        <div className="mx-auto flex max-w-7xl items-center justify-center px-4 py-5 text-sm sm:px-6 lg:px-8">
+          <p className={`text-center ${th.muted}`}>{tx.copyright.replace('{{year}}', year)}</p>
         </div>
       </div>
 
       {openDoc && sections && (
         <LegalModal
-          title={tx[openDoc]} sections={sections} email={email} closeLabel={tx.close}
+          title={tx[openDoc]} sections={sections} email={tx.email} closeLabel={tx.close}
           language={language} th={th} onClose={closeLegal}
         />
       )}
