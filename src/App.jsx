@@ -83,7 +83,7 @@ const AvailableRepairs = lazy(() => import('./Delivery/AvailableRepairs'));
 const MyDeliveries = lazy(() => import('./Delivery/MyDeliveries'));
 const MyRepairs = lazy(() => import('./Delivery/MyRepairs'));
 
-const SHOP_HOST = 'shop.tech-restore.net';
+const SHOP_HOST = 'shop.tech-restore.tech';
 const ROOT_DOMAIN = 'tech-restore.tech';
 const SHOP_SIGNUP_URL = `https://${SHOP_HOST}/signup/shop`;
 const hostname = typeof window !== 'undefined' ? window.location.hostname : '';

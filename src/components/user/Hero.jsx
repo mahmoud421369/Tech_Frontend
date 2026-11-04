@@ -1,544 +1,307 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  FiSmartphone, FiTablet, FiMonitor, FiCpu, FiBattery, FiWatch, FiHeadphones, FiHardDrive, FiCamera, FiPrinter, FiTool,
-} from 'react-icons/fi';
-import enTranslations from '../../locales/en/translation.json';
-import arTranslations from '../../locales/ar/translation.json';
-import frTranslations from '../../locales/fr/translation.json';
-import { useAppLanguage, languageDirection } from '../../common/utils/useAppLanguage';
+import { FiArrowRight, FiChevronLeft, FiChevronRight, FiMapPin, FiTag, FiCalendar } from 'react-icons/fi';
+import { RiStarFill, RiStore2Line } from 'react-icons/ri';
+import { useQuery, QueryClientProvider } from '@tanstack/react-query';
 import api from '../../common/api/api';
+import queryClient from '../../common/utils/queryClient';
+import useAuthStore from '../../common/store/Auth';
 import { resolveImageSrc } from '../../common/utils/productutils';
+import { useAppLanguage, languageDirection } from '../../common/utils/useAppLanguage';
+import { useOnScreen, money } from './Device3D';
+import { safeImageUrl } from './ListingKit';
 
-const HERO_TRANSLATIONS = { en: enTranslations.hero, ar: arTranslations.hero, fr: frTranslations.hero };
-const NO_TRANSLATION = Object.freeze({});
-const EMPTY = Object.freeze([]);
-const getHeroTranslation = (language, variant) =>
-  HERO_TRANSLATIONS[language]?.variants?.[variant] ?? NO_TRANSLATION;
-
-const PAGE_DARK = '#141414';
-const PAGE_LIGHT = '#f9fafb';
-const HERO_H = 'min-h-[max(40rem,92svh)]';
-const DELAY = Array.from({ length: 6 }, (_, i) => ({ '--d': i }));
-
-const PRODUCTS_URL = '/api/products';
-const productRoute = (id) => `/devices/${encodeURIComponent(id)}`;
-const MAX_PRODUCTS = 8;
-const AUTOPLAY_MS = 5000;
-const CACHE_TTL = 300000;
 const LOCALES = { en: 'en-US', ar: 'ar-EG', fr: 'fr-FR' };
-const ACCENT = '#39ff88';
-const GRID_STYLE = { '--hh': 'clamp(26rem, calc(100svh - 12rem), 37rem)' };
+const MAX_ITEMS = 8;
+const EMPTY = [];
+const LOGO_DIR = '/uploads/shop-logos/';
 
-const MARKET_TEXT = {
+const TEXT = {
   en: {
-    fresh: 'New',
-    bestSeller: 'Best seller',
-    off: (p) => `${p}% off`,
-    save: 'Save',
-    goTo: 'Show product',
-    shopsTitle: 'Find a trusted shop',
-    shopsSub: 'Compare rated shops near you',
-    shopsCta: 'Browse shops',
+    label: 'Featured offers',
     repairTitle: 'Fix your device',
     repairSub: 'Book a technician in minutes',
     repairCta: 'Book a repair',
     trackTitle: 'Track your order',
     trackSub: 'See where your package is now',
     trackCta: 'Track order',
+    dealsTitle: 'Mega deals',
+    dealsSub: 'The biggest discounts right now',
+    dealsCta: 'Shop deals',
+    shopsTitle: 'Top rated shops',
+    shopsSub: 'Chosen by real customers',
+    shopsCta: 'Browse shops',
+    offersTitle: 'Latest offers',
+    offersSub: 'Fresh promotions from our shops',
+    offersCta: 'View offers',
+    off: 'off',
+    ends: 'Ends {{date}}',
+    partner: 'Partner shop',
+    noDeals: 'No deals right now',
+    noShops: 'No shops yet',
+    noOffers: 'No offers right now',
+      goTo: 'Show item {{n}}',
+    na: 'N/A',
+    prev: 'Previous',
+    next: 'Next',
   },
   ar: {
-    fresh: 'جديد',
-    bestSeller: 'الأكثر مبيعًا',
-    off: (p) => `خصم ${p}%`,
-    save: 'وفّر',
-    goTo: 'عرض المنتج',
-    shopsTitle: 'اعثر على متجر موثوق',
-    shopsSub: 'قارن المتاجر المقيّمة القريبة منك',
-    shopsCta: 'تصفّح المتاجر',
+    label: 'العروض المميزة',
     repairTitle: 'أصلح جهازك',
     repairSub: 'احجز فنيًا في دقائق',
     repairCta: 'احجز إصلاحًا',
     trackTitle: 'تتبّع طلبك',
     trackSub: 'اعرف مكان شحنتك الآن',
     trackCta: 'تتبّع الطلب',
+    dealsTitle: 'عروض ضخمة',
+    dealsSub: 'أكبر الخصومات الآن',
+    dealsCta: 'تسوّق العروض',
+    shopsTitle: 'متاجر الأعلى تقييمًا',
+    shopsSub: 'اختيار العملاء الحقيقيين',
+    shopsCta: 'تصفّح المتاجر',
+    offersTitle: 'أحدث العروض',
+    offersSub: 'عروض جديدة من متاجرنا',
+    offersCta: 'شاهد العروض',
+    off: 'خصم',
+    ends: 'ينتهي {{date}}',
+    partner: 'متجر شريك',
+    noDeals: 'لا توجد عروض الآن',
+    noShops: 'لا توجد متاجر بعد',
+    noOffers: 'لا توجد عروض الآن',
+    prev: 'السابق',
+    next: 'التالي',
+    goTo: 'عرض العنصر {{n}}',
+    na: 'غير متاح',
   },
   fr: {
-    fresh: 'Nouveau',
-    bestSeller: 'Meilleure vente',
-    off: (p) => `-${p}%`,
-    save: 'Économisez',
-    goTo: 'Voir le produit',
-    shopsTitle: 'Trouvez une boutique de confiance',
-    shopsSub: 'Comparez les boutiques notées près de vous',
-    shopsCta: 'Voir les boutiques',
+    label: 'Offres à la une',
     repairTitle: 'Réparez votre appareil',
     repairSub: 'Réservez un technicien en quelques minutes',
     repairCta: 'Réserver une réparation',
     trackTitle: 'Suivez votre commande',
     trackSub: 'Voyez où est votre colis maintenant',
     trackCta: 'Suivre ma commande',
+    dealsTitle: 'Méga offres',
+    dealsSub: 'Les plus grosses remises du moment',
+    dealsCta: 'Voir les offres',
+    shopsTitle: 'Boutiques les mieux notées',
+    shopsSub: 'Choisies par de vrais clients',
+    shopsCta: 'Voir les boutiques',
+    offersTitle: 'Dernières promotions',
+    offersSub: 'Promotions récentes de nos boutiques',
+    offersCta: 'Voir les promotions',
+    off: 'de remise',
+    ends: 'Fin le {{date}}',
+    partner: 'Boutique partenaire',
+    noDeals: 'Aucune offre pour le moment',
+    noShops: 'Aucune boutique pour le moment',
+    noOffers: 'Aucune promotion pour le moment',
+    prev: 'Précédent',
+    next: 'Suivant',
+    goTo: "Afficher l'élément {{n}}",
+    na: 'N/D',
   },
 };
 
-const TILE_TONES = [
-  { bg: 'linear-gradient(165deg,#a7f3d0 0%,#34d399 100%)', ink: 'text-emerald-950', soft: 'text-emerald-900/80', chip: 'bg-emerald-950/80 text-white' },
-  { bg: 'linear-gradient(165deg,#052e1e 0%,#0b4a35 100%)', ink: 'text-white', soft: 'text-white/75', chip: 'bg-[#39ff88] text-emerald-950' },
-  { bg: 'linear-gradient(165deg,#ccfbf1 0%,#2dd4bf 100%)', ink: 'text-teal-950', soft: 'text-teal-900/80', chip: 'bg-teal-950/80 text-white' },
-  { bg: 'linear-gradient(165deg,#ecfccb 0%,#a3e635 100%)', ink: 'text-lime-950', soft: 'text-lime-900/80', chip: 'bg-lime-950/80 text-white' },
-];
-
-const HERO_STYLES = `
-  .font-jakarta, .font-jakarta * { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
-  .font-cairo, .font-cairo * { font-family: 'Cairo', system-ui, sans-serif; }
-
-  .hp-hl-dark {
-    padding-bottom: 0.2em;
-    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2339ff88' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E") left bottom / 100% 0.3em no-repeat;
-    -webkit-box-decoration-break: clone;
-    box-decoration-break: clone;
-  }
-  .hp-hl { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2310b981' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
-  .hp-hl {
-    padding-bottom: 0.2em;
-    background-position: left bottom;
-    background-size: 100% 0.3em;
-    background-repeat: no-repeat;
-    -webkit-box-decoration-break: clone;
-    box-decoration-break: clone;
-  }
-  [dir="rtl"] .hp-hl, [dir="rtl"] .hp-hl-dark { background-position: right bottom; }
-
-  .hr-wall { contain: layout paint; }
-  @keyframes hrDrift { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, -7%, 0); } }
-  .hr-drift { animation: hrDrift 48s linear infinite alternate; will-change: transform; }
-  @keyframes hrIn { from { opacity: 0; transform: translate3d(0, 18px, 0); } to { opacity: 1; transform: none; } }
-  .hr-in { animation: hrIn .6s cubic-bezier(.16,1,.3,1) both; animation-delay: calc(var(--d, 0) * 70ms); }
-
-  .hx-tile { contain: layout paint; transition: transform .35s cubic-bezier(.16,1,.3,1), box-shadow .35s ease; }
-  .hx-img { transition: transform .6s cubic-bezier(.16,1,.3,1); }
-  @media (hover: hover) {
-    .hx-tile:hover { transform: translate3d(0, -4px, 0); box-shadow: 0 18px 36px -16px rgba(0,0,0,.45); }
-    .hx-tile:hover .hx-img { transform: scale(1.05); }
-  }
-  .hx-tile:focus-visible { outline: 3px solid ${ACCENT}; outline-offset: 3px; }
-
-  .hx-scroll { scrollbar-width: none; overscroll-behavior-x: contain; }
-  .hx-scroll::-webkit-scrollbar { display: none; }
-
-  .hx-svc { transition: transform .2s cubic-bezier(.16,1,.3,1); }
-  .hx-ill { transition: transform .35s cubic-bezier(.16,1,.3,1); transform-origin: 50% 60%; }
-  @media (hover: hover) {
-    .hx-svc:hover { transform: translate3d(0, -3px, 0); }
-    .hx-svc:hover .hx-ill { transform: rotate(-3deg) scale(1.05); }
-  }
-  .hx-svc:active { transform: translate3d(0, 2px, 0); }
-
-  @media (prefers-reduced-motion: reduce) {
-    .hr-drift, .hr-in { animation: none; }
-    .hx-tile, .hx-img, .hx-svc, .hx-ill { transition: none !important; }
-    .hx-tile:hover, .hx-tile:hover .hx-img { transform: none; box-shadow: none; }
-    .hx-svc:hover, .hx-svc:active, .hx-svc:hover .hx-ill { transform: none; }
-  }
-`;
-
-const FONT_URLS = {
-  jakarta: 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap',
-  cairo: 'https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap',
-};
-const requested = new Set();
-const addLink = (rel, href, extra) => {
-  const link = document.createElement('link');
-  link.rel = rel;
-  link.href = href;
-  if (extra) Object.assign(link, extra);
-  document.head.appendChild(link);
-};
-const ensureFont = (key) => {
-  if (typeof document === 'undefined' || requested.has(key)) return;
-  if (!requested.size) {
-    addLink('preconnect', 'https://fonts.googleapis.com');
-    addLink('preconnect', 'https://fonts.gstatic.com', { crossOrigin: 'anonymous' });
-  }
-  requested.add(key);
-  addLink('stylesheet', FONT_URLS[key]);
+const fill = (s, vars) => {
+  let out = s;
+  if (vars) for (const k in vars) out = out.split(`{{${k}}}`).join(vars[k]);
+  return out;
 };
 
-let heroStylesInjected = false;
-const injectHeroStylesOnce = () => {
-  if (heroStylesInjected || typeof document === 'undefined') return;
-  const tag = document.createElement('style');
-  tag.setAttribute('data-hero-styles', 'true');
-  tag.textContent = HERO_STYLES;
-  document.head.appendChild(tag);
-  heroStylesInjected = true;
+const numFormats = {};
+const dateFormats = {};
+const fmtNum = (language, n) => {
+  const loc = LOCALES[language] || LOCALES.en;
+  return (numFormats[loc] ||= new Intl.NumberFormat(loc, { maximumFractionDigits: 0 })).format(n);
 };
-injectHeroStylesOnce();
+const fmtDate = (language, value) => {
+  const d = new Date(value);
+  if (!value || Number.isNaN(d.getTime())) return null;
+  const loc = LOCALES[language] || LOCALES.en;
+  return (dateFormats[loc] ||= new Intl.DateTimeFormat(loc, { month: 'short', day: 'numeric' })).format(d);
+};
 
-const text = (v) => (typeof v === 'string' ? v.replace(/[\p{Cc}\p{Cf}]/gu, ' ').trim() : '');
 const num = (v) => {
-  const n = typeof v === 'string' ? parseFloat(v) : Number(v);
+  const n = Number(v);
   return Number.isFinite(n) && n > 0 ? n : 0;
 };
-const ts = (v) => {
-  const n = Date.parse(v);
-  return Number.isFinite(n) ? n : 0;
-};
-const resolveSrc = (v) => {
-  try { return resolveImageSrc(v) || v; } catch (e) { return v; }
-};
-const safeImg = (v) => {
-  const s = text(v);
-  if (!s || s.length > 2048 || s.includes('..')) return '';
-  if (/^https?:\/\//i.test(s) || /^data:image\/(png|jpe?g|webp|gif|avif);base64,[a-z0-9+/=]+$/i.test(s)) return s;
-  return /^[a-z][a-z0-9+.-]*:/i.test(s) || s.startsWith('//') ? '' : resolveSrc(s);
-};
-const pickImage = (o) => {
-  const first = Array.isArray(o.images) ? o.images[0] : undefined;
-  return (
-    safeImg(o.image) || safeImg(o.imageUrl) || safeImg(o.thumbnail) || safeImg(o.logo) ||
-    safeImg(o.banner) || safeImg(typeof first === 'string' ? first : first?.url)
-  );
+const str = (v, max = 120) => (typeof v === 'string' ? v.replace(/[\p{Cc}\p{Cf}]/gu, ' ').trim().slice(0, max) : '');
+const listOf = (d) => (Array.isArray(d?.content) ? d.content : Array.isArray(d) ? d : EMPTY);
+const ts = (v) => Date.parse(v) || 0;
+
+const finalPriceOf = (p, price) => {
+  const apiFinal = num(p.finalPrice);
+  if (apiFinal && apiFinal < price) return apiFinal;
+  const dv = num(p.discountValue);
+  if (dv && p.discountType === 'PERCENTAGE') return dv < 100 ? price - (price * dv) / 100 : price;
+  if (dv && p.discountType) return dv < price ? price - dv : price;
+  const legacy = Math.min(num(p.discount), 100);
+  return legacy ? price * (1 - legacy / 100) : price;
 };
 
-const toProduct = (p) => {
-  if (!p || typeof p !== 'object' || p.deleted) return null;
-  const id = p.id ?? p._id;
-  const name = text(p.name ?? p.title);
-  if (id == null || !name) return null;
-  const sale = num(p.finalPrice ?? p.discountPrice ?? p.salePrice ?? p.discountedPrice);
-  const list = num(p.originalPrice ?? p.oldPrice ?? p.price);
-  const price = sale > 0 && sale < list ? sale : num(p.price) || list;
-  const oldPrice = list > price ? list : 0;
+const selectDeals = (raw) => {
+  const out = [];
+  for (const p of listOf(raw)) {
+    if (!p || typeof p !== 'object' || p.deleted || p.id == null || p.stock === 0) continue;
+    const price = num(p.price);
+    if (!price) continue;
+    const final = finalPriceOf(p, price);
+    const percent = Math.round(((price - final) / price) * 100);
+    if (percent < 1) continue;
+    out.push({
+      id: String(p.id).slice(0, 128),
+      name: str(p.name) || '—',
+      image: safeImageUrl(p.imageUrl),
+      price,
+      final: Math.round(final * 100) / 100,
+      percent,
+    });
+  }
+  return out.sort((a, b) => b.percent - a.percent).slice(0, MAX_ITEMS);
+};
+
+const shopLogo = (s) => {
+  const found = [s.logoUrl, s.logo, s.logoPath, s.shopLogo].find((v) => typeof v === 'string' && v.trim());
+  const raw = found ? found.trim() : '';
+  if (!raw || raw.includes('..') || /^javascript:/i.test(raw)) return '';
+  if (/^(https?:)?\/\/|^data:image\/(png|jpe?g|webp|gif|avif);|^blob:/i.test(raw)) return raw;
+  const path = raw.includes('/') ? (raw.startsWith('/') ? raw : `/${raw}`) : `${LOGO_DIR}${encodeURIComponent(raw)}`;
+  return resolveImageSrc(path) || path;
+};
+
+const selectShops = (raw) => {
+  const all = [];
+  for (const s of listOf(raw)) {
+    if (!s || typeof s !== 'object' || s.id == null) continue;
+    const name = str(s.name, 80);
+    if (!name) continue;
+    all.push({
+      id: String(s.id).slice(0, 128),
+      name,
+      logo: shopLogo(s),
+      rating: Math.min(5, num(s.rating ?? s.averageRating)),
+      reviews: num(s.reviewCount ?? s.ratingCount ?? s.reviewsCount),
+      address: [s.shopAddress?.street, s.shopAddress?.city].map((x) => str(x, 60)).filter(Boolean).join(', '),
+      created: ts(s.createdAt ?? s.created_at),
+    });
+  }
+  const rated = all.filter((s) => s.rating > 0).sort((a, b) => b.rating - a.rating || b.reviews - a.reviews);
+  const pool = rated.length ? rated : all.sort((a, b) => b.created - a.created);
+  return pool.slice(0, MAX_ITEMS);
+};
+
+const selectOffers = (raw) => {
+  const out = [];
+  for (const o of listOf(raw)) {
+    if (!o || typeof o !== 'object') continue;
+    const status = str(o.status, 20).toLowerCase();
+    if (status === 'expired') continue;
+    const name = str(o.name, 100);
+    if (!name) continue;
+    const value = num(o.discountValue);
+    out.push({
+      id: o.id != null ? String(o.id).slice(0, 128) : name,
+      name,
+      description: str(o.description, 120),
+      shop: str(o.shopName, 60),
+      percentage: o.discountType === 'PERCENTAGE',
+      value: o.discountType === 'PERCENTAGE' ? Math.min(value, 100) : value,
+      endDate: o.endDate,
+      created: ts(o.createdAt),
+    });
+  }
+  return out.sort((a, b) => b.created - a.created).slice(0, MAX_ITEMS);
+};
+
+const retryPolicy = (count, err) => count < 2 && ![400, 401, 403, 404].includes(err?.response?.status);
+
+const fetchProducts = async ({ signal }) => (await api.get('/api/products', { signal })).data;
+const fetchShops = async ({ signal }) =>
+  (await api.get('/api/users/shops/all', { params: { page: 0, size: 60 }, signal })).data;
+const fetchOffers = async ({ signal }) => (await api.get('/api/users/offers', { signal })).data;
+
+const queryBase = {
+  staleTime: 5 * 60 * 1000,
+  refetchOnWindowFocus: false,
+  retry: retryPolicy,
+};
+
+const useHeroData = () => {
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const userId = useAuthStore((s) => s.userId);
+  const uid = userId ?? 'anon';
+  const enabled = !!accessToken;
+  const deals = useQuery({ queryKey: ['heroProducts', uid], queryFn: fetchProducts, select: selectDeals, enabled, ...queryBase });
+  const shops = useQuery({ queryKey: ['heroShops', uid], queryFn: fetchShops, select: selectShops, enabled, ...queryBase });
+  const offers = useQuery({ queryKey: ['heroOffers', uid], queryFn: fetchOffers, select: selectOffers, enabled, ...queryBase });
   return {
-    id: String(id),
-    name,
-    image: pickImage(p),
-    shop: text(p.shopName ?? p.shop?.name),
-    price,
-    oldPrice,
-    saved: oldPrice ? oldPrice - price : 0,
-    percent: oldPrice ? Math.round(((oldPrice - price) / oldPrice) * 100) : 0,
-    created: ts(p.createdAt ?? p.created_at ?? p.createdDate),
+    deals: { items: deals.data || EMPTY, loading: enabled && deals.isLoading },
+    shops: { items: shops.data || EMPTY, loading: enabled && shops.isLoading },
+    offers: { items: offers.data || EMPTY, loading: enabled && offers.isLoading },
   };
 };
 
-const normalizeProducts = (raw) => {
-  if (!Array.isArray(raw)) return EMPTY;
-  const list = [];
-  for (const entry of raw) {
-    const item = toProduct(entry);
-    if (item) list.push(item);
-  }
-  if (list.some((v) => v.created)) list.sort((a, b) => b.created - a.created);
-  return list.slice(0, MAX_PRODUCTS);
-};
+const prefersReduced = () =>
+  typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-const toList = (raw) => {
-  if (Array.isArray(raw)) return raw;
-  if (!raw || typeof raw !== 'object') return EMPTY;
-  const inner = raw.data ?? raw.content ?? raw.items ?? raw.results ?? raw.products;
-  if (Array.isArray(inner)) return inner;
-  return inner && typeof inner === 'object' ? toList(inner) : EMPTY;
-};
-
-let productsCache = null;
-const loadProducts = () => {
-  if (productsCache && Date.now() - productsCache.at < CACHE_TTL) return productsCache.promise;
-  const promise = api
-    .get(PRODUCTS_URL)
-    .then((res) => normalizeProducts(toList(res.data)))
-    .catch(() => {
-      productsCache = null;
-      return EMPTY;
-    });
-  productsCache = { at: Date.now(), promise };
-  return promise;
-};
-
-const useProducts = (source) => {
-  const hasSource = Array.isArray(source);
-  const [remote, setRemote] = useState(() => (hasSource ? null : undefined));
-
+const useCycle = (count, paused, ms) => {
+  const [index, setIndex] = useState(0);
+  useEffect(() => { setIndex((i) => (i >= count ? 0 : i)); }, [count]);
   useEffect(() => {
-    if (hasSource) return undefined;
-    let alive = true;
-    loadProducts().then((list) => { if (alive) setRemote(list); });
-    return () => { alive = false; };
-  }, [hasSource]);
-
-  const sourceItems = useMemo(() => (hasSource ? normalizeProducts(source) : EMPTY), [hasSource, source]);
-  if (hasSource) return { products: sourceItems, loading: false };
-  return { products: remote ?? EMPTY, loading: remote === undefined };
+    if (count < 2 || paused || prefersReduced()) return undefined;
+    const id = setInterval(() => { if (!document.hidden) setIndex((i) => (i + 1) % count); }, ms);
+    return () => clearInterval(id);
+  }, [count, paused, ms]);
+  return [index, setIndex];
 };
 
-const formatters = {};
-const getFormatters = (locale) => {
-  if (formatters[locale]) return formatters[locale];
-  let parts = (v) => ({ cur: '', amount: String(v) });
-  try {
-    const m = new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency: 'EGP',
-      currencyDisplay: locale.startsWith('ar') ? 'symbol' : 'code',
-      maximumFractionDigits: 0,
-    });
-    parts = (v) => {
-      let cur = '';
-      let amount = '';
-      for (const p of m.formatToParts(v)) {
-        if (p.type === 'currency') cur += p.value;
-        else if (p.type !== 'literal') amount += p.value;
-      }
-      return { cur, amount };
-    };
-  } catch (e) {
-    parts = (v) => ({ cur: '', amount: String(v) });
-  }
-  formatters[locale] = { parts };
-  return formatters[locale];
-};
+const dots = (base, dot) => ({
+  backgroundColor: base,
+  backgroundImage: `radial-gradient(${dot} 2px, transparent 2.5px)`,
+  backgroundSize: '18px 18px',
+});
+const grid = (base, line) => ({
+  backgroundColor: base,
+  backgroundImage: `linear-gradient(${line} 1px, transparent 1px), linear-gradient(90deg, ${line} 1px, transparent 1px)`,
+  backgroundSize: '22px 22px',
+});
+const stripes = (base, line) => ({
+  backgroundColor: base,
+  backgroundImage: `repeating-linear-gradient(135deg, ${line} 0 2px, transparent 2px 14px)`,
+});
 
-const WALL_TONES = [
-  'bg-emerald-400 text-emerald-950',
-  'bg-[#0b4a35] text-[#39ff88]',
-  'bg-[#2a2a2a] text-white',
-  'bg-amber-400 text-amber-950',
-  'bg-sky-400 text-sky-950',
-  'bg-violet-400 text-violet-950',
-];
-const WALL_ICONS = [FiSmartphone, FiTablet, FiMonitor, FiCpu, FiBattery, FiWatch, FiHeadphones, FiHardDrive, FiCamera, FiPrinter, FiTool];
-const WALL_TILES = Array.from({ length: 36 }, (_, i) => ({
-  key: i,
-  Icon: WALL_ICONS[(i * 5 + Math.floor(i / 6)) % WALL_ICONS.length],
-  tone: WALL_TONES[(i * 7 + Math.floor(i / 3)) % WALL_TONES.length],
-}));
+const TONES = Object.freeze({
+  deals: { style: dots('#39ff88', 'rgba(5,46,30,.16)'), ink: 'text-emerald-950', soft: 'text-emerald-950/80', chip: 'bg-emerald-950 text-white' },
+  shops: { style: grid('#0b4a35', 'rgba(57,255,136,.16)'), ink: 'text-white', soft: 'text-white/80', chip: 'bg-[#39ff88] text-emerald-950' },
+  offers: { style: stripes('#fbbf24', 'rgba(120,53,15,.16)'), ink: 'text-amber-950', soft: 'text-amber-950/80', chip: 'bg-amber-950 text-white' },
+});
 
-const WallTile = memo(({ Icon, tone }) => (
-  <div className={`flex aspect-[2/3] items-center justify-center rounded-xl border-[3px] border-black [box-shadow:4px_4px_0_0_#000] ${tone}`}>
-    <Icon className="h-1/3 w-1/3" strokeWidth={1.75} />
-  </div>
-));
-
-const HeroWall = memo(() => (
-  <div aria-hidden="true" className="hr-wall pointer-events-none absolute inset-0 overflow-hidden">
-    <div className="absolute -inset-x-[15%] -top-[10%] -bottom-[30%] -rotate-12">
-      <div className="hr-drift grid h-full grid-cols-4 gap-4 opacity-60 sm:grid-cols-6 sm:gap-5 lg:grid-cols-9 [&>*:nth-child(n+25)]:hidden sm:[&>*:nth-child(n+25)]:block">
-        {WALL_TILES.map((tile) => <WallTile key={tile.key} Icon={tile.Icon} tone={tile.tone} />)}
-      </div>
-    </div>
-    <div className="absolute inset-0 bg-[#020f0a]/55" />
-    <div className="absolute inset-0 [background:radial-gradient(ellipse_at_center,rgba(2,15,10,.25)_0%,rgba(2,15,10,.9)_78%)]" />
-    <div className="absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-[#020f0a] to-transparent" />
-    <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-[#020f0a] to-transparent" />
-  </div>
-));
-
-const HeroCurve = memo(({ darkMode }) => (
-  <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-24 overflow-hidden sm:h-32">
-    <div
-      className="absolute -inset-x-[15%] top-8 h-[30rem] rounded-[50%] border-t-[4px] border-[#39ff88] sm:top-12"
-      style={{
-        backgroundColor: darkMode ? PAGE_DARK : PAGE_LIGHT,
-        boxShadow: '0 -14px 60px -6px rgba(57,255,136,.55), inset 0 14px 40px -20px rgba(57,255,136,.45)',
-      }}
-    />
-  </div>
-));
-
-const renderRich = (value) =>
-  String(value ?? '').split('**').map((part, i) => (i % 2 ? <span key={i} className="hp-hl-dark">{part}</span> : part));
-
-const hideBroken = (e) => { e.currentTarget.style.visibility = 'hidden'; };
-
-const VARIANT_DEFAULTS = {
-  home: {
-    headingLine1: 'Put your', headingAccent: 'devices', headingLine2: 'first',
-    description: 'Fast, trusted repairs and premium refurbished devices. Find **expert technicians** and **top shops** all in one place.',
-    buttons: [{ label: 'Book a Repair', to: '/repair', primary: true }, { label: 'Browse Devices', to: '/devices', primary: false }],
-  },
-  devices: {
-    headingLine1: 'Find your', headingAccent: 'next device', headingLine2: 'today',
-    description: 'Browse **new, used and refurbished** phones and laptops from verified shops. Every listing is checked and warrantied.',
-    buttons: [{ label: 'Browse Devices', to: '/devices', primary: true }, { label: 'Compare Shops', to: '/shops', primary: false }],
+const WIDE = Object.freeze({
+  repair: {
+    to: '/repair', title: 'repairTitle', sub: 'repairSub', cta: 'repairCta',
+    light: { style: grid('#ccfbf1', 'rgba(13,148,136,.2)'), ink: 'text-teal-950', soft: 'text-teal-900/80', chip: 'bg-teal-900 text-white' },
+    dark: { style: grid('#0a1f18', 'rgba(57,255,136,.12)'), ink: 'text-white', soft: 'text-white/70', chip: 'bg-[#39ff88] text-emerald-950' },
   },
   track: {
-    headingLine1: 'Track your', headingAccent: 'orders', headingLine2: 'in real time',
-    description: 'Watch every step of your delivery, **from warehouse to your doorstep**. Stay informed, stay in control.',
-    buttons: [{ label: 'View My Orders', to: '/account', primary: true }, { label: 'Explore Shop', to: '/devices', primary: false }],
+    to: '/track', title: 'trackTitle', sub: 'trackSub', cta: 'trackCta',
+    light: { style: stripes('#ecfccb', 'rgba(77,124,15,.16)'), ink: 'text-lime-950', soft: 'text-lime-900/80', chip: 'bg-lime-900 text-white' },
+    dark: { style: stripes('#1a2410', 'rgba(190,242,100,.12)'), ink: 'text-white', soft: 'text-white/70', chip: 'bg-lime-300 text-lime-950' },
   },
-  account: {
-    headingLine1: 'Manage your', headingAccent: 'account', headingLine2: 'all in one place',
-    description: 'Your **profile, addresses, orders** and **repair requests**, all in one place.',
-    buttons: [{ label: 'My Orders', to: '/account', primary: true }, { label: 'Book a Repair', to: '/repair', primary: false }],
-  },
-  repair: {
-    headingLine1: 'Put Your', headingAccent: 'Device', headingLine2: 'First',
-    description: 'Fast, reliable repairs from **trusted local shops**. Describe your issue and get **connected instantly**.',
-    buttons: [{ label: 'Book a Repair', to: '/repair', primary: true }, { label: 'My Orders', to: '/account', primary: false }],
-  },
-  offers: {
-    headingLine1: 'Exclusive', headingAccent: 'Offers Just', headingLine2: 'For You',
-    description: 'Save big on **repairs, accessories** and premium services at trusted shops near you. Limited time, grab them fast.',
-    buttons: [{ label: 'Browse shops', to: '/shops', primary: true }, { label: 'Book a Repair', to: '/repair', primary: false }],
-  },
-  shop: {
-    headingLine1: '', headingAccent: 'Trusted Shop', headingLine2: '',
-    description: '**Genuine parts**, expert technicians and **fast turnaround** you can count on.',
-    buttons: [{ label: 'View Products', href: '#shop-products', primary: true }, { label: 'Browse All Shops', to: '/shops', primary: false }],
-  },
-  shops: {
-    headingLine1: 'Find the', headingAccent: 'right shop', headingLine2: 'near you',
-    description: 'Compare **verified, rated shops** for repairs and device sales, then pick the one that fits.',
-    buttons: [{ label: 'Browse Shops', to: '/shops', primary: true }, { label: 'Book a Repair', to: '/repair', primary: false }],
-  },
-  shopPage: {
-    headingLine1: '', headingAccent: 'Trusted Shop', headingLine2: '',
-    description: '**Genuine parts**, expert technicians and a team you can **chat with** any time.',
-    buttons: [{ label: 'View Products', href: '#shop-products', primary: true }, { label: 'Browse All Shops', to: '/shops', primary: false }],
-  },
-  category: {
-    headingLine1: 'Everything in', headingAccent: 'this category', headingLine2: '',
-    description: '**Verified listings**, real conditions and fair prices. Filter by price and condition to find the right fit.',
-    buttons: [{ label: 'View All Products', to: '/devices', primary: true }],
-  },
-  login: {
-    headingLine1: 'Welcome', headingAccent: 'back', headingLine2: '',
-    description: 'Sign in to see your **orders**, **repairs** and saved devices.',
-    buttons: [],
-  },
-  signup: {
-    headingLine1: 'Create your', headingAccent: 'account', headingLine2: '',
-    description: 'Join in a minute to **book repairs**, **track orders** and shop verified devices.',
-    buttons: [],
-  },
-  admin: {
-    headingLine1: 'Run the', headingAccent: 'platform', headingLine2: 'with ease',
-    description: 'Follow **shops, orders and logistics** from one dashboard.',
-    buttons: [],
-  },
+});
+
+const THEMES = {
+  light: { '--hs-bg': '#ffffff', '--hs-card': '#ffffff', '--hs-ink': '#052e1e', '--hs-line': '#000000', '--hs-sh': '#000000' },
+  dark: { '--hs-bg': '#141414', '--hs-card': '#1c1c1e', '--hs-ink': '#ffffff', '--hs-line': 'rgba(255,255,255,.2)', '--hs-sh': '#0b4a35' },
 };
 
-const HERO_BTN =
-  'inline-flex min-h-14 cursor-pointer items-center justify-center gap-2 rounded-xl border-[3px] border-black px-6 py-3 text-base font-extrabold uppercase ' +
-  '[box-shadow:calc(var(--dx)*5px)_5px_0_0_#000] transition-[transform,box-shadow] duration-150 motion-reduce:transition-none ' +
-  '[@media(hover:hover)]:hover:-translate-y-0.5 active:translate-y-[5px] active:translate-x-[calc(var(--dx)*5px)] active:[box-shadow:0_0_0_0_#000] ' +
-  'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-white';
-const BTN_PRIMARY = `${HERO_BTN} bg-[#39ff88] text-emerald-950`;
-const BTN_SECONDARY = `${HERO_BTN} bg-[#0b4a35] text-white`;
+const CARD =
+  'relative flex overflow-hidden rounded-2xl border-[3px] border-[var(--hs-line)] outline-none sm:rounded-3xl [box-shadow:calc(var(--dx)*4px)_4px_0_0_var(--hs-sh)] sm:[box-shadow:calc(var(--dx)*6px)_6px_0_0_var(--hs-sh)]';
+const FOCUS = 'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#39ff88]';
+const CTA = 'mt-1 inline-flex w-fit items-center gap-1.5 rounded-lg border-2 border-black px-3 py-1.5 text-xs font-bold sm:rounded-xl sm:border-[3px] sm:px-4 sm:py-2 sm:text-sm';
 
-const Arrow = memo(() => (
-  <svg
-    className="h-5 w-5 shrink-0 transition-transform duration-150 group-hover:translate-x-1 rtl:rotate-180 rtl:group-hover:-translate-x-1"
-    viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
-  >
-    <path d="M5 12h14M13 6l6 6-6 6" />
-  </svg>
-));
-
-const Placeholder = memo(({ className }) => (
-  <svg className={`mx-auto h-full w-1/2 opacity-50 ${className}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <rect x="5" y="2.5" width="14" height="19" rx="3" />
-    <path d="M10.5 18.5h3" />
-  </svg>
-));
-
-const HeroButton = memo(({ btn, className }) => {
-  const content = <>{btn.label}{btn.primary && <Arrow />}</>;
-  const cls = `group ${className}`;
-  if (btn.onClick) return <button type="button" onClick={btn.onClick} className={cls}>{content}</button>;
-  if (btn.href) return <a href={btn.href} className={cls}>{content}</a>;
-  return <Link to={btn.to} className={cls}>{content}</Link>;
-});
-
-const ProductTile = memo(({ item, tone, eager, label, t, parts, flat }) => {
-  const { cur, amount } = item.price > 0 ? parts(item.price) : { cur: '', amount: '' };
-  const savedText = item.saved > 0 ? parts(item.saved).amount : '';
-  return (
-    <Link
-      to={productRoute(item.id)}
-      draggable={false}
-      style={{ background: tone.bg }}
-      className={`group relative flex h-full w-full flex-col overflow-hidden p-3 outline-none sm:p-4 ${flat ? 'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[-3px] focus-visible:outline-[#39ff88]' : 'hx-tile rounded-3xl'}`}
-    >
-      <span className={`absolute end-5 top-5 z-10 rounded-md px-2 py-0.5 text-[11px] font-extrabold sm:end-6 sm:top-6 ${tone.chip}`}>{label}</span>
-      <div className="min-h-0 flex-1">
-        <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-2xl bg-white p-3 shadow-lg shadow-black/15">
-          {item.image ? (
-            <img
-              src={item.image}
-              alt=""
-              width={480}
-              height={480}
-              loading={eager ? 'eager' : 'lazy'}
-              fetchPriority={eager ? 'high' : 'auto'}
-              decoding="async"
-              draggable={false}
-              referrerPolicy="no-referrer"
-              onError={hideBroken}
-              className="hx-img h-full w-full object-contain [@media(hover:hover)]:group-hover:scale-105"
-            />
-          ) : (
-            <Placeholder className="text-emerald-700" />
-          )}
-        </div>
-      </div>
-      <div className="mt-3 flex min-w-0 flex-col gap-1">
-        <h3 className={`line-clamp-2 text-base font-black leading-snug [text-wrap:balance] sm:text-lg ${tone.ink}`}>{item.name}</h3>
-        {item.shop && <p className={`truncate text-xs font-semibold sm:text-sm ${tone.soft}`}>{item.shop}</p>}
-        {item.price > 0 && (
-          <p className={`flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 ${tone.ink}`}>
-            {cur && <span className="text-xs font-bold">{cur}</span>}
-            <span className="text-lg font-extrabold tabular-nums sm:text-xl">{amount}</span>
-            {item.oldPrice > 0 && <span className={`ms-1 text-xs tabular-nums line-through ${tone.soft}`}>{parts(item.oldPrice).amount}</span>}
-            {savedText && <span className="ms-1 rounded-md bg-white/70 px-1.5 py-0.5 text-[11px] font-extrabold text-emerald-950">{t.save} {savedText}</span>}
-          </p>
-        )}
-      </div>
-    </Link>
-  );
-});
-
-const Dot = memo(({ index, active, label, onSelect }) => (
-  <button
-    type="button"
-    onClick={() => onSelect(index)}
-    aria-label={`${label} ${index + 1}`}
-    aria-current={active ? 'true' : undefined}
-    className="grid h-6 cursor-pointer place-items-center px-0.5 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-[#39ff88]"
-  >
-    <span className={`block h-2.5 rounded-full border-2 border-black transition-[width,background-color] duration-200 motion-reduce:transition-none ${active ? 'w-6 bg-black' : 'w-2.5 bg-white'}`} />
-  </button>
-));
-
-const HeroSkeleton = memo(({ darkMode }) => {
-  const base = `animate-pulse rounded-3xl motion-reduce:animate-none ${darkMode ? 'bg-[#1c1c1e]' : 'bg-[#e5e7eb]'}`;
-  return (
-    <div aria-hidden="true" style={GRID_STYLE} className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
-      {[0, 1, 2, 3].map((i) => <div key={i} className={`${base} h-[28rem] sm:h-[30rem] lg:h-[var(--hh)]`} />)}
-    </div>
-  );
-});
-
-const ShopIllustration = memo(({ className }) => (
-  <svg className={`hx-ill pointer-events-none flex-none ${className}`} viewBox="0 0 160 140" fill="none" strokeLinejoin="round" strokeLinecap="round" aria-hidden="true" focusable="false">
-    <rect x="28" y="56" width="104" height="70" rx="6" fill="#fff" stroke="#000" strokeWidth="3" />
-    <rect x="52" y="6" width="56" height="18" rx="5" fill="#39ff88" stroke="#000" strokeWidth="3" />
-    <path d="M62 15h36" stroke="#000" strokeWidth="3" />
-    <rect x="22" y="30" width="29" height="26" fill="#fbbf24" stroke="#000" strokeWidth="3" />
-    <rect x="51" y="30" width="29" height="26" fill="#fff" stroke="#000" strokeWidth="3" />
-    <rect x="80" y="30" width="29" height="26" fill="#fbbf24" stroke="#000" strokeWidth="3" />
-    <rect x="109" y="30" width="29" height="26" fill="#fff" stroke="#000" strokeWidth="3" />
-    <rect x="36" y="70" width="18" height="24" rx="3" fill="#99f6e4" stroke="#000" strokeWidth="3" />
-    <rect x="106" y="70" width="18" height="24" rx="3" fill="#99f6e4" stroke="#000" strokeWidth="3" />
-    <rect x="62" y="84" width="36" height="42" rx="4" fill="#0b4a35" stroke="#000" strokeWidth="3" />
-    <circle cx="90" cy="106" r="2.5" fill="#39ff88" />
-    <path d="M140 10l3.5 8 8.5.5-6.5 5.5 2 9-7.5-5-7.5 5 2-9-6.5-5.5 8.5-.5z" fill="#fff" stroke="#000" strokeWidth="3" />
-  </svg>
-));
-
-const RepairIllustration = memo(({ className }) => (
-  <svg className={`hx-ill pointer-events-none flex-none ${className}`} viewBox="0 0 160 140" fill="none" strokeLinejoin="round" strokeLinecap="round" aria-hidden="true" focusable="false">
+const RepairArt = memo(({ className }) => (
+  <svg className={className} viewBox="0 0 160 140" fill="none" strokeLinejoin="round" strokeLinecap="round" aria-hidden="true" focusable="false">
     <circle cx="30" cy="40" r="19" stroke="#39ff88" strokeWidth="5" strokeDasharray="6 5.2" />
     <circle cx="30" cy="40" r="13" fill="#39ff88" stroke="#000" strokeWidth="3" />
     <circle cx="30" cy="40" r="4.5" fill="#052e1e" />
@@ -550,12 +313,11 @@ const RepairIllustration = memo(({ className }) => (
     <path d="M120 112l16-50" stroke="#fbbf24" strokeWidth="9" />
     <circle cx="138" cy="56" r="12" fill="#fbbf24" stroke="#000" strokeWidth="3" />
     <circle cx="138" cy="52" r="4.5" fill="#052e1e" />
-    <path d="M22 104v14M15 111h14M128 14v10M123 19h10" stroke="#39ff88" strokeWidth="3" />
   </svg>
 ));
 
-const TrackIllustration = memo(({ className }) => (
-  <svg className={`hx-ill pointer-events-none flex-none ${className}`} viewBox="0 0 160 140" fill="none" strokeLinejoin="round" strokeLinecap="round" aria-hidden="true" focusable="false">
+const TrackArt = memo(({ className }) => (
+  <svg className={className} viewBox="0 0 160 140" fill="none" strokeLinejoin="round" strokeLinecap="round" aria-hidden="true" focusable="false">
     <rect x="14" y="28" width="132" height="98" rx="10" fill="#fff" stroke="#000" strokeWidth="3" />
     <path d="M14 60h132M14 92h132M56 28v98M102 28v98" stroke="#e5e7eb" strokeWidth="3" />
     <path d="M30 108C46 58 84 126 124 68" stroke="#0b4a35" strokeWidth="4" strokeDasharray="1 9" />
@@ -567,259 +329,324 @@ const TrackIllustration = memo(({ className }) => (
   </svg>
 ));
 
-const PATTERN_DOTS = {
-  backgroundColor: '#34d399',
-  backgroundImage: 'radial-gradient(rgba(2,46,30,.25) 2px, transparent 2.5px)',
-  backgroundSize: '18px 18px',
-};
-const PATTERN_GRID = {
-  backgroundColor: '#052e1e',
-  backgroundImage: 'linear-gradient(rgba(57,255,136,.16) 1px, transparent 1px), linear-gradient(90deg, rgba(57,255,136,.16) 1px, transparent 1px)',
-  backgroundSize: '22px 22px',
-};
-const PATTERN_STRIPES = {
-  backgroundColor: '#a3e635',
-  backgroundImage: 'repeating-linear-gradient(135deg, rgba(26,46,5,.14) 0 2px, transparent 2px 14px)',
-};
+const WIDE_ART = { repair: RepairArt, track: TrackArt };
 
-const SERVICES = [
-  {
-    key: 'shops', to: '/shops', style: PATTERN_DOTS, Art: ShopIllustration,
-    ink: 'text-emerald-950', soft: 'text-emerald-950/80', chip: 'bg-emerald-950 text-white',
-    title: 'shopsTitle', sub: 'shopsSub', cta: 'shopsCta',
-  },
-  {
-    key: 'repair', to: '/repair', style: PATTERN_GRID, Art: RepairIllustration,
-    ink: 'text-white', soft: 'text-white/75', chip: 'bg-[#39ff88] text-emerald-950',
-    title: 'repairTitle', sub: 'repairSub', cta: 'repairCta',
-  },
-  {
-    key: 'track', to: '/track', style: PATTERN_STRIPES, Art: TrackIllustration,
-    ink: 'text-lime-950', soft: 'text-lime-950/80', chip: 'bg-lime-950 text-white',
-    title: 'trackTitle', sub: 'trackSub', cta: 'trackCta',
-  },
-];
-
-const SVC_LAYOUT = {
-  card: 'flex-col items-start justify-between p-5 sm:p-6',
-  art: 'mt-3 h-28 w-28 self-end sm:h-32 sm:w-32 lg:h-36 lg:w-36',
-  title: 'text-2xl',
-  sub: 'sm:text-base',
-  cta: 'mt-3 px-4 py-2 text-sm',
-};
-
-const ServiceCard = memo(({ svc, t }) => {
-  const { Art } = svc;
-  const L = SVC_LAYOUT;
+const WideCard = memo(({ id, t, darkMode }) => {
+  const cfg = WIDE[id];
+  const v = darkMode ? cfg.dark : cfg.light;
+  const Art = WIDE_ART[id];
   return (
     <Link
-      to={svc.to}
+      to={cfg.to}
       draggable={false}
-      style={svc.style}
-      className={`hx-svc group relative flex h-full w-full overflow-hidden rounded-3xl border-[3px] border-black outline-none [box-shadow:calc(var(--dx)*6px)_6px_0_0_#000] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-[#39ff88] ${L.card}`}
+      style={v.style}
+      className={`${CARD} ${FOCUS} min-h-0 flex-1 flex-row items-center justify-between gap-3 p-4 sm:p-6 lg:p-8`}
     >
-      <div className="relative z-10 flex min-w-0 flex-col gap-1">
-        <h3 className={`font-black leading-tight [text-wrap:balance] ${L.title} ${svc.ink}`}>{t[svc.title]}</h3>
-        <p className={`text-xs font-semibold leading-snug [text-wrap:pretty] sm:text-sm ${L.sub} ${svc.soft}`}>{t[svc.sub]}</p>
-        <span className={`inline-flex w-fit items-center gap-2 rounded-xl border-[3px] border-black font-extrabold ${L.cta} ${svc.chip}`}>
-          {t[svc.cta]}
-          <Arrow />
+      <div className="relative z-10 flex min-w-0 flex-col items-start gap-1 sm:gap-2">
+        <h3 className={`text-xl font-black leading-tight sm:text-3xl lg:text-4xl ${v.ink}`}>{t[cfg.title]}</h3>
+        <p className={`text-xs font-semibold leading-snug sm:text-base ${v.soft}`}>{t[cfg.sub]}</p>
+        <span className={`${CTA} ${v.chip}`}>
+          {t[cfg.cta]}
+          <FiArrowRight className="h-3.5 w-3.5 flex-shrink-0 rtl:rotate-180" aria-hidden="true" />
         </span>
       </div>
-      <Art className={L.art} />
+      <Art className="h-20 w-20 flex-none drop-shadow-[0_6px_10px_rgba(0,0,0,.25)] sm:h-32 sm:w-32 lg:h-44 lg:w-44" />
     </Link>
   );
 });
 
-const MarketHero = memo(({ darkMode = false, showcaseData }) => {
-  const language = useAppLanguage();
-  const isAr = language === 'ar';
-  const dir = languageDirection(language);
-  const t = MARKET_TEXT[language] ?? MARKET_TEXT.en;
-  const { parts } = getFormatters(LOCALES[language] ?? LOCALES.en);
-  const { products, loading } = useProducts(showcaseData?.products);
-  const trackRef = useRef(null);
-  const frameRef = useRef(0);
-  const [active, setActive] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const total = products.length;
+const hideBroken = (e) => { e.currentTarget.style.visibility = 'hidden'; };
 
-  useEffect(() => { ensureFont(isAr ? 'cairo' : 'jakarta'); }, [isAr]);
+const near = (i, index, n) => {
+  const d = Math.abs(i - index);
+  return d <= 1 || d === n - 1;
+};
 
-  const onScroll = useCallback(() => {
-    if (frameRef.current) return;
-    frameRef.current = requestAnimationFrame(() => {
-      frameRef.current = 0;
-      const el = trackRef.current;
-      if (!el || !el.clientWidth) return;
-      setActive(Math.round(Math.abs(el.scrollLeft) / el.clientWidth));
-    });
-  }, []);
+const PILL = 'rounded-xl border-[3px] border-black bg-white px-3 py-2 text-emerald-950 [box-shadow:calc(var(--dx)*3px)_3px_0_0_#000]';
+const SLIDE = 'flex h-full w-full flex-col gap-3 pb-7 outline-none focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#39ff88]';
+const LOGO_BOX = 'grid h-32 w-32 place-items-center overflow-hidden rounded-3xl border-[3px] border-black bg-white [box-shadow:calc(var(--dx)*4px)_4px_0_0_#000] sm:h-40 sm:w-40 lg:h-48 lg:w-48';
 
-  useEffect(() => () => { if (frameRef.current) cancelAnimationFrame(frameRef.current); }, []);
+const ProductSlide = memo(({ item, current, eager, language, t }) => (
+  <Link to={`/device/${encodeURIComponent(item.id)}`} tabIndex={current ? 0 : -1} draggable={false} className={SLIDE}>
+    <div className="relative min-h-0 flex-1">
+      <span className="absolute start-0 top-0 z-10 rounded-lg border-2 border-black bg-white px-2 py-1 text-xs font-extrabold leading-none text-emerald-950">
+        {fmtNum(language, item.percent)}% {t.off}
+      </span>
+      {item.image ? (
+        <img
+          src={item.image}
+          alt=""
+          width={400}
+          height={400}
+          loading={eager ? 'eager' : 'lazy'}
+          fetchPriority={eager ? 'high' : 'auto'}
+          decoding="async"
+          draggable={false}
+          referrerPolicy="no-referrer"
+          onError={hideBroken}
+          className="absolute inset-0 h-full w-full object-contain drop-shadow-[0_14px_16px_rgba(0,0,0,.3)]"
+        />
+      ) : (
+        <FiTag className="absolute inset-0 m-auto h-16 w-16 opacity-50" aria-hidden="true" />
+      )}
+    </div>
+    <div className={PILL}>
+      <h4 className="line-clamp-1 text-sm font-bold">{item.name}</h4>
+      <p dir="ltr" className="mt-0.5 flex items-baseline gap-2">
+        <span className="text-lg font-black tabular-nums">{money(item.final)}</span>
+        <span className="text-xs font-medium tabular-nums line-through opacity-60">{money(item.price)}</span>
+      </p>
+    </div>
+  </Link>
+));
 
-  const goTo = useCallback((i) => {
-    const el = trackRef.current;
-    if (!el) return;
-    el.scrollTo({ left: (isAr ? -1 : 1) * i * el.clientWidth, behavior: 'smooth' });
-  }, [isAr]);
+const ShopSlide = memo(({ item, current, eager }) => {
+  const [bad, setBad] = useState(false);
+  useEffect(() => { setBad(false); }, [item.logo]);
+  return (
+    <Link to={`/shops/${encodeURIComponent(item.id)}`} tabIndex={current ? 0 : -1} draggable={false} className={SLIDE}>
+      <div className="grid min-h-0 flex-1 place-items-center">
+        <div className={LOGO_BOX}>
+          {item.logo && !bad ? (
+            <img
+              src={item.logo}
+              alt=""
+              width={240}
+              height={240}
+              loading={eager ? 'eager' : 'lazy'}
+              decoding="async"
+              draggable={false}
+              referrerPolicy="no-referrer"
+              onError={() => setBad(true)}
+              className="h-full w-full object-contain p-3"
+            />
+          ) : (
+            <span className="text-5xl font-black text-emerald-950">{item.name.charAt(0).toUpperCase()}</span>
+          )}
+        </div>
+      </div>
+      <div className={PILL}>
+        <div className="flex items-center justify-between gap-2">
+          <h4 className="line-clamp-1 text-sm font-bold">{item.name}</h4>
+          {item.rating > 0 && (
+            <span dir="ltr" className="flex flex-none items-center gap-1 text-sm font-bold">
+              <RiStarFill className="h-4 w-4 text-amber-500" aria-hidden="true" />
+              <span className="tabular-nums">{item.rating.toFixed(1)}</span>
+            </span>
+          )}
+        </div>
+        {item.address && (
+          <p className="mt-0.5 flex items-center gap-1.5 text-xs font-semibold opacity-70">
+            <FiMapPin className="h-3.5 w-3.5 flex-none" aria-hidden="true" />
+            <span className="line-clamp-1">{item.address}</span>
+          </p>
+        )}
+      </div>
+    </Link>
+  );
+});
 
-  const pause = useCallback(() => setPaused(true), []);
-  const resume = useCallback(() => setPaused(false), []);
+const OfferSlide = memo(({ item, current, language, t }) => {
+  const date = fmtDate(language, item.endDate);
+  const big = item.value > 0 ? (item.percentage ? `${fmtNum(language, item.value)}%` : money(item.value)) : null;
+  return (
+    <Link to="/offers" tabIndex={current ? 0 : -1} draggable={false} className={SLIDE}>
+      <div className="grid min-h-0 flex-1 place-items-center">
+        {big ? (
+          <div dir="ltr" className="flex items-center gap-2 rounded-xl border-[3px] border-black bg-white px-3 py-1.5 text-emerald-950 [box-shadow:calc(var(--dx)*3px)_3px_0_0_#000]">
+            <span className="text-2xl font-black leading-none tabular-nums sm:text-3xl">{big}</span>
+            <span className="text-xs font-extrabold leading-none">{t.off}</span>
+          </div>
+        ) : (
+          <FiTag className="h-12 w-12 opacity-60" aria-hidden="true" />
+        )}
+      </div>
+      <div className={PILL}>
+        <h4 className="line-clamp-1 text-sm font-bold">{item.name}</h4>
+        <div className="mt-0.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-[11px] font-semibold opacity-70">
+          <span className="flex min-w-0 items-center gap-1.5">
+            <RiStore2Line className="h-3.5 w-3.5 flex-none" aria-hidden="true" />
+            <span className="truncate">{item.shop || t.partner}</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <FiCalendar className="h-3 w-3 flex-none" aria-hidden="true" />
+            {date ? fill(t.ends, { date }) : t.na}
+          </span>
+        </div>
+      </div>
+    </Link>
+  );
+});
 
-  useEffect(() => {
-    if (total < 2 || paused) return undefined;
-    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
-    const id = setTimeout(() => goTo((active + 1) % total), AUTOPLAY_MS);
-    return () => clearTimeout(id);
-  }, [active, total, paused, goTo]);
-
-  const hasSlider = total > 0;
+const SliderCard = memo(({ kind, tone, title, sub, cta, to, items, loading, empty, active, ms, language, t }) => {
+  const [hovered, setHovered] = useState(false);
+  const [index, setIndex] = useCycle(items.length, hovered || !active, ms);
+  const v = TONES[tone];
+  const on = useCallback(() => setHovered(true), []);
+  const off = useCallback(() => setHovered(false), []);
+  const Slide = kind === 'deals' ? ProductSlide : kind === 'shops' ? ShopSlide : OfferSlide;
 
   return (
-    <section
-      dir={dir}
-      className={`relative isolate overflow-hidden [--dx:1] rtl:[--dx:-1] ${isAr ? 'font-cairo' : 'font-jakarta'}`}
-      style={{ backgroundColor: darkMode ? PAGE_DARK : PAGE_LIGHT }}
+    <article
+      style={v.style}
+      onMouseEnter={on}
+      onMouseLeave={off}
+      onFocus={on}
+      onBlur={off}
+      aria-roledescription="carousel"
+      aria-label={title}
+      className={`${CARD} h-full w-[17rem] flex-none snap-start flex-col p-4 sm:w-[21rem] sm:p-6 lg:w-[24rem] ${v.ink}`}
     >
-      <div className="hr-in mx-auto w-full max-w-[120rem] px-3 pb-8 pt-36 sm:px-5 sm:pt-32" style={DELAY[0]}>
+      <div className="relative z-10 flex flex-col items-start gap-1 sm:gap-1.5">
+        <h3 className="text-2xl font-black leading-[1.15] [text-wrap:balance] sm:text-3xl">{title}</h3>
+        <p className={`text-xs font-semibold leading-snug sm:text-sm ${v.soft}`}>{sub}</p>
+        <Link to={to} draggable={false} className={`${CTA} ${v.chip} ${FOCUS}`}>
+          {cta}
+          <FiArrowRight className="h-3.5 w-3.5 flex-shrink-0 rtl:rotate-180" aria-hidden="true" />
+        </Link>
+      </div>
+
+      <div className="relative mt-3 min-h-0 flex-1 sm:mt-4">
         {loading ? (
-          <HeroSkeleton darkMode={darkMode} />
+          <div aria-hidden="true" className="absolute inset-0 animate-pulse rounded-2xl bg-black/10 motion-reduce:animate-none" />
+        ) : items.length === 0 ? (
+          <p className="absolute inset-0 grid place-items-center px-4 text-center text-sm font-bold">{empty}</p>
         ) : (
-          <div
-            style={GRID_STYLE}
-            className={`grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 ${hasSlider ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}
-          >
-            {hasSlider && (
+          <div aria-live={hovered ? 'polite' : 'off'}>
+            {items.map((item, i) => (
               <div
-                style={DELAY[0]}
-                className="hr-in relative h-[28rem] overflow-hidden rounded-3xl border-[3px] border-black [box-shadow:calc(var(--dx)*6px)_6px_0_0_#000] sm:h-[30rem] lg:h-[var(--hh)]"
-                role="region"
-                aria-roledescription="carousel"
-                onTouchStart={pause}
-                onTouchEnd={resume}
-                onTouchCancel={resume}
+                key={item.id}
+                aria-hidden={i !== index}
+                className={`absolute inset-0 transition-opacity duration-500 motion-reduce:transition-none ${i === index ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
               >
-                <div
-                  ref={trackRef}
-                  onScroll={onScroll}
-                  className="hx-scroll flex h-full snap-x snap-mandatory overflow-x-auto scroll-smooth"
-                >
-                  {products.map((item, i) => (
-                    <div key={item.id} className="h-full w-full flex-none snap-center">
-                      <ProductTile
-                        flat
-                        item={item}
-                        tone={TILE_TONES[i % TILE_TONES.length]}
-                        eager={i === 0}
-                        label={item.percent > 0 ? t.off(item.percent) : i === 0 ? t.bestSeller : t.fresh}
-                        t={t}
-                        parts={parts}
-                      />
-                    </div>
-                  ))}
-                </div>
-                {total > 1 && (
-                  <>
-                    <div className="absolute start-4 top-4 z-20 flex items-center sm:start-5 sm:top-5">
-                      {products.map((item, i) => (
-                        <Dot key={item.id} index={i} active={i === active} label={t.goTo} onSelect={goTo} />
-                      ))}
-                    </div>
-                  </>
-                )}
+                {near(i, index, items.length) ? (
+                  <Slide item={item} current={i === index} eager={i === 0 && kind === 'deals'} language={language} t={t} />
+                ) : null}
+              </div>
+            ))}
+            {items.length > 1 && (
+              <div className="absolute inset-x-0 bottom-0 z-10 flex justify-center gap-1.5">
+                {items.map((item, i) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setIndex(i)}
+                    aria-label={fill(t.goTo, { n: i + 1 })}
+                    aria-current={i === index}
+                    className={`h-2.5 rounded-full border-2 border-black transition-[width,background-color] duration-200 motion-reduce:transition-none ${FOCUS} ${i === index ? 'w-6 bg-white' : 'w-2.5 bg-black/30'}`}
+                  />
+                ))}
               </div>
             )}
-            {SERVICES.map((svc, i) => (
-              <div key={svc.key} style={DELAY[i + 1]} className="hr-in h-[28rem] sm:h-[30rem] lg:h-[var(--hh)]">
-                <ServiceCard svc={svc} t={t} />
-              </div>
-            ))}
           </div>
         )}
       </div>
-    </section>
+    </article>
   );
 });
 
-const ClassicHero = memo(({ variant = 'home', darkMode = false, badge, headingLine1, headingAccent, headingLine2, description, buttons, children }) => {
+const ARROW =
+  'absolute top-[calc(50%-1.5rem)] z-20 hidden h-12 w-12 cursor-pointer place-items-center rounded-full border-[3px] border-black bg-white text-emerald-950 [box-shadow:3px_3px_0_0_#000] active:scale-95 sm:grid';
+
+const FONT_URL = 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap';
+const FONT_STACK = "'Poppins', 'Cairo', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
+
+const ensurePoppins = () => {
+  if (typeof document === 'undefined' || document.getElementById('navbar-font')) return;
+  const link = document.createElement('link');
+  link.id = 'navbar-font';
+  link.rel = 'stylesheet';
+  link.href = FONT_URL;
+  link.crossOrigin = 'anonymous';
+  document.head.appendChild(link);
+};
+
+const HeroShowcaseContent = ({ darkMode = false, navOffset = 150, navOffsetSm = 132 }) => {
   const language = useAppLanguage();
+  const dir = languageDirection(language);
   const isAr = language === 'ar';
+  const t = TEXT[language] || TEXT.en;
+  const data = useHeroData();
+  const [wrapRef, onScreen] = useOnScreen();
+  const railRef = useRef(null);
 
-  useEffect(() => { ensureFont(isAr ? 'cairo' : 'jakarta'); }, [isAr]);
+  useEffect(() => { ensurePoppins(); }, []);
 
-  const cfg = VARIANT_DEFAULTS[variant] ?? VARIANT_DEFAULTS.home;
-  const translated = getHeroTranslation(language, variant);
+  const scrollBy = useCallback((d) => {
+    const el = railRef.current;
+    if (!el) return;
+    el.scrollBy({ left: d * (isAr ? -1 : 1) * el.clientWidth * 0.7, behavior: prefersReduced() ? 'auto' : 'smooth' });
+  }, [isAr]);
+  const goPrev = useCallback(() => scrollBy(-1), [scrollBy]);
+  const goNext = useCallback(() => scrollBy(1), [scrollBy]);
 
-  const resolvedLine1 = headingLine1 ?? translated[1] ?? cfg.headingLine1;
-  const resolvedAccent = headingAccent ?? translated[2] ?? cfg.headingAccent;
-  const resolvedLine2 = headingLine2 ?? translated[3] ?? cfg.headingLine2;
-  const resolvedDesc = description ?? translated[4] ?? cfg.description;
-
-  const richDesc = useMemo(() => renderRich(resolvedDesc), [resolvedDesc]);
-
-  const resolvedButtons = useMemo(
-    () => buttons ?? cfg.buttons.map((button, index) => ({ ...button, label: translated[index === 0 ? 5 : 6] || button.label })),
-    [buttons, cfg, translated]
+  const rootStyle = useMemo(
+    () => ({
+      ...(darkMode ? THEMES.dark : THEMES.light),
+      backgroundColor: 'var(--hs-bg)',
+      fontFamily: FONT_STACK,
+      '--hs-nav': `${navOffset}px`,
+      '--hs-nav-sm': `${navOffsetSm}px`,
+    }),
+    [darkMode, navOffset, navOffsetSm],
   );
 
   return (
     <section
-      dir={languageDirection(language)}
-      className={`relative isolate overflow-hidden bg-[#020f0a] text-white [--dx:1] rtl:[--dx:-1] ${HERO_H} ${isAr ? 'font-cairo' : 'font-jakarta'}`}
+      ref={wrapRef}
+      dir={dir}
+      aria-label={t.label}
+      style={rootStyle}
+      className="relative w-full pt-[var(--hs-nav)] [--dx:1] sm:pt-[var(--hs-nav-sm)] rtl:[--dx:-1]"
     >
-      <HeroWall />
-
-      <div className={`relative z-10 mx-auto flex max-w-4xl flex-col items-center justify-center px-4 pb-44 pt-40 text-center sm:px-6 sm:pb-52 ${HERO_H}`}>
-        {badge && (
-          <span
-            className="hr-in inline-flex items-center gap-1.5 rounded-lg border-[3px] border-black bg-[#39ff88] px-3 py-1 text-xs font-black uppercase text-emerald-950 [box-shadow:3px_3px_0_0_#000] rtl:[box-shadow:-3px_3px_0_0_#000]"
-            style={DELAY[0]}
-          >
-            <FiTool aria-hidden="true" className="h-3.5 w-3.5" />
-            <span>{badge}</span>
-          </span>
-        )}
-
-        <h1
-          className={`hr-in mt-6 break-words text-4xl font-black [text-wrap:balance] sm:text-6xl lg:text-7xl ${
-            isAr ? 'leading-[1.35] tracking-normal' : 'leading-[1.06] tracking-[-0.035em]'
-          }`}
-          style={DELAY[1]}
+      <div className="relative mx-auto w-full max-w-[120rem] py-4 sm:py-6">
+        <div
+          ref={railRef}
+          role="group"
+          aria-roledescription="carousel"
+          aria-label={t.label}
+          className="flex h-[30rem] max-h-[calc(100svh-var(--hs-nav)-2rem)] min-h-[26rem] snap-x snap-mandatory items-stretch gap-3 overflow-x-auto px-4 pb-3 pt-1 [overscroll-behavior-x:contain] [scrollbar-width:none] sm:h-[34rem] sm:max-h-[calc(100svh-var(--hs-nav-sm)-3rem)] sm:gap-5 sm:px-6 lg:h-[36rem] [&::-webkit-scrollbar]:hidden"
         >
-          {resolvedLine1 && <>{resolvedLine1}{' '}</>}
-          <span className="hp-hl-dark">{resolvedAccent}</span>
-          {resolvedLine2 && <>{' '}{resolvedLine2}</>}
-        </h1>
-
-        <p className="hr-in mt-6 max-w-2xl text-lg font-medium leading-relaxed text-white/85 [text-wrap:pretty] sm:text-xl" style={DELAY[2]}>
-          {richDesc}
-        </p>
-
-        {children && (
-          <div className="hr-in mt-8 flex w-full justify-center" style={DELAY[3]}>
-            {children}
+          <SliderCard
+            kind="deals" tone="deals" to="/offers"
+            title={t.dealsTitle} sub={t.dealsSub} cta={t.dealsCta} empty={t.noDeals}
+            items={data.deals.items} loading={data.deals.loading}
+            active={onScreen} ms={4500} language={language} t={t}
+          />
+          <SliderCard
+            kind="shops" tone="shops" to="/shops"
+            title={t.shopsTitle} sub={t.shopsSub} cta={t.shopsCta} empty={t.noShops}
+            items={data.shops.items} loading={data.shops.loading}
+            active={onScreen} ms={5500} language={language} t={t}
+          />
+          <SliderCard
+            kind="offers" tone="offers" to="/offers"
+            title={t.offersTitle} sub={t.offersSub} cta={t.offersCta} empty={t.noOffers}
+            items={data.offers.items} loading={data.offers.loading}
+            active={onScreen} ms={6500} language={language} t={t}
+          />
+          <div className="flex h-full w-[20rem] flex-none snap-start flex-col gap-3 sm:w-[30rem] sm:gap-5 lg:w-[37.5rem]">
+            <WideCard id="repair" t={t} darkMode={darkMode} />
+            <WideCard id="track" t={t} darkMode={darkMode} />
           </div>
-        )}
-
-        {resolvedButtons && resolvedButtons.length > 0 && (
-          <div className="hr-in mt-8 flex flex-wrap justify-center gap-4 pb-1 pe-1" style={DELAY[4]}>
-            {resolvedButtons.map((btn) => (
-              <HeroButton key={btn.label} btn={btn} className={btn.primary ? BTN_PRIMARY : BTN_SECONDARY} />
-            ))}
-          </div>
-        )}
+        </div>
+        <button type="button" aria-label={t.prev} onClick={goPrev} className={`${ARROW} ${FOCUS} start-3`}>
+          <FiChevronLeft className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
+        </button>
+        <button type="button" aria-label={t.next} onClick={goNext} className={`${ARROW} ${FOCUS} end-3`}>
+          <FiChevronRight className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
+        </button>
       </div>
-
-      <HeroCurve darkMode={darkMode} />
     </section>
   );
-});
+};
 
-const Hero = memo((props) => {
-  const { variant = 'home', layout } = props;
-  const market = (layout ?? (variant === 'home' ? 'market' : 'classic')) === 'market';
-  return market ? <MarketHero {...props} /> : <ClassicHero {...props} />;
-});
+const HeroShowcaseMemo = memo(HeroShowcaseContent);
 
-export default Hero;
+const HeroShowcase = (props) => (
+  <QueryClientProvider client={queryClient}>
+    <HeroShowcaseMemo {...props} />
+  </QueryClientProvider>
+);
+
+export default memo(HeroShowcase);

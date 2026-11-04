@@ -12,13 +12,20 @@ const TRANSLATIONS = {
     titleAdd: 'إضافة منتج جديد',
     titleEdit: 'تعديل المنتج',
     close: 'إغلاق',
-    image: 'صورة المنتج',
+    image: 'صورة الغلاف',
     imageHint: 'JPG أو PNG أو WEBP — حتى {mb} ميجابايت',
     imagePreviewAlt: 'معاينة الصورة',
     imageDrop: 'اسحب الصورة هنا أو اختر ملفاً',
     imageCurrent: 'الصورة الحالية — اختر صورة جديدة لاستبدالها',
     pickImage: 'اختيار صورة',
     removeImage: 'إزالة',
+    images: 'صور إضافية',
+    imagesHint: 'JPG أو PNG أو WEBP — حتى {mb} ميجابايت للصورة، وحتى {max} صور',
+    imagesDrop: 'اسحب الصور هنا أو اختر ملفات',
+    imageN: 'صورة {n}',
+    imageCount: '{n} / {max} صور',
+    addImages: 'إضافة صور',
+    errMaxImages: 'الحد الأقصى {n} صور',
     removeBg: 'إزالة الخلفية وتحسين الجودة',
     restoreOriginal: 'استعادة الأصلية',
     cancelProcessing: 'إيقاف المعالجة',
@@ -65,13 +72,20 @@ const TRANSLATIONS = {
     titleAdd: 'Add new product',
     titleEdit: 'Edit product',
     close: 'Close',
-    image: 'Product image',
+    image: 'Cover image',
     imageHint: 'JPG, PNG or WEBP — up to {mb} MB',
     imagePreviewAlt: 'Image preview',
     imageDrop: 'Drag an image here or choose a file',
     imageCurrent: 'Current image — pick a new one to replace it',
     pickImage: 'Choose image',
     removeImage: 'Remove',
+    images: 'More images',
+    imagesHint: 'JPG, PNG or WEBP — up to {mb} MB each, up to {max} images',
+    imagesDrop: 'Drag images here or choose files',
+    imageN: 'Image {n}',
+    imageCount: '{n} / {max} images',
+    addImages: 'Add images',
+    errMaxImages: 'Maximum {n} images',
     removeBg: 'Remove background & enhance',
     restoreOriginal: 'Restore original',
     cancelProcessing: 'Stop processing',
@@ -146,6 +160,17 @@ const PM_CSS = `
 .pm-bar>span{display:block;height:100%;background:var(--pm-accent);transition:width .2s ease}
 .pm-bar-wait>span{position:absolute;inset-block:0;width:35%;animation:pmSlide 1.1s ease-in-out infinite alternate;transition:none}
 @keyframes pmSlide{from{inset-inline-start:0}to{inset-inline-start:65%}}
+.pm-ibtn{display:inline-flex;align-items:center;justify-content:center;flex:1;height:28px;background:transparent;color:var(--pm-ink);cursor:pointer;transition:background-color .12s ease}
+.pm-ibtn:hover:not(:disabled){background:var(--pm-gray)}
+.pm-ibtn:disabled{opacity:.4;cursor:not-allowed}
+.pm-ibtn:focus-visible{outline:3px solid var(--pm-accent);outline-offset:-3px}
+.pm-ibtn-danger{color:#dc2626}
+.dark .pm-ibtn-danger{color:#fca5a5}
+.pm-ibtn-danger:hover:not(:disabled){background:#ef4444;color:#fff}
+.pm-add{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:96px;border:2px dashed var(--pm-line);background:transparent;color:var(--pm-ink);font-size:10px;font-weight:800;text-transform:uppercase;cursor:pointer;transition:background-color .12s ease}
+.pm-add:hover:not(:disabled){background:var(--pm-card)}
+.pm-add:disabled{opacity:.45;cursor:not-allowed}
+.pm-add:focus-visible{outline:3px solid var(--pm-accent);outline-offset:2px}
 .pm-scroll{scrollbar-width:thin;scrollbar-color:var(--pm-accent) transparent}
 .pm-scroll::-webkit-scrollbar{width:6px;height:6px}
 .pm-scroll::-webkit-scrollbar-track{background:transparent}
@@ -154,7 +179,7 @@ const PM_CSS = `
 @keyframes pmIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .pm-fade{animation:pmFade .2s ease-out both}
 .pm-in{animation:pmIn .15s ease-out both}
-@media (prefers-reduced-motion:reduce){.pm-btn,.pm-drop,.pm-bar>span{transition:none}.pm-fade,.pm-in,.pm-bar-wait>span{animation:none}}
+@media (prefers-reduced-motion:reduce){.pm-btn,.pm-ibtn,.pm-add,.pm-drop,.pm-bar>span{transition:none}.pm-fade,.pm-in,.pm-bar-wait>span{animation:none}}
 `;
 const STYLE_EL = <style>{PM_CSS}</style>;
 
@@ -212,8 +237,32 @@ const validateExtras = (data, T) => {
 
 const ACCEPT = ALLOWED_IMAGE_TYPES.join(',');
 const MAX_MB = IMAGE_MAX_BYTES / 1024 / 1024;
+const MAX_IMAGES = 8;
 const PRICE_PLACEHOLDER_N = PRICE_MAX.toLocaleString('en-US');
 const STOCK_PLACEHOLDER_N = STOCK_MAX.toLocaleString('en-US');
+
+const EMPTY_IMAGES = [];
+
+const FILE_IDS = new WeakMap();
+let fileSeq = 0;
+
+const fileId = (file) => {
+  let id = FILE_IDS.get(file);
+  if (!id) {
+    fileSeq += 1;
+    id = `f${fileSeq}`;
+    FILE_IDS.set(file, id);
+  }
+  return id;
+};
+
+const itemKey = (item, index) => {
+  if (item instanceof File) return fileId(item);
+  if (typeof item === 'string') return `s:${item}`;
+  return `o:${item?.id ?? item?.url ?? item?.path ?? index}`;
+};
+
+const fileSignature = (file) => `${file.name}|${file.size}|${file.lastModified}`;
 
 const BG_INPUT_MAX = 1024;
 const BG_OUTPUT_MAX = 1280;
@@ -617,19 +666,92 @@ const Dropdown = memo(({ id, value, options, placeholder, dir, onChange }) => {
   );
 });
 
-const ImagePicker = memo(({ image, isEdit, T, onChange, onClearError, onBusy }) => {
+const useImageJob = (T) => {
+  const [stage, setStage] = useState('');
+  const [progress, setProgress] = useState(-1);
+  const [activeId, setActiveId] = useState('');
+  const jobRef = useRef(0);
+
+  useEffect(() => () => { jobRef.current += 1; }, []);
+
+  const stop = useCallback(() => {
+    jobRef.current += 1;
+    setStage('');
+    setProgress(-1);
+    setActiveId('');
+  }, []);
+
+  const run = useCallback(async (source, id, onDone, onError) => {
+    const job = jobRef.current + 1;
+    jobRef.current = job;
+    const isCancelled = () => jobRef.current !== job;
+    setProgress(-1);
+    setActiveId(id);
+    setStage('prep');
+    try {
+      const result = await processProductImage(source, {
+        onStage: (s) => { if (!isCancelled()) setStage((prev) => (prev === s ? prev : s)); },
+        onProgress: (p) => { if (!isCancelled()) setProgress((prev) => (prev === p ? prev : p)); },
+        isCancelled,
+      });
+      if (isCancelled()) return;
+      if (!result) throw new Error('empty');
+      if (result.size > IMAGE_MAX_BYTES) {
+        onError(tpl(T.bgTooLarge, { mb: MAX_MB }));
+        return;
+      }
+      onDone(result);
+    } catch {
+      if (!isCancelled()) onError(T.bgError);
+    } finally {
+      if (!isCancelled()) {
+        setStage('');
+        setProgress(-1);
+        setActiveId('');
+      }
+    }
+  }, [T]);
+
+  return { stage, progress, activeId, busy: stage !== '', run, stop };
+};
+
+const JobStatus = memo(({ stage, progress, T, onStop }) => {
+  const indeterminate = progress < 0;
+  return (
+    <div className="mt-2" role="status" aria-live="polite">
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <p className="pm-muted text-[11px] font-bold">{T.stages[stage]}</p>
+        {onStop && (
+          <button type="button" onClick={onStop} className={BTN_SMALL_DANGER}>
+            <FiX size={12} aria-hidden="true" /> {T.cancelProcessing}
+          </button>
+        )}
+      </div>
+      <div
+        className={`pm-bar ${indeterminate ? 'pm-bar-wait' : ''}`}
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={indeterminate ? undefined : progress}
+      >
+        <span style={indeterminate ? undefined : { width: `${progress}%` }} />
+      </div>
+    </div>
+  );
+});
+
+const CoverPicker = memo(({ image, isEdit, T, onChange, onClearError, onBusy, disabled }) => {
   const [imgError, setImgError] = useState('');
   const [dragging, setDragging] = useState(false);
   const [preview, setPreview] = useState('');
-  const [stage, setStage] = useState('');
-  const [progress, setProgress] = useState(-1);
   const [processed, setProcessed] = useState(false);
   const fileRef = useRef(null);
   const originalRef = useRef(null);
-  const jobRef = useRef(0);
+  const job = useImageJob(T);
+  const { busy, stop, run: runJob } = job;
 
   const isFile = image instanceof File;
-  const busy = stage !== '';
+  const locked = busy || disabled;
 
   useEffect(() => {
     if (image instanceof File) {
@@ -637,98 +759,69 @@ const ImagePicker = memo(({ image, isEdit, T, onChange, onClearError, onBusy }) 
       setPreview(url);
       return () => URL.revokeObjectURL(url);
     }
-    setPreview(resolveImageSrc(image));
+    setPreview(resolveImageSrc(image) || '');
     return undefined;
   }, [image]);
 
   useEffect(() => { onBusy(busy); }, [busy, onBusy]);
-
-  useEffect(() => () => { jobRef.current += 1; }, []);
 
   const pickFile = useCallback(async (file) => {
     if (!file) return;
     const problem = await validateImageFile(file);
     onClearError();
     if (problem) { setImgError(problem); return; }
-    jobRef.current += 1;
-    setStage('');
+    stop();
     setImgError('');
     setProcessed(false);
     originalRef.current = file;
     onChange('image', file);
     preloadBgModel();
-  }, [onChange, onClearError]);
+  }, [onChange, onClearError, stop]);
 
-  const onDragOver = useCallback((e) => { e.preventDefault(); setDragging(true); }, []);
+  const onDragOver = useCallback((e) => {
+    if (!e.dataTransfer?.types?.includes('Files')) return;
+    e.preventDefault();
+    setDragging(true);
+  }, []);
   const onDragLeave = useCallback(() => setDragging(false), []);
   const onDrop = useCallback((e) => {
     e.preventDefault();
     setDragging(false);
-    pickFile(e.dataTransfer?.files?.[0]);
-  }, [pickFile]);
+    if (!locked) pickFile(e.dataTransfer?.files?.[0]);
+  }, [pickFile, locked]);
   const browse = useCallback(() => fileRef.current?.click(), []);
   const onFile = useCallback((e) => { pickFile(e.target.files?.[0]); e.target.value = ''; }, [pickFile]);
   const clear = useCallback(() => {
-    jobRef.current += 1;
+    stop();
     originalRef.current = null;
-    setStage('');
     setProcessed(false);
     onChange('image', null);
     setImgError('');
-  }, [onChange]);
+  }, [onChange, stop]);
   const previewFail = useCallback(() => setPreview(''), []);
 
   const restore = useCallback(() => {
     if (!originalRef.current) return;
-    jobRef.current += 1;
+    stop();
     setProcessed(false);
     setImgError('');
     onChange('image', originalRef.current);
-  }, [onChange]);
+  }, [onChange, stop]);
 
-  const cancelRun = useCallback(() => {
-    jobRef.current += 1;
-    setStage('');
-    setProgress(-1);
-  }, []);
-
-  const stageUpdate = useCallback((next) => setStage((prev) => (prev === next ? prev : next)), []);
-  const progressUpdate = useCallback((pct) => setProgress((prev) => (prev === pct ? prev : pct)), []);
-
-  const run = useCallback(async () => {
+  const run = useCallback(() => {
     if (!(image instanceof File) || busy) return;
     if (!originalRef.current) originalRef.current = image;
-    const job = jobRef.current + 1;
-    jobRef.current = job;
-    const isCancelled = () => jobRef.current !== job;
     setImgError('');
-    setProgress(-1);
-    stageUpdate('prep');
-    try {
-      const result = await processProductImage(originalRef.current, {
-        onStage: (s) => { if (!isCancelled()) stageUpdate(s); },
-        onProgress: (p) => { if (!isCancelled()) progressUpdate(p); },
-        isCancelled,
-      });
-      if (isCancelled()) return;
-      if (!result) throw new Error('empty');
-      if (result.size > IMAGE_MAX_BYTES) {
-        setImgError(tpl(T.bgTooLarge, { mb: MAX_MB }));
-        return;
-      }
-      setProcessed(true);
-      onChange('image', result);
-    } catch {
-      if (!isCancelled()) setImgError(T.bgError);
-    } finally {
-      if (!isCancelled()) {
-        setStage('');
-        setProgress(-1);
-      }
-    }
-  }, [image, busy, T, onChange, stageUpdate, progressUpdate]);
-
-  const indeterminate = progress < 0;
+    runJob(
+      originalRef.current,
+      'cover',
+      (result) => {
+        setProcessed(true);
+        onChange('image', result);
+      },
+      setImgError,
+    );
+  }, [image, busy, runJob, onChange]);
 
   return (
     <div>
@@ -741,7 +834,7 @@ const ImagePicker = memo(({ image, isEdit, T, onChange, onClearError, onBusy }) 
       >
         <span className={`pm-card ${processed ? 'pm-checker' : ''} !shadow-none flex h-20 w-20 flex-shrink-0 items-center justify-center overflow-hidden`}>
           {preview
-            ? <img src={preview} alt={T.imagePreviewAlt} decoding="async" className={`h-full w-full ${processed ? 'object-contain' : 'object-cover'}`} onError={previewFail} />
+            ? <img src={preview} alt={T.imagePreviewAlt} decoding="async" referrerPolicy="no-referrer" className={`h-full w-full ${processed ? 'object-contain' : 'object-cover'}`} onError={previewFail} />
             : <FiUploadCloud size={24} aria-hidden="true" />}
         </span>
         <div className="min-w-0 flex-1 space-y-2">
@@ -749,7 +842,7 @@ const ImagePicker = memo(({ image, isEdit, T, onChange, onClearError, onBusy }) 
             {isFile ? image.name : (isEdit && preview ? T.imageCurrent : T.imageDrop)}
           </p>
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={browse} disabled={busy} className={BTN_SMALL}>
+            <button type="button" onClick={browse} disabled={locked} className={BTN_SMALL}>
               <FiUploadCloud size={12} aria-hidden="true" /> {T.pickImage}
             </button>
             {isFile && !processed && (
@@ -758,7 +851,7 @@ const ImagePicker = memo(({ image, isEdit, T, onChange, onClearError, onBusy }) 
                 onClick={run}
                 onPointerEnter={preloadBgModel}
                 onFocus={preloadBgModel}
-                disabled={busy}
+                disabled={locked}
                 className={BTN_SMALL_ACCENT}
               >
                 {busy
@@ -768,17 +861,12 @@ const ImagePicker = memo(({ image, isEdit, T, onChange, onClearError, onBusy }) 
               </button>
             )}
             {isFile && processed && (
-              <button type="button" onClick={restore} disabled={busy} className={BTN_SMALL}>
+              <button type="button" onClick={restore} disabled={locked} className={BTN_SMALL}>
                 <FiRotateCcw size={12} aria-hidden="true" /> {T.restoreOriginal}
               </button>
             )}
-            {busy && (
-              <button type="button" onClick={cancelRun} className={BTN_SMALL_DANGER}>
-                <FiX size={12} aria-hidden="true" /> {T.cancelProcessing}
-              </button>
-            )}
             {isFile && !busy && (
-              <button type="button" onClick={clear} className={BTN_SMALL_DANGER}>
+              <button type="button" onClick={clear} disabled={disabled} className={BTN_SMALL_DANGER}>
                 <FiTrash2 size={12} aria-hidden="true" /> {T.removeImage}
               </button>
             )}
@@ -786,20 +874,7 @@ const ImagePicker = memo(({ image, isEdit, T, onChange, onClearError, onBusy }) 
         </div>
         <input ref={fileRef} type="file" accept={ACCEPT} className="hidden" onChange={onFile} />
       </div>
-      {busy && (
-        <div className="mt-2" role="status" aria-live="polite">
-          <p className="pm-muted mb-1 text-[11px] font-bold">{T.stages[stage]}</p>
-          <div
-            className={`pm-bar ${indeterminate ? 'pm-bar-wait' : ''}`}
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={indeterminate ? undefined : progress}
-          >
-            <span style={indeterminate ? undefined : { width: `${progress}%` }} />
-          </div>
-        </div>
-      )}
+      {busy && <JobStatus stage={job.stage} progress={job.progress} T={T} onStop={stop} />}
       {!busy && processed && !imgError && (
         <p role="status" className="mt-1.5 flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-300">
           <FiCheck size={12} aria-hidden="true" /> {T.bgDone}
@@ -807,6 +882,266 @@ const ImagePicker = memo(({ image, isEdit, T, onChange, onClearError, onBusy }) 
       )}
       <p className="pm-muted mt-1.5 text-[10px] font-semibold">{tpl(T.imageHint, { mb: MAX_MB })}</p>
       {isFile && !processed && !busy && <p className="pm-muted mt-1 text-[10px] font-semibold">{T.bgHint}</p>}
+      {imgError && <p role="alert" className="mt-1 text-[11px] font-bold text-red-500">{imgError}</p>}
+    </div>
+  );
+});
+
+const Thumb = memo(({ item, id, index, processed, active, locked, T, onRemove, onRun, onRestore }) => {
+  const [src, setSrc] = useState('');
+  const isFile = item instanceof File;
+
+  useEffect(() => {
+    if (item instanceof File) {
+      const url = URL.createObjectURL(item);
+      setSrc(url);
+      return () => URL.revokeObjectURL(url);
+    }
+    setSrc(resolveImageSrc(item) || '');
+    return undefined;
+  }, [item]);
+
+  const fail = useCallback(() => setSrc(''), []);
+  const remove = useCallback(() => onRemove(id), [onRemove, id]);
+  const run = useCallback(() => onRun(id), [onRun, id]);
+  const restore = useCallback(() => onRestore(id), [onRestore, id]);
+
+  return (
+    <li className="pm-card !shadow-none flex flex-col overflow-hidden">
+      <div className={`relative aspect-square w-full overflow-hidden ${processed ? 'pm-checker' : 'pm-gray'}`}>
+        {src
+          ? (
+            <img
+              src={src}
+              alt={tpl(T.imageN, { n: index + 1 })}
+              loading="lazy"
+              decoding="async"
+              draggable={false}
+              referrerPolicy="no-referrer"
+              onError={fail}
+              className={`h-full w-full ${processed ? 'object-contain' : 'object-cover'}`}
+            />
+          )
+          : (
+            <span className="flex h-full w-full items-center justify-center">
+              <FiUploadCloud size={22} aria-hidden="true" />
+            </span>
+          )}
+        {active && (
+          <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-white">
+            <FiLoader size={22} aria-hidden="true" className="animate-spin motion-reduce:animate-none" />
+          </span>
+        )}
+      </div>
+      <div className="pm-line flex border-t-2">
+        {isFile && !processed && (
+          <button
+            type="button"
+            onClick={run}
+            onPointerEnter={preloadBgModel}
+            onFocus={preloadBgModel}
+            disabled={locked}
+            className="pm-ibtn"
+            aria-label={T.removeBg}
+            title={T.removeBg}
+          >
+            <FiZap size={13} aria-hidden="true" />
+          </button>
+        )}
+        {isFile && processed && (
+          <button type="button" onClick={restore} disabled={locked} className="pm-ibtn" aria-label={T.restoreOriginal} title={T.restoreOriginal}>
+            <FiRotateCcw size={13} aria-hidden="true" />
+          </button>
+        )}
+        <button type="button" onClick={remove} disabled={locked} className="pm-ibtn pm-ibtn-danger" aria-label={T.removeImage} title={T.removeImage}>
+          <FiTrash2 size={13} aria-hidden="true" />
+        </button>
+      </div>
+    </li>
+  );
+});
+
+const GalleryPicker = memo(({ images, T, onChange, onBusy, disabled }) => {
+  const [imgError, setImgError] = useState('');
+  const [dragging, setDragging] = useState(false);
+  const fileRef = useRef(null);
+  const originals = useRef(new WeakMap());
+  const imagesRef = useRef(images);
+  imagesRef.current = images;
+  const job = useImageJob(T);
+  const { busy, stop, run: runJob } = job;
+
+  const locked = busy || disabled;
+  const full = images.length >= MAX_IMAGES;
+
+  useEffect(() => { onBusy(busy); }, [busy, onBusy]);
+
+  const commit = useCallback((next) => onChange('images', next), [onChange]);
+
+  const addFiles = useCallback(async (list) => {
+    const files = Array.from(list || []);
+    if (files.length === 0) return;
+    const room = MAX_IMAGES - imagesRef.current.length;
+    if (room <= 0) {
+      setImgError(tpl(T.errMaxImages, { n: MAX_IMAGES }));
+      return;
+    }
+    const known = new Set(imagesRef.current.filter((it) => it instanceof File).map(fileSignature));
+    const fresh = [];
+    for (const f of files) {
+      const sig = fileSignature(f);
+      if (!known.has(sig)) {
+        known.add(sig);
+        fresh.push(f);
+      }
+    }
+    const picked = fresh.slice(0, room);
+    const problems = await Promise.all(picked.map((f) => validateImageFile(f)));
+    let firstProblem = '';
+    const valid = [];
+    picked.forEach((f, i) => {
+      if (problems[i]) {
+        if (!firstProblem) firstProblem = problems[i];
+      } else {
+        valid.push(f);
+      }
+    });
+    if (!firstProblem && fresh.length > room) firstProblem = tpl(T.errMaxImages, { n: MAX_IMAGES });
+    setImgError(firstProblem);
+    if (valid.length === 0) return;
+    const current = imagesRef.current;
+    const space = MAX_IMAGES - current.length;
+    if (space <= 0) return;
+    commit([...current, ...valid.slice(0, space)]);
+    preloadBgModel();
+  }, [T, commit]);
+
+  const onDragOver = useCallback((e) => {
+    if (!e.dataTransfer?.types?.includes('Files')) return;
+    e.preventDefault();
+    setDragging(true);
+  }, []);
+  const onDragLeave = useCallback(() => setDragging(false), []);
+  const onDrop = useCallback((e) => {
+    e.preventDefault();
+    setDragging(false);
+    if (!locked) addFiles(e.dataTransfer?.files);
+  }, [addFiles, locked]);
+  const browse = useCallback(() => fileRef.current?.click(), []);
+  const onFile = useCallback((e) => {
+    addFiles(e.target.files);
+    e.target.value = '';
+  }, [addFiles]);
+
+  const findIndex = useCallback((id) => imagesRef.current.findIndex((it, i) => itemKey(it, i) === id), []);
+
+  const removeItem = useCallback((id) => {
+    const idx = findIndex(id);
+    if (idx < 0) return;
+    setImgError('');
+    commit(imagesRef.current.filter((_, i) => i !== idx));
+  }, [findIndex, commit]);
+
+  const restoreItem = useCallback((id) => {
+    const idx = findIndex(id);
+    if (idx < 0) return;
+    const original = originals.current.get(imagesRef.current[idx]);
+    if (!original) return;
+    setImgError('');
+    const next = imagesRef.current.slice();
+    next[idx] = original;
+    commit(next);
+  }, [findIndex, commit]);
+
+  const runItem = useCallback((id) => {
+    const idx = findIndex(id);
+    if (idx < 0) return;
+    const source = imagesRef.current[idx];
+    if (!(source instanceof File)) return;
+    setImgError('');
+    runJob(
+      source,
+      id,
+      (result) => {
+        const at = imagesRef.current.indexOf(source);
+        if (at < 0) return;
+        originals.current.set(result, source);
+        const next = imagesRef.current.slice();
+        next[at] = result;
+        commit(next);
+      },
+      setImgError,
+    );
+  }, [findIndex, runJob, commit]);
+
+  const hasProcessed = images.some((it) => originals.current.has(it));
+  const hasRaw = images.some((it) => it instanceof File && !originals.current.has(it));
+
+  return (
+    <div>
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <span className="pm-label !mb-0">
+          {T.images}
+          <span className="pm-muted ms-1.5 text-[10px] font-semibold normal-case">({T.optional})</span>
+        </span>
+        <span className="pm-muted text-[10px] font-bold" dir="ltr">{tpl(T.imageCount, { n: images.length, max: MAX_IMAGES })}</span>
+      </div>
+      <div
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+        className={`pm-drop p-3 ${dragging ? 'pm-drop-on' : ''} ${imgError ? '!border-red-500' : ''}`}
+      >
+        {images.length === 0
+          ? (
+            <div className="flex flex-col items-center gap-2 py-3 text-center">
+              <FiUploadCloud size={24} aria-hidden="true" />
+              <p className="pm-muted text-[11px] font-bold">{T.imagesDrop}</p>
+              <button type="button" onClick={browse} disabled={locked} className={BTN_SMALL}>
+                <FiUploadCloud size={12} aria-hidden="true" /> {T.addImages}
+              </button>
+            </div>
+          )
+          : (
+            <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+              {images.map((item, i) => {
+                const id = itemKey(item, i);
+                return (
+                  <Thumb
+                    key={id}
+                    item={item}
+                    id={id}
+                    index={i}
+                    processed={originals.current.has(item)}
+                    active={busy && job.activeId === id}
+                    locked={locked}
+                    T={T}
+                    onRemove={removeItem}
+                    onRun={runItem}
+                    onRestore={restoreItem}
+                  />
+                );
+              })}
+              {!full && (
+                <li className="flex">
+                  <button type="button" onClick={browse} disabled={locked} className="pm-add w-full" aria-label={T.addImages}>
+                    <FiPlus size={18} aria-hidden="true" />
+                    <span>{T.addImages}</span>
+                  </button>
+                </li>
+              )}
+            </ul>
+          )}
+        <input ref={fileRef} type="file" accept={ACCEPT} multiple className="hidden" onChange={onFile} />
+      </div>
+      {busy && <JobStatus stage={job.stage} progress={job.progress} T={T} onStop={stop} />}
+      {!busy && hasProcessed && !imgError && (
+        <p role="status" className="mt-1.5 flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-300">
+          <FiCheck size={12} aria-hidden="true" /> {T.bgDone}
+        </p>
+      )}
+      <p className="pm-muted mt-1.5 text-[10px] font-semibold">{tpl(T.imagesHint, { mb: MAX_MB, max: MAX_IMAGES })}</p>
+      {hasRaw && !busy && <p className="pm-muted mt-1 text-[10px] font-semibold">{T.bgHint}</p>}
       {imgError && <p role="alert" className="mt-1 text-[11px] font-bold text-red-500">{imgError}</p>}
     </div>
   );
@@ -854,19 +1189,24 @@ const ProductModal = ({ mode, data, categories, onChange, onSubmit, onClose, bus
   const T = TRANSLATIONS[language === 'ar' ? 'ar' : 'en'];
 
   const [error, setError] = useState('');
-  const [imgBusy, setImgBusy] = useState(false);
+  const [coverBusy, setCoverBusy] = useState(false);
+  const [galleryBusy, setGalleryBusy] = useState(false);
 
   const isEdit = mode === 'edit';
   const title = isEdit ? T.titleEdit : T.titleAdd;
-  const locked = busy || imgBusy;
+  const locked = busy || coverBusy || galleryBusy;
 
   const specsValue = asText(data.specifications);
   const discountValue = asDiscountText(data.discountValue);
   const discountType = data.discountType || DEFAULT_DISCOUNT_TYPE;
 
+  const images = useMemo(
+    () => (Array.isArray(data.images) ? data.images.slice(0, MAX_IMAGES) : EMPTY_IMAGES),
+    [data.images],
+  );
+
   useEffect(() => {
     if (!data.discountType) onChange('discountType', DEFAULT_DISCOUNT_TYPE);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const categoryOptions = useMemo(
@@ -889,7 +1229,8 @@ const ProductModal = ({ mode, data, categories, onChange, onSubmit, onClose, bus
   const numberLocale = language === 'ar' ? 'ar-EG' : 'en-US';
 
   const clearError = useCallback(() => setError(''), []);
-  const onImgBusy = useCallback((v) => setImgBusy(v), []);
+  const onCoverBusy = useCallback((v) => setCoverBusy(v), []);
+  const onGalleryBusy = useCallback((v) => setGalleryBusy(v), []);
 
   const handlers = useMemo(() => {
     const mk = (field, sanitize) => (e) => {
@@ -942,13 +1283,22 @@ const ProductModal = ({ mode, data, categories, onChange, onSubmit, onClose, bus
         </div>
 
         <div className="pm-scroll space-y-4 overflow-y-auto px-5 py-4">
-          <ImagePicker
+          <CoverPicker
             image={data.image}
             isEdit={isEdit}
             T={T}
             onChange={onChange}
             onClearError={clearError}
-            onBusy={onImgBusy}
+            onBusy={onCoverBusy}
+            disabled={galleryBusy}
+          />
+
+          <GalleryPicker
+            images={images}
+            T={T}
+            onChange={onChange}
+            onBusy={onGalleryBusy}
+            disabled={coverBusy}
           />
 
           <Field label={T.name} htmlFor="p-name">

@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, memo } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate, useNavigationType, Link } from 'react-router-dom';
 import {
   FiChevronLeft, FiChevronRight, FiChevronDown, FiShoppingCart, FiCheck, FiTag, FiTruck, FiHome,
   FiMinus, FiPlus, FiAlertCircle, FiDollarSign, FiAward, FiShield, FiHeart, FiStar, FiRotateCcw, FiCpu,
+  FiMaximize2, FiX,
 } from 'react-icons/fi';
 import { RiStoreLine } from 'react-icons/ri';
 import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -31,8 +33,9 @@ const SAVED_KEY = 'nb_saved_devices';
 const SPEC_MAX = 50;
 const LOW_STOCK = 5;
 const SWIPE_MIN = 40;
-const ZOOM = 2;
-const ZOOM_EASE = 0.16;
+const ZOOM = 1.8;
+const ZOOM_EASE = 0.055;
+const GALLERY_MAX = 9;
 const TAB_IDS = ['overview', 'specs'];
 const TAB_KEYS = { overview: 'tabDescription', specs: 'techSpecs' };
 const EMPTY_LIST = [];
@@ -86,78 +89,79 @@ const ensureFont = (key) => {
 ensureFont('en');
 
 const GX_CSS = `
-.gx{--g-bg:#f3f6f4;--g-card:#ffffff;--g-ink:#04261a;--g-muted:#5b7468;--g-line:#e3e9e6;--g-soft:#eef3f0;--g-accent:#10b981;--g-on:#04261a;--g-sale:#dc2626;--g-pos:#15803d;--g-media:#ffffff;--g-ring:rgba(16,185,129,.45);--g-btn:#047857;--g-glow:rgba(16,185,129,.14);--g-shadow:0 1px 2px rgba(4,38,26,.04),0 16px 36px -20px rgba(4,38,26,.22);--g-shadow-up:0 1px 2px rgba(4,38,26,.05),0 24px 46px -22px rgba(4,38,26,.32);--g-r:28px;background-color:var(--g-bg);background-image:radial-gradient(60rem 26rem at 88% -8rem,var(--g-glow),transparent 66%),radial-gradient(44rem 22rem at -6% 30rem,var(--g-glow),transparent 70%);background-repeat:no-repeat;color:var(--g-ink);color-scheme:light;line-height:1.55;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
-.gx-dark{--g-bg:#101211;--g-card:#1b1d1c;--g-ink:#ffffff;--g-muted:#9aa8a1;--g-line:#2b2f2d;--g-soft:#242826;--g-accent:#39ff88;--g-on:#022c22;--g-sale:#fb7185;--g-pos:#4ade80;--g-media:#161817;--g-ring:rgba(57,255,136,.5);--g-btn:#047857;--g-glow:rgba(57,255,136,.08);--g-shadow:0 1px 0 rgba(255,255,255,.03) inset,0 18px 40px -22px rgba(0,0,0,.85);--g-shadow-up:0 1px 0 rgba(255,255,255,.04) inset,0 26px 50px -24px rgba(0,0,0,.95);color-scheme:dark}
+.gx{--dx:1;--g-bg:#ffffff;--g-card:#ffffff;--g-ink:#052e1e;--g-muted:rgba(5,46,30,.68);--g-line:#e5e7eb;--g-soft:#f3f4f6;--g-accent:#059669;--g-btn:#39ff88;--g-btn2:#7dffb0;--g-on:#022c22;--g-sale:#dc2626;--g-pos:#15803d;--g-media:#ffffff;--g-bd:#000000;--g-sd:#000000;--g-ring:#059669;--g-glow:rgba(57,255,136,.18);--g-shadow:calc(var(--dx)*4px) 4px 0 0 var(--g-sd);--g-shadow-up:calc(var(--dx)*6px) 6px 0 0 var(--g-sd);--g-shadow-sm:calc(var(--dx)*2px) 2px 0 0 var(--g-sd);--g-r:20px;--g-ease:cubic-bezier(.22,.8,.2,1);background-color:var(--g-bg);color:var(--g-ink);color-scheme:light;line-height:1.55;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.gx[dir=rtl]{--dx:-1}
+.gx-dark{--g-bg:#121212;--g-card:#1c1c1e;--g-ink:#ffffff;--g-muted:rgba(255,255,255,.66);--g-line:rgba(255,255,255,.12);--g-soft:#2a2a2e;--g-accent:#39ff88;--g-btn:#39ff88;--g-btn2:#7dffb0;--g-on:#022c22;--g-sale:#fb7185;--g-pos:#4ade80;--g-media:#161618;--g-bd:rgba(255,255,255,.16);--g-sd:#0b4a35;--g-ring:#39ff88;--g-glow:rgba(57,255,136,.14);color-scheme:dark}
 .gx button,.gx input,.gx select,.gx textarea{font-family:inherit}
 .gx[lang=ar] *{letter-spacing:0!important}
-.gx-card{background:var(--g-card);border:1px solid var(--g-line);border-radius:var(--g-r);box-shadow:var(--g-shadow)}
-.gx-pcard{background:var(--g-card);border:1px solid var(--g-line);border-radius:26px;overflow:hidden;box-shadow:var(--g-shadow);contain:layout style;transition:transform .25s cubic-bezier(.2,.8,.2,1),box-shadow .25s ease,border-color .25s ease}
-.gx-pcard:hover{transform:translate3d(0,-4px,0);border-color:var(--g-accent);box-shadow:var(--g-shadow-up)}
-.gx-pcard img{transition:transform .6s cubic-bezier(.22,.8,.2,1),opacity .2s ease}
-.gx-pcard:hover img{transform:scale3d(1.06,1.06,1)}
-.gx-panel{background:var(--g-card)}
-.gx-glass{background:color-mix(in srgb,var(--g-card) 86%,transparent);-webkit-backdrop-filter:saturate(1.4) blur(12px);backdrop-filter:saturate(1.4) blur(12px)}
+.gx-card{background:var(--g-card);border:3px solid var(--g-bd);border-radius:var(--g-r);box-shadow:var(--g-shadow)}
+.gx-pcard{background:var(--g-card);border:2px solid var(--g-bd);border-radius:18px;overflow:hidden;box-shadow:var(--g-shadow);contain:layout style;transition:transform .35s var(--g-ease),box-shadow .35s var(--g-ease)}
+.gx-pcard:hover{transform:translate3d(0,-3px,0);box-shadow:var(--g-shadow-up)}
+.gx-pcard img{transition:transform 1.1s var(--g-ease),opacity .3s ease}
+.gx-pcard:hover img{transform:scale3d(1.04,1.04,1)}
+.gx-panel{background:var(--g-bg)}
+.gx .gx-panel{border-top-width:3px;border-color:var(--g-bd)}
+.gx-glass{background:color-mix(in srgb,var(--g-card) 94%,transparent);-webkit-backdrop-filter:saturate(1.4) blur(12px);backdrop-filter:saturate(1.4) blur(12px)}
+.gx .gx-glass{border-top-width:3px;border-color:var(--g-bd)}
 .gx-media{background:var(--g-media)}
-.gx-frame{background:var(--g-media);border:1px solid var(--g-line)}
+.gx-frame{background:var(--g-media);border:2px solid var(--g-line)}
 .gx-muted{color:var(--g-muted)}
 .gx-pos{color:var(--g-pos)}
 .gx-sale{color:var(--g-sale)}
 .gx-ic{color:var(--g-accent)}
 .gx-line{border-color:var(--g-line)}
-.gx-bar{display:inline-block;width:6px;height:1.2em;border-radius:999px;background:linear-gradient(180deg,var(--g-accent),#059669)}
-.gx-crumb{border-radius:6px;transition:color .15s ease}
-.gx-crumb:hover{color:var(--g-accent);text-decoration:underline;text-underline-offset:3px}
+.gx-crumb{border-radius:6px;transition:color .2s ease}
+.gx-crumb:hover{color:var(--g-accent)}
 .gx-crumb:focus-visible,.gx-btn:focus-visible,.gx-fab:focus-visible,.gx-thumb:focus-visible,.gx-tab:focus-visible,.gx-step:focus-visible,.gx-field:focus-within,.gx-gal:focus-visible{outline:3px solid var(--g-ring);outline-offset:2px}
-.gx-chip{display:inline-flex;align-items:center;gap:4px;background:var(--g-soft);color:var(--g-ink);border-radius:999px;padding:5px 13px;font-size:12px;font-weight:600;line-height:1.4}
-.gx-chip-a{background:var(--g-accent);color:var(--g-on)}
+.gx-chip{display:inline-flex;align-items:center;gap:4px;background:var(--g-soft);color:var(--g-ink);border:2px solid var(--g-bd);border-radius:10px;padding:3px 11px;font-size:12px;font-weight:600;line-height:1.4}
+.gx-chip-a{background:var(--g-btn);color:var(--g-on)}
 .gx-chip-r{background:#e11d48;color:#ffffff}
 .gx-chip-w{background:#f97316;color:#ffffff}
 .gx-chip-s{background:#0284c7;color:#ffffff}
 .gx-chip-g{background:#15803d;color:#ffffff}
 .gx-old{color:var(--g-muted);text-decoration:line-through}
 .gx-rate{background:var(--g-soft);border-radius:999px}
-.gx-rate-pill{display:inline-flex;align-items:center;gap:4px;background:var(--g-accent);color:var(--g-on);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700}
-.gx-buy{position:relative;overflow:hidden;background:radial-gradient(30rem 14rem at 100% -4rem,var(--g-glow),transparent 70%),var(--g-card)}
-.gx-pricebox{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 18px;padding-bottom:18px;margin-bottom:18px;border-bottom:1px dashed var(--g-line)}
-.gx-tile{display:flex;align-items:center;gap:12px;background:var(--g-soft);border-radius:18px;padding:10px 12px;transition:transform .2s ease,background-color .2s ease}
+.gx-rate-pill{display:inline-flex;align-items:center;gap:4px;background:var(--g-btn);color:var(--g-on);border:2px solid var(--g-bd);border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700}
+.gx-buy{position:relative;overflow:hidden;background:var(--g-card)}
+.gx-pricebox{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 18px;padding-bottom:18px;margin-bottom:18px;border-bottom:2px solid var(--g-line)}
+.gx-tile{display:flex;align-items:center;gap:12px;background:var(--g-soft);border:2px solid var(--g-line);border-radius:14px;padding:10px 12px;transition:transform .25s var(--g-ease),background-color .25s ease}
 .gx-tile:hover{transform:translate3d(0,-1px,0)}
-.gx-tile-ic{display:flex;align-items:center;justify-content:center;flex:none;width:36px;height:36px;border-radius:999px;background:var(--g-media);border:1px solid var(--g-line);color:var(--g-accent)}
-.gx-fab{display:flex;align-items:center;justify-content:center;flex:none;background:rgba(255,255,255,.94);color:#111111;border:1px solid rgba(0,0,0,.06);box-shadow:0 4px 14px -4px rgba(0,0,0,.28);cursor:pointer;transition:transform .15s ease,background-color .15s ease}
+.gx-tile-ic{display:flex;align-items:center;justify-content:center;flex:none;width:36px;height:36px;border-radius:10px;background:var(--g-card);border:2px solid var(--g-bd);color:var(--g-accent)}
+.gx-fab{display:flex;align-items:center;justify-content:center;flex:none;background:rgba(255,255,255,.96);color:#111111;border:2px solid var(--g-bd);box-shadow:var(--g-shadow-sm);cursor:pointer;transition:transform .2s var(--g-ease),background-color .2s ease}
 .gx-fab:hover:not(:disabled){transform:scale(1.08)}
 .gx-fab:active:not(:disabled){transform:scale(.94)}
 .gx-fab:disabled{opacity:.45;cursor:not-allowed}
-.gx-fab-on{background:var(--g-btn);color:#ffffff;border-color:var(--g-btn)}
-.gx-btn{position:relative;overflow:hidden;isolation:isolate;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--g-card);color:var(--g-ink);border:1px solid var(--g-line);border-radius:999px;font-weight:600;cursor:pointer;transition:background-color .18s ease,border-color .18s ease,transform .18s cubic-bezier(.2,.8,.2,1),filter .18s ease,box-shadow .18s ease,color .18s ease}
-.gx-btn:hover:not(:disabled){border-color:var(--g-accent);transform:translate3d(0,-1px,0)}
-.gx-btn:active:not(:disabled){transform:scale(.97)}
+.gx-fab-on{background:var(--g-btn);color:var(--g-on);border-color:var(--g-bd)}
+.gx-btn{position:relative;overflow:hidden;isolation:isolate;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--g-card);color:var(--g-ink);border:2px solid var(--g-bd);border-radius:12px;box-shadow:calc(var(--dx)*3px) 3px 0 0 var(--g-sd);font-weight:700;cursor:pointer;transition:background-color .2s ease,transform .2s var(--g-ease),box-shadow .2s var(--g-ease),color .2s ease}
+.gx-btn:hover:not(:disabled){background:var(--g-btn);color:var(--g-on);box-shadow:var(--g-shadow);transform:translate3d(0,-1px,0)}
+.gx-btn:active:not(:disabled){transform:translate3d(0,2px,0);box-shadow:none}
 .gx-btn:disabled{opacity:.45;cursor:not-allowed}
-.gx-btn-a,.gx-btn-on{background:linear-gradient(135deg,#10b981 0%,#059669 45%,var(--g-btn) 100%);color:#ffffff;border-color:transparent;box-shadow:0 14px 26px -12px rgba(4,120,87,.85),inset 0 1px 0 rgba(255,255,255,.28)}
-.gx-btn-a::after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.34) 50%,transparent 70%);transform:translate3d(-130%,0,0);transition:transform .7s cubic-bezier(.2,.8,.2,1)}
-.gx-btn-a:hover:not(:disabled)::after{transform:translate3d(130%,0,0)}
-.gx-btn-a:hover:not(:disabled),.gx-btn-on:hover:not(:disabled){filter:brightness(1.07);border-color:transparent;box-shadow:0 18px 30px -12px rgba(4,120,87,.95),inset 0 1px 0 rgba(255,255,255,.32)}
-.gx-btn-ghost:hover:not(:disabled){background:var(--g-soft)}
-.gx-field{display:inline-flex;align-items:center;gap:2px;padding:4px;background:var(--g-soft);color:var(--g-ink);border:1px solid var(--g-line);border-radius:999px}
-.gx-step{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:999px;background:var(--g-card);color:var(--g-ink);border:1px solid var(--g-line);cursor:pointer;transition:background-color .15s ease,color .15s ease,transform .15s ease,border-color .15s ease}
-.gx-step:hover:not(:disabled){background:var(--g-accent);color:var(--g-on);border-color:var(--g-accent)}
+.gx-btn-ghost:hover:not(:disabled){background:var(--g-soft);color:var(--g-ink)}
+.gx-btn-a,.gx-btn-on{background:var(--g-btn);color:var(--g-on);border-width:3px;box-shadow:var(--g-shadow)}
+.gx-btn-a:hover:not(:disabled),.gx-btn-on:hover:not(:disabled){background:var(--g-btn2);color:var(--g-on)}
+.gx-field{display:inline-flex;align-items:center;gap:2px;padding:4px;background:var(--g-soft);color:var(--g-ink);border:2px solid var(--g-bd);border-radius:14px}
+.gx-step{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:10px;background:var(--g-card);color:var(--g-ink);border:2px solid var(--g-line);cursor:pointer;transition:background-color .2s ease,color .2s ease,transform .2s var(--g-ease),border-color .2s ease}
+.gx-step:hover:not(:disabled){background:var(--g-btn);color:var(--g-on);border-color:var(--g-bd)}
 .gx-step:active:not(:disabled){transform:scale(.92)}
 .gx-step:disabled{opacity:.4;cursor:not-allowed}
-.gx-box{display:flex;align-items:center;justify-content:center;flex:none;width:20px;height:20px;border:2px solid var(--g-line);border-radius:6px;background:var(--g-card);color:var(--g-on)}
-.gx-box-on{background:var(--g-accent);border-color:var(--g-accent)}
-.gx-thumb{border:2px solid var(--g-line);border-radius:20px;background:var(--g-media);padding:3px;overflow:hidden;cursor:pointer;transition:border-color .15s ease,transform .15s ease,box-shadow .15s ease}
-.gx-thumb:hover{border-color:var(--g-muted);transform:translate3d(0,-2px,0)}
+.gx-box{display:flex;align-items:center;justify-content:center;flex:none;width:20px;height:20px;border:2px solid var(--g-bd);border-radius:6px;background:var(--g-card);color:var(--g-on)}
+.gx-box-on{background:var(--g-btn)}
+.gx-thumb{border:2px solid var(--g-line);border-radius:16px;background:var(--g-media);padding:3px;overflow:hidden;cursor:pointer;transition:border-color .2s ease,transform .25s var(--g-ease),box-shadow .25s ease}
+.gx-thumb:hover{border-color:var(--g-bd);transform:translate3d(0,-2px,0)}
 .gx-thumb:active{transform:scale(.96)}
-.gx-thumb-on,.gx-thumb-on:hover{border-color:var(--g-accent);box-shadow:0 0 0 3px var(--g-ring)}
-.gx-spec{position:relative;transition:background-color .15s ease}
+.gx-thumb-on,.gx-thumb-on:hover{border-color:var(--g-bd);box-shadow:0 0 0 3px var(--g-btn)}
+.gx-spec{position:relative;transition:background-color .2s ease}
 .gx-spec:nth-child(odd){background:var(--g-soft)}
 .gx-spec:hover{background:var(--g-glow)}
-.gx-spec::before{content:'';position:absolute;inset-block:10px;inset-inline-start:0;width:3px;border-radius:3px;background:var(--g-accent);opacity:0;transform:scaleY(.3);transition:opacity .18s ease,transform .18s ease}
+.gx-spec::before{content:'';position:absolute;inset-block:10px;inset-inline-start:0;width:3px;border-radius:3px;background:var(--g-btn);opacity:0;transform:scaleY(.3);transition:opacity .25s ease,transform .25s ease}
 .gx-spec:hover::before{opacity:1;transform:scaleY(1)}
-.gx-cols>*+*{border-top:1px solid var(--g-line)}
-@media (min-width:1024px){.gx-cols>*+*{border-top:0;border-inline-start:1px solid var(--g-line)}}
-.gx-tab{position:relative;white-space:nowrap;margin:10px 0;padding:8px 18px;font-size:14px;font-weight:600;color:var(--g-muted);border-radius:999px;cursor:pointer;transition:color .15s ease,background-color .15s ease,box-shadow .15s ease}
-.gx-tab:hover{color:var(--g-ink);background:var(--g-soft)}
-.gx-tab-on,.gx-tab-on:hover{color:#ffffff;background:linear-gradient(135deg,#10b981,var(--g-btn));box-shadow:0 8px 18px -10px rgba(4,120,87,.9)}
-.gx-tabbar{position:sticky;top:var(--gx-nav,64px);z-index:30;background:color-mix(in srgb,var(--g-card) 94%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);transition:top .2s cubic-bezier(.2,.8,.2,1)}
+.gx-cols>*+*{border-top:2px solid var(--g-line)}
+@media (min-width:1024px){.gx-cols>*+*{border-top:0;border-inline-start:2px solid var(--g-line)}}
+.gx-tab{position:relative;white-space:nowrap;margin:10px 0;padding:7px 18px;font-size:14px;font-weight:700;color:var(--g-ink);border:2px solid transparent;border-radius:10px;cursor:pointer;transition:color .2s ease,background-color .2s ease,box-shadow .2s ease,border-color .2s ease}
+.gx-tab:hover{border-color:var(--g-bd);background:var(--g-card)}
+.gx-tab-on,.gx-tab-on:hover{color:var(--g-on);background:var(--g-btn);border-color:var(--g-bd);box-shadow:var(--g-shadow-sm)}
+.gx-tabbar{position:sticky;top:var(--gx-nav,64px);z-index:30;background:var(--g-bg);transition:top .2s cubic-bezier(.2,.8,.2,1)}
+.gx .gx-tabbar{border-bottom-width:3px;border-color:var(--g-bd)}
 body:has(.nv-root[data-hide=true]) .gx-tabbar{top:0}
 .gx-anchor{scroll-margin-top:calc(var(--gx-nav,64px) + 72px)}
 @media (min-width:1024px){
@@ -165,13 +169,23 @@ body:has(.nv-root[data-hide=true]) .gx-tabbar{top:0}
 body:has(.nv-root[data-hide=true]) .gx-stick{top:12px}
 }
 .gx-defer{content-visibility:auto;contain-intrinsic-size:auto 560px}
-.gx-gal{border-radius:36px;background:var(--g-soft)}
+.gx-gal{border-radius:28px;background:var(--g-bg)}
 .gx-zoom{overflow:hidden;isolation:isolate;touch-action:pan-y}
 .gx-zoomlayer{position:absolute;inset:0;transform-origin:0 0;will-change:transform;backface-visibility:hidden}
-.gx-slide{position:absolute;inset:0;opacity:0;visibility:hidden;transition:opacity .28s ease,visibility 0s linear .28s}
-.gx-slide-on{opacity:1;visibility:visible;transition:opacity .28s ease}
+.gx-slide{position:absolute;inset:0;opacity:0;visibility:hidden;transition:opacity .4s ease,visibility 0s linear .4s}
+.gx-slide-on{opacity:1;visibility:visible;transition:opacity .4s ease}
 @media (hover:hover) and (pointer:fine){.gx-zoom{cursor:zoom-in}}
-.gx-sk{background:linear-gradient(90deg,var(--g-soft) 25%,color-mix(in srgb,var(--g-soft) 45%,var(--g-card)) 50%,var(--g-soft) 75%);background-size:220% 100%;border-radius:14px;animation:gxShimmer 1.5s linear infinite}
+.gx-count{display:inline-flex;align-items:center;background:rgba(0,0,0,.6);color:#ffffff;border-radius:999px;padding:4px 11px;font-size:12px;font-weight:600;line-height:1.4;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.gx-center>li:first-child{margin-inline-start:auto}
+.gx-center>li:last-child{margin-inline-end:auto}
+.gx-lb{animation:gxFade .2s ease both;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.gx-lb-img{animation:gxLbImg .28s cubic-bezier(.2,.8,.2,1) both}
+@keyframes gxLbImg{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+.gx-lb-thumb{display:block;border:2px solid transparent;border-radius:14px;overflow:hidden;opacity:.6;background:rgba(255,255,255,.08);cursor:pointer;transition:opacity .2s ease,border-color .2s ease,transform .2s ease}
+.gx-lb-thumb:hover{opacity:1}
+.gx-lb-thumb-on,.gx-lb-thumb-on:hover{opacity:1;border-color:#39ff88}
+.gx-lb-thumb:focus-visible{outline:3px solid rgba(57,255,136,.8);outline-offset:2px}
+.gx-sk{background:linear-gradient(90deg,var(--g-soft) 25%,color-mix(in srgb,var(--g-soft) 45%,var(--g-card)) 50%,var(--g-soft) 75%);background-size:220% 100%;border-radius:12px;animation:gxShimmer 1.5s linear infinite}
 @keyframes gxShimmer{from{background-position:120% 0}to{background-position:-120% 0}}
 .gx-fade{animation:gxFade .3s ease both}
 @keyframes gxFade{from{opacity:0}to{opacity:1}}
@@ -189,14 +203,14 @@ body:has(.nv-root[data-hide=true]) .gx-stick{top:12px}
 .ga-card{fill:var(--g-card);stroke:var(--g-line);stroke-width:2;stroke-linejoin:round}
 .ga-line{fill:none;stroke:var(--g-line);stroke-width:4;stroke-linecap:round}
 .ga-edge{fill:none;stroke:var(--g-line);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
-.ga-acc{fill:var(--g-accent)}
+.ga-acc{fill:var(--g-btn)}
 .ga-accline{fill:none;stroke:var(--g-accent);stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
 .ga-ring{fill:var(--g-card);stroke:var(--g-accent);stroke-width:4}
 .ga-float{animation:gaFloat 3.4s ease-in-out infinite}
 .ga-spark{transform-box:fill-box;transform-origin:center;animation:gaSpark 2.4s ease-in-out infinite}
 @keyframes gaFloat{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(0,-5px,0)}}
 @keyframes gaSpark{0%,100%{transform:scale(.8);opacity:.6}50%{transform:scale(1.15);opacity:1}}
-@media (prefers-reduced-motion:reduce){.gx-pcard,.gx-pcard img,.gx-btn,.gx-btn-a::after,.gx-fab,.gx-thumb,.gx-crumb,.gx-tab,.gx-tabbar,.gx-stick,.gx-slide,.gx-step,.gx-tile,.gx-spec,.gx-spec::before{transition:none}.gx-pcard:hover,.gx-pcard:hover img,.gx-btn:hover:not(:disabled),.gx-thumb:hover,.gx-tile:hover{transform:none}.gx-fade,.gx-in,.gx-rise,.gx-up,.gx-sk,.gx-pop,.ga-float,.ga-spark{animation:none}}
+@media (prefers-reduced-motion:reduce){.gx-pcard,.gx-pcard img,.gx-btn,.gx-fab,.gx-thumb,.gx-crumb,.gx-tab,.gx-tabbar,.gx-stick,.gx-slide,.gx-step,.gx-tile,.gx-spec,.gx-spec::before,.gx-lb-thumb{transition:none}.gx-pcard:hover,.gx-pcard:hover img,.gx-btn:hover:not(:disabled),.gx-thumb:hover,.gx-tile:hover{transform:none}.gx-fade,.gx-in,.gx-rise,.gx-up,.gx-sk,.gx-pop,.ga-float,.ga-spark,.gx-lb,.gx-lb-img{animation:none}}
 `;
 
 const injectStyles = () => {
@@ -280,21 +294,25 @@ const useNavOffset = () => {
 
 const useImageZoom = () => {
   const layer = useRef(null);
-  const z = useRef({ s: 1, x: 0, y: 0, ts: 1, tx: 0, ty: 0, raf: 0 });
+  const z = useRef({ s: 1, x: 0, y: 0, ts: 1, tx: 0, ty: 0, raf: 0, last: 0 });
 
-  const tick = useCallback(() => {
+  const tick = useCallback((now) => {
     const st = z.current;
     const el = layer.current;
     st.raf = 0;
     if (!el) return;
-    st.s += (st.ts - st.s) * ZOOM_EASE;
-    st.x += (st.tx - st.x) * ZOOM_EASE;
-    st.y += (st.ty - st.y) * ZOOM_EASE;
-    const settled = Math.abs(st.ts - st.s) < 0.003 && Math.abs(st.tx - st.x) < 0.4 && Math.abs(st.ty - st.y) < 0.4;
+    const dt = st.last ? Math.min(64, now - st.last) : 16.67;
+    st.last = now;
+    const k = 1 - Math.pow(1 - ZOOM_EASE, dt / 16.67);
+    st.s += (st.ts - st.s) * k;
+    st.x += (st.tx - st.x) * k;
+    st.y += (st.ty - st.y) * k;
+    const settled = Math.abs(st.ts - st.s) < 0.002 && Math.abs(st.tx - st.x) < 0.3 && Math.abs(st.ty - st.y) < 0.3;
     if (settled) {
       st.s = st.ts;
       st.x = st.tx;
       st.y = st.ty;
+      st.last = 0;
       el.style.transform = st.ts === 1 ? '' : `translate3d(${st.x}px,${st.y}px,0) scale(${st.s})`;
       return;
     }
@@ -364,6 +382,7 @@ const useSavedProducts = () => {
 const DEFAULT_TEXT = {
   en: {
     save: 'Save', saved: 'Saved',
+    viewLarger: 'View full screen', closeViewer: 'Close',
     youSave: 'You save {{value}}', originalPrice: 'Original price', discountedPrice: 'Price after discount', discountValue: 'Discount', specifications: 'Specifications',
     breadcrumbHome: 'Home', ratingsCount: '{{count}} ratings', sellingOutFast: 'Selling out fast',
     deliveryDetails: 'Delivery details', express: 'express', fastDelivery: 'Fast delivery', deliveryNote: 'Express shipping on in-stock items',
@@ -381,6 +400,7 @@ const DEFAULT_TEXT = {
   },
   ar: {
     save: 'حفظ', saved: 'تم الحفظ',
+    viewLarger: 'عرض بملء الشاشة', closeViewer: 'إغلاق',
     youSave: 'وفّر {{value}}', originalPrice: 'السعر الأصلي', discountedPrice: 'السعر بعد الخصم', discountValue: 'الخصم', specifications: 'المواصفات',
     breadcrumbHome: 'الرئيسية', ratingsCount: '{{count}} تقييم', sellingOutFast: 'ينفد بسرعة',
     deliveryDetails: 'تفاصيل التوصيل', express: 'إكسبريس', fastDelivery: 'توصيل سريع', deliveryNote: 'شحن إكسبريس للمنتجات المتوفرة',
@@ -398,6 +418,7 @@ const DEFAULT_TEXT = {
   },
   fr: {
     save: 'Enregistrer', saved: 'Enregistré',
+    viewLarger: 'Plein écran', closeViewer: 'Fermer',
     youSave: 'Vous économisez {{value}}', originalPrice: "Prix d'origine", discountedPrice: 'Prix après remise', discountValue: 'Remise', specifications: 'Caractéristiques',
     breadcrumbHome: 'Accueil', ratingsCount: '{{count}} avis', sellingOutFast: 'Bientôt épuisé',
     deliveryDetails: 'Détails de livraison', express: 'express', fastDelivery: 'Livraison rapide', deliveryNote: 'Expédition express pour les produits en stock',
@@ -482,12 +503,14 @@ const parseSpecs = (list) => {
   return { highlights, pairs };
 };
 
+const imageSource = (i) => (typeof i === 'string' ? i : i?.url || i?.imageUrl || i?.path || '');
+
 const galleryOf = (p) => {
-  const extra = [p.images, p.imageUrls, p.gallery].find(Array.isArray) || [];
-  const list = [p.imageUrl, ...extra.map((i) => (typeof i === 'string' ? i : i?.url || i?.imageUrl))]
+  const extra = [p.images, p.imageUrls, p.gallery].find(Array.isArray) || EMPTY_LIST;
+  const list = [p.imageUrl, ...extra.map(imageSource)]
     .map(safeImageUrl)
     .filter(Boolean);
-  return [...new Set(list)].slice(0, 8);
+  return [...new Set(list)].slice(0, GALLERY_MAX);
 };
 
 const normalizeProduct = (p, detailed = false) => {
@@ -611,12 +634,12 @@ const SliderSkeleton = () => (
   <div aria-hidden="true">
     <div className="mb-4 flex items-center justify-between gap-3">
       <Sk className="h-7 w-48" />
-      <div className="flex gap-2"><Sk className="h-10 w-10 !rounded-full" /><Sk className="h-10 w-10 !rounded-full" /></div>
+      <div className="flex gap-2"><Sk className="h-10 w-10" /><Sk className="h-10 w-10" /></div>
     </div>
     <div className="flex gap-4 overflow-hidden pb-4 pt-1">
       {SLIDER_SK.map((i) => (
         <div key={i} className="w-44 flex-shrink-0 sm:w-56">
-          <div className="gx-card overflow-hidden !rounded-[26px] p-2.5">
+          <div className="gx-card overflow-hidden !rounded-[18px] p-2.5">
             <Sk className="aspect-square w-full !rounded-2xl" />
             <div className="space-y-2 p-1.5 pt-3"><Sk className="h-4 w-full" /><Sk className="h-4 w-2/3" /><Sk className="h-6 w-1/2" /></div>
           </div>
@@ -633,9 +656,9 @@ const PageSkeleton = () => (
       <div className="mt-6 grid gap-6 md:grid-cols-2 lg:grid-cols-12 lg:gap-10">
         <div className="flex min-w-0 flex-col-reverse gap-3 lg:col-span-5 lg:flex-row">
           <div className="flex gap-2.5 p-1 lg:w-20 lg:flex-col">
-            {THUMB_SK.map((i) => <Sk key={i} className="h-16 w-16 flex-none !rounded-[20px] lg:h-[4.5rem] lg:w-[4.5rem]" />)}
+            {THUMB_SK.map((i) => <Sk key={i} className="h-16 w-16 flex-none !rounded-2xl lg:h-[4.5rem] lg:w-[4.5rem]" />)}
           </div>
-          <Sk className="aspect-square min-w-0 flex-1 !rounded-[36px] sm:aspect-[4/5] lg:max-h-[40rem]" />
+          <Sk className="aspect-square min-w-0 flex-1 !rounded-[28px] sm:aspect-[4/5] lg:max-h-[40rem]" />
         </div>
         <div className="min-w-0 space-y-4 lg:col-span-7">
           <div className="flex gap-2"><Sk className="h-6 w-24 !rounded-full" /><Sk className="h-6 w-28 !rounded-full" /></div>
@@ -645,7 +668,7 @@ const PageSkeleton = () => (
           <div className="gx-card space-y-5 p-6">
             <div className="flex items-end justify-between gap-4"><Sk className="h-10 w-40" /><Sk className="h-7 w-28 !rounded-full" /></div>
             <div className="flex gap-2"><Sk className="h-6 w-20 !rounded-full" /><Sk className="h-6 w-20 !rounded-full" /></div>
-            <div className="flex gap-3"><Sk className="h-[52px] w-32 !rounded-full" /><Sk className="h-[52px] flex-1 !rounded-full" /><Sk className="h-[52px] w-[52px] !rounded-full" /></div>
+            <div className="flex gap-3"><Sk className="h-[52px] w-32" /><Sk className="h-[52px] flex-1" /><Sk className="h-[52px] w-[52px]" /></div>
             <div className="grid gap-2.5 sm:grid-cols-2"><Sk className="h-14 !rounded-2xl" /><Sk className="h-14 !rounded-2xl" /></div>
           </div>
           <div className="gx-card space-y-3 p-5"><Sk className="h-5 w-40" /><Sk className="h-12 w-full !rounded-2xl" /><Sk className="h-12 w-full !rounded-2xl" /></div>
@@ -654,7 +677,7 @@ const PageSkeleton = () => (
       </div>
     </div>
     <div className="gx-panel gx-line border-y">
-      <div className="mx-auto flex max-w-7xl gap-3 px-4 py-4 sm:px-6 lg:px-8"><Sk className="h-9 w-32 !rounded-full" /><Sk className="h-9 w-32 !rounded-full" /></div>
+      <div className="mx-auto flex max-w-7xl gap-3 px-4 py-4 sm:px-6 lg:px-8"><Sk className="h-9 w-32" /><Sk className="h-9 w-32" /></div>
     </div>
     <div className="mx-auto max-w-7xl space-y-4 px-4 py-10 sm:px-6 lg:px-8">
       <Sk className="h-7 w-56" />
@@ -677,17 +700,11 @@ const Shell = ({ language, darkMode, className = '', children }) => {
 };
 
 const SectionTitle = memo(({ children }) => (
-  <h2 className="mb-5 flex items-center gap-3 text-xl font-bold leading-tight tracking-tight sm:text-2xl">
-    <span className="gx-bar flex-none" aria-hidden="true" />
-    <span className="min-w-0">{children}</span>
-  </h2>
+  <h2 className="mb-5 min-w-0 text-xl font-bold leading-tight tracking-tight sm:text-2xl">{children}</h2>
 ));
 
 const BlockTitle = memo(({ children }) => (
-  <h3 className="mb-3 flex items-center gap-2.5 text-base font-semibold">
-    <span className="gx-bar !h-4 !w-1 flex-none" aria-hidden="true" />
-    {children}
-  </h3>
+  <h3 className="mb-3 text-base font-semibold">{children}</h3>
 ));
 
 const IconTile = memo(({ icon: Icon, children, tone = '' }) => (
@@ -731,8 +748,8 @@ const DeviceImage = memo(({ src, alt, category, className, label, darkMode, big 
 });
 
 const ExpressTag = memo(({ t }) => (
-  <span className="inline-flex w-fit items-center overflow-hidden rounded-full text-[11px] font-bold italic leading-none rtl:not-italic">
-    <span className="bg-emerald-300 py-1.5 pe-2 ps-3 text-black">{t('express')}</span>
+  <span className="inline-flex w-fit items-center overflow-hidden rounded-full border-2 border-[color:var(--g-bd)] text-[11px] font-bold italic leading-none rtl:not-italic">
+    <span className="bg-[#39ff88] py-1.5 pe-2 ps-3 text-emerald-950">{t('express')}</span>
     <span className="bg-black py-1.5 pe-3 ps-2 text-white">{t('fastDelivery')}</span>
   </span>
 ));
@@ -826,11 +843,11 @@ const ProductCard = memo(({ product, darkMode, onAddToCart, onOpen, onSave, isSa
   return (
     <article
       onClick={open} onKeyDown={handleKey} onPointerEnter={prefetch} onFocus={prefetch} tabIndex={0} aria-label={product.name}
-      className="gx-pcard group relative flex h-full cursor-pointer flex-col p-2.5 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--g-accent)]"
+      className="gx-pcard group relative flex h-full cursor-pointer flex-col p-2.5 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--g-ring)]"
     >
-      <div className="gx-frame relative aspect-square w-full overflow-hidden rounded-[1.25rem]">
+      <div className="gx-frame relative aspect-square w-full overflow-hidden rounded-[0.875rem]">
         <DeviceImage src={product.imageUrl} alt={product.name} category={product.categoryName} label={t('imageUnavailable')} darkMode={darkMode}
-          className="absolute inset-0 h-full w-full rounded-[1.25rem] object-contain p-3" />
+          className="absolute inset-0 h-full w-full rounded-[0.875rem] object-contain p-3" />
         {cond && (
           <span className={`absolute start-2 top-2 z-10 rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none text-white ${cond.badge}`}>{condLabel(t, product.condition)}</span>
         )}
@@ -879,10 +896,7 @@ const ProductSlider = memo(({ title, products, darkMode, isRTL, saved, onSave, o
   return (
     <section aria-label={title}>
       <header className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="flex min-w-0 items-center gap-3 text-xl font-bold leading-tight tracking-tight sm:text-2xl">
-          <span className="gx-bar flex-none" aria-hidden="true" />
-          <span className="min-w-0 truncate">{title}</span>
-        </h2>
+        <h2 className="min-w-0 truncate text-xl font-bold leading-tight tracking-tight sm:text-2xl">{title}</h2>
         <div className="flex flex-none gap-2">
           <button type="button" className="gx-btn gx-btn-ghost h-10 w-10" onClick={() => scroll('back')} disabled={!edge.l} aria-label={t('previous')}><BackIcon className="h-4 w-4" /></button>
           <button type="button" className="gx-btn gx-btn-ghost h-10 w-10" onClick={() => scroll('forward')} disabled={!edge.r} aria-label={t('next')}><ForwardIcon className="h-4 w-4" /></button>
@@ -917,12 +931,117 @@ const Breadcrumb = memo(({ categoryId, categoryName, productName, t }) => (
   </nav>
 ));
 
+const Lightbox = memo(({ images, index, name, isRTL, onIndex, onClose, t }) => {
+  const count = images.length;
+  const root = useRef(null);
+  const touchX = useRef(null);
+  const step = useCallback((d) => onIndex((index + d + count) % count), [onIndex, index, count]);
+
+  useEffect(() => {
+    const opener = document.activeElement;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    root.current?.querySelector('[data-close]')?.focus();
+    return () => {
+      document.body.style.overflow = prev;
+      opener?.focus?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+      else if (e.key === 'ArrowRight' && count > 1) { e.preventDefault(); step(isRTL ? -1 : 1); }
+      else if (e.key === 'ArrowLeft' && count > 1) { e.preventDefault(); step(isRTL ? 1 : -1); }
+      else if (e.key === 'Tab') {
+        const nodes = root.current?.querySelectorAll('button:not(:disabled)');
+        if (!nodes || !nodes.length) return;
+        const first = nodes[0];
+        const last = nodes[nodes.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose, step, count, isRTL]);
+
+  useEffect(() => {
+    [index - 1, index + 1].forEach((i) => {
+      const src = images[i];
+      if (!src) return;
+      const img = new Image();
+      img.referrerPolicy = 'no-referrer';
+      img.src = src;
+    });
+  }, [index, images]);
+
+  const onTouchStart = useCallback((e) => { touchX.current = e.touches[0].clientX; }, []);
+  const onTouchEnd = useCallback((e) => {
+    if (touchX.current == null || count < 2) return;
+    const dx = e.changedTouches[0].clientX - touchX.current;
+    touchX.current = null;
+    if (Math.abs(dx) >= SWIPE_MIN) step((dx < 0) !== isRTL ? 1 : -1);
+  }, [count, step, isRTL]);
+
+  const stop = useCallback((e) => e.stopPropagation(), []);
+  const close = useCallback((e) => { e.stopPropagation(); onClose(); }, [onClose]);
+  const prev = useCallback((e) => { e.stopPropagation(); step(-1); }, [step]);
+  const next = useCallback((e) => { e.stopPropagation(); step(1); }, [step]);
+
+  return createPortal(
+    <div ref={root} role="dialog" aria-modal="true" aria-label={name} dir={isRTL ? 'rtl' : 'ltr'} onClick={onClose}
+      className="gx-lb fixed inset-0 z-[1200] flex flex-col bg-black/90 text-white">
+      <div className="flex flex-none items-center justify-between gap-3 p-4">
+        <span className="gx-count" dir="ltr">{index + 1} / {count}</span>
+        <button type="button" data-close onClick={close} aria-label={t('closeViewer')} title={t('closeViewer')} className="gx-fab h-11 w-11 rounded-full">
+          <FiX className="h-5 w-5" aria-hidden="true" />
+        </button>
+      </div>
+
+      <div className="relative flex min-h-0 flex-1 items-center justify-center px-4 sm:px-20" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+        <img
+          key={images[index]} src={images[index]} alt={`${name} ${index + 1}`} decoding="async" referrerPolicy="no-referrer" draggable={false} onClick={stop}
+          className="gx-lb-img max-h-full max-w-full select-none rounded-2xl object-contain"
+        />
+        {count > 1 && (
+          <>
+            <button type="button" onClick={prev} aria-label={t('previous')} className="gx-fab absolute start-3 top-1/2 h-11 w-11 -translate-y-1/2 rounded-full sm:start-6">
+              <FiChevronLeft className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
+            </button>
+            <button type="button" onClick={next} aria-label={t('next')} className="gx-fab absolute end-3 top-1/2 h-11 w-11 -translate-y-1/2 rounded-full sm:end-6">
+              <FiChevronRight className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
+            </button>
+          </>
+        )}
+      </div>
+
+      {count > 1 && (
+        <ul className="gx-hide-sb gx-center flex w-full flex-none overflow-x-auto p-4">
+          {images.map((s, i) => (
+            <li key={s} className="mx-1 flex-none">
+              <button type="button" onClick={(e) => { e.stopPropagation(); onIndex(i); }} aria-label={`${name} ${i + 1}`} aria-current={i === index ? 'true' : undefined}
+                className={`gx-lb-thumb h-14 w-14 sm:h-16 sm:w-16 ${i === index ? 'gx-lb-thumb-on' : ''}`}>
+                <img src={s} alt="" width={96} height={96} loading="lazy" decoding="async" referrerPolicy="no-referrer" draggable={false} className="h-full w-full object-cover" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>,
+    document.body,
+  );
+});
+
 const Gallery = memo(({ product, cond, darkMode, isSaved, onSave, isRTL, t }) => {
   const images = product.images;
   const count = images.length;
   const [active, setActive] = useState(0);
   const [seen, setSeen] = useState(() => new Set([0, 1]));
+  const [viewer, setViewer] = useState(false);
   const touchX = useRef(null);
+  const swiped = useRef(false);
+  const strip = useRef(null);
   const { layer, onEnter, onMove, onLeave } = useImageZoom();
 
   const select = useCallback((i) => {
@@ -936,12 +1055,25 @@ const Gallery = memo(({ product, cond, darkMode, isSaved, onSave, isRTL, t }) =>
   }, [count]);
   const go = useCallback((d) => select((active + d + count) % count), [select, active, count]);
 
-  const onTouchStart = useCallback((e) => { touchX.current = e.touches[0].clientX; }, []);
+  useEffect(() => {
+    const list = strip.current;
+    const el = list?.children[active];
+    if (!list || !el) return;
+    const lr = list.getBoundingClientRect();
+    const er = el.getBoundingClientRect();
+    if (er.top < lr.top || er.bottom > lr.bottom) list.scrollTop += er.top - lr.top - (lr.height - er.height) / 2;
+    if (er.left < lr.left || er.right > lr.right) list.scrollLeft += er.left - lr.left - (lr.width - er.width) / 2;
+  }, [active]);
+
+  const onTouchStart = useCallback((e) => { touchX.current = e.touches[0].clientX; swiped.current = false; }, []);
   const onTouchEnd = useCallback((e) => {
     if (touchX.current == null || count < 2) return;
     const dx = e.changedTouches[0].clientX - touchX.current;
     touchX.current = null;
-    if (Math.abs(dx) >= SWIPE_MIN) go((dx < 0) !== isRTL ? 1 : -1);
+    if (Math.abs(dx) >= SWIPE_MIN) {
+      swiped.current = true;
+      go((dx < 0) !== isRTL ? 1 : -1);
+    }
   }, [count, go, isRTL]);
   const onKeyDown = useCallback((e) => {
     if (count < 2) return;
@@ -949,60 +1081,77 @@ const Gallery = memo(({ product, cond, darkMode, isSaved, onSave, isRTL, t }) =>
     else if (e.key === 'ArrowLeft') { e.preventDefault(); go(isRTL ? 1 : -1); }
   }, [count, go, isRTL]);
 
-  return (
-    <div className="flex flex-col-reverse gap-3 lg:flex-row">
-      {count > 1 && (
-        <ul className="gx-hide-sb flex flex-none gap-2.5 overflow-x-auto p-1.5 pb-2 lg:max-h-[40rem] lg:w-[5.75rem] lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:pb-1.5">
-          {images.map((s, i) => (
-            <li key={s} className="flex-none">
-              <button type="button" onClick={() => select(i)} aria-label={`${product.name} ${i + 1}`} aria-current={i === active ? 'true' : undefined}
-                className={`gx-thumb block h-16 w-16 lg:h-[4.5rem] lg:w-[4.5rem] ${i === active ? 'gx-thumb-on' : ''}`}>
-                <img src={s} alt="" width={96} height={96} loading="lazy" decoding="async" referrerPolicy="no-referrer" draggable={false} className="block h-full w-full rounded-2xl object-contain p-1" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+  const openViewer = useCallback(() => {
+    if (swiped.current) { swiped.current = false; return; }
+    if (count) setViewer(true);
+  }, [count]);
+  const openViewerButton = useCallback((e) => { e.stopPropagation(); if (count) setViewer(true); }, [count]);
+  const closeViewer = useCallback(() => setViewer(false), []);
 
-      <div
-        tabIndex={count > 1 ? 0 : undefined} role="group" aria-roledescription="carousel" aria-label={product.name} onKeyDown={onKeyDown}
-        onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
-        className="gx-gal gx-card relative aspect-square min-w-0 flex-1 overflow-hidden sm:aspect-[4/5] lg:max-h-[40rem]"
-      >
-        <div className="gx-zoom gx-frame absolute inset-3 rounded-[1.75rem] sm:inset-4 sm:rounded-[2rem]" onPointerEnter={onEnter} onPointerMove={onMove} onPointerLeave={onLeave}>
-          {count === 0
-            ? <div className="absolute inset-0 flex items-center justify-center"><EmptyState kind="image" compact title={t('imageUnavailable')} /></div>
-            : (
-              <div ref={layer} className="gx-zoomlayer">
-                {images.map((s, i) => (seen.has(i) ? (
-                  <div key={s} className={`gx-slide ${i === active ? 'gx-slide-on' : ''}`} aria-hidden={i !== active}>
-                    <DeviceImage src={s} alt={i === active ? product.name : ''} category={product.categoryName} label={t('imageUnavailable')} darkMode={darkMode} big eager={i === 0}
-                      width={MAIN_IMG_W} height={MAIN_IMG_H} className="absolute inset-0 h-full w-full rounded-[1.75rem] object-contain p-6 sm:rounded-[2rem] sm:p-8" />
-                  </div>
-                ) : null))}
-              </div>
-            )}
-        </div>
-        {cond && <span className={`pointer-events-none absolute start-6 top-6 z-10 rounded-full px-3 py-1.5 text-xs font-semibold leading-none text-white sm:start-7 sm:top-7 ${cond.badge}`}>{condLabel(t, product.condition)}</span>}
-        <button type="button" onClick={onSave} aria-pressed={isSaved} aria-label={isSaved ? t('saved') : t('save')} title={isSaved ? t('saved') : t('save')}
-          className="gx-fab absolute end-6 top-6 z-10 h-10 w-10 rounded-full sm:end-7 sm:top-7">
-          <FiHeart className={`h-5 w-5 ${isSaved ? 'gx-pop text-rose-500' : ''}`} fill={isSaved ? 'currentColor' : 'none'} />
-        </button>
+  return (
+    <>
+      <div className="flex flex-col-reverse gap-3 lg:flex-row">
         {count > 1 && (
-          <>
-            <button type="button" onClick={() => go(-1)} aria-label={t('previous')} className="gx-fab absolute start-6 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full opacity-90 sm:start-7">
-              <FiChevronLeft className="h-5 w-5 rtl:rotate-180" />
-            </button>
-            <button type="button" onClick={() => go(1)} aria-label={t('next')} className="gx-fab absolute end-6 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full opacity-90 sm:end-7">
-              <FiChevronRight className="h-5 w-5 rtl:rotate-180" />
-            </button>
-            <div className="pointer-events-none absolute inset-x-0 bottom-6 z-10 flex justify-center gap-1.5 sm:bottom-7" aria-hidden="true">
-              {images.map((s, i) => <span key={s} className={`h-2 rounded-full transition-[width,background-color] duration-300 ${i === active ? 'w-6 bg-[color:var(--g-accent)]' : 'w-2 bg-black/25'}`} />)}
-            </div>
-          </>
+          <ul ref={strip} className="gx-hide-sb flex flex-none gap-2.5 overflow-x-auto p-1.5 pb-2 lg:max-h-[40rem] lg:w-[5.75rem] lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:pb-1.5">
+            {images.map((s, i) => (
+              <li key={s} className="flex-none">
+                <button type="button" onClick={() => select(i)} aria-label={`${product.name} ${i + 1}`} aria-current={i === active ? 'true' : undefined}
+                  className={`gx-thumb block h-16 w-16 lg:h-[4.5rem] lg:w-[4.5rem] ${i === active ? 'gx-thumb-on' : ''}`}>
+                  <img src={s} alt="" width={96} height={96} loading="lazy" decoding="async" referrerPolicy="no-referrer" draggable={false} className="block h-full w-full rounded-xl object-contain p-1" />
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
+
+        <div
+          tabIndex={count > 1 ? 0 : undefined} role="group" aria-roledescription="carousel" aria-label={product.name} onKeyDown={onKeyDown}
+          onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
+          className="gx-gal gx-card relative aspect-square min-w-0 flex-1 overflow-hidden sm:aspect-[4/5] lg:max-h-[40rem]"
+        >
+          <div className="gx-zoom gx-frame absolute inset-3 rounded-[1.25rem] sm:inset-4 sm:rounded-[1.5rem]" onClick={openViewer} onPointerEnter={onEnter} onPointerMove={onMove} onPointerLeave={onLeave}>
+            {count === 0
+              ? <div className="absolute inset-0 flex items-center justify-center"><EmptyState kind="image" compact title={t('imageUnavailable')} /></div>
+              : (
+                <div ref={layer} className="gx-zoomlayer">
+                  {images.map((s, i) => (seen.has(i) ? (
+                    <div key={s} className={`gx-slide ${i === active ? 'gx-slide-on' : ''}`} aria-hidden={i !== active}>
+                      <DeviceImage src={s} alt={i === active ? product.name : ''} category={product.categoryName} label={t('imageUnavailable')} darkMode={darkMode} big eager={i === 0}
+                        width={MAIN_IMG_W} height={MAIN_IMG_H} className="absolute inset-0 h-full w-full rounded-[1.25rem] object-contain p-6 sm:rounded-[1.5rem] sm:p-8" />
+                    </div>
+                  ) : null))}
+                </div>
+              )}
+          </div>
+          {cond && <span className={`pointer-events-none absolute start-6 top-6 z-10 rounded-full px-3 py-1.5 text-xs font-semibold leading-none text-white sm:start-7 sm:top-7 ${cond.badge}`}>{condLabel(t, product.condition)}</span>}
+          <button type="button" onClick={onSave} aria-pressed={isSaved} aria-label={isSaved ? t('saved') : t('save')} title={isSaved ? t('saved') : t('save')}
+            className="gx-fab absolute end-6 top-6 z-10 h-10 w-10 rounded-full sm:end-7 sm:top-7">
+            <FiHeart className={`h-5 w-5 ${isSaved ? 'gx-pop text-rose-500' : ''}`} fill={isSaved ? 'currentColor' : 'none'} />
+          </button>
+          {count > 0 && (
+            <button type="button" onClick={openViewerButton} aria-label={t('viewLarger')} title={t('viewLarger')}
+              className="gx-fab absolute bottom-6 end-6 z-10 h-10 w-10 rounded-full sm:bottom-7 sm:end-7">
+              <FiMaximize2 className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
+          {count > 1 && (
+            <>
+              <span className="gx-count pointer-events-none absolute bottom-6 start-6 z-10 sm:bottom-7 sm:start-7" dir="ltr" aria-hidden="true">{active + 1} / {count}</span>
+              <button type="button" onClick={() => go(-1)} aria-label={t('previous')} className="gx-fab absolute start-6 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full opacity-90 sm:start-7">
+                <FiChevronLeft className="h-5 w-5 rtl:rotate-180" />
+              </button>
+              <button type="button" onClick={() => go(1)} aria-label={t('next')} className="gx-fab absolute end-6 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full opacity-90 sm:end-7">
+                <FiChevronRight className="h-5 w-5 rtl:rotate-180" />
+              </button>
+              <div className="pointer-events-none absolute inset-x-0 bottom-8 z-10 flex justify-center gap-1.5 sm:bottom-9" aria-hidden="true">
+                {images.map((s, i) => <span key={s} className={`h-2 rounded-full border border-[color:var(--g-bd)] transition-[width,background-color] duration-300 ${i === active ? 'w-6 bg-[color:var(--g-btn)]' : 'w-2 bg-white/70'}`} />)}
+              </div>
+            </>
+          )}
+        </div>
       </div>
-    </div>
+      {viewer && <Lightbox images={images} index={active} name={product.name} isRTL={isRTL} onIndex={select} onClose={closeViewer} t={t} />}
+    </>
   );
 });
 
@@ -1018,7 +1167,7 @@ const SpecRows = memo(({ rows }) => (
 ));
 
 const InfoTable = memo(({ rows }) => (
-  <div className="gx-card overflow-hidden !rounded-3xl">
+  <div className="gx-card overflow-hidden">
     <SpecRows rows={rows} />
   </div>
 ));
@@ -1031,8 +1180,8 @@ const SpecTable = memo(({ pairs, t }) => {
   const cols = shown.length > 6 ? [shown.slice(0, mid), shown.slice(mid)] : [shown];
   const toggle = useCallback(() => setOpen((v) => !v), []);
   return (
-    <div className="gx-card overflow-hidden !rounded-3xl">
-      <div className="gx-line flex items-center gap-3 border-b px-5 py-4">
+    <div className="gx-card overflow-hidden">
+      <div className="gx-line flex items-center gap-3 border-b-2 bg-[color:var(--g-soft)] px-5 py-4">
         <span className="gx-tile-ic"><FiCpu className="h-4 w-4" aria-hidden="true" /></span>
         <span className="text-sm font-semibold">{t('specCount', { count: pairs.length })}</span>
       </div>
@@ -1040,7 +1189,7 @@ const SpecTable = memo(({ pairs, t }) => {
         {cols.map((c, i) => <SpecRows key={i} rows={c} />)}
       </div>
       {collapsible && (
-        <div className="gx-line flex justify-center border-t p-4">
+        <div className="gx-line flex justify-center border-t-2 p-4">
           <button type="button" onClick={toggle} aria-expanded={open} className="gx-btn gx-btn-ghost px-5 py-2.5 text-sm">
             <span>{open ? t('showLessSpecs') : t('showAllSpecs', { count: pairs.length })}</span>
             <FiChevronDown className={`h-4 w-4 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
@@ -1066,10 +1215,10 @@ const TabBar = memo(({ active, onSelect, trailing, t }) => (
 ));
 
 const StickyBuyBar = memo(({ product, currency, qty, onAdd, disabled, darkMode, t }) => (
-  <div className="gx-up gx-glass gx-line fixed inset-x-0 bottom-0 z-40 rounded-t-[1.75rem] border-t pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(0,0,0,.14)] lg:hidden">
+  <div className="gx-up gx-glass gx-line fixed inset-x-0 bottom-0 z-40 rounded-t-[1.25rem] border-t pb-[env(safe-area-inset-bottom)] lg:hidden">
     <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:px-6">
-      <span className="gx-frame relative block h-12 w-12 flex-none overflow-hidden rounded-2xl">
-        <DeviceImage src={product.imageUrl} alt="" category={product.categoryName} label={product.name} darkMode={darkMode} className="h-full w-full rounded-2xl object-contain p-1" />
+      <span className="gx-frame relative block h-12 w-12 flex-none overflow-hidden rounded-xl">
+        <DeviceImage src={product.imageUrl} alt="" category={product.categoryName} label={product.name} darkMode={darkMode} className="h-full w-full rounded-xl object-contain p-1" />
       </span>
       <div className="min-w-0 flex-1">
         <p className="line-clamp-1 text-sm font-medium">{product.name}</p>
@@ -1333,8 +1482,8 @@ const DeviceDetailContent = memo(({ id, addToCart, darkMode }) => {
 
   const miniBar = showBar ? (
     <div className="gx-fade ms-auto hidden min-w-0 items-center gap-3 py-2 lg:flex">
-      <span className="gx-frame relative block h-10 w-10 flex-none overflow-hidden rounded-2xl">
-        <DeviceImage src={product.imageUrl} alt="" category={product.categoryName} label={product.name} darkMode={darkMode} className="h-full w-full rounded-2xl object-contain p-1" />
+      <span className="gx-frame relative block h-10 w-10 flex-none overflow-hidden rounded-xl">
+        <DeviceImage src={product.imageUrl} alt="" category={product.categoryName} label={product.name} darkMode={darkMode} className="h-full w-full rounded-xl object-contain p-1" />
       </span>
       <p className="max-w-[18rem] truncate text-sm font-medium">{product.name}</p>
       <PriceLine product={product} currency={currency} t={t} />
@@ -1389,7 +1538,7 @@ const DeviceDetailContent = memo(({ id, addToCart, darkMode }) => {
               )}
 
               {product.categoryId != null && product.categoryName && (
-                <Link to={categoryPath(product.categoryId)} style={rise(240)} className="gx-card gx-btn-ghost gx-btn gx-rise mt-5 !flex !w-full !justify-between !rounded-full px-5 py-3 text-sm font-medium">
+                <Link to={categoryPath(product.categoryId)} style={rise(240)} className="gx-btn gx-btn-ghost gx-rise mt-5 !flex !w-full !justify-between px-5 py-3 text-sm font-medium">
                   <span className="flex min-w-0 items-center gap-2"><FiTag className="gx-ic h-4 w-4 flex-shrink-0" aria-hidden="true" /><span className="truncate">{t('exploreMore', { name: product.categoryName })}</span></span>
                   <FiChevronRight className="h-4 w-4 flex-shrink-0 rtl:rotate-180" aria-hidden="true" />
                 </Link>
@@ -1397,10 +1546,7 @@ const DeviceDetailContent = memo(({ id, addToCart, darkMode }) => {
 
               <section aria-label={t('deliveryDetails')} style={rise(290)} className="gx-card gx-rise mt-5 p-5 sm:p-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="flex items-center gap-2.5 text-base font-semibold">
-                    <span className="gx-bar !h-4 !w-1 flex-none" aria-hidden="true" />
-                    {t('deliveryDetails')}
-                  </h3>
+                  <h3 className="text-base font-semibold">{t('deliveryDetails')}</h3>
                   {!unavailable && <ExpressTag t={t} />}
                 </div>
                 <ul className="mt-4 grid gap-2.5">
@@ -1433,10 +1579,7 @@ const DeviceDetailContent = memo(({ id, addToCart, darkMode }) => {
                   : <EmptyState kind="description" title={t('noDescription')} />}
               {specs.highlights.length > 0 && (
                 <>
-                  <h3 className="mb-3 mt-8 flex items-center gap-2.5 text-base font-semibold">
-                    <span className="gx-bar !h-4 !w-1 flex-none" aria-hidden="true" />
-                    {t('highlights')}
-                  </h3>
+                  <h3 className="mb-3 mt-8 text-base font-semibold">{t('highlights')}</h3>
                   <ul className="grid gap-3 text-sm leading-relaxed sm:grid-cols-2">
                     {specs.highlights.map((h, i) => (
                       <li key={i} className="gx-tile !items-start">
@@ -1461,7 +1604,7 @@ const DeviceDetailContent = memo(({ id, addToCart, darkMode }) => {
         </div>
       </div>
 
-      <section ref={relatedRef} aria-label={t('similarProducts')} className="gx-panel gx-line rounded-t-[2.5rem] border-t" style={relatedNear ? undefined : { minHeight: 480 }}>
+      <section ref={relatedRef} aria-label={t('similarProducts')} className="gx-panel gx-line rounded-t-[2rem] border-t" style={relatedNear ? undefined : { minHeight: 480 }}>
         {relatedNear && (
           <div className="gx-fade mx-auto max-w-7xl space-y-12 px-4 py-12 pb-28 sm:px-6 sm:py-14 lg:px-8 lg:pb-16">
             {catPending ? <SliderSkeleton /> : (

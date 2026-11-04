@@ -1,57 +1,94 @@
 import api from '../api/api';
 
-
-
 export const CONDITIONS = ['NEW', 'USED', 'REFURBISHED'];
 export const CONDITION_LABELS = { NEW: 'جديد', USED: 'مستعمل', REFURBISHED: 'مجدّد', all: 'الكل' };
 
 export const EMPTY_PRODUCT = {
-  name: '', description: '', price: '', categoryId: '', stockQuantity: '', condition: 'NEW', image: null,
+  name: '', description: '', price: '', categoryId: '', stockQuantity: '', condition: 'NEW', image: null, images: [],
 };
 
-export const IMAGE_MAX_BYTES = 5 * 1024 * 1024; 
+export const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 export const PRICE_MAX = 10_000_000;
 export const STOCK_MAX = 1_000_000;
-
-
+export const MAX_GALLERY_IMAGES = 8;
+export const GALLERY_FIELD = 'images';
+export const KEEP_FIELD = 'keepImages';
 
 export const UPLOADS_BASE = '';
 
+const ENV = (() => {
+  try { return import.meta.env || {}; } catch { return {}; }
+})();
+
+const readEnv = (...keys) => {
+  for (const key of keys) {
+    const v = ENV[key];
+    if (typeof v === 'string' && v.trim()) return v.trim();
+  }
+  return '';
+};
+
+const MEDIA_BASE = readEnv('VITE_MEDIA_BASE_URL', 'REACT_APP_MEDIA_URL').replace(/\/+$/, '');
+
+let cachedOrigin = null;
 const serverOrigin = () => {
-  if (UPLOADS_BASE) return UPLOADS_BASE.replace(/\/+$/, '');
-  try { return new URL(api.defaults?.baseURL || '', window.location.origin).origin; } catch { return window.location.origin; }
+  if (cachedOrigin !== null) return cachedOrigin;
+  if (UPLOADS_BASE) {
+    cachedOrigin = UPLOADS_BASE.replace(/\/+$/, '');
+    return cachedOrigin;
+  }
+  try {
+    cachedOrigin = new URL(api.defaults?.baseURL || '', window.location.origin).origin;
+  } catch {
+    cachedOrigin = window.location.origin;
+  }
+  return cachedOrigin;
+};
+
+const BLOB_URL = /^blob:/i;
+const DATA_IMAGE = /^data:image\/(png|jpe?g|webp);base64,[a-z0-9+/=]+$/i;
+const HTTP_URL = /^https?:\/\//i;
+const HTTP_ONLY = /^http:\/\//i;
+const LOCAL_HOST = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i;
+const ANY_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
+
+const SRC_CACHE = new Map();
+const SRC_CACHE_MAX = 800;
+
+const upgradeScheme = (u) => {
+  if (typeof window === 'undefined' || window.location.protocol !== 'https:') return u;
+  if (!HTTP_ONLY.test(u) || LOCAL_HOST.test(u)) return u;
+  return `https://${u.slice(7)}`;
+};
+
+const resolveRelative = (s) => {
+  const parts = s.split('/').filter((p) => p && p !== '.');
+  if (!parts.length || parts.includes('..')) return '';
+  const at = parts.map((p) => p.toLowerCase()).lastIndexOf('uploads');
+  if (MEDIA_BASE && at < 0) return `${MEDIA_BASE}/${parts.map(encodeURIComponent).join('/')}`;
+  const rel = at >= 0 ? ['uploads', ...parts.slice(at + 1)] : ['uploads', ...parts];
+  return `${serverOrigin()}/${rel.map(encodeURIComponent).join('/')}`;
 };
 
 export const resolveImageSrc = (raw) => {
   if (!raw || typeof raw !== 'string') return '';
   const s = raw.trim().replace(/\\/g, '/');
   if (!s || s.length > 500) return '';
-
-
-  
-  if (/^blob:/i.test(s)) return s;
-  if (/^data:image\/(png|jpe?g|webp);base64,[a-z0-9+/=]+$/i.test(s)) return s;
- 
-  
-  if (/^https?:\/\//i.test(s)) return s;
-  
-  
-  if (/^[a-z][a-z0-9+.-]*:/i.test(s) || s.startsWith('//')) return '';
-
-  const parts = s.split('/').filter((p) => p && p !== '.');
-  if (!parts.length || parts.includes('..')) return ''; 
-  const at = parts.indexOf('uploads');
-  const rel = at >= 0 ? parts.slice(at) : ['uploads', ...parts]; 
-  return `${serverOrigin()}/${rel.map(encodeURIComponent).join('/')}`;
+  if (BLOB_URL.test(s)) return s;
+  if (DATA_IMAGE.test(s)) return s;
+  const hit = SRC_CACHE.get(s);
+  if (hit !== undefined) return hit;
+  let out;
+  if (HTTP_URL.test(s)) out = upgradeScheme(s);
+  else if (ANY_SCHEME.test(s) || s.startsWith('//')) out = '';
+  else out = resolveRelative(s);
+  if (SRC_CACHE.size >= SRC_CACHE_MAX) SRC_CACHE.delete(SRC_CACHE.keys().next().value);
+  SRC_CACHE.set(s, out);
+  return out;
 };
 
-
-
 export const rawImageOf = (p) => p?.imageUrl ?? p?.imagePath ?? p?.image ?? p?.imageName ?? p?.imageFileName ?? '';
-
-
-
 
 const startsWith = (bytes, sig, offset = 0) => sig.every((b, i) => bytes[offset + i] === b);
 
@@ -61,9 +98,6 @@ export const validateImageFile = async (file) => {
   if (!/\.(jpe?g|png|webp)$/i.test(file.name)) return 'امتداد الملف غير مدعوم';
   if (file.size === 0) return 'الملف فارغ';
   if (file.size > IMAGE_MAX_BYTES) return `حجم الصورة يجب ألا يتجاوز ${IMAGE_MAX_BYTES / 1024 / 1024} ميجابايت`;
-
-
-  
   try {
     const b = new Uint8Array(await file.slice(0, 12).arrayBuffer());
     const jpeg = startsWith(b, [0xff, 0xd8, 0xff]);
@@ -76,7 +110,18 @@ export const validateImageFile = async (file) => {
   return null;
 };
 
-
+const validateGallery = (images) => {
+  if (images == null) return null;
+  if (!Array.isArray(images)) return 'قائمة الصور غير صالحة';
+  if (images.length > MAX_GALLERY_IMAGES) return `الحد الأقصى ${MAX_GALLERY_IMAGES} صور إضافية`;
+  for (const item of images) {
+    if (item instanceof File) {
+      if (!ALLOWED_IMAGE_TYPES.includes(item.type)) return 'الصيغ المسموحة: JPG أو PNG أو WEBP';
+      if (item.size > IMAGE_MAX_BYTES) return 'حجم الصورة كبير جداً';
+    }
+  }
+  return null;
+};
 
 export const validateProduct = (p, categories = []) => {
   const name = String(p.name ?? '').trim();
@@ -98,10 +143,10 @@ export const validateProduct = (p, categories = []) => {
     if (!ALLOWED_IMAGE_TYPES.includes(p.image.type)) return 'الصيغ المسموحة: JPG أو PNG أو WEBP';
     if (p.image.size > IMAGE_MAX_BYTES) return 'حجم الصورة كبير جداً';
   }
-  return null;
+  return validateGallery(p.images);
 };
 
-
+const keepValue = (item) => (typeof item === 'string' ? item : item?.id ?? item?.url ?? item?.path ?? '');
 
 export const buildFormData = (p) => {
   const fd = new FormData();
@@ -111,7 +156,15 @@ export const buildFormData = (p) => {
   fd.append('categoryId', String(p.categoryId));
   fd.append('stockQuantity', String(parseInt(p.stockQuantity, 10)));
   fd.append('condition', p.condition);
- 
   if (p.image instanceof File) fd.append('image', p.image, p.image.name);
+  const gallery = Array.isArray(p.images) ? p.images.slice(0, MAX_GALLERY_IMAGES) : [];
+  for (const item of gallery) {
+    if (item instanceof File) {
+      fd.append(GALLERY_FIELD, item, item.name);
+    } else {
+      const v = keepValue(item);
+      if (v) fd.append(KEEP_FIELD, String(v));
+    }
+  }
   return fd;
 };

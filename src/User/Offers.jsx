@@ -2,13 +2,14 @@ import React, {
   useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, useId, memo, useTransition, useDeferredValue, useSyncExternalStore,
 } from 'react';
 import { Link, useNavigate, useNavigationType, useSearchParams } from 'react-router-dom';
-import { useQuery, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useQuery, useQueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   FiX, FiCalendar, FiClock, FiTag, FiChevronLeft, FiChevronRight, FiRefreshCw, FiSearch, FiSliders, FiCheck,
   FiPercent, FiChevronDown,
 } from 'react-icons/fi';
 import { RiStoreLine } from 'react-icons/ri';
 import api from '../common/api/api';
+import queryClient from '../common/utils/queryClient';
 import { useModalLock, clean, safeImageUrl } from '../components/user/ListingKit';
 import { EXTRAS_CSS, Toaster, toast } from '../components/user/UiExtras';
 import { IsoIllustration } from '../components/user/IsoIllustrations';
@@ -17,10 +18,6 @@ import enTranslations from '../locales/en/translation.json';
 import arTranslations from '../locales/ar/translation.json';
 import frTranslations from '../locales/fr/translation.json';
 import { useAppLanguage, languageDirection } from '../common/utils/useAppLanguage';
-
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { refetchOnWindowFocus: false, retry: false, gcTime: 10 * 60 * 1000 } },
-});
 
 const OFFER_TRANSLATIONS = {
   en: enTranslations.offersPage,
@@ -40,7 +37,7 @@ const LOCAL_TEXT = {
     sortBest: 'Highest discount', sortEnding: 'Ending soonest', sortName: 'Name A–Z',
     discountType: 'Discount type', shops: 'Shops', allShops: 'All shops', filters: 'Filters',
     clearAll: 'Clear filters', results: 'results', newArrivals: 'New arrivals', newArrivalsHint: 'Fresh in stock at Tech-Restore',
-    showResults: 'Show results',
+    showResults: 'Show results', scrollProgress: 'Page progress',
     pageSub: 'Exclusive discounts from trusted repair and device shops. New offers land all the time.',
   },
   ar: {
@@ -54,7 +51,7 @@ const LOCAL_TEXT = {
     sortBest: 'أعلى خصم', sortEnding: 'الأقرب انتهاءً', sortName: 'الاسم أ–ي',
     discountType: 'نوع الخصم', shops: 'المتاجر', allShops: 'كل المتاجر', filters: 'التصفية',
     clearAll: 'مسح التصفية', results: 'نتيجة', newArrivals: 'وصل حديثًا', newArrivalsHint: 'جديد في المخزون',
-    showResults: 'عرض النتائج',
+    showResults: 'عرض النتائج', scrollProgress: 'تقدم الصفحة',
     pageSub: 'خصومات حصرية من متاجر صيانة وأجهزة موثوقة، وعروض جديدة طوال الوقت.',
   },
   fr: {
@@ -68,7 +65,7 @@ const LOCAL_TEXT = {
     sortBest: 'Meilleure remise', sortEnding: 'Fin la plus proche', sortName: 'Nom A–Z',
     discountType: 'Type de remise', shops: 'Boutiques', allShops: 'Toutes les boutiques', filters: 'Filtres',
     clearAll: 'Effacer les filtres', results: 'résultats', newArrivals: 'Nouveautés', newArrivalsHint: 'Tout juste en stock',
-    showResults: 'Voir les résultats',
+    showResults: 'Voir les résultats', scrollProgress: 'Progression de la page',
     pageSub: 'Remises exclusives de boutiques de réparation et d’appareils de confiance. De nouvelles offres arrivent sans cesse.',
   },
 };
@@ -80,46 +77,60 @@ const tr = (language, key) =>
   LOCAL_TEXT.en[key] ||
   key;
 
+const HL_URL = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2339ff88' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E")`;
+
 const NB_CSS = `
-.nb{--nb-bg:#f3f6f4;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#5b7468;--nb-line:#e3e9e6;--nb-line2:#cfdad4;--nb-shadow:rgba(4,38,26,.1);--nb-gray:#eef3f0;--nb-media:#ffffff;--nb-accent:#059669;--nb-btn:#047857;--nb-on:#ffffff;--nb-glow:rgba(16,185,129,.12);--nb-ring:rgba(16,185,129,.5);--nb-scrim:rgba(4,38,26,.55);background-color:var(--nb-bg);background-image:radial-gradient(52rem 22rem at 90% -6rem,var(--nb-glow),transparent 68%),radial-gradient(40rem 20rem at -8% 28rem,var(--nb-glow),transparent 70%);background-repeat:no-repeat;color:var(--nb-ink);color-scheme:light;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
-.nb-dark{--nb-bg:#06261b;--nb-card:#0b3427;--nb-ink:#ecfdf5;--nb-muted:#8fb8a6;--nb-line:rgba(167,243,208,.14);--nb-line2:rgba(167,243,208,.26);--nb-shadow:rgba(2,20,14,.45);--nb-gray:#104534;--nb-media:#0f4231;--nb-accent:#34d399;--nb-btn:#10b981;--nb-on:#022c22;--nb-glow:rgba(52,211,153,.09);--nb-ring:rgba(52,211,153,.55);--nb-scrim:rgba(3,30,21,.72);color-scheme:dark}
+@font-face{font-family:'Poppins Fallback';src:local('Arial'),local('Helvetica');size-adjust:112.6%;ascent-override:93.4%;descent-override:35.2%;line-gap-override:7.4%}
+.nb{--dx:1;--nb-bg:#ffffff;--nb-card:#ffffff;--nb-ink:#052e1e;--nb-muted:rgba(5,46,30,.68);--nb-line:#e5e7eb;--nb-bd:#000000;--nb-shd:#000000;--nb-gray:#f3f4f6;--nb-media:#ffffff;--nb-accent:#059669;--nb-btn:#39ff88;--nb-btn2:#7dffb0;--nb-on:#022c22;--nb-ring:#059669;--nb-scrim:rgba(0,0,0,.6);--nb-warn:#c2410c;
+--nb-sh2:calc(var(--dx)*2px) 2px 0 0 var(--nb-shd);--nb-sh3:calc(var(--dx)*3px) 3px 0 0 var(--nb-shd);--nb-sh4:calc(var(--dx)*4px) 4px 0 0 var(--nb-shd);--nb-sh6:calc(var(--dx)*6px) 6px 0 0 var(--nb-shd);--nb-sh8:calc(var(--dx)*8px) 8px 0 0 var(--nb-shd);
+background:var(--nb-bg);color:var(--nb-ink);color-scheme:light;font-family:'Poppins','Poppins Fallback',ui-sans-serif,system-ui,-apple-system,'Segoe UI','Cairo',sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.nb[dir=rtl]{--dx:-1}
+.nb-dark{--nb-bg:#141414;--nb-card:#1c1c1e;--nb-ink:#ffffff;--nb-muted:rgba(255,255,255,.66);--nb-line:rgba(255,255,255,.16);--nb-bd:rgba(255,255,255,.16);--nb-shd:#0b4a35;--nb-gray:#2a2a2e;--nb-media:#2a2a2e;--nb-accent:#39ff88;--nb-ring:#39ff88;--nb-scrim:rgba(0,0,0,.72);--nb-warn:#fdba74;color-scheme:dark}
+.nb[lang=ar]{font-family:'Cairo','Poppins',ui-sans-serif,system-ui,sans-serif}
 .nb[lang=ar] *{letter-spacing:0!important}
 .nb button,.nb input{font-family:inherit}
 .nb-gray{background:var(--nb-gray)}
 .nb-media{background:var(--nb-media)}
 .nb-muted{color:var(--nb-muted)}
 .nb-ic{color:var(--nb-accent)}
+.nb-warn{color:var(--nb-warn)}
 .nb-line{border-color:var(--nb-line)}
-.nb-card{background:var(--nb-card);border:1px solid var(--nb-line);border-radius:1.25rem;box-shadow:0 1px 2px var(--nb-shadow);transition:transform .25s cubic-bezier(.2,.8,.2,1),box-shadow .25s ease,border-color .25s ease}
-@media (hover:hover){.nb-lift:hover{transform:translate3d(0,-3px,0);box-shadow:0 16px 32px -16px var(--nb-shadow);border-color:var(--nb-accent)}}
-.nb-bar{display:inline-block;width:28px;height:6px;border-radius:999px;background:linear-gradient(90deg,var(--nb-accent),#059669)}
-.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--nb-card);color:var(--nb-ink);border:1px solid var(--nb-line2);border-radius:999px;font-weight:700;cursor:pointer;transition:transform .18s cubic-bezier(.2,.8,.2,1),background-color .18s ease,border-color .18s ease,filter .18s ease,box-shadow .18s ease,opacity .18s ease}
-.nb-btn:not(.nb-btn-a):not(.nb-btn-on):hover:not(:disabled){background:var(--nb-gray);border-color:var(--nb-accent)}
-@media (hover:hover){.nb-btn:hover:not(:disabled){transform:translate3d(0,-1px,0)}}
-.nb-btn:active:not(:disabled){transform:scale(.97)}
+.nb-bd{border-color:var(--nb-bd)}
+.nb-hl{padding-bottom:.2em;background:${HL_URL} left bottom/100% .3em no-repeat;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.nb[dir=rtl] .nb-hl{background-position:right bottom}
+.nb-card{background:var(--nb-card);border:3px solid var(--nb-bd);border-radius:16px;box-shadow:var(--nb-sh4);transition:transform .15s ease,box-shadow .15s ease}
+.nb-big{box-shadow:var(--nb-sh8)}
+@media (hover:hover){.nb-lift:hover{transform:translate3d(0,-2px,0);box-shadow:var(--nb-sh6)}}
+.nb-chip{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid #000;border-radius:8px;background:var(--nb-btn);color:var(--nb-on)}
+.nb-chip-bad{background:#fb7185;color:#000}
+.nb-chip-warn{background:#fcd34d;color:#000}
+.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-bd);border-radius:12px;box-shadow:var(--nb-sh3);font-weight:700;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease,background-color .15s ease,color .15s ease}
+@media (hover:hover){.nb-btn:hover:not(:disabled){background:var(--nb-btn);color:var(--nb-on);border-color:#000;box-shadow:var(--nb-sh4);transform:translate3d(0,-1px,0)}}
+.nb-btn:active:not(:disabled){transform:translate3d(0,2px,0);box-shadow:none}
 .nb-btn:disabled{opacity:.45;cursor:not-allowed}
-.nb-btn-a,.nb-btn-on{position:relative;overflow:hidden;isolation:isolate;background:linear-gradient(135deg,#10b981 0%,#059669 50%,#047857 100%);color:#ffffff;border-color:transparent;box-shadow:0 12px 24px -12px rgba(4,120,87,.85),inset 0 1px 0 rgba(255,255,255,.28)}
-.nb-btn-a::after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.34) 50%,transparent 70%);transform:translate3d(-130%,0,0);transition:transform .7s cubic-bezier(.2,.8,.2,1)}
-.nb-btn-a:hover:not(:disabled)::after,.nb-zoom:hover .nb-btn-a::after{transform:translate3d(130%,0,0)}
-.nb-btn-a:hover:not(:disabled),.nb-btn-on:hover:not(:disabled){filter:brightness(1.07);border-color:transparent;box-shadow:0 16px 28px -12px rgba(4,120,87,.95),inset 0 1px 0 rgba(255,255,255,.32)}
+.nb-btn-a,.nb-btn-on{background:var(--nb-btn);color:var(--nb-on);border:3px solid #000;box-shadow:var(--nb-sh4)}
+@media (hover:hover){.nb-btn-a:hover:not(:disabled),.nb-btn-on:hover:not(:disabled){background:var(--nb-btn2)}}
 .nb-btn:focus-visible,.nb-focus:focus-visible{outline:3px solid var(--nb-ring);outline-offset:2px}
-.nb-field{background:var(--nb-card);color:var(--nb-ink);border:1px solid var(--nb-line2);border-radius:999px;transition:box-shadow .18s ease,border-color .18s ease}
-.nb-field:focus-within,.nb-field:hover{border-color:var(--nb-accent)}
-.nb-field:focus-within{box-shadow:0 0 0 3px var(--nb-ring)}
-.nb-field::placeholder,.nb-field input::placeholder{color:var(--nb-muted)}
+.nb-field{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-bd);border-radius:12px;box-shadow:var(--nb-sh3);transition:box-shadow .15s ease}
+@media (hover:hover){.nb-field:hover{box-shadow:var(--nb-sh4)}}
+.nb-field:focus-within{outline:3px solid var(--nb-ring);outline-offset:2px}
+.nb-field input::placeholder{color:var(--nb-muted)}
 .nb-flip{display:inline-block}
 .nb[dir=rtl] .nb-flip{transform:scaleX(-1)}
-.nb-dot{background:var(--nb-card);color:var(--nb-ink);border:1px dashed var(--nb-line2);border-radius:1.5rem}
-.nb-sk{background:linear-gradient(90deg,var(--nb-gray) 25%,color-mix(in srgb,var(--nb-gray) 45%,var(--nb-card)) 50%,var(--nb-gray) 75%);background-size:220% 100%;border-radius:.75rem;animation:nbShimmer 1.5s linear infinite}
-@keyframes nbShimmer{from{background-position:120% 0}to{background-position:-120% 0}}
-.nb-opt{transition:background-color .15s ease,color .15s ease,transform .15s ease}
-.nb-opt:active:not(:disabled){transform:scale(.98)}
-@media (hover:hover){.nb-zoom img{transition:transform .6s cubic-bezier(.22,.8,.2,1)}.nb-zoom:hover img{transform:scale3d(1.06,1.06,1)}}
+.nb-dot{background:var(--nb-card);color:var(--nb-ink);border:3px dashed var(--nb-bd);border-radius:16px}
+.nb-dash{border-inline-end:3px dashed var(--nb-bd)}
+.nb-rule{border-top:3px solid var(--nb-bd)}
+.nb-sk{position:relative;overflow:hidden;border-radius:8px;background:color-mix(in srgb,var(--nb-ink) 10%,transparent)}
+.nb-sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--nb-card) 70%,transparent),transparent);animation:nbShimmer 1.3s ease-in-out infinite}
+.nb[dir=rtl] .nb-sk::after{animation-direction:reverse}
+@keyframes nbShimmer{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+.nb-opt{transition:background-color .15s ease,color .15s ease}
+@media (hover:hover){.nb-zoom img{transition:transform .5s cubic-bezier(.22,.8,.2,1)}.nb-zoom:hover img{transform:scale3d(1.05,1.05,1)}}
 @keyframes nbIn{from{opacity:0;transform:translate3d(0,10px,0)}to{opacity:1;transform:none}}
 .nb-in{animation:nbIn .3s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*40ms)}
 @keyframes nbRise{from{opacity:0;transform:translate3d(0,16px,0)}to{opacity:1;transform:none}}
-.nb-rise{animation:nbRise .55s cubic-bezier(.16,.84,.24,1) both;animation-delay:calc(var(--d,0)*70ms)}
-@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn,.nb-btn-a::after,.nb-field,.nb-opt,.nb-zoom img{transition:none}.nb-lift:hover,.nb-btn:hover:not(:disabled),.nb-zoom:hover img{transform:none}.nb-in,.nb-rise,.nb-sk{animation:none!important}}
+.nb-rise{animation:nbRise .5s cubic-bezier(.16,.84,.24,1) both;animation-delay:calc(var(--d,0)*70ms)}
+@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn,.nb-field,.nb-opt,.nb-zoom img{transition:none}.nb-lift:hover,.nb-btn:hover:not(:disabled),.nb-zoom:hover img{transform:none}.nb-in,.nb-rise{animation:none!important}.nb-sk::after{animation:none}}
 `;
 
 const PAGE_CSS = `
@@ -128,17 +139,18 @@ const PAGE_CSS = `
   @keyframes ofFadeOut { from { opacity: 1; } to { opacity: 0; } }
   .of-fade { animation: ofFade .18s ease-out both; }
   .of-fade-out { animation: ofFadeOut .18s ease-in both; }
-  @keyframes ofModal { from { opacity: 0; transform: translate3d(0, 24px, 0) scale(.98); } to { opacity: 1; transform: none; } }
-  @keyframes ofModalOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translate3d(0, 24px, 0) scale(.98); } }
+  @keyframes ofModal { from { opacity: 0; transform: translate3d(0, 24px, 0); } to { opacity: 1; transform: none; } }
+  @keyframes ofModalOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translate3d(0, 24px, 0); } }
   .of-modal { animation: ofModal .24s cubic-bezier(.2,.8,.2,1) both; }
   .of-modal-out { animation: ofModalOut .18s ease-in both; }
   @keyframes ofDrawer { from { transform: translate3d(calc(var(--dx, 1) * -100%), 0, 0); } to { transform: none; } }
   @keyframes ofDrawerOut { from { transform: none; } to { transform: translate3d(calc(var(--dx, 1) * -100%), 0, 0); } }
   .of-drawer { animation: ofDrawer .26s cubic-bezier(.2,.8,.2,1) both; }
   .of-drawer-out { animation: ofDrawerOut .18s ease-in both; }
-  @keyframes ofPop { from { opacity: 0; transform: translate3d(0, -6px, 0) scale(.98); } to { opacity: 1; transform: none; } }
+  @keyframes ofPop { from { opacity: 0; transform: translate3d(0, -6px, 0); } to { opacity: 1; transform: none; } }
   .of-pop { animation: ofPop .16s cubic-bezier(.2,.8,.2,1) both; transform-origin: top; }
-  .of-grid { content-visibility: auto; contain-intrinsic-size: auto 600px; }
+  .of-grid { content-visibility: auto; contain-intrinsic-size: auto 600px; padding: 8px; margin: -8px; }
+  @media (prefers-reduced-motion: no-preference) { html:has(.nb) { scroll-behavior: smooth; } }
   @media (prefers-reduced-motion: reduce) { .of-fade, .of-fade-out, .of-modal, .of-modal-out, .of-drawer, .of-drawer-out, .of-pop { animation: none; } }
   ${NB_CSS}
 `;
@@ -153,6 +165,7 @@ const PAGE_SIZE = 12;
 const SOON_DAYS = 3;
 const LATEST_LIMIT = 4;
 const OFFERS_CAP = 500;
+const PRODUCTS_CAP = 500;
 const QUERY_MAX = 80;
 const PAGE_MAX = 10000;
 const LEAVE_MS = 180;
@@ -164,20 +177,43 @@ const EMPTY_LIST = [];
 const EMPTY_OFFER = { discountType: '', discountValue: 0, status: 'INACTIVE' };
 const DEFAULTS = { type: 'all', sort: 'best', page: '1' };
 const SORTS = [['best', 'sortBest'], ['ending', 'sortEnding'], ['name', 'sortName']];
-const GRID = 'grid grid-cols-1 gap-5 min-[720px]:grid-cols-2';
+const GRID = 'grid grid-cols-1 gap-6 min-[720px]:grid-cols-2';
 const RISE = Array.from({ length: 6 }, (_, i) => ({ '--d': i }));
 const STAGGER = Array.from({ length: 12 }, (_, i) => ({ '--i': i }));
 const BTN_CLS = 'nb-btn min-h-11 px-4 text-sm';
 const SK_OFFERS = [0, 1, 2, 3, 4, 5];
 const SK_LATEST = [0, 1, 2, 3];
 const SK_ROWS = [0, 1, 2, 3];
-
-const TILE_TONES = {
-  em: 'bg-emerald-500 text-white', sky: 'bg-sky-500 text-white', vi: 'bg-violet-500 text-white',
-  am: 'bg-amber-400 text-emerald-950', ro: 'bg-rose-500 text-white', te: 'bg-teal-500 text-white',
-};
+const QUERY_OPTS = { retry: false, refetchOnWindowFocus: false };
 
 const prefersReduced = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(REDUCED_Q).matches;
+
+const scrollToEl = (el) => {
+  if (el) el.scrollIntoView({ block: 'start', behavior: prefersReduced() ? 'auto' : 'smooth' });
+};
+
+const useScrollProgress = (barRef) => {
+  useEffect(() => {
+    const bar = barRef.current;
+    if (!bar || prefersReduced()) return undefined;
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const el = document.documentElement;
+      const limit = el.scrollHeight - el.clientHeight;
+      bar.style.transform = `scaleX(${limit > 0 ? Math.min(1, Math.max(0, window.scrollY / limit)) : 0})`;
+    };
+    const schedule = () => { if (!raf) raf = requestAnimationFrame(update); };
+    update();
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [barRef]);
+};
 
 const subscribeDesktop = (cb) => {
   const m = window.matchMedia(DESKTOP_Q);
@@ -215,8 +251,8 @@ const useLeave = (onClose) => {
   return [leaving, request];
 };
 
-const IconTile = memo(({ Icon, tone = 'em', className = 'h-9 w-9', iconClassName = 'h-4 w-4' }) => (
-  <span aria-hidden="true" className={`flex flex-shrink-0 items-center justify-center rounded-full ${TILE_TONES[tone] || TILE_TONES.em} ${className}`}>
+const IconTile = memo(({ Icon, className = 'h-9 w-9', iconClassName = 'h-4 w-4' }) => (
+  <span aria-hidden="true" className={`nb-chip ${className}`}>
     <Icon className={iconClassName} />
   </span>
 ));
@@ -243,7 +279,7 @@ const rtf = (language) => {
 };
 
 const toDate = (v) => {
-  if (v == null || v === '') return null;
+  if (v == null || v === '' || typeof v === 'object' || typeof v === 'boolean') return null;
   const d = new Date(v);
   return Number.isNaN(d.getTime()) ? null : d;
 };
@@ -269,20 +305,32 @@ const normType = (t) => {
   return '';
 };
 
+const safeId = (v) => {
+  if (typeof v !== 'string' && typeof v !== 'number') return '';
+  const s = String(v);
+  return ID_RE.test(s) ? s : '';
+};
+
 const normalizeOffer = (o) => {
+  if (!o || typeof o !== 'object' || Array.isArray(o)) return null;
+  const id = safeId(o.id);
+  if (!id) return null;
   const type = normType(o.discountType);
   const isPct = type === 'PERCENTAGE';
   const raw = Math.max(0, Number(o.discountValue) || 0);
+  const value = Number.isFinite(raw) ? raw : 0;
+  const start = toDate(o.startDate);
+  const end = toDate(o.endDate);
   return {
-    id: String(o.id),
+    id,
     name: clean(String(o.name ?? ''), 120),
     description: o.description ? clean(String(o.description), 600) : '',
     discountType: type,
-    discountValue: isPct ? Math.min(raw, 100) : raw,
-    startDate: o.startDate || null,
-    endDate: o.endDate || null,
+    discountValue: isPct ? Math.min(value, 100) : Math.min(value, 1e9),
+    startDate: start ? start.toISOString() : null,
+    endDate: end ? end.toISOString() : null,
     status: o.status === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE',
-    shopId: o.shopId != null ? String(o.shopId) : '',
+    shopId: safeId(o.shopId),
     shopName: o.shopName ? clean(String(o.shopName), 80) : '',
   };
 };
@@ -320,6 +368,7 @@ const normalizeLatest = (p) => {
 const shopPath = (id) => `/shops/${encodeURIComponent(id)}`;
 const findInList = (qc, id) => (qc.getQueryData(['offers']) || []).find((o) => o.id === id);
 const safeParam = (v) => (v && ID_RE.test(v) ? v : '');
+const stripControl = (v) => v.replace(/[\p{Cc}\u200b\u200e\u200f\u202a-\u202e\u2066-\u2069\ufeff]/gu, '');
 
 const isSoon = (o) => o.status === 'ACTIVE' && o.days !== null && o.days <= SOON_DAYS;
 
@@ -365,22 +414,9 @@ const useScrollTopOnEnter = () => {
   }, [navType]);
 };
 
-const AccentTitle = memo(({ text }) => {
-  const s = String(text || '');
-  const i = s.lastIndexOf(' ');
-  const head = i > 0 ? s.slice(0, i + 1) : '';
-  const tail = i > 0 ? s.slice(i + 1) : s;
-  return (
-    <>
-      {head}
-      <span className="nb-ic">{tail}</span>
-    </>
-  );
-});
-
 const Crumbs = memo(({ t }) => (
-  <nav aria-label={t('breadcrumb')} className="nb-muted flex flex-wrap items-center gap-2 text-sm font-medium">
-    <Link to="/" className="nb-focus rounded transition-colors hover:text-[color:var(--nb-ink)] hover:underline">{t('crumbHome')}</Link>
+  <nav aria-label={t('breadcrumb')} className="nb-muted flex flex-wrap items-center gap-2 text-sm font-semibold">
+    <Link to="/" className="nb-focus rounded-md transition-colors hover:text-[color:var(--nb-ink)] hover:underline hover:decoration-2 hover:underline-offset-4">{t('crumbHome')}</Link>
     <FiChevronRight aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 rtl:rotate-180" />
     <span aria-current="page" className="text-[color:var(--nb-ink)]">{t('crumbOffers')}</span>
   </nav>
@@ -388,21 +424,12 @@ const Crumbs = memo(({ t }) => (
 
 const Sk = ({ className = '' }) => <div aria-hidden="true" className={`nb-sk ${className}`} />;
 
-const TicketCut = memo(() => (
-  <div aria-hidden="true" className="relative h-0">
-    <span className="nb-line absolute -start-3 -top-3 h-6 w-6 rounded-full border bg-[color:var(--nb-bg)]" />
-    <span className="nb-line absolute -end-3 -top-3 h-6 w-6 rounded-full border bg-[color:var(--nb-bg)]" />
-    <span className="nb-line absolute inset-x-5 -top-px border-t border-dashed" />
-  </div>
-));
-
 const plainNums = {};
 const plainNum = (n, language) => {
   const loc = LOCALES[language] || 'en-GB';
   plainNums[loc] ||= new Intl.NumberFormat(loc, { maximumFractionDigits: 2 });
   return plainNums[loc].format(n);
 };
-const pad = (n) => String(n).padStart(2, '0');
 
 const OfferDefs = memo(({ gid }) => (
   <svg width="0" height="0" className="absolute" aria-hidden="true" focusable="false">
@@ -449,41 +476,38 @@ const OfferCard = memo(({ offer, index, gid, language, onViewDetail, t }) => {
     <article
       aria-label={offer.name}
       onClick={open}
-      style={STAGGER[Math.min(index % PAGE_SIZE, 11)]}
-      className={`nb-in nb-card nb-lift relative flex h-full cursor-pointer ${meta.isActive ? '' : 'opacity-80'}`}
+      style={STAGGER[index % PAGE_SIZE]}
+      className={`nb-in nb-card nb-lift flex h-full cursor-pointer overflow-hidden ${meta.isActive ? '' : 'opacity-80'}`}
     >
-      <div className="nb-gray nb-line relative flex w-28 flex-none flex-col items-center justify-between rounded-s-[1.2rem] border-e border-dashed px-2 pb-1 pt-3 sm:w-36">
-        <span aria-hidden="true" className="nb-line absolute -end-[0.7rem] -top-[0.8rem] z-10 h-5 w-5 rounded-full border bg-[color:var(--nb-bg)] [clip-path:inset(50%_0_0_0)]" />
-        <span aria-hidden="true" className="nb-line absolute -bottom-[0.8rem] -end-[0.7rem] z-10 h-5 w-5 rounded-full border bg-[color:var(--nb-bg)] [clip-path:inset(0_0_50%_0)]" />
+      <div className="nb-gray nb-dash flex w-28 flex-none flex-col items-center justify-between px-2 pb-1 pt-3 sm:w-36">
         {hasDiscount ? (
           <div className="flex flex-col items-center leading-none" dir="ltr">
             <div className="flex items-baseline gap-0.5">
-              {meta.isFixed && <span className="text-xs font-extrabold">EGP</span>}
-              <span className="text-3xl font-black tabular-nums tracking-tight">{plainNum(offer.discountValue, language)}</span>
+              {meta.isFixed && <span className="text-xs font-semibold">EGP</span>}
+              <span className="text-3xl font-bold tabular-nums tracking-tight">{plainNum(offer.discountValue, language)}</span>
               {meta.isPct && <FiPercent aria-hidden="true" className="h-5 w-5 self-center" strokeWidth={3} />}
             </div>
-            <span className="nb-ic mt-1 text-[10px] font-extrabold uppercase tracking-widest">{t('off')}</span>
+            <span className="nb-ic mt-1 text-[11px] font-bold">{t('off')}</span>
           </div>
         ) : (
-          <IconTile Icon={FiTag} tone="em" className="h-10 w-10" iconClassName="h-5 w-5" />
+          <IconTile Icon={FiTag} className="h-10 w-10" iconClassName="h-5 w-5" />
         )}
         <OfferArt gid={gid} className="h-16 w-full" />
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-2 p-3.5 sm:p-4">
-        <div className="flex items-center justify-between gap-2">
-          <span dir="ltr" className="nb-gray rounded-full px-2.5 py-0.5 text-xs font-extrabold tabular-nums">{pad(index + 1)}</span>
-          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-extrabold text-white ${meta.isActive ? 'bg-emerald-600' : 'bg-rose-600'}`}>
+        <div className="flex items-center justify-end gap-2">
+          <span className={`nb-chip ${meta.isActive ? '' : 'nb-chip-bad'} !rounded-full px-2.5 py-1 text-[11px] font-bold`}>
             {meta.isActive ? t('active') : t('inactive')}
           </span>
         </div>
-        <h3 className="line-clamp-2 text-sm font-extrabold leading-snug">{offer.name}</h3>
-        <p className="nb-muted line-clamp-2 min-h-[2.5rem] text-xs font-medium leading-5">
+        <h3 className="line-clamp-2 text-sm font-bold leading-snug">{offer.name}</h3>
+        <p className="nb-muted line-clamp-2 min-h-[2.5rem] text-xs leading-5">
           {offer.description || t('descriptionFallback')}
         </p>
-        <div className="nb-line flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t pt-2.5 text-[11px]">
+        <div className="nb-line flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t-2 pt-2.5 text-[11px]">
           {offer.shopName && offer.shopId ? (
-            <Link to={shopPath(offer.shopId)} onClick={stop} className="nb-focus flex min-w-0 items-center gap-1.5 rounded font-bold hover:underline">
+            <Link to={shopPath(offer.shopId)} onClick={stop} className="nb-focus flex min-w-0 items-center gap-1.5 rounded-md font-bold hover:underline hover:decoration-2 hover:underline-offset-4">
               <RiStoreLine aria-hidden="true" className="nb-ic h-3.5 w-3.5 flex-shrink-0" />
               <span className="truncate">{offer.shopName}</span>
             </Link>
@@ -494,7 +518,7 @@ const OfferCard = memo(({ offer, index, gid, language, onViewDetail, t }) => {
             </span>
           ) : <span />}
           {meta.remaining && (
-            <span className={`flex items-center gap-1 font-semibold ${meta.urgent && meta.isActive ? 'text-orange-500' : 'nb-muted'}`}>
+            <span className={`flex items-center gap-1 font-semibold ${meta.urgent && meta.isActive ? 'nb-warn' : 'nb-muted'}`}>
               <FiClock aria-hidden="true" className="h-3 w-3 flex-shrink-0" />{meta.remaining}
             </span>
           )}
@@ -507,15 +531,16 @@ const OfferCard = memo(({ offer, index, gid, language, onViewDetail, t }) => {
   );
 });
 
-const ProductCard = memo(({ product, darkMode, language, t }) => {
+const ProductCard = memo(({ product, index, darkMode, language, t }) => {
   const [failed, setFailed] = useState(false);
   const onError = useCallback(() => setFailed(true), []);
   return (
     <Link
       to={`/device/${encodeURIComponent(product.id)}`}
-      className="nb-card nb-lift nb-zoom nb-focus group relative flex min-w-0 flex-col overflow-hidden"
+      style={STAGGER[index]}
+      className="nb-in nb-card nb-lift nb-zoom nb-focus group relative flex min-w-0 flex-col overflow-hidden"
     >
-      <div className="nb-media relative flex aspect-square items-center justify-center overflow-hidden">
+      <div className="nb-media nb-bd relative flex aspect-square items-center justify-center overflow-hidden border-b-[3px]">
         {product.img && !failed ? (
           <img
             src={product.img} alt={product.name} width={320} height={320} loading="lazy" decoding="async"
@@ -525,17 +550,16 @@ const ProductCard = memo(({ product, darkMode, language, t }) => {
           <IsoIllustration type="offers" tone="emerald" onGreen={false} darkMode={darkMode} className="h-1/2 w-1/2" />
         )}
         {product.pct > 0 && (
-          <span dir="ltr" className="absolute start-3 top-3 rounded-full bg-[color:var(--nb-btn)] px-2.5 py-1 text-xs font-extrabold tabular-nums text-[color:var(--nb-on)]">-{product.pct}%</span>
+          <span dir="ltr" className="nb-chip absolute start-3 top-3 !rounded-full px-2.5 py-1 text-xs font-bold tabular-nums">-{product.pct}%</span>
         )}
       </div>
       <div className="flex flex-col gap-1 p-3 pb-4">
-        {product.categoryName && <span className="nb-muted truncate text-xs font-medium">{product.categoryName}</span>}
-        <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-5">{product.name}</h3>
+        {product.categoryName && <span className="nb-muted truncate text-xs font-semibold">{product.categoryName}</span>}
+        <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-5">{product.name}</h3>
       </div>
-      <TicketCut />
-      <div className="flex flex-1 flex-col gap-2 p-3 pt-4">
+      <div className="nb-rule flex flex-1 flex-col gap-2 p-3">
         <div dir="ltr" className="flex flex-wrap items-baseline gap-x-2">
-          <span className="nb-ic text-base font-extrabold tabular-nums">{money(product.finalPrice, language)}</span>
+          <span className="nb-ic text-base font-bold tabular-nums">{money(product.finalPrice, language)}</span>
           {product.saving > 0 && <span className="nb-muted text-xs tabular-nums line-through">{money(product.price, language)}</span>}
         </div>
         <span className="nb-btn nb-btn-a mt-auto min-h-10 px-4 text-sm">{t('shopNow')}</span>
@@ -545,17 +569,17 @@ const ProductCard = memo(({ product, darkMode, language, t }) => {
 });
 
 const OfferSkeleton = memo(() => (
-  <div className="nb-card flex h-[216px]">
-    <div className="nb-line flex w-28 flex-none flex-col items-center justify-between border-e border-dashed px-2 py-4 sm:w-36">
+  <div className="nb-card flex h-[216px] overflow-hidden">
+    <div className="nb-dash flex w-28 flex-none flex-col items-center justify-between px-2 py-4 sm:w-36">
       <Sk className="h-8 w-16" />
       <Sk className="h-14 w-full" />
     </div>
     <div className="flex min-w-0 flex-1 flex-col gap-2.5 p-4">
-      <div className="flex justify-between"><Sk className="h-5 w-10 !rounded-full" /><Sk className="h-5 w-16 !rounded-full" /></div>
+      <div className="flex justify-end"><Sk className="h-5 w-16" /></div>
       <Sk className="h-4 w-4/5" />
       <Sk className="h-3 w-full" />
       <Sk className="h-3 w-2/3" />
-      <Sk className="mt-auto h-10 w-full !rounded-full" />
+      <Sk className="mt-auto h-10 w-full" />
     </div>
   </div>
 ));
@@ -568,8 +592,15 @@ const Skeletons = memo(({ label }) => (
 
 const ToolbarSkeleton = memo(() => (
   <div aria-hidden="true" className="mb-5 flex flex-wrap items-center gap-3">
-    <Sk className="h-11 min-w-0 flex-1 basis-60 !rounded-full" />
-    <Sk className="h-11 w-40 !rounded-full" />
+    <Sk className="h-11 min-w-0 flex-1 basis-60" />
+    <Sk className="h-11 w-40" />
+  </div>
+));
+
+const HeaderChipsSkeleton = memo(() => (
+  <div aria-hidden="true" className="flex gap-2">
+    <Sk className="h-8 w-28" />
+    <Sk className="h-8 w-24" />
   </div>
 ));
 
@@ -578,18 +609,18 @@ const FilterSkeleton = memo(() => (
     {[0, 1].map((g) => (
       <div key={g} className="space-y-2">
         <Sk className="h-4 w-24" />
-        {SK_ROWS.map((r) => <Sk key={r} className="h-10 w-full !rounded-xl" />)}
+        {SK_ROWS.map((r) => <Sk key={r} className="h-10 w-full" />)}
       </div>
     ))}
   </div>
 ));
 
 const LatestSkeleton = memo(() => (
-  <div aria-hidden="true" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+  <div aria-hidden="true" className="grid grid-cols-2 gap-5 lg:grid-cols-4">
     {SK_LATEST.map((i) => (
       <div key={i} className="nb-card overflow-hidden">
         <Sk className="aspect-square w-full !rounded-none" />
-        <div className="space-y-2 p-3"><Sk className="h-3 w-1/3" /><Sk className="h-4 w-full" /><Sk className="h-5 w-1/2" /><Sk className="h-10 w-full !rounded-full" /></div>
+        <div className="space-y-2 p-3"><Sk className="h-3 w-1/3" /><Sk className="h-4 w-full" /><Sk className="h-5 w-1/2" /><Sk className="h-10 w-full" /></div>
       </div>
     ))}
   </div>
@@ -598,11 +629,11 @@ const LatestSkeleton = memo(() => (
 const StateBox = memo(({ darkMode, label, hint, onRetry, fetching, retryLabel }) => (
   <div className="nb-dot nb-in flex flex-col items-center px-4 py-14 text-center">
     <IsoIllustration type="offers" tone="emerald" darkMode={darkMode} onGreen={false} className="mb-3 h-28 w-28" />
-    <p className="text-base font-extrabold">{label}</p>
-    {hint && <p className="nb-muted mt-1 text-sm font-medium">{hint}</p>}
+    <p className="text-base font-bold">{label}</p>
+    {hint && <p className="nb-muted mt-1 text-sm">{hint}</p>}
     {onRetry && (
       <button type="button" onClick={() => onRetry()} className={`mt-5 nb-btn-a ${BTN_CLS}`}>
-        <FiRefreshCw aria-hidden="true" className={`h-4 w-4 ${fetching ? 'animate-spin' : ''}`} />{retryLabel}
+        <FiRefreshCw aria-hidden="true" className={`h-4 w-4 ${fetching ? 'animate-spin motion-reduce:animate-none' : ''}`} />{retryLabel}
       </button>
     )}
   </div>
@@ -622,7 +653,7 @@ const pageWindow = (cur, total) => {
 const Pager = memo(({ page, totalPages, onChange, pending, t }) => {
   if (totalPages <= 1) return null;
   return (
-    <nav aria-label={t('pagination')} aria-busy={pending} className="flex flex-wrap items-center justify-center gap-2 pt-8">
+    <nav aria-label={t('pagination')} aria-busy={pending} className="flex flex-wrap items-center justify-center gap-3 pt-10">
       <button type="button" className="nb-btn h-10 w-10" disabled={page <= 1} onClick={() => onChange(page - 1)} aria-label={t('prevPage')}>
         <FiChevronLeft aria-hidden="true" className="nb-flip h-4 w-4" />
       </button>
@@ -634,7 +665,7 @@ const Pager = memo(({ page, totalPages, onChange, pending, t }) => {
         >
           <span dir="ltr">{x}</span>
         </button>
-      ) : <span key={x} aria-hidden="true" className="nb-muted px-1 font-extrabold">…</span>))}
+      ) : <span key={x} aria-hidden="true" className="nb-muted px-1 font-bold">…</span>))}
       <button type="button" className="nb-btn h-10 w-10" disabled={page >= totalPages} onClick={() => onChange(page + 1)} aria-label={t('nextPage')}>
         <FiChevronRight aria-hidden="true" className="nb-flip h-4 w-4" />
       </button>
@@ -643,9 +674,9 @@ const Pager = memo(({ page, totalPages, onChange, pending, t }) => {
 });
 
 const FilterGroup = memo(({ title, children }) => (
-  <fieldset className="nb-line border-b py-4 first:pt-0 last:border-b-0 last:pb-0">
-    <legend className="mb-2 text-sm font-extrabold">{title}</legend>
-    <div className="flex flex-col gap-1">{children}</div>
+  <fieldset className="nb-line border-b-2 py-4 first:pt-0 last:border-b-0 last:pb-0">
+    <legend className="mb-3 text-sm font-bold"><span className="nb-hl">{title}</span></legend>
+    <div className="flex flex-col gap-1.5">{children}</div>
   </fieldset>
 ));
 
@@ -657,12 +688,12 @@ const FilterOption = memo(({ active, label, count, onClick }) => {
       aria-pressed={active}
       disabled={disabled}
       onClick={onClick}
-      className={`nb-opt nb-focus flex min-h-10 w-full cursor-pointer items-center gap-2 rounded-xl px-3 text-start text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${
-        active ? 'bg-[color:var(--nb-btn)] text-[color:var(--nb-on)]' : 'hover:bg-[color:var(--nb-gray)]'
+      className={`nb-opt nb-focus flex min-h-10 w-full cursor-pointer items-center gap-2 rounded-lg border-2 px-3 text-start text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${
+        active ? 'border-black bg-[color:var(--nb-btn)] text-[color:var(--nb-on)]' : 'border-transparent hover:bg-[color:var(--nb-gray)]'
       }`}
     >
-      <span aria-hidden="true" className={`nb-line inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border ${active ? '!border-current' : ''}`}>
-        {active && <FiCheck className="h-3 w-3" strokeWidth={3} />}
+      <span aria-hidden="true" className={`inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border-2 ${active ? 'border-black' : 'nb-bd'}`}>
+        {active && <FiCheck className="h-3 w-3" strokeWidth={4} />}
       </span>
       <span className="min-w-0 flex-1 truncate">{label}</span>
       <span dir="ltr" className={`text-xs tabular-nums ${active ? 'opacity-80' : 'nb-muted'}`}>{count}</span>
@@ -692,21 +723,21 @@ const FilterDrawer = memo(({ onClose, t, total, onClear, hasFilters, children })
   const [leaving, requestClose] = useLeave(onClose);
   useModalLock(true, requestClose);
   return (
-    <div className="fixed inset-0 z-[1100] [--dx:1] rtl:[--dx:-1]" role="dialog" aria-modal="true" aria-label={t('filters')}>
-      <div className={`${leaving ? 'of-fade-out' : 'of-fade'} absolute inset-0 bg-[color:var(--nb-scrim)] backdrop-blur-[2px]`} onClick={requestClose} aria-hidden="true" />
-      <div className={`nb-card ${leaving ? 'of-drawer-out' : 'of-drawer'} absolute inset-y-0 start-0 flex w-[min(20rem,88vw)] flex-col !rounded-none`}>
-        <div className="nb-gray nb-line flex items-center justify-between border-b p-4">
-          <h2 className="text-base font-extrabold">{t('filters')}</h2>
+    <div className="fixed inset-0 z-[1100]" role="dialog" aria-modal="true" aria-label={t('filters')}>
+      <div className={`${leaving ? 'of-fade-out' : 'of-fade'} absolute inset-0 bg-[color:var(--nb-scrim)]`} onClick={requestClose} aria-hidden="true" />
+      <div className={`nb-card nb-big ${leaving ? 'of-drawer-out' : 'of-drawer'} absolute inset-y-0 start-0 flex w-[min(20rem,88vw)] flex-col overflow-hidden !rounded-s-none`}>
+        <div className="nb-gray nb-line flex items-center justify-between border-b-2 p-4">
+          <h2 className="text-base font-bold"><span className="nb-hl">{t('filters')}</span></h2>
           <button type="button" onClick={requestClose} aria-label={t('close')} className="nb-btn h-9 w-9">
             <FiX aria-hidden="true" className="h-4 w-4" />
           </button>
         </div>
         <div className="flex-1 overflow-y-auto overscroll-contain p-4">{children}</div>
-        <div className="nb-line flex gap-2 border-t p-4">
+        <div className="nb-line flex gap-3 border-t-2 p-4">
           {hasFilters && (
-            <button type="button" onClick={onClear} className="nb-btn min-h-11 flex-1 text-sm">{t('clearAll')}</button>
+            <button type="button" onClick={onClear} className="nb-btn min-h-11 flex-1 text-xs">{t('clearAll')}</button>
           )}
-          <button type="button" onClick={requestClose} className="nb-btn nb-btn-a min-h-11 flex-[2] text-sm">
+          <button type="button" onClick={requestClose} className="nb-btn nb-btn-a min-h-11 flex-[2] text-xs">
             {t('showResults')} (<span dir="ltr" className="tabular-nums">{total}</span>)
           </button>
         </div>
@@ -768,13 +799,13 @@ const SortDropdown = memo(({ value, onChange, options, label }) => {
           <span className="nb-muted hidden sm:inline">{label}:</span>
           <span className="truncate">{current}</span>
         </span>
-        <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform duration-200 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
+        <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform duration-150 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <ul
           ref={listRef} id={`${id}-list`} role="listbox" tabIndex={-1} aria-label={label}
           aria-activedescendant={`${id}-opt-${active}`} onKeyDown={onListKey}
-          className="nb-card of-pop absolute end-0 z-30 mt-2 w-56 max-w-[calc(100vw-2rem)] overflow-hidden !rounded-2xl p-1.5 shadow-xl outline-none"
+          className="nb-card of-pop absolute end-0 z-30 mt-3 w-56 max-w-[calc(100vw-2rem)] overflow-hidden p-1 outline-none"
         >
           {options.map(([k, text], i) => {
             const isSel = k === value;
@@ -782,10 +813,12 @@ const SortDropdown = memo(({ value, onChange, options, label }) => {
               <li
                 key={k} id={`${id}-opt-${i}`} role="option" aria-selected={isSel}
                 onMouseEnter={() => setActive(i)} onClick={() => choose(i)}
-                className={`nb-opt flex min-h-10 cursor-pointer items-center gap-2 rounded-xl px-3 text-sm ${i === active ? 'nb-gray' : ''} ${isSel ? 'font-extrabold' : 'font-medium'}`}
+                className={`nb-opt flex min-h-10 cursor-pointer items-center gap-2 rounded-lg px-3 text-sm ${
+                  isSel ? 'bg-[color:var(--nb-btn)] font-bold text-[color:var(--nb-on)]' : i === active ? 'nb-gray font-semibold' : 'font-semibold'
+                }`}
               >
                 <span className="min-w-0 flex-1 truncate">{text}</span>
-                {isSel && <FiCheck aria-hidden="true" className="nb-ic h-4 w-4 flex-shrink-0" strokeWidth={3} />}
+                {isSel && <FiCheck aria-hidden="true" className="h-4 w-4 flex-shrink-0" strokeWidth={4} />}
               </li>
             );
           })}
@@ -795,9 +828,9 @@ const SortDropdown = memo(({ value, onChange, options, label }) => {
   );
 });
 
-const InfoRow = memo(({ Icon, tone, label, value }) => (
-  <div className="nb-gray flex items-center gap-3 rounded-2xl p-3">
-    <IconTile Icon={Icon} tone={tone} className="h-9 w-9" iconClassName="h-4 w-4" />
+const InfoRow = memo(({ Icon, label, value }) => (
+  <div className="nb-gray nb-line flex items-center gap-3 rounded-xl border-2 p-3">
+    <IconTile Icon={Icon} className="h-9 w-9" iconClassName="h-4 w-4" />
     <div className="min-w-0 flex-1">
       <p className="nb-muted text-xs font-semibold">{label}</p>
       <p className="truncate text-sm font-bold">{value}</p>
@@ -813,12 +846,14 @@ const OfferDetailModal = memo(({ offerId, language, onClose, t }) => {
 
   const validId = ID_RE.test(offerId);
   const { data: offer, isLoading, isError, error } = useQuery({
+    ...QUERY_OPTS,
     queryKey: ['offerDetail', offerId],
     queryFn: async ({ signal }) => {
       try {
         const { data } = await api.get(`/api/users/offers/${encodeURIComponent(offerId)}`, { headers: authHeaders(), signal });
-        if (!data || data.id == null) throw Object.assign(new Error('Invalid offer response'), { response: { status: 404 } });
-        return normalizeOffer(data);
+        const normalized = normalizeOffer(data);
+        if (!normalized) throw Object.assign(new Error('Invalid offer response'), { response: { status: 404 } });
+        return normalized;
       } catch (err) {
         if (!isUnauthorized(err) && !signal?.aborted) {
           const cached = findInList(qc, offerId);
@@ -843,11 +878,11 @@ const OfferDetailModal = memo(({ offerId, language, onClose, t }) => {
 
   return (
     <div className="fixed inset-0 z-[1100] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={offer?.name || t('offerDetails')}>
-      <div className={`${leaving ? 'of-fade-out' : 'of-fade'} absolute inset-0 bg-[color:var(--nb-scrim)] backdrop-blur-[2px]`} onClick={requestClose} aria-hidden="true" />
-      <div className={`nb-card ${leaving ? 'of-modal-out' : 'of-modal'} relative flex max-h-[92vh] w-full flex-col overflow-hidden !rounded-b-none shadow-2xl sm:max-w-md sm:!rounded-3xl`}>
-        <header className="nb-gray nb-line flex flex-shrink-0 items-center gap-3 border-b px-4 py-3.5 sm:px-5">
-          <IconTile Icon={FiTag} tone="em" className="h-10 w-10" iconClassName="h-5 w-5" />
-          <h2 className="line-clamp-2 min-w-0 flex-1 text-base font-extrabold">{offer?.name || t('offerDetails')}</h2>
+      <div className={`${leaving ? 'of-fade-out' : 'of-fade'} absolute inset-0 bg-[color:var(--nb-scrim)]`} onClick={requestClose} aria-hidden="true" />
+      <div className={`nb-card nb-big ${leaving ? 'of-modal-out' : 'of-modal'} relative flex max-h-[92vh] w-full flex-col overflow-hidden sm:max-w-md`}>
+        <header className="nb-gray nb-line flex flex-shrink-0 items-center gap-3 border-b-2 px-4 py-3.5 sm:px-5">
+          <IconTile Icon={FiTag} className="h-10 w-10" iconClassName="h-5 w-5" />
+          <h2 className="line-clamp-2 min-w-0 flex-1 text-base font-bold">{offer?.name || t('offerDetails')}</h2>
           <button type="button" onClick={requestClose} aria-label={t('close')} className="nb-btn h-9 w-9 flex-shrink-0">
             <FiX aria-hidden="true" className="h-4 w-4" />
           </button>
@@ -858,26 +893,26 @@ const OfferDetailModal = memo(({ offerId, language, onClose, t }) => {
             <div className="space-y-3" role="status" aria-label={t('loading')}>
               <Sk className="h-4 w-full" />
               <Sk className="h-4 w-4/5" />
-              <Sk className="h-16 w-full !rounded-2xl" />
-              <Sk className="h-16 w-full !rounded-2xl" />
+              <Sk className="h-16 w-full" />
+              <Sk className="h-16 w-full" />
             </div>
           ) : offer ? (
             <>
               {offer.description && <p className="nb-muted text-sm leading-relaxed">{offer.description}</p>}
-              <InfoRow Icon={FiTag} tone="em" label={t('youSave')} value={meta.amount} />
-              {meta.range && <InfoRow Icon={FiCalendar} tone="sky" label={t('validPeriod')} value={<span dir="ltr">{meta.range}</span>} />}
-              {meta.remaining && <InfoRow Icon={FiClock} tone="am" label={meta.isActive ? t('active') : t('inactive')} value={meta.remaining} />}
-              {offer.shopName && <InfoRow Icon={RiStoreLine} tone="vi" label={t('shop')} value={offer.shopName} />}
+              <InfoRow Icon={FiTag} label={t('youSave')} value={meta.amount} />
+              {meta.range && <InfoRow Icon={FiCalendar} label={t('validPeriod')} value={<span dir="ltr">{meta.range}</span>} />}
+              {meta.remaining && <InfoRow Icon={FiClock} label={meta.isActive ? t('active') : t('inactive')} value={meta.remaining} />}
+              {offer.shopName && <InfoRow Icon={RiStoreLine} label={t('shop')} value={offer.shopName} />}
             </>
           ) : (
             <p className="nb-muted py-10 text-center text-sm font-bold">{t('notFound')}</p>
           )}
         </div>
 
-        <footer className={`nb-line grid flex-shrink-0 gap-3 border-t px-4 py-3.5 sm:px-5 ${shopLink ? 'grid-cols-2' : 'grid-cols-1'}`}>
-          <button type="button" onClick={requestClose} className={BTN_CLS}>{t('close')}</button>
+        <footer className={`nb-line grid flex-shrink-0 gap-3 border-t-2 px-4 py-3.5 sm:px-5 ${shopLink ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          <button type="button" onClick={requestClose} className={`${BTN_CLS} text-xs`}>{t('close')}</button>
           {shopLink && (
-            <Link to={shopLink} onClick={onClose} className={`nb-btn-a ${BTN_CLS}`}>
+            <Link to={shopLink} onClick={onClose} className={`nb-btn-a ${BTN_CLS} text-xs`}>
               <RiStoreLine aria-hidden="true" className="h-4 w-4" />{t('visitShop')}
             </Link>
           )}
@@ -901,6 +936,7 @@ const OffersContent = memo(({ darkMode }) => {
   const [detailId, setDetailId] = useState(null);
   const [isPending, startTransition] = useTransition();
   const listRef = useRef(null);
+  const barRef = useRef(null);
   const gid = useId().replace(/:/g, '');
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
 
@@ -911,7 +947,8 @@ const OffersContent = memo(({ darkMode }) => {
   const shop = safeParam(params.get('shop'));
   const page = Math.min(PAGE_MAX, Math.max(1, parseInt(params.get('page'), 10) || 1));
 
-  useEffect(() => { document.title = 'Exclusive Offers | Tech-Restore'; }, []);
+  useScrollProgress(barRef);
+  useEffect(() => { document.title = `${tr(language, 'activeOffers')} | Tech-Restore`; }, [language]);
   useEffect(() => { if (isDesktop) setDrawerOpen(false); }, [isDesktop]);
 
   const update = useCallback((patch) => {
@@ -929,11 +966,19 @@ const OffersContent = memo(({ darkMode }) => {
   }, [setParams]);
 
   const { data: offers = EMPTY_LIST, isPending: offersPending, isError, isFetching, error, refetch } = useQuery({
+    ...QUERY_OPTS,
     queryKey: ['offers'],
     queryFn: async ({ signal }) => {
       const res = await api.get('/api/users/offers', { headers: authHeaders(), signal });
       const raw = res.data?.content || res.data || [];
-      return (Array.isArray(raw) ? raw : []).filter((o) => o && o.id != null).slice(0, OFFERS_CAP).map(normalizeOffer);
+      if (!Array.isArray(raw)) return [];
+      const out = [];
+      for (const item of raw) {
+        if (out.length >= OFFERS_CAP) break;
+        const o = normalizeOffer(item);
+        if (o) out.push(o);
+      }
+      return out;
     },
     enabled: !!token,
     staleTime: 2 * 60 * 1000,
@@ -943,13 +988,16 @@ const OffersContent = memo(({ darkMode }) => {
   const idle = useIdleFlag(!loading);
 
   const { data: latest = EMPTY_LIST, isPending: latestPending } = useQuery({
+    ...QUERY_OPTS,
     queryKey: ['latestProducts'],
     queryFn: async ({ signal }) => {
       const res = await api.get('/api/products', { signal });
       const list = res.data?.content || res.data || [];
       if (!Array.isArray(list)) return [];
       const out = [];
-      for (const p of list) if (p && p.id != null && !p.deleted && (Number(p.stock) || 0) > 0) out.push(normalizeLatest(p));
+      for (const p of list.slice(0, PRODUCTS_CAP)) {
+        if (p && typeof p === 'object' && ID_RE.test(String(p.id)) && !p.deleted && (Number(p.stock) || 0) > 0) out.push(normalizeLatest(p));
+      }
       out.sort((a, b) => b.ts - a.ts || b.num - a.num);
       return out.slice(0, LATEST_LIMIT);
     },
@@ -973,7 +1021,7 @@ const OffersContent = memo(({ darkMode }) => {
 
   const typeCounts = useMemo(() => {
     const src = shop ? searched.filter((o) => o.shopId === shop) : searched;
-    const out = {};
+    const out = Object.create(null);
     for (const [key, , fn] of FILTERS) out[key] = src.reduce((n, o) => n + (fn(o) ? 1 : 0), 0);
     return out;
   }, [searched, shop]);
@@ -1007,14 +1055,14 @@ const OffersContent = memo(({ darkMode }) => {
 
   const changePage = useCallback((p) => {
     update({ page: Math.min(Math.max(1, p), totalPages) });
-    listRef.current?.scrollIntoView({ block: 'start', behavior: prefersReduced() ? 'auto' : 'smooth' });
+    scrollToEl(listRef.current);
   }, [update, totalPages]);
   const changeType = useCallback((v) => update({ type: v, shop, sort }), [update, shop, sort]);
   const changeShop = useCallback((v) => update({ shop: v, type, sort }), [update, type, sort]);
   const changeSort = useCallback((v) => update({ sort: v, type, shop }), [update, type, shop]);
   const sortOptions = useMemo(() => SORTS.map(([k, labelKey]) => [k, t(labelKey)]), [t]);
   const onQuery = useCallback((e) => {
-    setQuery(e.target.value.slice(0, QUERY_MAX));
+    setQuery(stripControl(e.target.value).slice(0, QUERY_MAX));
     setParams((prev) => { const n = new URLSearchParams(prev); n.delete('page'); return n; }, { replace: true });
   }, [setParams]);
   const clearAll = useCallback(() => { setQuery(''); startTransition(() => setParams({}, { replace: true })); }, [setParams]);
@@ -1041,24 +1089,27 @@ const OffersContent = memo(({ darkMode }) => {
     <div
       dir={languageDirection(language)}
       lang={language}
-      className={`nb ${darkMode ? 'nb-dark' : ''} min-h-screen overflow-x-clip [--dx:1] rtl:[--dx:-1] ${language === 'ar' ? 'font-cairo' : 'font-jakarta'}`}
+      className={`nb ${darkMode ? 'nb-dark' : ''} min-h-screen overflow-x-clip`}
     >
+      <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 z-[1200] h-1">
+        <div ref={barRef} className="h-full origin-left bg-[#39ff88] rtl:origin-right" style={{ transform: 'scaleX(0)' }} />
+      </div>
       <Toaster darkMode={darkMode} />
       <OfferDefs gid={gid} />
 
-      <main className="mx-auto max-w-[88rem] px-4 pb-14 pt-32 sm:px-6 lg:px-8" aria-busy={loading || isPending}>
-        <header className="nb-rise mb-8" style={RISE[0]}>
+      <main className="mx-auto max-w-[88rem] px-4 pb-28 pt-36 sm:px-6 md:pb-14 md:pt-32 lg:px-8" aria-busy={loading || isPending}>
+        <header className="nb-rise mb-10" style={RISE[0]}>
           <Crumbs t={t} />
-          <div className="mt-4 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <div className="mt-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
             <div className="min-w-0 max-w-2xl">
-              <h1 className="text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">{t('activeOffers')}</h1>
-              <p className="nb-muted mt-2 text-sm font-medium leading-relaxed sm:text-base">{t('pageSub')}</p>
+              <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl"><span className="nb-hl">{t('activeOffers')}</span></h1>
+              <p className="nb-muted mt-3 text-sm leading-relaxed sm:text-base">{t('pageSub')}</p>
             </div>
-            {!loading && hasOffers && (
-              <div className="nb-in flex flex-wrap gap-2 text-xs font-bold">
-                <span className="nb-gray rounded-full px-3 py-1.5"><span dir="ltr" className="tabular-nums">{offers.length}</span> {t('available')}</span>
+            {loading ? <HeaderChipsSkeleton /> : hasOffers && (
+              <div className="nb-in flex flex-wrap gap-3 text-xs font-bold">
+                <span className="nb-chip !rounded-full px-3 py-1.5"><span dir="ltr" className="tabular-nums">{offers.length}</span>&nbsp;{t('available')}</span>
                 {soonCount > 0 && (
-                  <span className="rounded-full bg-emerald-600 px-3 py-1.5 text-white"><span dir="ltr" className="tabular-nums">{soonCount}</span> {t('filterSoon')}</span>
+                  <span className="nb-chip nb-chip-warn !rounded-full px-3 py-1.5"><span dir="ltr" className="tabular-nums">{soonCount}</span>&nbsp;{t('filterSoon')}</span>
                 )}
               </div>
             )}
@@ -1067,12 +1118,12 @@ const OffersContent = memo(({ darkMode }) => {
 
         <div className={`nb-rise grid gap-8 ${showSidebar ? 'lg:grid-cols-[16rem_minmax(0,1fr)]' : ''}`} style={RISE[1]}>
           {showSidebar && (
-            <aside className="self-start lg:sticky lg:top-28" aria-label={t('filterLabel')}>
+            <aside className="self-start lg:sticky lg:top-32" aria-label={t('filterLabel')}>
               {loading ? <FilterSkeleton /> : <div className="nb-card nb-in p-4">{panel}</div>}
             </aside>
           )}
 
-          <section ref={listRef} className="min-w-0 scroll-mt-28" aria-label={t('activeOffers')}>
+          <section ref={listRef} className="min-w-0 scroll-mt-36" aria-label={t('activeOffers')}>
             {loading && <ToolbarSkeleton />}
             {showTools && (
               <div className="nb-in mb-5 flex flex-wrap items-center gap-3">
@@ -1081,15 +1132,15 @@ const OffersContent = memo(({ darkMode }) => {
                   <input
                     type="search" value={query} onChange={onQuery} placeholder={t('search')} aria-label={t('search')}
                     maxLength={QUERY_MAX} autoComplete="off" spellCheck={false} enterKeyHint="search"
-                    className="min-w-0 flex-1 bg-transparent text-base font-semibold outline-none placeholder:font-medium placeholder:opacity-60 sm:text-sm"
+                    className="min-w-0 flex-1 bg-transparent text-base font-semibold outline-none placeholder:font-normal placeholder:opacity-70 sm:text-sm"
                   />
                 </div>
                 <SortDropdown value={sort} onChange={changeSort} options={sortOptions} label={t('sortBy')} />
                 {showFilterButton && (
-                  <button type="button" onClick={openDrawer} aria-haspopup="dialog" className="nb-btn h-11 gap-2 px-4 text-sm">
+                  <button type="button" onClick={openDrawer} aria-haspopup="dialog" className="nb-btn h-11 flex-shrink-0 gap-2 px-4 text-xs">
                     <FiSliders aria-hidden="true" className="h-4 w-4" />{t('filters')}
                     {activeCount > 0 && (
-                      <span dir="ltr" className="of-pop inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[color:var(--nb-btn)] px-1 text-[11px] font-extrabold tabular-nums text-[color:var(--nb-on)]">{activeCount}</span>
+                      <span dir="ltr" className="nb-chip of-pop h-5 min-w-[1.25rem] !rounded-full px-1 text-[11px] font-bold tabular-nums">{activeCount}</span>
                     )}
                   </button>
                 )}
@@ -1097,17 +1148,17 @@ const OffersContent = memo(({ darkMode }) => {
             )}
 
             {showTools && (
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <p role="status" className="nb-muted text-sm font-medium">
-                  <span dir="ltr" className="font-extrabold tabular-nums text-[color:var(--nb-ink)]">{filtered.length}</span> {t('results')}
+              <div className="mb-5 flex items-center justify-between gap-3">
+                <p role="status" className="nb-muted text-sm">
+                  <span dir="ltr" className="font-bold tabular-nums text-[color:var(--nb-ink)]">{filtered.length}</span> {t('results')}
                 </p>
                 {hasFilters && (
-                  <button type="button" onClick={clearAll} className="nb-ic nb-focus rounded text-sm font-bold underline underline-offset-4 transition-opacity hover:opacity-80">{t('clearAll')}</button>
+                  <button type="button" onClick={clearAll} className="nb-ic nb-focus rounded-md text-sm font-bold underline decoration-2 underline-offset-4 transition-opacity hover:opacity-80">{t('clearAll')}</button>
                 )}
               </div>
             )}
 
-            <div className={`transition-opacity duration-200 ${isPending ? 'opacity-60' : ''}`}>
+            <div className={`transition-opacity duration-200 motion-reduce:transition-none ${isPending ? 'opacity-60' : ''}`}>
               {loading ? (
                 <Skeletons label={t('loading')} />
               ) : showError ? (
@@ -1131,17 +1182,15 @@ const OffersContent = memo(({ darkMode }) => {
         </div>
 
         {showLatest && (
-          <section className="mt-14 [content-visibility:auto] [contain-intrinsic-size:auto_480px]" aria-label={t('newArrivals')}>
-            <header className="mb-5">
-              <p className="flex items-center gap-2 text-xs font-extrabold tracking-wide rtl:tracking-normal">
-                <span className="nb-bar" aria-hidden="true" />{t('newArrivalsHint')}
-              </p>
-              <h2 className="mt-3 text-2xl font-extrabold leading-tight sm:text-3xl"><AccentTitle text={t('newArrivals')} /></h2>
+          <section className="-mx-2 mt-16 px-2 pb-2" aria-label={t('newArrivals')}>
+            <header className="mb-6">
+              <p className="nb-muted text-xs font-semibold">{t('newArrivalsHint')}</p>
+              <h2 className="mt-2 text-2xl font-bold leading-tight tracking-tight sm:text-3xl"><span className="nb-hl">{t('newArrivals')}</span></h2>
             </header>
             {latest.length === 0 ? <LatestSkeleton /> : (
-              <div className="nb-in grid grid-cols-2 gap-4 lg:grid-cols-4">
-                {latest.map((p) => (
-                  <ProductCard key={p.id} product={p} darkMode={darkMode} language={language} t={t} />
+              <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
+                {latest.map((p, i) => (
+                  <ProductCard key={p.id} product={p} index={i} darkMode={darkMode} language={language} t={t} />
                 ))}
               </div>
             )}

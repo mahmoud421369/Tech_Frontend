@@ -6,9 +6,15 @@ import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider
 import {
   FiTool, FiInfo, FiX, FiMail, FiPhone, FiCalendar, FiMapPin, FiCheck, FiCheckCircle, FiFileText,
   FiTag, FiXCircle, FiPackage, FiTruck, FiSlash, FiShield, FiChevronLeft, FiChevronRight, FiArrowRight,
-  FiRefreshCw, FiSmartphone,
+  FiRefreshCw, FiSmartphone, FiLock,
 } from 'react-icons/fi';
 import { RiStoreLine, RiStarFill, RiVerifiedBadgeLine } from 'react-icons/ri';
+import '@fontsource/poppins/latin-400.css';
+import '@fontsource/poppins/latin-600.css';
+import '@fontsource/poppins/latin-700.css';
+import poppins400 from '@fontsource/poppins/files/poppins-latin-400-normal.woff2';
+import poppins600 from '@fontsource/poppins/files/poppins-latin-600-normal.woff2';
+import poppins700 from '@fontsource/poppins/files/poppins-latin-700-normal.woff2';
 import api from '../common/api/api';
 import { useModalLock, clean, kindOfCategory } from '../components/user/ListingKit';
 import { EXTRAS_CSS, Toaster, toast } from '../components/user/UiExtras';
@@ -19,6 +25,19 @@ import enTranslations from '../locales/en/translation.json';
 import arTranslations from '../locales/ar/translation.json';
 import frTranslations from '../locales/fr/translation.json';
 import { useAppLanguage, languageDirection } from '../common/utils/useAppLanguage';
+
+if (typeof document !== 'undefined') {
+  [poppins400, poppins600, poppins700].forEach((href) => {
+    if (!href || document.head.querySelector(`link[rel="preload"][href="${href}"]`)) return;
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'font';
+    link.type = 'font/woff2';
+    link.crossOrigin = 'anonymous';
+    link.href = href;
+    document.head.appendChild(link);
+  });
+}
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { refetchOnWindowFocus: false, retry: false, gcTime: 10 * 60 * 1000 } },
@@ -46,6 +65,9 @@ const LOCAL_TEXT = {
     s1: 'Screen cracked', s2: 'Battery issue', s3: 'Not charging', s4: 'Overheating', s5: 'Software crash', s6: 'Water damage',
     pageTitle: 'Book a repair',
     pageSub: 'Trusted repair shops, clear prices, and live tracking from pickup to delivery.',
+    trustShops: 'Verified repair shops', trustPickup: 'Pickup & delivery', trustQuote: 'Clear price quotes', trustTrack: 'Live tracking',
+    summaryNote: 'You approve the price before any repair starts.',
+    pickShop: 'Select shop',
   },
   ar: {
     crumbHome: 'الرئيسية', crumbRepair: 'إصلاح', breadcrumb: 'مسار التنقل', progress: 'التقدم',
@@ -62,6 +84,10 @@ const LOCAL_TEXT = {
     s1: 'الشاشة مكسورة', s2: 'مشكلة في البطارية', s3: 'لا يشحن', s4: 'ارتفاع الحرارة', s5: 'تعطل البرنامج', s6: 'تلف بالماء',
     pageTitle: 'احجز إصلاحًا',
     pageSub: 'متاجر صيانة موثوقة، أسعار واضحة، وتتبّع مباشر من الاستلام حتى التسليم.',
+    trustShops: 'متاجر صيانة موثّقة', trustPickup: 'استلام وتوصيل', trustQuote: 'أسعار واضحة', trustTrack: 'تتبّع مباشر',
+    summaryNote: 'توافق على السعر قبل بدء أي إصلاح.',
+    pickShop: 'اختر المتجر',
+    scrollProgress: 'تقدم الصفحة',
   },
   fr: {
     crumbHome: 'Accueil', crumbRepair: 'Réparation', breadcrumb: "Fil d'Ariane", progress: 'Progression',
@@ -78,8 +104,14 @@ const LOCAL_TEXT = {
     s1: 'Écran cassé', s2: 'Problème de batterie', s3: 'Ne charge pas', s4: 'Surchauffe', s5: 'Plantage logiciel', s6: 'Dégât des eaux',
     pageTitle: 'Réserver une réparation',
     pageSub: 'Ateliers de confiance, prix clairs et suivi en direct de la collecte à la livraison.',
+    trustShops: 'Ateliers vérifiés', trustPickup: 'Collecte et livraison', trustQuote: 'Prix clairs', trustTrack: 'Suivi en direct',
+    summaryNote: 'Vous validez le prix avant toute réparation.',
+    pickShop: 'Choisir',
+    scrollProgress: 'Progression de la page',
   },
 };
+
+LOCAL_TEXT.en.scrollProgress = 'Page progress';
 
 const tr = (language, key) =>
   REPAIR_TRANSLATIONS[language]?.[key] ||
@@ -89,81 +121,93 @@ const tr = (language, key) =>
   key;
 
 const NB_CSS = `
-.nb{--nb-bg:#f3f6f4;--nb-card:#ffffff;--nb-ink:#04261a;--nb-muted:#5b7468;--nb-line:#e3e9e6;--nb-line2:#cfdad4;--nb-shadow:rgba(4,38,26,.1);--nb-gray:#eef3f0;--nb-accent:#059669;--nb-btn:#047857;--nb-on:#ffffff;--nb-glow:rgba(16,185,129,.12);--nb-ring:rgba(16,185,129,.5);--nb-scrim:rgba(4,38,26,.55);background-color:var(--nb-bg);background-image:radial-gradient(52rem 22rem at 90% -6rem,var(--nb-glow),transparent 68%),radial-gradient(40rem 20rem at -8% 28rem,var(--nb-glow),transparent 70%);background-repeat:no-repeat;color:var(--nb-ink);color-scheme:light;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
-.nb-dark{--nb-bg:#06261b;--nb-card:#0b3427;--nb-ink:#ecfdf5;--nb-muted:#8fb8a6;--nb-line:rgba(167,243,208,.14);--nb-line2:rgba(167,243,208,.26);--nb-shadow:rgba(2,20,14,.45);--nb-gray:#104534;--nb-accent:#34d399;--nb-btn:#10b981;--nb-on:#022c22;--nb-glow:rgba(52,211,153,.09);--nb-ring:rgba(52,211,153,.55);--nb-scrim:rgba(3,30,21,.72);color-scheme:dark}
+@font-face{font-family:'Poppins Fallback';src:local('Arial'),local('Helvetica');size-adjust:112.6%;ascent-override:93.4%;descent-override:35.2%;line-gap-override:7.4%}
+.nb{--dx:1;--nb-bg:#ffffff;--nb-card:#ffffff;--nb-ink:#052e1e;--nb-muted:rgba(5,46,30,.68);--nb-line:#e5e7eb;--nb-bd:#000000;--nb-sd:#000000;--nb-gray:#f3f4f6;--nb-media:#f3f4f6;--nb-accent:#059669;--nb-btn:#39ff88;--nb-btn2:#7dffb0;--nb-on:#022c22;--nb-ring:#059669;--nb-scrim:rgba(0,0,0,.6);--nb-warn:#c2410c;
+--nb-sh2:calc(var(--dx)*2px) 2px 0 0 var(--nb-sd);--nb-sh3:calc(var(--dx)*3px) 3px 0 0 var(--nb-sd);--nb-sh4:calc(var(--dx)*4px) 4px 0 0 var(--nb-sd);--nb-sh6:calc(var(--dx)*6px) 6px 0 0 var(--nb-sd);--nb-sh8:calc(var(--dx)*8px) 8px 0 0 var(--nb-sd);
+background:var(--nb-bg);color:var(--nb-ink);color-scheme:light;font-family:'Poppins','Poppins Fallback',ui-sans-serif,system-ui,-apple-system,'Segoe UI','Cairo',sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.nb[dir=rtl]{--dx:-1}
+.nb-dark{--nb-bg:#121212;--nb-card:#1c1c1e;--nb-ink:#ffffff;--nb-muted:rgba(255,255,255,.66);--nb-line:rgba(255,255,255,.16);--nb-bd:rgba(255,255,255,.16);--nb-sd:#0b4a35;--nb-gray:#2a2a2e;--nb-media:#2a2a2e;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-btn2:#7dffb0;--nb-on:#022c22;--nb-ring:#39ff88;--nb-scrim:rgba(0,0,0,.72);--nb-warn:#fdba74;color-scheme:dark}
+.nb[lang=ar]{font-family:'Cairo','Poppins',ui-sans-serif,system-ui,sans-serif}
 .nb[lang=ar] *{letter-spacing:0!important}
 .nb button,.nb input,.nb textarea{font-family:inherit}
 .nb-gray{background:var(--nb-gray)}
+.nb-media{background:var(--nb-media)}
 .nb-muted{color:var(--nb-muted)}
 .nb-ic{color:var(--nb-accent)}
 .nb-line{border-color:var(--nb-line)}
-.nb-card{background:var(--nb-card);border:1px solid var(--nb-line);border-radius:1.25rem;box-shadow:0 1px 2px var(--nb-shadow);transition:transform .25s cubic-bezier(.2,.8,.2,1),box-shadow .25s ease,border-color .25s ease}
-@media (hover:hover){.nb-lift:hover{transform:translate3d(0,-3px,0);box-shadow:0 16px 32px -16px var(--nb-shadow);border-color:var(--nb-accent)}}
-.nb-pick,.nb-pick:hover{border-color:var(--nb-btn);box-shadow:0 0 0 2px var(--nb-btn),0 14px 28px -16px var(--nb-shadow)}
-.nb-bar{display:inline-block;width:28px;height:6px;border-radius:999px;background:linear-gradient(90deg,var(--nb-accent),#059669)}
-.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--nb-card);color:var(--nb-ink);border:1px solid var(--nb-line2);border-radius:999px;font-weight:700;cursor:pointer;transition:transform .18s cubic-bezier(.2,.8,.2,1),background-color .18s ease,border-color .18s ease,filter .18s ease,box-shadow .18s ease,opacity .18s ease}
-.nb-btn:not(.nb-btn-a):not(.nb-btn-on):hover:not(:disabled){background:var(--nb-gray);border-color:var(--nb-accent)}
-@media (hover:hover){.nb-btn:hover:not(:disabled){transform:translate3d(0,-1px,0)}}
-.nb-btn:active:not(:disabled){transform:scale(.97)}
+.nb-bd{border-color:var(--nb-bd)}
+.nb-card{background:var(--nb-card);border:3px solid var(--nb-bd);border-radius:1rem;box-shadow:var(--nb-sh4);transition:transform .15s ease,box-shadow .15s ease}
+.nb-big{box-shadow:var(--nb-sh8)}
+@media (hover:hover){.nb-lift:hover{transform:translate3d(0,-2px,0);box-shadow:var(--nb-sh6)}}
+.nb-pick,.nb-pick:hover{box-shadow:var(--nb-sh6);outline:3px solid var(--nb-ring);outline-offset:2px}
+.nb-chip{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid var(--nb-bd);border-radius:.625rem;background:var(--nb-btn);color:var(--nb-on);box-shadow:var(--nb-sh2)}
+.nb-chip-bad{background:#fb7185;color:#000}
+.nb-tag{display:inline-flex;align-items:center;gap:6px;border:2px solid var(--nb-bd);border-radius:.625rem;background:var(--nb-card);box-shadow:var(--nb-sh2)}
+.nb-rate{display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border:2px solid var(--nb-bd);border-radius:999px;background:#fcd34d;color:#000;font-size:11px;font-weight:700}
+.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-bd);border-radius:.75rem;box-shadow:var(--nb-sh3);font-weight:700;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease,background-color .15s ease,color .15s ease}
+@media (hover:hover){.nb-btn:hover:not(:disabled){background:var(--nb-btn);color:var(--nb-on);box-shadow:var(--nb-sh4);transform:translate3d(0,-1px,0)}}
+.nb-btn:active:not(:disabled){transform:translate3d(0,2px,0);box-shadow:none}
 .nb-btn:disabled{opacity:.45;cursor:not-allowed}
-.nb-btn-a,.nb-btn-on{position:relative;overflow:hidden;isolation:isolate;background:linear-gradient(135deg,#10b981 0%,#059669 50%,#047857 100%);color:#ffffff;border-color:transparent;box-shadow:0 12px 24px -12px rgba(4,120,87,.85),inset 0 1px 0 rgba(255,255,255,.28)}
-.nb-btn-a::after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.34) 50%,transparent 70%);transform:translate3d(-130%,0,0);transition:transform .7s cubic-bezier(.2,.8,.2,1)}
-.nb-btn-a:hover:not(:disabled)::after{transform:translate3d(130%,0,0)}
-.nb-btn-a:hover:not(:disabled),.nb-btn-on:hover:not(:disabled){filter:brightness(1.07);border-color:transparent;box-shadow:0 16px 28px -12px rgba(4,120,87,.95),inset 0 1px 0 rgba(255,255,255,.32)}
+.nb-btn-a,.nb-btn-on{background:var(--nb-btn);color:var(--nb-on);border-width:3px;box-shadow:var(--nb-sh4)}
+@media (hover:hover){.nb-btn-a:hover:not(:disabled),.nb-btn-on:hover:not(:disabled){background:var(--nb-btn2)}}
 .nb-btn:focus-visible,.nb-focus:focus-visible{outline:3px solid var(--nb-ring);outline-offset:2px}
-.nb-field{background:var(--nb-card);color:var(--nb-ink);border:1px solid var(--nb-line2);border-radius:1.25rem;transition:box-shadow .18s ease,border-color .18s ease}
-.nb-field:hover{border-color:var(--nb-accent)}
-.nb-field:focus-within{border-color:var(--nb-accent);box-shadow:0 0 0 3px var(--nb-ring)}
+.nb-field{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-bd);border-radius:.875rem;box-shadow:var(--nb-sh3);transition:box-shadow .15s ease}
+@media (hover:hover){.nb-field:hover{box-shadow:var(--nb-sh4)}}
+.nb-field:focus-within{outline:3px solid var(--nb-ring);outline-offset:2px}
+.nb-field textarea::placeholder{color:var(--nb-muted)}
 .nb-flip{display:inline-block}
 .nb[dir=rtl] .nb-flip{transform:scaleX(-1)}
-.nb-dot{background:var(--nb-card);color:var(--nb-ink);border:1px dashed var(--nb-line2);border-radius:1.5rem}
-.nb-sk{background:linear-gradient(90deg,var(--nb-gray) 25%,color-mix(in srgb,var(--nb-gray) 45%,var(--nb-card)) 50%,var(--nb-gray) 75%);background-size:220% 100%;border-radius:.75rem;animation:nbShimmer 1.5s linear infinite}
-@keyframes nbShimmer{from{background-position:120% 0}to{background-position:-120% 0}}
+.nb-dot{background:var(--nb-card);color:var(--nb-ink);border:3px dashed var(--nb-bd);border-radius:1rem}
+.nb-opt{transition:background-color .15s ease,color .15s ease}
+.nb-st{position:relative}
+.nb-st::before{content:'';position:absolute;top:calc(1.125rem - 1.5px);inset-inline-start:calc(-50% + 1.5rem);inset-inline-end:calc(50% + 1.5rem);height:3px;border-radius:2px;background:var(--nb-line)}
+.nb-st:first-child::before{display:none}
+.nb-st[data-done=true]::before{background:var(--nb-btn)}
+.nb-sk{position:relative;overflow:hidden;border-radius:.5rem;background:color-mix(in srgb,var(--nb-ink) 10%,transparent)}
+.nb-sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--nb-card) 70%,transparent),transparent);animation:nbShimmer 1.3s ease-in-out infinite}
+.nb[dir=rtl] .nb-sk::after{animation-direction:reverse}
+@keyframes nbShimmer{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
 @keyframes nbIn{from{opacity:0;transform:translate3d(0,10px,0)}to{opacity:1;transform:none}}
-.nb-in{animation:nbIn .3s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*40ms)}
-@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn,.nb-btn-a::after,.nb-field{transition:none}.nb-lift:hover,.nb-btn:hover:not(:disabled){transform:none}.nb-in,.nb-sk{animation:none!important}}
+.nb-in{animation:nbIn .25s cubic-bezier(.2,.8,.2,1) both}
+@keyframes nbRise{from{opacity:0;transform:translate3d(0,16px,0)}to{opacity:1;transform:none}}
+.nb-rise{animation:nbRise .5s cubic-bezier(.16,.84,.24,1) both;animation-delay:calc(var(--d,0)*70ms)}
+@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn,.nb-field,.nb-opt{transition:none}.nb-lift:hover,.nb-btn:hover:not(:disabled){transform:none}.nb-in,.nb-rise{animation:none!important}.nb-sk::after{animation:none}}
 `;
 
 const PAGE_CSS = `
   ${EXTRAS_CSS}
-  @keyframes hpRise { from { opacity: 0; transform: translate3d(0, 16px, 0); } to { opacity: 1; transform: none; } }
-  .hp-rise { animation: hpRise .5s cubic-bezier(.16,.84,.24,1) both; animation-delay: calc(var(--i, 0) * 60ms); }
-  @keyframes hpStep { from { opacity: 0; transform: translate3d(calc(var(--dx, 1) * var(--dir, 1) * 18px), 0, 0); } to { opacity: 1; transform: none; } }
-  .hp-step { animation: hpStep .3s cubic-bezier(.2,.8,.2,1) both; }
   @keyframes hpFade { from { opacity: 0; } to { opacity: 1; } }
   @keyframes hpFadeOut { from { opacity: 1; } to { opacity: 0; } }
   .hp-fade { animation: hpFade .18s ease-out both; }
   .hp-fade-out { animation: hpFadeOut .18s ease-in both; }
-  @keyframes hpModal { from { opacity: 0; transform: translate3d(0, 24px, 0) scale(.98); } to { opacity: 1; transform: none; } }
-  @keyframes hpModalOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translate3d(0, 24px, 0) scale(.98); } }
+  @keyframes hpModal { from { opacity: 0; transform: translate3d(0, 24px, 0); } to { opacity: 1; transform: none; } }
+  @keyframes hpModalOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translate3d(0, 24px, 0); } }
   .hp-modal { animation: hpModal .24s cubic-bezier(.2,.8,.2,1) both; }
   .hp-modal-out { animation: hpModalOut .18s ease-in both; }
-  @keyframes hpPop { 0% { transform: scale(.5); opacity: 0; } 60% { transform: scale(1.12); opacity: 1; } 100% { transform: scale(1); } }
-  .hp-pop { animation: hpPop .4s cubic-bezier(.2,.9,.3,1.3) both; animation-delay: .1s; }
+  @media (prefers-reduced-motion: no-preference) { html:has(.nb) { scroll-behavior: smooth; } }
   @media (prefers-reduced-motion: reduce) {
-    .hp-rise, .hp-step, .hp-fade, .hp-fade-out, .hp-modal, .hp-modal-out, .hp-pop { animation: none; }
+    .hp-fade, .hp-fade-out, .hp-modal, .hp-modal-out { animation: none; }
   }
   ${NB_CSS}
 `;
-if (typeof document !== 'undefined' && !document.querySelector('style[data-repair-styles]')) {
-  const tag = document.createElement('style');
-  tag.setAttribute('data-repair-styles', 'true');
-  tag.textContent = PAGE_CSS;
-  document.head.appendChild(tag);
+if (typeof document !== 'undefined') {
+  let tag = document.querySelector('style[data-repair-styles]');
+  if (!tag) {
+    tag = document.createElement('style');
+    tag.setAttribute('data-repair-styles', 'true');
+    document.head.appendChild(tag);
+  }
+  if (tag.textContent !== PAGE_CSS) tag.textContent = PAGE_CSS;
 }
 
-const LAZY_SECTION = '[content-visibility:auto] [contain-intrinsic-size:auto_760px]';
+const LAZY_SECTION = '[content-visibility:auto] [contain-intrinsic-size:auto_420px]';
 const REDUCED_Q = '(prefers-reduced-motion: reduce)';
 const LEAVE_MS = 180;
 const ID_RE = /^[\w-]{1,64}$/;
+const RISE = Array.from({ length: 4 }, (_, i) => ({ '--d': i }));
 
-const TILE_TONES = {
-  em: 'bg-emerald-500 text-white', sky: 'bg-sky-500 text-white', vi: 'bg-violet-500 text-white',
-  am: 'bg-amber-400 text-emerald-950', ro: 'bg-rose-500 text-white', te: 'bg-teal-500 text-white',
-};
-
-const IconTile = memo(({ Icon, tone = 'em', className = 'h-9 w-9', iconClassName = 'h-4 w-4' }) => (
-  <span aria-hidden="true" className={`flex flex-shrink-0 items-center justify-center rounded-full ${TILE_TONES[tone] || TILE_TONES.em} ${className}`}>
+const IconTile = memo(({ Icon, className = 'h-9 w-9', iconClassName = 'h-4 w-4', bad = false }) => (
+  <span aria-hidden="true" className={`nb-chip ${bad ? 'nb-chip-bad' : ''} ${className}`}>
     <Icon className={iconClassName} />
   </span>
 ));
@@ -173,6 +217,29 @@ const btnCls = (primary) => `${BTN_BASE} ${primary ? 'nb-btn-a' : ''}`;
 const SMALL_BTN = '!min-h-9 !px-3 !py-1 !text-xs';
 
 const prefersReduced = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(REDUCED_Q).matches;
+
+const useScrollProgress = (barRef) => {
+  useEffect(() => {
+    const bar = barRef.current;
+    if (!bar || prefersReduced()) return undefined;
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const el = document.documentElement;
+      const limit = el.scrollHeight - el.clientHeight;
+      bar.style.transform = `scaleX(${limit > 0 ? Math.min(1, Math.max(0, window.scrollY / limit)) : 0})`;
+    };
+    const schedule = () => { if (!raf) raf = requestAnimationFrame(update); };
+    update();
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [barRef]);
+};
 
 const useLeave = (onClose) => {
   const [leaving, setLeaving] = useState(false);
@@ -215,33 +282,6 @@ const useIdleFlag = (active) => {
   return on;
 };
 
-const AccentTitle = memo(({ text }) => {
-  const s = String(text || '');
-  const i = s.lastIndexOf(' ');
-  const head = i > 0 ? s.slice(0, i + 1) : '';
-  const tail = i > 0 ? s.slice(i + 1) : s;
-  return (
-    <>
-      {head}
-      <span className="nb-ic">{tail}</span>
-    </>
-  );
-});
-
-const SectionHead = memo(({ eyebrow, title, subtitle, level: H = 'h2' }) => (
-  <header className="min-w-0 max-w-2xl">
-    {eyebrow && (
-      <p className="flex items-center gap-2 text-xs font-extrabold tracking-wide rtl:tracking-normal">
-        <span className="nb-bar" aria-hidden="true" />{eyebrow}
-      </p>
-    )}
-    <H className="mt-3 text-3xl font-extrabold leading-[1.2] tracking-[-0.02em] [text-wrap:balance] rtl:tracking-normal sm:text-4xl">
-      <AccentTitle text={title} />
-    </H>
-    {subtitle && <p className="nb-muted mt-2 text-base font-medium sm:text-lg">{subtitle}</p>}
-  </header>
-));
-
 const useScrollTopOnEnter = () => {
   const navType = useNavigationType();
   useLayoutEffect(() => {
@@ -249,6 +289,22 @@ const useScrollTopOnEnter = () => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [navType]);
 };
+
+const useBodyScrollLock = (locked) => {
+  useEffect(() => {
+    if (!locked) return undefined;
+    const prev = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
+    return () => { document.documentElement.style.overflow = prev; };
+  }, [locked]);
+};
+
+const SectionHead = memo(({ title, subtitle, level: H = 'h2', big = false }) => (
+  <header className="min-w-0 max-w-2xl">
+    <H className={`font-bold leading-snug [text-wrap:balance] ${big ? 'text-2xl sm:text-3xl' : 'text-base sm:text-lg'}`}>{title}</H>
+    {subtitle && <p className="nb-muted mt-2 text-sm leading-relaxed">{subtitle}</p>}
+  </header>
+));
 
 const LOCALES = { en: 'en-GB', ar: 'ar-EG', fr: 'fr-FR' };
 const dateFmtCache = {};
@@ -258,14 +314,6 @@ const formatDate = (iso, language) => {
   const loc = LOCALES[language] || 'en-GB';
   dateFmtCache[loc] ||= new Intl.DateTimeFormat(loc, { day: 'numeric', month: 'short', year: 'numeric' });
   return dateFmtCache[loc].format(d);
-};
-
-const NUMBER_LOCALE = { en: 'en', fr: 'fr', ar: 'ar-EG' };
-const padFormats = {};
-const pad2 = (language, n) => {
-  const locale = NUMBER_LOCALE[language] || 'en';
-  const fmt = (padFormats[locale] ||= new Intl.NumberFormat(locale, { minimumIntegerDigits: 2, useGrouping: false }));
-  return fmt.format(n);
 };
 
 const telHref = (phone) => {
@@ -282,9 +330,15 @@ const CATEGORY_PAGE_SIZE = 6;
 const SHOP_PAGE_SIZE = 4;
 const SUGGESTION_KEYS = ['s1', 's2', 's3', 's4', 's5', 's6'];
 const EMPTY_LIST = [];
-const STAGGER = Array.from({ length: 12 }, (_, i) => ({ '--i': i }));
 const SK_CATEGORIES = [0, 1, 2, 3, 4, 5];
 const SK_SHOPS = [0, 1, 2, 3];
+
+const TRUST_ITEMS = [
+  { key: 'trustShops', Icon: FiShield },
+  { key: 'trustPickup', Icon: FiTruck },
+  { key: 'trustQuote', Icon: FiTag },
+  { key: 'trustTrack', Icon: FiMapPin },
+];
 
 const STEP_DEFS = [
   { labelKey: 'describe', hintKey: 'describeHint' },
@@ -294,30 +348,31 @@ const STEP_DEFS = [
 ];
 
 const STEP_HEAD = [
-  { title: 'describeProblem', subtitle: 'specificHelp', infoTitle: 'detailsTitle', infoBody: 'detailsBody', icon: FiFileText, tone: 'am' },
-  { title: 'deviceType', subtitle: 'categorySubtitle', infoTitle: 'categoryTitle', infoBody: 'categoryBody', icon: FiSmartphone, tone: 'sky' },
-  { title: 'chooseShopTitle', subtitle: 'chooseShopSubtitle', infoTitle: 'shopTitle', infoBody: 'shopBody', icon: RiStoreLine, tone: 'vi' },
-  { title: 'doneTitle', subtitle: 'doneBody', infoTitle: 'doneTitle', infoBody: 'doneBody', icon: FiCheckCircle, tone: 'em' },
+  { title: 'describeProblem', subtitle: 'specificHelp', infoTitle: 'detailsTitle', infoBody: 'detailsBody', icon: FiFileText },
+  { title: 'deviceType', subtitle: 'categorySubtitle', infoTitle: 'categoryTitle', infoBody: 'categoryBody', icon: FiSmartphone },
+  { title: 'chooseShopTitle', subtitle: 'chooseShopSubtitle', infoTitle: 'shopTitle', infoBody: 'shopBody', icon: RiStoreLine },
+  { title: 'doneTitle', subtitle: 'doneBody', infoTitle: 'doneTitle', infoBody: 'doneBody', icon: FiCheckCircle },
 ];
 
 const INFO_SCENES = ['repairCard', 'devices', 'shop', 'track'];
 
 const STATUS_JOURNEY = [
-  { key: 'SUBMITTED', labelKey: 'submitted', descKey: 'submittedDesc', Icon: FiFileText, tone: 'sky' },
-  { key: 'QUOTE_SENT', labelKey: 'setPrice', descKey: 'setPriceDesc', Icon: FiTag, tone: 'vi' },
-  { key: 'QUOTE_APPROVED', labelKey: 'priceAccepted', descKey: 'priceAcceptedDesc', Icon: FiCheckCircle, tone: 'te' },
-  { key: 'QUOTE_REJECTED', labelKey: 'priceRejected', descKey: 'priceRejectedDesc', Icon: FiXCircle, tone: 'ro', danger: true },
-  { key: 'DEVICE_COLLECTED', labelKey: 'devicePickedUp', descKey: 'devicePickedUpDesc', Icon: FiPackage, tone: 'am' },
-  { key: 'REPAIRING', labelKey: 'repairing', descKey: 'repairingDesc', Icon: FiTool, tone: 'vi' },
-  { key: 'REPAIR_COMPLETED', labelKey: 'repairCompleted', descKey: 'repairCompletedDesc', Icon: FiShield, tone: 'te' },
-  { key: 'DEVICE_DELIVERED', labelKey: 'deviceDelivered', descKey: 'deviceDeliveredDesc', Icon: FiTruck, tone: 'em' },
-  { key: 'CANCELLED', labelKey: 'cancelled', descKey: 'cancelledDesc', Icon: FiSlash, tone: 'ro', danger: true },
+  { key: 'SUBMITTED', labelKey: 'submitted', descKey: 'submittedDesc', Icon: FiFileText },
+  { key: 'QUOTE_SENT', labelKey: 'setPrice', descKey: 'setPriceDesc', Icon: FiTag },
+  { key: 'QUOTE_APPROVED', labelKey: 'priceAccepted', descKey: 'priceAcceptedDesc', Icon: FiCheckCircle },
+  { key: 'QUOTE_REJECTED', labelKey: 'priceRejected', descKey: 'priceRejectedDesc', Icon: FiXCircle, danger: true },
+  { key: 'DEVICE_COLLECTED', labelKey: 'devicePickedUp', descKey: 'devicePickedUpDesc', Icon: FiPackage },
+  { key: 'REPAIRING', labelKey: 'repairing', descKey: 'repairingDesc', Icon: FiTool },
+  { key: 'REPAIR_COMPLETED', labelKey: 'repairCompleted', descKey: 'repairCompletedDesc', Icon: FiShield },
+  { key: 'DEVICE_DELIVERED', labelKey: 'deviceDelivered', descKey: 'deviceDeliveredDesc', Icon: FiTruck },
+  { key: 'CANCELLED', labelKey: 'cancelled', descKey: 'cancelledDesc', Icon: FiSlash, danger: true },
 ];
 
 const toList = (res) => {
   const raw = res?.data?.content || res?.data || [];
   return Array.isArray(raw) ? raw : [];
 };
+const validId = (x) => x && x.id != null && ID_RE.test(String(x.id));
 const normalizeCategory = (c) => ({ id: String(c.id), name: clean(String(c.name ?? ''), 80) });
 const normalizeShop = (s) => ({
   id: String(s.id),
@@ -342,11 +397,22 @@ const shopAddressLine = (shop, withState) => {
 };
 
 const Crumbs = memo(({ t }) => (
-  <nav aria-label={t('breadcrumb')} className="nb-muted flex flex-wrap items-center gap-2 text-sm font-medium">
-    <Link to="/" className="nb-focus rounded transition-colors hover:text-[color:var(--nb-ink)] hover:underline">{t('crumbHome')}</Link>
+  <nav aria-label={t('breadcrumb')} className="nb-muted flex flex-wrap items-center gap-2 text-sm font-semibold">
+    <Link to="/" className="nb-focus rounded-md transition-colors hover:text-[color:var(--nb-ink)] hover:underline hover:decoration-2 hover:underline-offset-4">{t('crumbHome')}</Link>
     <FiChevronRight aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 rtl:rotate-180" />
     <span aria-current="page" className="text-[color:var(--nb-ink)]">{t('crumbRepair')}</span>
   </nav>
+));
+
+const TrustBar = memo(({ t }) => (
+  <ul className="flex flex-wrap gap-3 text-xs font-bold">
+    {TRUST_ITEMS.map(({ key, Icon }) => (
+      <li key={key} className="nb-tag px-3 py-1.5">
+        <Icon aria-hidden="true" className="nb-ic h-4 w-4 flex-shrink-0" />
+        <span>{t(key)}</span>
+      </li>
+    ))}
+  </ul>
 ));
 
 const Sk = ({ className = '' }) => <div aria-hidden="true" className={`nb-sk ${className}`} />;
@@ -359,9 +425,9 @@ const VerifiedMark = memo(({ label }) => (
 ));
 
 const Meter = memo(({ pct }) => (
-  <div className="nb-gray h-2 overflow-hidden rounded-full" aria-hidden="true">
+  <div className="nb-bd h-3 overflow-hidden rounded-full border-2 bg-[color:var(--nb-card)]" aria-hidden="true">
     <div
-      className="h-full w-full origin-left rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-transform duration-500 ease-out rtl:origin-right rtl:bg-gradient-to-l motion-reduce:transition-none"
+      className="h-full w-full origin-left bg-[color:var(--nb-btn)] transition-transform duration-300 ease-out rtl:origin-right motion-reduce:transition-none"
       style={{ transform: `scaleX(${pct / 100})` }}
     />
   </div>
@@ -370,31 +436,33 @@ const Meter = memo(({ pct }) => (
 const ProgressSteps = memo(({ step, t }) => {
   const total = STEP_DEFS.length;
   return (
-    <div className="nb-card p-4 sm:p-5">
+    <div className="nb-card px-4 py-5 sm:px-6">
       <p className="sr-only">{t('step')} {step} {t('of')} {total}</p>
-      <ol aria-label={t('progress')} className="grid grid-cols-4 gap-2">
+      <ol aria-label={t('progress')} className="grid grid-cols-4">
         {STEP_DEFS.map(({ labelKey, hintKey }, i) => {
           const n = i + 1;
           const reached = step >= n;
           const active = step === n;
           return (
-            <li key={labelKey} aria-current={active ? 'step' : undefined} className="flex min-w-0 flex-col items-center gap-2 text-center">
+            <li key={labelKey} data-done={reached} aria-current={active ? 'step' : undefined} className="nb-st flex min-w-0 flex-col items-center gap-2 text-center">
               <span
-                className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-extrabold tabular-nums transition-[background-color,box-shadow,transform] duration-300 motion-reduce:transition-none ${
-                  reached ? 'bg-[color:var(--nb-btn)] text-[color:var(--nb-on)]' : 'nb-gray'
-                } ${active ? 'scale-110 ring-4 ring-emerald-500/25' : ''}`}
+                className={`relative z-[1] flex h-9 w-9 items-center justify-center rounded-full border-2 text-sm font-bold tabular-nums transition-colors duration-200 motion-reduce:transition-none nb-bd ${
+                  reached
+                    ? 'bg-[color:var(--nb-btn)] text-[color:var(--nb-on)] shadow-[var(--nb-sh2)]'
+                    : 'bg-[color:var(--nb-card)] nb-muted'
+                } ${active ? 'outline outline-[3px] outline-offset-2 outline-[color:var(--nb-ring)]' : ''}`}
               >
-                {step > n ? <FiCheck aria-hidden="true" className="h-5 w-5" strokeWidth={3} /> : <span dir="ltr">{pad2('en', n)}</span>}
+                {step > n ? <FiCheck aria-hidden="true" className="h-4 w-4" strokeWidth={4} /> : <span dir="ltr">{n}</span>}
               </span>
               <div className="min-w-0 max-w-full px-0.5">
-                <p className={`truncate text-[11px] font-extrabold transition-colors duration-300 sm:text-xs ${reached ? '' : 'nb-muted'}`}>{t(labelKey)}</p>
-                <p className="nb-muted mt-0.5 hidden truncate text-[11px] font-medium sm:block">{t(hintKey)}</p>
+                <p className={`truncate text-xs font-bold ${reached ? '' : 'nb-muted'}`}>{t(labelKey)}</p>
+                <p className="nb-muted mt-0.5 hidden truncate text-[11px] sm:block">{t(hintKey)}</p>
               </div>
             </li>
           );
         })}
       </ol>
-      <div className="mt-4">
+      <div className="mt-4 sm:hidden">
         <Meter pct={(step / total) * 100} />
       </div>
     </div>
@@ -402,7 +470,7 @@ const ProgressSteps = memo(({ step, t }) => {
 });
 
 const NavButtons = memo(({ onBack, onNext, nextLabel, nextDisabled, isLoading, showBack = true, t }) => (
-  <div className={`nb-line mt-8 flex flex-wrap gap-3 border-t pt-5 ${showBack ? 'justify-between' : 'justify-end'}`}>
+  <div className={`nb-line mt-8 flex flex-wrap gap-3 border-t-2 pt-5 ${showBack ? 'justify-between' : 'justify-end'}`}>
     {showBack && (
       <button type="button" className={btnCls(false)} onClick={onBack} disabled={isLoading}>
         <FiChevronLeft aria-hidden="true" className="h-4 w-4 rtl:rotate-180" />{t('back')}
@@ -418,39 +486,39 @@ const NavButtons = memo(({ onBack, onNext, nextLabel, nextDisabled, isLoading, s
 
 const CategorySkeleton = memo(() => (
   <div className="nb-card flex flex-col items-center gap-2.5 p-3 sm:p-4">
-    <Sk className="h-[4.5rem] w-full !rounded-xl sm:h-20" />
+    <Sk className="h-16 w-full sm:h-20" />
     <Sk className="h-4 w-2/3" />
   </div>
 ));
 
 const ShopSkeleton = memo(() => (
-  <div className="nb-card flex h-44 flex-col gap-3 p-4">
+  <div className="nb-card flex h-48 flex-col gap-3 p-4">
     <div className="flex items-start gap-3">
-      <Sk className="h-10 w-10 flex-none !rounded-full" />
+      <Sk className="h-10 w-10 flex-none" />
       <div className="min-w-0 flex-1 space-y-2"><Sk className="h-4 w-3/4" /><Sk className="h-3 w-1/4" /></div>
-      <Sk className="h-9 w-9 flex-none !rounded-full" />
+      <Sk className="h-9 w-9 flex-none" />
     </div>
     <Sk className="h-3 w-2/3" />
-    <Sk className="mt-auto h-4 w-1/3" />
+    <Sk className="mt-auto h-9 w-full" />
   </div>
 ));
 
 const CategoriesSkeleton = memo(({ label }) => (
-  <div className="grid grid-cols-2 gap-4 p-1 sm:grid-cols-3 sm:gap-5" role="status" aria-busy="true" aria-label={label}>
+  <div className="grid grid-cols-2 gap-5 p-2 sm:grid-cols-3" role="status" aria-busy="true" aria-label={label}>
     {SK_CATEGORIES.map((i) => <CategorySkeleton key={i} />)}
   </div>
 ));
 
 const ShopsSkeleton = memo(({ label }) => (
-  <div className="grid grid-cols-1 gap-5 p-1 sm:grid-cols-2 sm:gap-6" role="status" aria-busy="true" aria-label={label}>
+  <div className="grid grid-cols-1 gap-5 p-2 sm:grid-cols-2" role="status" aria-busy="true" aria-label={label}>
     {SK_SHOPS.map((i) => <ShopSkeleton key={i} />)}
   </div>
 ));
 
 const StateBox = memo(({ darkMode, label, onRetry, retryLabel }) => (
-  <div className="nb-dot nb-in flex flex-col items-center px-4 py-10 text-center">
-    <IsoIllustration type="shop" tone="emerald" onGreen={false} darkMode={darkMode} className="mb-3 h-32 w-32" />
-    <p className="text-base font-extrabold">{label}</p>
+  <div className="nb-dot nb-in flex flex-col items-center px-4 py-12 text-center">
+    <IsoIllustration type="shop" tone="emerald" onGreen={false} darkMode={darkMode} className="mb-3 h-24 w-24" />
+    <p className="text-base font-bold">{label}</p>
     {onRetry && (
       <button type="button" onClick={() => onRetry()} className={`mt-5 ${btnCls(true)}`}>
         <FiRefreshCw aria-hidden="true" className="h-4 w-4" />{retryLabel}
@@ -473,7 +541,7 @@ const pageWindow = (cur, total) => {
 const Pager = memo(({ page, totalPages, onChange, pending, t }) => {
   if (totalPages <= 1) return null;
   return (
-    <nav aria-label={t('pagination')} aria-busy={pending} className="flex flex-wrap items-center justify-center gap-2 pt-8">
+    <nav aria-label={t('pagination')} aria-busy={pending} className="flex flex-wrap items-center justify-center gap-3 pt-8">
       <button type="button" className="nb-btn h-10 w-10" disabled={page <= 1} onClick={() => onChange(page - 1)} aria-label={t('prevPage')}>
         <FiChevronLeft aria-hidden="true" className="nb-flip h-4 w-4" />
       </button>
@@ -485,7 +553,7 @@ const Pager = memo(({ page, totalPages, onChange, pending, t }) => {
         >
           <span dir="ltr">{x}</span>
         </button>
-      ) : <span key={x} aria-hidden="true" className="nb-muted px-1 font-extrabold">…</span>))}
+      ) : <span key={x} aria-hidden="true" className="nb-muted px-1 font-bold">…</span>))}
       <button type="button" className="nb-btn h-10 w-10" disabled={page >= totalPages} onClick={() => onChange(page + 1)} aria-label={t('nextPage')}>
         <FiChevronRight aria-hidden="true" className="nb-flip h-4 w-4" />
       </button>
@@ -508,21 +576,21 @@ const DescribeStep = memo(({ initial, onChange, t }) => {
       <div className={`nb-field overflow-hidden ${blank ? '!border-rose-500' : ''}`}>
         <textarea
           id="repair-description" value={value} onChange={handleChange}
-          maxLength={MAX_DESC} placeholder={t('issuePlaceholder')} aria-required="true" autoComplete="off"
+          maxLength={MAX_DESC} placeholder={t('issuePlaceholder')} aria-required="true" autoComplete="off" spellCheck
           aria-invalid={blank} aria-describedby={blank ? 'repair-description-error' : undefined}
-          className="min-h-[170px] w-full resize-none bg-transparent px-4 py-4 text-base font-semibold outline-none placeholder:font-medium placeholder:opacity-60 sm:min-h-[200px] sm:px-5 sm:text-sm"
+          className="block min-h-[170px] w-full resize-none rounded-none border-0 bg-transparent px-4 py-3.5 text-base font-semibold leading-relaxed outline-none placeholder:font-normal placeholder:opacity-70 sm:min-h-[200px] sm:text-sm"
         />
-        <div className="nb-line nb-muted flex items-center justify-between gap-3 border-t px-4 py-2.5 text-xs font-bold sm:px-5">
+        <div className="nb-line nb-muted flex items-center justify-between gap-3 border-t-2 px-4 py-2 text-xs font-semibold">
           <span className="min-w-0 truncate">{t('tip')}</span>
-          <span dir="ltr" className={`flex-shrink-0 tabular-nums transition-colors ${value.length > 900 ? 'text-orange-500' : ''}`}>{value.length} / {MAX_DESC}</span>
+          <span dir="ltr" className="flex-shrink-0 tabular-nums transition-colors" style={value.length > 900 ? { color: 'var(--nb-warn)' } : undefined}>{value.length} / {MAX_DESC}</span>
         </div>
       </div>
       {blank && (
-        <p id="repair-description-error" role="alert" className="nb-in mt-3 flex items-center gap-1.5 text-sm font-bold text-rose-500">
+        <p id="repair-description-error" role="alert" className="mt-3 flex items-center gap-1.5 text-sm font-bold text-rose-600">
           <FiXCircle aria-hidden="true" className="h-4 w-4 flex-shrink-0" />{t('descBlank')}
         </p>
       )}
-      <div role="group" aria-label={t('suggestions')} className="mt-5 flex flex-wrap gap-2.5">
+      <div role="group" aria-label={t('suggestions')} className="mt-5 flex flex-wrap gap-3">
         {SUGGESTION_KEYS.map((k) => {
           const s = t(k);
           return <button key={k} type="button" onClick={() => addSuggestion(s)} className={`nb-btn ${SMALL_BTN}`}>+ {s}</button>;
@@ -540,13 +608,13 @@ const CategoryTile = memo(({ cat, active, onSelect, darkMode }) => {
       type="button" aria-pressed={active} onClick={select}
       className={`nb-card nb-lift nb-focus relative flex min-h-11 w-full cursor-pointer flex-col items-center gap-2.5 p-3 text-center sm:p-4 ${active ? 'nb-pick' : ''}`}
     >
-      <span className="nb-gray flex w-full items-center justify-center rounded-xl py-2">
-        <IsoIllustration type={catKey} darkMode={darkMode} onGreen={false} className="h-14 w-14 sm:h-16 sm:w-16" />
+      <span className="nb-gray nb-line flex w-full items-center justify-center rounded-xl border-2 py-2">
+        <IsoIllustration type={catKey} darkMode={darkMode} onGreen={false} className="h-12 w-12 sm:h-14 sm:w-14" />
       </span>
-      <span className="line-clamp-1 w-full text-sm font-extrabold">{cat.name}</span>
+      <span className="line-clamp-1 w-full text-sm font-bold">{cat.name}</span>
       {active && (
-        <span aria-hidden="true" className="hp-pop absolute end-2.5 top-2.5 flex h-6 w-6 items-center justify-center rounded-full bg-[color:var(--nb-btn)] text-[color:var(--nb-on)]">
-          <FiCheck className="h-3.5 w-3.5" strokeWidth={3} />
+        <span aria-hidden="true" className="nb-chip absolute end-2 top-2 h-6 w-6 rounded-full">
+          <FiCheck className="h-3.5 w-3.5" strokeWidth={4} />
         </span>
       )}
     </button>
@@ -565,19 +633,22 @@ const ShopOption = memo(({ shop, active, onSelect, onInfo, t }) => {
     <div
       role="radio" aria-checked={active} aria-disabled={!shop.activate} tabIndex={shop.activate ? 0 : -1}
       onClick={select} onKeyDown={onKey}
-      className={`nb-card nb-focus relative flex h-full flex-col gap-3 p-4 ${mode} ${active ? 'nb-pick' : ''}`}
+      className={`nb-card nb-focus flex h-full flex-col gap-3 p-4 ${mode} ${active ? 'nb-pick' : ''}`}
     >
       <div className="flex items-start gap-3">
-        <IconTile Icon={RiStoreLine} tone={active ? 'em' : 'vi'} className="h-10 w-10" iconClassName="h-5 w-5" />
+        <IconTile Icon={RiStoreLine} className="h-10 w-10" iconClassName="h-5 w-5" />
         <div className="min-w-0 flex-1">
-          <h3 className="flex min-w-0 items-center gap-1.5 text-sm font-extrabold leading-snug">
+          <h3 className="flex min-w-0 items-center gap-1.5 text-sm font-bold leading-snug">
             <span className="line-clamp-2 min-w-0">{shop.name}</span>
             {shop.verified && <VerifiedMark label={t('verifiedLabel')} />}
           </h3>
-          <p className="mt-1 flex items-center gap-1 text-xs font-extrabold">
-            <RiStarFill aria-hidden="true" className="h-3.5 w-3.5 text-amber-500" />
-            <span dir="ltr" className="tabular-nums">{shop.rating ? shop.rating.toFixed(1) : t('newRating')}</span>
-          </p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <span className="nb-rate">
+              <RiStarFill aria-hidden="true" className="h-3 w-3" />
+              <span dir="ltr" className="tabular-nums">{shop.rating ? shop.rating.toFixed(1) : t('newRating')}</span>
+            </span>
+            <span className="nb-tag px-1.5 py-0.5 text-[11px] font-bold !shadow-none"><span className="truncate">{shop.shopType || t('generalType')}</span></span>
+          </div>
         </div>
         <button type="button" onClick={info} aria-label={t('shopDetailsAria')} className="nb-btn h-9 w-9 flex-shrink-0">
           <FiInfo aria-hidden="true" className="h-4 w-4" />
@@ -588,67 +659,76 @@ const ShopOption = memo(({ shop, active, onSelect, onInfo, t }) => {
           <FiMapPin aria-hidden="true" className="nb-ic h-3.5 w-3.5 flex-shrink-0" /><span className="line-clamp-1">{address}</span>
         </p>
       )}
-      <div className="nb-line mt-auto flex items-center justify-between gap-2 border-t pt-3 text-xs font-extrabold">
-        <span className="nb-muted flex min-w-0 items-center gap-1.5"><span className="truncate">{shop.shopType || t('generalType')}</span></span>
-        {active ? (
-          <span className="nb-ic flex flex-shrink-0 items-center gap-1"><FiCheck aria-hidden="true" className="h-4 w-4" strokeWidth={3} />{t('selected')}</span>
-        ) : !shop.activate ? (
-          <span className="flex-shrink-0">{t('inactive')}</span>
-        ) : null}
+      <div className="nb-line mt-auto border-t-2 pt-3">
+        {shop.activate ? (
+          <span aria-hidden="true" className={`nb-opt nb-bd flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg border-2 text-xs font-bold ${active ? 'bg-[color:var(--nb-btn)] text-[color:var(--nb-on)]' : 'nb-gray'}`}>
+            {active && <FiCheck className="h-4 w-4" strokeWidth={4} />}
+            {active ? t('selected') : t('pickShop')}
+          </span>
+        ) : (
+          <span className="nb-muted flex min-h-9 items-center justify-center text-xs font-bold">{t('inactive')}</span>
+        )}
       </div>
     </div>
   );
 });
 
+const InfoRow = memo(({ Icon, label, value, ltr, dd = false }) => (
+  <div className="nb-gray nb-line flex items-center gap-3 rounded-xl border-2 p-3">
+    <IconTile Icon={Icon} className="h-9 w-9" iconClassName="h-4 w-4" />
+    <div className="min-w-0 flex-1">
+      {dd ? <dt className="nb-muted text-xs font-semibold">{label}</dt> : <p className="nb-muted text-xs font-semibold">{label}</p>}
+      {dd
+        ? <dd className="truncate text-sm font-bold" dir={ltr ? 'ltr' : undefined}>{value}</dd>
+        : <p className="truncate text-sm font-bold" dir={ltr ? 'ltr' : undefined}>{value}</p>}
+    </div>
+  </div>
+));
+
 const ShopDetailModal = memo(({ shop, language, onClose, t }) => {
   const [leaving, requestClose] = useLeave(onClose);
   useModalLock(true, requestClose);
+  useBodyScrollLock(true);
   const rows = [
-    { Icon: FiMail, tone: 'sky', label: t('email'), value: shop.email },
-    { Icon: FiPhone, tone: 'vi', label: t('phone'), value: shop.phone, ltr: true },
-    { Icon: RiStoreLine, tone: 'em', label: t('type'), value: shop.shopType },
-    { Icon: FiMapPin, tone: 'ro', label: t('address'), value: shopAddressLine(shop, true) },
-    { Icon: FiCalendar, tone: 'am', label: t('joined'), value: formatDate(shop.createdAt, language) },
+    { Icon: FiMail, label: t('email'), value: shop.email },
+    { Icon: FiPhone, label: t('phone'), value: shop.phone, ltr: true },
+    { Icon: RiStoreLine, label: t('type'), value: shop.shopType },
+    { Icon: FiMapPin, label: t('address'), value: shopAddressLine(shop, true) },
+    { Icon: FiCalendar, label: t('joined'), value: formatDate(shop.createdAt, language) },
   ].filter((r) => r.value);
   const tel = telHref(shop.phone);
 
   return (
     <div className="fixed inset-0 z-[1100] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={shop.name}>
-      <div className={`${leaving ? 'hp-fade-out' : 'hp-fade'} absolute inset-0 bg-[color:var(--nb-scrim)] backdrop-blur-[2px]`} onClick={requestClose} aria-hidden="true" />
-      <div className={`nb-card ${leaving ? 'hp-modal-out' : 'hp-modal'} relative flex max-h-[92vh] w-full flex-col overflow-hidden !rounded-b-none shadow-2xl sm:max-w-md sm:!rounded-3xl`}>
-        <header className="nb-gray nb-line flex flex-shrink-0 items-center gap-3 border-b px-4 py-3.5 sm:px-5">
-          <IconTile Icon={RiStoreLine} tone="vi" className="h-10 w-10" iconClassName="h-5 w-5" />
+      <div className={`${leaving ? 'hp-fade-out' : 'hp-fade'} absolute inset-0 bg-[color:var(--nb-scrim)]`} onClick={requestClose} aria-hidden="true" />
+      <div className={`nb-card nb-big ${leaving ? 'hp-modal-out' : 'hp-modal'} relative flex max-h-[92vh] w-full flex-col overflow-hidden sm:max-w-md`}>
+        <header className="nb-gray nb-line flex flex-shrink-0 items-center gap-3 border-b-2 px-4 py-3.5 sm:px-5">
+          <IconTile Icon={RiStoreLine} className="h-10 w-10" iconClassName="h-5 w-5" />
           <div className="min-w-0 flex-1">
-            <h2 className="flex items-center gap-1.5 text-base font-extrabold">
+            <h2 className="flex items-center gap-1.5 text-base font-bold">
               <span className="truncate">{shop.name}</span>
               {shop.verified && <VerifiedMark label={t('verifiedLabel')} />}
             </h2>
-            <p className="mt-0.5 flex items-center gap-1 text-xs font-extrabold">
-              <RiStarFill aria-hidden="true" className="h-3.5 w-3.5 text-amber-500" />
-              <span dir="ltr" className="tabular-nums">{shop.rating ? shop.rating.toFixed(1) : t('newRating')}</span>
+            <p className="mt-1">
+              <span className="nb-rate">
+                <RiStarFill aria-hidden="true" className="h-3 w-3" />
+                <span dir="ltr" className="tabular-nums">{shop.rating ? shop.rating.toFixed(1) : t('newRating')}</span>
+              </span>
             </p>
           </div>
           <button type="button" onClick={requestClose} aria-label={t('close') || 'Close'} className="nb-btn h-9 w-9 flex-shrink-0">
             <FiX aria-hidden="true" className="h-4 w-4" />
           </button>
         </header>
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4 sm:p-5">
-          {shop.description && <p className="text-sm font-medium leading-relaxed opacity-90">{shop.description}</p>}
-          <ul className="space-y-2.5">
-            {rows.map(({ Icon, tone, label, value, ltr }) => (
-              <li key={label} className="nb-gray flex items-center gap-3 rounded-2xl p-3">
-                <IconTile Icon={Icon} tone={tone} className="h-9 w-9" iconClassName="h-4 w-4" />
-                <div className="min-w-0">
-                  <p className="nb-muted text-[11px] font-extrabold">{label}</p>
-                  <p className="truncate text-sm font-bold" dir={ltr ? 'ltr' : undefined}>{value}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-4 sm:p-5">
+          {shop.description && <p className="nb-muted text-sm leading-relaxed">{shop.description}</p>}
+          {rows.map(({ Icon, label, value, ltr }) => (
+            <InfoRow key={label} Icon={Icon} label={label} value={value} ltr={ltr} />
+          ))}
         </div>
         {tel && (
-          <footer className="nb-line flex-shrink-0 border-t px-4 py-3.5 sm:px-5">
-            <a href={tel} className={`${btnCls(true)} w-full`}><FiPhone aria-hidden="true" className="h-4 w-4" />{t('phone')}</a>
+          <footer className="nb-line flex-shrink-0 border-t-2 px-4 py-3.5 sm:px-5">
+            <a href={tel} rel="noopener noreferrer" className={`${btnCls(true)} w-full text-xs`}><FiPhone aria-hidden="true" className="h-4 w-4" />{t('phone')}</a>
           </footer>
         )}
       </div>
@@ -660,15 +740,15 @@ const InfoPanel = memo(({ step, darkMode, t }) => {
   const head = STEP_HEAD[step - 1];
   return (
     <div key={step} className="nb-card hp-fade overflow-hidden">
-      <div className="nb-gray nb-line border-b p-4">
-        <IsoIllustration type={INFO_SCENES[step - 1]} tone="emerald" onGreen={false} darkMode={darkMode} className="mx-auto h-40 w-40" />
+      <div className="nb-media nb-bd border-b-[3px] p-3">
+        <IsoIllustration type={INFO_SCENES[step - 1]} tone="emerald" onGreen={false} darkMode={darkMode} className="mx-auto h-28 w-28" />
       </div>
       <div className="p-5">
-        <h3 className="flex items-center gap-2.5 text-base font-extrabold">
-          <IconTile Icon={head.icon} tone={head.tone} className="h-8 w-8" iconClassName="h-4 w-4" />
+        <h3 className="flex items-center gap-2 text-sm font-bold">
+          <head.icon aria-hidden="true" className="nb-ic h-4 w-4 flex-shrink-0" />
           <span className="min-w-0">{t(head.infoTitle)}</span>
         </h3>
-        <p className="nb-muted mt-3 text-sm font-medium leading-relaxed">{t(head.infoBody)}</p>
+        <p className="nb-muted mt-2 text-sm leading-relaxed">{t(head.infoBody)}</p>
       </div>
     </div>
   );
@@ -676,44 +756,40 @@ const InfoPanel = memo(({ step, darkMode, t }) => {
 
 const SummaryPanel = memo(({ category, shop, t }) => {
   const rows = [
-    [t('category'), category?.name, FiSmartphone, 'sky'],
-    [t('shop'), shop?.name, RiStoreLine, 'vi'],
+    [t('category'), category?.name, FiSmartphone],
+    [t('shop'), shop?.name, RiStoreLine],
   ];
   return (
     <div className="nb-card p-5">
-      <h3 className="text-base font-extrabold">{t('yourRequest')}</h3>
-      <dl className="mt-4 space-y-2.5">
-        {rows.map(([label, value, Icon, tone]) => (
-          <div key={label} className="nb-gray flex items-center gap-3 rounded-2xl p-3">
-            <IconTile Icon={Icon} tone={tone} className="h-9 w-9" iconClassName="h-4 w-4" />
-            <div className="min-w-0">
-              <dt className="nb-muted text-[11px] font-extrabold">{label}</dt>
-              <dd className={`mt-0.5 truncate text-sm font-bold ${value ? '' : 'nb-muted'}`}>{value || t('notSelected')}</dd>
-            </div>
-          </div>
+      <h3 className="text-sm font-bold">{t('yourRequest')}</h3>
+      <dl className="mt-4 space-y-3">
+        {rows.map(([label, value, Icon]) => (
+          <InfoRow key={label} dd Icon={Icon} label={label} value={value || t('notSelected')} />
         ))}
       </dl>
+      <p className="nb-muted mt-4 flex items-start gap-2 text-xs leading-relaxed">
+        <FiLock aria-hidden="true" className="nb-ic mt-0.5 h-3.5 w-3.5 flex-shrink-0" />{t('summaryNote')}
+      </p>
     </div>
   );
 });
 
-const JourneySection = memo(({ language, t }) => (
+const JourneySection = memo(({ t }) => (
   <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-    <div className="mb-8 sm:mb-10">
-      <SectionHead eyebrow={t('step')} title={t('repairJourney')} subtitle={t('journeySub')} />
+    <div className="mb-6">
+      <SectionHead big title={t('repairJourney')} subtitle={t('journeySub')} />
     </div>
-    <ol className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-      {STATUS_JOURNEY.map(({ key, labelKey, descKey, Icon, tone, danger }, i) => (
-        <li key={key} style={STAGGER[Math.min(i, 11)]} className="nb-in nb-card nb-lift flex min-w-0 flex-col gap-3 p-5">
-          <div className="flex items-center gap-3">
-            <IconTile Icon={Icon} tone={tone} className="h-11 w-11" iconClassName="h-5 w-5" />
-            <span aria-hidden="true" className={`ms-auto text-2xl font-extrabold tabular-nums ${danger ? 'text-rose-500' : 'nb-ic'}`}>{pad2(language, i + 1)}</span>
+    <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {STATUS_JOURNEY.map(({ key, labelKey, descKey, Icon, danger }) => (
+        <li key={key} className="nb-card flex min-w-0 items-start gap-3 p-4">
+          <IconTile Icon={Icon} bad={danger} className="h-10 w-10" iconClassName="h-5 w-5" />
+          <div className="min-w-0">
+            <p className="text-sm font-bold">{t(labelKey)}</p>
+            <p className="nb-muted mt-1 text-[13px] leading-relaxed">{t(descKey)}</p>
           </div>
-          <p className="text-base font-extrabold">{t(labelKey)}</p>
-          <p className="nb-muted text-sm font-medium leading-relaxed">{t(descKey)}</p>
         </li>
       ))}
-    </ol>
+    </ul>
   </div>
 ));
 
@@ -722,15 +798,12 @@ const RepairRequestContent = memo(({ darkMode }) => {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const t = useCallback((key) => tr(language, key), [language]);
-  const isAr = language === 'ar';
   const token = useAuthGuard();
   useScrollTopOnEnter();
 
   const [step, setStep] = useState(1);
-  const [dir, setDir] = useState(1);
-  const stepRef = useRef(1);
-  stepRef.current = step;
   const descRef = useRef('');
+  const barRef = useRef(null);
   const submitLock = useRef(false);
   const [hasDesc, setHasDesc] = useState(false);
   const [descSeed, setDescSeed] = useState(0);
@@ -744,6 +817,7 @@ const RepairRequestContent = memo(({ darkMode }) => {
   const [journeyRef, journeyNear] = useInView('500px');
   const idle = useIdleFlag(!!token);
 
+  useScrollProgress(barRef);
   useEffect(() => { document.title = 'Book Repair | Tech-Restore'; }, []);
 
   const onDescChange = useCallback((v) => {
@@ -754,7 +828,7 @@ const RepairRequestContent = memo(({ darkMode }) => {
 
   const categoriesQ = useQuery({
     queryKey: ['categories'],
-    queryFn: async ({ signal }) => toList(await api.get('/api/categories', { headers: authHeaders(), signal })).filter((c) => c && c.id != null).map(normalizeCategory),
+    queryFn: async ({ signal }) => toList(await api.get('/api/categories', { headers: authHeaders(), signal })).filter(validId).map(normalizeCategory),
     enabled: !!token && (idle || step >= 2),
     staleTime: 5 * 60 * 1000,
   });
@@ -763,7 +837,7 @@ const RepairRequestContent = memo(({ darkMode }) => {
     queryKey: ['repairShops'],
     queryFn: async ({ signal }) =>
       toList(await api.get('/api/users/shops/all', { headers: authHeaders(), signal }))
-        .filter((s) => s && s.id != null)
+        .filter(validId)
         .map(normalizeShop)
         .filter((s) => s.shopType === 'BOTH' || s.shopType === 'REPAIRER'),
     enabled: step >= 2 && !!category && !!token,
@@ -791,7 +865,6 @@ const RepairRequestContent = memo(({ darkMode }) => {
       dropRepairsCache();
       qc.invalidateQueries({ queryKey: ['repairs'] });
       setSubmittedShop(vars.shop);
-      setDir(1);
       setStep(4);
       toast({
         icon: 'success', title: t('sentTitle'),
@@ -805,10 +878,7 @@ const RepairRequestContent = memo(({ darkMode }) => {
     onSettled: () => { submitLock.current = false; },
   });
 
-  const goTo = useCallback((n) => startTransition(() => {
-    setDir(n > stepRef.current ? 1 : -1);
-    setStep(n);
-  }), []);
+  const goTo = useCallback((n) => startTransition(() => { setStep(n); }), []);
   const toStep1 = useCallback(() => goTo(1), [goTo]);
   const toStep2 = useCallback(() => goTo(2), [goTo]);
   const toAccount = useCallback(() => navigate('/account'), [navigate]);
@@ -838,7 +908,6 @@ const RepairRequestContent = memo(({ darkMode }) => {
     descRef.current = '';
     setHasDesc(false);
     setDescSeed((n) => n + 1);
-    setDir(-1);
     setStep(1); setCategory(null); setShop(null); setSubmittedShop(null); setCategoryPage(1); setShopPage(1); setInfoShop(null); submit.reset();
   }, [submit]);
 
@@ -848,39 +917,42 @@ const RepairRequestContent = memo(({ darkMode }) => {
   const changeShopPage = useCallback((p) => startTransition(() => setShopPage(p)), []);
 
   const head = STEP_HEAD[step - 1];
-  const stepStyle = useMemo(() => ({ '--dir': dir }), [dir]);
 
   return (
     <div
       dir={languageDirection(language)}
       lang={language}
-      className={`nb ${darkMode ? 'nb-dark' : ''} min-h-screen overflow-x-clip [--dx:1] rtl:[--dx:-1] ${isAr ? 'font-cairo' : 'font-jakarta'}`}
+      className={`nb ${darkMode ? 'nb-dark' : ''} min-h-screen overflow-x-clip`}
     >
+      <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 z-[1200] h-1">
+        <div ref={barRef} className="h-full origin-left bg-[color:var(--nb-btn)] rtl:origin-right" style={{ transform: 'scaleX(0)' }} />
+      </div>
       <Device3DStyles />
       <Defs3D />
       <Toaster darkMode={darkMode} />
 
-      <main className="mx-auto max-w-7xl px-4 pb-12 pt-32 sm:px-6 lg:px-8">
-     
-
-        <section aria-label={t('pageTitle')}>
-          <div id="repair-form" className="mb-6 scroll-mt-28 sm:mb-8">
-            <div key={step} className="hp-step" style={stepStyle}>
-              <SectionHead
-                eyebrow={`${t('step')} ${step} ${t('of')} ${STEP_DEFS.length}`}
-                title={t(head.title)}
-                subtitle={t(head.subtitle)}
-              />
-            </div>
+      <main className="mx-auto max-w-7xl px-4 pb-14 pt-32 sm:px-6 lg:px-8" aria-busy={isPending}>
+        <header className="nb-rise mb-10 space-y-5" style={RISE[0]}>
+          <Crumbs t={t} />
+          <div className="min-w-0 max-w-2xl">
+            <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">{t('pageTitle')}</h1>
+            <p className="nb-muted mt-3 text-sm leading-relaxed sm:text-base">{t('pageSub')}</p>
           </div>
+          <TrustBar t={t} />
+        </header>
 
-          <div className="hp-rise mb-6 sm:mb-8" style={STAGGER[1]}>
+        <section aria-label={t('pageTitle')} id="repair-form" className="nb-rise scroll-mt-28" style={RISE[1]}>
+          <div className="mb-8">
             <ProgressSteps step={step} t={t} />
           </div>
 
-          <div className="hp-rise grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-8" style={STAGGER[2]}>
-            <div aria-busy={isPending} className={`nb-card p-4 transition-opacity duration-200 sm:p-6 ${isPending ? 'opacity-70' : ''}`}>
-              <div key={step} className="hp-step" style={stepStyle}>
+          <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_21rem]">
+            <div aria-busy={isPending} className={`nb-card nb-big overflow-hidden transition-opacity duration-200 motion-reduce:transition-none ${isPending ? 'opacity-60' : ''}`}>
+              <div className="nb-gray nb-line border-b-2 p-4 sm:p-6">
+                <SectionHead title={t(head.title)} subtitle={t(head.subtitle)} />
+              </div>
+
+              <div key={step} className="nb-in p-4 sm:p-6">
                 {step === 1 && (
                   <>
                     <DescribeStep key={descSeed} initial={descRef.current} onChange={onDescChange} t={t} />
@@ -898,15 +970,15 @@ const RepairRequestContent = memo(({ darkMode }) => {
                       <StateBox darkMode={darkMode} label={t('noCategories')} />
                     ) : (
                       <>
-                        <div role="group" aria-label={t('deviceType')} className="grid grid-cols-2 gap-4 p-1 sm:grid-cols-3 sm:gap-5">
-                          {pagedCategories.map((c, i) => (
-                            <div key={c.id} className="hp-rise relative min-w-0" style={STAGGER[i]}>
+                        <div role="group" aria-label={t('deviceType')} className="grid grid-cols-2 gap-5 p-2 sm:grid-cols-3">
+                          {pagedCategories.map((c) => (
+                            <div key={c.id} className="min-w-0">
                               <CategoryTile cat={c} active={category?.id === c.id} onSelect={setCategory} darkMode={darkMode} />
                             </div>
                           ))}
                         </div>
                         <Pager page={safeCatPage} totalPages={categoryPages} onChange={changeCatPage} pending={isPending} t={t} />
-                        {!category && <p role="status" className="nb-muted mt-6 text-sm font-bold">{t('selectCategoryPrompt')}</p>}
+                        {!category && <p role="status" className="nb-muted mt-5 text-sm font-semibold">{t('selectCategoryPrompt')}</p>}
                       </>
                     )}
                     <NavButtons onBack={toStep1} onNext={handleNext} nextDisabled={!category} t={t} />
@@ -923,9 +995,9 @@ const RepairRequestContent = memo(({ darkMode }) => {
                       <StateBox darkMode={darkMode} label={t('noShops')} />
                     ) : (
                       <>
-                        <div role="radiogroup" aria-label={t('chooseShopTitle')} className="grid grid-cols-1 gap-5 p-1 sm:grid-cols-2 sm:gap-6">
-                          {pagedShops.map((s, i) => (
-                            <div key={s.id} className="hp-rise flex min-w-0 flex-col" style={STAGGER[i]}>
+                        <div role="radiogroup" aria-label={t('chooseShopTitle')} className="grid grid-cols-1 gap-5 p-2 sm:grid-cols-2">
+                          {pagedShops.map((s) => (
+                            <div key={s.id} className="flex min-w-0 flex-col">
                               <ShopOption shop={s} active={shop?.id === s.id} onSelect={setShop} onInfo={openInfo} t={t} />
                             </div>
                           ))}
@@ -939,15 +1011,17 @@ const RepairRequestContent = memo(({ darkMode }) => {
 
                 {step === 4 && (
                   <div className="flex flex-col items-center py-4 text-center" role="status">
-                    <IsoIllustration type="marketplace" tone="emerald" onGreen={false} darkMode={darkMode} className="h-40 w-40" />
-                    <span className="hp-pop -mt-2 inline-flex"><IconTile Icon={FiCheck} tone="em" className="h-14 w-14" iconClassName="h-7 w-7" /></span>
-                    <h2 className="mt-5 text-2xl font-extrabold sm:text-3xl"><AccentTitle text={t('requestSent')} /></h2>
-                    <p className="nb-muted mt-4 text-sm font-medium">{t('requestSentTo')}</p>
-                    <p className="mt-1 text-lg font-extrabold">{submittedShop?.name || t('defaultShopName')}</p>
-                    <p className="nb-muted text-sm font-medium">
+                    <IsoIllustration type="marketplace" tone="emerald" onGreen={false} darkMode={darkMode} className="h-32 w-32" />
+                    <span className="nb-chip mt-2 h-12 w-12 rounded-full">
+                      <FiCheck aria-hidden="true" className="h-6 w-6" strokeWidth={4} />
+                    </span>
+                    <h2 className="mt-5 text-xl font-bold sm:text-2xl">{t('requestSent')}</h2>
+                    <p className="nb-muted mt-4 text-sm">{t('requestSentTo')}</p>
+                    <p className="mt-1 text-base font-bold">{submittedShop?.name || t('defaultShopName')}</p>
+                    <p className="nb-muted text-sm">
                       {submittedShop?.shopAddress?.city || t('defaultCity')}{submittedShop?.shopAddress?.state ? `, ${submittedShop.shopAddress.state}` : ''}
                     </p>
-                    <div className="mt-8 flex w-full max-w-md flex-col gap-3 sm:flex-row">
+                    <div className="mt-8 flex w-full max-w-md flex-col gap-4 sm:flex-row">
                       <button type="button" onClick={reset} className={`${btnCls(false)} flex-1`}>{t('newRequest')}</button>
                       <button type="button" onClick={toAccount} className={`${btnCls(true)} flex-1`}>
                         {t('viewMyRequests')}<FiArrowRight aria-hidden="true" className="h-4 w-4 rtl:rotate-180" />
@@ -958,16 +1032,16 @@ const RepairRequestContent = memo(({ darkMode }) => {
               </div>
             </div>
 
-            <aside className="hidden space-y-5 lg:sticky lg:top-28 lg:block">
-              <InfoPanel step={step} darkMode={darkMode} t={t} />
+            <aside className="hidden space-y-6 lg:sticky lg:top-28 lg:block">
               <SummaryPanel category={category} shop={shop} t={t} />
+              <InfoPanel step={step} darkMode={darkMode} t={t} />
             </aside>
           </div>
         </section>
       </main>
 
-      <section ref={journeyRef} aria-label={t('repairJourney')} className={`py-12 sm:py-16 ${LAZY_SECTION}`} style={journeyNear ? undefined : { minHeight: 640 }}>
-        {journeyNear && <JourneySection language={language} t={t} />}
+      <section ref={journeyRef} aria-label={t('repairJourney')} className={`pb-14 pt-4 ${LAZY_SECTION}`} style={journeyNear ? undefined : { minHeight: 420 }}>
+        {journeyNear && <JourneySection t={t} />}
       </section>
 
       {infoShop && <ShopDetailModal key={infoShop.id} shop={infoShop} language={language} onClose={closeInfo} t={t} />}

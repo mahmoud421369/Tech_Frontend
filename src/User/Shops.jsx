@@ -1,14 +1,21 @@
 import React, {
-  useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, memo, Suspense, lazy, useDeferredValue, useTransition, createContext, useContext, useId,
+  useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, useId, memo, Suspense, lazy,
+  useDeferredValue, useTransition, useSyncExternalStore, createContext, useContext,
 } from 'react';
-import { useNavigate, useNavigationType } from 'react-router-dom';
+import { Link, useNavigate, useNavigationType } from 'react-router-dom';
 import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   FiMapPin, FiX, FiSliders, FiArrowRight, FiArrowUp, FiCheck, FiShield, FiTool, FiRefreshCw,
   FiShoppingBag, FiExternalLink, FiInfo, FiNavigation, FiMessageSquare, FiPackage, FiChevronDown,
   FiChevronLeft, FiChevronRight, FiSearch, FiHeart, FiPhone,
 } from 'react-icons/fi';
-import { RiStarFill, RiVerifiedBadgeLine } from 'react-icons/ri';
+import { RiStarFill, RiVerifiedBadgeLine, RiStoreLine } from 'react-icons/ri';
+import '@fontsource/poppins/latin-400.css';
+import '@fontsource/poppins/latin-600.css';
+import '@fontsource/poppins/latin-700.css';
+import poppins400 from '@fontsource/poppins/files/poppins-latin-400-normal.woff2';
+import poppins600 from '@fontsource/poppins/files/poppins-latin-600-normal.woff2';
+import poppins700 from '@fontsource/poppins/files/poppins-latin-700-normal.woff2';
 import api from '../common/api/api';
 import { resolveImageSrc } from '../common/utils/productutils';
 import {
@@ -24,20 +31,43 @@ import {
 import { useBackToTop, useModalLock } from '../components/user/ListingKit';
 import { IsoIllustration, isoRoleKey } from '../components/user/IsoIllustrations';
 
+if (typeof document !== 'undefined') {
+  [poppins400, poppins600, poppins700].forEach((href) => {
+    if (!href || document.head.querySelector(`link[rel="preload"][href="${href}"]`)) return;
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'font';
+    link.type = 'font/woff2';
+    link.crossOrigin = 'anonymous';
+    link.href = href;
+    document.head.appendChild(link);
+  });
+}
+
 const DeliveryMap = lazy(() => import('../Delivery/DeliveryMap'));
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { refetchOnWindowFocus: false, retry: 1, gcTime: 10 * 60 * 1000 } },
+  defaultOptions: { queries: { refetchOnWindowFocus: false, retry: false, gcTime: 10 * 60 * 1000 } },
 });
 
 const BATCH = 12;
 const SAVED_KEY = 'nb_saved_shops';
 const SAVED_MAX = 500;
+const SHOPS_MAX = 2000;
 const CAROUSEL_LIMIT = 10;
 const CATEGORY_LIMIT = 14;
-const EXIT_MS = 180;
+const LEAVE_MS = 180;
 const STATS_STALE = 5 * 60 * 1000;
+const QUERY_MAX = 100;
+const ID_RE = /^[\w-]{1,64}$/;
+const DESKTOP_Q = '(min-width: 1024px)';
+const REDUCED_Q = '(prefers-reduced-motion: reduce)';
 const STAGGER = Array.from({ length: 12 }, (_, i) => ({ '--i': i }));
+const RISE = Array.from({ length: 4 }, (_, i) => ({ '--d': i }));
+const BLOCKED_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const GRID = 'grid grid-cols-1 gap-6 min-[720px]:grid-cols-2 xl:grid-cols-3';
+const RATING_STEPS = [4, 4.5, 4.8];
+const EMPTY_LIST = [];
 
 const LOGO_DIR = '/uploads/shop-logos/';
 const LOGO_MAX = 2048;
@@ -82,6 +112,8 @@ const EXTRA = {
     openInMaps: 'Open in Maps', retryLocation: 'Try again',
     moreFilters: 'More filters', ratedOnly: 'Has ratings', hasPhone: 'Has phone number', hasAddress: 'Has address',
     repairAndSell: 'Repair & sell', sortVerified: 'Verified first', scrollPrev: 'Scroll back', scrollNext: 'Scroll forward',
+    crumbHome: 'Home', crumbShops: 'Shops', breadcrumb: 'Breadcrumb',
+    pageSub: 'Find trusted repair and device shops near you. Compare ratings, services and locations.',
   },
   ar: {
     reviewOne: 'تقييم', reviewMany: 'تقييمات', productOne: 'منتج', productMany: 'منتجات',
@@ -91,6 +123,8 @@ const EXTRA = {
     openInMaps: 'فتح في الخرائط', retryLocation: 'إعادة المحاولة',
     moreFilters: 'فلاتر إضافية', ratedOnly: 'لديه تقييمات', hasPhone: 'لديه رقم هاتف', hasAddress: 'لديه عنوان',
     repairAndSell: 'صيانة وبيع', sortVerified: 'الموثقة أولاً', scrollPrev: 'السابق', scrollNext: 'التالي',
+    crumbHome: 'الرئيسية', crumbShops: 'المتاجر', breadcrumb: 'مسار التنقل',
+    pageSub: 'اعثر على متاجر صيانة وأجهزة موثوقة بالقرب منك، وقارن التقييمات والخدمات والمواقع.',
   },
   fr: {
     reviewOne: 'avis', reviewMany: 'avis', productOne: 'produit', productMany: 'produits',
@@ -100,6 +134,8 @@ const EXTRA = {
     openInMaps: 'Ouvrir dans Maps', retryLocation: 'Réessayer',
     moreFilters: 'Plus de filtres', ratedOnly: 'Avec des notes', hasPhone: 'Avec téléphone', hasAddress: 'Avec adresse',
     repairAndSell: 'Réparation & vente', sortVerified: 'Vérifiées d’abord', scrollPrev: 'Précédent', scrollNext: 'Suivant',
+    crumbHome: 'Accueil', crumbShops: 'Boutiques', breadcrumb: "Fil d'Ariane",
+    pageSub: 'Trouvez des boutiques de réparation et d’appareils de confiance près de chez vous. Comparez notes, services et adresses.',
   },
 };
 
@@ -109,34 +145,220 @@ const tr = (lang, key, params) => {
   return params ? text.replace(/\{\{(\w+)\}\}/g, (_, k) => (params[k] !== undefined ? params[k] : '')) : text;
 };
 
-const clean = (v, max = 200) => (typeof v === 'string' ? v.replace(/[\p{Cc}\p{Cf}]/gu, ' ').trim().slice(0, max) : '');
+const clean = (v, max = 200) => (typeof v === 'string'
+  ? v.replace(/[\p{Cc}\u200b\u200e\u200f\u202a-\u202e\u2066-\u2069\ufeff]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, max)
+  : '');
+
+const stripControl = (v) => v.replace(/[\p{Cc}\u200b\u200e\u200f\u202a-\u202e\u2066-\u2069\ufeff]/gu, '');
+
 const telHref = (phone) => {
   const digits = String(phone || '').replace(/[^\d+]/g, '').slice(0, 20);
   return digits ? `tel:${digits}` : undefined;
 };
+
 const safeId = (id) => {
-  if (typeof id !== 'string' && typeof id !== 'number') return null;
+  if (typeof id !== 'string' && typeof id !== 'number') return '';
   const s = String(id);
-  return s && s.length <= 128 ? encodeURIComponent(s) : null;
+  return ID_RE.test(s) ? s : '';
 };
 
-const useIsMobile = (query = '(max-width: 639.98px)') => {
-  const [matches, setMatches] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+const safeHref = (raw) => {
+  if (typeof raw !== 'string' || raw.length > 2048) return undefined;
+  try {
+    const u = new URL(raw, window.location.origin);
+    return u.protocol === 'https:' ? u.href : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const cleanAddress = (a) => {
+  if (!a || typeof a !== 'object' || Array.isArray(a)) return undefined;
+  const out = {};
+  for (const [k, v] of Object.entries(a)) {
+    if (BLOCKED_KEYS.has(k)) continue;
+    if (typeof v === 'string') out[k] = clean(v, 200);
+    else if (typeof v === 'number' && Number.isFinite(v)) out[k] = v;
+  }
+  return out;
+};
+
+const normalizeShop = (s) => {
+  if (!s || typeof s !== 'object' || Array.isArray(s)) return null;
+  const id = safeId(s.id);
+  if (!id) return null;
+  const rating = Number(s.rating);
+  return {
+    ...s,
+    id,
+    name: clean(s.name, 120),
+    description: clean(s.description, 1000),
+    phone: clean(typeof s.phone === 'number' ? String(s.phone) : s.phone, 30),
+    shopType: clean(s.shopType, 60),
+    rating: Number.isFinite(rating) ? Math.min(5, Math.max(0, rating)) : 0,
+    verified: s.verified === true || s.verified === 'true',
+    shopAddress: cleanAddress(s.shopAddress),
+  };
+};
+
+const prefersReduced = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(REDUCED_Q).matches;
+
+const scrollToEl = (el) => {
+  if (el) el.scrollIntoView({ block: 'start', behavior: prefersReduced() ? 'auto' : 'smooth' });
+};
+
+const NB_CSS = `
+@font-face{font-family:'Poppins Fallback';src:local('Arial'),local('Helvetica');size-adjust:112.6%;ascent-override:93.4%;descent-override:35.2%;line-gap-override:7.4%}
+.nb{--dx:1;--nb-bg:#ffffff;--nb-card:#ffffff;--nb-ink:#052e1e;--nb-muted:rgba(5,46,30,.68);--nb-line:#e5e7eb;--nb-bd:#000000;--nb-gray:#f3f4f6;--nb-media:#ffffff;--nb-accent:#059669;--nb-btn:#39ff88;--nb-btn2:#7dffb0;--nb-on:#022c22;--nb-ring:#059669;--nb-scrim:rgba(0,0,0,.6);--nb-warn:#c2410c;--nb-glow:rgba(57,255,136,.18);--nb-ease:cubic-bezier(.22,.8,.2,1);
+--nb-sh2:calc(var(--dx)*2px) 2px 0 0 var(--nb-bd);--nb-sh3:calc(var(--dx)*3px) 3px 0 0 var(--nb-bd);--nb-sh4:calc(var(--dx)*4px) 4px 0 0 var(--nb-bd);--nb-sh6:calc(var(--dx)*6px) 6px 0 0 var(--nb-bd);--nb-sh8:calc(var(--dx)*8px) 8px 0 0 var(--nb-bd);
+background:var(--nb-bg);color:var(--nb-ink);color-scheme:light;line-height:1.55;font-family:'Poppins','Poppins Fallback',ui-sans-serif,system-ui,-apple-system,'Segoe UI','Cairo',sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.nb[dir=rtl]{--dx:-1}
+.nb-dark{--nb-bg:#121212;--nb-card:#1c1c1e;--nb-ink:#ffffff;--nb-muted:rgba(255,255,255,.66);--nb-line:rgba(255,255,255,.12);--nb-bd:#000000;--nb-gray:#2a2a2e;--nb-media:#161618;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-btn2:#7dffb0;--nb-on:#022c22;--nb-ring:#39ff88;--nb-scrim:rgba(0,0,0,.72);--nb-warn:#fdba74;--nb-glow:rgba(57,255,136,.14);color-scheme:dark}
+.nb[lang=ar]{font-family:'Cairo','Poppins',ui-sans-serif,system-ui,sans-serif}
+.nb[lang=ar] *{letter-spacing:0!important}
+.nb button,.nb input{font-family:inherit}
+.nb-gray{background:var(--nb-gray)}
+.nb-media{background:var(--nb-media)}
+.nb-muted{color:var(--nb-muted)}
+.nb-ic{color:var(--nb-accent)}
+.nb-warn{color:var(--nb-warn)}
+.nb-line{border-color:var(--nb-line)}
+.nb-bd{border-color:var(--nb-bd)}
+.nb-card{background:var(--nb-card);border:3px solid var(--nb-bd);border-radius:20px;box-shadow:var(--nb-sh4);transition:transform .35s var(--nb-ease),box-shadow .35s var(--nb-ease)}
+.nb-big{box-shadow:var(--nb-sh8)}
+@media (hover:hover){.nb-lift:hover{transform:translate3d(0,-3px,0);box-shadow:var(--nb-sh6)}}
+.nb-chip{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid var(--nb-bd);border-radius:10px;background:var(--nb-btn);color:var(--nb-on);box-shadow:var(--nb-sh2)}
+.nb-chip-warn{background:#fcd34d;color:#000}
+.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-bd);border-radius:12px;box-shadow:var(--nb-sh3);font-weight:700;cursor:pointer;transition:transform .2s var(--nb-ease),box-shadow .2s var(--nb-ease),background-color .2s ease,color .2s ease}
+@media (hover:hover){.nb-btn:hover:not(:disabled){background:var(--nb-btn);color:var(--nb-on);box-shadow:var(--nb-sh4);transform:translate3d(0,-1px,0)}}
+.nb-btn:active:not(:disabled){transform:translate3d(0,2px,0);box-shadow:none}
+.nb-btn:disabled{opacity:.45;cursor:not-allowed}
+.nb-btn-a,.nb-btn-on{background:var(--nb-btn);color:var(--nb-on);border-width:3px;box-shadow:var(--nb-sh4)}
+@media (hover:hover){.nb-btn-a:hover:not(:disabled),.nb-btn-on:hover:not(:disabled){background:var(--nb-btn2)}}
+.nb-btn:focus-visible,.nb-focus:focus-visible{outline:3px solid var(--nb-ring);outline-offset:2px}
+.nb-field{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-bd);border-radius:14px;box-shadow:var(--nb-sh3);transition:box-shadow .2s var(--nb-ease)}
+@media (hover:hover){.nb-field:hover{box-shadow:var(--nb-sh4)}}
+.nb-field:focus-within{outline:3px solid var(--nb-ring);outline-offset:2px}
+.nb-field input::placeholder{color:var(--nb-muted)}
+.nb-field input::-webkit-search-cancel-button,.nb-field input::-webkit-search-decoration{display:none;-webkit-appearance:none}
+.nb-dot{background:var(--nb-card);color:var(--nb-ink);border:3px dashed var(--nb-bd);border-radius:20px}
+.nb-rule{border-top:3px solid var(--nb-bd)}
+.nb-sk{position:relative;overflow:hidden;border-radius:12px;background:color-mix(in srgb,var(--nb-ink) 8%,transparent)}
+.nb-sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--nb-card) 70%,transparent),transparent);animation:nbShimmer 1.3s ease-in-out infinite}
+.nb[dir=rtl] .nb-sk::after{animation-direction:reverse}
+@keyframes nbShimmer{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+.nb-opt{border-radius:12px;transition:background-color .2s ease,color .2s ease}
+@media (hover:hover){.nb-zoom img{transition:transform 1.1s var(--nb-ease),opacity .3s ease}.nb-zoom:hover img{transform:scale3d(1.04,1.04,1)}}
+@keyframes nbIn{from{opacity:0;transform:translate3d(0,10px,0)}to{opacity:1;transform:none}}
+.nb-in{animation:nbIn .3s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*40ms)}
+@keyframes nbRise{from{opacity:0;transform:translate3d(0,16px,0)}to{opacity:1;transform:none}}
+.nb-rise{animation:nbRise .6s cubic-bezier(.16,.84,.24,1) both;animation-delay:calc(var(--d,0)*70ms)}
+@keyframes shFade{from{opacity:0}to{opacity:1}}
+@keyframes shFadeOut{from{opacity:1}to{opacity:0}}
+@keyframes shModal{from{opacity:0;transform:translate3d(0,24px,0)}to{opacity:1;transform:none}}
+@keyframes shModalOut{from{opacity:1;transform:none}to{opacity:0;transform:translate3d(0,24px,0)}}
+@keyframes shDrawer{from{transform:translate3d(calc(var(--dx,1)*-100%),0,0)}to{transform:none}}
+@keyframes shDrawerOut{from{transform:none}to{transform:translate3d(calc(var(--dx,1)*-100%),0,0)}}
+@keyframes shPop{from{opacity:0;transform:translate3d(0,-6px,0)}to{opacity:1;transform:none}}
+@keyframes shHeart{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}
+@keyframes shDot{0%,80%,100%{transform:scale(.55);opacity:.4}40%{transform:scale(1);opacity:1}}
+.sh-fade{animation:shFade .18s ease-out both}
+.sh-fade-out{animation:shFadeOut .18s ease-in both}
+.sh-modal{animation:shModal .24s cubic-bezier(.2,.8,.2,1) both}
+.sh-modal-out{animation:shModalOut .18s ease-in both}
+.sh-drawer{animation:shDrawer .26s cubic-bezier(.2,.8,.2,1) both}
+.sh-drawer-out{animation:shDrawerOut .18s ease-in both}
+.sh-pop{animation:shPop .16s cubic-bezier(.2,.8,.2,1) both;transform-origin:top}
+.sh-heart{animation:shHeart .3s ease-out}
+.sh-dot{animation:shDot 1s ease-in-out infinite}
+.sh-dot:nth-child(2){animation-delay:.15s}
+.sh-dot:nth-child(3){animation-delay:.3s}
+.sh-noscroll{scrollbar-width:none;-ms-overflow-style:none}
+.sh-noscroll::-webkit-scrollbar{display:none}
+.sh-lazy{content-visibility:auto;contain-intrinsic-size:auto 420px;padding:8px;margin:-8px}
+@media (prefers-reduced-motion:no-preference){html:has(.nb){scroll-behavior:smooth}}
+@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn,.nb-field,.nb-opt,.nb-zoom img{transition:none}.nb-lift:hover,.nb-btn:hover:not(:disabled),.nb-zoom:hover img{transform:none}.nb-in,.nb-rise,.sh-fade,.sh-fade-out,.sh-modal,.sh-modal-out,.sh-drawer,.sh-drawer-out,.sh-pop,.sh-heart,.sh-dot{animation:none!important}.nb-sk::after{animation:none}}
+`;
+
+if (typeof document !== 'undefined' && !document.querySelector('style[data-shops-styles]')) {
+  const tag = document.createElement('style');
+  tag.setAttribute('data-shops-styles', 'true');
+  tag.textContent = NB_CSS;
+  document.head.appendChild(tag);
+}
+
+const DarkCtx = createContext(false);
+const ThemedIso = (props) => <IsoIllustration {...props} darkMode={useContext(DarkCtx)} />;
+
+const useScrollProgress = (barRef) => {
   useEffect(() => {
-    const mq = window.matchMedia(query);
-    const on = () => setMatches(mq.matches);
-    on();
-    mq.addEventListener('change', on);
-    return () => mq.removeEventListener('change', on);
-  }, [query]);
-  return matches;
+    const bar = barRef.current;
+    if (!bar || prefersReduced()) return undefined;
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const el = document.documentElement;
+      const limit = el.scrollHeight - el.clientHeight;
+      bar.style.transform = `scaleX(${limit > 0 ? Math.min(1, Math.max(0, window.scrollY / limit)) : 0})`;
+    };
+    const schedule = () => { if (!raf) raf = requestAnimationFrame(update); };
+    update();
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [barRef]);
+};
+
+const subscribeMq = (q) => (cb) => {
+  const m = window.matchMedia(q);
+  m.addEventListener('change', cb);
+  return () => m.removeEventListener('change', cb);
+};
+const subscribeDesktop = subscribeMq(DESKTOP_Q);
+const getDesktop = () => window.matchMedia(DESKTOP_Q).matches;
+const getFalse = () => false;
+const useIsDesktop = () => useSyncExternalStore(subscribeDesktop, getDesktop, getFalse);
+
+const MOBILE_Q = '(max-width: 639.98px)';
+const subscribeMobile = subscribeMq(MOBILE_Q);
+const getMobile = () => window.matchMedia(MOBILE_Q).matches;
+const useIsMobile = () => useSyncExternalStore(subscribeMobile, getMobile, getFalse);
+
+const useLeave = (onClose) => {
+  const [leaving, setLeaving] = useState(false);
+  const timer = useRef(0);
+  const request = useCallback(() => {
+    if (timer.current) return;
+    if (prefersReduced()) { onClose(); return; }
+    setLeaving(true);
+    timer.current = window.setTimeout(onClose, LEAVE_MS);
+  }, [onClose]);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  return [leaving, request];
+};
+
+const useScrollTopOnEnter = () => {
+  const navType = useNavigationType();
+  useLayoutEffect(() => {
+    if (navType === 'POP') return;
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [navType]);
 };
 
 const readSaved = () => {
   try {
     const v = JSON.parse(localStorage.getItem(SAVED_KEY) || '[]');
     if (!Array.isArray(v)) return [];
-    return v.filter((x) => (typeof x === 'string' && x.length <= 64) || Number.isFinite(x)).slice(-SAVED_MAX);
+    const out = [];
+    for (const x of v) {
+      const id = safeId(x);
+      if (id) out.push(id);
+    }
+    return out.slice(-SAVED_MAX);
   } catch {
     return [];
   }
@@ -151,31 +373,16 @@ const useSavedShops = () => {
       return next;
     });
   }, []);
+  useEffect(() => {
+    const onStorage = (e) => { if (e.key === SAVED_KEY) setIds(readSaved()); };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
   const set = useMemo(() => new Set(ids), [ids]);
   return [set, toggle];
 };
 
-const useScrollTopOnEnter = () => {
-  const navType = useNavigationType();
-  useLayoutEffect(() => {
-    if (navType === 'POP') return;
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-  }, [navType]);
-};
-
-const useExit = (onClose) => {
-  const [leaving, setLeaving] = useState(false);
-  const timer = useRef();
-  const close = useCallback(() => {
-    if (timer.current) return;
-    setLeaving(true);
-    timer.current = setTimeout(onClose, EXIT_MS);
-  }, [onClose]);
-  useEffect(() => () => clearTimeout(timer.current), []);
-  return [leaving, close];
-};
-
-const makeObserveOnce = (options) => {
+const observeOnce = (() => {
   let io;
   const callbacks = new WeakMap();
   return (el, cb) => {
@@ -188,15 +395,12 @@ const makeObserveOnce = (options) => {
         callbacks.delete(e.target);
         fn?.();
       }
-    }, options);
+    }, { rootMargin: '200px' });
     callbacks.set(el, cb);
     io.observe(el);
     return () => { io.unobserve(el); callbacks.delete(el); };
   };
-};
-
-const observeOnce = makeObserveOnce({ rootMargin: '200px' });
-const observeReveal = makeObserveOnce({ rootMargin: '0px 0px -8% 0px', threshold: 0.01 });
+})();
 
 const useSeen = () => {
   const ref = useRef(null);
@@ -207,20 +411,6 @@ const useSeen = () => {
   }, [seen]);
   return [ref, seen];
 };
-
-const Reveal = memo(({ as: Tag = 'div', className = '', children, ...rest }) => {
-  const ref = useRef(null);
-  const [shown, setShown] = useState(false);
-  useEffect(() => {
-    if (shown || !ref.current) return undefined;
-    return observeReveal(ref.current, () => setShown(true));
-  }, [shown]);
-  return (
-    <Tag ref={ref} data-shown={shown ? '1' : '0'} className={`hp-rv ${className}`} {...rest}>
-      {children}
-    </Tag>
-  );
-});
 
 const toCount = (...vals) => {
   for (const v of vals) {
@@ -245,21 +435,16 @@ const countOf = (data) => {
 
 const useShopCounts = (shop) => {
   const id = shop.id;
-  const on = id != null;
   const products = useQuery({
     queryKey: ['shopProductsCount', id],
     queryFn: async ({ signal }) => countOf((await api.get(`/api/products/shop/${encodeURIComponent(id)}`, { signal })).data),
-    enabled: on,
     staleTime: STATS_STALE,
-    retry: false,
     refetchOnMount: false,
   });
   const reviews = useQuery({
     queryKey: ['shopReviewsCount', id],
     queryFn: async ({ signal }) => countOf((await api.get(`/api/reviews/${encodeURIComponent(id)}/reviews`, { signal })).data),
-    enabled: on,
     staleTime: STATS_STALE,
-    retry: false,
     refetchOnMount: false,
   });
   const fb = useMemo(() => shopFallback(shop), [shop]);
@@ -273,7 +458,7 @@ const useShopLogo = (shop, eager = false) => {
   const [ref, seen] = useSeen();
   const id = shop.id;
   const listLogo = useMemo(() => shopLogoSrc(shop), [shop]);
-  const entry = listLogo || id == null ? undefined : readLogoEntry(id);
+  const entry = listLogo ? undefined : readLogoEntry(id);
   const q = useQuery({
     queryKey: ['shop', id],
     queryFn: async ({ signal }) => {
@@ -289,9 +474,8 @@ const useShopLogo = (shop, eager = false) => {
     },
     initialData: entry ? entry.u : undefined,
     initialDataUpdatedAt: entry ? entry.t : undefined,
-    enabled: (eager || seen) && !listLogo && id != null,
+    enabled: (eager || seen) && !listLogo,
     staleTime: LOGO_STALE_MS,
-    retry: false,
     refetchOnMount: false,
   });
   return [ref, listLogo || q.data || null];
@@ -313,104 +497,33 @@ const ROLE_SECTIONS = [
   { role: 'SELLER', title: 'sellSectionTitle', sub: 'sellSectionSub' },
 ];
 
-const RATING_STEPS = [4, 4.5, 4.8];
+const Sk = ({ className = '' }) => <div aria-hidden="true" className={`nb-sk ${className}`} />;
 
-const PX_CSS = `
-.hp-dark,.hp-light{font-family:inherit}
-.hp-dark button,.hp-dark input,.hp-dark select,.hp-dark textarea,.hp-light button,.hp-light input,.hp-light select,.hp-light textarea{font-family:inherit}
-.hp-dark{color-scheme:dark;--bg:#022c22;--panel:#022c22;--g1:#065f46;--g2:#022c22;--g3:#064e3b;--bar:rgba(2,44,34,.95);--card:rgba(6,78,59,.5);--card-hi:rgba(6,78,59,.8);--line:rgba(255,255,255,.1);--line2:rgba(255,255,255,.2);--txt:#ffffff;--mut:rgba(255,255,255,.82);--hov:rgba(255,255,255,.1);--fld:#064e3b;--chip:rgba(6,78,59,.7);--tag:rgba(6,95,70,.8);--pill:rgba(2,44,34,.85);--media:#064e3b;--acc:#6ee7b7;--ring:#6ee7b7;--overlay:rgba(0,0,0,.7);--sk:rgba(255,255,255,.08);--skhi:rgba(255,255,255,.12)}
-.hp-light{color-scheme:light;--bg:#f3f4f6;--panel:#ffffff;--g1:#d1fae5;--g2:#a7f3d0;--g3:#ecfdf5;--bar:rgba(255,255,255,.95);--card:#ffffff;--card-hi:#f0fdf4;--line:#e5e7eb;--line2:#d1d5db;--txt:#022c22;--mut:#4b5563;--hov:rgba(5,150,105,.1);--fld:#ffffff;--chip:#ffffff;--tag:#d1fae5;--pill:rgba(255,255,255,.93);--media:#e5e7eb;--acc:#047857;--ring:#059669;--overlay:rgba(2,44,34,.55);--sk:rgba(2,44,34,.07);--skhi:rgba(255,255,255,.75)}
-@keyframes hpShimmer{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
-.hp-sk{position:relative;overflow:hidden;background:var(--sk)}
-.hp-sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,var(--skhi),transparent);animation:hpShimmer 1.25s ease-in-out infinite}
-[dir="rtl"] .hp-sk::after{animation-direction:reverse}
-@keyframes hpPop{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:none}}
-.hp-pop{animation:hpPop .14s ease-out both;transform-origin:top}
-@keyframes hpRise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-.hp-rise{animation:hpRise .45s cubic-bezier(.22,1,.36,1) both;animation-delay:calc(var(--i,0)*40ms)}
-@keyframes hpPage{from{opacity:0;transform:translate3d(0,16px,0)}to{opacity:1;transform:none}}
-.hp-page{animation:hpPage .55s cubic-bezier(.22,1,.36,1) both;animation-delay:var(--pd,0ms)}
-@keyframes hpSoft{from{opacity:0}to{opacity:1}}
-.hp-soft{animation:hpSoft .5s ease-out both}
-.hp-rv{opacity:0;transform:translate3d(0,24px,0);transition:opacity .6s cubic-bezier(.22,1,.36,1),transform .6s cubic-bezier(.22,1,.36,1);will-change:opacity,transform}
-.hp-rv[data-shown="1"]{opacity:1;transform:none;will-change:auto}
-@keyframes hpDot{0%,80%,100%{transform:scale(.55);opacity:.4}40%{transform:scale(1);opacity:1}}
-.hp-load-dot{animation:hpDot 1s ease-in-out infinite}
-.hp-load-dot:nth-child(2){animation-delay:.15s}
-.hp-load-dot:nth-child(3){animation-delay:.3s}
-@keyframes hpFadeIn{from{opacity:0}to{opacity:1}}
-@keyframes hpFadeOut{from{opacity:1}to{opacity:0}}
-@keyframes hpModalIn{from{opacity:0;transform:translateY(24px) scale(.97)}to{opacity:1;transform:none}}
-@keyframes hpModalOut{from{opacity:1;transform:none}to{opacity:0;transform:translateY(16px) scale(.98)}}
-@keyframes hpDrawerIn{from{transform:translateX(calc(var(--dx)*-100%))}to{transform:none}}
-@keyframes hpDrawerOut{from{transform:none}to{transform:translateX(calc(var(--dx)*-100%))}}
-@keyframes hpHeart{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}
-.hp-fade-in{animation:hpFadeIn .18s ease-out both}
-.hp-fade-out{animation:hpFadeOut .18s ease-in both}
-.hp-modal-in{animation:hpModalIn .24s cubic-bezier(.2,.8,.2,1) both}
-.hp-modal-out{animation:hpModalOut .18s ease-in both}
-.hp-drawer{animation:hpDrawerIn .24s cubic-bezier(.2,.8,.2,1) both}
-.hp-drawer-out{animation:hpDrawerOut .18s ease-in both}
-.hp-heart-on{animation:hpHeart .3s ease-out}
-.hp-search::-webkit-search-cancel-button,.hp-search::-webkit-search-decoration{display:none;-webkit-appearance:none}
-.hp-noscroll{scrollbar-width:none;-ms-overflow-style:none}
-.hp-noscroll::-webkit-scrollbar{display:none}
-.hp-sb{scrollbar-width:thin;scrollbar-color:#34d399 transparent}
-.hp-sb::-webkit-scrollbar{width:8px;height:8px}
-.hp-sb::-webkit-scrollbar-thumb{background:#34d399;border-radius:999px}
-.hp-sb::-webkit-scrollbar-track{background:transparent}
-.hp-lazy{content-visibility:auto;contain-intrinsic-size:auto 420px}
-@media (prefers-reduced-motion:no-preference){
-html:has(.hp-dark),html:has(.hp-light){scroll-behavior:smooth}
-}
-@media (prefers-reduced-motion:reduce){
-.hp-sk::after,.hp-pop,.hp-rise,.hp-page,.hp-soft,.hp-load-dot,.hp-fade-in,.hp-fade-out,.hp-modal-in,.hp-modal-out,.hp-drawer,.hp-drawer-out,.hp-heart-on{animation:none}
-.hp-rv{opacity:1;transform:none;transition:none;will-change:auto}
-}
-`;
+const IconTile = memo(({ Icon, className = 'h-9 w-9', iconClassName = 'h-4 w-4' }) => (
+  <span aria-hidden="true" className={`nb-chip ${className}`}>
+    <Icon className={iconClassName} />
+  </span>
+));
 
-let pxStylesInjected = false;
-const injectPxStylesOnce = () => {
-  if (pxStylesInjected || typeof document === 'undefined') return;
-  const tag = document.createElement('style');
-  tag.setAttribute('data-shops-styles', 'true');
-  tag.textContent = PX_CSS;
-  document.head.appendChild(tag);
-  pxStylesInjected = true;
-};
-injectPxStylesOnce();
-
-const DarkCtx = createContext(true);
-const ThemedIso = (props) => <IsoIllustration {...props} darkMode={useContext(DarkCtx)} />;
-
-const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bg)]';
-const SURFACE = 'border border-[color:var(--line)] bg-[color:var(--card)]';
-const PANEL = 'border border-[color:var(--line)] bg-[color:var(--panel)]';
-const BTN_BASE = `inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-full px-5 text-sm font-extrabold transition-[transform,background-color,border-color] duration-150 active:scale-95 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-40 ${FOCUS}`;
-const BTN_PRIMARY = `${BTN_BASE} bg-emerald-600 text-white hover:bg-emerald-500`;
-const BTN_GHOST = `${BTN_BASE} border border-[color:var(--line2)] bg-[color:var(--chip)] text-[color:var(--txt)] hover:border-emerald-400/70`;
-const ICON_BTN = `inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded-full transition-[transform,background-color] duration-150 active:scale-90 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-40 ${FOCUS}`;
-const ICON_SOLID = `${ICON_BTN} bg-[color:var(--pill)] text-[color:var(--txt)] hover:bg-emerald-600 hover:!text-white`;
-const ICON_GLASS = `${ICON_BTN} border border-[color:var(--line2)] bg-[color:var(--fld)] text-[color:var(--txt)] hover:bg-emerald-600 hover:!text-white`;
-
-const splitHeading = (text) => {
-  const str = String(text ?? '');
-  if (str.includes('**')) return str.split('**').map((part, i) => ({ part, hl: i % 2 === 1 }));
-  const words = str.split(' ');
-  if (words.length < 2) return [{ part: str, hl: true }];
-  const n = words.length <= 3 ? 1 : 2;
-  return [{ part: `${words.slice(0, -n).join(' ')} `, hl: false }, { part: words.slice(-n).join(' '), hl: true }];
-};
-
-const SkBox = ({ className = '' }) => <div className={`hp-sk rounded-lg ${className}`} />;
+const Crumbs = memo(({ t }) => (
+  <nav aria-label={t('breadcrumb')} className="nb-muted flex flex-wrap items-center gap-2 text-sm font-medium">
+    <Link to="/" className="nb-focus rounded-md transition-colors hover:text-[color:var(--nb-accent)]">{t('crumbHome')}</Link>
+    <FiChevronRight aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 rtl:rotate-180" />
+    <span aria-current="page" className="text-[color:var(--nb-ink)]">{t('crumbShops')}</span>
+  </nav>
+));
 
 const CardSkeleton = memo(({ carousel = false }) => (
-  <div className={`overflow-hidden rounded-2xl ${SURFACE} ${carousel ? 'w-[72%] flex-shrink-0 snap-start sm:w-64' : ''}`} aria-hidden="true">
-    <SkBox className="aspect-[16/10] !rounded-none" />
+  <div className={`nb-card overflow-hidden ${carousel ? 'w-[72%] flex-shrink-0 sm:w-72' : ''}`} aria-hidden="true">
+    <Sk className="aspect-[16/10] w-full !rounded-none" />
     <div className="space-y-2.5 p-3.5">
-      <SkBox className="h-4 w-3/4" />
-      <SkBox className="h-3 w-1/2" />
-      <SkBox className="h-3 w-2/3" />
+      <Sk className="h-4 w-3/4" />
+      <Sk className="h-3 w-1/2" />
+      <Sk className="h-3 w-2/3" />
+      <div className="flex items-center justify-between pt-2">
+        <Sk className="h-9 w-20" />
+        <Sk className="h-9 w-9" />
+      </div>
     </div>
   </div>
 ));
@@ -418,160 +531,56 @@ const CardSkeleton = memo(({ carousel = false }) => (
 const CarouselSkeleton = memo(() => (
   <div className="py-6" aria-hidden="true">
     <div className="mb-4 space-y-2">
-      <SkBox className="h-6 w-48" />
-      <SkBox className="h-3 w-64 max-w-full" />
+      <Sk className="h-6 w-48" />
+      <Sk className="h-3 w-64 max-w-full" />
     </div>
-    <div className="flex gap-4 overflow-hidden">
-      {Array.from({ length: 5 }).map((_, i) => <CardSkeleton key={i} carousel />)}
+    <div className="flex gap-5 overflow-hidden">
+      {[0, 1, 2, 3].map((i) => <CardSkeleton key={i} carousel />)}
     </div>
   </div>
 ));
 
-const CategorySkeleton = memo(() => (
-  <div className="flex gap-4 overflow-hidden py-4" aria-hidden="true">
-    {Array.from({ length: 8 }).map((_, i) => (
-      <div key={i} className="flex w-20 flex-shrink-0 flex-col items-center gap-2">
-        <SkBox className="h-16 w-16 !rounded-full" />
-        <SkBox className="h-3 w-14" />
+const PageSkeleton = memo(({ label }) => (
+  <div role="status" aria-busy="true" aria-label={label}>
+    <CarouselSkeleton />
+    <div className="mb-4 mt-6 space-y-2">
+      <Sk className="h-6 w-40" />
+      <Sk className="h-3 w-56 max-w-full" />
+    </div>
+    <div className={GRID}>
+      {[0, 1, 2, 3, 4, 5].map((i) => <CardSkeleton key={i} />)}
+    </div>
+  </div>
+));
+
+const FilterSkeleton = memo(() => (
+  <div aria-hidden="true" className="nb-card space-y-6 self-start p-4">
+    {[0, 1].map((g) => (
+      <div key={g} className="space-y-2">
+        <Sk className="h-4 w-24" />
+        {[0, 1, 2, 3].map((r) => <Sk key={r} className="h-10 w-full" />)}
       </div>
     ))}
   </div>
 ));
 
-const GridSkeleton = memo(({ className }) => (
-  <div className={className} role="status" aria-busy="true">
-    {Array.from({ length: 8 }).map((_, i) => <CardSkeleton key={i} />)}
-  </div>
-));
-
-const PageSkeleton = memo(({ gridClass, label }) => (
-  <div role="status" aria-busy="true" aria-label={label}>
-    <CategorySkeleton />
-    <CarouselSkeleton />
-    <div className="mb-4 mt-6 space-y-2">
-      <SkBox className="h-6 w-40" />
-      <SkBox className="h-3 w-56 max-w-full" />
-    </div>
-    <GridSkeleton className={gridClass} />
-  </div>
-));
-
-const SearchField = memo(({ value, onChange, placeholder, ariaLabel, clearLabel, pending }) => {
-  const inputRef = useRef(null);
-  const handleClear = useCallback(() => { onChange(''); inputRef.current?.focus(); }, [onChange]);
-  return (
-    <div className="relative min-w-0 flex-1" role="search">
-      <FiSearch aria-hidden="true" className="pointer-events-none absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--txt)]" />
-      <input
-        ref={inputRef} type="search" inputMode="search" autoComplete="off" spellCheck={false} maxLength={100}
-        value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} aria-label={ariaLabel}
-        className={`hp-search h-12 w-full rounded-full border border-[color:var(--line2)] bg-[color:var(--fld)] ps-11 pe-14 text-sm font-semibold text-[color:var(--txt)] outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-[color:var(--mut)] hover:border-emerald-400/60 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40`}
-      />
-      <div className="absolute end-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
-        {pending && <span aria-hidden="true" className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent text-[color:var(--txt)] motion-reduce:animate-none" />}
-        {value && (
-          <button type="button" onClick={handleClear} aria-label={clearLabel} className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-[color:var(--txt)] transition-colors hover:bg-[color:var(--hov)] ${FOCUS}`}>
-            <FiX className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-    </div>
-  );
-});
-
-const Dropdown = memo(({ value, onChange, options, ariaLabel }) => {
-  const uid = useId().replace(/:/g, '');
-  const rootRef = useRef(null);
-  const btnRef = useRef(null);
-  const listRef = useRef(null);
-  const [open, setOpen] = useState(false);
-  const selectedIndex = Math.max(0, options.findIndex((o) => o.value === value));
-  const [active, setActive] = useState(selectedIndex);
-  const current = options[selectedIndex];
-
-  const openMenu = useCallback(() => { setActive(selectedIndex); setOpen(true); }, [selectedIndex]);
-  const closeMenu = useCallback((refocus = true) => {
-    setOpen(false);
-    if (refocus) btnRef.current?.focus();
-  }, []);
-  const pick = useCallback((i) => {
-    const o = options[i];
-    if (o) onChange(o.value);
-    closeMenu();
-  }, [options, onChange, closeMenu]);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    listRef.current?.focus({ preventScroll: true });
-    const onDown = (e) => { if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('pointerdown', onDown);
-    return () => document.removeEventListener('pointerdown', onDown);
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    document.getElementById(`${uid}-o${active}`)?.scrollIntoView({ block: 'nearest' });
-  }, [open, active, uid]);
-
-  const onButtonKey = useCallback((e) => {
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); openMenu(); }
-  }, [openMenu]);
-
-  const onListKey = useCallback((e) => {
-    const last = options.length - 1;
-    switch (e.key) {
-      case 'ArrowDown': e.preventDefault(); setActive((i) => Math.min(last, i + 1)); break;
-      case 'ArrowUp': e.preventDefault(); setActive((i) => Math.max(0, i - 1)); break;
-      case 'Home': e.preventDefault(); setActive(0); break;
-      case 'End': e.preventDefault(); setActive(last); break;
-      case 'Enter':
-      case ' ': e.preventDefault(); pick(active); break;
-      case 'Escape': e.preventDefault(); e.stopPropagation(); closeMenu(); break;
-      case 'Tab': closeMenu(false); break;
-      default: break;
-    }
-  }, [options.length, active, pick, closeMenu]);
-
-  return (
-    <div ref={rootRef} className="relative flex-shrink-0">
-      <button
-        ref={btnRef} type="button" aria-haspopup="listbox" aria-expanded={open} aria-controls={`${uid}-list`} aria-label={`${ariaLabel}: ${current?.label ?? ''}`}
-        onClick={() => (open ? closeMenu(false) : openMenu())} onKeyDown={onButtonKey}
-        className={`inline-flex h-10 w-44 cursor-pointer items-center justify-between gap-2 rounded-full border border-[color:var(--line2)] bg-[color:var(--fld)] ps-4 pe-3 text-sm font-bold text-[color:var(--txt)] transition-colors hover:border-emerald-400/70 ${FOCUS}`}
-      >
-        <span className="min-w-0 flex-1 truncate text-start">{current?.label}</span>
-        <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform duration-200 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
+const StateBox = memo(({ label, hint, onAction, actionLabel, fetching }) => (
+  <div className="nb-dot nb-in flex flex-col items-center px-4 py-14 text-center">
+    <ThemedIso type="shopsEmpty" tone="emerald" onGreen={false} className="mb-3 h-28 w-28" />
+    <p className="text-base font-bold">{label}</p>
+    {hint && <p className="nb-muted mt-1 max-w-md text-sm">{hint}</p>}
+    {onAction && actionLabel && (
+      <button type="button" onClick={() => onAction()} className="nb-btn nb-btn-a mt-5 min-h-11 px-4 text-sm">
+        <FiRefreshCw aria-hidden="true" className={`h-4 w-4 ${fetching ? 'animate-spin motion-reduce:animate-none' : ''}`} />{actionLabel}
       </button>
-      {open && (
-        <ul
-          id={`${uid}-list`} ref={listRef} role="listbox" tabIndex={-1} aria-label={ariaLabel} aria-activedescendant={`${uid}-o${active}`} onKeyDown={onListKey}
-          className={`hp-pop hp-sb absolute start-0 top-full z-50 mt-2 max-h-64 w-56 overflow-y-auto overscroll-contain rounded-2xl p-1.5 text-[color:var(--txt)] shadow-xl shadow-black/30 outline-none ${PANEL}`}
-        >
-          {options.map((o, i) => {
-            const selected = o.value === value;
-            return (
-              <li
-                key={o.value} id={`${uid}-o${i}`} role="option" aria-selected={selected}
-                onPointerEnter={() => setActive(i)} onClick={() => pick(i)}
-                className={`flex min-h-10 cursor-pointer items-center gap-2 rounded-xl px-3 text-sm font-bold transition-colors ${i === active ? 'bg-[color:var(--hov)]' : ''}`}
-              >
-                <span className="min-w-0 flex-1 truncate">{o.label}</span>
-                {selected && <FiCheck aria-hidden="true" className="h-4 w-4 flex-shrink-0 text-[color:var(--acc)]" strokeWidth={3} />}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
-  );
-});
+    )}
+  </div>
+));
 
 const Chip = memo(({ active, onClick, children, icon: Icon, onRemove }) => (
   <button
     type="button" onClick={onClick} aria-pressed={active}
-    className={`inline-flex h-10 flex-shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border px-4 text-sm font-bold transition-[background-color,border-color,transform] duration-150 active:scale-95 motion-reduce:transition-none ${FOCUS} ${
-      active ? 'border-emerald-400 bg-emerald-600 text-white' : 'border-[color:var(--line2)] bg-[color:var(--chip)] text-[color:var(--txt)] hover:border-emerald-400/70'
-    }`}
+    className={`nb-btn nb-focus h-10 flex-shrink-0 whitespace-nowrap px-3 text-xs ${active ? 'nb-btn-on' : ''}`}
   >
     {Icon && <Icon aria-hidden="true" className="h-4 w-4 flex-shrink-0" />}
     <span className="max-w-[10rem] truncate">{children}</span>
@@ -592,151 +601,152 @@ const ShopImage = memo(({ src, name, role, eager = false }) => {
   const onLoad = useCallback(() => { markImg(src, 'ok'); setLoaded(true); }, [src]);
   if (!src || failed) {
     return (
-      <div className="absolute inset-0 flex items-end justify-center bg-gradient-to-br from-[color:var(--g1)] to-[color:var(--g2)] px-6 pt-5">
-        <ThemedIso
-          type={isoRoleKey(role)} tone="emerald" onGreen={false}
-          className="pointer-events-none h-full w-auto max-w-full transition-transform duration-500 ease-[cubic-bezier(.22,1,.36,1)] group-hover:scale-105 motion-reduce:transition-none"
-        />
+      <div className="nb-gray absolute inset-0 flex items-end justify-center px-6 pt-5">
+        <ThemedIso type={isoRoleKey(role)} tone="emerald" onGreen={false} className="pointer-events-none h-full w-auto max-w-full" />
       </div>
     );
   }
   return (
     <>
-      <div aria-hidden="true" className="absolute inset-0 bg-white" />
-      {!loaded && <div aria-hidden="true" className="hp-sk absolute inset-0 !rounded-none !bg-black/5" />}
+      {!loaded && <div aria-hidden="true" className="nb-sk absolute inset-0 !rounded-none" />}
       <img
         ref={imgRef} src={src} alt={name || ''} width={400} height={250}
         loading={eager ? 'eager' : 'lazy'} fetchPriority={eager ? 'high' : 'low'} decoding="async" referrerPolicy="no-referrer"
         onLoad={onLoad} onError={onError}
-        className={`absolute inset-0 h-full w-full object-contain p-4 transition-[opacity,transform] duration-500 ease-[cubic-bezier(.22,1,.36,1)] group-hover:scale-105 motion-reduce:transition-none ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        className={`absolute inset-0 h-full w-full object-contain p-4 transition-opacity duration-300 motion-reduce:transition-none ${loaded ? 'opacity-100' : 'opacity-0'}`}
       />
     </>
   );
 });
 
 const RatingLine = ({ rating, reviews, className = '' }) => (
-  <p className={`flex items-center gap-1 text-xs font-extrabold ${className}`}>
+  <p className={`flex items-center gap-1 text-xs font-bold ${className}`}>
     <RiStarFill className="h-3.5 w-3.5 text-amber-400" aria-hidden="true" />
     <span dir="ltr" className="tabular-nums">{rating.toFixed(1)}</span>
-    {reviews > 0 && <span dir="ltr" className="font-semibold tabular-nums opacity-80">({reviews})</span>}
+    {reviews > 0 && <span dir="ltr" className="nb-muted font-semibold tabular-nums">({reviews})</span>}
   </p>
 );
 
 const SaveButton = ({ isSaved, onClick, t, className = '' }) => (
   <button
     type="button" onClick={onClick} aria-pressed={isSaved} aria-label={isSaved ? t('saved') : t('save')} title={isSaved ? t('saved') : t('save')}
-    className={`${ICON_SOLID} !h-9 !w-9 ${className}`}
+    className={`nb-btn nb-focus h-9 w-9 flex-shrink-0 !rounded-full ${className}`}
   >
-    <FiHeart key={String(isSaved)} className={`h-4 w-4 ${isSaved ? 'hp-heart-on text-rose-400' : ''}`} fill={isSaved ? 'currentColor' : 'none'} aria-hidden="true" />
+    <FiHeart key={String(isSaved)} className={`h-4 w-4 ${isSaved ? 'sh-heart text-rose-500' : ''}`} fill={isSaved ? 'currentColor' : 'none'} aria-hidden="true" />
   </button>
 );
 
-const CARD_MOTION = 'transition-[transform,border-color,background-color,box-shadow] duration-300 ease-[cubic-bezier(.22,1,.36,1)] active:scale-[.98] motion-reduce:transition-none [@media(hover:hover)]:hover:-translate-y-1 [@media(hover:hover)]:hover:border-emerald-400/60 [@media(hover:hover)]:hover:shadow-xl [@media(hover:hover)]:hover:shadow-black/20';
+const VerifiedMark = ({ t }) => (
+  <span className="nb-ic inline-flex flex-shrink-0">
+    <RiVerifiedBadgeLine aria-hidden="true" className="h-4 w-4" />
+    <span className="sr-only">{t('verified')}</span>
+  </span>
+);
 
-const ShopCard = memo(({ shop, isSaved, actions, t, eager = false }) => {
+const useShopHandlers = (shop, actions) => {
   const { onDetails, onOpen, onDirections, onSave } = actions;
-  const role = getShopRole(shop);
-  const rs = roleStyle(role);
-  const address = addressLine(shop);
-  const hasRating = typeof shop.rating === 'number' && shop.rating > 0;
-  const [mediaRef, logo] = useShopLogo(shop, eager);
-  const reviews = useMemo(() => shopFallback(shop).reviews, [shop]);
   const open = useCallback(() => onOpen(shop.id), [onOpen, shop.id]);
   const showDetails = useCallback((e) => { e.stopPropagation(); onDetails(shop); }, [onDetails, shop]);
   const directions = useCallback((e) => { e.stopPropagation(); onDirections(shop); }, [onDirections, shop]);
   const save = useCallback((e) => { e.stopPropagation(); onSave(shop.id); }, [onSave, shop.id]);
+  const onKey = useCallback((e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onOpen(shop.id); }, [onOpen, shop.id]);
+  return { open, showDetails, directions, save, onKey };
+};
+
+const CardActions = ({ showDetails, directions, t }) => (
+  <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+    <button type="button" onClick={showDetails} className="nb-btn nb-focus h-9 px-3 text-xs">
+      <FiInfo className="h-4 w-4" aria-hidden="true" />{t('details')}
+    </button>
+    <button type="button" onClick={directions} aria-label={t('getDirections')} title={t('getDirections')} className="nb-btn nb-btn-a nb-focus h-9 w-9">
+      <FiNavigation className="h-4 w-4" aria-hidden="true" />
+    </button>
+  </div>
+);
+
+const ShopCard = memo(({ shop, isSaved, actions, t, eager = false }) => {
+  const role = getShopRole(shop);
+  const rs = roleStyle(role);
+  const address = addressLine(shop);
+  const hasRating = shop.rating > 0;
+  const [mediaRef, logo] = useShopLogo(shop, eager);
+  const reviews = useMemo(() => shopFallback(shop).reviews, [shop]);
+  const { open, showDetails, directions, save, onKey } = useShopHandlers(shop, actions);
 
   return (
     <article
-      onClick={open}
-      onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open(); }}
-      tabIndex={0}
-      aria-label={shop.name || t('unnamedShop')}
-      className={`group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl text-[color:var(--txt)] ${SURFACE} ${CARD_MOTION} [@media(hover:hover)]:hover:bg-[color:var(--card-hi)] ${FOCUS}`}
+      onClick={open} onKeyDown={onKey} tabIndex={0} aria-label={shop.name || t('unnamedShop')}
+      className="nb-card nb-lift nb-zoom nb-focus flex h-full cursor-pointer flex-col overflow-hidden"
     >
-      <div ref={mediaRef} className="relative aspect-[16/10] w-full flex-shrink-0 overflow-hidden bg-[color:var(--media)] [contain:layout_paint]">
+      <div ref={mediaRef} className="nb-media nb-bd relative aspect-[16/10] w-full flex-shrink-0 overflow-hidden border-b-[3px] [contain:layout_paint]">
         <ShopImage src={logo} name={shop.name} role={role} eager={eager} />
+        <span className="nb-chip absolute start-3 top-3 max-w-[65%] gap-1.5 px-2.5 py-1 text-[11px] font-bold">
+          <rs.icon aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0" />
+          <span className="truncate">{serviceLabel(role, t)}</span>
+        </span>
         <SaveButton isSaved={isSaved} onClick={save} t={t} className="absolute end-3 top-3" />
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-2 p-3.5">
-        <h3 className="min-w-0 text-base font-extrabold leading-snug">
-          <span className="block truncate">{shop.name || t('unnamedShop')}</span>
+        <h3 className="flex min-w-0 items-center gap-1.5 text-sm font-bold leading-snug">
+          <span className="min-w-0 truncate">{shop.name || t('unnamedShop')}</span>
+          {shop.verified && <VerifiedMark t={t} />}
         </h3>
         {hasRating && <RatingLine rating={shop.rating} reviews={reviews} />}
-        <p className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-[color:var(--mut)]">
-          <FiMapPin aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 text-[color:var(--acc)]" />
+        <p className="nb-muted flex min-w-0 items-center gap-1.5 text-xs font-semibold">
+          <FiMapPin aria-hidden="true" className="nb-ic h-3.5 w-3.5 flex-shrink-0" />
           <span className="truncate">{address || t('noAddress')}</span>
         </p>
-        <p className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-[color:var(--acc)]">
-          <rs.icon aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0" />
-          <span className="truncate">{serviceLabel(role, t)}{shop.shopType ? ` / ${shop.shopType}` : ''}</span>
-        </p>
-        <div className="mt-auto flex items-center justify-between gap-2 pt-1.5">
-          <button type="button" onClick={showDetails} className={`inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full px-3 text-xs font-extrabold text-[color:var(--txt)] transition-colors hover:bg-[color:var(--hov)] ${FOCUS}`}>
-            <FiInfo className="h-4 w-4" aria-hidden="true" />{t('details')}
-          </button>
-          <button type="button" onClick={directions} aria-label={t('getDirections')} title={t('getDirections')} className={`${ICON_BTN} !h-9 !w-9 bg-emerald-600 text-white hover:bg-emerald-500`}>
-            <FiNavigation className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </div>
+        {shop.shopType && (
+          <p className="nb-ic flex min-w-0 items-center gap-1.5 text-xs font-semibold">
+            <FiShoppingBag aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0" />
+            <span className="truncate">{shop.shopType}</span>
+          </p>
+        )}
+        <CardActions showDetails={showDetails} directions={directions} t={t} />
       </div>
     </article>
   );
 });
 
 const TopRatedCard = memo(({ shop, rank, isSaved, actions, t, eager = false }) => {
-  const { onDetails, onOpen, onDirections, onSave } = actions;
   const role = getShopRole(shop);
   const address = addressLine(shop);
-  const hasRating = typeof shop.rating === 'number' && shop.rating > 0;
+  const hasRating = shop.rating > 0;
   const [mediaRef, logo] = useShopLogo(shop, eager);
   const reviews = useMemo(() => shopFallback(shop).reviews, [shop]);
-  const open = useCallback(() => onOpen(shop.id), [onOpen, shop.id]);
-  const showDetails = useCallback((e) => { e.stopPropagation(); onDetails(shop); }, [onDetails, shop]);
-  const directions = useCallback((e) => { e.stopPropagation(); onDirections(shop); }, [onDirections, shop]);
-  const save = useCallback((e) => { e.stopPropagation(); onSave(shop.id); }, [onSave, shop.id]);
+  const { open, showDetails, directions, save, onKey } = useShopHandlers(shop, actions);
 
   return (
     <article
-      onClick={open}
-      onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open(); }}
-      tabIndex={0}
-      aria-label={shop.name || t('unnamedShop')}
-      className={`group relative flex h-full cursor-pointer items-stretch gap-4 overflow-hidden rounded-3xl border border-[color:var(--line2)] bg-gradient-to-br from-[color:var(--g3)] to-[color:var(--card)] p-4 text-[color:var(--txt)] ${CARD_MOTION} ${FOCUS}`}
+      onClick={open} onKeyDown={onKey} tabIndex={0} aria-label={shop.name || t('unnamedShop')}
+      className="nb-card nb-lift nb-zoom nb-focus flex h-full cursor-pointer items-stretch gap-4 overflow-hidden p-4"
     >
-      <div ref={mediaRef} className="relative h-28 w-28 flex-shrink-0 self-center overflow-hidden rounded-2xl bg-[color:var(--media)] [contain:layout_paint] sm:h-32 sm:w-32">
+      <div ref={mediaRef} className="nb-media nb-bd relative h-28 w-28 flex-shrink-0 self-center overflow-hidden rounded-2xl border-2 [contain:layout_paint] sm:h-32 sm:w-32">
         <ShopImage src={logo} name={shop.name} role={role} eager={eager} />
       </div>
-
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center justify-between gap-2">
-          <span dir="ltr" aria-hidden="true" className="text-3xl font-black leading-none tabular-nums text-[color:var(--acc)]">#{rank}</span>
+          <span dir="ltr" aria-hidden="true" className="nb-gray nb-bd rounded-lg border-2 px-2 py-0.5 text-xs font-bold tabular-nums">#{rank}</span>
           <SaveButton isSaved={isSaved} onClick={save} t={t} />
         </div>
-        <h3 className="mt-1 min-w-0 text-lg font-extrabold leading-snug">
-          <span className="block truncate">{shop.name || t('unnamedShop')}</span>
+        <h3 className="mt-2 flex min-w-0 items-center gap-1.5 text-sm font-bold leading-snug">
+          <span className="min-w-0 truncate">{shop.name || t('unnamedShop')}</span>
+          {shop.verified && <VerifiedMark t={t} />}
         </h3>
-        {hasRating && <RatingLine rating={shop.rating} reviews={reviews} className="!text-sm" />}
-        <p className="mt-1 flex min-w-0 items-center gap-1.5 text-xs font-semibold text-[color:var(--mut)]">
-          <FiMapPin aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 text-[color:var(--acc)]" />
+        {hasRating && <RatingLine rating={shop.rating} reviews={reviews} className="mt-1" />}
+        <p className="nb-muted mt-1 flex min-w-0 items-center gap-1.5 text-xs font-semibold">
+          <FiMapPin aria-hidden="true" className="nb-ic h-3.5 w-3.5 flex-shrink-0" />
           <span className="truncate">{address || t('noAddress')}</span>
         </p>
-        <div className="mt-auto flex items-center justify-between gap-2 pt-2">
-          <button type="button" onClick={showDetails} className={`inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full px-3 text-xs font-extrabold text-[color:var(--txt)] transition-colors hover:bg-[color:var(--hov)] ${FOCUS}`}>
-            <FiInfo className="h-4 w-4" aria-hidden="true" />{t('details')}
-          </button>
-          <button type="button" onClick={directions} aria-label={t('getDirections')} title={t('getDirections')} className={`${ICON_BTN} !h-9 !w-9 bg-emerald-600 text-white hover:bg-emerald-500`}>
-            <FiNavigation className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </div>
+        <CardActions showDetails={showDetails} directions={directions} t={t} />
       </div>
     </article>
   );
 });
 
 const ShopCell = memo(({ index, className = '', children }) => (
-  <div className={`hp-rise min-w-0 ${className}`} style={STAGGER[index % STAGGER.length]}>{children}</div>
+  <div className={`nb-in min-w-0 ${className}`} style={STAGGER[index % STAGGER.length]}>{children}</div>
 ));
 
 const Carousel = memo(({ title, subtitle, count, onViewAll, viewAllLabel, shops, saved, actions, t, featured = false }) => {
@@ -745,167 +755,242 @@ const Carousel = memo(({ title, subtitle, count, onViewAll, viewAllLabel, shops,
     const el = ref.current;
     if (!el) return;
     const sign = getComputedStyle(el).direction === 'rtl' ? -1 : 1;
-    el.scrollBy({ left: d * sign * el.clientWidth * 0.8, behavior: 'smooth' });
+    el.scrollBy({ left: d * sign * el.clientWidth * 0.8, behavior: prefersReduced() ? 'auto' : 'smooth' });
   }, []);
-  const parts = useMemo(() => splitHeading(title), [title]);
   return (
-    <Reveal as="section" aria-label={title} className="hp-lazy py-6">
+    <section aria-label={title} className="sh-lazy mb-8">
       <div className="mb-4 flex items-end justify-between gap-4">
         <div className="min-w-0">
-          <h2 className="text-xl font-extrabold leading-tight sm:text-2xl">
-            {parts.map(({ part, hl }, i) => (hl ? <span key={i} className="text-[color:var(--acc)]">{part}</span> : part))}
-            {count != null && <span dir="ltr" className="ms-2 text-sm font-bold tabular-nums opacity-70">({count})</span>}
+          <h2 className="text-xl font-bold leading-tight tracking-tight sm:text-2xl">
+            {title}
+            {count != null && <span dir="ltr" className="nb-muted ms-2 text-sm font-semibold tabular-nums">({count})</span>}
           </h2>
-          {subtitle && <p className="mt-1 line-clamp-1 text-sm font-medium text-[color:var(--mut)]">{subtitle}</p>}
+          {subtitle && <p className="nb-muted mt-1.5 line-clamp-1 text-sm">{subtitle}</p>}
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
           {onViewAll && (
-            <button type="button" onClick={onViewAll} className={`inline-flex min-h-10 cursor-pointer items-center gap-1 rounded-full px-3 text-sm font-extrabold text-[color:var(--acc)] transition-colors hover:bg-[color:var(--hov)] ${FOCUS}`}>
+            <button type="button" onClick={onViewAll} className="nb-btn nb-focus h-10 px-3 text-xs">
               {viewAllLabel}<FiArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
             </button>
           )}
-          <button type="button" onClick={() => scroll(-1)} aria-label={t('scrollPrev')} className={`${ICON_GLASS} hidden sm:inline-flex`}><FiChevronLeft className="h-5 w-5 rtl:rotate-180" /></button>
-          <button type="button" onClick={() => scroll(1)} aria-label={t('scrollNext')} className={`${ICON_GLASS} hidden sm:inline-flex`}><FiChevronRight className="h-5 w-5 rtl:rotate-180" /></button>
+          <button type="button" onClick={() => scroll(-1)} aria-label={t('scrollPrev')} className="nb-btn nb-focus hidden h-10 w-10 sm:inline-flex"><FiChevronLeft className="h-5 w-5 rtl:rotate-180" aria-hidden="true" /></button>
+          <button type="button" onClick={() => scroll(1)} aria-label={t('scrollNext')} className="nb-btn nb-focus hidden h-10 w-10 sm:inline-flex"><FiChevronRight className="h-5 w-5 rtl:rotate-180" aria-hidden="true" /></button>
         </div>
       </div>
-      <div ref={ref} className="hp-noscroll -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth px-4 pb-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      <div ref={ref} className="sh-noscroll -mx-2 flex snap-x snap-mandatory gap-5 overflow-x-auto px-2 pb-3 pt-1">
         {shops.map((s, i) => (
-          featured ? (
-            <ShopCell key={s.id} index={i} className="w-[88%] flex-shrink-0 snap-start sm:w-[25rem]">
-              <TopRatedCard shop={s} rank={i + 1} isSaved={saved.has(s.id)} actions={actions} t={t} eager={i < 2} />
-            </ShopCell>
-          ) : (
-            <ShopCell key={s.id} index={i} className="w-[72%] flex-shrink-0 snap-start sm:w-64">
-              <ShopCard shop={s} isSaved={saved.has(s.id)} actions={actions} t={t} eager={i < 2} />
-            </ShopCell>
-          )
+          <ShopCell key={s.id} index={i} className={`flex-shrink-0 snap-start ${featured ? 'w-[88%] sm:w-[25rem]' : 'w-[72%] sm:w-72'}`}>
+            {featured
+              ? <TopRatedCard shop={s} rank={i + 1} isSaved={saved.has(s.id)} actions={actions} t={t} eager={i < 2} />
+              : <ShopCard shop={s} isSaved={saved.has(s.id)} actions={actions} t={t} eager={i < 2} />}
+          </ShopCell>
         ))}
       </div>
-    </Reveal>
+    </section>
   );
 });
 
 const CategoryRail = memo(({ types, countsByType, selected, onToggle, onAll, allLabel, total, ariaLabel }) => (
-  <nav aria-label={ariaLabel} className="hp-noscroll -mx-4 flex gap-4 overflow-x-auto px-4 py-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-    <button type="button" onClick={onAll} aria-pressed={!selected.length} className={`group flex w-20 flex-shrink-0 cursor-pointer flex-col items-center gap-2 rounded-2xl text-[color:var(--txt)] ${FOCUS}`}>
-      <span className={`flex h-16 w-16 items-center justify-center rounded-full border-2 transition-[transform,background-color,border-color] duration-300 ease-[cubic-bezier(.22,1,.36,1)] group-active:scale-90 motion-reduce:transition-none [@media(hover:hover)]:group-hover:-translate-y-1 ${!selected.length ? 'border-emerald-300 bg-emerald-600 text-white' : 'border-[color:var(--line2)] bg-[color:var(--fld)]'}`}>
-        <FiShoppingBag className="h-6 w-6" aria-hidden="true" />
-      </span>
-      <span className="line-clamp-1 w-full text-center text-xs font-extrabold">{allLabel}</span>
-      <span dir="ltr" className="-mt-1.5 text-[11px] font-semibold tabular-nums opacity-70">{total}</span>
-    </button>
-    {types.map((ty) => {
-      const active = selected.includes(ty);
-      return (
-        <button key={ty} type="button" onClick={() => onToggle(ty)} aria-pressed={active} className={`group flex w-20 flex-shrink-0 cursor-pointer flex-col items-center gap-2 rounded-2xl text-[color:var(--txt)] ${FOCUS}`}>
-          <span className={`flex h-16 w-16 items-center justify-center rounded-full border-2 text-xl font-black uppercase transition-[transform,background-color,border-color] duration-300 ease-[cubic-bezier(.22,1,.36,1)] group-active:scale-90 motion-reduce:transition-none [@media(hover:hover)]:group-hover:-translate-y-1 ${active ? 'border-emerald-300 bg-emerald-600 text-white' : 'border-[color:var(--line2)] bg-[color:var(--fld)]'}`}>
-            {ty.trim().charAt(0)}
-          </span>
-          <span className="line-clamp-1 w-full text-center text-xs font-extrabold">{ty}</span>
-          <span dir="ltr" className="-mt-1.5 text-[11px] font-semibold tabular-nums opacity-70">{countsByType[ty] || 0}</span>
-        </button>
-      );
-    })}
+  <nav aria-label={ariaLabel} className="sh-noscroll -mx-2 mb-6 flex gap-3 overflow-x-auto px-2 py-2">
+    <Chip active={!selected.length} onClick={onAll} icon={FiShoppingBag}>
+      {allLabel} <span dir="ltr" className="tabular-nums">({total})</span>
+    </Chip>
+    {types.map((ty) => (
+      <Chip key={ty} active={selected.includes(ty)} onClick={() => onToggle(ty)}>
+        {ty} <span dir="ltr" className="tabular-nums">({countsByType[ty] || 0})</span>
+      </Chip>
+    ))}
   </nav>
 ));
 
-const OptionRow = memo(({ type, label, count, selected, onClick }) => (
-  <button
-    type="button" role={type === 'check' ? 'checkbox' : 'radio'} aria-checked={selected} onClick={onClick}
-    className={`flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-lg px-1 py-1 text-start text-sm font-bold text-[color:var(--txt)] transition-colors hover:bg-[color:var(--hov)] ${FOCUS}`}
-  >
-    <span
-      className={`flex h-5 w-5 flex-shrink-0 items-center justify-center border-2 transition-colors duration-150 motion-reduce:transition-none ${type === 'radio' ? 'rounded-full' : 'rounded-md'} ${
-        selected ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-[color:var(--line2)] bg-transparent'
-      }`}
-    >
-      {selected && (type === 'check' ? <FiCheck className="h-3 w-3" strokeWidth={3} /> : <span className="h-2 w-2 rounded-full bg-white" />)}
-    </span>
-    <span className="min-w-0 flex-1 truncate">{label}</span>
-    {count !== undefined && <span className="text-xs font-semibold tabular-nums opacity-70" dir="ltr">{count}</span>}
-  </button>
+const FilterGroup = memo(({ title, children }) => (
+  <fieldset className="nb-line min-w-0 border-b-2 py-4 first:pt-0 last:border-b-0 last:pb-0">
+    <legend className="mb-3 text-sm font-bold">{title}</legend>
+    <div className="flex flex-col gap-1.5">{children}</div>
+  </fieldset>
 ));
 
-const FilterBlock = memo(({ title, isOpen, onToggle, children }) => (
-  <section className="border-t border-[color:var(--line)]">
-    <button type="button" onClick={onToggle} aria-expanded={isOpen} className={`flex min-h-12 w-full cursor-pointer items-center gap-3 py-3 text-start text-[color:var(--txt)] ${FOCUS}`}>
-      <span className="min-w-0 flex-1 truncate text-sm font-extrabold">{title}</span>
-      <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform duration-200 motion-reduce:transition-none ${isOpen ? 'rotate-180' : ''}`} />
+const FilterOption = memo(({ active, label, count, onClick, radio = false }) => {
+  const disabled = count === 0 && !active;
+  return (
+    <button
+      type="button" role={radio ? 'radio' : 'checkbox'} aria-checked={active} disabled={disabled} onClick={onClick}
+      className={`nb-opt nb-focus flex min-h-10 w-full cursor-pointer items-center gap-2 border-2 px-3 text-start text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${
+        active ? 'nb-bd bg-[color:var(--nb-btn)] text-[color:var(--nb-on)]' : 'border-transparent hover:bg-[color:var(--nb-gray)]'
+      }`}
+    >
+      <span aria-hidden="true" className={`nb-bd inline-flex h-4 w-4 flex-shrink-0 items-center justify-center border-2 ${radio ? 'rounded-full' : 'rounded-md'}`}>
+        {active && <FiCheck className="h-3 w-3" strokeWidth={4} />}
+      </span>
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {count !== undefined && <span dir="ltr" className={`text-xs tabular-nums ${active ? 'opacity-80' : 'nb-muted'}`}>{count}</span>}
     </button>
-    {isOpen && <div className="hp-pop min-w-0 pb-4">{children}</div>}
-  </section>
-));
+  );
+});
 
 const STAR = <RiStarFill aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 text-amber-400" />;
 
 const FilterPanel = memo((p) => {
   const {
-    t, onClose, shopTypes, countsByType, selectedShopTypes, toggleShopType, cities, selectedCities, toggleCity,
+    t, shopTypes, countsByType, selectedShopTypes, toggleShopType, cities, selectedCities, toggleCity,
     roleFilter, setRoleFilter, roleCounts, minRating, setMinRating, showVerifiedOnly, setShowVerifiedOnly,
     savedOnly, setSavedOnly, ratedOnly, setRatedOnly, hasPhoneOnly, setHasPhoneOnly, hasAddressOnly, setHasAddressOnly,
-    open, setOpen, clearFilters, activeFiltersCount,
   } = p;
-  const toggle = (k) => setOpen((o) => ({ ...o, [k]: !o[k] }));
   return (
-    <div className="w-full min-w-0 text-[color:var(--txt)]">
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pb-3">
-        <h3 className="flex min-w-0 items-center gap-2 text-lg font-extrabold">
-          <FiSliders aria-hidden="true" className="h-4 w-4 flex-shrink-0 text-[color:var(--acc)]" />
-          <span className="truncate">{t('filters')}</span>
-        </h3>
-        <div className="flex flex-shrink-0 items-center gap-2">
-          {activeFiltersCount > 0 && <button type="button" onClick={clearFilters} className={`min-h-10 cursor-pointer rounded-full px-3 text-xs font-extrabold text-[color:var(--acc)] underline underline-offset-4 ${FOCUS}`}>{t('resetAll')}</button>}
-          {onClose && <button type="button" onClick={onClose} aria-label={t('closeFilters')} className={ICON_GLASS}><FiX className="h-4 w-4" /></button>}
+    <div className="w-full min-w-0">
+      <FilterGroup title={t('serviceType')}>
+        <div role="radiogroup" aria-label={t('serviceType')} className="flex flex-col gap-1.5">
+          <FilterOption radio label={t('allShops')} count={roleCounts.ALL} active={roleFilter === 'ALL'} onClick={() => setRoleFilter('ALL')} />
+          <FilterOption radio label={t('repairServices')} count={roleCounts.REPAIRER} active={roleFilter === 'REPAIRER'} onClick={() => setRoleFilter('REPAIRER')} />
+          <FilterOption radio label={t('sellTradeIn')} count={roleCounts.SELLER} active={roleFilter === 'SELLER'} onClick={() => setRoleFilter('SELLER')} />
+          <FilterOption radio label={t('repairAndSell')} count={roleCounts.BOTH} active={roleFilter === 'BOTH'} onClick={() => setRoleFilter('BOTH')} />
         </div>
-      </div>
+      </FilterGroup>
 
-      <FilterBlock title={t('serviceType')} isOpen={open.role} onToggle={() => toggle('role')}>
-        <div className="min-w-0 break-words" role="radiogroup" aria-label={t('serviceType')}>
-          <OptionRow type="radio" label={t('allShops')} count={roleCounts.ALL} selected={roleFilter === 'ALL'} onClick={() => setRoleFilter('ALL')} />
-          <OptionRow type="radio" label={t('repairServices')} count={roleCounts.REPAIRER} selected={roleFilter === 'REPAIRER'} onClick={() => setRoleFilter('REPAIRER')} />
-          <OptionRow type="radio" label={t('sellTradeIn')} count={roleCounts.SELLER} selected={roleFilter === 'SELLER'} onClick={() => setRoleFilter('SELLER')} />
-          <OptionRow type="radio" label={t('repairAndSell')} count={roleCounts.BOTH} selected={roleFilter === 'BOTH'} onClick={() => setRoleFilter('BOTH')} />
-        </div>
-      </FilterBlock>
-
-      <FilterBlock title={t('shopType')} isOpen={open.type} onToggle={() => toggle('type')}>
+      <FilterGroup title={t('shopType')}>
         {shopTypes.length === 0
-          ? <p className="text-sm font-medium opacity-80">{t('noTypes')}</p>
+          ? <p className="nb-muted text-sm">{t('noTypes')}</p>
           : (
-            <div className="hp-sb max-h-52 min-w-0 overflow-y-auto overscroll-contain break-words pe-2">
-              {shopTypes.map((ty) => <OptionRow key={ty} type="check" label={ty} count={countsByType[ty] || 0} selected={selectedShopTypes.includes(ty)} onClick={() => toggleShopType(ty)} />)}
+            <div className="flex max-h-52 min-w-0 flex-col gap-1.5 overflow-y-auto overscroll-contain">
+              {shopTypes.map((ty) => <FilterOption key={ty} label={ty} count={countsByType[ty] || 0} active={selectedShopTypes.includes(ty)} onClick={() => toggleShopType(ty)} />)}
             </div>
           )}
-      </FilterBlock>
+      </FilterGroup>
 
       {cities.length > 0 && (
-        <FilterBlock title={t('city')} isOpen={open.city} onToggle={() => toggle('city')}>
-          <div className="hp-sb flex max-h-40 min-w-0 flex-wrap gap-2 overflow-y-auto overscroll-contain pe-2">
-            {cities.map((c) => <Chip key={c} active={selectedCities.includes(c)} onClick={() => toggleCity(c)}>{c}</Chip>)}
+        <FilterGroup title={t('city')}>
+          <div className="flex max-h-40 min-w-0 flex-col gap-1.5 overflow-y-auto overscroll-contain">
+            {cities.map((c) => <FilterOption key={c} label={c} active={selectedCities.includes(c)} onClick={() => toggleCity(c)} />)}
           </div>
-        </FilterBlock>
+        </FilterGroup>
       )}
 
-      <FilterBlock title={t('minimumRating')} isOpen={open.rating} onToggle={() => toggle('rating')}>
-        <div className="min-w-0 break-words" role="radiogroup" aria-label={t('minimumRating')}>
-          <OptionRow type="radio" label={t('anyRating')} selected={minRating === 0} onClick={() => setMinRating(0)} />
+      <FilterGroup title={t('minimumRating')}>
+        <div role="radiogroup" aria-label={t('minimumRating')} className="flex flex-col gap-1.5">
+          <FilterOption radio label={t('anyRating')} active={minRating === 0} onClick={() => setMinRating(0)} />
           {RATING_STEPS.map((v) => (
-            <OptionRow key={v} type="radio" label={<span className="inline-flex items-center gap-1.5">{STAR}<span dir="ltr">{v}+</span> {t('stars')}</span>} selected={minRating === v} onClick={() => setMinRating(v)} />
+            <FilterOption
+              key={v} radio active={minRating === v} onClick={() => setMinRating(v)}
+              label={<span className="inline-flex items-center gap-1.5">{STAR}<span dir="ltr">{v}+</span> {t('stars')}</span>}
+            />
           ))}
         </div>
-        <div className="mt-1">
-          <OptionRow type="check" label={t('verifiedOnly')} selected={showVerifiedOnly} onClick={() => setShowVerifiedOnly((v) => !v)} />
-          <OptionRow type="check" label={t('savedOnly')} selected={savedOnly} onClick={() => setSavedOnly((v) => !v)} />
-        </div>
-      </FilterBlock>
+        <FilterOption label={t('verifiedOnly')} active={showVerifiedOnly} onClick={() => setShowVerifiedOnly((v) => !v)} />
+        <FilterOption label={t('savedOnly')} active={savedOnly} onClick={() => setSavedOnly((v) => !v)} />
+      </FilterGroup>
 
-      <FilterBlock title={t('moreFilters')} isOpen={open.more} onToggle={() => toggle('more')}>
-        <div className="min-w-0 break-words">
-          <OptionRow type="check" label={t('ratedOnly')} selected={ratedOnly} onClick={() => setRatedOnly((v) => !v)} />
-          <OptionRow type="check" label={t('hasPhone')} selected={hasPhoneOnly} onClick={() => setHasPhoneOnly((v) => !v)} />
-          <OptionRow type="check" label={t('hasAddress')} selected={hasAddressOnly} onClick={() => setHasAddressOnly((v) => !v)} />
+      <FilterGroup title={t('moreFilters')}>
+        <FilterOption label={t('ratedOnly')} active={ratedOnly} onClick={() => setRatedOnly((v) => !v)} />
+        <FilterOption label={t('hasPhone')} active={hasPhoneOnly} onClick={() => setHasPhoneOnly((v) => !v)} />
+        <FilterOption label={t('hasAddress')} active={hasAddressOnly} onClick={() => setHasAddressOnly((v) => !v)} />
+      </FilterGroup>
+    </div>
+  );
+});
+
+const FilterDrawer = memo(({ onClose, onApply, t, total, onClear, hasFilters, children }) => {
+  const [leaving, requestClose] = useLeave(onClose);
+  useModalLock(true, requestClose);
+  const apply = useCallback(() => { requestClose(); onApply(); }, [requestClose, onApply]);
+  return (
+    <div className="fixed inset-0 z-[1100]" role="dialog" aria-modal="true" aria-label={t('filters')}>
+      <div className={`${leaving ? 'sh-fade-out' : 'sh-fade'} absolute inset-0 bg-[color:var(--nb-scrim)]`} onClick={requestClose} aria-hidden="true" />
+      <div className={`nb-card nb-big ${leaving ? 'sh-drawer-out' : 'sh-drawer'} absolute inset-y-0 start-0 flex w-[min(20rem,88vw)] flex-col !rounded-none`}>
+        <div className="nb-gray nb-line flex items-center justify-between border-b-2 p-4">
+          <h2 className="text-base font-bold">{t('filters')}</h2>
+          <button type="button" onClick={requestClose} aria-label={t('closeFilters')} className="nb-btn nb-focus h-9 w-9">
+            <FiX aria-hidden="true" className="h-4 w-4" />
+          </button>
         </div>
-      </FilterBlock>
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4">{children}</div>
+        <div className="nb-line flex gap-3 border-t-2 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          {hasFilters && <button type="button" onClick={onClear} className="nb-btn nb-focus min-h-11 flex-1 text-xs">{t('clearAll')}</button>}
+          <button type="button" onClick={apply} className="nb-btn nb-btn-a nb-focus min-h-11 flex-[2] text-xs">
+            {t('showShops', { count: total })}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const SortDropdown = memo(({ value, onChange, options, label }) => {
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const rootRef = useRef(null);
+  const btnRef = useRef(null);
+  const listRef = useRef(null);
+  const id = useId().replace(/:/g, '');
+  const selected = Math.max(0, options.findIndex(([k]) => k === value));
+  const current = options[selected]?.[1] || '';
+
+  const close = useCallback((refocus) => {
+    setOpen(false);
+    if (refocus) btnRef.current?.focus();
+  }, []);
+  const openAt = useCallback((i) => { setActive(i); setOpen(true); }, []);
+  const toggle = useCallback(() => { if (open) close(false); else openAt(selected); }, [open, close, openAt, selected]);
+  const choose = useCallback((i) => { onChange(options[i][0]); close(true); }, [onChange, options, close]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    listRef.current?.focus();
+    const onDown = (e) => { if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [open]);
+
+  const onButtonKey = useCallback((e) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); openAt(selected); }
+  }, [openAt, selected]);
+
+  const onListKey = useCallback((e) => {
+    const last = options.length - 1;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActive((i) => (i >= last ? 0 : i + 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((i) => (i <= 0 ? last : i - 1)); }
+    else if (e.key === 'Home') { e.preventDefault(); setActive(0); }
+    else if (e.key === 'End') { e.preventDefault(); setActive(last); }
+    else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(active); }
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(true); }
+    else if (e.key === 'Tab') setOpen(false);
+  }, [options.length, active, choose, close]);
+
+  return (
+    <div ref={rootRef} className={`relative ${open ? 'z-30' : ''}`}>
+      <button
+        ref={btnRef} type="button" onClick={toggle} onKeyDown={onButtonKey}
+        aria-haspopup="listbox" aria-expanded={open} aria-controls={`${id}-list`} aria-label={`${label}: ${current}`}
+        className="nb-field nb-focus flex h-11 min-w-[9rem] cursor-pointer items-center justify-between gap-2 px-4 text-sm font-semibold"
+      >
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="nb-muted hidden sm:inline">{label}:</span>
+          <span className="truncate">{current}</span>
+        </span>
+        <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform duration-150 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <ul
+          ref={listRef} id={`${id}-list`} role="listbox" tabIndex={-1} aria-label={label}
+          aria-activedescendant={`${id}-opt-${active}`} onKeyDown={onListKey}
+          className="nb-card sh-pop absolute end-0 z-30 mt-3 w-56 max-w-[calc(100vw-2rem)] overflow-hidden p-1 outline-none"
+        >
+          {options.map(([k, text], i) => {
+            const isSel = k === value;
+            return (
+              <li
+                key={k} id={`${id}-opt-${i}`} role="option" aria-selected={isSel}
+                onMouseEnter={() => setActive(i)} onClick={() => choose(i)}
+                className={`nb-opt flex min-h-10 cursor-pointer items-center gap-2 px-3 text-sm ${
+                  isSel ? 'bg-[color:var(--nb-btn)] font-bold text-[color:var(--nb-on)]' : i === active ? 'nb-gray font-semibold' : 'font-semibold'
+                }`}
+              >
+                <span className="min-w-0 flex-1 truncate">{text}</span>
+                {isSel && <FiCheck aria-hidden="true" className="h-4 w-4 flex-shrink-0" strokeWidth={4} />}
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 });
@@ -921,43 +1006,43 @@ const InfiniteSentinel = memo(({ hasMore, shown, total, onMore, t }) => {
     return () => io.disconnect();
   }, [hasMore, shown, onMore]);
   return (
-    <div ref={ref} role="status" aria-live="polite" className="flex min-h-[4rem] items-center justify-center gap-3 pt-8 text-[color:var(--txt)]">
+    <div ref={ref} role="status" aria-live="polite" className="flex min-h-[4rem] items-center justify-center gap-3 pt-10">
       {hasMore ? (
         <>
           <span aria-hidden="true" className="flex items-center gap-1.5">
-            <span className="hp-load-dot h-2.5 w-2.5 rounded-full bg-[color:var(--acc)]" />
-            <span className="hp-load-dot h-2.5 w-2.5 rounded-full bg-[color:var(--acc)]" />
-            <span className="hp-load-dot h-2.5 w-2.5 rounded-full bg-[color:var(--acc)]" />
+            <span className="sh-dot nb-bd h-3 w-3 rounded-full border-2 bg-[color:var(--nb-btn)]" />
+            <span className="sh-dot nb-bd h-3 w-3 rounded-full border-2 bg-[color:var(--nb-btn)]" />
+            <span className="sh-dot nb-bd h-3 w-3 rounded-full border-2 bg-[color:var(--nb-btn)]" />
           </span>
           <span className="text-xs font-bold">{t('loadingMore')}</span>
         </>
       ) : total > BATCH ? (
-        <p className="hp-pop flex items-center justify-center gap-1.5 text-xs font-extrabold">
-          <FiCheck aria-hidden="true" className="h-3.5 w-3.5 text-[color:var(--acc)]" />{t('endOfList')}
+        <p className="sh-pop flex items-center justify-center gap-1.5 text-xs font-bold">
+          <FiCheck aria-hidden="true" className="nb-ic h-3.5 w-3.5" strokeWidth={4} />{t('endOfList')}
         </p>
       ) : null}
     </div>
   );
 });
 
-const InfoLine = ({ icon: Icon, children }) => (
-  <p className="flex min-w-0 items-start gap-2 text-sm font-medium text-[color:var(--txt)]">
-    <Icon aria-hidden="true" className="mt-0.5 h-4 w-4 flex-shrink-0 text-[color:var(--acc)]" />
-    <span className="min-w-0 break-words">{children}</span>
-  </p>
-);
+const InfoRow = memo(({ Icon, children }) => (
+  <div className="nb-gray nb-line flex items-start gap-3 rounded-2xl border-2 p-3">
+    <IconTile Icon={Icon} className="h-9 w-9" iconClassName="h-4 w-4" />
+    <div className="min-w-0 flex-1 self-center break-words text-sm font-bold">{children}</div>
+  </div>
+));
 
 const ShopStats = memo(({ shop, t }) => {
   const { reviews, products } = useShopCounts(shop);
   const plus = (n) => (n == null ? '+–' : `+${n}`);
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-bold text-[color:var(--txt)]">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-semibold">
       <span className="inline-flex items-center gap-1.5">
-        <FiMessageSquare aria-hidden="true" className="h-3.5 w-3.5 text-[color:var(--acc)]" />
+        <FiMessageSquare aria-hidden="true" className="nb-ic h-3.5 w-3.5" />
         <span dir="ltr" className="tabular-nums">{plus(reviews)}</span> {reviews === 1 ? t('reviewOne') : t('reviewMany')}
       </span>
       <span className="inline-flex items-center gap-1.5">
-        <FiPackage aria-hidden="true" className="h-3.5 w-3.5 text-[color:var(--acc)]" />
+        <FiPackage aria-hidden="true" className="nb-ic h-3.5 w-3.5" />
         <span dir="ltr" className="tabular-nums">{plus(products)}</span> {products === 1 ? t('productOne') : t('productMany')}
       </span>
     </div>
@@ -966,11 +1051,12 @@ const ShopStats = memo(({ shop, t }) => {
 
 const DirectionsModal = memo(({ shop, onClose, t }) => {
   const isMobile = useIsMobile();
-  const [leaving, close] = useExit(onClose);
+  const [leaving, close] = useLeave(onClose);
   const [status, setStatus] = useState('locating');
   const [origin, setOrigin] = useState(null);
   const address = addressLine(shop);
   const name = shop.name || t('unnamedShop');
+  const mapsHref = useMemo(() => safeHref(directionsUrl(shop, null)), [shop]);
 
   const locate = useCallback(() => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) { setStatus('denied'); return; }
@@ -990,35 +1076,31 @@ const DirectionsModal = memo(({ shop, onClose, t }) => {
 
   return (
     <div className="fixed inset-0 z-[1100] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={`${t('directionsTo')} ${name}`}>
-      <div className={`absolute inset-0 bg-[color:var(--overlay)] ${leaving ? 'hp-fade-out' : 'hp-fade-in'}`} onClick={close} />
-      <div className={`${leaving ? 'hp-modal-out' : 'hp-modal-in'} hp-sb relative max-h-[94vh] w-full transform-gpu overflow-y-auto overscroll-contain rounded-t-3xl text-[color:var(--txt)] sm:max-w-2xl sm:rounded-3xl ${PANEL}`}>
-        <div className="relative flex items-center gap-3 border-b border-[color:var(--line)] p-4 pe-16">
-          <span aria-hidden="true" className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white"><FiNavigation className="h-5 w-5" /></span>
+      <div className={`${leaving ? 'sh-fade-out' : 'sh-fade'} absolute inset-0 bg-[color:var(--nb-scrim)]`} onClick={close} aria-hidden="true" />
+      <div className={`nb-card nb-big ${leaving ? 'sh-modal-out' : 'sh-modal'} relative flex max-h-[94vh] w-full flex-col overflow-hidden sm:max-w-2xl`}>
+        <header className="nb-gray nb-line flex flex-shrink-0 items-center gap-3 border-b-2 px-4 py-3.5 sm:px-5">
+          <IconTile Icon={FiNavigation} className="h-10 w-10" iconClassName="h-5 w-5" />
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-bold opacity-80">{t('directionsTo')}</p>
-            <h2 className="line-clamp-1 text-base font-extrabold sm:text-lg">{name}</h2>
-            <p className="line-clamp-1 text-xs font-medium opacity-80">{address || t('noAddress')}</p>
+            <p className="nb-muted text-[11px] font-semibold">{t('directionsTo')}</p>
+            <h2 className="line-clamp-1 text-base font-bold">{name}</h2>
+            <p className="nb-muted line-clamp-1 text-xs">{address || t('noAddress')}</p>
           </div>
-          <button type="button" onClick={close} aria-label={t('close')} className={`${ICON_GLASS} absolute end-3 top-3`}>
-            <FiX className="h-4 w-4" />
+          <button type="button" onClick={close} aria-label={t('close')} className="nb-btn nb-focus h-9 w-9 flex-shrink-0">
+            <FiX aria-hidden="true" className="h-4 w-4" />
           </button>
-        </div>
+        </header>
 
-        <div className="space-y-4 p-3 sm:p-4">
-          <Suspense fallback={<div className="hp-sk w-full rounded-2xl" style={{ aspectRatio: isMobile ? '1 / 1' : '1 / 0.62' }} />}>
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4 sm:p-5">
+          <Suspense fallback={<div className="nb-sk w-full" style={{ aspectRatio: isMobile ? '1 / 1' : '1 / 0.62' }} />}>
             <DeliveryMap
-              items={items}
-              selectedId={origin ? shop.id : null}
-              onSelect={noop}
-              aspect={isMobile ? 1 : 0.62}
-              startLabel={t('yourLocation')}
-              endLabel={name}
-              className="!rounded-2xl !border !border-[color:var(--line)]"
+              items={items} selectedId={origin ? shop.id : null} onSelect={noop} aspect={isMobile ? 1 : 0.62}
+              startLabel={t('yourLocation')} endLabel={name}
+              className="nb-bd !rounded-2xl !border-[3px]"
             />
           </Suspense>
 
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div role="status" aria-live="polite" className="min-w-0 flex-1 text-xs font-bold">
+            <div role="status" aria-live="polite" className="min-w-0 flex-1 text-xs font-semibold">
               {status === 'locating' && (
                 <span className="inline-flex items-center gap-2">
                   <span aria-hidden="true" className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" />
@@ -1029,13 +1111,15 @@ const DirectionsModal = memo(({ shop, onClose, t }) => {
             </div>
             <div className="flex flex-wrap items-center gap-3">
               {status === 'denied' && (
-                <button type="button" onClick={locate} className={`${BTN_GHOST} !min-h-10 !px-4 !text-xs`}>
-                  <FiRefreshCw className="h-4 w-4" aria-hidden="true" /> {t('retryLocation')}
+                <button type="button" onClick={locate} className="nb-btn nb-focus min-h-10 px-4 text-xs">
+                  <FiRefreshCw className="h-4 w-4" aria-hidden="true" />{t('retryLocation')}
                 </button>
               )}
-              <a href={directionsUrl(shop, null)} target="_blank" rel="noopener noreferrer nofollow" className={`${BTN_PRIMARY} !min-h-10 !px-4 !text-xs`}>
-                <FiExternalLink className="h-4 w-4" aria-hidden="true" /> {t('openInMaps')}
-              </a>
+              {mapsHref && (
+                <a href={mapsHref} target="_blank" rel="noopener noreferrer nofollow" className="nb-btn nb-btn-a nb-focus min-h-10 px-4 text-xs">
+                  <FiExternalLink className="h-4 w-4" aria-hidden="true" />{t('openInMaps')}
+                </a>
+              )}
             </div>
           </div>
         </div>
@@ -1045,112 +1129,101 @@ const DirectionsModal = memo(({ shop, onClose, t }) => {
 });
 
 const ShopDetailsModal = memo(({ shop, onClose, onOpen, onDirections, t }) => {
-  const [leaving, close] = useExit(onClose);
+  const [leaving, close] = useLeave(onClose);
   const role = getShopRole(shop);
   const caps = capabilitiesFor(role);
   const address = addressLine(shop);
-  const hasRating = typeof shop.rating === 'number' && shop.rating > 0;
+  const hasRating = shop.rating > 0;
   const [, logo] = useShopLogo(shop, true);
   const tel = telHref(shop.phone);
-
   useModalLock(true, close);
 
   return (
     <div className="fixed inset-0 z-[1100] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={shop.name || t('unnamedShop')}>
-      <div className={`absolute inset-0 bg-[color:var(--overlay)] ${leaving ? 'hp-fade-out' : 'hp-fade-in'}`} onClick={close} />
-      <div className={`${leaving ? 'hp-modal-out' : 'hp-modal-in'} hp-sb group relative max-h-[92vh] w-full transform-gpu overflow-y-auto overscroll-contain rounded-t-3xl text-[color:var(--txt)] sm:max-w-lg sm:rounded-3xl ${PANEL}`}>
-        <div className="relative h-48 w-full flex-shrink-0 overflow-hidden bg-[color:var(--media)] sm:h-56">
+      <div className={`${leaving ? 'sh-fade-out' : 'sh-fade'} absolute inset-0 bg-[color:var(--nb-scrim)]`} onClick={close} aria-hidden="true" />
+      <div className={`nb-card nb-big ${leaving ? 'sh-modal-out' : 'sh-modal'} relative flex max-h-[92vh] w-full flex-col overflow-hidden sm:max-w-md`}>
+        <div className="nb-media nb-bd relative h-44 w-full flex-shrink-0 overflow-hidden border-b-[3px] sm:h-52">
           <ShopImage src={logo} name={shop.name} role={role} eager />
           <div className="absolute end-3 top-3 z-10 flex items-center gap-2">
-            <button type="button" onClick={() => onDirections(shop)} aria-label={t('getDirections')} title={t('getDirections')} className={ICON_SOLID}>
-              <FiNavigation className="h-4 w-4" />
+            <button type="button" onClick={() => onDirections(shop)} aria-label={t('getDirections')} title={t('getDirections')} className="nb-btn nb-focus h-9 w-9">
+              <FiNavigation aria-hidden="true" className="h-4 w-4" />
             </button>
-            <button type="button" onClick={close} aria-label={t('close')} className={ICON_SOLID}>
-              <FiX className="h-4 w-4" />
+            <button type="button" onClick={close} aria-label={t('close')} className="nb-btn nb-focus h-9 w-9">
+              <FiX aria-hidden="true" className="h-4 w-4" />
             </button>
           </div>
         </div>
 
-        <div className="border-b border-[color:var(--line)] p-4 sm:p-5">
-          <h2 className="text-xl font-extrabold leading-snug">
-            <span className="line-clamp-2">{shop.name || t('unnamedShop')}</span>
-          </h2>
-          <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-extrabold text-[color:var(--acc)]">
-            <span>{serviceLabel(role, t)}</span>
-            {hasRating && (
-              <span className="inline-flex items-center gap-1 text-[color:var(--txt)]">
-                <RiStarFill className="h-3.5 w-3.5 text-amber-400" aria-hidden="true" /><span dir="ltr" className="tabular-nums">{shop.rating.toFixed(1)}</span>
-              </span>
-            )}
-          </p>
-          <div className="mt-3"><ShopStats shop={shop} t={t} /></div>
-        </div>
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain p-4 sm:p-5">
+          <div>
+            <h2 className="flex items-center gap-2 text-lg font-bold leading-snug">
+              <span className="line-clamp-2 min-w-0">{shop.name || t('unnamedShop')}</span>
+              {shop.verified && <VerifiedMark t={t} />}
+            </h2>
+            <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-bold">
+              <span className="nb-ic">{serviceLabel(role, t)}</span>
+              {hasRating && (
+                <span className="inline-flex items-center gap-1">
+                  <RiStarFill className="h-3.5 w-3.5 text-amber-400" aria-hidden="true" /><span dir="ltr" className="tabular-nums">{shop.rating.toFixed(1)}</span>
+                </span>
+              )}
+            </p>
+            <div className="mt-3"><ShopStats shop={shop} t={t} /></div>
+          </div>
 
-        <div className="space-y-6 p-4 sm:p-5">
           <section>
-            <h3 className="mb-2 text-sm font-extrabold text-[color:var(--acc)]">{t('about')}</h3>
-            <p className="text-sm font-medium leading-relaxed">{clean(shop.description, 1000) || t('noDescription')}</p>
+            <h3 className="mb-2 text-sm font-bold">{t('about')}</h3>
+            <p className="nb-muted text-sm leading-relaxed">{shop.description || t('noDescription')}</p>
           </section>
 
           <section>
-            <h3 className="mb-3 text-sm font-extrabold text-[color:var(--acc)]">{t('whatShopCanDo')}</h3>
+            <h3 className="mb-3 text-sm font-bold">{t('whatShopCanDo')}</h3>
             <ul className="grid gap-3">
               {caps.map(({ icon: Icon, titleKey, textKey }) => (
                 <li key={titleKey} className="flex items-start gap-3">
-                  <span aria-hidden="true" className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white"><Icon className="h-4 w-4" /></span>
+                  <IconTile Icon={Icon} className="h-10 w-10" iconClassName="h-4 w-4" />
                   <div className="min-w-0">
-                    <p className="text-sm font-extrabold">{t(titleKey)}</p>
-                    <p className="text-xs font-medium opacity-80">{t(textKey)}</p>
+                    <p className="text-sm font-bold">{t(titleKey)}</p>
+                    <p className="nb-muted text-xs">{t(textKey)}</p>
                   </div>
                 </li>
               ))}
             </ul>
           </section>
 
-          <section className={`grid gap-2.5 rounded-2xl p-3.5 ${SURFACE}`}>
-            {shop.shopType && <InfoLine icon={FiShoppingBag}>{clean(String(shop.shopType), 60)}</InfoLine>}
-            <InfoLine icon={FiMapPin}>{address || t('noAddress')}</InfoLine>
+          <section className="grid gap-2.5">
+            {shop.shopType && <InfoRow Icon={FiShoppingBag}>{shop.shopType}</InfoRow>}
+            <InfoRow Icon={FiMapPin}>{address || t('noAddress')}</InfoRow>
             {tel && (
-              <InfoLine icon={FiPhone}>
-                <a href={tel} dir="ltr" className="hover:underline focus-visible:underline">{clean(String(shop.phone), 30)}</a>
-              </InfoLine>
+              <InfoRow Icon={FiPhone}>
+                <a href={tel} dir="ltr" className="nb-focus hover:underline">{shop.phone}</a>
+              </InfoRow>
             )}
           </section>
-
-          <div className="grid grid-cols-2 gap-3 pb-1">
-            <button type="button" onClick={close} className={BTN_GHOST}>{t('close')}</button>
-            <button type="button" onClick={() => onOpen(shop.id)} className={BTN_PRIMARY}><FiExternalLink className="h-4 w-4" aria-hidden="true" /> {t('visitShop')}</button>
-          </div>
         </div>
+
+        <footer className="nb-line grid flex-shrink-0 grid-cols-2 gap-3 border-t-2 px-4 py-3.5 sm:px-5">
+          <button type="button" onClick={close} className="nb-btn nb-focus min-h-11 px-4 text-xs">{t('close')}</button>
+          <button type="button" onClick={() => onOpen(shop.id)} className="nb-btn nb-btn-a nb-focus min-h-11 px-4 text-xs">
+            <RiStoreLine className="h-4 w-4" aria-hidden="true" />{t('visitShop')}
+          </button>
+        </footer>
       </div>
     </div>
   );
 });
 
-const EmptyState = memo(({ title, text, action, onAction, icon = 'shopsEmpty' }) => (
-  <div className={`hp-pop flex flex-col items-center rounded-3xl px-4 py-14 text-center text-[color:var(--txt)] sm:py-20 ${SURFACE}`}>
-    <ThemedIso type={icon} tone="emerald" onGreen={false} className="mx-auto mb-4 h-32 w-32 sm:h-40 sm:w-40" />
-    <p className="mb-2 text-lg font-extrabold sm:text-2xl">{title}</p>
-    <p className="mb-6 max-w-md text-sm font-medium opacity-85 sm:text-base">{text}</p>
-    {action && <button type="button" onClick={onAction} className={BTN_PRIMARY}>{action}</button>}
-  </div>
-));
-
-const GRID_CLASS = 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4';
-
 const ShopsContent = memo(({ darkMode }) => {
   const language = useAppLanguage();
   const t = useCallback((k, params) => tr(language, k, params), [language]);
-  const dir = languageDirection(language);
-  const isAr = language === 'ar';
   const navigate = useNavigate();
-  const [, startTransition] = useTransition();
+  const isDesktop = useIsDesktop();
+  const [isPending, startTransition] = useTransition();
   useScrollTopOnEnter();
 
   const [saved, toggleSaved] = useSavedShops();
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDeferredValue(searchTerm);
-  const searchPending = searchTerm !== deferredSearch;
   const [visibleCount, setVisibleCount] = useState(BATCH);
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [selectedShopTypes, setSelectedShopTypes] = useState([]);
@@ -1162,42 +1235,45 @@ const ShopsContent = memo(({ darkMode }) => {
   const [hasPhoneOnly, setHasPhoneOnly] = useState(false);
   const [hasAddressOnly, setHasAddressOnly] = useState(false);
   const [sortBy, setSortBy] = useState('relevance');
-  const [sheet, setSheet] = useState('closed');
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [detailsShop, setDetailsShop] = useState(null);
   const [directionsShop, setDirectionsShop] = useState(null);
-  const [open, setOpen] = useState({ role: true, type: true, city: true, rating: true, more: true });
   const gridRef = useRef(null);
-  const sheetTimer = useRef();
+  const barRef = useRef(null);
   const showTop = useBackToTop();
 
-  const openSheet = useCallback(() => { clearTimeout(sheetTimer.current); setSheet('open'); }, []);
-  const closeSheet = useCallback(() => {
-    setSheet((s) => (s === 'open' ? 'leave' : s));
-    clearTimeout(sheetTimer.current);
-    sheetTimer.current = setTimeout(() => setSheet('closed'), EXIT_MS);
-  }, []);
-  useModalLock(sheet === 'open', closeSheet);
-  useEffect(() => () => clearTimeout(sheetTimer.current), []);
+  useScrollProgress(barRef);
+  useEffect(() => { document.title = `${t('pageTitle')} | Tech-Restore`; }, [t]);
+  useEffect(() => { if (isDesktop) setDrawerOpen(false); }, [isDesktop]);
 
-  useEffect(() => { document.title = t('pageTitle'); }, [t]);
-
-  const { data: shops = [], isLoading, isError, isFetching, refetch } = useQuery({
+  const { data: shops = EMPTY_LIST, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['shopsList'],
     queryFn: async ({ signal }) => {
       const res = await api.get('/api/users/shops/all', { signal });
       const list = res.data?.content || res.data || [];
-      return Array.isArray(list) ? list.filter((s) => s && s.id != null) : [];
+      if (!Array.isArray(list)) return [];
+      const out = [];
+      for (const item of list) {
+        if (out.length >= SHOPS_MAX) break;
+        const shop = normalizeShop(item);
+        if (shop) out.push(shop);
+      }
+      return out;
     },
     staleTime: 5 * 60 * 1000,
   });
 
-  const { shopTypes, cities, countsByType, roleCounts, topRated, roleGroups, searchIndex } = useMemo(() => {
-    const types = new Set(); const citySet = new Set(); const counts = {}; const index = new Map();
-    let rep = 0; let sell = 0; let both = 0;
+  const { shopTypes, cities, countsByType, roleCounts, topRated, roleGroups, searchIndex, verifiedCount } = useMemo(() => {
+    const types = new Set();
+    const citySet = new Set();
+    const counts = Object.create(null);
+    const index = new Map();
+    let rep = 0; let sell = 0; let both = 0; let verified = 0;
     const byRole = { REPAIRER: [], SELLER: [] };
     for (const s of shops) {
       if (s.shopType) { types.add(s.shopType); counts[s.shopType] = (counts[s.shopType] || 0) + 1; }
       if (s.shopAddress?.city) citySet.add(s.shopAddress.city);
+      if (s.verified) verified++;
       const r = getShopRole(s);
       if (r !== 'SELLER') rep++;
       if (r !== 'REPAIRER') sell++;
@@ -1217,6 +1293,7 @@ const ShopsContent = memo(({ darkMode }) => {
       topRated: shops.filter((s) => s.rating > 0).sort((a, b) => b.rating - a.rating).slice(0, CAROUSEL_LIMIT),
       roleGroups: groups,
       searchIndex: index,
+      verifiedCount: verified,
     };
   }, [shops]);
 
@@ -1255,30 +1332,35 @@ const ShopsContent = memo(({ darkMode }) => {
   const hasMore = visibleCount < filteredShops.length;
 
   const loadMore = useCallback(() => startTransition(() => setVisibleCount((c) => c + BATCH)), []);
-  const scrollToGrid = useCallback(() => gridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), []);
+  const scrollToGrid = useCallback(() => {
+    requestAnimationFrame(() => requestAnimationFrame(() => scrollToEl(gridRef.current)));
+  }, []);
   const scrollToTop = useCallback(() => {
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
+    window.scrollTo({ top: 0, behavior: prefersReduced() ? 'auto' : 'smooth' });
   }, []);
   const openShop = useCallback((id) => {
     const safe = safeId(id);
-    if (safe) navigate(`/shops/${safe}`);
+    if (safe) navigate(`/shops/${encodeURIComponent(safe)}`);
   }, [navigate]);
   const toggleShopType = useCallback((ty) => setSelectedShopTypes((p) => (p.includes(ty) ? p.filter((x) => x !== ty) : [...p, ty])), []);
   const toggleCity = useCallback((c) => setSelectedCities((p) => (p.includes(c) ? p.filter((x) => x !== c) : [...p, c])), []);
   const clearTypes = useCallback(() => setSelectedShopTypes([]), []);
   const clearFilters = useCallback(() => {
-    setSearchTerm(''); setRoleFilter('ALL'); setSelectedShopTypes([]); setSelectedCities([]); setMinRating(0); setShowVerifiedOnly(false); setSavedOnly(false); setRatedOnly(false); setHasPhoneOnly(false); setHasAddressOnly(false); setSortBy('relevance'); setVisibleCount(BATCH);
+    setSearchTerm(''); setRoleFilter('ALL'); setSelectedShopTypes([]); setSelectedCities([]); setMinRating(0);
+    setShowVerifiedOnly(false); setSavedOnly(false); setRatedOnly(false); setHasPhoneOnly(false); setHasAddressOnly(false);
+    setSortBy('relevance'); setVisibleCount(BATCH);
   }, []);
+  const onSearch = useCallback((e) => setSearchTerm(stripControl(e.target.value).slice(0, QUERY_MAX)), []);
   const openDetails = useCallback((shop) => setDetailsShop(shop), []);
   const closeDetails = useCallback(() => setDetailsShop(null), []);
   const openDirections = useCallback((shop) => setDirectionsShop(shop), []);
   const closeDirections = useCallback(() => setDirectionsShop(null), []);
   const openFromModal = useCallback((id) => { setDetailsShop(null); openShop(id); }, [openShop]);
   const directionsFromModal = useCallback((shop) => { setDetailsShop(null); setDirectionsShop(shop); }, []);
+  const openDrawer = useCallback(() => setDrawerOpen(true), []);
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
   const viewAllRole = useCallback((role) => {
-    setRoleFilter(role);
-    setSelectedShopTypes([]); setSelectedCities([]);
+    setRoleFilter(role); setSelectedShopTypes([]); setSelectedCities([]);
     scrollToGrid();
   }, [scrollToGrid]);
   const viewAllTop = useCallback(() => {
@@ -1290,186 +1372,229 @@ const ShopsContent = memo(({ darkMode }) => {
     onDetails: openDetails, onOpen: openShop, onDirections: openDirections, onSave: toggleSaved,
   }), [openDetails, openShop, openDirections, toggleSaved]);
 
-  const activeFiltersCount = (searchTerm ? 1 : 0) + (roleFilter !== 'ALL' ? 1 : 0) + selectedShopTypes.length + selectedCities.length + (minRating > 0 ? 1 : 0) + (showVerifiedOnly ? 1 : 0) + (savedOnly ? 1 : 0) + (ratedOnly ? 1 : 0) + (hasPhoneOnly ? 1 : 0) + (hasAddressOnly ? 1 : 0);
+  const activeFiltersCount = (searchTerm ? 1 : 0) + (roleFilter !== 'ALL' ? 1 : 0) + selectedShopTypes.length + selectedCities.length
+    + (minRating > 0 ? 1 : 0) + (showVerifiedOnly ? 1 : 0) + (savedOnly ? 1 : 0) + (ratedOnly ? 1 : 0) + (hasPhoneOnly ? 1 : 0) + (hasAddressOnly ? 1 : 0);
   const browsing = activeFiltersCount === 0 && sortBy === 'relevance';
 
   const sortOptions = useMemo(() => [
-    { value: 'relevance', label: t('sortRelevance') },
-    { value: 'ratingHighToLow', label: t('sortRating') },
-    { value: 'verifiedFirst', label: t('sortVerified') },
-    { value: 'nameAZ', label: t('sortName') },
+    ['relevance', t('sortRelevance')],
+    ['ratingHighToLow', t('sortRating')],
+    ['verifiedFirst', t('sortVerified')],
+    ['nameAZ', t('sortName')],
   ], [t]);
 
-  const filterPanelProps = useMemo(() => (sheet !== 'closed' ? {
-    t, shopTypes, countsByType, selectedShopTypes, toggleShopType, cities, selectedCities, toggleCity,
-    roleFilter, setRoleFilter, roleCounts, minRating, setMinRating, showVerifiedOnly, setShowVerifiedOnly,
-    savedOnly, setSavedOnly, ratedOnly, setRatedOnly, hasPhoneOnly, setHasPhoneOnly, hasAddressOnly, setHasAddressOnly,
-    open, setOpen, clearFilters, activeFiltersCount,
-  } : null), [sheet, t, shopTypes, countsByType, selectedShopTypes, toggleShopType, cities, selectedCities, toggleCity,
-    roleFilter, roleCounts, minRating, showVerifiedOnly, savedOnly, ratedOnly, hasPhoneOnly, hasAddressOnly, open, clearFilters, activeFiltersCount]);
+  const hasShops = shops.length > 0;
+  const showTools = !isLoading && !isError && hasShops;
+  const showSidebar = isDesktop && (isLoading || (!isError && hasShops));
+  const showFilterButton = !isDesktop && showTools;
+  const panelOn = showSidebar || drawerOpen;
 
-  const heading = useMemo(() => splitHeading(`${t('heroLine1')} **${t('heroAccent')}** ${t('heroLine2')}`.trim()), [t]);
+  const panel = useMemo(() => (panelOn ? (
+    <FilterPanel
+      t={t} shopTypes={shopTypes} countsByType={countsByType} selectedShopTypes={selectedShopTypes} toggleShopType={toggleShopType}
+      cities={cities} selectedCities={selectedCities} toggleCity={toggleCity}
+      roleFilter={roleFilter} setRoleFilter={setRoleFilter} roleCounts={roleCounts} minRating={minRating} setMinRating={setMinRating}
+      showVerifiedOnly={showVerifiedOnly} setShowVerifiedOnly={setShowVerifiedOnly} savedOnly={savedOnly} setSavedOnly={setSavedOnly}
+      ratedOnly={ratedOnly} setRatedOnly={setRatedOnly} hasPhoneOnly={hasPhoneOnly} setHasPhoneOnly={setHasPhoneOnly}
+      hasAddressOnly={hasAddressOnly} setHasAddressOnly={setHasAddressOnly}
+    />
+  ) : null), [panelOn, t, shopTypes, countsByType, selectedShopTypes, toggleShopType, cities, selectedCities, toggleCity,
+    roleFilter, roleCounts, minRating, showVerifiedOnly, savedOnly, ratedOnly, hasPhoneOnly, hasAddressOnly]);
 
   return (
-    <div
-      dir={dir} lang={language}
-      className={`min-h-screen overflow-x-clip mt-10 ${darkMode ? 'hp-dark' : 'hp-light'} bg-[color:var(--bg)] text-[color:var(--txt)] [--dx:1] rtl:[--dx:-1] ${isAr ? 'font-cairo' : 'font-jakarta'}`}
-    >
-      <header className="bg-gradient-to-b from-[color:var(--g3)] to-[color:var(--bg)] pb-6 pt-24 sm:pt-28">
-        <div className="hp-page mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <h1 className={`max-w-3xl text-3xl font-extrabold [text-wrap:balance] sm:text-5xl ${isAr ? 'leading-[1.4]' : 'leading-[1.15] tracking-tight'}`}>
-            {heading.map(({ part, hl }, i) => (hl ? <span key={i} className="text-[color:var(--acc)]">{part}</span> : part))}
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm font-medium leading-relaxed text-[color:var(--mut)] sm:text-base">{t('heroDescription')}</p>
+    <DarkCtx.Provider value={Boolean(darkMode)}>
+      <div dir={languageDirection(language)} lang={language} className={`nb ${darkMode ? 'nb-dark' : ''} min-h-screen overflow-x-clip`}>
+        <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 z-[1200] h-1">
+          <div ref={barRef} className="h-full origin-left bg-[color:var(--nb-btn)] rtl:origin-right" style={{ transform: 'scaleX(0)' }} />
         </div>
-      </header>
 
-      <div className="hp-soft sticky top-[var(--shops-sticky-top,0px)] z-30 border-y border-[color:var(--line)] bg-[color:var(--bar)]">
-        <div className="mx-auto max-w-7xl space-y-3 px-4 py-3 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            <SearchField value={searchTerm} onChange={setSearchTerm} placeholder={t('search')} ariaLabel={t('searchAria')} clearLabel={t('clearSearch')} pending={searchPending} />
-            <button type="button" onClick={openSheet} aria-haspopup="dialog" aria-expanded={sheet === 'open'} className={`${BTN_PRIMARY} !h-12 flex-shrink-0 !px-4 sm:!px-5`}>
-              <FiSliders className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden sm:inline">{t('filters')}</span>
-              {activeFiltersCount > 0 && <span dir="ltr" className="tabular-nums">({activeFiltersCount})</span>}
-            </button>
-          </div>
-          <div className="flex items-center gap-2">
-            <Dropdown value={sortBy} onChange={setSortBy} options={sortOptions} ariaLabel={t('sortBy')} />
-            <div className="hp-noscroll flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
-              <Chip active={roleFilter === 'ALL'} onClick={() => setRoleFilter('ALL')}>{t('allShops')}</Chip>
-              <Chip active={roleFilter === 'REPAIRER'} onClick={() => setRoleFilter(roleFilter === 'REPAIRER' ? 'ALL' : 'REPAIRER')} icon={FiTool}>{t('repairServices')}</Chip>
-              <Chip active={roleFilter === 'SELLER'} onClick={() => setRoleFilter(roleFilter === 'SELLER' ? 'ALL' : 'SELLER')} icon={FiShoppingBag}>{t('sellTradeIn')}</Chip>
-              <Chip active={roleFilter === 'BOTH'} onClick={() => setRoleFilter(roleFilter === 'BOTH' ? 'ALL' : 'BOTH')} icon={FiRefreshCw}>{t('repairAndSell')}</Chip>
-              <Chip active={minRating >= 4} onClick={() => setMinRating(minRating >= 4 ? 0 : 4)} icon={RiStarFill}>4+ {t('stars')}</Chip>
-              <Chip active={showVerifiedOnly} onClick={() => setShowVerifiedOnly((v) => !v)} icon={RiVerifiedBadgeLine}>{t('verified')}</Chip>
-              <Chip active={savedOnly} onClick={() => setSavedOnly((v) => !v)} icon={FiHeart}>{t('savedOnly')}</Chip>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <main className="hp-page mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8" style={{ '--pd': '120ms' }}>
-        {isLoading ? (
-          <PageSkeleton gridClass={GRID_CLASS} label={t('loading')} />
-        ) : isError ? (
-          <div className="pt-10">
-            <EmptyState
-              title={t('loadErrorTitle')} text={t('loadErrorText')}
-              action={<span className="inline-flex items-center gap-2"><FiRefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} aria-hidden="true" />{t('tryAgain')}</span>}
-              onAction={() => refetch()}
-            />
-          </div>
-        ) : (
-          <>
-            {browsing && categoryTypes.length > 0 && (
-              <CategoryRail
-                types={categoryTypes} countsByType={countsByType} selected={selectedShopTypes} onToggle={toggleShopType} onAll={clearTypes}
-                allLabel={t('allShops')} total={shops.length} ariaLabel={t('shopType')}
-              />
-            )}
-
-            {browsing && topRated.length > 0 && (
-              <Carousel
-                featured
-                title={t('customerFavorites')} subtitle={t('topRatedSubtitle')} onViewAll={viewAllTop} viewAllLabel={t('viewAll')}
-                shops={topRated} saved={saved} actions={actions} t={t}
-              />
-            )}
-
-            {browsing && roleGroups.map((g) => (
-              <Carousel
-                key={g.role} title={t(g.title)} subtitle={t(g.sub)} count={g.count} onViewAll={() => viewAllRole(g.role)} viewAllLabel={t('viewAll')}
-                shops={g.top} saved={saved} actions={actions} t={t}
-              />
-            ))}
-
-            <Reveal as="section" aria-label={t('allShopsTitle')} className="pt-6">
-              <div id="shop-results" ref={gridRef} className="mb-4 flex scroll-mt-40 flex-wrap items-end justify-between gap-3">
-                <div className="min-w-0">
-                  <h2 className="text-xl font-extrabold sm:text-2xl">{t('allShopsTitle')}</h2>
-                  <p className="mt-1 text-sm font-medium text-[color:var(--mut)]" aria-live="polite">
-                    <b dir="ltr" className="tabular-nums">{filteredShops.length}</b> {t('shopsFound')}
-                  </p>
-                </div>
-                {activeFiltersCount > 0 && (
-                  <button type="button" onClick={clearFilters} className={`inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full px-4 text-sm font-extrabold text-[color:var(--acc)] transition-colors hover:bg-[color:var(--hov)] ${FOCUS}`}>
-                    <FiX className="h-4 w-4" aria-hidden="true" />{t('clearAll')}
-                  </button>
-                )}
+        <main className="mx-auto max-w-[88rem] px-4 pb-14 pt-32 sm:px-6 lg:px-8" aria-busy={isLoading || isPending}>
+          <header className="nb-rise mb-10" style={RISE[0]}>
+            <Crumbs t={t} />
+            <div className="mt-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+              <div className="min-w-0 max-w-2xl">
+                <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">{t('pageTitle')}</h1>
+                <p className="nb-muted mt-3 text-sm leading-relaxed sm:text-base">{t('pageSub')}</p>
               </div>
+              {isLoading ? (
+                <div aria-hidden="true" className="flex gap-2"><Sk className="h-8 w-28" /><Sk className="h-8 w-24" /></div>
+              ) : hasShops && (
+                <div className="nb-in flex flex-wrap gap-3 text-xs font-bold">
+                  <span className="nb-chip px-3 py-1.5"><span dir="ltr" className="tabular-nums">{shops.length}</span>&nbsp;{t('allShops')}</span>
+                  {verifiedCount > 0 && (
+                    <span className="nb-chip nb-chip-warn px-3 py-1.5"><span dir="ltr" className="tabular-nums">{verifiedCount}</span>&nbsp;{t('verified')}</span>
+                  )}
+                </div>
+              )}
+            </div>
+          </header>
 
-              {(selectedShopTypes.length > 0 || selectedCities.length > 0) && (
-                <div className="mb-4 flex flex-wrap items-center gap-2">
-                  {selectedShopTypes.map((ty) => <Chip key={`ty-${ty}`} active onClick={() => toggleShopType(ty)} onRemove>{ty}</Chip>)}
-                  {selectedCities.map((c) => <Chip key={`c-${c}`} active onClick={() => toggleCity(c)} onRemove>{c}</Chip>)}
+          <div className={`nb-rise grid gap-8 ${showSidebar ? 'lg:grid-cols-[16rem_minmax(0,1fr)]' : ''}`} style={RISE[1]}>
+            {showSidebar && (
+              <aside className="self-start lg:sticky lg:top-28" aria-label={t('filters')}>
+                {isLoading ? <FilterSkeleton /> : (
+                  <div className="nb-card nb-in max-h-[calc(100vh-8rem)] overflow-y-auto overscroll-contain p-4">
+                    <div className="mb-4 flex items-center justify-between gap-2">
+                      <h2 className="text-base font-bold">{t('filters')}</h2>
+                      {activeFiltersCount > 0 && (
+                        <button type="button" onClick={clearFilters} className="nb-ic nb-focus rounded-md text-xs font-bold transition-opacity hover:opacity-80">{t('resetAll')}</button>
+                      )}
+                    </div>
+                    {panel}
+                  </div>
+                )}
+              </aside>
+            )}
+
+            <section className="min-w-0 scroll-mt-28" aria-label={t('allShopsTitle')}>
+              {isLoading && (
+                <div aria-hidden="true" className="mb-5 flex flex-wrap items-center gap-3">
+                  <Sk className="h-11 min-w-0 flex-1 basis-60" />
+                  <Sk className="h-11 w-40" />
                 </div>
               )}
 
-              {filteredShops.length === 0 ? (
-                <EmptyState
-                  title={shops.length ? t('noMatch') : t('noShops')} text={shops.length ? t('tryRemoveFilter') : t('newShopsSoon')}
-                  action={shops.length > 0 ? t('clearFilters') : null} onAction={clearFilters}
-                />
-              ) : (
+              {showTools && (
                 <>
-                  <div className={GRID_CLASS}>
-                    {visibleShops.map((s, i) => (
-                      <ShopCell key={s.id} index={i % BATCH}>
-                        <ShopCard shop={s} isSaved={saved.has(s.id)} actions={actions} t={t} eager={i < 4} />
-                      </ShopCell>
-                    ))}
+                  <div className="nb-in mb-4 flex flex-wrap items-center gap-3">
+                    <div className="nb-field relative flex h-11 min-w-0 flex-1 basis-60 items-center gap-2 px-4" role="search">
+                      <FiSearch aria-hidden="true" className="nb-ic h-4 w-4 flex-shrink-0" />
+                      <input
+                        type="search" value={searchTerm} onChange={onSearch} placeholder={t('search')} aria-label={t('searchAria')}
+                        maxLength={QUERY_MAX} autoComplete="off" spellCheck={false} enterKeyHint="search"
+                        className="min-w-0 flex-1 bg-transparent text-base font-semibold outline-none placeholder:font-normal placeholder:opacity-70 sm:text-sm"
+                      />
+                      {searchTerm && (
+                        <button type="button" onClick={() => setSearchTerm('')} aria-label={t('clearSearch')} className="nb-focus flex h-7 w-7 flex-shrink-0 cursor-pointer items-center justify-center rounded-full">
+                          <FiX aria-hidden="true" className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                    <SortDropdown value={sortBy} onChange={setSortBy} options={sortOptions} label={t('sortBy')} />
+                    {showFilterButton && (
+                      <button type="button" onClick={openDrawer} aria-haspopup="dialog" className="nb-btn nb-focus h-11 flex-shrink-0 gap-2 px-4 text-xs">
+                        <FiSliders aria-hidden="true" className="h-4 w-4" />{t('filters')}
+                        {activeFiltersCount > 0 && (
+                          <span dir="ltr" className="nb-chip sh-pop h-5 min-w-[1.25rem] px-1 text-[11px] font-bold tabular-nums !shadow-none">{activeFiltersCount}</span>
+                        )}
+                      </button>
+                    )}
                   </div>
-                  <InfiniteSentinel hasMore={hasMore} shown={visibleCount} total={filteredShops.length} onMore={loadMore} t={t} />
+
+                  <div className="sh-noscroll -mx-2 mb-5 flex items-center gap-3 overflow-x-auto px-2 py-2">
+                    <Chip active={roleFilter === 'REPAIRER'} onClick={() => setRoleFilter(roleFilter === 'REPAIRER' ? 'ALL' : 'REPAIRER')} icon={FiTool}>{t('repairServices')}</Chip>
+                    <Chip active={roleFilter === 'SELLER'} onClick={() => setRoleFilter(roleFilter === 'SELLER' ? 'ALL' : 'SELLER')} icon={FiShoppingBag}>{t('sellTradeIn')}</Chip>
+                    <Chip active={roleFilter === 'BOTH'} onClick={() => setRoleFilter(roleFilter === 'BOTH' ? 'ALL' : 'BOTH')} icon={FiRefreshCw}>{t('repairAndSell')}</Chip>
+                    <Chip active={minRating >= 4} onClick={() => setMinRating(minRating >= 4 ? 0 : 4)} icon={RiStarFill}>4+ {t('stars')}</Chip>
+                    <Chip active={showVerifiedOnly} onClick={() => setShowVerifiedOnly((v) => !v)} icon={RiVerifiedBadgeLine}>{t('verified')}</Chip>
+                    <Chip active={savedOnly} onClick={() => setSavedOnly((v) => !v)} icon={FiHeart}>{t('savedOnly')}</Chip>
+                  </div>
                 </>
               )}
-            </Reveal>
-          </>
-        )}
-      </main>
 
-      {showTop && (
-        <div className="hp-pop fixed bottom-5 end-5 z-40">
-          <button type="button" onClick={scrollToTop} aria-label={t('backToTop')} title={t('backToTop')} className={`${ICON_BTN} !h-12 !w-12 bg-emerald-600 text-white shadow-lg shadow-black/40 hover:bg-emerald-500`}>
-            <FiArrowUp className="h-5 w-5" />
-          </button>
-        </div>
-      )}
+              <div className={`transition-opacity duration-200 motion-reduce:transition-none ${isPending ? 'opacity-60' : ''}`}>
+                {isLoading ? (
+                  <PageSkeleton label={t('loading')} />
+                ) : isError ? (
+                  <StateBox label={t('loadErrorTitle')} hint={t('loadErrorText')} onAction={refetch} actionLabel={t('tryAgain')} fetching={isFetching} />
+                ) : !hasShops ? (
+                  <StateBox label={t('noShops')} hint={t('newShopsSoon')} />
+                ) : (
+                  <>
+                    {browsing && categoryTypes.length > 0 && (
+                      <CategoryRail
+                        types={categoryTypes} countsByType={countsByType} selected={selectedShopTypes} onToggle={toggleShopType} onAll={clearTypes}
+                        allLabel={t('allShops')} total={shops.length} ariaLabel={t('shopType')}
+                      />
+                    )}
 
-      {sheet !== 'closed' && filterPanelProps && (
-        <div className="fixed inset-0 z-[1050]" role="dialog" aria-modal="true" aria-label={t('filters')}>
-          <div className={`absolute inset-0 bg-[color:var(--overlay)] ${sheet === 'leave' ? 'hp-fade-out' : 'hp-fade-in'}`} onClick={closeSheet} />
-          <div
-            className={`${sheet === 'leave' ? 'hp-drawer-out' : 'hp-drawer'} absolute inset-y-0 start-0 flex w-[22rem] min-w-0 max-w-[90vw] transform-gpu flex-col border-e border-[color:var(--line)] bg-[color:var(--panel)] md:w-96`}
-          >
-            <div className="hp-sb min-w-0 flex-1 overflow-y-auto overscroll-contain p-4 pe-5">
-              <FilterPanel {...filterPanelProps} onClose={closeSheet} />
-            </div>
-            <div className="border-t border-[color:var(--line)] p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-              <button type="button" onClick={() => { closeSheet(); scrollToGrid(); }} className={`${BTN_PRIMARY} w-full`}>{t('showShops', { count: filteredShops.length })}</button>
-            </div>
+                    {browsing && topRated.length > 0 && (
+                      <Carousel
+                        featured title={t('customerFavorites')} subtitle={t('topRatedSubtitle')} onViewAll={viewAllTop} viewAllLabel={t('viewAll')}
+                        shops={topRated} saved={saved} actions={actions} t={t}
+                      />
+                    )}
+
+                    {browsing && roleGroups.map((g) => (
+                      <Carousel
+                        key={g.role} title={t(g.title)} subtitle={t(g.sub)} count={g.count} onViewAll={() => viewAllRole(g.role)} viewAllLabel={t('viewAll')}
+                        shops={g.top} saved={saved} actions={actions} t={t}
+                      />
+                    ))}
+
+                    <section aria-label={t('allShopsTitle')} className="pt-2">
+                      <div id="shop-results" ref={gridRef} className="mb-5 flex scroll-mt-28 flex-wrap items-end justify-between gap-3">
+                        <div className="min-w-0">
+                          <h2 className="text-xl font-bold tracking-tight sm:text-2xl">{t('allShopsTitle')}</h2>
+                          <p role="status" className="nb-muted mt-1.5 text-sm">
+                            <b dir="ltr" className="font-bold tabular-nums text-[color:var(--nb-ink)]">{filteredShops.length}</b> {t('shopsFound')}
+                          </p>
+                        </div>
+                        {activeFiltersCount > 0 && (
+                          <button type="button" onClick={clearFilters} className="nb-ic nb-focus rounded-md text-sm font-bold transition-opacity hover:opacity-80">{t('clearAll')}</button>
+                        )}
+                      </div>
+
+                      {(selectedShopTypes.length > 0 || selectedCities.length > 0) && (
+                        <div className="mb-5 flex flex-wrap items-center gap-3">
+                          {selectedShopTypes.map((ty) => <Chip key={`ty-${ty}`} active onClick={() => toggleShopType(ty)} onRemove>{ty}</Chip>)}
+                          {selectedCities.map((c) => <Chip key={`c-${c}`} active onClick={() => toggleCity(c)} onRemove>{c}</Chip>)}
+                        </div>
+                      )}
+
+                      {filteredShops.length === 0 ? (
+                        <StateBox label={t('noMatch')} hint={t('tryRemoveFilter')} onAction={clearFilters} actionLabel={t('clearFilters')} />
+                      ) : (
+                        <>
+                          <div className={`${GRID} sh-lazy`}>
+                            {visibleShops.map((s, i) => (
+                              <ShopCell key={s.id} index={i % BATCH}>
+                                <ShopCard shop={s} isSaved={saved.has(s.id)} actions={actions} t={t} eager={i < 4} />
+                              </ShopCell>
+                            ))}
+                          </div>
+                          <InfiniteSentinel hasMore={hasMore} shown={visibleCount} total={filteredShops.length} onMore={loadMore} t={t} />
+                        </>
+                      )}
+                    </section>
+                  </>
+                )}
+              </div>
+            </section>
           </div>
-        </div>
-      )}
+        </main>
 
-      {detailsShop && (
-        <ShopDetailsModal key={detailsShop.id} shop={detailsShop} onClose={closeDetails} onOpen={openFromModal} onDirections={directionsFromModal} t={t} />
-      )}
+        {showTop && (
+          <div className="sh-pop fixed bottom-5 end-5 z-40">
+            <button type="button" onClick={scrollToTop} aria-label={t('backToTop')} title={t('backToTop')} className="nb-btn nb-btn-a nb-focus h-12 w-12">
+              <FiArrowUp aria-hidden="true" className="h-5 w-5" />
+            </button>
+          </div>
+        )}
 
-      {directionsShop && (
-        <DirectionsModal key={`dir-${directionsShop.id}`} shop={directionsShop} onClose={closeDirections} t={t} />
-      )}
-    </div>
+        {drawerOpen && !isDesktop && (
+          <FilterDrawer onClose={closeDrawer} onApply={scrollToGrid} t={t} total={filteredShops.length} onClear={clearFilters} hasFilters={activeFiltersCount > 0}>
+            {panel}
+          </FilterDrawer>
+        )}
+
+        {detailsShop && (
+          <ShopDetailsModal key={detailsShop.id} shop={detailsShop} onClose={closeDetails} onOpen={openFromModal} onDirections={directionsFromModal} t={t} />
+        )}
+
+        {directionsShop && (
+          <DirectionsModal key={`dir-${directionsShop.id}`} shop={directionsShop} onClose={closeDirections} t={t} />
+        )}
+      </div>
+    </DarkCtx.Provider>
   );
 });
 
 export { queryClient };
 export default function Shops(props) {
   return (
-    <DarkCtx.Provider value={Boolean(props.darkMode)}>
-      <QueryClientProvider client={queryClient}>
-        <ShopsContent {...props} />
-      </QueryClientProvider>
-    </DarkCtx.Provider>
+    <QueryClientProvider client={queryClient}>
+      <ShopsContent {...props} />
+    </QueryClientProvider>
   );
 }

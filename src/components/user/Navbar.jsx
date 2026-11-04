@@ -1,10 +1,10 @@
 import React, {
-  useEffect, useState, useCallback, useMemo, useRef, useId, useDeferredValue, memo, useSyncExternalStore,
+  useEffect, useState, useCallback, useMemo, useRef, useId, memo, useSyncExternalStore,
 } from 'react';
 import { useQuery, useQueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
-  FiX, FiBell, FiSearch, FiChevronDown, FiChevronRight, FiMapPin, FiGlobe, FiCheck, FiPlus,
+  FiX, FiBell, FiChevronDown, FiChevronRight, FiMapPin, FiGlobe, FiCheck, FiPlus,
 } from 'react-icons/fi';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -32,8 +32,6 @@ import {
   RiCamera3Line, RiGamepadLine, RiComputerLine, RiPrinterLine, RiKeyboardLine, RiPlug2Line,
 } from 'react-icons/ri';
 import logo from '../../common/images/tech-restore-logo.webp';
-import { money } from './Device3D';
-import { clean, safeImageUrl } from './ListingKit';
 import enTranslations from '../../locales/en/translation.json';
 import arTranslations from '../../locales/ar/translation.json';
 import frTranslations from '../../locales/fr/translation.json';
@@ -43,24 +41,21 @@ const NAVBAR_TRANSLATIONS = { en: enTranslations.navbar, ar: arTranslations.navb
 
 const NAV_LOCAL = {
   en: {
-    searchPlaceholder: 'Search devices, brands and shops', search: 'Search', allCategories: 'All categories', categories: 'Categories', login: 'Login', signup: 'Sign up',
-    searchProducts: 'Products', searchShops: 'Shops', searchAll: 'See all results for “{{q}}”', searchNone: 'No matches found', searchLoading: 'Searching…',
+    allCategories: 'All categories', categories: 'Categories', login: 'Login', signup: 'Sign up',
     repair: 'Repair', offers: 'Offers', browseCategories: 'Browse by category',
     deliverTo: 'Delivering to', chooseAddress: 'Choose delivery address', addAddress: 'Add a delivery address', manageAddresses: 'Manage addresses',
     noAddresses: 'No saved addresses yet', language: 'Language', orders: 'Orders', defaultTag: 'Default', addressLoading: 'Loading…', emptyNotifHint: 'New updates about your orders and repairs will show up here.',
     removeNotification: 'Remove notification', closeNotifications: 'Close notifications', primaryNav: 'Primary', mainNav: 'Main',
   },
   ar: {
-    searchPlaceholder: 'ابحث عن الأجهزة والماركات والمتاجر', search: 'بحث', allCategories: 'كل الفئات', categories: 'الفئات', login: 'تسجيل الدخول', signup: 'إنشاء حساب',
-    searchProducts: 'المنتجات', searchShops: 'المتاجر', searchAll: 'عرض كل النتائج لـ «{{q}}»', searchNone: 'لا توجد نتائج مطابقة', searchLoading: 'جارٍ البحث…',
+    allCategories: 'كل الفئات', categories: 'الفئات', login: 'تسجيل الدخول', signup: 'إنشاء حساب',
     repair: 'إصلاح', offers: 'العروض', browseCategories: 'تصفح حسب الفئة',
     deliverTo: 'التوصيل إلى', chooseAddress: 'اختر عنوان التوصيل', addAddress: 'أضف عنوان توصيل', manageAddresses: 'إدارة العناوين',
     noAddresses: 'لا توجد عناوين محفوظة بعد', language: 'اللغة', orders: 'الطلبات', defaultTag: 'افتراضي', addressLoading: 'جارٍ التحميل…', emptyNotifHint: 'ستظهر هنا التحديثات الجديدة حول طلباتك وإصلاحاتك.',
     removeNotification: 'حذف الإشعار', closeNotifications: 'إغلاق الإشعارات', primaryNav: 'التنقل الرئيسي', mainNav: 'القائمة',
   },
   fr: {
-    searchPlaceholder: 'Rechercher appareils, marques et boutiques', search: 'Rechercher', allCategories: 'Toutes les catégories', categories: 'Catégories', login: 'Connexion', signup: "S'inscrire",
-    searchProducts: 'Produits', searchShops: 'Boutiques', searchAll: 'Voir tous les résultats pour « {{q}} »', searchNone: 'Aucun résultat', searchLoading: 'Recherche…',
+    allCategories: 'Toutes les catégories', categories: 'Catégories', login: 'Connexion', signup: "S'inscrire",
     repair: 'Réparation', offers: 'Offres', browseCategories: 'Parcourir par catégorie',
     deliverTo: 'Livraison à', chooseAddress: "Choisir l'adresse de livraison", addAddress: 'Ajouter une adresse de livraison', manageAddresses: 'Gérer les adresses',
     noAddresses: 'Aucune adresse enregistrée', language: 'Langue', orders: 'Commandes', defaultTag: 'Par défaut', addressLoading: 'Chargement…', emptyNotifHint: 'Les nouveautés sur vos commandes et réparations apparaîtront ici.',
@@ -70,6 +65,7 @@ const NAV_LOCAL = {
 
 const LANGUAGES = [['en', 'English'], ['ar', 'العربية'], ['fr', 'Français']];
 const LANGUAGE_NAMES = Object.fromEntries(LANGUAGES);
+const isSupportedLanguage = (lang) => typeof lang === 'string' && Object.prototype.hasOwnProperty.call(LANGUAGE_NAMES, lang);
 
 const getNavbarTranslation = (language, key) =>
   NAVBAR_TRANSLATIONS[language]?.[key] ||
@@ -78,59 +74,19 @@ const getNavbarTranslation = (language, key) =>
   NAV_LOCAL.en[key] ||
   key;
 
-const searchRoute = (q) => `/devices?search=${encodeURIComponent(q)}`;
 const categoryRoute = (id) => `/products/category/${encodeURIComponent(id)}`;
-const productRoute = (id) => `/device/${encodeURIComponent(id)}`;
-const shopRoute = (id) => `/shops/${encodeURIComponent(id)}`;
 const CATEGORY_PATH = /^\/products\/category\/([^/]+)/;
 
 const EMPTY = [];
-const EMPTY_MATCH = Object.freeze({ products: EMPTY, shops: EMPTY });
 const TOAST_STYLE = { fontFamily: 'inherit', fontSize: 14, borderRadius: 12 };
 const ADDRESSES_STATE = { section: 'addresses' };
 
-const SEARCH_MIN = 2;
-const SEARCH_MAX = 100;
-const SEARCH_PRODUCTS = 5;
-const SEARCH_SHOPS = 3;
-const SHOPS_FETCH_SIZE = 100;
-const SEARCH_STALE = 5 * 60 * 1000;
 const ADDRESS_STALE = 60 * 1000;
 const NOTIF_POLL = 60 * 1000;
+const NOTIF_MAX = 100;
+const LOGOUT_TIMEOUT = 5000;
 const DELIVER_KEY = 'deliveryAddressId';
-
-const fold = (s) =>
-  String(s ?? '')
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f\u064B-\u065F\u0670\u0640]/g, '')
-    .toLowerCase();
-
-const toSearchProduct = (p) => {
-  const price = Math.max(0, Number(p.price) || 0);
-  const apiFinal = Number(p.finalPrice);
-  const name = clean(String(p.name ?? ''), 120);
-  const category = p.categoryName || (typeof p.category === 'string' ? p.category : '');
-  return {
-    id: String(p.id),
-    name,
-    image: safeImageUrl(p.imageUrl || p.image) || '',
-    price: apiFinal > 0 && apiFinal < price ? apiFinal : price,
-    _n: fold(name),
-    _k: fold(`${name} ${p.brand || ''} ${category} ${p.description || ''}`),
-  };
-};
-
-const toSearchShop = (s) => {
-  const name = clean(String(s.name ?? ''), 120);
-  const address = [s.shopAddress?.street, s.shopAddress?.city].filter((x) => typeof x === 'string' && x.trim()).join(', ');
-  return {
-    id: String(s.id),
-    name,
-    address,
-    _n: fold(name),
-    _k: fold(`${name} ${address} ${s.description || ''}`),
-  };
-};
+const ID_PATTERN = /^[\w.-]{1,64}$/;
 
 const toNavAddress = (a) => ({
   id: String(a.id),
@@ -141,58 +97,27 @@ const toNavAddress = (a) => ({
   isDefault: !!a.isDefault,
 });
 
+const toNavNotification = (n) => ({
+  id: n.id,
+  title: String(n.title ?? '').slice(0, 120),
+  message: String(n.message ?? '').slice(0, 300),
+  read: !!n.read,
+  timestamp: n.timestamp,
+});
+
 const readPickedAddress = () => {
-  try { return window.localStorage.getItem(DELIVER_KEY); } catch { return null; }
-};
-
-const useSearchData = (enabled) => {
-  const productsQ = useQuery({
-    queryKey: ['navSearch', 'products'],
-    enabled,
-    staleTime: SEARCH_STALE,
-    refetchOnWindowFocus: false,
-    retry: false,
-    queryFn: async ({ signal }) => {
-      const res = await api.get('/api/products', { signal });
-      const raw = res.data?.content || res.data || [];
-      return (Array.isArray(raw) ? raw : []).filter((p) => p && !p.deleted && p.id != null).map(toSearchProduct);
-    },
-  });
-  const shopsQ = useQuery({
-    queryKey: ['navSearch', 'shops'],
-    enabled,
-    staleTime: SEARCH_STALE,
-    refetchOnWindowFocus: false,
-    retry: false,
-    queryFn: async ({ signal }) => {
-      const res = await api.get('/api/users/shops/all', { params: { page: 0, size: SHOPS_FETCH_SIZE }, signal });
-      const raw = res.data?.content || (Array.isArray(res.data) ? res.data : []);
-      return raw.filter((s) => s && s.id != null).map(toSearchShop);
-    },
-  });
-  return {
-    products: productsQ.data || EMPTY,
-    shops: shopsQ.data || EMPTY,
-    loading: enabled && (productsQ.isLoading || shopsQ.isLoading),
-  };
-};
-
-const rankMatches = (items, term, limit) => {
-  const tokens = term.split(/\s+/).filter(Boolean);
-  if (!tokens.length) return EMPTY;
-  const scored = [];
-  for (const it of items) {
-    if (!tokens.every((tk) => it._k.includes(tk))) continue;
-    scored.push([it._n.startsWith(term) ? 0 : it._n.includes(term) ? 1 : 2, it]);
-  }
-  scored.sort((a, b) => a[0] - b[0]);
-  return scored.slice(0, limit).map((x) => x[1]);
+  try {
+    const v = window.localStorage.getItem(DELIVER_KEY);
+    return v && ID_PATTERN.test(v) ? v : null;
+  } catch { return null; }
 };
 
 const NAV_CSS = `
 .nv-root{display:contents}
-.nv{--bd:#e5e7eb;--sf:#ffffff;--sf2:#f3f4f6;--tx:#111827;--mu:#4b5563;--acc:#059669;color:var(--tx)}
-.nv-dark{--bd:#333333;--sf:#1e1e1e;--sf2:#2a2a2a;--tx:#ffffff;--mu:#a3a3a3;--acc:#34d399}
+.nv{--bd:#e5e7eb;--sf:#ffffff;--sf2:#f3f4f6;--tx:#052e1e;--mu:rgba(5,46,30,.68);--acc:#059669;--ln:#000000;--shd:#000000;--dx:1;color:var(--tx)}
+.nv[dir=rtl]{--dx:-1}
+.nv-dark{--bd:rgba(255,255,255,.16);--sf:#1c1c1e;--sf2:#2a2a2e;--tx:#ffffff;--mu:rgba(255,255,255,.66);--acc:#39ff88;--ln:rgba(255,255,255,.16);--shd:#0b4a35}
+.nv-poppins{font-family:'Poppins',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif}
 .nv-head{transition:transform .2s cubic-bezier(.2,.8,.2,1);will-change:transform}
 .nv-root[data-hide=true] .nv-head{transform:translate3d(0,-100%,0)}
 .nav-scroll{scrollbar-width:thin;scrollbar-color:var(--acc) transparent;overscroll-behavior:contain}
@@ -205,22 +130,51 @@ const NAV_CSS = `
 @media (prefers-reduced-motion:reduce){.nav-pop,.nav-badge{animation:none!important}.nv-head{transition:none}}
 `;
 
-const injectNavCss = () => {
-  if (typeof document === 'undefined' || document.getElementById('navbar-styles')) return;
-  const tag = document.createElement('style');
-  tag.id = 'navbar-styles';
-  tag.textContent = NAV_CSS;
-  document.head.appendChild(tag);
+const FONT_HREF = 'https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&display=swap';
+
+const injectNavAssets = () => {
+  if (typeof document === 'undefined') return;
+  const head = document.head;
+
+  if (!document.getElementById('navbar-styles')) {
+    const tag = document.createElement('style');
+    tag.id = 'navbar-styles';
+    tag.textContent = NAV_CSS;
+    head.appendChild(tag);
+  }
+
+  if (document.getElementById('navbar-font')) return;
+
+  const add = (rel, href, props) => {
+    const link = document.createElement('link');
+    link.rel = rel;
+    link.href = href;
+    Object.assign(link, props);
+    head.appendChild(link);
+    return link;
+  };
+
+  add('preconnect', 'https://fonts.googleapis.com');
+  add('preconnect', 'https://fonts.gstatic.com', { crossOrigin: 'anonymous' });
+  add('preload', FONT_HREF, { as: 'style', crossOrigin: 'anonymous' });
+  const sheet = add('stylesheet', FONT_HREF, {
+    id: 'navbar-font',
+    media: 'print',
+    crossOrigin: 'anonymous',
+    referrerPolicy: 'no-referrer',
+  });
+  sheet.onload = () => { sheet.media = 'all'; };
 };
-injectNavCss();
+injectNavAssets();
 
 const FOCUS = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
 const ICON_BTN = `relative inline-flex h-10 w-10 flex-none cursor-pointer items-center justify-center rounded-lg text-[color:var(--tx)] transition-colors duration-150 hover:bg-[color:var(--sf2)] ${FOCUS}`;
-const BAR_BG = 'bg-emerald-600';
-const BAR_BTN = 'relative inline-flex h-10 min-w-10 flex-none cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-xl px-2.5 text-sm font-bold text-white transition-colors duration-150 hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white';
-const ROW_LINK = 'inline-flex h-9 flex-none items-center gap-2 whitespace-nowrap rounded-lg px-3 text-sm font-bold transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[color:var(--acc)]';
-const POPUP = 'nav-pop absolute z-50 overflow-hidden rounded-2xl border border-[color:var(--bd)] bg-[color:var(--sf)] text-[color:var(--tx)] shadow-2xl shadow-black/15';
-const POPUP_LABEL = 'border-b border-[color:var(--bd)] px-4 py-3 text-xs font-extrabold uppercase tracking-wide text-[color:var(--mu)] rtl:tracking-normal';
+const BAR_BG = 'bg-[#39ff88]';
+const BAR_BTN = 'relative inline-flex h-10 min-w-10 flex-none cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-xl border-2 border-transparent px-2.5 text-sm font-bold text-emerald-950 transition-colors duration-150 hover:border-black hover:bg-white/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-black disabled:cursor-not-allowed disabled:opacity-60';
+const BAR_BTN_ON = '!border-black bg-white';
+const ROW_LINK = 'inline-flex h-9 flex-none items-center gap-2 whitespace-nowrap rounded-lg border-2 px-3 text-sm font-bold transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[color:var(--acc)]';
+const POPUP = 'nav-pop absolute z-50 overflow-hidden rounded-2xl border-[3px] border-[color:var(--ln)] bg-[color:var(--sf)] text-[color:var(--tx)] [box-shadow:calc(var(--dx)*4px)_4px_0_0_var(--shd)]';
+const POPUP_LABEL = 'border-b-2 border-[color:var(--ln)] px-4 py-3 text-xs font-extrabold uppercase tracking-wide text-[color:var(--mu)] rtl:tracking-normal';
 
 const clearAccountCache = () => {
   try { Object.keys(window.sessionStorage).filter((k) => k.startsWith('acct:')).forEach((k) => window.sessionStorage.removeItem(k)); } catch { }
@@ -248,15 +202,22 @@ const getMq = () => getMql().matches;
 const getMqServer = () => true;
 const useIsDesktop = () => useSyncExternalStore(subscribeMq, getMq, getMqServer);
 
-const useDismiss = (open, close, ref) => {
+const useDismiss = (open, close, ref, returnRef) => {
   useEffect(() => {
     if (!open) return undefined;
     const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) close(); };
-    const onKey = (e) => { if (e.key === 'Escape') close(); };
-    document.addEventListener('mousedown', onDown);
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return;
+      close();
+      returnRef?.current?.focus();
+    };
+    document.addEventListener('pointerdown', onDown);
     document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
-  }, [open, close, ref]);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open, close, ref, returnRef]);
 };
 
 const AUTH_ITEMS = [
@@ -283,9 +244,13 @@ const Logo = memo(({ heightClass }) => (
     height={238}
     decoding="async"
     fetchPriority="high"
+    draggable={false}
+    referrerPolicy="no-referrer"
     className={`w-auto select-none object-contain ${heightClass}`}
   />
 ));
+
+const LOGO_LINK = 'flex-shrink-0 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black';
 
 const CATEGORY_ICONS = [
   [/tablet|ipad|تابلت|tablette/i, RiTabletLine],
@@ -331,6 +296,20 @@ const ThemeToggle = memo(({ darkMode, onToggle, label }) => (
   </button>
 ));
 
+const LogoutButton = memo(({ onLogout, label, busy }) => (
+  <button
+    type="button"
+    onClick={onLogout}
+    disabled={busy}
+    aria-label={label}
+    aria-busy={busy}
+    title={label}
+    className={BAR_BTN}
+  >
+    <RiLogoutBoxRLine aria-hidden="true" size={19} />
+  </button>
+));
+
 const LangMenu = memo(({ language, onChange, label }) => {
   const location = useLocation();
   const wrapRef = useRef(null);
@@ -353,14 +332,14 @@ const LangMenu = memo(({ language, onChange, label }) => {
         aria-controls={open ? listId : undefined}
         aria-label={label}
         title={label}
-        className={BAR_BTN}
+        className={`${BAR_BTN} ${open ? BAR_BTN_ON : ''}`}
       >
         <FiGlobe aria-hidden="true" size={18} />
         <span className="hidden lg:inline">{LANGUAGE_NAMES[language] || language}</span>
         <FiChevronDown aria-hidden="true" size={14} className={`hidden transition-transform duration-150 motion-reduce:transition-none lg:inline ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <ul id={listId} role="listbox" aria-label={label} className={`${POPUP} end-0 top-full mt-2 min-w-[10rem] p-1`}>
+        <ul id={listId} role="listbox" aria-label={label} className={`${POPUP} end-0 top-full mt-3 min-w-[10rem] p-1`}>
           {LANGUAGES.map(([value, name]) => {
             const selected = value === language;
             return (
@@ -397,7 +376,7 @@ const AddressOption = memo(({ address, active, onPick, defaultLabel }) => {
         onClick={pick}
         className={`flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-start transition-colors duration-150 hover:bg-[color:var(--sf2)] ${FOCUS} ${active ? 'bg-[color:var(--sf2)]' : ''}`}
       >
-        <span className={`grid h-8 w-8 flex-none place-items-center rounded-full ${active ? 'bg-emerald-600 text-white' : 'bg-[color:var(--sf2)] text-[color:var(--acc)]'}`}>
+        <span className={`grid h-8 w-8 flex-none place-items-center rounded-full border-2 border-black ${active ? 'bg-[#39ff88] text-emerald-950' : 'bg-[color:var(--sf2)] text-[color:var(--acc)]'}`}>
           {active ? <FiCheck aria-hidden="true" size={15} strokeWidth={3} /> : <FiMapPin aria-hidden="true" size={15} />}
         </span>
         <span className="min-w-0 flex-1">
@@ -405,7 +384,7 @@ const AddressOption = memo(({ address, active, onPick, defaultLabel }) => {
           {sub && <span className="block truncate text-xs font-medium text-[color:var(--mu)]">{sub}</span>}
         </span>
         {address.isDefault && (
-          <span className="flex-none rounded-full bg-[color:var(--sf2)] px-2 py-0.5 text-[10px] font-extrabold text-[color:var(--acc)] ring-1 ring-[color:var(--bd)]">{defaultLabel}</span>
+          <span className="flex-none rounded-full bg-[#39ff88] px-2 py-0.5 text-[10px] font-extrabold text-emerald-950 ring-2 ring-black">{defaultLabel}</span>
         )}
       </button>
     </li>
@@ -443,18 +422,18 @@ const DeliverMenu = memo(({ addresses, selected, loading, onSelect, onManage, t,
         aria-controls={open && hasAddresses ? listId : undefined}
         aria-label={`${t('deliverTo')}: ${headline}`}
         className={mobile
-          ? 'inline-flex h-9 w-full cursor-pointer items-center gap-1.5 rounded-lg text-start text-xs font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white'
-          : `${BAR_BTN} max-w-[15rem] !justify-start text-start`}
+          ? 'inline-flex h-9 w-full cursor-pointer items-center gap-1.5 rounded-lg text-start text-xs font-semibold text-emerald-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-black'
+          : `${BAR_BTN} max-w-[15rem] !justify-start text-start ${open ? BAR_BTN_ON : ''}`}
       >
         <FiMapPin aria-hidden="true" size={mobile ? 15 : 20} className="flex-none" />
         {mobile ? (
           <span className="min-w-0 flex-1 truncate">
-            <span className="text-white/80">{t('deliverTo')} </span>
+            <span className="text-emerald-950/70">{t('deliverTo')} </span>
             <span className="font-extrabold">{headline}</span>
           </span>
         ) : (
           <span className="min-w-0 flex-1 leading-tight">
-            <span className="block truncate text-[11px] font-semibold text-white/80">{t('deliverTo')}</span>
+            <span className="block truncate text-[11px] font-semibold text-emerald-950/70">{t('deliverTo')}</span>
             <span className="block truncate text-sm font-extrabold">{headline}{detail && selected?.city ? ` • ${selected.street || detail}` : ''}</span>
           </span>
         )}
@@ -462,7 +441,7 @@ const DeliverMenu = memo(({ addresses, selected, loading, onSelect, onManage, t,
       </button>
 
       {open && (
-        <div className={`${POPUP} top-full mt-2 ${mobile ? 'inset-x-0' : 'start-0 w-80'}`}>
+        <div className={`${POPUP} top-full mt-3 ${mobile ? 'inset-x-0' : 'start-0 w-80'}`}>
           <p className={POPUP_LABEL}>{t('chooseAddress')}</p>
           {hasAddresses ? (
             <ul id={listId} role="listbox" aria-label={t('chooseAddress')} className="nav-scroll max-h-72 overflow-y-auto p-1">
@@ -476,7 +455,7 @@ const DeliverMenu = memo(({ addresses, selected, loading, onSelect, onManage, t,
           <button
             type="button"
             onClick={manage}
-            className={`flex min-h-12 w-full cursor-pointer items-center gap-2 border-t border-[color:var(--bd)] px-4 text-sm font-extrabold text-[color:var(--acc)] transition-colors duration-150 hover:bg-[color:var(--sf2)] ${FOCUS}`}
+            className={`flex min-h-12 w-full cursor-pointer items-center gap-2 border-t-2 border-[color:var(--ln)] px-4 text-sm font-extrabold text-[color:var(--acc)] transition-colors duration-150 hover:bg-[color:var(--sf2)] ${FOCUS}`}
           >
             {hasAddresses ? <FiChevronRight aria-hidden="true" size={15} className="rtl:rotate-180" /> : <FiPlus aria-hidden="true" size={15} />}
             {hasAddresses ? t('manageAddresses') : t('addAddress')}
@@ -493,7 +472,7 @@ const CartLink = memo(({ count, label, active }) => (
     aria-label={count > 0 ? `${label} (${count})` : label}
     aria-current={active ? 'page' : undefined}
     title={label}
-    className={`${BAR_BTN} ${active ? 'bg-white/20' : ''}`}
+    className={`${BAR_BTN} ${active ? BAR_BTN_ON : ''}`}
   >
     <RiShoppingCartLine aria-hidden="true" size={20} />
     <span className="hidden xl:inline">{label}</span>
@@ -502,7 +481,7 @@ const CartLink = memo(({ count, label, active }) => (
         key={count}
         aria-hidden="true"
         dir="ltr"
-        className="nav-badge absolute -end-0.5 -top-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-orange-500 px-1 text-[10px] font-extrabold leading-none tabular-nums text-white ring-2 ring-emerald-600"
+        className="nav-badge absolute -end-1 -top-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-black bg-black px-1 text-[10px] font-extrabold leading-none tabular-nums text-[#39ff88]"
       >
         {count > 99 ? '99+' : count}
       </span>
@@ -524,6 +503,8 @@ const NotificationItem = memo(({ n, onDelete, removeLabel }) => (
 ));
 
 const SKELETON_ROWS = [1, 2, 3];
+const SKELETON_TABS = [1, 2, 3, 4, 5, 6];
+const SKELETON_GRID = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
 const NotificationList = memo(({ notifications, loading, onDelete, t }) => {
   if (loading) {
@@ -536,7 +517,7 @@ const NotificationList = memo(({ notifications, loading, onDelete, t }) => {
   if (!notifications.length) {
     return (
       <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
-        <span className="grid h-14 w-14 place-items-center rounded-full bg-[color:var(--sf2)] text-[color:var(--acc)]">
+        <span className="grid h-14 w-14 place-items-center rounded-full border-[3px] border-black bg-[#39ff88] text-emerald-950">
           <FiBell aria-hidden="true" size={24} />
         </span>
         <p className="text-sm font-extrabold">{t('allCaughtUp')}</p>
@@ -549,7 +530,7 @@ const NotificationList = memo(({ notifications, loading, onDelete, t }) => {
 });
 
 const NotifHeader = memo(({ unread, onClose, t }) => (
-  <div className="flex items-center justify-between border-b border-[color:var(--bd)] px-4 py-3">
+  <div className="flex items-center justify-between border-b-2 border-[color:var(--ln)] px-4 py-3">
     <div>
       <p className="text-sm font-extrabold">{t('notifications')}</p>
       {unread > 0 && <p className="text-xs font-semibold text-[color:var(--mu)]"><span dir="ltr" className="tabular-nums">{unread}</span> {t('unread')}</p>}
@@ -561,198 +542,13 @@ const NotifHeader = memo(({ unread, onClose, t }) => (
 ));
 
 const NotifPanel = memo(({ className, unread, notifications, loading, onClose, onDelete, t }) => (
-  <div className={`nav-pop z-50 overflow-hidden rounded-2xl border border-[color:var(--bd)] bg-[color:var(--sf)] text-[color:var(--tx)] shadow-2xl shadow-black/15 ${className}`}>
+  <div className={`nav-pop z-50 overflow-hidden rounded-2xl border-[3px] border-[color:var(--ln)] bg-[color:var(--sf)] text-[color:var(--tx)] [box-shadow:calc(var(--dx)*4px)_4px_0_0_var(--shd)] ${className}`}>
     <NotifHeader unread={unread} onClose={onClose} t={t} />
     <div className="nav-scroll max-h-[340px] overflow-y-auto">
       <NotificationList notifications={notifications} loading={loading} onDelete={onDelete} t={t} />
     </div>
   </div>
 ));
-
-const SearchThumb = memo(({ option }) => {
-  if (option.kind === 'product') {
-    return (
-      <span className="grid h-10 w-10 flex-none place-items-center overflow-hidden rounded-lg border border-[color:var(--bd)] bg-white">
-        {option.item.image ? (
-          <img
-            src={option.item.image}
-            alt=""
-            width={40}
-            height={40}
-            loading="lazy"
-            decoding="async"
-            referrerPolicy="no-referrer"
-            onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }}
-            className="h-full w-full object-contain p-1"
-          />
-        ) : (
-          <RiDeviceLine aria-hidden="true" size={18} className="text-gray-400" />
-        )}
-      </span>
-    );
-  }
-  return (
-    <span className="grid h-10 w-10 flex-none place-items-center rounded-lg bg-[color:var(--sf2)] text-[color:var(--acc)]">
-      {option.kind === 'shop' ? <RiStore2Line aria-hidden="true" size={19} /> : <FiSearch aria-hidden="true" size={17} />}
-    </span>
-  );
-});
-
-const SearchRow = memo(({ id, index, option, active, label, onPick, onHover }) => {
-  const pick = useCallback(() => onPick(option), [onPick, option]);
-  const hover = useCallback(() => onHover(index), [onHover, index]);
-  const isAll = option.kind === 'all';
-  return (
-    <li
-      id={id}
-      role="option"
-      aria-selected={active}
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={pick}
-      onMouseEnter={hover}
-      className={`flex min-h-12 cursor-pointer items-center gap-3 px-3 py-2 ${active ? 'bg-[color:var(--sf2)]' : ''} ${isAll ? 'border-t border-[color:var(--bd)]' : ''}`}
-    >
-      <SearchThumb option={option} />
-      <span className="min-w-0 flex-1">
-        <span className={`block truncate text-sm ${isAll ? 'font-extrabold text-[color:var(--acc)]' : 'font-bold'}`}>
-          {isAll ? label : option.item.name}
-        </span>
-        {option.kind === 'product' && option.item.price > 0 && (
-          <span dir="ltr" className="block truncate text-xs font-semibold tabular-nums text-[color:var(--mu)]">{money(option.item.price)}</span>
-        )}
-        {option.kind === 'shop' && option.item.address && (
-          <span className="block truncate text-xs font-medium text-[color:var(--mu)]">{option.item.address}</span>
-        )}
-      </span>
-    </li>
-  );
-});
-
-const SearchBox = memo(({ value, setValue, placeholder, label, t, className = '', autoFocus = false }) => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const wrapRef = useRef(null);
-  const listId = useId();
-  const [warm, setWarm] = useState(false);
-  const [open, setOpen] = useState(false);
-  const [active, setActive] = useState(-1);
-
-  const deferred = useDeferredValue(value);
-  const term = useMemo(() => fold(deferred).trim(), [deferred]);
-  const hasTerm = term.length >= SEARCH_MIN;
-  const { products, shops, loading } = useSearchData(warm);
-
-  const matches = useMemo(
-    () => (hasTerm ? { products: rankMatches(products, term, SEARCH_PRODUCTS), shops: rankMatches(shops, term, SEARCH_SHOPS) } : EMPTY_MATCH),
-    [hasTerm, products, shops, term],
-  );
-  const found = matches.products.length + matches.shops.length;
-
-  const options = useMemo(() => {
-    if (!hasTerm) return EMPTY;
-    const out = [];
-    for (const p of matches.products) out.push({ key: `p${p.id}`, kind: 'product', item: p, to: productRoute(p.id) });
-    for (const s of matches.shops) out.push({ key: `s${s.id}`, kind: 'shop', item: s, to: shopRoute(s.id) });
-    out.push({ key: 'all', kind: 'all', to: searchRoute(value.trim()) });
-    return out;
-  }, [hasTerm, matches, value]);
-
-  useEffect(() => { setActive(-1); }, [term]);
-  useEffect(() => { setOpen(false); }, [location.pathname, location.search]);
-  useDismiss(open, useCallback(() => setOpen(false), []), wrapRef);
-
-  const onFocus = useCallback(() => { setWarm(true); setOpen(true); }, []);
-  const onChange = useCallback((e) => { setValue(e.target.value.slice(0, SEARCH_MAX)); setOpen(true); }, [setValue]);
-  const onPick = useCallback((option) => { setOpen(false); navigate(option.to); }, [navigate]);
-  const onHover = useCallback((i) => setActive(i), []);
-
-  const onKeyDown = useCallback((e) => {
-    if (e.key === 'Escape') {
-      if (open) { setOpen(false); e.stopPropagation(); }
-      return;
-    }
-    if (!options.length) return;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setOpen(true);
-      setActive((a) => (a + 1) % options.length);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setOpen(true);
-      setActive((a) => (a <= 0 ? options.length - 1 : a - 1));
-    }
-  }, [open, options.length]);
-
-  const onSubmit = useCallback((e) => {
-    e.preventDefault();
-    const q = value.trim();
-    if (!q) return;
-    const chosen = open && active >= 0 ? options[active] : null;
-    setOpen(false);
-    navigate(chosen ? chosen.to : searchRoute(q));
-  }, [value, open, active, options, navigate]);
-
-  const showList = open && hasTerm;
-  const allLabel = t('searchAll').split('{{q}}').join(value.trim());
-  let lastKind = null;
-
-  return (
-    <form ref={wrapRef} role="search" onSubmit={onSubmit} className={`relative ${className}`}>
-      <input
-        type="search"
-        value={value}
-        onChange={onChange}
-        onFocus={onFocus}
-        onKeyDown={onKeyDown}
-        placeholder={placeholder}
-        aria-label={label}
-        role="combobox"
-        aria-autocomplete="list"
-        aria-expanded={showList}
-        aria-controls={listId}
-        aria-activedescendant={showList && active >= 0 ? `${listId}-${active}` : undefined}
-        autoComplete="off"
-        autoFocus={autoFocus}
-        maxLength={SEARCH_MAX}
-        enterKeyHint="search"
-        className={`h-11 w-full rounded-xl border border-transparent bg-[color:var(--sf)] ps-4 pe-14 text-sm font-medium text-[color:var(--tx)] shadow-sm placeholder:text-[color:var(--mu)] ${FOCUS}`}
-      />
-      <button
-        type="submit"
-        aria-label={label}
-        className={`absolute end-1 top-1 inline-flex h-9 w-10 items-center justify-center rounded-lg bg-[color:var(--acc)] text-white transition-opacity duration-150 hover:opacity-90 ${FOCUS}`}
-      >
-        <FiSearch aria-hidden="true" size={17} />
-      </button>
-
-      {showList && (
-        <div className={`${POPUP} inset-x-0 top-full mt-2`}>
-          <ul id={listId} role="listbox" aria-label={label} className="nav-scroll max-h-[380px] overflow-y-auto py-1">
-            {found === 0 && (
-              <li role="presentation" className="px-4 py-3 text-sm font-semibold text-[color:var(--mu)]">
-                {loading ? t('searchLoading') : t('searchNone')}
-              </li>
-            )}
-            {options.map((o, i) => {
-              const header = o.kind !== 'all' && o.kind !== lastKind ? (
-                <li role="presentation" className="px-4 pb-1 pt-2 text-[11px] font-extrabold uppercase tracking-wide text-[color:var(--mu)] rtl:tracking-normal">
-                  {t(o.kind === 'product' ? 'searchProducts' : 'searchShops')}
-                </li>
-              ) : null;
-              lastKind = o.kind;
-              return (
-                <React.Fragment key={o.key}>
-                  {header}
-                  <SearchRow id={`${listId}-${i}`} index={i} option={o} active={i === active} label={allLabel} onPick={onPick} onHover={onHover} />
-                </React.Fragment>
-              );
-            })}
-          </ul>
-        </div>
-      )}
-    </form>
-  );
-});
 
 const BarLinks = memo(({ items }) => (
   <>
@@ -761,7 +557,7 @@ const BarLinks = memo(({ items }) => (
         key={key}
         to={path}
         end={path === '/'}
-        className={({ isActive }) => `${ROW_LINK} ${isActive ? 'bg-[color:var(--sf2)] text-[color:var(--acc)]' : 'text-[color:var(--tx)] hover:bg-[color:var(--sf2)] hover:text-[color:var(--acc)]'}`}
+        className={({ isActive }) => `${ROW_LINK} ${isActive ? 'border-[color:var(--ln)] bg-[#39ff88] text-emerald-950 [box-shadow:calc(var(--dx)*2px)_2px_0_0_var(--shd)]' : 'border-transparent text-[color:var(--tx)] hover:border-[color:var(--ln)] hover:bg-[color:var(--sf2)]'}`}
       >
         {({ isActive }) => {
           const Glyph = isActive ? ActiveIcon : Icon;
@@ -777,12 +573,12 @@ const BarLinks = memo(({ items }) => (
   </>
 ));
 
-const CAT_TAB = 'inline-flex h-8 flex-none items-center gap-2 whitespace-nowrap rounded-lg px-3.5 text-sm transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white';
+const CAT_TAB = 'inline-flex h-8 flex-none items-center gap-2 whitespace-nowrap rounded-lg border-2 px-3.5 text-sm transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-black';
 
 const CategoryLinks = memo(({ categories, loading, activeId }) => {
   if (loading) {
-    return SKELETON_ROWS.concat(SKELETON_ROWS).map((i, idx) => (
-      <span key={idx} className="h-8 w-24 flex-none animate-pulse rounded-lg bg-white/25 motion-reduce:animate-none" />
+    return SKELETON_TABS.map((i) => (
+      <span key={i} className="h-8 w-24 flex-none animate-pulse rounded-lg bg-black/15 motion-reduce:animate-none" />
     ));
   }
   return categories.map((cat) => {
@@ -792,7 +588,7 @@ const CategoryLinks = memo(({ categories, loading, activeId }) => {
         key={cat.id}
         to={categoryRoute(cat.id)}
         aria-current={active ? 'page' : undefined}
-        className={`${CAT_TAB} ${active ? 'bg-white font-bold text-emerald-700' : 'font-semibold text-white/90 hover:bg-white/15 hover:text-white'}`}
+        className={`${CAT_TAB} ${active ? 'border-black bg-black font-bold text-[#39ff88]' : 'border-transparent font-semibold text-emerald-950 hover:border-black hover:bg-white/50'}`}
       >
         <CategoryIcon name={cat.name} size={16} />
         <span>{cat.name}</span>
@@ -810,19 +606,10 @@ const CategoryMenu = memo(({ categories, loading, activeId, t }) => {
 
   useEffect(() => { setOpen(false); }, [location.pathname, location.search]);
 
-  useEffect(() => {
-    if (!open) return undefined;
-    const onDown = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
-    const onKey = (e) => {
-      if (e.key === 'Escape') { setOpen(false); btnRef.current?.focus(); }
-    };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
-  }, [open]);
-
-  const toggle = useCallback(() => setOpen((v) => !v), []);
   const close = useCallback(() => setOpen(false), []);
+  const toggle = useCallback(() => setOpen((v) => !v), []);
+  useDismiss(open, close, wrapRef, btnRef);
+
   const onEnter = useCallback(() => {
     if (window.matchMedia?.('(hover: hover)').matches) setOpen(true);
   }, []);
@@ -839,9 +626,9 @@ const CategoryMenu = memo(({ categories, loading, activeId, t }) => {
         aria-haspopup="true"
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
-        className={`inline-flex h-9 flex-none cursor-pointer items-center gap-2.5 whitespace-nowrap rounded-lg px-3 text-sm font-extrabold transition-colors duration-150 hover:bg-[color:var(--sf2)] hover:text-[color:var(--acc)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[color:var(--acc)] ${open ? 'bg-[color:var(--sf2)] text-[color:var(--acc)]' : 'text-[color:var(--tx)]'}`}
+        className={`inline-flex h-9 flex-none cursor-pointer items-center gap-2.5 whitespace-nowrap rounded-lg border-2 px-3 text-sm font-extrabold transition-colors duration-150 hover:border-[color:var(--ln)] hover:bg-[color:var(--sf2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[color:var(--acc)] ${open ? 'border-[color:var(--ln)] bg-[#39ff88] text-emerald-950' : 'border-transparent text-[color:var(--tx)]'}`}
       >
-        <RiApps2Line aria-hidden="true" size={20} className="text-[color:var(--acc)]" />
+        <RiApps2Line aria-hidden="true" size={20} className={open ? '' : 'text-[color:var(--acc)]'} />
         <span>{t('allCategories')}</span>
         <FiChevronDown aria-hidden="true" size={16} className={`transition-transform duration-150 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -852,7 +639,7 @@ const CategoryMenu = memo(({ categories, loading, activeId, t }) => {
           <nav aria-label={t('categories')} className="nav-scroll max-h-[min(70vh,26rem)] overflow-y-auto p-2">
             {loading ? (
               <div className="grid grid-cols-2 gap-1 lg:grid-cols-3">
-                {Array.from({ length: 9 }).map((_, i) => (
+                {SKELETON_GRID.map((i) => (
                   <span key={i} className="h-10 animate-pulse rounded-lg bg-[color:var(--sf2)] motion-reduce:animate-none" />
                 ))}
               </div>
@@ -890,7 +677,7 @@ const MobileTabs = memo(({ items, dir, tone, font, label }) => (
   <nav
     dir={dir}
     aria-label={label}
-    className={`${tone} ${font} fixed inset-x-0 bottom-0 z-50 border-t border-[color:var(--bd)] bg-[color:var(--sf)] pb-[env(safe-area-inset-bottom)]`}
+    className={`${tone} ${font} fixed inset-x-0 bottom-0 z-50 border-t-[3px] border-[color:var(--ln)] bg-[color:var(--sf)] pb-[env(safe-area-inset-bottom)]`}
   >
     <div className="flex items-stretch justify-around px-0.5">
       {items.map(({ key, path, Icon, ActiveIcon, size, name }) => (
@@ -899,10 +686,10 @@ const MobileTabs = memo(({ items, dir, tone, font, label }) => (
             const Glyph = isActive ? ActiveIcon : Icon;
             return (
               <>
-                <span className={`grid h-7 w-12 place-items-center rounded-full transition-colors duration-150 ${isActive ? 'bg-[color:var(--sf2)] text-[color:var(--acc)]' : 'text-[color:var(--mu)]'}`}>
+                <span className={`grid h-7 w-12 place-items-center rounded-full border-2 transition-colors duration-150 ${isActive ? 'border-[color:var(--ln)] bg-[#39ff88] text-emerald-950' : 'border-transparent text-[color:var(--mu)]'}`}>
                   <Glyph size={size + 2} aria-hidden="true" />
                 </span>
-                <span className={`max-w-full truncate px-0.5 text-[10px] leading-none ${isActive ? 'font-extrabold text-[color:var(--acc)]' : 'font-semibold text-[color:var(--mu)]'}`}>{name}</span>
+                <span className={`max-w-full truncate px-0.5 text-[10px] leading-none ${isActive ? 'font-extrabold text-[color:var(--tx)]' : 'font-semibold text-[color:var(--mu)]'}`}>{name}</span>
               </>
             );
           }}
@@ -933,12 +720,12 @@ const NavbarContent = ({ cartCount = 0, darkMode, toggleDarkMode }) => {
   const lastScrollY = useRef(0);
   const overlayOpenRef = useRef(false);
   const prevPathRef = useRef(location.pathname);
+  const loggingOutRef = useRef(false);
 
   const [showNotifications, setShowNotifications] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [query, setQuery] = useState('');
   const [pickedId, setPickedId] = useState(readPickedAddress);
-  overlayOpenRef.current = showNotifications || searchOpen;
+  const [loggingOut, setLoggingOut] = useState(false);
+  overlayOpenRef.current = showNotifications;
 
   const closeNotifications = useCallback(() => setShowNotifications(false), []);
   useDismiss(showNotifications, closeNotifications, notifRef);
@@ -972,7 +759,6 @@ const NavbarContent = ({ cartCount = 0, darkMode, toggleDarkMode }) => {
 
   useEffect(() => {
     setShowNotifications(false);
-    setSearchOpen(false);
   }, [location.pathname, location.search]);
 
   useEffect(() => {
@@ -983,10 +769,13 @@ const NavbarContent = ({ cartCount = 0, darkMode, toggleDarkMode }) => {
   }, [location.pathname, qc]);
 
   const handleLogout = useCallback(async () => {
+    if (loggingOutRef.current) return;
+    loggingOutRef.current = true;
+    setLoggingOut(true);
     let refreshToken = null;
     try { refreshToken = window.localStorage.getItem('refreshToken'); } catch { }
     try {
-      if (token) await api.post('/api/auth/logout', refreshToken ? { refreshToken } : {});
+      if (token) await api.post('/api/auth/logout', refreshToken ? { refreshToken } : {}, { timeout: LOGOUT_TIMEOUT });
     } catch { }
     clearAuth();
     clearLegacyAuth();
@@ -994,14 +783,16 @@ const NavbarContent = ({ cartCount = 0, darkMode, toggleDarkMode }) => {
     clearClientCookie();
     clearGoogleMark();
     qc.clear();
-    setQuery('');
     setPickedId(null);
+    setShowNotifications(false);
     toast.success(t('loggedOut'));
     navigate('/login', { replace: true });
+    loggingOutRef.current = false;
+    setLoggingOut(false);
   }, [token, clearAuth, navigate, t, qc]);
 
   const changeLanguage = useCallback((lang) => {
-    if (!lang || lang === language) return;
+    if (!isSupportedLanguage(lang) || lang === language) return;
     try { window.localStorage.setItem('appLanguage', lang); } catch { }
     document.documentElement.lang = lang;
     document.documentElement.dir = languageDirection(lang);
@@ -1013,7 +804,10 @@ const NavbarContent = ({ cartCount = 0, darkMode, toggleDarkMode }) => {
     queryFn: async ({ signal }) => {
       const res = await api.get('/api/notifications/users', { signal });
       const list = res.data?.content || res.data || [];
-      return Array.isArray(list) ? list : [];
+      return (Array.isArray(list) ? list : [])
+        .filter((n) => n && n.id != null)
+        .slice(0, NOTIF_MAX)
+        .map(toNavNotification);
     },
     enabled: isAuthenticated,
     refetchInterval: NOTIF_POLL,
@@ -1043,6 +837,7 @@ const NavbarContent = ({ cartCount = 0, darkMode, toggleDarkMode }) => {
   );
 
   const selectAddress = useCallback((id) => {
+    if (!ID_PATTERN.test(String(id))) return;
     setPickedId(id);
     try { window.localStorage.setItem(DELIVER_KEY, id); } catch { }
   }, []);
@@ -1077,7 +872,6 @@ const NavbarContent = ({ cartCount = 0, darkMode, toggleDarkMode }) => {
   }, [qc, t, notifKey]);
 
   const toggleNotifications = useCallback(() => setShowNotifications((v) => !v), []);
-  const toggleSearch = useCallback(() => setSearchOpen((v) => !v), []);
 
   const navItems = useMemo(
     () => (isAuthenticated ? AUTH_ITEMS : GUEST_ITEMS).map((i) => ({ ...i, name: t(i.key) })),
@@ -1088,7 +882,7 @@ const NavbarContent = ({ cartCount = 0, darkMode, toggleDarkMode }) => {
   const guestBarItems = useMemo(() => [guestHome], [guestHome]);
 
   const tone = `nv ${darkMode ? 'nv-dark' : ''}`;
-  const font = language === 'ar' ? 'font-cairo' : 'font-jakarta';
+  const font = language === 'ar' ? 'font-cairo' : 'nv-poppins';
   const hasUnread = unreadCount > 0;
   const bellLabel = hasUnread ? `${t('notifications')} (${unreadCount} ${t('unread')})` : t('notifications');
   const activeCat = useMemo(() => {
@@ -1109,13 +903,14 @@ const NavbarContent = ({ cartCount = 0, darkMode, toggleDarkMode }) => {
   }), [unreadCount, notifications, loadingNotifs, closeNotifications, deleteNotification, t]);
 
   const bell = (
-    <button type="button" onClick={toggleNotifications} aria-label={bellLabel} aria-expanded={showNotifications} className={BAR_BTN}>
+    <button type="button" onClick={toggleNotifications} aria-label={bellLabel} aria-expanded={showNotifications} className={`${BAR_BTN} ${showNotifications ? BAR_BTN_ON : ''}`}>
       <FiBell aria-hidden="true" size={19} fill={hasUnread ? 'currentColor' : 'none'} />
-      {hasUnread && <span aria-hidden="true" className="absolute end-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-emerald-600" />}
+      {hasUnread && <span aria-hidden="true" className="absolute end-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-[#39ff88]" />}
     </button>
   );
   const cart = <CartLink count={count} label={t('cart')} active={location.pathname === '/cart'} />;
   const langMenu = <LangMenu language={language} onChange={changeLanguage} label={t('language')} />;
+  const logoutButton = <LogoutButton onLogout={handleLogout} label={t('logout')} busy={loggingOut} />;
   const deliverMenu = (mobile) => (
     <DeliverMenu
       addresses={addresses}
@@ -1130,27 +925,19 @@ const NavbarContent = ({ cartCount = 0, darkMode, toggleDarkMode }) => {
 
   return (
     <div ref={rootRef} className="nv-root" data-hide="false">
-      <ToastContainer position="top-right" theme={darkMode ? 'dark' : 'light'} toastStyle={TOAST_STYLE} />
+      <ToastContainer position="top-right" theme={darkMode ? 'dark' : 'light'} toastStyle={TOAST_STYLE} limit={3} />
 
       {isDesktop ? (
-        <header dir={dir} className={`${tone} ${font} nv-head fixed inset-x-0 top-0 z-50 shadow-md shadow-black/10`}>
-          <div className={`${BAR_BG} text-white`}>
+        <header dir={dir} className={`${tone} ${font} nv-head fixed inset-x-0 top-0 z-50`}>
+          <div className={`${BAR_BG} border-b-[3px] border-black text-emerald-950`}>
             <div className="mx-auto flex h-16 max-w-[88rem] items-center gap-3 px-6 xl:gap-4">
-              <Link to="/" aria-label="Tech & Restore – home" className="flex-shrink-0 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+              <Link to="/" aria-label="Tech & Restore – home" className={LOGO_LINK}>
                 <Logo heightClass="h-10" />
               </Link>
 
               {isAuthenticated ? (
                 <>
                   {deliverMenu(false)}
-                  <SearchBox
-                    value={query}
-                    setValue={setQuery}
-                    placeholder={t('searchPlaceholder')}
-                    label={t('search')}
-                    t={t}
-                    className="min-w-0 max-w-3xl flex-1"
-                  />
                   <div className="ms-auto flex flex-shrink-0 items-center gap-0.5">
                     {langMenu}
                     <div className="relative" ref={notifRef}>
@@ -1162,7 +949,7 @@ const NavbarContent = ({ cartCount = 0, darkMode, toggleDarkMode }) => {
                       aria-label={t('orders')}
                       aria-current={ordersActive ? 'page' : undefined}
                       title={t('orders')}
-                      className={`${BAR_BTN} ${ordersActive ? 'bg-white/20' : ''}`}
+                      className={`${BAR_BTN} ${ordersActive ? BAR_BTN_ON : ''}`}
                     >
                       <RiFileList3Line aria-hidden="true" size={20} />
                       <span className="hidden xl:inline">{t('orders')}</span>
@@ -1172,34 +959,32 @@ const NavbarContent = ({ cartCount = 0, darkMode, toggleDarkMode }) => {
                       <span className="hidden xl:inline">{t('account')}</span>
                     </Link>
                     {cart}
-                    <span aria-hidden="true" className="mx-1.5 h-6 w-px bg-white/30" />
+                    <span aria-hidden="true" className="mx-1.5 h-6 w-0.5 bg-black/30" />
                     <ThemeToggle darkMode={darkMode} onToggle={toggleDarkMode} label={t('toggleTheme')} />
-                    <button type="button" onClick={handleLogout} aria-label={t('logout')} title={t('logout')} className={BAR_BTN}>
-                      <RiLogoutBoxRLine aria-hidden="true" size={19} />
-                    </button>
+                    {logoutButton}
                   </div>
                 </>
               ) : (
                 <div className="ms-auto flex flex-shrink-0 items-center gap-1.5">
                   {langMenu}
                   <ThemeToggle darkMode={darkMode} onToggle={toggleDarkMode} label={t('toggleTheme')} />
-                  <Link to="/login" className="ms-2 inline-flex h-10 items-center rounded-xl border border-white/60 px-4 text-sm font-bold text-white transition-colors duration-150 hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">{t('login')}</Link>
-                  <Link to="/signup" className="inline-flex h-10 items-center rounded-xl bg-white px-4 text-sm font-bold text-emerald-700 transition-colors duration-150 hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">{t('signup')}</Link>
+                  <Link to="/login" className="ms-2 inline-flex h-10 items-center rounded-xl border-[3px] border-black px-4 text-sm font-bold text-emerald-950 transition-colors duration-150 hover:bg-white/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black">{t('login')}</Link>
+                  <Link to="/signup" className="inline-flex h-10 items-center rounded-xl border-[3px] border-black bg-black px-4 text-sm font-bold text-[#39ff88] transition-colors duration-150 hover:bg-emerald-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black">{t('signup')}</Link>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="border-b border-[color:var(--bd)] bg-[color:var(--sf)]">
+          <div className="border-b-[3px] border-[color:var(--ln)] bg-[color:var(--sf)]">
             {isAuthenticated ? (
               <div className="mx-auto flex h-12 max-w-[88rem] items-center gap-1 px-6">
                 {hasCategoryBar && (
                   <>
                     <CategoryMenu categories={categories} loading={loadingCats} activeId={activeCat} t={t} />
-                    <span aria-hidden="true" className="mx-2 h-5 w-px flex-none bg-[color:var(--bd)]" />
+                    <span aria-hidden="true" className="mx-2 h-5 w-0.5 flex-none bg-[color:var(--ln)] opacity-30" />
                   </>
                 )}
-                <nav aria-label={t('mainNav')} className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto nv-hide">
+                <nav aria-label={t('mainNav')} className="nv-hide flex min-w-0 flex-1 items-center gap-1 overflow-x-auto py-1 pe-1">
                   <BarLinks items={barItems} />
                 </nav>
               </div>
@@ -1212,48 +997,34 @@ const NavbarContent = ({ cartCount = 0, darkMode, toggleDarkMode }) => {
         </header>
       ) : (
         <>
-          <header dir={dir} className={`${tone} ${font} nv-head fixed inset-x-0 top-0 z-50 shadow-md shadow-black/10`}>
-            <div className={`relative ${BAR_BG} text-white`} ref={notifRef}>
-              <div className="flex h-14 items-center justify-between gap-2 px-3">
-                <Link to="/" aria-label="Tech & Restore – home" className="flex-shrink-0 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+          <header dir={dir} className={`${tone} ${font} nv-head fixed inset-x-0 top-0 z-50 border-b-[3px] border-black`}>
+            <div className={`relative ${BAR_BG} text-emerald-950`} ref={notifRef}>
+              <div className="flex h-14 items-center justify-between gap-1 px-3">
+                <Link to="/" aria-label="Tech & Restore – home" className={LOGO_LINK}>
                   <Logo heightClass="h-8" />
                 </Link>
                 <div className="flex items-center gap-0.5">
                   {isAuthenticated && (
                     <>
-                      <button type="button" onClick={toggleSearch} aria-label={t('search')} aria-expanded={searchOpen} className={BAR_BTN}>
-                        <FiSearch aria-hidden="true" size={19} />
-                      </button>
                       {bell}
                       {cart}
                     </>
                   )}
                   {langMenu}
                   <ThemeToggle darkMode={darkMode} onToggle={toggleDarkMode} label={t('toggleTheme')} />
+                  {isAuthenticated && logoutButton}
                 </div>
               </div>
               {isAuthenticated && (
-                <div className="relative border-t border-white/15 px-3">
+                <div className="relative border-t-2 border-black/20 px-3">
                   {deliverMenu(true)}
-                </div>
-              )}
-              {searchOpen && isAuthenticated && (
-                <div className="border-t border-white/15 p-3">
-                  <SearchBox
-                    value={query}
-                    setValue={setQuery}
-                    placeholder={t('searchPlaceholder')}
-                    label={t('search')}
-                    t={t}
-                    autoFocus
-                  />
                 </div>
               )}
               {showNotifications && <NotifPanel className="absolute inset-x-3 top-full mt-2" {...panelProps} />}
             </div>
 
             {hasCategoryBar && (
-              <nav aria-label={t('categories')} className={`nv-hide flex items-center gap-1 overflow-x-auto border-t border-white/15 ${BAR_BG} px-2 py-1.5 text-white`}>
+              <nav aria-label={t('categories')} className={`nv-hide flex items-center gap-1 overflow-x-auto border-t-2 border-black/20 ${BAR_BG} px-2 py-1.5 text-emerald-950`}>
                 <CategoryLinks categories={categories} loading={loadingCats} activeId={activeCat} />
               </nav>
             )}

@@ -14,7 +14,6 @@ import frTranslations from '../../locales/fr/translation.json';
 
 const FOOTER_TRANSLATIONS = { en: enTranslations.footer, ar: arTranslations.footer, fr: frTranslations.footer };
 
-
 const FOOTER_PATHS = {
   name: 'brand.name',
   tagline: 'brand.tagline',
@@ -53,7 +52,6 @@ const getFooterTranslation = (language, key) => {
     : '';
   return remote || LOCAL_FOOTER[language]?.[key] || LOCAL_FOOTER.en[key] || key;
 };
-
 
 const TX_CACHE = {};
 const getTx = (language) => {
@@ -146,17 +144,6 @@ const LEGAL_DOCS = {
 const FT_CSS = `
   @keyframes ftFade { from { opacity: 0; } to { opacity: 1; } }
   @keyframes ftRise { from { opacity: 0; transform: translateY(16px) scale(.98); } to { opacity: 1; transform: none; } }
-  .ft-hl, .ft-hl-dark {
-    padding-bottom: 0.2em;
-    background-position: left bottom;
-    background-repeat: no-repeat;
-    background-size: 100% 0.3em;
-    -webkit-box-decoration-break: clone;
-    box-decoration-break: clone;
-  }
-  [dir="rtl"] .ft-hl, [dir="rtl"] .ft-hl-dark { background-position: right bottom; }
-  .ft-hl      { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2310b981' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
-  .ft-hl-dark { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2339ff88' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"); }
   .ft-fade { animation: ftFade .16s ease-out both; }
   .ft-rise { animation: ftRise .22s cubic-bezier(.2,.8,.2,1) both; }
   @media (prefers-reduced-motion: reduce) { .ft-fade, .ft-rise { animation: none; } }
@@ -173,49 +160,48 @@ const injectFtStylesOnce = () => {
 injectFtStylesOnce();
 
 const FOCUS_BASE = 'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2';
+const FONT_LATIN = 'font-[Poppins,ui-sans-serif,system-ui,sans-serif]';
 
 const THEME = {
   light: {
-    root: 'border-t-[3px] border-emerald-950 bg-white text-emerald-950',
-    bar: 'border-t-[3px] border-emerald-950 bg-emerald-50',
-    title: 'text-emerald-950',
-    chip: 'border-2 border-emerald-950 bg-emerald-400 text-emerald-950 [box-shadow:calc(var(--dx)*2px)_2px_0_0_#022c22]',
+    root: 'border-t-[3px] border-black bg-white text-[#052e1e]',
+    bar: 'border-t-[3px] border-black bg-[#f3f4f6]',
+    title: 'text-[#052e1e]',
+    chip: 'rounded-lg border-2 border-black bg-[#39ff88] text-emerald-950 [box-shadow:calc(var(--dx)*2px)_2px_0_0_#000]',
     social:
-      'border-2 border-emerald-950 bg-white text-emerald-950 [box-shadow:calc(var(--dx)*3px)_3px_0_0_#022c22] hover:bg-emerald-400 hover:[box-shadow:calc(var(--dx)*4px)_4px_0_0_#022c22]',
-    divider: 'border-emerald-900/30',
-    muted: 'text-gray-700',
-    sub: 'text-gray-500',
+      'rounded-xl border-2 border-black bg-white text-[#052e1e] [box-shadow:calc(var(--dx)*3px)_3px_0_0_#000] hover:bg-[#39ff88] hover:text-emerald-950 hover:[box-shadow:calc(var(--dx)*4px)_4px_0_0_#000]',
+    muted: 'text-[#052e1e]/70',
+    sub: 'text-[#052e1e]/60',
     tagline: 'text-emerald-700',
-    link: 'text-gray-800 hover:text-emerald-600',
-    linkUnderline: 'group-hover:decoration-emerald-400',
-    inline: 'hover:text-emerald-600',
-    hl: 'ft-hl',
-    focus: `${FOCUS_BASE} focus-visible:outline-emerald-500`,
-    modal: 'border-[3px] border-emerald-950 bg-white text-emerald-950 [box-shadow:calc(var(--dx)*8px)_8px_0_0_#022c22]',
-    modalRule: 'border-emerald-900/20',
+    link: 'text-[#052e1e] hover:text-emerald-700',
+    linkUnderline: 'group-hover:decoration-[#39ff88]',
+    inline: 'hover:text-emerald-700',
+    focus: `${FOCUS_BASE} focus-visible:outline-emerald-600`,
+    modal: 'rounded-2xl border-[3px] border-black bg-white text-[#052e1e] [box-shadow:calc(var(--dx)*8px)_8px_0_0_#000]',
+    modalHead: 'bg-[#f3f4f6]',
+    modalRule: 'border-black/15',
     modalBtn:
-      'border-[3px] border-emerald-950 bg-emerald-400 text-emerald-950 [box-shadow:calc(var(--dx)*4px)_4px_0_0_#022c22]',
+      'rounded-xl border-[3px] border-black bg-[#39ff88] text-emerald-950 [box-shadow:calc(var(--dx)*4px)_4px_0_0_#000]',
   },
   dark: {
-    root: 'border-t-[3px] border-black bg-[#141414] text-white',
-    bar: 'border-t-[3px] border-black bg-[#0e0e0e]',
+    root: 'border-t-[3px] border-white/15 bg-[#1c1c1e] text-white',
+    bar: 'border-t-[3px] border-white/15 bg-[#141416]',
     title: 'text-white',
-    chip: 'border-2 border-black bg-[#39ff88] text-black [box-shadow:calc(var(--dx)*2px)_2px_0_0_#000]',
+    chip: 'rounded-lg border-2 border-white/15 bg-[#39ff88] text-emerald-950 [box-shadow:calc(var(--dx)*2px)_2px_0_0_#0b4a35]',
     social:
-      'border-2 border-black bg-[#2a2a2a] text-white [box-shadow:calc(var(--dx)*3px)_3px_0_0_#000] hover:bg-[#39ff88] hover:text-black hover:[box-shadow:calc(var(--dx)*4px)_4px_0_0_#000]',
-    divider: 'border-neutral-700',
-    muted: 'text-neutral-300',
-    sub: 'text-neutral-400',
+      'rounded-xl border-2 border-white/15 bg-[#2a2a2e] text-white [box-shadow:calc(var(--dx)*3px)_3px_0_0_#0b4a35] hover:bg-[#39ff88] hover:text-emerald-950 hover:[box-shadow:calc(var(--dx)*4px)_4px_0_0_#0b4a35]',
+    muted: 'text-white/70',
+    sub: 'text-white/55',
     tagline: 'text-[#39ff88]',
-    link: 'text-neutral-200 hover:text-[#39ff88]',
+    link: 'text-white/90 hover:text-[#39ff88]',
     linkUnderline: 'group-hover:decoration-[#39ff88]',
     inline: 'hover:text-[#39ff88]',
-    hl: 'ft-hl-dark',
     focus: `${FOCUS_BASE} focus-visible:outline-[#39ff88]`,
-    modal: 'border-[3px] border-black bg-[#2a2a2a] text-white [box-shadow:calc(var(--dx)*8px)_8px_0_0_#000]',
-    modalRule: 'border-neutral-600',
+    modal: 'rounded-2xl border-[3px] border-white/15 bg-[#1c1c1e] text-white [box-shadow:calc(var(--dx)*8px)_8px_0_0_#0b4a35]',
+    modalHead: 'bg-[#2a2a2e]',
+    modalRule: 'border-white/15',
     modalBtn:
-      'border-[3px] border-black bg-[#39ff88] text-black [box-shadow:calc(var(--dx)*4px)_4px_0_0_#000]',
+      'rounded-xl border-[3px] border-white/15 bg-[#39ff88] text-emerald-950 [box-shadow:calc(var(--dx)*4px)_4px_0_0_#0b4a35]',
   },
 };
 
@@ -248,7 +234,7 @@ const SocialBtn = memo(({ href, Icon, label, text, th }) => (
 
 const FooterLink = memo(({ to, Icon, label, th }) => (
   <li>
-    <Link to={to} className={`group flex min-h-11 items-center gap-3 py-1 text-sm font-semibold transition-colors duration-150 ${th.link} ${th.focus}`}>
+    <Link to={to} className={`group flex min-h-11 items-center gap-3 rounded-lg py-1 text-sm font-semibold transition-colors duration-150 ${th.link} ${th.focus}`}>
       <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center transition-transform duration-150 group-hover:-translate-y-0.5 motion-reduce:transition-none ${th.chip}`}>
         <Icon className="h-4 w-4" />
       </span>
@@ -258,15 +244,13 @@ const FooterLink = memo(({ to, Icon, label, th }) => (
 ));
 
 const ColumnTitle = memo(({ th, children }) => (
-  <h3 className={`mb-5 text-sm font-extrabold uppercase tracking-wide rtl:tracking-normal ${th.title}`}>
-    <span className={th.hl}>{children}</span>
-  </h3>
+  <h3 className={`mb-5 text-sm font-extrabold ${th.title}`}>{children}</h3>
 ));
 
 const LegalButton = memo(({ id, label, onOpen, th, block }) => (
   <button
     type="button" onClick={() => onOpen(id)} aria-haspopup="dialog"
-    className={`min-h-11 text-start font-semibold transition-colors duration-150 hover:underline hover:underline-offset-4 ${block ? 'flex w-full items-center text-sm' : ''} ${th.muted} ${th.inline} ${th.focus}`}
+    className={`min-h-11 rounded-lg text-start font-semibold transition-colors duration-150 hover:underline hover:underline-offset-4 ${block ? 'flex w-full items-center text-sm' : ''} ${th.muted} ${th.inline} ${th.focus}`}
   >
     {label}
   </button>
@@ -308,7 +292,7 @@ const LegalModal = memo(({ title, sections, email, closeLabel, language, th, onC
       dir={languageDirection(language)}
       lang={language}
       onMouseDown={onBackdrop}
-      className={`ft-fade fixed inset-0 z-[1200] flex items-end justify-center bg-black/60 p-4 [--dx:1] rtl:[--dx:-1] sm:items-center ${isAr ? 'font-cairo' : 'font-jakarta'}`}
+      className={`ft-fade fixed inset-0 z-[1200] flex items-end justify-center bg-black/60 p-4 [--dx:1] rtl:[--dx:-1] sm:items-center ${isAr ? 'font-cairo' : FONT_LATIN}`}
     >
       <div
         ref={dialogRef}
@@ -317,10 +301,8 @@ const LegalModal = memo(({ title, sections, email, closeLabel, language, th, onC
         aria-labelledby={titleId}
         className={`ft-rise flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden ${th.modal}`}
       >
-        <div className={`flex items-center justify-between gap-3 border-b-2 px-5 py-4 ${th.modalRule}`}>
-          <h2 id={titleId} className="min-w-0 text-lg font-extrabold uppercase tracking-tight rtl:tracking-normal sm:text-xl">
-            <span className={`truncate ${th.hl}`}>{title}</span>
-          </h2>
+        <div className={`flex items-center justify-between gap-3 border-b-2 px-5 py-4 ${th.modalHead} ${th.modalRule}`}>
+          <h2 id={titleId} className="min-w-0 truncate text-lg font-extrabold tracking-tight rtl:tracking-normal sm:text-xl">{title}</h2>
           <button
             ref={closeRef} type="button" onClick={onClose} aria-label={closeLabel} title={closeLabel}
             className={`flex h-11 w-11 flex-shrink-0 items-center justify-center ${PRESS} ${th.social} ${th.focus}`}
@@ -332,16 +314,16 @@ const LegalModal = memo(({ title, sections, email, closeLabel, language, th, onC
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-5 py-5">
           {sections.map(([heading, text]) => (
             <section key={heading}>
-              <h3 className="mb-1.5 text-sm font-extrabold uppercase tracking-wide rtl:tracking-normal">{heading}</h3>
+              <h3 className="mb-1.5 text-sm font-extrabold">{heading}</h3>
               <p className={`text-sm leading-relaxed ${th.muted}`}>{text.split('{{email}}').join(email)}</p>
             </section>
           ))}
         </div>
 
-        <div className={`border-t-2 px-5 py-4 ${th.modalRule}`}>
+        <div className={`border-t-2 px-5 py-4 ${th.modalHead} ${th.modalRule}`}>
           <button
             type="button" onClick={onClose}
-            className={`inline-flex min-h-11 w-full items-center justify-center px-4 py-2.5 text-sm font-extrabold uppercase transition-[transform,box-shadow] duration-150 active:translate-y-0.5 active:[box-shadow:none] motion-reduce:transition-none sm:w-auto sm:min-w-[9rem] ${th.modalBtn} ${th.focus}`}
+            className={`inline-flex min-h-11 w-full items-center justify-center px-4 py-2.5 text-sm font-extrabold transition-[transform,box-shadow] duration-150 active:translate-y-0.5 active:[box-shadow:none] motion-reduce:transition-none sm:w-auto sm:min-w-[9rem] ${th.modalBtn} ${th.focus}`}
           >
             {closeLabel}
           </button>
@@ -370,7 +352,7 @@ const Footer = ({ darkMode = false }) => {
     <footer
       dir={languageDirection(language)}
       lang={language}
-      className={`relative overflow-hidden [content-visibility:auto] [contain-intrinsic-size:auto_480px] ${isAr ? 'font-cairo' : 'font-jakarta'} ${th.root}`}
+      className={`relative overflow-hidden [content-visibility:auto] [contain-intrinsic-size:auto_480px] ${isAr ? 'font-cairo' : FONT_LATIN} ${th.root}`}
     >
       <div className="relative mx-auto max-w-7xl px-4 pb-10 pt-12 [--dx:1] rtl:[--dx:-1] sm:px-6 sm:pt-14 lg:px-8">
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-3 lg:gap-12">
@@ -378,7 +360,7 @@ const Footer = ({ darkMode = false }) => {
             <div className="flex items-center gap-3">
               <img src={logo} alt={tx.name} width={48} height={48} className="h-12 w-auto p-1" loading="lazy" decoding="async" />
               <div>
-                <p className={`text-lg font-extrabold uppercase leading-tight ${th.title}`}>{tx.name}</p>
+                <p className={`text-lg font-extrabold leading-tight ${th.title}`}>{tx.name}</p>
                 <p className={`text-xs font-semibold ${th.tagline}`}>{tx.tagline}</p>
               </div>
             </div>
@@ -386,7 +368,7 @@ const Footer = ({ darkMode = false }) => {
             <p className={`max-w-xs text-sm leading-relaxed ${th.muted}`}>{tx.description}</p>
 
             <div>
-              <p className={`mb-3 text-xs font-extrabold uppercase tracking-wide rtl:tracking-normal ${th.sub}`}>{tx.followUs}</p>
+              <p className={`mb-3 text-xs font-extrabold ${th.sub}`}>{tx.followUs}</p>
               <div role="group" aria-label={tx.followUs} className="flex flex-wrap gap-3 pe-1">
                 {SOCIALS.map(({ id, ...s }) => <SocialBtn key={id} label={tx[id]} th={th} {...s} />)}
               </div>

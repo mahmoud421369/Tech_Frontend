@@ -10,6 +10,7 @@ import useAuthStore from '../common/store/Auth';
 import { markImg, isImgOk, isImgBad } from '../common/utils/imageCache';
 import { money } from '../components/user/Device3D';
 import { safeImageUrl } from '../components/user/ListingKit';
+import { EXTRAS_CSS, Toaster, toast } from '../components/user/UiExtras';
 import { resolveImageSrc } from '../common/utils/productutils';
 import { useAppLanguage, languageDirection } from '../common/utils/useAppLanguage';
 import enTranslations from '../locales/en/translation.json';
@@ -18,7 +19,6 @@ import frTranslations from '../locales/fr/translation.json';
 
 export { queryClient };
 
-const loadSwal = () => import('sweetalert2').then((m) => m.default);
 const CART_TRANSLATIONS = { en: enTranslations.cart, ar: arTranslations.cart, fr: frTranslations.cart };
 const getCartTranslation = (language, key) => CART_TRANSLATIONS[language]?.[key] || CART_TRANSLATIONS.en?.[key] || key;
 
@@ -54,7 +54,18 @@ const EMPTY_OBJECT = {};
 const STAGGER = Array.from({ length: 8 }, (_, i) => ({ '--i': i }));
 const SKELETON_ROWS = [1, 2, 3];
 
+const HL_URL = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2339ff88' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E")`;
+
 const CART_CSS = `
+  @font-face{font-family:'Poppins Fallback';src:local('Arial'),local('Helvetica');size-adjust:112.6%;ascent-override:93.4%;descent-override:35.2%;line-gap-override:7.4%}
+  .ct{--dx:1;--pg:#ffffff;--card:#ffffff;--txt:#052e1e;--mut:rgba(5,46,30,.68);--line:#e5e7eb;--bd:#000000;--shd:#000000;--soft:#f3f4f6;--acc:#059669;--ink:#000000;--sale:#c2410c;background:var(--pg);color:var(--txt);color-scheme:light;font-family:'Poppins','Poppins Fallback',ui-sans-serif,system-ui,-apple-system,'Segoe UI','Cairo',sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  .ct[dir=rtl]{--dx:-1}
+  .ct-dark{--pg:#141414;--card:#1c1c1e;--txt:#ffffff;--mut:rgba(255,255,255,.66);--line:rgba(255,255,255,.16);--bd:rgba(255,255,255,.16);--shd:#0b4a35;--soft:#2a2a2e;--acc:#39ff88;--ink:#000000;--sale:#fdba74;color-scheme:dark}
+  .ct[lang=ar]{font-family:'Cairo','Poppins',ui-sans-serif,system-ui,sans-serif}
+  .ct[lang=ar] *{letter-spacing:0!important}
+  .ct button,.ct input{font-family:inherit}
+  .ct-hl{padding-bottom:.2em;background:${HL_URL} left bottom/100% .3em no-repeat;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+  .ct[dir=rtl] .ct-hl{background-position:right bottom}
   @keyframes ctFade { from { opacity: 0; } to { opacity: 1; } }
   @keyframes ctPop { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: none; } }
   @keyframes ctZoom { from { opacity: 0; transform: translateY(10px) scale(.96); } to { opacity: 1; transform: none; } }
@@ -79,32 +90,26 @@ const injectCartStylesOnce = () => {
   if (cartStylesInjected || typeof document === 'undefined') return;
   const tag = document.createElement('style');
   tag.setAttribute('data-cart-styles', 'true');
-  tag.textContent = CART_CSS;
+  tag.textContent = `${EXTRAS_CSS}${CART_CSS}`;
   document.head.appendChild(tag);
   cartStylesInjected = true;
 };
 injectCartStylesOnce();
 
-const THEME = {
-  light: '[--ink:#022c22] [--acc:#059669] [--acc-hi:#047857] [--line:#e5e7eb] [--card:#ffffff] [--soft:#f3f4f6] [--txt:#111827] [--mut:#6b7280] [--sale:#c2410c] [--tint:#ecfdf5]',
-  dark: '[--ink:#000000] [--acc:#10b981] [--acc-hi:#34d399] [--line:rgba(255,255,255,.12)] [--card:#1e1e1e] [--soft:#2a2a2a] [--txt:#ffffff] [--mut:#a3a3a3] [--sale:#fb923c] [--tint:#0f2a20]',
-};
-
 const FOCUS = 'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
+const SH = (n) => `[box-shadow:calc(var(--dx)*${n}px)_${n}px_0_0_var(--shd)]`;
 
 const BTN =
-  'inline-flex cursor-pointer select-none items-center justify-center gap-2 rounded-lg font-bold ' +
-  'transition-[transform,background-color,border-color,box-shadow,opacity] duration-150 motion-reduce:transition-none active:scale-[.98] ' +
+  'inline-flex cursor-pointer select-none items-center justify-center gap-2 rounded-xl font-bold ' +
+  'transition-[transform,background-color,border-color,box-shadow,opacity] duration-150 motion-reduce:transition-none active:translate-y-0.5 active:[box-shadow:none] ' +
   `disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS}`;
-const BTN_ACCENT = `${BTN} bg-[color:var(--acc)] text-white shadow-sm hover:bg-[color:var(--acc-hi)]`;
-const BTN_PLAIN = `${BTN} border border-[color:var(--line)] bg-[color:var(--card)] text-[color:var(--txt)] hover:bg-[color:var(--soft)]`;
+const BTN_ACCENT = `${BTN} border-[3px] border-black bg-[#39ff88] text-emerald-950 ${SH(3)} hover:bg-[#7dffb0]`;
+const BTN_PLAIN = `${BTN} border-2 border-[color:var(--bd)] bg-[color:var(--card)] text-[color:var(--txt)] ${SH(2)} hover:bg-[color:var(--soft)]`;
 
-const CARD = 'rounded-xl border border-[color:var(--line)] bg-[color:var(--card)] shadow-sm';
+const CARD = `rounded-2xl border-[3px] border-[color:var(--bd)] bg-[color:var(--card)] ${SH(4)}`;
 
-const TILE = 'flex flex-shrink-0 items-center justify-center rounded-lg bg-[color:var(--acc)] text-white';
+const TILE = 'flex flex-shrink-0 items-center justify-center rounded-lg border-2 border-black bg-[#39ff88] text-emerald-950';
 
-const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
-const escapeHtml = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
 const cleanText = (v, max = 120) => String(v ?? '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, max);
 const round2 = (n) => Math.round(n * 100) / 100;
 const toMoney = (v) => {
@@ -114,10 +119,7 @@ const toMoney = (v) => {
 
 const shouldRetry = (count, err) => count < 2 && ![400, 401, 403, 404].includes(err?.response?.status);
 
-const showToast = async (icon, title, timer = 2500) => {
-  const Swal = await loadSwal();
-  Swal.fire({ toast: true, position: 'top-end', icon, title: escapeHtml(cleanText(title, 200)), timer, timerProgressBar: true, showConfirmButton: false });
-};
+const showToast = (icon, title, timer = 2500) => toast({ icon, title: cleanText(title, 200), timer });
 
 const friendlyError = (err, fallback) => {
   const status = err?.response?.status;
@@ -305,8 +307,8 @@ const EmptyCartArt = memo(() => (
       <path d="M62 58 H80 L94 134 H178" fill="none" />
       <path d="M84 82 H204 L192 128 H96 Z" fill="var(--card)" />
       <path d="M100 82 L106 128 M124 82 L128 128 M148 82 L150 128 M172 82 L172 128" stroke="var(--acc)" strokeWidth="2.5" fill="none" />
-      <circle cx="108" cy="150" r="10" fill="var(--acc)" />
-      <circle cx="172" cy="150" r="10" fill="var(--acc)" />
+      <circle cx="108" cy="150" r="10" fill="#39ff88" />
+      <circle cx="172" cy="150" r="10" fill="#39ff88" />
       <circle cx="108" cy="150" r="3" fill="var(--card)" strokeWidth="2" />
       <circle cx="172" cy="150" r="3" fill="var(--card)" strokeWidth="2" />
     </g>
@@ -339,7 +341,7 @@ const SuccessArt = memo(() => (
     <Phone x={92} y={110} w={22} h={38} screen={MINT} />
 
     <g className="ct-float">
-      <circle cx="176" cy="66" r="24" fill="var(--acc)" stroke="var(--ink)" strokeWidth="3" />
+      <circle cx="176" cy="66" r="24" fill="#39ff88" stroke="var(--ink)" strokeWidth="3" />
       <path d="M164 66 L173 75 L189 57" fill="none" stroke="#022c22" strokeWidth="5" strokeLinecap="square" />
     </g>
 
@@ -471,7 +473,7 @@ const ProductThumb = memo(({ src, name, darkMode, large = false, ratio = 'aspect
           />
         </>
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-emerald-100">
+        <div className="absolute inset-0 bg-[color:var(--soft)]">
           <ProductFallbackArt name={name} darkMode={false} />
         </div>
       )}
@@ -523,8 +525,8 @@ const StepIndicator = memo(({ current, t }) => {
           <React.Fragment key={s.id}>
             <li className="flex items-center gap-2" aria-current={i === idx ? 'step' : undefined}>
               <span
-                className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-extrabold transition-colors duration-150 motion-reduce:transition-none ${
-                  reached ? 'bg-[color:var(--acc)] text-white' : 'border border-[color:var(--line)] bg-[color:var(--card)] text-[color:var(--mut)]'
+                className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-extrabold transition-colors duration-150 motion-reduce:transition-none ${
+                  reached ? 'border-black bg-[#39ff88] text-emerald-950' : 'border-[color:var(--bd)] bg-[color:var(--soft)] text-[color:var(--mut)]'
                 }`}
               >
                 {i < idx ? <FiCheck className="h-4 w-4" strokeWidth={3} /> : <s.Icon className="h-4 w-4" />}
@@ -532,8 +534,8 @@ const StepIndicator = memo(({ current, t }) => {
               <span className={`text-xs font-bold sm:text-sm ${reached ? '' : 'text-[color:var(--mut)]'}`}>{s.label}</span>
             </li>
             {i < steps.length - 1 && (
-              <li aria-hidden="true" className="mx-2 h-0.5 flex-1 overflow-hidden rounded-full bg-[color:var(--line)] sm:mx-4">
-                <div className={`h-full bg-[color:var(--acc)] transition-[width] duration-200 ease-out motion-reduce:transition-none ${i < idx ? 'w-full' : 'w-0'}`} />
+              <li aria-hidden="true" className="mx-2 h-1.5 flex-1 overflow-hidden rounded-full bg-[color:var(--line)] sm:mx-4">
+                <div className={`h-full rounded-full bg-[#39ff88] transition-[width] duration-200 ease-out motion-reduce:transition-none ${i < idx ? 'w-full' : 'w-0'}`} />
               </li>
             )}
           </React.Fragment>
@@ -543,7 +545,7 @@ const StepIndicator = memo(({ current, t }) => {
   );
 });
 
-const STEP_BTN = `${BTN} h-8 w-8 flex-shrink-0 !rounded-full text-[color:var(--txt)] hover:bg-[color:var(--soft)]`;
+const STEP_BTN = `${BTN} h-8 w-8 flex-shrink-0 !rounded-full text-[color:var(--txt)] hover:bg-[color:var(--soft)] active:!translate-y-0`;
 
 const CartItem = memo(({ item, index, onUpdate, onRemove, onPreview, t, previewLabel, eachLabel, deliveryLabel, busy, darkMode }) => {
   const src = item._img;
@@ -567,17 +569,17 @@ const CartItem = memo(({ item, index, onUpdate, onRemove, onPreview, t, previewL
           type="button"
           onClick={preview}
           aria-label={`${previewLabel}: ${item.productName}`}
-          className={`group relative w-full cursor-zoom-in overflow-hidden rounded-lg border border-[color:var(--line)] bg-white ${FOCUS}`}
+          className={`group relative w-full cursor-zoom-in overflow-hidden rounded-xl border-2 border-[color:var(--bd)] bg-white ${FOCUS}`}
         >
           <ProductThumb src={src} name={item.productName} darkMode={darkMode} ratio="aspect-square" />
           <span
             aria-hidden="true"
-            className="absolute bottom-1.5 end-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white opacity-90 transition-opacity duration-150 motion-reduce:transition-none [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-visible:opacity-100"
+            className="absolute bottom-1.5 end-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-black bg-[#39ff88] text-emerald-950 opacity-90 transition-opacity duration-150 motion-reduce:transition-none [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-visible:opacity-100"
           >
             <FiMaximize2 className="h-3.5 w-3.5" />
           </span>
         </button>
-        <div className="inline-flex w-full items-center justify-between rounded-full border border-[color:var(--line)] bg-[color:var(--card)] p-0.5">
+        <div className="inline-flex w-full items-center justify-between rounded-full border-2 border-[color:var(--bd)] bg-[color:var(--card)] p-0.5">
           <button type="button" className={STEP_BTN} disabled={busy} onClick={dec} aria-label={qty <= 1 ? t('removeItem') : t('decreaseQuantity')}>
             {qty <= 1 ? <FiTrash2 className="h-4 w-4 text-rose-500" aria-hidden="true" /> : <FiMinus className="h-4 w-4" aria-hidden="true" />}
           </button>
@@ -593,7 +595,7 @@ const CartItem = memo(({ item, index, onUpdate, onRemove, onPreview, t, previewL
           <h2 className="line-clamp-3 text-sm font-semibold leading-snug sm:text-base">{item.productName}</h2>
           <ul className="mt-auto space-y-1.5 text-xs font-medium text-[color:var(--mut)] sm:text-sm">
             {deliveryLabel && (
-              <li className="inline-flex max-w-full items-center gap-1.5 rounded-md bg-[color:var(--tint)] px-2 py-1 font-bold text-[color:var(--txt)]">
+              <li className="inline-flex max-w-full items-center gap-1.5 rounded-lg bg-[color:var(--soft)] px-2 py-1 font-bold text-[color:var(--txt)]">
                 <FiClock className="h-4 w-4 flex-shrink-0 text-[color:var(--acc)]" aria-hidden="true" />
                 <span className="truncate">{deliveryLabel}</span>
               </li>
@@ -625,7 +627,7 @@ const CartItem = memo(({ item, index, onUpdate, onRemove, onPreview, t, previewL
             disabled={busy}
             onClick={remove}
             aria-label={`${t('removeItem')}: ${item.productName}`}
-            className={`${BTN_PLAIN} h-9 w-9 !rounded-lg text-rose-500 hover:text-rose-600`}
+            className={`${BTN_PLAIN} h-9 w-9 text-rose-500 hover:text-rose-600`}
           >
             <FiTrash2 className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -641,7 +643,7 @@ const RecommendedCard = memo(({ product, onOpen, darkMode, viewLabel }) => (
       type="button"
       onClick={onOpen}
       aria-label={`${viewLabel}: ${product.name}`}
-      className={`group flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-lg border border-[color:var(--line)] bg-[color:var(--card)] text-start transition-shadow duration-150 hover:shadow-md motion-reduce:transition-none ${FOCUS}`}
+      className={`group flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-xl border-2 border-[color:var(--bd)] bg-[color:var(--card)] text-start ${SH(3)} transition-[transform,box-shadow] duration-150 hover:-translate-y-px active:translate-y-0.5 active:[box-shadow:none] motion-reduce:transition-none ${FOCUS}`}
     >
       <ProductThumb src={product.img} name={product.name} darkMode={darkMode} ratio="aspect-square" />
       <span className="flex flex-1 flex-col gap-1 p-3">
@@ -654,8 +656,8 @@ const RecommendedCard = memo(({ product, onOpen, darkMode, viewLabel }) => (
 
 const Recommended = memo(({ products, onOpen, darkMode, title, viewLabel }) => (
   <section aria-label={title} className={`p-4 sm:p-5 ${CARD}`}>
-    <h2 className="mb-4 text-lg font-extrabold sm:text-xl">{title}</h2>
-    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <h2 className="mb-4 text-lg font-extrabold sm:text-xl"><span className="ct-hl">{title}</span></h2>
+    <ul className="grid grid-cols-2 gap-4 sm:grid-cols-4">
       {products.map((p) => (
         <RecommendedCard key={p.id} product={p} onOpen={onOpen} darkMode={darkMode} viewLabel={viewLabel} />
       ))}
@@ -693,18 +695,18 @@ const ImagePreview = memo(({ item, darkMode, onClose, closeLabel }) => {
         aria-modal="true"
         aria-label={item.productName}
         onClick={stop}
-        className={`ct-zoom w-full max-w-lg overflow-hidden !rounded-2xl shadow-2xl ${CARD}`}
+        className={`ct-zoom w-full max-w-lg overflow-hidden ${CARD}`}
       >
-        <div className="flex items-start justify-between gap-3 p-4">
+        <div className="flex items-start justify-between gap-3 bg-[#39ff88] p-4 text-emerald-950">
           <div className="min-w-0">
             <h2 className="line-clamp-2 text-sm font-bold leading-snug sm:text-base">{item.productName}</h2>
             <p dir="ltr" className="mt-0.5 text-sm font-extrabold tabular-nums">{money(item.productPrice)}</p>
           </div>
-          <button ref={closeRef} type="button" onClick={onClose} aria-label={closeLabel} className={`${BTN_PLAIN} h-10 w-10 flex-shrink-0 !rounded-full`}>
+          <button ref={closeRef} type="button" onClick={onClose} aria-label={closeLabel} className={`${BTN_PLAIN} h-10 w-10 flex-shrink-0 !rounded-full !bg-white !text-emerald-950`}>
             <FiX className="h-5 w-5" />
           </button>
         </div>
-        <div className="border-t border-[color:var(--line)]">
+        <div className="border-t-[3px] border-black">
           <ProductThumb src={src} name={item.productName} darkMode={darkMode} large />
         </div>
       </div>
@@ -765,7 +767,7 @@ const ConfirmOrder = ({ address, count, total, processing, onConfirm, onCancel, 
         aria-labelledby={titleId}
         aria-describedby={descId}
         onClick={stop}
-        className={`ct-zoom w-full max-w-md !rounded-2xl p-5 shadow-2xl sm:p-6 ${CARD}`}
+        className={`ct-zoom w-full max-w-md p-5 sm:p-6 ${CARD}`}
       >
         <div className="flex items-center gap-3">
           <IconTile Icon={FiCheck} className="h-10 w-10 !rounded-full" />
@@ -776,7 +778,7 @@ const ConfirmOrder = ({ address, count, total, processing, onConfirm, onCancel, 
         <dl className="mt-4 space-y-3 text-sm font-medium">
           {rows.map(([Icon, label, value]) => (
             <div key={label} className="flex items-start gap-3">
-              <IconTile Icon={Icon} className="h-8 w-8 !rounded-full !bg-[color:var(--soft)] !text-[color:var(--acc)]" iconClassName="h-4 w-4" />
+              <IconTile Icon={Icon} className="h-8 w-8 !rounded-full" iconClassName="h-4 w-4" />
               <div className="min-w-0 flex-1">
                 <dt className="text-xs font-bold text-[color:var(--mut)]">{label}</dt>
                 <dd className="break-words font-bold">{value}</dd>
@@ -785,7 +787,7 @@ const ConfirmOrder = ({ address, count, total, processing, onConfirm, onCancel, 
           ))}
         </dl>
 
-        <div className="mt-4 flex items-center justify-between border-t border-[color:var(--line)] pt-3">
+        <div className="mt-4 flex items-center justify-between border-t-2 border-[color:var(--line)] pt-3">
           <span className="text-sm font-bold">{t('total')}</span>
           <span dir="ltr" className="text-xl font-extrabold tabular-nums">{money(total)}</span>
         </div>
@@ -804,8 +806,8 @@ const ConfirmOrder = ({ address, count, total, processing, onConfirm, onCancel, 
 };
 
 const SectionTitle = ({ Icon, children }) => (
-  <h2 className="mb-3 flex items-center gap-2 text-base font-extrabold">
-    <Icon aria-hidden="true" className="h-5 w-5 text-[color:var(--acc)]" />
+  <h2 className="mb-3 flex items-center gap-2.5 text-base font-extrabold">
+    <IconTile Icon={Icon} className="h-8 w-8" iconClassName="h-4 w-4" />
     <span>{children}</span>
   </h2>
 );
@@ -829,7 +831,7 @@ const Summary = memo(({ step, total, originalTotal, units, itemCount, canOrder, 
             <span>{money(total)}</span>
           </dd>
         </div>
-        <div className="flex items-center justify-between gap-3 border-b border-dashed border-[color:var(--line)] pb-3">
+        <div className="flex items-center justify-between gap-3 border-b-2 border-dashed border-[color:var(--line)] pb-3">
           <dt className="font-medium text-[color:var(--mut)]">{t('delivery')}</dt>
           <dd className="text-end text-xs font-bold text-[color:var(--acc)]">{t('deliveryFees')}</dd>
         </div>
@@ -849,7 +851,7 @@ const Summary = memo(({ step, total, originalTotal, units, itemCount, canOrder, 
             : <><FiCheck className="h-5 w-5" aria-hidden="true" /> {t('placeOrder')}</>}
         </button>
       )}
-      <ul className="mt-4 space-y-2 border-t border-[color:var(--line)] pt-4 text-xs font-medium text-[color:var(--mut)]">
+      <ul className="mt-4 space-y-2 border-t-2 border-[color:var(--line)] pt-4 text-xs font-medium text-[color:var(--mut)]">
         <li className="flex items-center gap-2"><FiShield className="h-4 w-4 flex-shrink-0 text-[color:var(--acc)]" aria-hidden="true" />{secureLabel}</li>
         <li className="flex items-center gap-2"><FiTruck className="h-4 w-4 flex-shrink-0 text-[color:var(--acc)]" aria-hidden="true" />{t('cashOnDelivery')} · {t('payOnReceive')}</li>
       </ul>
@@ -860,7 +862,6 @@ const Summary = memo(({ step, total, originalTotal, units, itemCount, canOrder, 
 function CartContent({ darkMode }) {
   const language = useAppLanguage();
   const dir = languageDirection(language);
-  const isAr = language === 'ar';
   const t = useCallback((key) => getCartTranslation(language, key), [language]);
   const previewLabel = localText(language, 'previewImage');
   const closeLabel = localText(language, 'closePreview');
@@ -1074,8 +1075,8 @@ function CartContent({ darkMode }) {
   const createOrder = useCallback(async () => {
     if (!isAuthenticated) {
       setConfirmOpen(false);
-      const Swal = await loadSwal();
-      Swal.fire({ icon: 'info', title: escapeHtml(t('loginRequired')), confirmButtonText: escapeHtml(t('goToLogin')) }).then(() => navigate('/login'));
+      showToast('info', t('loginRequired'), 2500);
+      navigate('/login');
       return;
     }
     if (!selectedAddress || !addresses.some((a) => a.id === selectedAddress)) { setConfirmOpen(false); showToast('warning', t('selectAddressAlert'), 3000); return; }
@@ -1124,20 +1125,19 @@ function CartContent({ darkMode }) {
   const showSteps = cartItems.length > 0 || checkoutStep === 'complete';
   const showAside = !loading && ((checkoutStep === 'cart' && cartItems.length > 0) || checkoutStep === 'checkout');
   const showPromo = !loading && checkoutStep === 'cart' && cartItems.length > 0;
-  const track = isAr ? 'tracking-normal' : 'tracking-[-0.02em]';
-  const surface = darkMode ? 'bg-[#141414]' : 'bg-gray-100';
   const title = checkoutStep === 'cart' ? t('yourCart') : checkoutStep === 'checkout' ? t('checkout') : t('orderConfirmed');
   const subtitle = checkoutStep === 'cart'
     ? `${cartItems.length} ${cartItems.length !== 1 ? t('items') : t('item')}`
     : checkoutStep === 'checkout' ? t('almostThere') : t('thankYou');
-  const shell = `${darkMode ? THEME.dark : THEME.light} ${surface} ${isAr ? 'font-cairo' : 'font-jakarta'} min-h-screen px-4 pb-24 pt-28 text-[color:var(--txt)] sm:px-6 md:pb-14 md:pt-32`;
+  const shell = `ct ${darkMode ? 'ct-dark' : ''} min-h-screen px-4 pb-28 pt-36 sm:px-6 md:pb-14 md:pt-32`;
 
   if (!isAuthenticated) {
     return (
-      <main dir={dir} className={shell}>
+      <main dir={dir} lang={language} className={shell}>
+        <Toaster darkMode={darkMode} />
         <div className={`mx-auto flex max-w-md flex-col items-center gap-4 p-8 text-center ${CARD}`}>
           <IconTile Icon={FiLock} className="h-14 w-14 !rounded-full" iconClassName="h-6 w-6" />
-          <h1 className={`text-2xl font-extrabold ${track}`}>{t('loginRequired')}</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight rtl:tracking-normal"><span className="ct-hl">{t('loginRequired')}</span></h1>
           <button type="button" onClick={goLogin} className={`${BTN_ACCENT} min-h-12 w-full py-3.5 text-sm`}>{t('goToLogin')}</button>
         </div>
       </main>
@@ -1145,33 +1145,34 @@ function CartContent({ darkMode }) {
   }
 
   return (
-    <main dir={dir} className={shell} aria-busy={loading}>
-      <div className="mx-auto mt-10 max-w-6xl">
-        <header className="mb-5 flex items-center gap-3">
+    <main dir={dir} lang={language} className={shell} aria-busy={loading}>
+      <Toaster darkMode={darkMode} />
+      <div className="mx-auto max-w-6xl">
+        <header className="mb-6 flex items-center gap-3">
           <IconTile Icon={headIcon} className="h-11 w-11 !rounded-full" iconClassName="h-5 w-5" />
           <div className="min-w-0">
-            <h1 className={`text-2xl font-extrabold leading-tight sm:text-3xl ${track}`}>{title}</h1>
-            <p className="mt-0.5 text-sm font-medium text-[color:var(--mut)]">{subtitle}</p>
+            <h1 className="text-2xl font-extrabold leading-tight tracking-tight rtl:tracking-normal sm:text-3xl"><span className="ct-hl">{title}</span></h1>
+            <p className="mt-1 text-sm font-medium text-[color:var(--mut)]">{subtitle}</p>
           </div>
         </header>
 
         {showSteps && !loading && (
-          <section aria-label="Checkout progress" className={`mb-5 max-w-xl px-4 py-3 ${CARD}`}>
+          <section aria-label="Checkout progress" className={`mb-6 max-w-xl px-4 py-3 ${CARD}`}>
             <StepIndicator current={checkoutStep} t={t} />
           </section>
         )}
 
         {showPromo && (
-          <div className="mb-5 flex items-center gap-3 rounded-xl bg-gradient-to-r from-[color:var(--acc-hi)] to-[color:var(--acc)] px-4 py-3 text-white shadow-sm sm:px-5 sm:py-4">
+          <div className={`mb-6 flex items-center gap-3 rounded-2xl border-[3px] border-black bg-[#39ff88] px-4 py-3 text-emerald-950 sm:px-5 sm:py-4 ${SH(4)}`}>
             <FiTruck className="h-6 w-6 flex-shrink-0" aria-hidden="true" />
             <p className="min-w-0 flex-1 text-sm font-extrabold sm:text-base">{t('cashOnDelivery')}</p>
-            <p className="hidden text-xs font-semibold opacity-90 sm:block sm:text-sm">{t('payOnReceive')}</p>
+            <p className="hidden text-xs font-semibold opacity-80 sm:block sm:text-sm">{t('payOnReceive')}</p>
           </div>
         )}
 
         {loading ? <CartPageSkeleton withAside={checkoutStep !== 'complete'} /> : (
-          <div key={checkoutStep} className={`ct-rise grid items-start gap-5 ${showAside ? 'lg:grid-cols-[minmax(0,1fr)_22rem]' : ''}`}>
-            <div className="min-w-0 space-y-5">
+          <div key={checkoutStep} className={`ct-rise grid items-start gap-6 ${showAside ? 'lg:grid-cols-[minmax(0,1fr)_22rem]' : ''}`}>
+            <div className="min-w-0 space-y-6">
               {checkoutStep === 'cart' && (
                 cartItems.length === 0 ? (
                   <div className={`flex flex-col items-center gap-3 px-4 py-10 text-center ${CARD}`}>
@@ -1183,21 +1184,21 @@ function CartContent({ darkMode }) {
                 ) : (
                   <>
                     <section aria-label={localText(language, 'shoppingCart')} className={`overflow-hidden ${CARD}`}>
-                      <div className="flex items-center justify-between gap-3 bg-[color:var(--tint)] px-4 py-3 sm:px-5">
+                      <div className="flex items-center justify-between gap-3 border-b-[3px] border-black bg-[#39ff88] px-4 py-3 text-emerald-950 sm:px-5">
                         <div className="flex min-w-0 items-center gap-2">
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--acc)] px-3 py-1 text-xs font-extrabold text-white sm:text-sm">
+                          <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-black bg-white px-3 py-1 text-xs font-extrabold text-emerald-950 sm:text-sm">
                             <FiZap className="h-4 w-4" aria-hidden="true" />
                             {localText(language, 'fastDelivery')}
                           </span>
                           <h2 className="truncate text-sm font-extrabold sm:text-base">
-                            {localText(language, 'shoppingCart')} <span dir="ltr" className="text-xs font-bold text-[color:var(--mut)] sm:text-sm">({totalUnits})</span>
+                            {localText(language, 'shoppingCart')} <span dir="ltr" className="text-xs font-bold text-emerald-950/70 sm:text-sm">({totalUnits})</span>
                           </h2>
                         </div>
-                        <button type="button" onClick={clearCart} disabled={isClearing} className={`inline-flex min-h-9 flex-shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-1 text-xs font-bold text-rose-500 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS}`}>
+                        <button type="button" onClick={clearCart} disabled={isClearing} className={`inline-flex min-h-9 flex-shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border-2 border-black bg-white px-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS}`}>
                           <FiTrash2 className="h-4 w-4" aria-hidden="true" />{clearLabel}
                         </button>
                       </div>
-                      <div className="divide-y divide-[color:var(--line)] border-t border-[color:var(--line)]">
+                      <div className="divide-y-2 divide-[color:var(--line)]">
                         {cartItems.map((item, i) => (
                           <CartItem
                             key={item.id}
@@ -1231,7 +1232,7 @@ function CartContent({ darkMode }) {
               )}
 
               {checkoutStep === 'checkout' && (
-                <div className="space-y-5">
+                <div className="space-y-6">
                   <button type="button" onClick={backToCart} className={`${BTN_PLAIN} min-h-11 px-4 py-2 text-xs`}>
                     <FiArrowLeft className="h-4 w-4 rtl:rotate-180" aria-hidden="true" /> {t('backToCart')}
                   </button>
@@ -1252,7 +1253,7 @@ function CartContent({ darkMode }) {
                       {showDropdown && (
                         <ul
                           role="listbox"
-                          className="ct-pop ct-sb absolute z-20 mt-2 max-h-52 w-full overflow-y-auto overscroll-contain rounded-xl border border-[color:var(--line)] bg-[color:var(--card)] py-1 shadow-xl shadow-black/15"
+                          className={`ct-pop ct-sb absolute z-20 mt-3 max-h-52 w-full overflow-y-auto overscroll-contain rounded-2xl p-1 ${CARD}`}
                         >
                           {addresses.length > 0 ? addresses.map((addr) => {
                             const active = selectedAddress === addr.id;
@@ -1264,8 +1265,8 @@ function CartContent({ darkMode }) {
                                 tabIndex={0}
                                 onClick={() => pickAddress(addr.id)}
                                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickAddress(addr.id); } }}
-                                className={`flex min-h-11 cursor-pointer items-center justify-between gap-2 px-4 py-2.5 text-sm font-semibold outline-none transition-colors duration-100 ${
-                                  active ? 'bg-[color:var(--acc)] text-white' : 'hover:bg-[color:var(--soft)] focus-visible:bg-[color:var(--soft)]'
+                                className={`flex min-h-11 cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold outline-none transition-colors duration-100 ${
+                                  active ? 'bg-[#39ff88] font-extrabold text-emerald-950' : 'hover:bg-[color:var(--soft)] focus-visible:bg-[color:var(--soft)]'
                                 }`}
                               >
                                 <span className="me-2 flex-1 truncate">{addr.street}, {addr.city}</span>
@@ -1280,10 +1281,10 @@ function CartContent({ darkMode }) {
 
                   <section className={`p-4 sm:p-5 ${CARD}`}>
                     <SectionTitle Icon={FiPackage}>{t('orderSummary')}</SectionTitle>
-                    <div className="divide-y divide-[color:var(--line)] text-sm font-medium">
+                    <div className="divide-y-2 divide-[color:var(--line)] text-sm font-medium">
                       {cartItems.map((item) => (
                         <div key={item.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                          <div className="w-14 flex-shrink-0 overflow-hidden rounded-lg border border-[color:var(--line)]">
+                          <div className="w-14 flex-shrink-0 overflow-hidden rounded-xl border-2 border-[color:var(--bd)]">
                             <ProductThumb src={item._img} name={item.productName} darkMode={darkMode} ratio="aspect-square" />
                           </div>
                           <span className="min-w-0 flex-1 truncate">{item.productName} <span dir="ltr" className="text-[color:var(--mut)]">×{item.quantity}</span></span>
@@ -1299,11 +1300,11 @@ function CartContent({ darkMode }) {
                 <div className={`mx-auto flex max-w-md flex-col items-center gap-4 px-4 py-8 text-center ${CARD}`}>
                   <SuccessArt />
                   <div>
-                    <h2 className={`text-2xl font-extrabold ${track}`}>{t('orderConfirmed')}</h2>
+                    <h2 className="text-2xl font-extrabold tracking-tight rtl:tracking-normal"><span className="ct-hl">{t('orderConfirmed')}</span></h2>
                     <p className="mt-3 text-sm font-medium text-[color:var(--mut)]">{t('orderConfirmedMessage')}</p>
                   </div>
                   {orderId != null && <p className="text-sm font-extrabold tabular-nums" dir="ltr">#{cleanText(orderId, 8)}</p>}
-                  <p className="w-full rounded-lg bg-[color:var(--soft)] p-4 text-sm font-medium">{t('orderPreparing')}</p>
+                  <p className="w-full rounded-xl bg-[color:var(--soft)] p-4 text-sm font-medium">{t('orderPreparing')}</p>
                   <button type="button" onClick={goShopping} className={`${BTN_ACCENT} min-h-12 w-full py-3.5 text-sm`}>{t('continueShopping')}</button>
                 </div>
               )}

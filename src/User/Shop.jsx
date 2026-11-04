@@ -38,13 +38,30 @@ const BATCH = 12;
 const HISTOGRAM_BINS = 16;
 const LOW_STOCK = 5;
 const CATEGORY_CHIPS = 12;
+const SHOP_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+const STICKY_OFFSET = 144;
 
 const PG_CSS = `
 .pg-root{--dx:1;--bg:#f3f4f6;--panel:#ffffff;--card:#ffffff;--card-hi:#f0fdf4;--line:#e5e7eb;--line2:#d1d5db;--txt:#022c22;--mut:#4b5563;--hov:rgba(5,150,105,.1);--fld:#ffffff;--chip:#ffffff;--tag:#d1fae5;--pill:rgba(255,255,255,.93);--acc:#047857;--ring:#059669;--overlay:rgba(2,44,34,.55);--sk:rgba(2,44,34,.07);--skhi:rgba(255,255,255,.75);--bar:rgba(255,255,255,.95);--sale:#c2410c;--pos:#047857;--tk-line:#022c22;--tk-shadow:#022c22;--tk-gray:#f3f4f6;--tk-acc:#34d399;--tk-on:#022c22;background:var(--bg);color:var(--txt)}
 .pg-root[dir=rtl]{--dx:-1}
 .pg-dark{color-scheme:dark;--bg:#022c22;--panel:#022c22;--card:rgba(6,78,59,.5);--card-hi:rgba(6,78,59,.8);--line:rgba(255,255,255,.1);--line2:rgba(255,255,255,.2);--txt:#ffffff;--mut:rgba(255,255,255,.8);--hov:rgba(255,255,255,.1);--fld:#064e3b;--chip:rgba(6,78,59,.7);--tag:rgba(6,95,70,.8);--pill:rgba(2,44,34,.85);--acc:#6ee7b7;--ring:#6ee7b7;--overlay:rgba(0,0,0,.7);--sk:rgba(255,255,255,.08);--skhi:rgba(255,255,255,.12);--bar:rgba(2,44,34,.95);--sale:#fb923c;--pos:#6ee7b7;--tk-line:#34d399;--tk-shadow:#000;--tk-gray:#064e3b;--tk-acc:#39ff88;--tk-on:#04261a}
+html.lenis,html.lenis body{height:auto}
+.lenis.lenis-smooth{scroll-behavior:auto!important}
+.lenis.lenis-smooth [data-lenis-prevent]{overscroll-behavior:contain}
+.lenis.lenis-stopped{overflow:clip}
 .pg-cover{background-color:#047857;background-image:radial-gradient(circle at 2px 2px,rgba(255,255,255,.16) 1.4px,transparent 1.8px),linear-gradient(135deg,#059669 0%,#047857 45%,#022c22 100%);background-size:22px 22px,auto}
 .pg-dark .pg-cover{background-image:radial-gradient(circle at 2px 2px,rgba(110,231,183,.14) 1.4px,transparent 1.8px),linear-gradient(135deg,#065f46 0%,#064e3b 45%,#022c22 100%)}
+.pg-aurora{position:absolute;inset:-12% -6%;pointer-events:none;overflow:hidden}
+.pg-blob{position:absolute;border-radius:999px;filter:blur(64px);opacity:.5;will-change:transform;animation:pgBlob 16s ease-in-out infinite alternate}
+.pg-blob-a{width:46%;height:70%;top:-10%;inset-inline-start:4%;background:#34d399}
+.pg-blob-b{width:38%;height:60%;bottom:-18%;inset-inline-end:10%;background:#fbbf24;opacity:.28;animation-duration:20s;animation-delay:-6s}
+@keyframes pgBlob{from{transform:translate3d(0,0,0) scale(1)}to{transform:translate3d(8%,10%,0) scale(1.18)}}
+.pg-blurword{display:inline-block;animation:pgBlurIn .75s cubic-bezier(.22,1,.36,1) both;animation-delay:calc(var(--w,0)*70ms + 120ms)}
+@keyframes pgBlurIn{from{opacity:0;filter:blur(10px);transform:translate3d(0,14px,0)}to{opacity:1;filter:blur(0);transform:none}}
+.pg-progress{position:fixed;top:0;inset-inline:0;height:3px;z-index:1200;pointer-events:none;transform-origin:left center;transform:scaleX(0);background:linear-gradient(90deg,#34d399,#10b981,#fbbf24)}
+.pg-root[dir=rtl] .pg-progress{transform-origin:right center}
+.pg-spot::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;z-index:1;transition:opacity .3s ease;background:radial-gradient(260px circle at var(--mx,50%) var(--my,50%),rgba(16,185,129,.18),transparent 65%)}
+@media (hover:hover){.pg-spot:hover::before{opacity:1}}
 .pg-sk{position:relative;overflow:hidden;background:var(--sk)}
 .pg-sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,var(--skhi),transparent);animation:pgShimmer 1.25s ease-in-out infinite}
 .pg-root[dir=rtl] .pg-sk::after{animation-direction:reverse}
@@ -91,8 +108,8 @@ const PG_CSS = `
 .pg-tk-on{background:#059669}
 .pg-tk-off{background:#4b5563}
 .pg-ul{text-decoration:underline;text-decoration-color:var(--tk-acc);text-decoration-thickness:4px;text-underline-offset:5px;text-decoration-skip-ink:none}
-@media (prefers-reduced-motion:no-preference){html:has(.pg-root){scroll-behavior:smooth}}
-@media (prefers-reduced-motion:reduce){.pg-sk::after,.pg-rise,.pg-hero-in,.pg-pop,.pg-heart,.pg-dot{animation:none}.pg-rv{opacity:1;transform:none;transition:none;will-change:auto}.pg-ticket{transition:none}}
+@media (prefers-reduced-motion:no-preference){html:not(.lenis):has(.pg-root){scroll-behavior:smooth}}
+@media (prefers-reduced-motion:reduce){.pg-sk::after,.pg-rise,.pg-hero-in,.pg-pop,.pg-heart,.pg-dot,.pg-blob,.pg-blurword{animation:none}.pg-rv{opacity:1;transform:none;transition:none;will-change:auto}.pg-ticket{transition:none}.pg-progress{display:none}}
 `;
 
 let stylesInjected = false;
@@ -125,11 +142,12 @@ const MUTED = "text-[color:var(--mut)]";
 const ACC = "text-[color:var(--acc)]";
 
 const LOGO_DIR = "/uploads/shop-logos/";
-const ABSOLUTE_SRC = /^(https?:)?\/\/|^data:image\/|^blob:/i;
+const ABSOLUTE_SRC = /^https?:\/\//i;
+const UNSAFE_SCHEME = /^\s*(javascript|data|blob|vbscript|file):/i;
 const shopLogoSrc = (s) => {
   const found = [s?.logoUrl, s?.logo, s?.logoPath, s?.shopLogo].find((v) => typeof v === "string" && v.trim());
   const raw = found ? found.trim() : "";
-  if (!raw || raw.includes("..")) return null;
+  if (!raw || raw.length > 2048 || raw.includes("..") || raw.startsWith("//") || UNSAFE_SCHEME.test(raw)) return null;
   if (ABSOLUTE_SRC.test(raw)) return raw;
   const path = raw.includes("/") ? (raw.startsWith("/") ? raw : `/${raw}`) : `${LOGO_DIR}${encodeURIComponent(raw)}`;
   return resolveImageSrc(path) || path;
@@ -384,10 +402,129 @@ const drawerMotion = (rtl) => {
 };
 const GPU = { willChange: "transform, opacity" };
 
+const motionState = { lenis: null };
+const prefersReducedMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const scrollToId = (id, offset = -STICKY_OFFSET) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (motionState.lenis) motionState.lenis.scrollTo(el, { offset, duration: 1.2 });
+  else el.scrollIntoView({ behavior: "smooth", block: "start" });
+};
+const scrollToTopSmooth = () => {
+  if (motionState.lenis) motionState.lenis.scrollTo(0, { duration: 1.2 });
+  else window.scrollTo({ top: 0, behavior: "smooth" });
+};
+
+const useMotionEngine = (ready, locked) => {
+  const [active, setActive] = useState(false);
+
+  useEffect(() => {
+    if (!ready || prefersReducedMotion()) return undefined;
+    let disposed = false;
+    let teardown = () => {};
+
+    Promise.all([import("gsap"), import("gsap/ScrollTrigger"), import("lenis")])
+      .then(([gsapMod, stMod, lenisMod]) => {
+        if (disposed) return;
+        const gsap = gsapMod.gsap || gsapMod.default;
+        const ScrollTrigger = stMod.ScrollTrigger || stMod.default;
+        const Lenis = lenisMod.default || lenisMod.Lenis;
+        if (!gsap || !ScrollTrigger || !Lenis) return;
+        gsap.registerPlugin(ScrollTrigger);
+
+        const lenis = new Lenis({ lerp: 0.1, smoothWheel: true, wheelMultiplier: 1 });
+        motionState.lenis = lenis;
+        const bar = document.querySelector("[data-progress]");
+        lenis.on("scroll", (l) => {
+          ScrollTrigger.update();
+          if (bar) bar.style.transform = `scaleX(${Math.min(1, Math.max(0, l.progress || 0))})`;
+        });
+        const tick = (time) => lenis.raf(time * 1000);
+        gsap.ticker.add(tick);
+        gsap.ticker.lagSmoothing(0);
+
+        const ctx = gsap.context(() => {
+          if (document.querySelector("[data-parallax-root]")) {
+            const trigger = { trigger: "[data-parallax-root]", start: "top bottom", end: "bottom top", scrub: true };
+            if (document.querySelector("[data-parallax-bg]")) gsap.to("[data-parallax-bg]", { yPercent: 18, ease: "none", scrollTrigger: trigger });
+            if (document.querySelector("[data-parallax-fg]")) gsap.to("[data-parallax-fg]", { yPercent: -16, ease: "none", scrollTrigger: trigger });
+          }
+        });
+
+        const fine = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+        let raf = 0;
+        let pending = null;
+        const onMove = (e) => {
+          const target = e.target;
+          if (!(target instanceof Element)) return;
+          const spot = target.closest(".pg-spot");
+          const mag = target.closest("[data-magnet]");
+          if (!spot && !mag) return;
+          pending = { x: e.clientX, y: e.clientY, spot, mag };
+          if (raf) return;
+          raf = requestAnimationFrame(() => {
+            raf = 0;
+            if (!pending) return;
+            const { x, y, spot: s, mag: g } = pending;
+            if (s) {
+              const r = s.getBoundingClientRect();
+              s.style.setProperty("--mx", `${x - r.left}px`);
+              s.style.setProperty("--my", `${y - r.top}px`);
+            }
+            if (g) {
+              const r = g.getBoundingClientRect();
+              gsap.to(g, { x: (x - (r.left + r.width / 2)) * 0.18, y: (y - (r.top + r.height / 2)) * 0.28, duration: 0.35, ease: "power3.out", overwrite: "auto" });
+            }
+          });
+        };
+        const onOut = (e) => {
+          const target = e.target;
+          if (!(target instanceof Element)) return;
+          const mag = target.closest("[data-magnet]");
+          if (mag && !mag.contains(e.relatedTarget)) gsap.to(mag, { x: 0, y: 0, duration: 0.55, ease: "elastic.out(1,.5)", overwrite: "auto" });
+        };
+        if (fine) {
+          document.addEventListener("pointermove", onMove, { passive: true });
+          document.addEventListener("pointerout", onOut, { passive: true });
+        }
+
+        teardown = () => {
+          if (fine) {
+            document.removeEventListener("pointermove", onMove);
+            document.removeEventListener("pointerout", onOut);
+          }
+          cancelAnimationFrame(raf);
+          ctx.revert();
+          gsap.ticker.remove(tick);
+          lenis.destroy();
+          if (motionState.lenis === lenis) motionState.lenis = null;
+          if (bar) bar.style.transform = "scaleX(0)";
+        };
+        setActive(true);
+      })
+      .catch(() => {});
+
+    return () => {
+      disposed = true;
+      teardown();
+      setActive(false);
+    };
+  }, [ready]);
+
+  useEffect(() => {
+    const l = motionState.lenis;
+    if (!l) return;
+    if (locked) l.stop();
+    else l.start();
+  }, [locked, active]);
+};
+
 const useScrollTopOnEnter = (key) => {
   const navType = useNavigationType();
   useLayoutEffect(() => {
     if (navType === "POP") return;
+    if (motionState.lenis) motionState.lenis.scrollTo(0, { immediate: true, force: true });
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
   }, [key]);
 };
@@ -427,6 +564,49 @@ const Reveal = memo(({ as: Tag = "div", className = "", children, ...rest }) => 
   );
 });
 
+const BlurText = memo(({ text }) => {
+  const words = useMemo(() => String(text ?? "").split(" ").filter(Boolean), [text]);
+  return (
+    <>
+      <span className="sr-only">{text}</span>
+      <span aria-hidden="true">
+        {words.map((w, i) => (
+          <span key={`${w}-${i}`} className="pg-blurword" style={{ "--w": i }}>{w}{i < words.length - 1 ? "\u00A0" : ""}</span>
+        ))}
+      </span>
+    </>
+  );
+});
+
+const CountUp = memo(({ value }) => {
+  const ref = useRef(null);
+  const str = String(value);
+  useEffect(() => {
+    const el = ref.current;
+    const match = /^(\d+(?:\.\d+)?)(.*)$/.exec(str);
+    if (!el || !match || prefersReducedMotion()) return undefined;
+    const target = Number(match[1]);
+    const decimals = match[1].includes(".") ? match[1].split(".")[1].length : 0;
+    const suffix = match[2];
+    let raf = 0;
+    el.textContent = `${(0).toFixed(decimals)}${suffix}`;
+    const stop = observeReveal(el, () => {
+      const start = performance.now();
+      const tick = (now) => {
+        const p = Math.min(1, (now - start) / 900);
+        const eased = 1 - (1 - p) ** 3;
+        el.textContent = `${(target * eased).toFixed(decimals)}${suffix}`;
+        if (p < 1) raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+    });
+    return () => { stop?.(); cancelAnimationFrame(raf); el.textContent = str; };
+  }, [str]);
+  return <span ref={ref}>{str}</span>;
+});
+
+const Magnet = ({ children, className = "" }) => <span data-magnet className={`inline-flex ${className}`}>{children}</span>;
+
 const telHref = (phone) => `tel:${String(phone).replace(/[^\d+]/g, "").slice(0, 20)}`;
 
 const isDuplicateReview = (err) => {
@@ -450,7 +630,7 @@ const reviewError = (err, fallback, ctx, t) => {
   if (status === 404) return t("reviewNotFoundRefresh");
   if (/intCompact|rating/i.test(raw)) return t("selectRatingFirst");
   if (status >= 500 || /RUNTIME_ERROR|RT_001/i.test(`${raw} ${code}`) || !raw) return fallback;
-  return raw;
+  return clean(raw, 200) || fallback;
 };
 
 const splitHeading = (text) => {
@@ -609,10 +789,16 @@ const ShopHeader = memo(({ shop, logo, darkMode, title, stats, avgRating, review
   const hasReviews = reviewCount > 0 && avgRating !== "–";
   return (
     <header className="relative">
-      <div className="pg-cover relative h-52 mt-16 overflow-hidden text-white sm:h-72">
+      <div data-parallax-root className="pg-cover relative h-52 mt-16 overflow-hidden text-white sm:h-72">
+        <div data-parallax-bg aria-hidden="true" className="pg-aurora">
+          <span className="pg-blob pg-blob-a" />
+          <span className="pg-blob pg-blob-b" />
+        </div>
         <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-        <div aria-hidden="true" className="pg-hero-in pointer-events-none absolute bottom-0 end-6 hidden h-52 w-52 opacity-90 lg:block xl:end-16 xl:h-60 xl:w-60" style={STAGGER[2]}>
-          <IsoIllustration type="shop_store" tone="emerald" darkMode onGreen={false} className="h-full w-full" />
+        <div data-parallax-fg aria-hidden="true" className="pointer-events-none absolute bottom-0 end-6 hidden h-52 w-52 lg:block xl:end-16 xl:h-60 xl:w-60">
+          <div className="pg-hero-in h-full w-full opacity-90" style={STAGGER[2]}>
+            <IsoIllustration type="shop_store" tone="emerald" darkMode onGreen={false} className="h-full w-full" />
+          </div>
         </div>
         <div className={`${WRAP} relative pt-24 sm:pt-28`}>
           <nav aria-label={t("crumbBreadcrumb")} className="pg-hero-in flex flex-wrap items-center gap-1.5 text-xs font-bold sm:text-sm" style={STAGGER[0]}>
@@ -624,7 +810,7 @@ const ShopHeader = memo(({ shop, logo, darkMode, title, stats, avgRating, review
       </div>
 
       <div className={`${WRAP} relative z-10 -mt-20 sm:-mt-24`}>
-        <div className={`pg-hero-in p-4 sm:p-6 ${SURFACE}`} style={STAGGER[1]}>
+        <div className={`pg-hero-in p-4 shadow-xl shadow-black/10 sm:p-6 ${SURFACE}`} style={STAGGER[1]}>
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex min-w-0 flex-1 items-start gap-4">
               <span className="relative -mt-14 flex h-24 w-24 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl border-4 border-[color:var(--panel)] bg-[color:var(--fld)] shadow-lg shadow-black/20 sm:-mt-20 sm:h-32 sm:w-32">
@@ -634,7 +820,7 @@ const ShopHeader = memo(({ shop, logo, darkMode, title, stats, avgRating, review
               </span>
               <div className="min-w-0 flex-1">
                 <h1 className="flex min-w-0 items-center gap-2 break-words text-2xl font-extrabold leading-tight rtl:leading-snug sm:text-4xl">
-                  <span className="min-w-0 break-words">{title}</span>
+                  <span className="min-w-0 break-words"><BlurText text={title} /></span>
                   {shop?.verified && (
                     <span className="inline-flex flex-shrink-0" title={t("verified")}>
                       <RiVerifiedBadgeLine aria-hidden="true" className={`h-6 w-6 sm:h-7 sm:w-7 ${ACC}`} />
@@ -676,19 +862,23 @@ const ShopHeader = memo(({ shop, logo, darkMode, title, stats, avgRating, review
           </div>
 
           <div className="mt-5 flex flex-wrap items-center gap-3">
-            <button type="button" onClick={onViewProducts} className={`${BTN} ${BTN_ON}`}>
-              <FiShoppingCart aria-hidden="true" className="h-4 w-4" />{t("viewProducts")}
-            </button>
-            <button type="button" onClick={onChat} onMouseEnter={prefetchChatModal} onFocus={prefetchChatModal} className={`${BTN} ${BTN_OFF}`}>
-              <FiMessageCircle aria-hidden="true" className="h-4 w-4" />{t("chatWithShop")}
-            </button>
+            <Magnet>
+              <button type="button" onClick={onViewProducts} className={`${BTN} ${BTN_ON}`}>
+                <FiShoppingCart aria-hidden="true" className="h-4 w-4" />{t("viewProducts")}
+              </button>
+            </Magnet>
+            <Magnet>
+              <button type="button" onClick={onChat} onMouseEnter={prefetchChatModal} onFocus={prefetchChatModal} className={`${BTN} ${BTN_OFF}`}>
+                <FiMessageCircle aria-hidden="true" className="h-4 w-4" />{t("chatWithShop")}
+              </button>
+            </Magnet>
           </div>
 
-          <div className="mt-5 grid grid-cols-3 border-t border-[color:var(--line)] pt-4 text-center">
+          <div className="mt-5 grid grid-cols-3 gap-2 border-t border-[color:var(--line)] pt-4 text-center sm:gap-3">
             {stats.map((s) => (
-              <div key={s.label} className="min-w-0 px-1">
-                <p className="text-xl font-extrabold tabular-nums sm:text-3xl" dir="ltr">{s.value}</p>
-                <p className={`truncate text-[11px] font-bold uppercase sm:text-xs ${MUTED}`}>{s.label}</p>
+              <div key={s.label} className="min-w-0 rounded-2xl border border-[color:var(--line)] bg-[color:var(--fld)] px-1 py-3">
+                <p className="text-xl font-extrabold tabular-nums sm:text-3xl" dir="ltr"><CountUp value={s.value} /></p>
+                <p className={`truncate px-1 text-[11px] font-bold uppercase sm:text-xs ${MUTED}`}>{s.label}</p>
               </div>
             ))}
           </div>
@@ -841,7 +1031,7 @@ const ShopOfferModal = memo(({ offer, language, currency, onClose, onViewProduct
   return (
     <div className="fixed inset-0 z-[1100] flex items-end justify-center p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={offer?.name || ot("offerDetails")}>
       <m.div {...BACKDROP_MOTION} className="absolute inset-0 bg-[color:var(--overlay)]" onClick={onClose} />
-      <m.div {...PANEL_MOTION} style={GPU} className="pg-sb relative max-h-[92vh] w-full transform-gpu overflow-y-auto overscroll-contain rounded-t-3xl border border-[color:var(--line)] bg-[color:var(--panel)] text-[color:var(--txt)] sm:max-w-md sm:rounded-3xl">
+      <m.div {...PANEL_MOTION} style={GPU} data-lenis-prevent className="pg-sb relative max-h-[92vh] w-full transform-gpu overflow-y-auto overscroll-contain rounded-t-3xl border border-[color:var(--line)] bg-[color:var(--panel)] text-[color:var(--txt)] sm:max-w-md sm:rounded-3xl">
         <div className="relative bg-gradient-to-br from-emerald-500 to-emerald-800 p-5 pe-16 text-white">
           <p dir="ltr" className="text-4xl font-black leading-none tabular-nums">{offer?.discountValue}{meta.isPct ? "%" : ""} <span className="text-sm font-extrabold uppercase">{ot("off")}</span></p>
           <h2 className="mt-2 line-clamp-2 text-base font-extrabold sm:text-lg">{offer?.name || ot("offerDetails")}</h2>
@@ -910,6 +1100,7 @@ const ProductCard = memo(({ product: p, darkMode, isSaved = false, onSave, onAdd
   const inStock = p.stock == null || p.stock > 0;
   const low = p.stock != null && p.stock > 0 && p.stock <= LOW_STOCK;
   const name = clean(p.name, 120) || t("product");
+  const brand = clean(p.brand, 40);
   const currency = t("currency");
   const snippet = p._desc || t("noProductDescription");
   const open = useCallback(() => onDetails(p), [onDetails, p]);
@@ -935,7 +1126,7 @@ const ProductCard = memo(({ product: p, darkMode, isSaved = false, onSave, onAdd
     <article
       onClick={open} tabIndex={0} aria-label={name}
       onKeyDown={(e) => { if (e.key === "Enter" && e.target === e.currentTarget) open(); }}
-      className={`group relative flex h-full cursor-pointer flex-col overflow-hidden ${SURFACE} ${LIFT} ${FOCUS}`}
+      className={`pg-spot group relative flex h-full cursor-pointer flex-col overflow-hidden ${SURFACE} ${LIFT} ${FOCUS}`}
     >
       <div className="relative aspect-[5/4] w-full flex-shrink-0 overflow-hidden bg-white [contain:layout_paint]">
         {imgError ? (
@@ -956,6 +1147,9 @@ const ProductCard = memo(({ product: p, darkMode, isSaved = false, onSave, onAdd
             -{Math.round(p.discount)}%
           </span>
         )}
+        <span aria-hidden="true" className="pointer-events-none absolute bottom-2.5 start-2.5 z-10 hidden translate-y-2 items-center gap-1.5 rounded-full bg-emerald-950/85 px-3 py-1.5 text-[11px] font-extrabold text-white opacity-0 transition-[opacity,transform] duration-300 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none [@media(hover:hover)]:flex [@media(hover:hover)]:group-hover:translate-y-0 [@media(hover:hover)]:group-hover:opacity-100">
+          <FiSearch className="h-3 w-3" />{t("productDetails")}
+        </span>
         <button type="button" onClick={save} aria-pressed={isSaved} aria-label={isSaved ? t("saved") : t("save")} title={isSaved ? t("saved") : t("save")}
           className={`${ICON} absolute end-2.5 top-2.5 z-10 h-9 w-9 bg-white text-emerald-950 shadow-md shadow-black/10 hover:bg-emerald-50`}>
           <FiHeart key={String(isSaved)} aria-hidden="true" className={`h-4 w-4 ${isSaved ? "pg-heart text-rose-500" : ""}`} fill={isSaved ? "currentColor" : "none"} />
@@ -968,6 +1162,7 @@ const ProductCard = memo(({ product: p, darkMode, isSaved = false, onSave, onAdd
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-1.5 p-3 sm:p-3.5">
+        {brand && <p className={`truncate text-[10px] font-extrabold uppercase tracking-wider rtl:tracking-normal ${ACC}`}>{brand}</p>}
         <Price product={p} currency={currency} t={t} />
         <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-snug">{name}</h3>
         <p className={`line-clamp-1 text-xs leading-5 ${MUTED}`}>{snippet}</p>
@@ -1136,7 +1331,7 @@ const ProductDetailsModal = memo(({ product, darkMode, isSaved, onSave, onClose,
   return (
     <div className="fixed inset-0 z-[1100] flex items-end justify-center p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={productName}>
       <m.div {...BACKDROP_MOTION} className="absolute inset-0 bg-[color:var(--overlay)]" onClick={onClose} />
-      <m.div {...PANEL_MOTION} style={GPU} className="pg-sb relative max-h-[92vh] w-full transform-gpu overflow-y-auto overscroll-contain rounded-t-3xl border border-[color:var(--line)] bg-[color:var(--panel)] text-[color:var(--txt)] sm:max-w-lg sm:rounded-3xl">
+      <m.div {...PANEL_MOTION} style={GPU} data-lenis-prevent className="pg-sb relative max-h-[92vh] w-full transform-gpu overflow-y-auto overscroll-contain rounded-t-3xl border border-[color:var(--line)] bg-[color:var(--panel)] text-[color:var(--txt)] sm:max-w-lg sm:rounded-3xl">
         <div className="absolute end-3 top-3 z-10 flex items-center gap-2">
           <button type="button" onClick={() => onSave(product.id)} aria-pressed={isSaved} aria-label={isSaved ? t("saved") : t("save")} title={isSaved ? t("saved") : t("save")}
             className={`${ICON} h-10 w-10 shadow-md shadow-black/10 ${isSaved ? "bg-emerald-600 text-white" : "bg-white text-emerald-950"}`}>
@@ -1378,7 +1573,7 @@ const FilterPanel = memo((p) => {
 
       {categoryOptions.length > 0 && (
         <FilterBlock title={t("category")} isOpen={open.cat} onToggle={() => toggle("cat")}>
-          <div className="pg-sb max-h-44 min-w-0 overflow-y-auto overscroll-contain break-words pe-1 sm:max-h-52" role="radiogroup" aria-label={t("category")}>
+          <div data-lenis-prevent className="pg-sb max-h-44 min-w-0 overflow-y-auto overscroll-contain break-words pe-1 sm:max-h-52" role="radiogroup" aria-label={t("category")}>
             <OptionRow type="radio" label={t("all")} count={totalCount} selected={selectedCategory === "all"} onClick={() => setSelectedCategory("all")} />
             {categoryOptions.map(({ name, count }) => (
               <OptionRow key={name} type="radio" label={name} count={count} selected={selectedCategory === name} onClick={() => setSelectedCategory(name)} />
@@ -1543,7 +1738,7 @@ const Dropdown = memo(({ value, onChange, options, ariaLabel }) => {
       </button>
       {open && (
         <ul
-          id={`${uid}-list`} ref={listRef} role="listbox" tabIndex={-1} aria-label={ariaLabel} aria-activedescendant={`${uid}-o${active}`} onKeyDown={onListKey}
+          id={`${uid}-list`} ref={listRef} role="listbox" tabIndex={-1} aria-label={ariaLabel} aria-activedescendant={`${uid}-o${active}`} onKeyDown={onListKey} data-lenis-prevent
           className={`pg-pop pg-sb absolute start-0 top-full z-50 mt-2 max-h-72 w-60 overflow-y-auto overscroll-contain rounded-2xl p-1.5 text-[color:var(--txt)] shadow-xl shadow-black/30 outline-none ${PANEL}`}
         >
           {options.map((o, i) => {
@@ -1637,14 +1832,20 @@ const ChatCTABanner = memo(({ darkMode, onOpenChat, t }) => (
   <Reveal as="section" aria-label={t("chatBannerTitle")} className="pg-lazy py-10 sm:py-14">
     <div className={WRAP}>
       <div onMouseEnter={prefetchChatModal} className="group relative flex flex-col items-center gap-5 overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600 to-emerald-900 p-6 text-center text-white sm:flex-row sm:gap-8 sm:p-10 sm:text-start">
-        <span className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-2xl bg-white/15 sm:h-24 sm:w-24">
+        <span aria-hidden="true" className="pg-aurora">
+          <span className="pg-blob pg-blob-a" />
+          <span className="pg-blob pg-blob-b" />
+        </span>
+        <span className="relative flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-2xl bg-white/15 sm:h-24 sm:w-24">
           <IsoIllustration type="shopChat" darkMode onGreen hoverOnly className="h-16 w-16 sm:h-20 sm:w-20" />
         </span>
-        <div className="min-w-0 flex-1">
+        <div className="relative min-w-0 flex-1">
           <h3 className="text-xl font-extrabold sm:text-3xl">{t("chatBannerTitle")}</h3>
           <p className="mt-3 text-sm font-medium opacity-90 sm:text-base">{t("chatBannerDescription")}</p>
         </div>
-        <button type="button" onClick={onOpenChat} className={`${BTN} w-full flex-shrink-0 bg-white text-emerald-900 hover:bg-emerald-50 sm:w-auto`}><FiMessageCircle aria-hidden="true" className="h-4 w-4" />{t("startChat")}</button>
+        <Magnet className="relative w-full flex-shrink-0 sm:w-auto">
+          <button type="button" onClick={onOpenChat} className={`${BTN} w-full flex-shrink-0 bg-white text-emerald-900 hover:bg-emerald-50 sm:w-auto`}><FiMessageCircle aria-hidden="true" className="h-4 w-4" />{t("startChat")}</button>
+        </Magnet>
       </div>
     </div>
   </Reveal>
@@ -1663,7 +1864,8 @@ const ShopContent = ({ darkMode, addToCart }) => {
   const language = useAppLanguage();
   const t = useCallback((key, fallback) => getShopTranslation(language, key, fallback), [language]);
   const ot = useCallback((key) => getOfferTranslation(language, key), [language]);
-  const { shopId } = useParams();
+  const { shopId: routeShopId } = useParams();
+  const shopId = useMemo(() => (SHOP_ID_PATTERN.test(routeShopId || "") ? routeShopId : ""), [routeShopId]);
   const gid = useId().replace(/:/g, "");
 
   const accessToken = useAuthStore((s) => s.accessToken);
@@ -1842,7 +2044,7 @@ const ShopContent = ({ darkMode, addToCart }) => {
       toast({ icon: "success", title: t("addedToCartToast"), text: clean(product.name, 60), timer: TOAST_MS });
       return true;
     } catch (err) {
-      toast({ icon: "error", title: t("errorTitle"), text: err?.response?.data?.message || t("addToCartFailed"), timer: 3500 });
+      toast({ icon: "error", title: t("errorTitle"), text: clean(err?.response?.data?.message, 160) || t("addToCartFailed"), timer: 3500 });
       return false;
     }
   }, [addToCart, askLogin, t]);
@@ -1966,20 +2168,25 @@ const ShopContent = ({ darkMode, addToCart }) => {
   }, [priceBounds.max]);
 
   const { categoryOptions, productsByCategory } = useMemo(() => {
-    const cats = {}, byCat = {};
+    const cats = new Map();
+    const byCat = new Map();
     for (const p of products) {
-      if (p._cat) cats[p._cat] = (cats[p._cat] || 0) + 1;
+      if (p._cat) cats.set(p._cat, (cats.get(p._cat) || 0) + 1);
       const catId = p.categoryId ?? p.category?.id ?? p.category;
-      if (catId != null) (byCat[catId] ||= []).push(p);
+      if (catId != null) {
+        const key = String(catId);
+        if (!byCat.has(key)) byCat.set(key, []);
+        byCat.get(key).push(p);
+      }
     }
     return {
-      categoryOptions: Object.entries(cats).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count),
+      categoryOptions: [...cats.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count),
       productsByCategory: byCat,
     };
   }, [products]);
 
   const categorySections = useMemo(() => categories
-    .map((cat) => ({ category: cat, items: (productsByCategory[cat.id] || []).slice(0, 10) }))
+    .map((cat) => ({ category: cat, items: (productsByCategory.get(String(cat.id)) || []).slice(0, 10) }))
     .filter((s) => s.items.length > 0)
     .slice(0, 6), [categories, productsByCategory]);
 
@@ -2053,15 +2260,15 @@ const ShopContent = ({ darkMode, addToCart }) => {
   const activeFiltersCount = (search ? 1 : 0) + conditions.length + (selectedCategory !== "all" ? 1 : 0) + (priceRange ? 1 : 0) + (onSaleOnly ? 1 : 0) + (inStockOnly ? 1 : 0) + (savedOnly ? 1 : 0);
   const browsing = activeFiltersCount === 0 && sortBy === "relevance";
 
-  const scrollToProducts = useCallback(() => document.getElementById("shop-products")?.scrollIntoView({ behavior: "smooth", block: "start" }), []);
-  const scrollToTop = useCallback(() => window.scrollTo({ top: 0, behavior: "smooth" }), []);
+  const scrollToProducts = useCallback(() => scrollToId("shop-products"), []);
+  const scrollToTop = useCallback(() => scrollToTopSmooth(), []);
   const selectTab = useCallback((v) => {
     setSelectedCategory(v);
     if (v !== "all") scrollToProducts();
   }, [scrollToProducts]);
   const goToReviewPage = useCallback((pg) => {
     setReviewPage(pg);
-    document.getElementById("shop-reviews-list")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    scrollToId("shop-reviews-list", -96);
   }, []);
   const clearSearch = useCallback(() => { setSearch(""); searchRef.current?.focus(); }, []);
 
@@ -2089,10 +2296,14 @@ const ShopContent = ({ darkMode, addToCart }) => {
     open, setOpen, clearFilters, activeFiltersCount,
   } : null), [isSidebarOpen, t, conditionCounts, conditions, toggleCondition, categoryOptions, selectedCategory, products.length, priceBounds, priceValue,
     setPriceRange, histogram, inStockOnly, onSaleOnly, savedOnly, open, clearFilters, activeFiltersCount]);
+
+  const scrollLocked = isSidebarOpen || !!detailsProduct || !!offerDetail || !!editingReview || openChat;
+  useMotionEngine(!!shop && !shopLoading, scrollLocked);
+
   const frameProps = { darkMode, dir, language, isAr };
   const currency = t("currency");
 
-  if (shopLoading) return <PageSkeleton {...frameProps} label={t("loading")} />;
+  if (shopId && shopLoading) return <PageSkeleton {...frameProps} label={t("loading")} />;
 
   if (!shop) return (
     <Frame {...frameProps}>
@@ -2110,6 +2321,7 @@ const ShopContent = ({ darkMode, addToCart }) => {
           <Defs3D />
           <OfferDefs gid={gid} />
           <Toaster darkMode={darkMode} />
+          <div data-progress aria-hidden="true" className="pg-progress" />
 
           <ShopHeader
             shop={shop} logo={logo} darkMode={darkMode} title={shopTitle || t("shopFallback")} stats={stats}
@@ -2132,7 +2344,7 @@ const ShopContent = ({ darkMode, addToCart }) => {
           )}
 
           <section aria-label={t("allProducts")} className="mt-6">
-            <div className="sticky top-[var(--shop-sticky-top,0px)] z-30 border-y border-[color:var(--line)] bg-[color:var(--bar)]">
+            <div className="sticky top-[var(--shop-sticky-top,0px)] z-30 border-y border-[color:var(--line)] bg-[color:var(--bar)] shadow-sm shadow-black/5">
               <div className={`${WRAP} space-y-3 py-3`}>
                 <div className="flex items-center gap-3">
                   <div
@@ -2307,7 +2519,7 @@ const ShopContent = ({ darkMode, addToCart }) => {
                     <h3 className="text-base font-extrabold"><span className={ACC}>{t("filters")}</span></h3>
                     <button type="button" onClick={closeSidebar} aria-label={t("closeFilters")} className={`${ICON} ${ICON_OFF} h-11 w-11`}><FiX aria-hidden="true" className="h-5 w-5" /></button>
                   </div>
-                  <div className="pg-sb min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pe-5"><FilterPanel {...filterPanelProps} /></div>
+                  <div data-lenis-prevent className="pg-sb min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pe-5"><FilterPanel {...filterPanelProps} /></div>
                   <div className="border-t border-[color:var(--line)] p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
                     <button type="button" onClick={() => { closeSidebar(); scrollToProducts(); }} className={`${BTN} ${BTN_ON} w-full`}>{t("showProducts").replace("{count}", filteredProducts.length)}</button>
                   </div>

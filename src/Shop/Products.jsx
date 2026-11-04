@@ -15,7 +15,7 @@ import {
 } from '../components/shop/TableKit';
 import { ensureShopAssets } from '../common/utils/shopFonts';
 import {
-  CONDITIONS, EMPTY_PRODUCT, STOCK_MAX, rawImageOf, resolveImageSrc, validateProduct, buildFormData,
+  CONDITIONS, EMPTY_PRODUCT, STOCK_MAX, rawImageOf, resolveImageSrc, validateProduct, buildFormData, validateImageFile,
 } from '../common/utils/productutils';
 
 ensureShopAssets();
@@ -73,14 +73,38 @@ const TONES = { sky: '#22d3ee', am: '#facc15', ro: '#fb7185', vi: '#a3e635', te:
 const ROW_OPTIONS = [5, 10, 25, 50];
 
 const DEFAULT_DISCOUNT_TYPE = 'PERCENTAGE';
+const MAX_GALLERY = 8;
+const EMPTY_LIST = [];
+const IMAGES_FIELD = 'images';
+const IMAGES_ACCEPT = 'image/jpeg,image/png,image/webp';
+const IMAGE_MB = 5;
+
 const NEW_PRODUCT = {
   ...EMPTY_PRODUCT,
+  images: [],
   specifications: '',
   discountType: DEFAULT_DISCOUNT_TYPE,
   discountValue: '',
 };
 
 const specsToText = (v) => (Array.isArray(v) ? v.filter(Boolean).join(', ') : v == null ? '' : String(v));
+
+const imageValue = (i) => (typeof i === 'string' ? i : i?.url || i?.imageUrl || i?.path || '');
+
+const galleryOf = (p, cover) => {
+  const source = [p?.images, p?.imageUrls, p?.gallery].find(Array.isArray) || EMPTY_LIST;
+  const seen = new Set(cover ? [cover] : []);
+  const out = [];
+  for (const item of source) {
+    const v = imageValue(item);
+    if (v && !seen.has(v)) {
+      seen.add(v);
+      out.push(v);
+      if (out.length >= MAX_GALLERY) break;
+    }
+  }
+  return out;
+};
 
 const toProductFormData = (data) => {
   const fd = buildFormData(data);
@@ -342,14 +366,15 @@ const Pill = memo(({ dot, children }) => (
   </span>
 ));
 
-const ProductRow = memo(({ product, busy, loc, onEdit, onDelete, onStock, onPreview }) => {
-  const { L, fm } = loc;
+const ProductRow = memo(({ product, busy, loc, onEdit, onDelete, onStock, onPreview, onImages }) => {
+  const { L, fm, language } = loc;
   const t = L.products;
   const nf = fm.number;
   const sm = stockMeta(product.stock, t.stock);
   const hasImage = !!product.image;
   const discounted = product.finalPrice < product.price;
   const previewLabel = t.previewAria || t.imagePreview || 'Preview image';
+  const imagesLabel = IMAGES_TEXT[language === 'ar' ? 'ar' : 'en'].addImages;
   return (
     <tr className="pg-tr">
       <td className="pg-td px-3 py-2.5">
@@ -390,6 +415,7 @@ const ProductRow = memo(({ product, busy, loc, onEdit, onDelete, onStock, onPrev
       <td className="pg-td px-3 py-2.5 whitespace-nowrap">
         <div className="flex items-center gap-1.5">
           <button type="button" disabled={busy} onClick={() => onStock(product)} className="pg-btn px-2.5 h-8 text-[11px] uppercase"><FiLayers size={12} aria-hidden="true" /> {t.stockBtn}</button>
+          <button type="button" disabled={busy} title={imagesLabel} aria-label={imagesLabel} onClick={() => onImages(product)} className="pg-btn h-8 w-8"><FiImage size={14} aria-hidden="true" /></button>
           <button type="button" disabled={busy} title={t.editAria} aria-label={t.editAria} onClick={() => onEdit(product)} className="pg-btn h-8 w-8"><FiEdit3 size={14} aria-hidden="true" /></button>
           <button type="button" disabled={busy} title={t.deleteAria} aria-label={t.deleteAria} onClick={() => onDelete(product)} className="pg-btn pg-btn-danger h-8 w-8"><FiTrash2 size={14} aria-hidden="true" /></button>
         </div>
@@ -448,6 +474,257 @@ const StockModal = memo(({ product, busy, loc, onClose, onSubmit }) => {
   );
 });
 
+const IMAGES_TEXT = {
+  ar: {
+    addImages: 'إضافة صور',
+    title: 'إضافة صور للمنتج',
+    current: 'الصور الحالية',
+    none: 'لا توجد صور إضافية بعد',
+    loading: 'جارٍ تحميل الصور…',
+    newImages: 'صور جديدة',
+    choose: 'اختيار صور',
+    drop: 'اسحب الصور هنا أو اختر ملفات',
+    hint: 'JPG أو PNG أو WEBP — حتى {mb} ميجابايت للصورة',
+    count: '{n} / {max} صور',
+    remove: 'إزالة',
+    imageN: 'صورة {n}',
+    max: 'الحد الأقصى {n} صور للمنتج',
+    upload: 'رفع الصور',
+    uploading: 'جارٍ الرفع…',
+    cancel: 'إلغاء',
+    close: 'إغلاق',
+    success: 'تمت إضافة الصور',
+    fail: 'تعذر رفع الصور',
+  },
+  en: {
+    addImages: 'Add images',
+    title: 'Add product images',
+    current: 'Current images',
+    none: 'No extra images yet',
+    loading: 'Loading images…',
+    newImages: 'New images',
+    choose: 'Choose images',
+    drop: 'Drag images here or choose files',
+    hint: 'JPG, PNG or WEBP — up to {mb} MB each',
+    count: '{n} / {max} images',
+    remove: 'Remove',
+    imageN: 'Image {n}',
+    max: 'A product can have up to {n} images',
+    upload: 'Upload images',
+    uploading: 'Uploading…',
+    cancel: 'Cancel',
+    close: 'Close',
+    success: 'Images added',
+    fail: 'Could not upload images',
+  },
+};
+
+const fileSig = (f) => `${f.name}|${f.size}|${f.lastModified}`;
+
+const PendingThumb = memo(({ file, index, label, removeLabel, disabled, onRemove }) => {
+  const [src, setSrc] = useState('');
+  useEffect(() => {
+    const url = URL.createObjectURL(file);
+    setSrc(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+  const remove = useCallback(() => onRemove(file), [onRemove, file]);
+  return (
+    <li className="pg-card !shadow-none flex flex-col overflow-hidden">
+      <div className="pg-gray relative aspect-square w-full overflow-hidden">
+        {src && <img src={src} alt={label} decoding="async" draggable={false} className="h-full w-full object-cover" />}
+      </div>
+      <button type="button" onClick={remove} disabled={disabled} aria-label={`${removeLabel} ${index + 1}`} title={removeLabel} className="pg-btn pg-btn-danger !border-0 !border-t-2 !shadow-none h-7">
+        <FiTrash2 size={13} aria-hidden="true" />
+      </button>
+    </li>
+  );
+});
+
+const ImagesModal = memo(({ product, loc, onClose, onUploaded }) => {
+  const T = IMAGES_TEXT[loc.language === 'ar' ? 'ar' : 'en'];
+  const uploadText = loc.L.products.upload || {};
+  const [existing, setExisting] = useState(EMPTY_LIST);
+  const [loadingExisting, setLoadingExisting] = useState(true);
+  const [files, setFiles] = useState(EMPTY_LIST);
+  const [error, setError] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const fileRef = useRef(null);
+  const filesRef = useRef(files);
+  const uploadingRef = useRef(false);
+  filesRef.current = files;
+
+  const close = useCallback(() => { if (!uploadingRef.current) onClose(); }, [onClose]);
+  useEscape(close);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const res = await api.get(`/api/products/${encodeURIComponent(product.id)}`, { signal: controller.signal });
+        if (!controller.signal.aborted) setExisting(galleryOf(res.data, product.image));
+      } catch {}
+      if (!controller.signal.aborted) setLoadingExisting(false);
+    })();
+    return () => controller.abort();
+  }, [product.id, product.image]);
+
+  const room = MAX_GALLERY - existing.length - files.length;
+  const maxText = tpl(T.max, { n: MAX_GALLERY });
+
+  const addFiles = useCallback(async (list) => {
+    const incoming = Array.from(list || []);
+    if (!incoming.length) return;
+    const space = MAX_GALLERY - existing.length - filesRef.current.length;
+    if (space <= 0) { setError(maxText); return; }
+    const known = new Set(filesRef.current.map(fileSig));
+    const fresh = [];
+    for (const f of incoming) {
+      const sig = fileSig(f);
+      if (!known.has(sig)) { known.add(sig); fresh.push(f); }
+    }
+    const picked = fresh.slice(0, space);
+    const problems = await Promise.all(picked.map((f) => validateImageFile(f)));
+    let firstProblem = '';
+    const valid = [];
+    picked.forEach((f, i) => {
+      if (problems[i]) { if (!firstProblem) firstProblem = problems[i]; } else valid.push(f);
+    });
+    if (!firstProblem && fresh.length > space) firstProblem = maxText;
+    setError(firstProblem);
+    if (!valid.length) return;
+    const left = MAX_GALLERY - existing.length - filesRef.current.length;
+    if (left <= 0) return;
+    setFiles([...filesRef.current, ...valid.slice(0, left)]);
+  }, [existing.length, maxText]);
+
+  const removeFile = useCallback((file) => {
+    setError('');
+    setFiles((prev) => prev.filter((f) => f !== file));
+  }, []);
+
+  const browse = useCallback(() => fileRef.current?.click(), []);
+  const onPick = useCallback((e) => { addFiles(e.target.files); e.target.value = ''; }, [addFiles]);
+  const onDragOver = useCallback((e) => {
+    if (!e.dataTransfer?.types?.includes('Files')) return;
+    e.preventDefault();
+    setDragging(true);
+  }, []);
+  const onDragLeave = useCallback(() => setDragging(false), []);
+  const onDrop = useCallback((e) => {
+    e.preventDefault();
+    setDragging(false);
+    if (!uploadingRef.current) addFiles(e.dataTransfer?.files);
+  }, [addFiles]);
+
+  const submit = useCallback(async (e) => {
+    e.preventDefault();
+    if (uploadingRef.current || !filesRef.current.length) return;
+    if (!isSafeId(product.id)) return;
+    uploadingRef.current = true;
+    setUploading(true);
+    setError('');
+    try {
+      const fd = new FormData();
+      for (const f of filesRef.current) fd.append(IMAGES_FIELD, f, f.name);
+      await api.post(`/api/shops/products/${encodeURIComponent(product.id)}/images`, fd, UPLOAD_CONFIG);
+      toast({ icon: 'success', title: T.success });
+      uploadingRef.current = false;
+      onUploaded();
+      onClose();
+    } catch (err) {
+      uploadingRef.current = false;
+      setUploading(false);
+      setError(uploadErrText(err, uploadText));
+      toast({ icon: 'error', title: T.fail, text: uploadErrText(err, uploadText) });
+    }
+  }, [product.id, T, uploadText, onUploaded, onClose]);
+
+  return (
+    <Overlay onClose={close}>
+      <form onSubmit={submit} noValidate role="dialog" aria-modal="true" aria-label={T.title} className="pg-card pg-in relative flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden">
+        <div className="pg-gray pg-line flex flex-shrink-0 items-center justify-between gap-3 border-b-2 px-5 py-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <ProductThumb raw={product.image} alt="" className="w-10 h-10" iconSize={16} />
+            <div className="min-w-0">
+              <h3 className="text-sm font-extrabold uppercase"><span className="pg-ul">{T.title}</span></h3>
+              <p className="pg-muted mt-1 truncate text-[11px] font-semibold">{product.name}</p>
+            </div>
+          </div>
+          <button type="button" onClick={close} disabled={uploading} aria-label={T.close} className="pg-btn h-8 w-8 flex-shrink-0"><FiX size={15} aria-hidden="true" /></button>
+        </div>
+
+        <div className="pg-scroll space-y-5 overflow-y-auto px-5 py-4">
+          <section aria-label={T.current}>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h4 className="text-[11px] font-extrabold uppercase">{T.current}</h4>
+              <span className="pg-muted text-[10px] font-bold" dir="ltr">{tpl(T.count, { n: existing.length + files.length, max: MAX_GALLERY })}</span>
+            </div>
+            {loadingExisting
+              ? <p className="pg-muted text-[11px] font-bold" role="status">{T.loading}</p>
+              : existing.length === 0
+                ? <p className="pg-muted text-[11px] font-bold">{T.none}</p>
+                : (
+                  <ul className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+                    {existing.map((src, i) => (
+                      <li key={src} className="pg-card !shadow-none aspect-square overflow-hidden">
+                        <ProductThumb raw={src} alt={tpl(T.imageN, { n: i + 1 })} className="h-full w-full !border-0" iconSize={18} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+          </section>
+
+          <section aria-label={T.newImages}>
+            <h4 className="mb-2 text-[11px] font-extrabold uppercase">{T.newImages}</h4>
+            <div
+              onDragOver={onDragOver}
+              onDragLeave={onDragLeave}
+              onDrop={onDrop}
+              className={`pg-gray p-3 ${dragging ? 'ring-2 ring-[var(--pg-accent)]' : ''} ${error ? '!border-red-500' : ''} pg-dot`}
+            >
+              {files.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 py-4 text-center">
+                  <FiImage size={24} aria-hidden="true" />
+                  <p className="pg-muted text-[11px] font-bold">{T.drop}</p>
+                  <button type="button" onClick={browse} disabled={uploading || room <= 0} className="pg-btn h-8 px-3 text-[11px] uppercase">
+                    <FiPlus size={12} aria-hidden="true" /> {T.choose}
+                  </button>
+                </div>
+              ) : (
+                <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  {files.map((f, i) => (
+                    <PendingThumb key={fileSig(f)} file={f} index={i} label={tpl(T.imageN, { n: existing.length + i + 1 })} removeLabel={T.remove} disabled={uploading} onRemove={removeFile} />
+                  ))}
+                  {room > 0 && (
+                    <li className="flex">
+                      <button type="button" onClick={browse} disabled={uploading} aria-label={T.choose} className="pg-btn w-full flex-col gap-1 text-[10px] uppercase">
+                        <FiPlus size={18} aria-hidden="true" />
+                        <span>{T.choose}</span>
+                      </button>
+                    </li>
+                  )}
+                </ul>
+              )}
+              <input ref={fileRef} type="file" accept={IMAGES_ACCEPT} multiple className="hidden" onChange={onPick} />
+            </div>
+            <p className="pg-muted mt-1.5 text-[10px] font-semibold">{tpl(T.hint, { mb: IMAGE_MB })}</p>
+            {error && <p role="alert" className="mt-1.5 flex items-center gap-1 text-[11px] font-bold text-red-500"><FiAlertCircle size={12} aria-hidden="true" /> {error}</p>}
+          </section>
+        </div>
+
+        <div className="pg-gray pg-line flex flex-shrink-0 gap-2.5 border-t-2 px-5 py-4">
+          <button type="button" onClick={close} disabled={uploading} className="pg-btn flex-1 h-10 text-xs uppercase">{T.cancel}</button>
+          <button type="submit" disabled={uploading || files.length === 0} className="pg-btn pg-btn-a flex-1 h-10 text-xs uppercase">
+            {uploading ? T.uploading : T.upload}
+          </button>
+        </div>
+      </form>
+    </Overlay>
+  );
+});
+
 const ModalFallback = memo(({ label }) => (
   <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4" role="status" aria-label={label}>
     <div className="absolute inset-0 bg-black/60" />
@@ -482,6 +759,7 @@ const Products = () => {
   const [saving, setSaving] = useState(false);
   const [stockId, setStockId] = useState(null);
   const [previewId, setPreviewId] = useState(null);
+  const [imagesId, setImagesId] = useState(null);
   const [busyIds, setBusyIds] = useState(() => new Set());
 
   const productsRef = useRef(products);
@@ -489,6 +767,7 @@ const Products = () => {
   const savingRef = useRef(false);
   const abortRef = useRef(null);
   const categoriesAbortRef = useRef(null);
+  const editAbortRef = useRef(null);
   const tRef = useRef(t);
   const ttRef = useRef(tt);
   useEffect(() => { productsRef.current = products; }, [products]);
@@ -529,7 +808,11 @@ const Products = () => {
   useEffect(() => {
     fetchProducts();
     fetchCategories();
-    return () => { abortRef.current?.abort(); categoriesAbortRef.current?.abort(); };
+    return () => {
+      abortRef.current?.abort();
+      categoriesAbortRef.current?.abort();
+      editAbortRef.current?.abort();
+    };
   }, [fetchProducts, fetchCategories]);
 
   const setBusy = useCallback(() => setBusyIds(new Set(inflight.current)), []);
@@ -696,9 +979,21 @@ const Products = () => {
   ], [t, sortOptions, stockOptions, sortBy, stockFilter, categoryFilter, categories.length, categoryOptions]);
 
   const stockProduct = useMemo(() => (stockId == null ? null : products.find((p) => p.id === stockId) || null), [products, stockId]);
+  const imagesProduct = useMemo(() => (imagesId == null ? null : products.find((p) => p.id === imagesId) || null), [products, imagesId]);
   const previewProduct = useMemo(() => (previewId == null ? null : products.find((p) => p.id === previewId) || null), [products, previewId]);
 
-  const handleEdit = useCallback((p) => {
+  const handleEdit = useCallback(async (p) => {
+    editAbortRef.current?.abort();
+    const controller = new AbortController();
+    editAbortRef.current = controller;
+    let images = EMPTY_LIST;
+    if (isSafeId(p.id)) {
+      try {
+        const res = await api.get(`/api/products/${encodeURIComponent(p.id)}`, { signal: controller.signal });
+        images = galleryOf(res.data, p.image);
+      } catch {}
+    }
+    if (controller.signal.aborted) return;
     setEditingProduct({
       id: p.id,
       name: p.name || '',
@@ -708,6 +1003,7 @@ const Products = () => {
       stockQuantity: String(p.stock ?? ''),
       condition: p.condition || 'NEW',
       image: p.image || null,
+      images,
       specifications: specsToText(p.specifications),
       discountType: p.discountType || DEFAULT_DISCOUNT_TYPE,
       discountValue: p.discountValue > 0 ? String(p.discountValue) : '',
@@ -715,11 +1011,18 @@ const Products = () => {
   }, []);
   const handleStock = useCallback((p) => setStockId(p.id), []);
   const handlePreview = useCallback((p) => setPreviewId(p.id), []);
+  const handleImages = useCallback((p) => setImagesId(p.id), []);
+  const closeImages = useCallback(() => setImagesId(null), []);
+  const refreshSilently = useCallback(() => fetchProducts({ silent: true }), [fetchProducts]);
   const handleAddChange = useCallback((f, v) => setNewProduct((prev) => ({ ...prev, [f]: v })), []);
   const handleEditChange = useCallback((f, v) => setEditingProduct((prev) => (prev ? { ...prev, [f]: v } : prev)), []);
   const openAdd = useCallback(() => setShowAddModal(true), []);
   const closeAdd = useCallback(() => { if (!savingRef.current) { setShowAddModal(false); setNewProduct(NEW_PRODUCT); } }, []);
-  const closeEdit = useCallback(() => { if (!savingRef.current) setEditingProduct(null); }, []);
+  const closeEdit = useCallback(() => {
+    if (savingRef.current) return;
+    editAbortRef.current?.abort();
+    setEditingProduct(null);
+  }, []);
   const closeStock = useCallback(() => setStockId(null), []);
   const closePreview = useCallback(() => setPreviewId(null), []);
   const openFilter = useCallback(() => setShowFilterPanel(true), []);
@@ -835,6 +1138,7 @@ const Products = () => {
                       onDelete={deleteProduct}
                       onStock={handleStock}
                       onPreview={handlePreview}
+                      onImages={handleImages}
                     />
                   ))
                 )}
@@ -879,6 +1183,10 @@ const Products = () => {
 
       {previewProduct && (
         <ImagePreview key={previewProduct.id} product={previewProduct} closeLabel={tt.close || 'Close'} onClose={closePreview} />
+      )}
+
+      {imagesProduct && (
+        <ImagesModal key={imagesProduct.id} product={imagesProduct} loc={loc} onClose={closeImages} onUploaded={refreshSilently} />
       )}
     </div>
   );

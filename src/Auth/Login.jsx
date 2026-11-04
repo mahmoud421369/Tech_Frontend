@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  FiMail, FiLock, FiEye, FiEyeOff, FiArrowLeft, FiRefreshCw, FiCreditCard, FiDollarSign,
+  FiMail, FiLock, FiEye, FiEyeOff, FiArrowLeft, FiRefreshCw, FiDollarSign,
   FiCheckCircle, FiClock, FiAlertTriangle, FiShield, FiMinus, FiPlus, FiKey, FiX,
 } from 'react-icons/fi';
 import api from '../common/api/api';
@@ -20,7 +20,7 @@ import frTranslations from '../locales/fr/translation.json';
 import { useAppLanguage, languageDirection } from '../common/utils/useAppLanguage';
 
 const AUTH_CSS = `
-.au-root{font-family:'Poppins','Cairo',ui-sans-serif,system-ui,sans-serif;--dx:1}
+.au-root{font-family:'Poppins','Cairo',ui-sans-serif,system-ui,sans-serif;--dx:1;-webkit-text-size-adjust:100%}
 .au-root[dir=rtl]{--dx:-1}
 .au-root select option{background:var(--card);color:var(--txt)}
 .au-pattern{--p1:rgba(4,38,26,.1);--p2:rgba(16,185,129,.1);background-image:radial-gradient(circle at 2px 2px,var(--p1) 1.6px,transparent 1.8px),repeating-linear-gradient(135deg,var(--p2) 0 2px,transparent 2px 18px);background-size:22px 22px,auto}
@@ -41,7 +41,7 @@ const AUTH_CSS = `
 @keyframes auErr{0%{opacity:0;transform:translateX(-6px)}30%{opacity:1;transform:translateX(5px)}55%{transform:translateX(-3px)}80%{transform:translateX(2px)}100%{opacity:1;transform:none}}
 .au-err{animation:auErr .3s ease-out both}
 @keyframes auFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
-.au-float{animation:auFloat 5s ease-in-out infinite}
+.au-float{animation:auFloat 5s ease-in-out infinite;will-change:transform}
 @media (prefers-reduced-motion:reduce){.au-in,.au-pop,.au-fade,.au-sheet,.au-shake,.au-err,.au-float{animation:none}}
 `;
 
@@ -65,6 +65,7 @@ if (typeof document !== 'undefined' && !document.querySelector('link[data-poppin
   const font = document.createElement('link');
   font.rel = 'stylesheet';
   font.href = 'https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&display=swap';
+  font.referrerPolicy = 'no-referrer';
   font.setAttribute('data-poppins', '');
   document.head.append(pre1, pre2, font);
 }
@@ -75,14 +76,14 @@ const THEME = {
 };
 
 const FOCUS = 'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
-const CARD = 'rounded-2xl border-[3px] border-[color:var(--ink)] bg-[color:var(--card)] text-[color:var(--txt)] [box-shadow:calc(var(--dx)*8px)_8px_0_0_var(--sh)]';
+const CARD = 'rounded-2xl border-[3px] border-[color:var(--ink)] bg-[color:var(--card)] text-[color:var(--txt)] [box-shadow:calc(var(--dx)*5px)_5px_0_0_var(--sh)] sm:[box-shadow:calc(var(--dx)*8px)_8px_0_0_var(--sh)]';
 const BTN = `inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border-[3px] border-[color:var(--ink)] font-extrabold [box-shadow:calc(var(--dx)*4px)_4px_0_0_var(--sh)] transition-[transform,box-shadow,opacity] duration-150 motion-reduce:transition-none [@media(hover:hover)]:hover:-translate-y-0.5 [@media(hover:hover)]:hover:[box-shadow:calc(var(--dx)*5px)_6px_0_0_var(--sh)] active:translate-y-[4px] active:translate-x-[calc(var(--dx)*4px)] active:[box-shadow:0_0_0_0_var(--sh)] disabled:pointer-events-none disabled:opacity-45 aria-disabled:pointer-events-none aria-disabled:opacity-45 ${FOCUS}`;
 const PRIMARY = `${BTN} bg-[color:var(--acc)] text-emerald-950`;
 const SECONDARY = `${BTN} bg-[color:var(--card)] text-[color:var(--txt)]`;
-const ICON_BTN = `inline-flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-lg border-2 border-[color:var(--ink)] bg-[color:var(--card)] text-[color:var(--txt)] [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)] transition-[transform,box-shadow] duration-150 active:translate-y-[3px] active:translate-x-[calc(var(--dx)*3px)] active:[box-shadow:0_0_0_0_var(--sh)] ${FOCUS}`;
+const ICON_BTN = `inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded-lg border-2 border-[color:var(--ink)] bg-[color:var(--card)] text-[color:var(--txt)] [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)] transition-[transform,box-shadow] duration-150 active:translate-y-[3px] active:translate-x-[calc(var(--dx)*3px)] active:[box-shadow:0_0_0_0_var(--sh)] ${FOCUS}`;
 const ICON_TILE = 'inline-flex flex-shrink-0 items-center justify-center rounded-xl border-2 border-[color:var(--ink)] bg-[color:var(--acc)] text-emerald-950 [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)]';
 const FIELD = 'flex h-12 items-center gap-2 rounded-lg border-2 bg-[color:var(--field)] text-[color:var(--txt)] ps-3 transition-[box-shadow,border-color,opacity] duration-150 focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-[color:var(--acc)]';
-const OTP_BOX = `h-12 w-10 rounded-lg border-2 border-[color:var(--ink)] bg-[color:var(--field)] px-0 text-center text-lg font-extrabold text-[color:var(--txt)] outline-none [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)] transition-[box-shadow] duration-150 sm:w-11 ${FOCUS}`;
+const OTP_BOX = `h-11 min-w-0 max-w-[2.75rem] flex-1 rounded-lg border-2 border-[color:var(--ink)] bg-[color:var(--field)] px-0 text-center text-lg font-extrabold text-[color:var(--txt)] outline-none [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)] transition-[box-shadow] duration-150 sm:h-12 ${FOCUS}`;
 const LINK = `inline-flex min-h-9 cursor-pointer items-center gap-1 font-bold text-[color:var(--txt)] underline decoration-[color:var(--acc)] decoration-2 underline-offset-4 disabled:no-underline disabled:opacity-50 ${FOCUS}`;
 const PANEL = 'rounded-xl border-2 border-dotted border-[color:var(--ink)] bg-[color:var(--soft)]';
 
@@ -92,7 +93,7 @@ const makeT = (ns) => {
   const cache = {};
   return (language) => (cache[language] ||= (key, vars) => {
     let s = ns[language]?.[key] || ns.en?.[key] || key;
-    if (vars) for (const k in vars) s = s.split(`{{${k}}}`).join(vars[k]);
+    if (vars) for (const k in vars) s = s.split(`{{${k}}}`).join(String(vars[k]));
     return s;
   });
 };
@@ -103,16 +104,20 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_RESET_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_BYTES = 72;
 const MAX_SERVER_MSG = 200;
+const MAX_EMAIL_LENGTH = 254;
 const REQUEST_TIMEOUT_MS = 30_000;
 const encoder = new TextEncoder();
 const byteLength = (s) => encoder.encode(s || '').length;
 const PRICE_PER_MONTH = 1000;
+const MIN_MONTHS = 1;
+const MAX_MONTHS = 12;
 const API_BASE = process.env.REACT_APP_API_URL || 'https://api.tech-restore.tech';
 const GOOGLE_AUTH_URL = `${API_BASE}/oauth2/authorization/google`;
 const SUCCESS_DELAY_MS = 1500;
 
 const isCanceled = (err) => err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError' || err?.name === 'AbortError';
-const normalizeEmail = (v) => String(v || '').trim().toLowerCase();
+const normalizeEmail = (v) => String(v || '').trim().toLowerCase().slice(0, MAX_EMAIL_LENGTH);
+const clampMonths = (m) => Math.min(MAX_MONTHS, Math.max(MIN_MONTHS, Math.trunc(Number(m)) || MIN_MONTHS));
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_SECONDS = 30;
@@ -162,15 +167,11 @@ const renewalError = (err, fallback, t) => {
   if (/amount_cents|amount must|price must/i.test(raw)) return t('rnAmountInvalid');
   if (/not found/i.test(raw) || status === 404) return t('rnNotFound');
   if (/already completed/i.test(raw)) return t('rnPaymentNotStarted');
-  if (/duplicate|paymob|unprocessable/i.test(raw) || status === 422) return t('rnInProgress');
+  if (/duplicate|unprocessable/i.test(raw) || status === 422) return t('rnInProgress');
   if (status === 401) return t('errInvalidToken');
   if (status === 403) return t('rnForbidden');
   if (status >= 500 || /RUNTIME_ERROR|RT_001/i.test(`${raw} ${code}`) || !raw) return fallback;
   return sanitize(raw) || fallback;
-};
-
-const safeHttpsUrl = (raw) => {
-  try { const u = new URL(String(raw)); return u.protocol === 'https:' ? u.href : null; } catch { return null; }
 };
 
 const resetPasswordError = (v, st) => {
@@ -184,37 +185,58 @@ const resetPasswordError = (v, st) => {
   return '';
 };
 
-const PAID = ['PAID', 'ACTIVE', 'SETTLED', 'COMPLETED', 'SUCCESS', 'APPROVED', 'CONFIRMED', 'SUCCESSFUL'];
+const PAID = new Set(['PAID', 'ACTIVE', 'SETTLED', 'COMPLETED', 'SUCCESS', 'APPROVED', 'CONFIRMED', 'SUCCESSFUL']);
 
 function checkLatestSubscription(subs) {
-  if (!Array.isArray(subs) || subs.length === 0) return { expired: true, shopId: null, isPending: false, noSubs: true };
+  if (!Array.isArray(subs) || subs.length === 0) return { expired: true, isPending: false };
   const now = Date.now();
-  const status = (s) => (s.status || '').toUpperCase();
-  const pay = (s) => (s.paymentStatus || s.payment_status || '').toUpperCase();
+  const status = (s) => String(s.status || '').toUpperCase();
+  const pay = (s) => String(s.paymentStatus || s.payment_status || '').toUpperCase();
 
-  const active = subs.find((s) => {
+  const active = subs.some((s) => {
     const rawEnd = s.endDate || s.end_date || s.expiryDate;
     const end = rawEnd ? new Date(rawEnd) : null;
-    return end && end.getTime() > now - 86400000 && PAID.some((term) => status(s) === term || pay(s) === term);
+    return end && end.getTime() > now - 86400000 && (PAID.has(status(s)) || PAID.has(pay(s)));
   });
-  if (active) return { expired: false, shopId: active.shopId || active.shop?.id || null, isPending: false };
+  if (active) return { expired: false, isPending: false };
 
-  const pending = subs.find((s) => {
-    const method = (s.paymentMethod || s.payment_method || s.payment?.method || '').toUpperCase();
+  const pending = subs.some((s) => {
+    const method = String(s.paymentMethod || s.payment_method || s.payment?.method || '').toUpperCase();
     return (status(s) === 'PENDING' || pay(s) === 'PENDING') && method === 'CASH';
   });
-  const endOf = (s) => new Date(s.endDate || s.end_date || 0).getTime();
-  const latest = [...subs].sort((a, b) => endOf(b) - endOf(a))[0];
-  return { expired: !pending, shopId: latest.shopId || latest.shop?.id || null, isPending: !!pending };
+  return { expired: !pending, isPending: pending };
 }
 
 const readGoogleError = () => {
   if (typeof window === 'undefined') return '';
   const p = new URLSearchParams(window.location.search);
-  return p.get('error_description') || p.get('error') || '';
+  return String(p.get('error_description') || p.get('error') || '').slice(0, MAX_SERVER_MSG);
+};
+
+const useMinWidth = (px) => {
+  const query = `(min-width:${px}px)`;
+  const [matches, setMatches] = useState(() => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(query).matches);
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return undefined;
+    const mq = window.matchMedia(query);
+    const onChange = (e) => setMatches(e.matches);
+    setMatches(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, [query]);
+  return matches;
 };
 
 const Spinner = () => <span aria-hidden="true" className="inline-block h-4 w-4 flex-shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" />;
+
+const GoogleIcon = memo(() => (
+  <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true" focusable="false" className="flex-shrink-0">
+    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+  </svg>
+));
 
 const LoginIllustration = memo(() => (
   <svg viewBox="0 0 480 480" aria-hidden="true" focusable="false" className="aspect-square w-full">
@@ -288,8 +310,8 @@ const InlineError = memo(({ message, hint }) => (
   <div role="alert" className="au-err flex items-start gap-2 text-[color:var(--err)]">
     <FiAlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 flex-shrink-0" />
     <div className="min-w-0">
-      <p className="text-sm font-bold leading-snug">{message}</p>
-      {hint && <p className="mt-0.5 text-xs font-medium leading-snug text-[color:var(--mut)]">{hint}</p>}
+      <p className="break-words text-sm font-bold leading-snug">{message}</p>
+      {hint && <p className="mt-0.5 break-words text-xs font-medium leading-snug text-[color:var(--mut)]">{hint}</p>}
     </div>
   </div>
 ));
@@ -322,14 +344,14 @@ const AuthInput = memo(({ id, label, icon: Icon, error, trailing, ...rest }) => 
       {Icon && <Icon aria-hidden="true" className="h-4 w-4 flex-shrink-0 text-[color:var(--icon)]" />}
       <input
         id={id} aria-invalid={!!error} aria-describedby={error ? `${id}-err` : undefined}
-        className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60"
+        className="min-w-0 flex-1 bg-transparent text-base font-semibold outline-none placeholder:font-medium placeholder:opacity-60 sm:text-sm"
         {...rest}
       />
       {trailing}
     </div>
     {error && (
       <p id={`${id}-err`} className="au-err flex items-center gap-1 text-xs font-bold text-[color:var(--err)]">
-        <FiAlertTriangle aria-hidden="true" className="h-3 w-3 flex-shrink-0" />{error}
+        <FiAlertTriangle aria-hidden="true" className="h-3 w-3 flex-shrink-0" /><span className="min-w-0 break-words">{error}</span>
       </p>
     )}
   </div>
@@ -337,7 +359,7 @@ const AuthInput = memo(({ id, label, icon: Icon, error, trailing, ...rest }) => 
 
 const EyeToggle = memo(({ shown, onToggle, t }) => (
   <button type="button" onClick={onToggle} aria-label={shown ? t('hidePassword') : t('showPassword')} aria-pressed={shown}
-    className={`flex h-8 w-8 flex-shrink-0 cursor-pointer items-center justify-center rounded-md text-[color:var(--icon)] transition-transform duration-150 active:scale-90 ${FOCUS}`}>
+    className={`flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-md text-[color:var(--icon)] transition-transform duration-150 active:scale-90 ${FOCUS}`}>
     {shown ? <FiEyeOff className="h-4 w-4" /> : <FiEye className="h-4 w-4" />}
   </button>
 ));
@@ -347,10 +369,10 @@ const NbModal = memo(({ onClose, icon: Icon, title, size = 'sm:max-w-md', childr
   return (
     <div className="au-fade fixed inset-0 z-[1100] flex items-end justify-center p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={title}>
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className={`au-sheet relative max-h-[92vh] w-full overflow-y-auto overscroll-contain ${CARD} ${size}`}>
-        <div className="flex items-center gap-3 border-b-[3px] border-[color:var(--ink)] bg-[color:var(--soft)] p-4">
+      <div className={`au-sheet relative max-h-[92vh] max-h-[92dvh] w-full overflow-y-auto overscroll-contain rounded-b-none pb-[env(safe-area-inset-bottom)] sm:rounded-b-2xl sm:pb-0 ${CARD} ${size}`}>
+        <div className="sticky top-0 z-10 flex items-center gap-3 border-b-[3px] border-[color:var(--ink)] bg-[color:var(--soft)] p-3 sm:p-4">
           <span className={`${ICON_TILE} h-10 w-10`}><Icon aria-hidden="true" className="h-5 w-5" /></span>
-          <h2 className="min-w-0 flex-1 truncate text-base font-extrabold uppercase">{title}</h2>
+          <h2 className="min-w-0 flex-1 truncate text-sm font-extrabold uppercase sm:text-base">{title}</h2>
           <button type="button" onClick={onClose} aria-label="×" className={ICON_BTN}><FiX className="h-4 w-4" /></button>
         </div>
         <div className="p-4 sm:p-5">{children}</div>
@@ -376,7 +398,7 @@ const ForgotPasswordModal = memo(({ onClose, t, st }) => {
   const busyRef = useRef(false);
   const abortRef = useRef(null);
 
-  const otpCode = useMemo(() => otp.join(''), [otp]);
+  const otpCode = otp.join('');
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
@@ -430,7 +452,7 @@ const ForgotPasswordModal = memo(({ onClose, t, st }) => {
   }, []);
 
   const nextFromOtp = useCallback(() => {
-    if (otpCode.length !== OTP_LEN) { setError(t('errOtpIncomplete')); return; }
+    if (!/^\d{6}$/.test(otpCode)) { setError(t('errOtpIncomplete')); return; }
     setError(''); setStep('reset');
   }, [otpCode, t]);
 
@@ -454,7 +476,7 @@ const ForgotPasswordModal = memo(({ onClose, t, st }) => {
     setLoading(true); setError('');
     try {
       await api.post('/api/auth/reset-password', { email, otp: otpCode, newPassword, confirmPassword: confirmPw }, nextConfig());
-      setNewPassword(''); setConfirmPw('');
+      setNewPassword(''); setConfirmPw(''); setOtp(EMPTY_OTP);
       setStep('done');
     } catch (err) { fail(err); } finally { busyRef.current = false; setLoading(false); }
   }, [email, otpCode, newPassword, confirmPw, fail, nextConfig, t, st]);
@@ -481,7 +503,7 @@ const ForgotPasswordModal = memo(({ onClose, t, st }) => {
           <>
             <p className="text-sm font-medium text-[color:var(--mut)]">{t('fpEmailHelp')}</p>
             <AuthInput id="fp-email" type="email" icon={FiMail} value={email} placeholder="you@example.com" autoComplete="email"
-              autoCapitalize="none" spellCheck={false} maxLength={254} dir="ltr" onChange={onEmailChange} onKeyDown={onEmailKeyDown} />
+              autoCapitalize="none" spellCheck={false} maxLength={MAX_EMAIL_LENGTH} dir="ltr" onChange={onEmailChange} onKeyDown={onEmailKeyDown} />
             <button type="button" onClick={sendCode} disabled={loading} className={`${PRIMARY} w-full justify-center px-4 py-3 text-sm uppercase`}>
               {loading ? <><Spinner /> {t('sending')}</> : t('sendCode')}
             </button>
@@ -491,9 +513,9 @@ const ForgotPasswordModal = memo(({ onClose, t, st }) => {
         {step === 'otp' && (
           <>
             <p className="text-center text-sm font-medium text-[color:var(--mut)]">{t('codeSentTo')} <b className="break-all text-[color:var(--icon)]" dir="ltr">{email}</b></p>
-            <div className="flex justify-center gap-1.5 sm:gap-2" dir="ltr" onPaste={otpPaste}>
+            <div className="flex w-full justify-center gap-1.5 sm:gap-2" dir="ltr" onPaste={otpPaste}>
               {otp.map((d, i) => (
-                <input key={i} ref={(el) => { inputsRef.current[i] = el; }} type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={1} value={d}
+                <input key={i} ref={(el) => { inputsRef.current[i] = el; }} type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="one-time-code" maxLength={1} value={d}
                   aria-label={t('digit', { n: i + 1 })} autoFocus={i === 0}
                   onChange={(e) => changeOtp(i, e.target.value)} onKeyDown={(e) => otpKeyDown(i, e)}
                   className={OTP_BOX} />
@@ -535,15 +557,12 @@ const ForgotPasswordModal = memo(({ onClose, t, st }) => {
   );
 });
 
-const PAYMENT_METHODS = [['card', 'payCard', FiCreditCard], ['cash', 'payCash', FiDollarSign]];
-
 const RenewalModal = memo(({ shopEmail, isPending, onClose, t }) => {
   const navigate = useNavigate();
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const [view, setView] = useState(isPending ? 'pending' : 'form');
   const [loading, setLoading] = useState(false);
-  const [method, setMethod] = useState('card');
-  const [months, setMonths] = useState(1);
+  const [months, setMonths] = useState(MIN_MONTHS);
   const [error, setError] = useState('');
   const submittingRef = useRef(false);
   const abortRef = useRef(null);
@@ -553,37 +572,17 @@ const RenewalModal = memo(({ shopEmail, isPending, onClose, t }) => {
 
   const leave = useCallback(() => { clearAuth(); onClose(); navigate('/login'); }, [clearAuth, onClose, navigate]);
 
-  const renewCard = useCallback(async () => {
-    if (submittingRef.current) return;
-    if (!shopEmail) { setError(t('rnUnidentified')); return; }
-    submittingRef.current = true;
-    setLoading(true); setError('');
-    let leaving = false;
-    try {
-      abortRef.current = new AbortController();
-      const res = await api.post(
-        `/api/subscriptions/renew/card/${encodeURIComponent(shopEmail)}`,
-        { months, type: 'COMMISSION' },
-        { signal: abortRef.current.signal, timeout: REQUEST_TIMEOUT_MS },
-      );
-      const payUrl = safeHttpsUrl(res.data?.paymentURL);
-      if (payUrl) { leaving = true; setView('redirect'); window.location.href = payUrl; }
-      else if (res.data?.paymentURL) setError(t('rnInsecureLink'));
-      else setError(t('rnCardNotStarted'));
-    } catch (err) { if (!isCanceled(err)) setError(renewalError(err, t('rnCardFailed'), t)); }
-    finally { if (!leaving) { submittingRef.current = false; setLoading(false); } }
-  }, [shopEmail, months, t]);
-
   const renewCash = useCallback(async () => {
     if (submittingRef.current) return;
     if (!shopEmail) { setError(t('rnUnidentified')); return; }
     submittingRef.current = true;
     setLoading(true); setError('');
     try {
+      abortRef.current?.abort();
       abortRef.current = new AbortController();
       await api.post(
         `/api/subscriptions/renew/cash/${encodeURIComponent(shopEmail)}`,
-        { months, type: 'COMMISSION' },
+        { months: clampMonths(months), type: 'COMMISSION' },
         { signal: abortRef.current.signal, timeout: REQUEST_TIMEOUT_MS },
       );
       setView('pending');
@@ -591,10 +590,10 @@ const RenewalModal = memo(({ shopEmail, isPending, onClose, t }) => {
     finally { submittingRef.current = false; setLoading(false); }
   }, [shopEmail, months, t]);
 
-  const decMonths = useCallback(() => setMonths((m) => Math.max(1, m - 1)), []);
-  const incMonths = useCallback(() => setMonths((m) => Math.min(12, m + 1)), []);
+  const decMonths = useCallback(() => setMonths((m) => Math.max(MIN_MONTHS, m - 1)), []);
+  const incMonths = useCallback(() => setMonths((m) => Math.min(MAX_MONTHS, m + 1)), []);
 
-  const titles = { form: t('rnTitleForm'), pending: t('rnTitlePending'), redirect: t('rnTitleRedirect') };
+  const titles = { form: t('rnTitleForm'), pending: t('rnTitlePending') };
 
   return (
     <NbModal onClose={leave} icon={view === 'pending' ? FiClock : FiRefreshCw} title={titles[view]}>
@@ -607,8 +606,8 @@ const RenewalModal = memo(({ shopEmail, isPending, onClose, t }) => {
               <p className="mt-1 text-sm font-medium text-[color:var(--mut)]">{t('rnPendingText')}</p>
             </div>
             <ul className={`${PANEL} space-y-1.5 p-3.5 text-start text-xs font-semibold`}>
-              <li className="flex items-center gap-2"><FiCheckCircle className="h-3.5 w-3.5 flex-shrink-0 text-[color:var(--icon)]" /> {t('rnPendingNote1')}</li>
-              <li className="flex items-center gap-2"><FiCheckCircle className="h-3.5 w-3.5 flex-shrink-0 text-[color:var(--icon)]" /> {t('rnPendingNote2')}</li>
+              <li className="flex items-start gap-2"><FiCheckCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-[color:var(--icon)]" /> <span className="min-w-0">{t('rnPendingNote1')}</span></li>
+              <li className="flex items-start gap-2"><FiCheckCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-[color:var(--icon)]" /> <span className="min-w-0">{t('rnPendingNote2')}</span></li>
             </ul>
             <button type="button" onClick={leave} className={`${PRIMARY} w-full justify-center px-4 py-3 text-sm uppercase`}>{t('backToLogin')}</button>
           </div>
@@ -618,47 +617,32 @@ const RenewalModal = memo(({ shopEmail, isPending, onClose, t }) => {
           <div className="space-y-4">
             {error && <InlineError message={error} />}
 
-            <div className={`${PANEL} p-4`}>
+            <div className={`${PANEL} p-3.5 sm:p-4`}>
               <div className="mb-3 flex items-center justify-between gap-2">
                 <span className="text-[10px] font-extrabold uppercase tracking-widest text-[color:var(--mut)]">{t('rnFee')}</span>
                 <FiShield aria-hidden="true" className="h-4 w-4 text-[color:var(--icon)]" />
               </div>
-              <div className="flex items-end justify-between gap-3">
-                <p className="text-3xl font-extrabold tabular-nums tracking-tight"><span dir="ltr">{total.toLocaleString()}</span> <span className="text-sm font-semibold text-[color:var(--mut)]">{t('currency')}</span></p>
-                <div className="inline-flex items-center rounded-lg border-2 border-[color:var(--ink)] bg-[color:var(--field)] text-[color:var(--txt)] [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)]">
-                  <button type="button" aria-label={t('rnFewer')} onClick={decMonths} disabled={months <= 1} className={`flex h-9 w-9 cursor-pointer items-center justify-center transition-transform duration-150 active:scale-90 disabled:opacity-40 ${FOCUS}`}><FiMinus className="h-4 w-4" /></button>
+              <div className="flex flex-col items-stretch gap-3 min-[400px]:flex-row min-[400px]:items-end min-[400px]:justify-between">
+                <p className="min-w-0 text-3xl font-extrabold tabular-nums tracking-tight"><span dir="ltr">{total.toLocaleString()}</span> <span className="text-sm font-semibold text-[color:var(--mut)]">{t('currency')}</span></p>
+                <div className="inline-flex items-center self-start rounded-lg border-2 border-[color:var(--ink)] bg-[color:var(--field)] text-[color:var(--txt)] [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)] min-[400px]:self-auto">
+                  <button type="button" aria-label={t('rnFewer')} onClick={decMonths} disabled={months <= MIN_MONTHS} className={`flex h-11 w-11 cursor-pointer items-center justify-center transition-transform duration-150 active:scale-90 disabled:opacity-40 sm:h-10 sm:w-10 ${FOCUS}`}><FiMinus className="h-4 w-4" /></button>
                   <div className="min-w-[2.5rem] px-1 text-center" aria-live="polite">
                     <p className="text-sm font-extrabold leading-none">{months}</p>
                     <p className="text-[8px] font-extrabold uppercase text-[color:var(--mut)]">{t('rnMonthShort')}</p>
                   </div>
-                  <button type="button" aria-label={t('rnMore')} onClick={incMonths} disabled={months >= 12} className={`flex h-9 w-9 cursor-pointer items-center justify-center transition-transform duration-150 active:scale-90 disabled:opacity-40 ${FOCUS}`}><FiPlus className="h-4 w-4" /></button>
+                  <button type="button" aria-label={t('rnMore')} onClick={incMonths} disabled={months >= MAX_MONTHS} className={`flex h-11 w-11 cursor-pointer items-center justify-center transition-transform duration-150 active:scale-90 disabled:opacity-40 sm:h-10 sm:w-10 ${FOCUS}`}><FiPlus className="h-4 w-4" /></button>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label={t('rnPaymentMethod')}>
-              {PAYMENT_METHODS.map(([k, labelKey, Icon]) => (
-                <button key={k} type="button" role="radio" aria-checked={method === k} onClick={() => setMethod(k)}
-                  className={`${method === k ? PRIMARY : SECONDARY} flex-col justify-center gap-1.5 p-3 text-xs uppercase`}>
-                  <Icon aria-hidden="true" className="h-5 w-5" /> {t(labelKey)}
-                </button>
-              ))}
+            <div className={`${PANEL} flex items-center gap-3 p-3`}>
+              <span className={`${ICON_TILE} h-10 w-10`}><FiDollarSign aria-hidden="true" className="h-5 w-5" /></span>
+              <span className="min-w-0 text-sm font-extrabold uppercase">{t('payCash')}</span>
             </div>
 
-            <button type="button" onClick={method === 'card' ? renewCard : renewCash} disabled={loading} className={`${PRIMARY} w-full justify-center px-4 py-3 text-sm uppercase`}>
-              {loading ? <Spinner /> : method === 'card' ? t('rnPayCard') : t('rnSendCash')}
+            <button type="button" onClick={renewCash} disabled={loading} className={`${PRIMARY} w-full justify-center px-4 py-3 text-sm uppercase`}>
+              {loading ? <Spinner /> : t('rnSendCash')}
             </button>
-          </div>
-        )}
-
-        {view === 'redirect' && (
-          <div className="space-y-4 py-4 text-center">
-            <span className={`${ICON_TILE} mx-auto h-16 w-16`}><FiRefreshCw className="h-8 w-8 animate-spin motion-reduce:animate-none" /></span>
-            <div>
-              <h4 className="text-lg font-extrabold uppercase">{t('rnRedirecting')}</h4>
-              <p className="mt-1 text-sm font-medium text-[color:var(--mut)]">{t('rnHold')}</p>
-            </div>
-            <p className="flex items-center justify-center gap-2 text-xs font-extrabold uppercase tracking-widest text-[color:var(--icon)]"><Spinner /> {t('rnWait')}</p>
           </div>
         )}
       </div>
@@ -676,6 +660,7 @@ function Login({ darkMode = false }) {
   const t = getT(language);
   const st = getSignupT(language);
   const isAr = language === 'ar';
+  const showArt = useMinWidth(768);
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState(NO_ERRORS);
@@ -710,12 +695,14 @@ function Login({ darkMode = false }) {
 
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
+    if (!VALIDATORS[name]) return;
     setFormData((p) => ({ ...p, [name]: value }));
     setErrors((p) => ({ ...p, [name]: VALIDATORS[name](value, t), general: '', generalKey: '' }));
   }, [t]);
 
   const handleBlur = useCallback((e) => {
     const { name, value } = e.target;
+    if (!VALIDATORS[name]) return;
     setTouched((p) => ({ ...p, [name]: true }));
     setErrors((p) => ({ ...p, [name]: VALIDATORS[name](value, t) }));
   }, [t]);
@@ -725,7 +712,7 @@ function Login({ darkMode = false }) {
       const { data } = await api.get(`/api/subscriptions/renew/status/${encodeURIComponent(email)}`, { signal, timeout: REQUEST_TIMEOUT_MS });
       return checkLatestSubscription(data ? [data] : []);
     } catch {
-      return { expired: true, shopId: null };
+      return { expired: true, isPending: false };
     }
   }, []);
 
@@ -742,14 +729,14 @@ function Login({ darkMode = false }) {
 
   const clearPassword = useCallback(() => setFormData((p) => (p.password ? { ...p, password: '' } : p)), []);
 
-  const afterLogin = useCallback(async (session, shopId, signal) => {
+  const afterLogin = useCallback(async (session, signal) => {
     const redirectPath = canAccessArea(session.roles, 'admin') ? '/admin/dashboard' : redirectFor(session.roles, '/dashboard');
 
     if (session.email && session.roles.some((r) => SHOP_ROLES.has(r))) {
       const sub = await checkSubscription(session.email, signal);
       if (signal.aborted) return;
       if (sub.expired || sub.isPending) {
-        setRenewalData({ shopId: sub.shopId || shopId || null, shopEmail: session.email, accessToken: session.token, redirectPath, isPending: sub.isPending });
+        setRenewalData({ shopEmail: session.email, isPending: sub.isPending });
         return;
       }
     }
@@ -777,9 +764,11 @@ function Login({ darkMode = false }) {
   useEffect(() => {
     if (googleError || !hasGoogleMark()) return undefined;
     const controller = new AbortController();
+    abortRef.current = controller;
     setLoading(true);
     recoverGoogleSession()
-      .then((session) => (session && !controller.signal.aborted ? afterLogin(session, null, controller.signal) : undefined))
+      .then((session) => (session && !controller.signal.aborted ? afterLogin(session, controller.signal) : undefined))
+      .catch(() => { })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [googleError, afterLogin]);
@@ -796,6 +785,7 @@ function Login({ darkMode = false }) {
     const email = normalizeEmail(formData.email);
 
     submittingRef.current = true;
+    abortRef.current?.abort();
     abortRef.current = new AbortController();
     const { signal } = abortRef.current;
     setLoading(true);
@@ -810,18 +800,16 @@ function Login({ darkMode = false }) {
 
       clearThrottle();
       clearPassword();
-      await afterLogin(session, res.data.shopId || res.data.shop?.id, signal);
+      await afterLogin(session, signal);
     } catch (err) {
       if (isCanceled(err)) return;
       const raw = err.response?.data?.message || err.message || '';
       const { key, message, isExpired } = parseError(raw, t);
 
       if (isExpired) {
-        const shopId = err.response?.data?.shopId || err.response?.data?.shop?.id || err.response?.data?.id || null;
-        const accessToken = err.response?.data?.access_token || null;
         const isPending = email ? (await checkSubscription(email, signal)).isPending : false;
         clearPassword();
-        setRenewalData({ shopId, shopEmail: email, accessToken, redirectPath: '/shop/dashboard', isPending });
+        setRenewalData({ shopEmail: email, isPending });
         return;
       }
 
@@ -853,42 +841,44 @@ function Login({ darkMode = false }) {
   return (
     <div
       dir={languageDirection(language)} lang={language}
-      className={`au-root au-pattern ${darkMode ? 'au-pattern-dark' : ''} ${THEME[darkMode ? 'dark' : 'light']} relative min-h-screen overflow-x-hidden bg-[color:var(--page)] text-[color:var(--txt)]`}
+      className={`au-root au-pattern ${darkMode ? 'au-pattern-dark' : ''} ${THEME[darkMode ? 'dark' : 'light']} relative min-h-screen min-h-[100dvh] overflow-x-hidden bg-[color:var(--page)] text-[color:var(--txt)]`}
     >
       <Toaster darkMode={darkMode} />
 
-      <header className="fixed inset-x-0 top-0 z-40 bg-[color:var(--page)]">
+      <header className="fixed inset-x-0 top-0 z-40 bg-[color:var(--page)] pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           <Link to="/" aria-label="Tech Restore" className={`flex-shrink-0 rounded-md ${FOCUS}`}>
-            <img src={logo} alt="Tech Restore" className="h-9 w-auto" width={120} height={36} decoding="async" />
+            <img src={logo} alt="Tech Restore" className="h-8 w-auto sm:h-9" width={120} height={36} decoding="async" fetchpriority="high" />
           </Link>
-          <div className="flex items-center gap-3">
-            <span className="hidden text-sm font-semibold text-[color:var(--mut)] sm:block">{t('noAccount')}</span>
-            <Link to="/signup" className={`${PRIMARY} justify-center px-4 py-2 text-xs uppercase sm:text-sm`}>{t('signUp')}</Link>
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="hidden truncate text-sm font-semibold text-[color:var(--mut)] sm:block">{t('noAccount')}</span>
+            <Link to="/signup" className={`${PRIMARY} flex-shrink-0 justify-center px-3 py-2 text-xs uppercase sm:px-4 sm:text-sm`}>{t('signUp')}</Link>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto grid min-h-screen max-w-6xl items-center gap-8 px-4 pb-10 pt-24 sm:px-6 md:grid-cols-2 lg:gap-14 lg:px-8">
-        <div className="au-in hidden md:block">
-          <div className="mx-auto max-w-lg p-6">
-            <LoginIllustration />
-          </div>
-        </div>
-
-        <div className="mx-auto w-full max-w-md space-y-6 md:mx-0">
+      <main className="mx-auto grid min-h-screen min-h-[100dvh] max-w-6xl items-center gap-8 px-4 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-[calc(5rem+env(safe-area-inset-top))] sm:px-6 sm:pt-[calc(6rem+env(safe-area-inset-top))] md:grid-cols-2 lg:gap-14 lg:px-8">
+        {showArt && (
           <div className="au-in">
-            <h1 className={`text-3xl font-extrabold [text-wrap:balance] sm:text-4xl lg:text-5xl ${isAr ? 'leading-[1.4] tracking-normal' : 'leading-[1.15] tracking-[-0.04em]'}`}>
+            <div className="mx-auto max-w-sm p-2 lg:max-w-lg lg:p-6">
+              <LoginIllustration />
+            </div>
+          </div>
+        )}
+
+        <div className="mx-auto w-full min-w-0 max-w-md space-y-5 sm:space-y-6 md:mx-0">
+          <div className="au-in">
+            <h1 className={`break-words text-[1.75rem] font-extrabold [text-wrap:balance] sm:text-4xl lg:text-5xl ${isAr ? 'leading-[1.4] tracking-normal' : 'leading-[1.15] tracking-[-0.04em]'}`}>
               {t('titleBefore')}{' '}<span className={darkMode ? 'au-hl-dark' : 'au-hl'}>{t('titleAccent')}</span>
             </h1>
-            <p className="mt-4 text-base font-medium leading-relaxed text-[color:var(--mut)] sm:text-lg">{t('subtitle')}</p>
+            <p className="mt-3 text-sm font-medium leading-relaxed text-[color:var(--mut)] sm:mt-4 sm:text-lg">{t('subtitle')}</p>
           </div>
 
           <div style={{ '--i': 1 }} className={`au-in space-y-5 p-4 sm:p-6 ${CARD}`}>
             <form onSubmit={handleSubmit} className="space-y-4" noValidate aria-busy={loading}>
               <AuthInput id="login-email" label={t('emailLabel')} type="email" name="email" icon={FiMail}
                 autoComplete="email" autoCapitalize="none" spellCheck={false} required placeholder="you@example.com" disabled={loading} dir="ltr"
-                maxLength={254} value={formData.email} onChange={handleChange} onBlur={handleBlur}
+                maxLength={MAX_EMAIL_LENGTH} value={formData.email} onChange={handleChange} onBlur={handleBlur}
                 error={touched.email ? errors.email : ''} />
 
               <AuthInput id="login-password" label={t('passwordLabel')} type={showPassword ? 'text' : 'password'} name="password" icon={FiLock}
@@ -915,8 +905,8 @@ function Login({ darkMode = false }) {
               <span className="h-0 flex-1 border-t-2 border-dotted border-[color:var(--ink)] opacity-40" />
             </div>
 
-            <a href={GOOGLE_AUTH_URL} onClick={handleGoogle} aria-disabled={loading} className={`${SECONDARY} w-full justify-center px-4 py-3 text-sm`}>
-              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" width={18} height={18} loading="lazy" decoding="async" referrerPolicy="no-referrer" />
+            <a href={GOOGLE_AUTH_URL} onClick={handleGoogle} rel="noopener noreferrer" aria-disabled={loading} className={`${SECONDARY} w-full justify-center px-4 py-3 text-sm`}>
+              <GoogleIcon />
               {t('google')}
             </a>
 

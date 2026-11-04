@@ -1,12 +1,15 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef, useId, useDeferredValue, memo } from 'react';
+import React, {
+  useState, useEffect, useCallback, useMemo, useRef, useId, useDeferredValue, memo,
+} from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useQuery, useQueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
-  FiBox, FiInfo, FiCalendar, FiXCircle, FiSearch, FiX, FiCheck, FiTruck, FiFilter, FiChevronDown,
-  FiChevronLeft, FiChevronRight, FiArrowLeft, FiRotateCcw, FiShoppingBag,
+  FiBox, FiInfo, FiXCircle, FiSearch, FiX, FiCheck, FiTruck, FiFilter, FiChevronDown,
+  FiChevronLeft, FiChevronRight, FiArrowLeft, FiRotateCcw, FiShoppingBag, FiClock,
 } from 'react-icons/fi';
-import { jwtDecode } from 'jwt-decode';
 import api from '../common/api/api';
+import queryClient from '../common/utils/queryClient';
+import { authHeaders, useAuthGuard } from '../common/utils/auth';
 import { useAppLanguage, languageDirection } from '../common/utils/useAppLanguage';
 import { resolveImageSrc } from '../common/utils/productutils';
 import { markImg, isImgOk, isImgBad } from '../common/utils/imageCache';
@@ -14,77 +17,101 @@ import enTranslations from '../locales/en/translation.json';
 import arTranslations from '../locales/ar/translation.json';
 import frTranslations from '../locales/fr/translation.json';
 import { safeImageUrl } from '../components/user/ListingKit';
+import { EXTRAS_CSS, Toaster, toast } from '../components/user/UiExtras';
+
+const HL_URL = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2339ff88' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E")`;
 
 const CSS = `
-.nb{--nb-bg:#f3f4f6;--nb-card:#fff;--nb-ink:#111827;--nb-muted:#6b7280;--nb-line:#e5e7eb;--nb-line2:#d1d5db;--nb-shadow:rgba(17,24,39,.08);--nb-gray:#f3f4f6;--nb-accent:#059669;--nb-btn:#059669;--nb-on:#fff;background:var(--nb-bg);color:var(--nb-ink)}
-.nb-dark{--nb-bg:#141414;--nb-card:#1e1e1e;--nb-ink:#fff;--nb-muted:#a3a3a3;--nb-line:rgba(255,255,255,.12);--nb-line2:rgba(255,255,255,.22);--nb-shadow:rgba(0,0,0,.4);--nb-gray:#262626;--nb-accent:#34d399;--nb-btn:#10b981;--nb-on:#022c22;color-scheme:dark}
+@font-face{font-family:'Poppins Fallback';src:local('Arial'),local('Helvetica');size-adjust:112.6%;ascent-override:93.4%;descent-override:35.2%;line-gap-override:7.4%}
+.nb{--dx:1;--nb-bg:#ffffff;--nb-card:#ffffff;--nb-ink:#052e1e;--nb-muted:rgba(5,46,30,.68);--nb-line:#e5e7eb;--nb-line2:#000000;--nb-bd:#000000;--nb-shd:#000000;--nb-gray:#f3f4f6;--nb-accent:#059669;--nb-btn:#39ff88;--nb-btn2:#7dffb0;--nb-on:#022c22;--nb-ring:#059669;--nb-scrim:rgba(0,0,0,.6);
+--nb-sh2:calc(var(--dx)*2px) 2px 0 0 var(--nb-shd);--nb-sh3:calc(var(--dx)*3px) 3px 0 0 var(--nb-shd);--nb-sh4:calc(var(--dx)*4px) 4px 0 0 var(--nb-shd);--nb-sh8:calc(var(--dx)*8px) 8px 0 0 var(--nb-shd);
+background:var(--nb-bg);color:var(--nb-ink);color-scheme:light;font-family:'Poppins','Poppins Fallback',ui-sans-serif,system-ui,-apple-system,'Segoe UI','Cairo',sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.nb[dir=rtl]{--dx:-1}
+.nb-dark{--nb-bg:#141414;--nb-card:#1c1c1e;--nb-ink:#ffffff;--nb-muted:rgba(255,255,255,.66);--nb-line:rgba(255,255,255,.16);--nb-line2:rgba(255,255,255,.16);--nb-bd:rgba(255,255,255,.16);--nb-shd:#0b4a35;--nb-gray:#2a2a2e;--nb-accent:#39ff88;--nb-ring:#39ff88;--nb-scrim:rgba(0,0,0,.72);color-scheme:dark}
+.nb[lang=ar]{font-family:'Cairo','Poppins',ui-sans-serif,system-ui,sans-serif}
+.nb[lang=ar] *{letter-spacing:0!important}
+.nb button,.nb input,.nb textarea{font-family:inherit}
 .nb-gray{background:var(--nb-gray)}
 .nb-muted{color:var(--nb-muted)}
 .nb-ic{color:var(--nb-accent)}
 .nb-line{border-color:var(--nb-line)}
-.nb-card{background:var(--nb-card);border:1px solid var(--nb-line);border-radius:.875rem;box-shadow:0 1px 2px var(--nb-shadow)}
-.nb-row{content-visibility:auto;contain-intrinsic-size:auto 220px}
-.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nb-card);color:var(--nb-ink);border:1px solid var(--nb-line2);border-radius:.6rem;font-weight:700;cursor:pointer;transition:transform .15s ease,background-color .15s ease,filter .15s ease}
-.nb-btn:hover:not(:disabled){background:var(--nb-gray)}
-.nb-btn:active:not(:disabled){transform:scale(.97)}
+.nb-bd{border-color:var(--nb-bd)}
+.nb-hl{padding-bottom:.2em;background:${HL_URL} left bottom/100% .3em no-repeat;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.nb[dir=rtl] .nb-hl{background-position:right bottom}
+.nb-card{background:var(--nb-card);border:3px solid var(--nb-bd);border-radius:16px;box-shadow:var(--nb-sh4)}
+.nb-big{box-shadow:var(--nb-sh8)}
+.nb-row{content-visibility:auto;contain-intrinsic-size:auto 280px}
+.nb-band{background:var(--nb-btn);color:var(--nb-on);border-bottom:3px solid #000}
+.nb-band .nb-muted{color:rgba(2,44,34,.72)}
+.nb-chip{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid #000;border-radius:8px;background:var(--nb-btn);color:var(--nb-on)}
+.nb-chip-bad{background:#fb7185;color:#000}
+.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-bd);border-radius:12px;box-shadow:var(--nb-sh3);font-weight:700;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease,background-color .15s ease,color .15s ease}
+@media (hover:hover){.nb-btn:hover:not(:disabled){background:var(--nb-btn);color:var(--nb-on);border-color:#000;box-shadow:var(--nb-sh4);transform:translate3d(0,-1px,0)}}
+.nb-btn:active:not(:disabled){transform:translate3d(0,2px,0);box-shadow:none}
 .nb-btn:disabled{opacity:.45;cursor:not-allowed}
-.nb-btn-a{background:var(--nb-btn);color:var(--nb-on);border-color:transparent}
-.nb-btn-a:hover:not(:disabled){background:var(--nb-btn);filter:brightness(1.07)}
-.nb-btn-d{background:#e11d48;color:#fff;border-color:transparent}
-.nb-btn-d:hover:not(:disabled){background:#e11d48;filter:brightness(1.07)}
-.nb-btn:focus-visible,.nb-focus:focus-visible,.nb-sel:focus-visible{outline:3px solid var(--nb-btn);outline-offset:2px}
-.nb-field{background:var(--nb-card);color:var(--nb-ink);border:1px solid var(--nb-line2);border-radius:.6rem}
-.nb-field:focus-within{border-color:var(--nb-btn);box-shadow:0 0 0 3px rgba(16,185,129,.2)}
+.nb-btn-a{background:var(--nb-btn);color:var(--nb-on);border:3px solid #000;box-shadow:var(--nb-sh4)}
+@media (hover:hover){.nb-btn-a:hover:not(:disabled){background:var(--nb-btn2)}}
+.nb-btn-d{background:#fb7185;color:#000;border:3px solid #000;box-shadow:var(--nb-sh4)}
+@media (hover:hover){.nb-btn-d:hover:not(:disabled){background:#fda4af;color:#000}}
+.nb-btn:focus-visible,.nb-focus:focus-visible,.nb-sel:focus-visible{outline:3px solid var(--nb-ring);outline-offset:2px}
+.nb-field{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-bd);border-radius:12px;box-shadow:var(--nb-sh3);transition:box-shadow .15s ease}
+@media (hover:hover){.nb-field:hover{box-shadow:var(--nb-sh4)}}
+.nb-field:focus-within{outline:3px solid var(--nb-ring);outline-offset:2px}
 .nb-flip{display:inline-block}
 [dir=rtl] .nb-flip{transform:scaleX(-1)}
-.nb-chk{display:flex;width:100%;align-items:center;gap:10px;padding:7px 8px;border-radius:.5rem;font-size:12px;font-weight:700;cursor:pointer}
+.nb-chk{display:flex;width:100%;align-items:center;gap:10px;padding:7px 8px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer}
 .nb-chk:hover{background:var(--nb-gray)}
-.nb-chk input{width:16px;height:16px;accent-color:var(--nb-btn)}
-.nb-menu{background:var(--nb-card);color:var(--nb-ink);border:1px solid var(--nb-line2);border-radius:.75rem;box-shadow:0 12px 28px rgba(0,0,0,.18)}
-.nb-opt{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;font-size:12px;font-weight:700;text-align:start;cursor:pointer}
+.nb-chk input{width:16px;height:16px;accent-color:var(--nb-accent)}
+.nb-menu{background:var(--nb-card);color:var(--nb-ink);border:3px solid var(--nb-bd);border-radius:16px;box-shadow:var(--nb-sh4)}
+.nb-opt{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;font-size:12px;font-weight:600;text-align:start;cursor:pointer}
 .nb-opt-active{background:var(--nb-gray)}
 .nb-opt[aria-selected=true]{background:var(--nb-btn);color:var(--nb-on)}
+.nb-sk{background:linear-gradient(90deg,var(--nb-gray) 25%,color-mix(in srgb,var(--nb-gray) 45%,var(--nb-card)) 50%,var(--nb-gray) 75%);background-size:220% 100%;border-radius:8px;animation:nbShimmer 1.5s linear infinite}
+@keyframes nbShimmer{from{background-position:120% 0}to{background-position:-120% 0}}
 @keyframes nbPop{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:none}}
 .nb-pop{animation:nbPop .14s ease-out both;transform-origin:top}
 @keyframes nbFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
 .nb-float{animation:nbFloat 4s ease-in-out infinite}
 .nb-float-2{animation:nbFloat 5s ease-in-out .6s infinite}
-@keyframes nbIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-.nb-in{animation:nbIn .22s cubic-bezier(.2,.8,.2,1) both}
+@keyframes nbIn{from{opacity:0;transform:translate3d(0,10px,0)}to{opacity:1;transform:none}}
+.nb-in{animation:nbIn .3s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*40ms)}
 @keyframes mdlFade{from{opacity:0}to{opacity:1}}
 @keyframes mdlPop{from{opacity:0;transform:translate3d(0,14px,0) scale(.97)}to{opacity:1;transform:none}}
 .mdl-overlay{animation:mdlFade .14s ease-out both}
 .mdl-panel{animation:mdlPop .18s cubic-bezier(.16,1,.3,1) both}
-@media (prefers-reduced-motion:reduce){.nb-in,.mdl-overlay,.mdl-panel,.nb-pop,.nb-float,.nb-float-2{animation:none!important}.nb-btn{transition:none}}
+@media (prefers-reduced-motion:reduce){.nb-in,.mdl-overlay,.mdl-panel,.nb-pop,.nb-float,.nb-float-2,.nb-sk{animation:none!important}.nb-btn,.nb-field{transition:none}.nb-btn:hover:not(:disabled){transform:none}}
 `;
-const STYLE_EL = <style>{CSS}</style>;
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 30_000,
-      refetchOnWindowFocus: false,
-      retry: (n, err) => n < 2 && ![400, 401, 403, 404].includes(err?.response?.status),
-    },
-  },
-});
+if (typeof document !== 'undefined' && !document.querySelector('style[data-myorders-styles]')) {
+  const tag = document.createElement('style');
+  tag.setAttribute('data-myorders-styles', 'true');
+  tag.textContent = `${EXTRAS_CSS}${CSS}`;
+  document.head.appendChild(tag);
+}
+
+const shouldRetry = (n, err) => n < 2 && ![400, 401, 403, 404].includes(err?.response?.status);
 
 const POLL_MS = 20_000;
 const PER_PAGE = 6;
+const ID_RE = /^[\w-]{1,64}$/;
 const ACCOUNT_TR = { en: enTranslations.account, ar: arTranslations.account, fr: frTranslations.account };
 const tr = (lang, key, fallback) => ACCOUNT_TR[lang]?.[key] || ACCOUNT_TR.en?.[key] || fallback || key;
 
 const ORDER_STEPS = ['PENDING', 'CONFIRMED', 'PROCESSING', 'FINISHPROCESSING', 'SHIPPED', 'DELIVERED'];
 const ORDER_STATUSES = [...ORDER_STEPS, 'CANCELLED'];
 const FINAL = new Set(['DELIVERED', 'CANCELLED']);
-const TONES = { DELIVERED: 'bg-emerald-500', CANCELLED: 'bg-rose-500', CONFIRMED: 'bg-sky-500', SHIPPED: 'bg-violet-500', PROCESSING: 'bg-teal-500', FINISHPROCESSING: 'bg-teal-500' };
+const TONES = { DELIVERED: 'bg-[#39ff88]', CANCELLED: 'bg-rose-500' };
 const PERIODS = [['all', 'All time', 0], ['3m', 'Last 3 months', 3], ['6m', 'Last 6 months', 6], ['12m', 'Last 12 months', 12]];
 const SORTS = [['newest', 'Newest first'], ['oldest', 'Oldest first'], ['price_desc', 'Highest price'], ['price_asc', 'Lowest price']];
 const PERIOD_OPTIONS = PERIODS.map(([value, label]) => ({ value, label }));
 const SORT_OPTIONS = SORTS.map(([value, label]) => ({ value, label }));
 const MONTH_MS = 30.44 * 24 * 3600 * 1000;
+const SK_ROWS = [0, 1, 2];
+const STAGGER = Array.from({ length: PER_PAGE }, (_, i) => ({ '--i': i }));
+const QUERY_OPTS = { refetchOnWindowFocus: false };
 
 const EMPTY_MAP = {};
+const EMPTY_LIST = [];
 const IMAGE_FIELDS = ['imageUrl', 'productImageUrl', 'productImage', 'image', 'thumbnailUrl', 'imagePath'];
 const ABSOLUTE_HTTP = /^https?:\/\//i;
 const isSafeSrc = (v) => ABSOLUTE_HTTP.test(v) || (v.startsWith('/') && !v.startsWith('//'));
@@ -116,7 +143,7 @@ const productIdOf = (item) => {
 };
 
 const enrichOrder = (order, imageMap) => {
-  const items = Array.isArray(order.orderItems) ? order.orderItems : [];
+  const items = Array.isArray(order.orderItems) ? order.orderItems : EMPTY_LIST;
   return { ...order, orderItems: items.map((it) => ({ ...it, _img: pickItemImage(it) || imageMap[productIdOf(it)] || null })) };
 };
 
@@ -132,13 +159,6 @@ const friendlyError = (err, fallback) => {
   if (status === 401) return 'Your session has expired. Please log in again.';
   if (status === 403) return 'You are not allowed to perform this action.';
   return fallback;
-};
-
-let swalPromise;
-const toast = async ({ icon = 'success', title, text, timer = 2500 }) => {
-  swalPromise ||= import('sweetalert2').then((m) => m.default);
-  const Swal = await swalPromise;
-  Swal.fire({ toast: true, position: 'top-end', icon, title, text, timer, timerProgressBar: true, showConfirmButton: false });
 };
 
 const fmtShortIntl = new Intl.DateTimeFormat('en-EG', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -159,13 +179,21 @@ const progressOf = (status) => {
   return i < 0 ? 0 : Math.round((i / (ORDER_STEPS.length - 1)) * 100);
 };
 
+const IconTile = memo(({ Icon, className = 'h-9 w-9', iconClassName = 'h-4 w-4' }) => (
+  <span aria-hidden="true" className={`nb-chip !rounded-xl ${className}`}>
+    <Icon className={iconClassName} />
+  </span>
+));
+
+const Sk = ({ className = '' }) => <div aria-hidden="true" className={`nb-sk ${className}`} />;
+
 const Btn = ({ tone, className = '', children, ...rest }) => (
   <button type="button" className={`nb-btn ${tone === 'danger' ? 'nb-btn-d' : tone === 'soft' ? '' : 'nb-btn-a'} ${className}`} {...rest}>{children}</button>
 );
 
 const StatusLabel = memo(({ status, t }) => (
-  <span className="nb-gray inline-flex flex-shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-extrabold">
-    <span aria-hidden="true" className={`h-2 w-2 rounded-full ${TONES[status] || 'bg-amber-400'}`} />
+  <span className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full border-2 border-black bg-white px-2.5 py-1 text-[11px] font-bold text-emerald-950">
+    <span aria-hidden="true" className={`h-2 w-2 rounded-full ring-1 ring-black/40 ${TONES[status] || 'bg-amber-400'}`} />
     {t(`status_${status}`, humanize(status))}
   </span>
 ));
@@ -175,13 +203,13 @@ const ProgressBar = memo(({ progress, label }) => {
   const pct = bad ? 100 : progress;
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between gap-2 text-[11px] font-bold">
+      <div className="mb-1.5 flex items-center justify-between gap-2 text-[11px] font-semibold">
         <span className="truncate">{label}</span>
         {!bad && <span dir="ltr" className="nb-muted tabular-nums">{pct}%</span>}
       </div>
-      <div className="nb-gray h-2 overflow-hidden rounded-full">
+      <div className="nb-gray nb-bd h-3 overflow-hidden rounded-full border-2">
         <div
-          className={`h-full w-full origin-left rounded-full transition-transform duration-300 rtl:origin-right motion-reduce:transition-none ${bad ? 'bg-rose-500' : 'bg-[color:var(--nb-accent)]'}`}
+          className={`h-full w-full origin-left rounded-full transition-transform duration-500 ease-out rtl:origin-right motion-reduce:transition-none ${bad ? 'bg-rose-500' : 'bg-[#39ff88]'}`}
           style={{ transform: `scaleX(${pct / 100})` }}
         />
       </div>
@@ -214,7 +242,7 @@ const ItemThumb = memo(({ src, name, ratio = 'aspect-square' }) => {
     <div className={`relative w-full overflow-hidden bg-white [contain:layout_paint] ${ratio}`}>
       {src && !failed ? (
         <>
-          {!loaded && <div aria-hidden="true" className="absolute inset-0 animate-pulse bg-black/5 motion-reduce:animate-none" />}
+          {!loaded && <div aria-hidden="true" className="nb-sk absolute inset-0 !rounded-none" />}
           <img
             ref={imgRef} src={src} alt={name || ''} width={400} height={300} loading="lazy" decoding="async"
             fetchPriority="low" referrerPolicy="no-referrer" onLoad={onLoad} onError={onError}
@@ -222,7 +250,7 @@ const ItemThumb = memo(({ src, name, ratio = 'aspect-square' }) => {
           />
         </>
       ) : (
-        <div aria-hidden="true" className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600">
+        <div aria-hidden="true" className="nb-gray nb-ic absolute inset-0 flex items-center justify-center">
           <FiBox className="h-1/3 w-1/3" />
         </div>
       )}
@@ -234,7 +262,7 @@ const ItemThumbButton = memo(({ item, onPreview, className = '' }) => {
   const open = useCallback(() => onPreview(item), [onPreview, item]);
   return (
     <button type="button" onClick={open} aria-label={`Preview image: ${item.productName || ''}`}
-      className={`nb-focus relative flex-shrink-0 cursor-zoom-in overflow-hidden rounded-lg border border-[color:var(--nb-line)] bg-white ${className}`}>
+      className={`nb-focus nb-bd relative flex-shrink-0 cursor-zoom-in overflow-hidden rounded-xl border-2 bg-white ${className}`}>
       <ItemThumb src={item._img} name={item.productName} />
     </button>
   );
@@ -261,9 +289,9 @@ const ModalFrame = ({ onClose, size = 'sm:max-w-lg', label, role = 'dialog', chi
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-end justify-center p-0 sm:items-center sm:p-4">
-      <div className="mdl-overlay absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
+      <div className="mdl-overlay absolute inset-0 bg-[color:var(--nb-scrim)]" onClick={onClose} aria-hidden="true" />
       <div ref={panelRef} tabIndex={-1} role={role} aria-modal="true" aria-label={label}
-        className={`nb-card mdl-panel relative flex max-h-[92vh] w-full flex-col overflow-hidden !rounded-b-none shadow-2xl outline-none sm:!rounded-2xl ${size}`}>
+        className={`nb-card nb-big mdl-panel relative flex max-h-[92vh] w-full flex-col overflow-hidden !rounded-b-none outline-none sm:!rounded-2xl ${size}`}>
         {children}
       </div>
     </div>
@@ -272,27 +300,27 @@ const ModalFrame = ({ onClose, size = 'sm:max-w-lg', label, role = 'dialog', chi
 
 const Sheet = ({ onClose, title, subtitle, size, footer, children }) => (
   <ModalFrame onClose={onClose} size={size} label={title}>
-    <header className="nb-gray nb-line flex flex-shrink-0 items-center gap-3 border-b px-4 py-3.5 sm:px-5">
-      <span aria-hidden="true" className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-amber-400 text-[#04261a]"><FiBox className="h-5 w-5" /></span>
+    <header className="nb-band flex flex-shrink-0 items-center gap-3 px-4 py-3.5 sm:px-5">
+      <span aria-hidden="true" className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border-2 border-black bg-white text-emerald-950"><FiBox className="h-5 w-5" /></span>
       <div className="min-w-0 flex-1">
-        <h2 className="truncate text-base font-extrabold">{title}</h2>
-        {subtitle && <p className="nb-muted mt-0.5 truncate text-[11px] font-bold">{subtitle}</p>}
+        <h2 className="truncate text-base font-bold">{title}</h2>
+        {subtitle && <p className="nb-muted mt-0.5 truncate text-[11px] font-semibold">{subtitle}</p>}
       </div>
-      <button type="button" onClick={onClose} aria-label="Close" className="nb-btn h-9 w-9 flex-shrink-0 !rounded-full"><FiX className="h-4 w-4" /></button>
+      <button type="button" onClick={onClose} aria-label="Close" className="nb-btn h-9 w-9 flex-shrink-0 !bg-white !text-emerald-950"><FiX className="h-4 w-4" /></button>
     </header>
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">{children}</div>
-    {footer && <footer className="nb-line flex-shrink-0 border-t px-4 py-3.5 sm:px-5">{footer}</footer>}
+    {footer && <footer className="nb-line flex-shrink-0 border-t-2 px-4 py-3.5 sm:px-5">{footer}</footer>}
   </ModalFrame>
 );
 
 const ConfirmDialog = memo(({ dlg, onSettle, onClose }) => (
   <ModalFrame onClose={onClose} size="sm:max-w-md" label={dlg.title} role="alertdialog">
     <div className="px-6 pb-6 pt-8 text-center">
-      <span aria-hidden="true" className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-500 text-white"><FiXCircle className="h-7 w-7" /></span>
-      <h2 className="mt-4 text-xl font-extrabold">{dlg.title}</h2>
-      <p className="nb-muted mx-auto mt-3 max-w-xs text-sm font-medium leading-relaxed">{dlg.text}</p>
+      <span aria-hidden="true" className="nb-chip nb-chip-bad mx-auto h-16 w-16 !rounded-full"><FiXCircle className="h-7 w-7" /></span>
+      <h2 className="mt-4 text-xl font-bold">{dlg.title}</h2>
+      <p className="nb-muted mx-auto mt-3 max-w-xs text-sm font-normal leading-relaxed">{dlg.text}</p>
     </div>
-    <div className="nb-gray nb-line grid grid-cols-2 gap-3 border-t px-5 py-4">
+    <div className="nb-gray nb-line grid grid-cols-2 gap-3 border-t-2 px-5 py-4">
       <Btn tone="soft" onClick={onClose} className="py-3 text-sm">{dlg.cancelText}</Btn>
       <Btn tone="danger" onClick={() => { onSettle(true); onClose(); }} className="py-3 text-sm">{dlg.confirmText}</Btn>
     </div>
@@ -318,58 +346,68 @@ const Pagination = memo(({ page, total, onChange, t }) => {
   const out = [];
   nums.forEach((x, i) => { if (i && x - nums[i - 1] > 1) out.push(`gap-${x}`); out.push(x); });
   return (
-    <nav aria-label="Pagination" className="flex flex-wrap items-center justify-center gap-2 pt-8">
+    <nav aria-label="Pagination" className="flex flex-wrap items-center justify-center gap-3 pt-8">
       <button type="button" className="nb-btn h-10 w-10" disabled={page <= 1} onClick={() => onChange(page - 1)} aria-label={t('prevPage', 'Previous page')}><FiChevronLeft className="nb-flip h-4 w-4" /></button>
       {out.map((x) => (typeof x === 'number' ? (
         <button key={x} type="button" onClick={() => onChange(x)} aria-label={`${t('page', 'Page')} ${x}`} aria-current={x === page ? 'page' : undefined}
           className={`nb-btn h-10 min-w-[2.5rem] px-2 text-sm tabular-nums ${x === page ? 'nb-btn-a' : ''}`}>{x}</button>
-      ) : <span key={x} aria-hidden="true" className="px-1 font-extrabold">…</span>))}
+      ) : <span key={x} aria-hidden="true" className="nb-muted px-1 font-bold">…</span>))}
       <button type="button" className="nb-btn h-10 w-10" disabled={page >= total} onClick={() => onChange(page + 1)} aria-label={t('nextPage', 'Next page')}><FiChevronRight className="nb-flip h-4 w-4" /></button>
     </nav>
   );
 });
 
-const OrderRow = memo(({ order, t, onDetails, onCancel, onPreview }) => {
-  const items = order.orderItems || [];
+const MetaCell = ({ label, children }) => (
+  <div className="min-w-0">
+    <p className="nb-muted text-[11px] font-semibold">{label}</p>
+    <p className="mt-0.5 truncate text-sm font-bold">{children}</p>
+  </div>
+);
+
+const OrderRow = memo(({ order, index, t, onDetails, onCancel, onPreview }) => {
+  const items = order.orderItems || EMPTY_LIST;
   const count = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0) || items.length;
   const canCancel = !FINAL.has(order.status);
   const payment = hasValue(order.paymentMethod) ? String(order.paymentMethod).replace('_', ' ') : '—';
   const shown = items.slice(0, 4);
   const extra = items.length - shown.length;
   return (
-    <article className="nb-card nb-row nb-in flex flex-col gap-3 p-3.5 sm:p-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="truncate font-mono text-xs font-extrabold tracking-wide">ORD #{String(order.id).slice(0, 8).toUpperCase()}</p>
-          {hasValue(order.createdAt) && <p className="nb-muted mt-0.5 flex items-center gap-1 text-[11px] font-semibold"><FiCalendar aria-hidden="true" className="h-3 w-3" />{fmtShort(order.createdAt)}</p>}
+    <article style={STAGGER[index % PER_PAGE]} className="nb-in nb-card nb-row overflow-hidden">
+      <div className="nb-band flex flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3 sm:px-5">
+        <div className="flex min-w-0 flex-wrap gap-x-8 gap-y-2">
+          <MetaCell label={t('orderPlaced', 'Order placed')}>{hasValue(order.createdAt) ? fmtShort(order.createdAt) : '—'}</MetaCell>
+          <MetaCell label={t('total', 'Total')}><span dir="ltr">{hasValue(order.totalPrice) ? `EGP ${order.totalPrice}` : '—'}</span></MetaCell>
+          <MetaCell label={t('paymentMethod', 'Payment method')}>{payment}</MetaCell>
         </div>
-        <StatusLabel status={order.status} t={t} />
+        <div className="flex min-w-0 flex-col items-start gap-1.5 sm:items-end">
+          <p dir="ltr" className="truncate text-xs font-bold tabular-nums">ORD #{String(order.id).slice(0, 8).toUpperCase()}</p>
+          <StatusLabel status={order.status} t={t} />
+        </div>
       </div>
 
-      <ul className="grid gap-2.5 sm:grid-cols-2">
-        {shown.map((it, i) => (
-          <li key={it.id ?? i} className="flex items-center gap-3">
-            <ItemThumbButton item={it} onPreview={onPreview} className="w-16" />
-            <div className="min-w-0 flex-1">
-              <p className="line-clamp-2 text-sm font-bold leading-snug">{it.productName || '—'}</p>
-              <p className="nb-muted truncate text-xs font-semibold">{it.shopName || '—'}</p>
-              <p dir="ltr" className="nb-muted text-xs font-semibold rtl:text-end">{it.quantity} × EGP {Number(it.priceAtCheckout || 0).toFixed(2)}</p>
-            </div>
-          </li>
-        ))}
-      </ul>
-      {extra > 0 && <p dir="ltr" className="nb-muted text-xs font-bold rtl:text-end">+{extra} {t('items', 'items')}</p>}
+      <div className="space-y-4 p-4 sm:p-5">
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {shown.map((it, i) => (
+            <li key={it.id ?? i} className="flex items-center gap-3">
+              <ItemThumbButton item={it} onPreview={onPreview} className="w-16" />
+              <div className="min-w-0 flex-1">
+                <p className="line-clamp-2 text-sm font-bold leading-snug">{it.productName || '—'}</p>
+                <p className="nb-muted truncate text-xs font-medium">{it.shopName || '—'}</p>
+                <p dir="ltr" className="nb-muted text-xs font-medium rtl:text-end">{it.quantity} × EGP {Number(it.priceAtCheckout || 0).toFixed(2)}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+        {extra > 0 && <p dir="ltr" className="nb-muted text-xs font-semibold rtl:text-end">+{extra} {t('items', 'items')}</p>}
 
-      <ProgressBar progress={progressOf(order.status)} label={t(`status_${order.status}`, humanize(order.status))} />
+        <ProgressBar progress={progressOf(order.status)} label={t(`status_${order.status}`, humanize(order.status))} />
 
-      <div className="nb-line mt-auto flex flex-wrap items-center justify-between gap-3 border-t pt-3">
-        <div className="min-w-0">
-          <p className="nb-muted text-xs font-semibold"><span dir="ltr">{count}</span> {t('items', 'items')} · {payment}</p>
-          {hasValue(order.totalPrice) && <p className="text-xl font-extrabold tabular-nums">{order.totalPrice} <span className="nb-muted text-xs font-bold">EGP</span></p>}
-        </div>
-        <div className="flex gap-2">
-          <Btn tone="soft" onClick={() => onDetails(order)} className="px-3 py-2 text-xs"><FiInfo className="h-3.5 w-3.5" /> {t('details', 'Details')}</Btn>
-          {canCancel && <Btn tone="danger" onClick={() => onCancel(order.id)} className="px-3 py-2 text-xs"><FiXCircle className="h-3.5 w-3.5" /> {t('cancelOrder', 'Cancel order')}</Btn>}
+        <div className="nb-line flex flex-wrap items-center justify-between gap-3 border-t-2 pt-4">
+          <p className="nb-muted text-xs font-medium"><span dir="ltr">{count}</span> {t('items', 'items')}</p>
+          <div className="flex flex-wrap gap-2">
+            <Btn tone="soft" onClick={() => onDetails(order)} className="min-h-9 px-3.5 py-2 text-xs"><FiInfo className="h-3.5 w-3.5" /> {t('details', 'Details')}</Btn>
+            {canCancel && <Btn tone="danger" onClick={() => onCancel(order.id)} className="min-h-9 px-3.5 py-2 text-xs"><FiXCircle className="h-3.5 w-3.5" /> {t('cancelOrder', 'Cancel order')}</Btn>}
+          </div>
         </div>
       </div>
     </article>
@@ -424,7 +462,7 @@ const NbDropdown = memo(({ value, onChange, options, ariaLabel, className = '' }
         ref={btnRef} type="button" aria-label={ariaLabel} aria-haspopup="listbox" aria-expanded={isOpen} aria-controls={listId}
         aria-activedescendant={isOpen ? `${uid}-o${active}` : undefined}
         onClick={() => setIsOpen((o) => !o)} onKeyDown={onKeyDown}
-        className="nb-field nb-sel flex h-10 w-full cursor-pointer items-center justify-between gap-2 ps-3 pe-3 text-start text-xs font-bold"
+        className="nb-field nb-sel flex h-10 w-full cursor-pointer items-center justify-between gap-2 ps-3 pe-3 text-start text-xs font-semibold"
       >
         <span className="truncate">{current ? current.label : ''}</span>
         <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform duration-150 motion-reduce:transition-none ${isOpen ? 'rotate-180' : ''}`} />
@@ -432,7 +470,7 @@ const NbDropdown = memo(({ value, onChange, options, ariaLabel, className = '' }
       {isOpen && (
         <ul
           ref={listRef} id={listId} role="listbox" aria-label={ariaLabel} tabIndex={-1}
-          className="nb-menu nb-pop absolute start-0 top-full z-30 mt-2 max-h-64 min-w-full overflow-y-auto overscroll-contain py-1"
+          className="nb-menu nb-pop absolute start-0 top-full z-30 mt-3 max-h-64 min-w-full overflow-y-auto overscroll-contain py-1"
         >
           {options.map((o, i) => (
             <li
@@ -455,13 +493,13 @@ const EmptyIllustration = memo(({ searching }) => (
     <ellipse cx="160" cy="205" rx="92" ry="12" fill="var(--nb-line)" />
     <circle cx="160" cy="112" r="88" fill="var(--nb-gray)" />
     <g className="nb-float">
-      <path d="M92 118 160 94l68 24v62l-68 24-68-24z" fill="var(--nb-card)" stroke="var(--nb-line2)" strokeWidth="2" strokeLinejoin="round" />
-      <path d="M92 118 160 142l68-24" stroke="var(--nb-line2)" strokeWidth="2" strokeLinejoin="round" />
-      <path d="M160 142v62" stroke="var(--nb-line2)" strokeWidth="2" />
-      <path d="M92 118 126 100l68 24-34 18z" fill="var(--nb-gray)" stroke="var(--nb-line2)" strokeWidth="2" strokeLinejoin="round" />
-      <path d="M228 118 194 100 160 112" stroke="var(--nb-line2)" strokeWidth="2" strokeLinejoin="round" />
-      <path d="M138 152l22 8 22-8v22l-22 8-22-8z" fill="var(--nb-accent)" opacity=".18" />
-      <path d="M144 158l16 6 16-6" stroke="var(--nb-accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M92 118 160 94l68 24v62l-68 24-68-24z" fill="var(--nb-card)" stroke="var(--nb-bd)" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M92 118 160 142l68-24" stroke="var(--nb-bd)" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M160 142v62" stroke="var(--nb-bd)" strokeWidth="2" />
+      <path d="M92 118 126 100l68 24-34 18z" fill="var(--nb-gray)" stroke="var(--nb-bd)" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M228 118 194 100 160 112" stroke="var(--nb-bd)" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M138 152l22 8 22-8v22l-22 8-22-8z" fill="var(--nb-btn)" />
+      <path d="M144 158l16 6 16-6" stroke="var(--nb-on)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
     </g>
     {searching ? (
       <g className="nb-float-2">
@@ -471,18 +509,18 @@ const EmptyIllustration = memo(({ searching }) => (
       </g>
     ) : (
       <g className="nb-float-2">
-        <rect x="204" y="44" width="76" height="46" rx="14" fill="var(--nb-accent)" />
-        <path d="M222 90v16l16-16z" fill="var(--nb-accent)" />
+        <rect x="204" y="44" width="76" height="46" rx="14" fill="var(--nb-btn)" stroke="#000" strokeWidth="3" />
+        <path d="M222 90v16l16-16z" fill="var(--nb-btn)" stroke="#000" strokeWidth="3" strokeLinejoin="round" />
         <circle cx="228" cy="64" r="4" fill="var(--nb-on)" />
         <circle cx="256" cy="64" r="4" fill="var(--nb-on)" />
         <path d="M232 79q12-9 24 0" stroke="var(--nb-on)" strokeWidth="3.5" strokeLinecap="round" />
       </g>
     )}
-    <circle cx="70" cy="64" r="6" fill="var(--nb-accent)" opacity=".5" />
-    <circle cx="48" cy="140" r="4" fill="var(--nb-line2)" />
-    <circle cx="276" cy="168" r="5" fill="var(--nb-accent)" opacity=".35" />
+    <circle cx="70" cy="64" r="6" fill="var(--nb-btn)" />
+    <circle cx="48" cy="140" r="4" fill="var(--nb-bd)" />
+    <circle cx="276" cy="168" r="5" fill="var(--nb-btn)" />
     <path d="M82 36v14M75 43h14" stroke="var(--nb-accent)" strokeWidth="3" strokeLinecap="round" />
-    <path d="M262 132v10M257 137h10" stroke="var(--nb-line2)" strokeWidth="3" strokeLinecap="round" />
+    <path d="M262 132v10M257 137h10" stroke="var(--nb-bd)" strokeWidth="3" strokeLinecap="round" />
   </svg>
 ));
 
@@ -492,15 +530,15 @@ const FilterPanel = memo(({ filters, setFilters, counts, resultCount, active, on
   const toggle = (s) => setFilters((f) => ({ ...f, statuses: f.statuses.includes(s) ? f.statuses.filter((x) => x !== s) : [...f.statuses, s] }));
   const set = (k) => (e) => setFilters((f) => ({ ...f, [k]: e.target.value }));
   const setField = (k) => (v) => setFilters((f) => ({ ...f, [k]: v }));
-  const label = 'mb-1.5 block text-xs font-extrabold';
+  const label = 'mb-1.5 block text-xs font-bold';
   return (
     <div className="nb-card flex flex-col gap-5 p-4">
       <div>
         <label htmlFor={`${uid}-s`} className={label}>{t('search', 'Search')}</label>
         <div className="nb-field flex h-10 items-center gap-2 px-3">
-          <FiSearch aria-hidden="true" className="h-4 w-4 flex-shrink-0" />
-          <input id={`${uid}-s`} type="search" value={search} maxLength={60} onChange={set('search')} placeholder={t('searchProducts', 'Search products or order ID')}
-            className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60" />
+          <FiSearch aria-hidden="true" className="nb-ic h-4 w-4 flex-shrink-0" />
+          <input id={`${uid}-s`} type="search" value={search} maxLength={60} autoComplete="off" onChange={set('search')} placeholder={t('searchProducts', 'Search products or order ID')}
+            className="min-w-0 flex-1 bg-transparent text-base font-semibold outline-none placeholder:font-normal placeholder:opacity-70 sm:text-sm" />
         </div>
       </div>
       <div>
@@ -523,8 +561,8 @@ const FilterPanel = memo(({ filters, setFilters, counts, resultCount, active, on
           ))}
         </div>
       </fieldset>
-      <div className="nb-line flex items-center justify-between gap-3 border-t pt-3">
-        <p className="nb-muted text-[11px] font-bold" aria-live="polite">{resultCount} result{resultCount === 1 ? '' : 's'}</p>
+      <div className="nb-line flex items-center justify-between gap-3 border-t-2 pt-3">
+        <p className="nb-muted text-[11px] font-semibold" aria-live="polite">{resultCount} result{resultCount === 1 ? '' : 's'}</p>
         {active && <Btn tone="soft" onClick={onReset} className="h-9 px-3 text-xs"><FiRotateCcw className="h-3.5 w-3.5" /> {t('clear', 'Clear')}</Btn>}
       </div>
     </div>
@@ -532,53 +570,53 @@ const FilterPanel = memo(({ filters, setFilters, counts, resultCount, active, on
 });
 
 const OrderModal = memo(({ order, onClose, onPreview, t }) => {
-  const items = order.orderItems || [];
+  const items = order.orderItems || EMPTY_LIST;
   return (
     <Sheet onClose={onClose} size="sm:max-w-2xl" title={`ORD #${String(order.id).slice(0, 8).toUpperCase()}`}
       subtitle={hasValue(order.createdAt) ? fmtFull(order.createdAt) : undefined}
       footer={<div className="flex justify-end"><Btn tone="soft" onClick={onClose} className="px-6 py-2 text-sm">{t('close', 'Close')}</Btn></div>}>
       <div className="space-y-4">
-        <section className="nb-gray nb-line rounded-xl border p-3.5">
-          <h3 className="mb-3 flex items-center gap-2.5 text-xs font-extrabold">
-            <span aria-hidden="true" className="flex h-7 w-7 items-center justify-center rounded-full bg-sky-500 text-white"><FiTruck className="h-3.5 w-3.5" /></span>
+        <section className="nb-gray nb-line rounded-2xl border-2 p-3.5">
+          <h3 className="mb-3 flex items-center gap-2.5 text-xs font-bold">
+            <IconTile Icon={FiTruck} className="h-7 w-7" iconClassName="h-3.5 w-3.5" />
             <span className="min-w-0 flex-1 truncate">{t('status', 'Status')}</span>
             <StatusLabel status={order.status} t={t} />
           </h3>
           <ProgressBar progress={progressOf(order.status)} label={t(`status_${order.status}`, humanize(order.status))} />
           <div className="mt-3 grid grid-cols-2 gap-2">
             {hasValue(order.createdAt) && (
-              <div className="nb-line min-w-0 rounded-lg border bg-[color:var(--nb-card)] px-2.5 py-1.5">
-                <p className="nb-muted text-[10px] font-extrabold uppercase">{t('orderDate', 'Order date')}</p>
+              <div className="nb-line min-w-0 rounded-xl border-2 bg-[color:var(--nb-card)] px-2.5 py-1.5">
+                <p className="nb-muted text-[11px] font-semibold">{t('orderDate', 'Order date')}</p>
                 <p className="truncate text-sm font-bold">{fmtFull(order.createdAt)}</p>
               </div>
             )}
             {hasValue(order.paymentMethod) && (
-              <div className="nb-line min-w-0 rounded-lg border bg-[color:var(--nb-card)] px-2.5 py-1.5">
-                <p className="nb-muted text-[10px] font-extrabold uppercase">{t('paymentMethod', 'Payment method')}</p>
+              <div className="nb-line min-w-0 rounded-xl border-2 bg-[color:var(--nb-card)] px-2.5 py-1.5">
+                <p className="nb-muted text-[11px] font-semibold">{t('paymentMethod', 'Payment method')}</p>
                 <p className="truncate text-sm font-bold">{String(order.paymentMethod).replace('_', ' ')}</p>
               </div>
             )}
           </div>
         </section>
-        <section className="nb-gray nb-line rounded-xl border p-3.5">
-          <h3 className="mb-3 flex items-center gap-2.5 text-xs font-extrabold">
-            <span aria-hidden="true" className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-400 text-[#04261a]"><FiBox className="h-3.5 w-3.5" /></span>
+        <section className="nb-gray nb-line rounded-2xl border-2 p-3.5">
+          <h3 className="mb-3 flex items-center gap-2.5 text-xs font-bold">
+            <IconTile Icon={FiBox} className="h-7 w-7" iconClassName="h-3.5 w-3.5" />
             <span className="min-w-0 flex-1 truncate">{t('orderItems', 'Order items')}</span>
           </h3>
-          <ul className="nb-line divide-y divide-[color:var(--nb-line)] overflow-hidden rounded-lg border bg-[color:var(--nb-card)]">
+          <ul className="nb-line divide-y-2 divide-[color:var(--nb-line)] overflow-hidden rounded-xl border-2 bg-[color:var(--nb-card)]">
             {items.length === 0 ? <li className="nb-muted p-8 text-center text-sm">{t('noItems', 'No items')}</li> : items.map((it, i) => (
               <li key={it.id ?? i} className="flex items-center gap-3 p-3">
                 <ItemThumbButton item={it} onPreview={onPreview} className="w-16" />
                 <div className="min-w-0 flex-1">
                   <p className="line-clamp-2 text-sm font-bold leading-snug">{it.productName || '—'}</p>
-                  <p className="nb-muted truncate text-xs font-semibold">{it.shopName || '—'} · <span dir="ltr">{it.quantity} × EGP {Number(it.priceAtCheckout || 0).toFixed(2)}</span></p>
+                  <p className="nb-muted truncate text-xs font-medium">{it.shopName || '—'} · <span dir="ltr">{it.quantity} × EGP {Number(it.priceAtCheckout || 0).toFixed(2)}</span></p>
                 </div>
-                <b dir="ltr" className="flex-shrink-0 text-sm tabular-nums">EGP {round2((Number(it.priceAtCheckout) || 0) * (Number(it.quantity) || 0)).toFixed(2)}</b>
+                <b dir="ltr" className="flex-shrink-0 text-sm font-bold tabular-nums">EGP {round2((Number(it.priceAtCheckout) || 0) * (Number(it.quantity) || 0)).toFixed(2)}</b>
               </li>
             ))}
             <li className="nb-gray flex items-center justify-between p-3">
-              <span className="text-xs font-extrabold">{t('grandTotal', 'Grand total')}</span>
-              <b dir="ltr" className="text-lg tabular-nums">EGP {order.totalPrice ?? '—'}</b>
+              <span className="text-xs font-bold">{t('grandTotal', 'Grand total')}</span>
+              <b dir="ltr" className="text-lg font-bold tabular-nums">EGP {order.totalPrice ?? '—'}</b>
             </li>
           </ul>
         </section>
@@ -590,17 +628,59 @@ const OrderModal = memo(({ order, onClose, onPreview, t }) => {
 const ItemPreview = memo(({ item, onClose, t }) => (
   <Sheet onClose={onClose} size="sm:max-w-lg" title={item.productName || '—'} subtitle={`${item.quantity ?? 1} × EGP ${Number(item.priceAtCheckout || 0).toFixed(2)}`}
     footer={<div className="flex justify-end"><Btn tone="soft" onClick={onClose} className="px-6 py-2 text-sm">{t('close', 'Close')}</Btn></div>}>
-    <div className="overflow-hidden rounded-xl border border-[color:var(--nb-line)]">
+    <div className="nb-bd overflow-hidden rounded-2xl border-2">
       <ItemThumb src={item._img} name={item.productName} ratio="aspect-[4/3]" />
     </div>
   </Sheet>
 ));
 
-const Skeleton = () => (
-  <div className="space-y-4" aria-busy="true" role="status">
-    {[0, 1, 2].map((i) => <div key={i} className="nb-gray h-44 animate-pulse rounded-2xl motion-reduce:animate-none" />)}
+const StatCard = memo(({ Icon, label, value, index }) => (
+  <li style={STAGGER[index]} className="nb-in nb-card flex min-w-0 items-center gap-3 px-3.5 py-3">
+    <IconTile Icon={Icon} className="h-10 w-10" iconClassName="h-5 w-5" />
+    <div className="min-w-0">
+      <p className="nb-muted truncate text-[11px] font-semibold">{label}</p>
+      <p dir="ltr" className="text-xl font-bold leading-tight tabular-nums rtl:text-end">{value}</p>
+    </div>
+  </li>
+));
+
+const StatsSkeleton = memo(() => (
+  <div className="grid grid-cols-3 gap-3" aria-hidden="true">
+    {[0, 1, 2].map((i) => (
+      <div key={i} className="nb-card flex items-center gap-3 px-3.5 py-3">
+        <Sk className="h-10 w-10 flex-none !rounded-xl" />
+        <div className="min-w-0 flex-1 space-y-2"><Sk className="h-3 w-2/3" /><Sk className="h-5 w-1/3" /></div>
+      </div>
+    ))}
   </div>
-);
+));
+
+const OrderSkeleton = memo(() => (
+  <div className="nb-card overflow-hidden">
+    <div className="nb-band flex h-[68px] flex-wrap items-center justify-between gap-4 px-5 py-3">
+      <div className="flex gap-8"><Sk className="h-8 w-24 !bg-black/10" /><Sk className="h-8 w-20 !bg-black/10" /><Sk className="hidden h-8 w-24 !bg-black/10 sm:block" /></div>
+      <Sk className="h-8 w-28 !bg-black/10" />
+    </div>
+    <div className="space-y-4 p-5">
+      <div className="grid gap-3 sm:grid-cols-2">
+        {[0, 1].map((i) => (
+          <div key={i} className="flex items-center gap-3">
+            <Sk className="h-16 w-16 flex-none !rounded-xl" />
+            <div className="min-w-0 flex-1 space-y-2"><Sk className="h-4 w-4/5" /><Sk className="h-3 w-1/2" /><Sk className="h-3 w-1/3" /></div>
+          </div>
+        ))}
+      </div>
+      <Sk className="h-6 w-full" />
+      <div className="flex justify-end gap-2"><Sk className="h-9 w-24" /><Sk className="h-9 w-28" /></div>
+    </div>
+  </div>
+));
+
+const ListSkeleton = memo(() => (
+  <div className="space-y-4" aria-busy="true" role="status" aria-label="Loading">
+    {SK_ROWS.map((i) => <OrderSkeleton key={i} />)}
+  </div>
+));
 
 const INITIAL_FILTERS = { search: '', period: 'all', statuses: [], sort: 'newest' };
 
@@ -610,8 +690,8 @@ const MyOrdersContent = ({ darkMode = false }) => {
   const language = useAppLanguage();
   const t = useCallback((k, fallback) => tr(language, k, fallback), [language]);
   const { dlg, ask, settle, close: closeConfirm } = useConfirmDialog();
+  const token = useAuthGuard();
 
-  const [token, setToken] = useState(null);
   const [filters, setFilters] = useState(INITIAL_FILTERS);
   const [page, setPage] = useState(1);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -622,30 +702,21 @@ const MyOrdersContent = ({ darkMode = false }) => {
 
   useEffect(() => { document.title = 'My Orders | Tech-Restore'; }, []);
 
-  useEffect(() => {
-    const tk = localStorage.getItem('authToken');
-    let ok = false;
-    try {
-      const d = tk && jwtDecode(tk);
-      ok = !!(d && d.exp && d.exp > Date.now() / 1000);
-    } catch { ok = false; }
-    if (!ok) {
-      localStorage.removeItem('authToken');
-      navigate('/login', { replace: true });
-    } else setToken(tk);
-  }, [navigate]);
+  const cfg = useMemo(() => ({ headers: authHeaders() }), [token]);
 
-  const cfg = useMemo(() => ({ headers: { Authorization: `Bearer ${token}` } }), [token]);
-
-  const { data: orders = [], isLoading, isError, refetch } = useQuery({
+  const { data: orders = EMPTY_LIST, isLoading, isError, refetch } = useQuery({
+    ...QUERY_OPTS,
     queryKey: ['orders'],
     queryFn: async ({ signal }) => unwrap(await api.get('/api/users/orders', { ...cfg, signal })),
     enabled: !!token,
+    staleTime: 30_000,
+    retry: shouldRetry,
     refetchInterval: POLL_MS,
     refetchIntervalInBackground: false,
   });
 
   const { data: imageMap = EMPTY_MAP } = useQuery({
+    ...QUERY_OPTS,
     queryKey: ['productImages'],
     queryFn: async ({ signal }) => {
       const res = await api.get('/api/products', { ...cfg, signal });
@@ -671,6 +742,8 @@ const MyOrdersContent = ({ darkMode = false }) => {
     enriched.forEach((o) => { m[o.status] = (m[o.status] || 0) + 1; });
     return m;
   }, [enriched]);
+
+  const inProgress = useMemo(() => enriched.reduce((n, o) => n + (FINAL.has(o.status) ? 0 : 1), 0), [enriched]);
 
   const filtered = useMemo(() => {
     const term = deferredSearch.trim().toLowerCase();
@@ -699,9 +772,10 @@ const MyOrdersContent = ({ darkMode = false }) => {
   const active = filters.search !== '' || filters.period !== 'all' || filters.statuses.length > 0 || filters.sort !== 'newest';
   const reset = useCallback(() => setFilters(INITIAL_FILTERS), []);
   const selectedOrder = useMemo(() => (selectedId ? enriched.find((o) => o.id === selectedId) || null : null), [selectedId, enriched]);
+  const loading = isLoading || !token;
 
   const cancelOrder = useCallback(async (id) => {
-    if (cancellingRef.current.has(id)) return;
+    if (!ID_RE.test(String(id)) || cancellingRef.current.has(id)) return;
     cancellingRef.current.add(id);
     try {
       const ok = await ask({
@@ -712,9 +786,9 @@ const MyOrdersContent = ({ darkMode = false }) => {
       try {
         await api.delete(`/api/users/orders/${encodeURIComponent(id)}/cancel`, cfg);
         qc.setQueryData(['orders'], (o = []) => o.map((x) => (x.id === id ? { ...x, status: 'CANCELLED' } : x)));
-        toast({ icon: 'success', title: 'Order cancelled' });
+        toast({ icon: 'success', title: 'Order cancelled', timer: 2500 });
       } catch (err) {
-        toast({ icon: 'error', title: 'Failed to cancel order', text: friendlyError(err, "We couldn't cancel this order right now. Its status has not changed. Please try again.") });
+        toast({ icon: 'error', title: friendlyError(err, "We couldn't cancel this order. Please try again."), timer: 3500 });
       } finally {
         qc.invalidateQueries({ queryKey: ['orders'] });
       }
@@ -734,21 +808,21 @@ const MyOrdersContent = ({ darkMode = false }) => {
   );
 
   let content;
-  if (isLoading || !token) content = <Skeleton />;
+  if (loading) content = <ListSkeleton />;
   else if (isError) {
     content = (
-      <div className="nb-card flex flex-col items-center gap-3 px-4 py-14 text-center" role="alert">
-        <p className="text-lg font-extrabold">Could not load your orders</p>
-        <p className="nb-muted max-w-sm text-sm font-medium">Check your connection and try again.</p>
+      <div className="nb-dot flex flex-col items-center gap-3 rounded-2xl border-[3px] border-dashed border-[color:var(--nb-line2)] bg-[color:var(--nb-card)] px-4 py-14 text-center" role="alert">
+        <p className="text-lg font-bold">Could not load your orders</p>
+        <p className="nb-muted max-w-sm text-sm font-normal">Check your connection and try again.</p>
         <Btn onClick={() => refetch()} className="px-4 py-2 text-sm"><FiRotateCcw className="h-4 w-4" /> Try again</Btn>
       </div>
     );
   } else if (filtered.length === 0) {
     content = (
-      <div className="nb-card flex flex-col items-center gap-3 px-4 py-12 text-center">
+      <div className="nb-in flex flex-col items-center gap-3 rounded-2xl border-[3px] border-dashed border-[color:var(--nb-line2)] bg-[color:var(--nb-card)] px-4 py-12 text-center">
         <EmptyIllustration searching={active} />
-        <p className="text-lg font-extrabold">{active ? 'No orders match these filters' : t('noOrders', 'No orders yet')}</p>
-        <p className="nb-muted max-w-sm text-sm font-medium">{active ? 'Try a different period or clear the filters.' : t('ordersHint', 'Your orders will show up here once you place one.')}</p>
+        <p className="text-lg font-bold">{active ? 'No orders match these filters' : t('noOrders', 'No orders yet')}</p>
+        <p className="nb-muted max-w-sm text-sm font-normal">{active ? 'Try a different period or clear the filters.' : t('ordersHint', 'Your orders will show up here once you place one.')}</p>
         {active
           ? <Btn tone="soft" onClick={reset} className="px-4 py-2 text-sm"><FiRotateCcw className="h-4 w-4" /> {t('clear', 'Clear')}</Btn>
           : <Btn onClick={goShop} className="px-5 py-2.5 text-sm"><FiShoppingBag className="h-4 w-4" /> {t('startShopping', 'Start shopping')}</Btn>}
@@ -757,8 +831,8 @@ const MyOrdersContent = ({ darkMode = false }) => {
   } else {
     content = (
       <>
-        <div className="space-y-4">
-          {pageItems.map((o) => <OrderRow key={o.id} order={o} t={t} onDetails={openDetails} onCancel={cancelOrder} onPreview={openPreview} />)}
+        <div className="space-y-6">
+          {pageItems.map((o, i) => <OrderRow key={o.id} order={o} index={i} t={t} onDetails={openDetails} onCancel={cancelOrder} onPreview={openPreview} />)}
         </div>
         <Pagination page={current} total={totalPages} onChange={setPage} t={t} />
       </>
@@ -766,26 +840,35 @@ const MyOrdersContent = ({ darkMode = false }) => {
   }
 
   return (
-    <div dir={languageDirection(language)} lang={language} className={`nb ${darkMode ? 'nb-dark' : ''} min-h-screen overflow-x-clip ${language === 'ar' ? 'font-cairo' : 'font-jakarta'}`}>
-      {STYLE_EL}
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
-        <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
-            <button type="button" onClick={goBack} className="nb-focus nb-muted mb-2 flex items-center gap-1.5 rounded text-xs font-bold hover:underline">
-              <FiArrowLeft className="nb-flip h-3.5 w-3.5" /> {t('myAccount', 'My account')}
-            </button>
-            <h1 className="text-3xl font-extrabold leading-[1.2] tracking-[-0.02em] rtl:tracking-normal sm:text-4xl">{t('orders', 'Orders')}</h1>
+    <div dir={languageDirection(language)} lang={language} className={`nb ${darkMode ? 'nb-dark' : ''} min-h-screen overflow-x-clip`}>
+      <Toaster darkMode={darkMode} />
+      <div className="mx-auto max-w-7xl px-4 pb-28 pt-36 sm:px-6 md:pb-14 md:pt-32 lg:px-8">
+        <header className="mb-8 space-y-5">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="min-w-0">
+              <button type="button" onClick={goBack} className="nb-focus nb-muted mb-2 flex items-center gap-1.5 rounded text-xs font-semibold hover:underline">
+                <FiArrowLeft className="nb-flip h-3.5 w-3.5" /> {t('myAccount', 'My account')}
+              </button>
+              <h1 className="text-2xl font-bold tracking-tight rtl:tracking-normal sm:text-3xl"><span className="nb-hl">{t('orders', 'Orders')}</span></h1>
+            </div>
+            <Btn tone="soft" onClick={toggleFilters} aria-expanded={filtersOpen} aria-controls="orders-filters" className="h-10 px-3 text-xs lg:hidden">
+              <FiFilter className="h-3.5 w-3.5" /> {t('filters', 'Filters')}{active ? ' •' : ''}
+            </Btn>
           </div>
-          <Btn tone="soft" onClick={toggleFilters} aria-expanded={filtersOpen} aria-controls="orders-filters" className="h-10 px-3 text-xs lg:hidden">
-            <FiFilter className="h-3.5 w-3.5" /> {t('filters', 'Filters')}{active ? ' •' : ''}
-          </Btn>
+          {loading ? <StatsSkeleton /> : (
+            <ul className="grid grid-cols-3 gap-3">
+              <StatCard index={0} Icon={FiShoppingBag} label={t('allOrders', 'All orders')} value={enriched.length} />
+              <StatCard index={1} Icon={FiClock} label={t('inProgress', 'In progress')} value={inProgress} />
+              <StatCard index={2} Icon={FiCheck} label={t('status_DELIVERED', 'Delivered')} value={counts.DELIVERED || 0} />
+            </ul>
+          )}
         </header>
 
         {filtersOpen && <div id="orders-filters" className="mb-6 lg:hidden">{filterPanel}</div>}
 
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] xl:grid-cols-[minmax(0,1fr)_20rem]">
           <main className="min-w-0">{content}</main>
-          <aside aria-label={t('filters', 'Filters')} className="sticky top-20 hidden max-h-[calc(100vh-6rem)] overflow-y-auto overscroll-contain lg:block">{filterPanel}</aside>
+          <aside aria-label={t('filters', 'Filters')} className="sticky top-32 hidden max-h-[calc(100vh-9rem)] overflow-y-auto overscroll-contain p-2 -m-2 lg:block">{filterPanel}</aside>
         </div>
       </div>
 
@@ -798,6 +881,7 @@ const MyOrdersContent = ({ darkMode = false }) => {
 
 MyOrdersContent.displayName = 'MyOrdersContent';
 
+export { queryClient };
 export default function MyOrders(props) {
   return (
     <QueryClientProvider client={queryClient}>
